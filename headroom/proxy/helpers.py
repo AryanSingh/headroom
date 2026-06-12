@@ -616,8 +616,9 @@ _rtk_stats_cache_lock = _context_tool_stats_cache_lock
 _rtk_stats_cache = _context_tool_stats_cache
 _rtk_session_baseline = _context_tool_session_baseline
 
-# Maximum request body size (100MB - increased to support image-heavy requests)
-MAX_REQUEST_BODY_SIZE = 100 * 1024 * 1024
+# Maximum request body size (50MB default — reduced for safer memory usage;
+# configurable via HEADROOM_MAX_BODY_MB env var).
+MAX_REQUEST_BODY_SIZE = 50 * 1024 * 1024
 
 # Maximum SSE buffer size (10MB - prevents memory exhaustion from malformed streams)
 MAX_SSE_BUFFER_SIZE = 10 * 1024 * 1024

@@ -1868,14 +1868,57 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 _upstream_check_cache["error"] = str(exc)
             _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
 
-    # CORS
+    # CORS — configurable origins, default closed (empty list).
+    # Set HEADROOM_CORS_ORIGINS="*" for dev, or explicit origins for production.
+    _cors_origins = getattr(config, "cors_origins", None) or []
+    if "*" in _cors_origins:
+        _cors_allow_origins = ["*"]
+        _cors_allow_credentials = True
+    else:
+        _cors_allow_origins = _cors_origins
+        _cors_allow_credentials = bool(_cors_origins)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=_cors_allow_origins,
+        allow_credentials=_cors_allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # API versioning header — every response gets X-Headroom-Version so
+    # clients and load balancers can verify which proxy version is serving.
+    @app.middleware("http")
+    async def _add_version_header(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Headroom-Version"] = __version__
+        return response
+
+    # Admin API key authentication for sensitive endpoints.
+    # When admin_api_key is configured, /dashboard, /stats, /stats-reset,
+    # /stats-history, and /transformations/feed require a valid key.
+    # Accepts: Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>
+    # When not configured, endpoints are open (backward-compatible default).
+    _admin_api_key = getattr(config, "admin_api_key", None)
+
+    async def _require_admin_auth(request: Request):
+        """Dependency that gates endpoints behind admin API key auth."""
+        if not _admin_api_key:
+            return  # No key configured — open access (backward-compatible)
+        # Check Authorization header: Bearer <key>
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if token == _admin_api_key:
+                return
+        # Check X-Headroom-Admin-Key header
+        admin_header = request.headers.get("x-headroom-admin-key", "")
+        if admin_header == _admin_api_key:
+            return
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing admin API key. "
+            "Set Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>.",
+        )
 
     # X-Headroom-Stack: SDK adapters (TS openai/anthropic/etc.) tag their
     # requests so telemetry can segment by integration surface. Registered
@@ -2048,7 +2091,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         payload["runtime"] = _runtime_payload()
         return JSONResponse(status_code=200, content=payload)
 
-    @app.get("/dashboard", response_class=HTMLResponse)
+    @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth)])
     async def dashboard():
         """Serve the Headroom dashboard UI."""
         return get_dashboard_html()
@@ -2494,7 +2537,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             _stats_snapshot["expires_at"] = time.monotonic() + DASHBOARD_STATS_CACHE_TTL_SECONDS
             return payload
 
-    @app.get("/stats")
+    @app.get("/stats", dependencies=[Depends(_require_admin_auth)])
     async def stats(cached: bool = False):
         """Get comprehensive proxy statistics.
 
@@ -2514,7 +2557,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return await _get_cached_stats_payload()
         return await _build_stats_payload()
 
-    @app.post("/stats/reset", dependencies=[Depends(_require_loopback)])
+    @app.post("/stats/reset", dependencies=[Depends(_require_loopback), Depends(_require_admin_auth)])
     async def stats_reset():
         """Reset in-memory proxy stats for local test/debug isolation."""
         await proxy.metrics.reset_runtime()
@@ -2526,7 +2569,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             _stats_snapshot["expires_at"] = 0.0
         return JSONResponse(status_code=200, content={"status": "reset"})
 
-    @app.get("/stats-history")
+    @app.get("/stats-history", dependencies=[Depends(_require_admin_auth)])
     async def stats_history(
         format: Literal["json", "csv"] = "json",
         series: Literal["history", "hourly", "daily", "weekly", "monthly"] = "history",
@@ -2543,7 +2586,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
-    @app.get("/transformations/feed")
+    @app.get("/transformations/feed", dependencies=[Depends(_require_admin_auth)])
     async def transformations_feed(limit: int = 20):
         """Get recent message transformations for the live feed.
 
@@ -3578,6 +3621,27 @@ if __name__ == "__main__":
     parser.add_argument("--no-cache", action="store_true", help="Disable caching")
     parser.add_argument("--cache-ttl", type=int, default=3600, help="Cache TTL seconds")
 
+    # Security & admin
+    parser.add_argument(
+        "--admin-api-key",
+        default=None,
+        help="Admin API key for /dashboard, /stats, /stats-reset, /transformations/feed. "
+        "Also settable via HEADROOM_ADMIN_API_KEY env var.",
+    )
+    parser.add_argument(
+        "--cors-origins",
+        default=None,
+        help="Comma-separated CORS allowed origins. Empty = closed. '*' = open. "
+        "Also settable via HEADROOM_CORS_ORIGINS env var.",
+    )
+    parser.add_argument(
+        "--max-body-mb",
+        type=int,
+        default=50,
+        help="Maximum request body size in MB for compression (default: 50). "
+        "Bodies larger are forwarded unchanged. Also settable via HEADROOM_MAX_BODY_MB.",
+    )
+
     # Rate limiting
     parser.add_argument("--no-rate-limit", action="store_true", help="Disable rate limiting")
     parser.add_argument("--rpm", type=int, default=60, help="Requests per minute")
@@ -3633,6 +3697,10 @@ if __name__ == "__main__":
     # Parse extra never-compress tools from CLI and env var
     exclude_tools = _parse_exclude_tools(args.exclude_tools)
 
+    # Parse CORS origins from CLI or env
+    _cors_raw = args.cors_origins or os.environ.get("HEADROOM_CORS_ORIGINS", "")
+    _cors_origins_list = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else []
+
     config = ProxyConfig(
         host=_get_env_str("HEADROOM_HOST", args.host),
         port=_get_env_int("HEADROOM_PORT", args.port),
@@ -3669,6 +3737,10 @@ if __name__ == "__main__":
         mode=normalize_proxy_mode(_get_env_str("HEADROOM_MODE", PROXY_MODE_TOKEN)),
         compress_user_messages=args.compress_user_messages
         or _get_env_bool("HEADROOM_COMPRESS_USER_MESSAGES", False),
+        # Security
+        admin_api_key=args.admin_api_key or os.environ.get("HEADROOM_ADMIN_API_KEY"),
+        cors_origins=_cors_origins_list,
+        max_body_mb=_get_env_int("HEADROOM_MAX_BODY_MB", args.max_body_mb),
     )
 
     # Get worker and concurrency settings

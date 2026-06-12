@@ -288,6 +288,25 @@ class ProxyConfig:
     # CLI: --entitlement-tier <tier>. Env: HEADROOM_ENTITLEMENT_TIER=<tier>.
     entitlement_tier: str | None = None
 
+    # Admin API key — gates /dashboard, /stats, /stats-reset, /transformations/feed.
+    # When set, requests must include `Authorization: Bearer <admin_api_key>` or
+    # `X-Headroom-Admin-Key: <admin_api_key>` header. When None, these endpoints
+    # are open (backward-compatible default). Env: HEADROOM_ADMIN_API_KEY.
+    admin_api_key: str | None = None
+
+    # CORS — comma-separated list of allowed origins. Defaults to empty list
+    # (closed — no cross-origin requests allowed). Set to "*" to allow all
+    # origins (not recommended for production). Env: HEADROOM_CORS_ORIGINS.
+    # Examples:
+    #   HEADROOM_CORS_ORIGINS="https://app.example.com,https://staging.example.com"
+    #   HEADROOM_CORS_ORIGINS="*"  # open (dev only)
+    cors_origins: list[str] = field(default_factory=list)
+
+    # Maximum request body size in MB for the compression path.
+    # Bodies larger than this are forwarded unchanged. Env: HEADROOM_MAX_BODY_MB.
+    # Default: 50MB (reduced from 100MB for safer memory usage).
+    max_body_mb: int = 50
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

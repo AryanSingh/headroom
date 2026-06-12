@@ -1,0 +1,375 @@
+openapi: 3.1.0
+info:
+  title: Headroom Management API
+  description: |
+    Management and observability endpoints for the Headroom context compression proxy.
+    
+    These endpoints are served by the Python management layer alongside the Rust
+    reverse proxy. They require admin API key authentication when configured.
+    
+    **Authentication:** When `HEADROOM_ADMIN_API_KEY` is set, all management
+    endpoints require either:
+    - `Authorization: Bearer <admin-api-key>` header
+    - `X-Headroom-Admin-Key: <admin-api-key>` header
+    
+    When no admin API key is configured, endpoints are open (backward-compatible).
+  version: "0.25.0"
+  contact:
+    name: Headroom Labs
+    email: hello@headroomlabs.ai
+    url: https://headroomlabs.ai
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://proxy.headroomlabs.ai
+    description: Cloud proxy
+
+security:
+  - BearerAuth: []
+  - AdminKeyHeader: []
+
+tags:
+  - name: Health
+    description: Liveness, readiness, and startup probes
+  - name: Observability
+    description: Metrics, statistics, and transformation feed
+  - name: Admin
+    description: Administrative operations (stats reset)
+
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: |
+        Combined liveness and startup probe. Returns 200 when the proxy
+        is alive and has finished initialization. Use as both liveness
+        and startup probe in Kubernetes.
+      operationId: healthz
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Unhealthy
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness check
+      description: |
+        Returns 200 when the proxy is ready to accept traffic.
+        Use as the readiness probe in Kubernetes.
+      operationId: readyz
+      security: []
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Not ready
+
+  /livez:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      description: |
+        Returns 200 when the proxy process is alive.
+        Use as the liveness probe in Kubernetes.
+      operationId: livez
+      security: []
+      responses:
+        "200":
+          description: Alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Dead
+
+  /dashboard:
+    get:
+      tags: [Admin]
+      summary: Web dashboard
+      description: |
+        Returns the HTML dashboard page showing real-time compression
+        statistics, savings, and transformation feed.
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Dashboard HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized (admin API key required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats:
+    get:
+      tags: [Observability]
+      summary: Get statistics
+      description: |
+        Returns current proxy statistics including compression ratio,
+        total requests, tokens saved, error rates, and CCR metrics.
+      operationId: getStats
+      responses:
+        "200":
+          description: Statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats/reset:
+    post:
+      tags: [Admin]
+      summary: Reset statistics
+      description: |
+        Resets all accumulated statistics to zero. Requires admin API key
+        AND loopback access (localhost only). This is a destructive operation.
+      operationId: resetStats
+      responses:
+        "200":
+          description: Statistics reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden (not from loopback)
+
+  /stats-history:
+    get:
+      tags: [Observability]
+      summary: Statistics history
+      description: |
+        Returns historical statistics data points for time-series
+        visualization. Data is sampled at regular intervals.
+      operationId: getStatsHistory
+      parameters:
+        - name: interval
+          in: query
+          description: Sampling interval (e.g., "1m", "5m", "1h")
+          schema:
+            type: string
+            default: "5m"
+        - name: limit
+          in: query
+          description: Maximum number of data points
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        "200":
+          description: Statistics history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsHistoryResponse"
+        "401":
+          description: Unauthorized
+
+  /transformations/feed:
+    get:
+      tags: [Observability]
+      summary: Live transformation feed
+      description: |
+        Returns a stream of recent compression transformations. Each entry
+        shows the original content, compressed content, strategy used, and
+        token savings. Useful for debugging and monitoring compression quality.
+      operationId: getTransformationFeed
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of recent transformations
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        "200":
+          description: Transformation entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransformationFeedResponse"
+        "401":
+          description: Unauthorized
+
+  /metrics:
+    get:
+      tags: [Observability]
+      summary: Prometheus metrics
+      description: |
+        Returns metrics in Prometheus exposition format. No authentication
+        required. Configure Prometheus to scrape this endpoint.
+      operationId: getMetrics
+      security: []
+      responses:
+        "200":
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Admin API key as Bearer token
+    AdminKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Headroom-Admin-Key
+      description: Admin API key in custom header
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        service:
+          type: string
+          example: "headroom-proxy"
+        status:
+          type: string
+          example: "healthy"
+        alive:
+          type: boolean
+          example: true
+        version:
+          type: string
+          example: "0.25.0"
+        timestamp:
+          type: string
+          format: date-time
+        uptime_seconds:
+          type: number
+          format: double
+
+    StatsResponse:
+      type: object
+      properties:
+        compression_enabled:
+          type: boolean
+        compression_mode:
+          type: string
+        total_requests:
+          type: integer
+        total_tokens_requested:
+          type: integer
+        total_tokens_saved:
+          type: integer
+        compression_ratio:
+          type: number
+          format: double
+          description: "Average compression ratio (0.0 - 1.0)"
+        requests_by_auth_mode:
+          type: object
+          additionalProperties:
+            type: integer
+        error_count:
+          type: integer
+        ccr_store_size:
+          type: integer
+          description: "Number of entries in the CCR cache"
+        ccr_hits:
+          type: integer
+        ccr_misses:
+          type: integer
+        savings_history_available:
+          type: boolean
+        license_status:
+          type: string
+          enum: [active, trial, expired, none]
+        uptime_seconds:
+          type: number
+
+    StatsHistoryResponse:
+      type: object
+      properties:
+        interval:
+          type: string
+        data_points:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              compression_ratio:
+                type: number
+              tokens_saved:
+                type: integer
+              requests:
+                type: integer
+
+    TransformationFeedResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              strategy:
+                type: string
+                description: "Compression strategy used"
+              original_tokens:
+                type: integer
+              compressed_tokens:
+                type: integer
+              savings_pct:
+                type: number
+              content_type:
+                type: string
+
+    ResetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        reset_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        status_code:
+          type: integer

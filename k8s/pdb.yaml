@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: headroom-proxy
+  namespace: headroom
+  labels:
+    app.kubernetes.io/name: headroom-proxy
+    app.kubernetes.io/component: proxy
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headroom-proxy
+      app.kubernetes.io/component: proxy

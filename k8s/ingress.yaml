@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: headroom-proxy
+  namespace: headroom
+  labels:
+    app.kubernetes.io/name: headroom-proxy
+    app.kubernetes.io/component: proxy
+  annotations:
+    # Replace with your ingress controller annotations
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - headroom.example.com
+      secretName: headroom-tls
+  rules:
+    - host: headroom.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: headroom-proxy
+                port:
+                  number: 80

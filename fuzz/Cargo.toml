@@ -1,0 +1,34 @@
+[package]
+name = "headroom-fuzz"
+version = "0.0.0"
+authors = ["Headroom Labs"]
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+
+[dependencies.headroom-core]
+path = "../crates/headroom-core"
+
+[[bin]]
+name = "fuzz_smart_crusher"
+path = "fuzz_targets/fuzz_smart_crusher.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_live_zone_anthropic"
+path = "fuzz_targets/fuzz_live_zone_anthropic.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_diff_compressor"
+path = "fuzz_targets/fuzz_diff_compressor.rs"
+test = false
+doc = false

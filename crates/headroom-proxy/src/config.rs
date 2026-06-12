@@ -207,7 +207,9 @@ pub struct CliArgs {
     pub upstream_connect_timeout: Duration,
 
     /// Max body size for buffered cases (does NOT bound streaming bodies).
-    #[arg(long, default_value = "100MB", value_parser = parse_bytes)]
+    /// Reduced from 100MB to 50MB to limit memory pressure from
+    /// image-heavy or adversarial requests.
+    #[arg(long, default_value = "50MB", value_parser = parse_bytes)]
     pub max_body_bytes: u64,
 
     /// Log level / filter (RUST_LOG-style). Default: info.
