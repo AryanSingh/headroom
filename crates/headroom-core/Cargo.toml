@@ -107,6 +107,25 @@ toml = "0.8"
 # hex via `headroom/ccr/tool_injection.py` regex. Pure-Rust by default,
 # no system dep, no SIMD-feature-gated flag (the crate auto-detects).
 blake3 = "1"
+# `base64` for encoding/decoding base64 image/audio payloads in multimodal
+# compression. Used by ImageCompressor and AudioCompressor to decode the
+# base64 data-URI payloads sent by LLM clients and re-encode compressed
+# results. The `engine::general_purpose::STANDARD` engine matches the
+# base64 variant used by OpenAI/Anthropic multimodal APIs.
+base64 = "0.22"
+# `image` for local downsampling of base64-encoded images. Replaces
+# high-res images (often 50-200KB each) with 256x256 thumbnails to
+# drastically reduce token cost. Nearest-neighbor filter chosen for
+# speed over quality — the LLM only needs a rough visual, not pixel-perfect.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
+# `symphonia` for audio decoding in AudioCompressor. Supports MP3, AAC,
+# FLAC, WAV, and OGG without system FFmpeg. Used to decode base64-encoded
+# audio payloads, downsample to 8kHz mono, and re-encode as WAV.
+symphonia = { version = "0.5", default-features = false, features = ["pcm", "mp3", "isomp4", "aac", "wav"] }
+# `hound` for WAV encoding in AudioCompressor. Writes 8kHz mono 16-bit
+# PCM WAV files from decoded audio samples. Lightweight pure-Rust WAV
+# writer with no system dependencies.
+hound = "3.5"
 # `rusqlite` for the SQLite-backed CCR store (the production default).
 # `bundled` builds SQLite from source so deploys do not need a system
 # libsqlite3 — matters for Lambda / container builds where the host

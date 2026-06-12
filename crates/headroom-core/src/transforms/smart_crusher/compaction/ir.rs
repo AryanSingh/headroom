@@ -26,6 +26,12 @@ use serde_json::Value;
 pub enum OpaqueKind {
     /// Looks base64-encoded — long, restricted alphabet.
     Base64Blob,
+    /// Image data-URI or raw base64 identified as an image by magic bytes.
+    /// Routed through `compress_image` for downsampling + CCR.
+    ImageBlob,
+    /// Audio data-URI or raw base64 identified as audio.
+    /// Routed through `compress_audio` for downsampling + CCR.
+    AudioBlob,
     /// Long opaque string the classifier couldn't otherwise place.
     LongString,
     /// HTML/XML chunk (detected by `<` density).

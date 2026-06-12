@@ -17,9 +17,11 @@
 
 pub mod adaptive_sizer;
 pub mod anchor_selector;
+pub mod audio_compressor;
 pub mod content_detector;
 pub mod detection;
 pub mod diff_compressor;
+pub mod image_compressor;
 pub mod live_zone;
 pub mod log_compressor;
 pub mod magika_detector;
@@ -31,6 +33,7 @@ pub mod smart_crusher;
 pub mod tag_protector;
 pub mod unidiff_detector;
 
+pub use audio_compressor::{compress_audio, looks_like_audio_base64, AudioCompressError};
 pub use content_detector::{
     detect_content_type, is_json_array_of_dicts, ContentType, DetectionResult,
 };
@@ -43,6 +46,10 @@ pub use live_zone::{
     compress_openai_responses_live_zone, summarize_openai_responses_no_change_reason, AuthMode,
     BlockAction, BlockOutcome, CompressionManifest, ExclusionReason, LiveZoneError,
     LiveZoneOutcome,
+};
+pub use image_compressor::{
+    compress_image, extract_image_mime, looks_like_image_base64, strip_data_uri_prefix,
+    ImageCompressError,
 };
 pub use log_compressor::{
     LogCompressionResult, LogCompressor, LogCompressorConfig, LogCompressorStats, LogFormat,

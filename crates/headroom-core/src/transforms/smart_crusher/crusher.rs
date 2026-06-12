@@ -969,6 +969,8 @@ fn opaque_kind_label(kind: &super::compaction::OpaqueKind) -> &str {
     use super::compaction::OpaqueKind;
     match kind {
         OpaqueKind::Base64Blob => "base64",
+        OpaqueKind::ImageBlob => "image",
+        OpaqueKind::AudioBlob => "audio",
         OpaqueKind::LongString => "string",
         OpaqueKind::HtmlChunk => "html",
         OpaqueKind::Other(s) => s.as_str(),

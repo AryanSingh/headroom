@@ -38,6 +38,8 @@ use super::compactor::{compact, CompactConfig};
 use super::formatter::{CsvSchemaFormatter, Formatter};
 use super::ir::OpaqueKind;
 use crate::ccr::CcrStore;
+use crate::transforms::audio_compressor::{compress_audio, looks_like_audio_base64};
+use crate::transforms::image_compressor::{compress_image, looks_like_image_base64};
 
 use sha2::{Digest, Sha256};
 
@@ -137,11 +139,52 @@ fn walk_string(s: String, ctx: &DocumentCompactor) -> Value {
         };
     }
 
-    // Long opaque blob: substitute with CCR marker (and stash the
-    // original in the store if one is configured, so retrieval works).
+    // Long opaque blob: classify, then route image/audio through
+    // multimodal compressors for aggressive downsampling + CCR.
     if let CellClass::Opaque(kind) = classify_cell(&Value::String(s.clone()), &ctx.config.classify)
     {
-        return Value::String(emit_opaque_ccr_marker(&s, &kind, ctx.ccr_store.as_ref()));
+        let effective_kind = match kind {
+            OpaqueKind::Base64Blob => {
+                // Further classify: image data-URIs or raw base64 images
+                // get routed through compress_image for downsampling.
+                if looks_like_image_base64(&s) {
+                    OpaqueKind::ImageBlob
+                } else if looks_like_audio_base64(&s) {
+                    OpaqueKind::AudioBlob
+                } else {
+                    OpaqueKind::Base64Blob
+                }
+            }
+            other => other,
+        };
+
+        // Route image/audio through their compressors when a CCR store
+        // is available (compressors need it to store originals).
+        match effective_kind {
+            OpaqueKind::ImageBlob => {
+                if let Some(store) = &ctx.ccr_store {
+                    match compress_image(&s, Some(store.as_ref())) {
+                        Ok(compressed) => return Value::String(compressed),
+                        Err(_) => {
+                            // Fall through to generic CCR marker on failure.
+                        }
+                    }
+                }
+            }
+            OpaqueKind::AudioBlob => {
+                if let Some(store) = &ctx.ccr_store {
+                    match compress_audio(&s, Some(store.as_ref())) {
+                        Ok(compressed) => return Value::String(compressed),
+                        Err(_) => {
+                            // Fall through to generic CCR marker on failure.
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        return Value::String(emit_opaque_ccr_marker(&s, &effective_kind, ctx.ccr_store.as_ref()));
     }
 
     Value::String(s)
@@ -186,6 +229,8 @@ pub fn emit_opaque_ccr_marker(
     }
     let kind_str = match kind {
         OpaqueKind::Base64Blob => "base64",
+        OpaqueKind::ImageBlob => "image",
+        OpaqueKind::AudioBlob => "audio",
         OpaqueKind::LongString => "string",
         OpaqueKind::HtmlChunk => "html",
         OpaqueKind::Other(s) => s.as_str(),

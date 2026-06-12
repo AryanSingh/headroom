@@ -172,6 +172,8 @@ fn cell_to_json(c: &CellValue) -> Value {
 fn opaque_kind_str(k: &OpaqueKind) -> String {
     match k {
         OpaqueKind::Base64Blob => "base64".into(),
+        OpaqueKind::ImageBlob => "image".into(),
+        OpaqueKind::AudioBlob => "audio".into(),
         OpaqueKind::LongString => "string".into(),
         OpaqueKind::HtmlChunk => "html".into(),
         OpaqueKind::Other(s) => s.clone(),
@@ -311,6 +313,8 @@ fn format_cell(c: &CellValue) -> String {
 fn format_ccr_marker(hash: &str, byte_size: usize, kind: &OpaqueKind) -> String {
     let kind_str = match kind {
         OpaqueKind::Base64Blob => "base64",
+        OpaqueKind::ImageBlob => "image",
+        OpaqueKind::AudioBlob => "audio",
         OpaqueKind::LongString => "string",
         OpaqueKind::HtmlChunk => "html",
         OpaqueKind::Other(s) => s.as_str(),

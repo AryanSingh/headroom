@@ -105,6 +105,8 @@ use super::content_detector::{detect_content_type, ContentType};
 use super::diff_compressor::{DiffCompressor, DiffCompressorConfig};
 use super::log_compressor::{LogCompressor, LogCompressorConfig};
 use super::search_compressor::{SearchCompressor, SearchCompressorConfig};
+use super::audio_compressor::{compress_audio, looks_like_audio_base64};
+use super::image_compressor::{compress_image, looks_like_image_base64};
 use super::smart_crusher::{SmartCrusher, SmartCrusherConfig};
 use crate::ccr::{compute_key, marker_for, CcrStore};
 use crate::tokenizer::get_tokenizer;
@@ -721,6 +723,79 @@ pub fn compress_anthropic_live_zone_with_ccr(
                     reason: ExclusionReason::HotZoneBlockType,
                 },
             },
+            SlotKind::Multimodal {
+                block_type,
+                data,
+                data_byte_range,
+                media_type,
+            } => {
+                let original_bytes = data.len();
+                let compressed = if media_type == "image" {
+                    compress_image(&data, ccr_store).ok()
+                } else {
+                    compress_audio(&data, ccr_store).ok()
+                };
+                match compressed {
+                    Some(compressed_str) => {
+                        let compressed_bytes = compressed_str.len();
+                        // Only apply if the replacement is actually
+                        // smaller (bytes-gate; token gate doesn't
+                        // apply to multimodal content).
+                        if compressed_bytes >= original_bytes {
+                            BlockOutcome {
+                                message_index: target_idx,
+                                block_index: Some(slot.block_index),
+                                block_type,
+                                action: BlockAction::RejectedNotSmaller {
+                                    strategy: if media_type == "image" {
+                                        "image_compressor"
+                                    } else {
+                                        "audio_compressor"
+                                    },
+                                    original_bytes,
+                                    compressed_bytes,
+                                    original_tokens: 0,
+                                    compressed_tokens: 0,
+                                },
+                            }
+                        } else {
+                            let replacement_bytes =
+                                serde_json::to_vec(&compressed_str)
+                                    .expect("string is always JSON-encodable");
+                            replacements.push(Replacement {
+                                range: data_byte_range,
+                                replacement: replacement_bytes,
+                            });
+                            BlockOutcome {
+                                message_index: target_idx,
+                                block_index: Some(slot.block_index),
+                                block_type,
+                                action: BlockAction::Compressed {
+                                    strategy: if media_type == "image" {
+                                        "image_compressor"
+                                    } else {
+                                        "audio_compressor"
+                                    },
+                                    original_bytes,
+                                    compressed_bytes,
+                                    original_tokens: 0,
+                                    compressed_tokens: 0,
+                                },
+                            }
+                        }
+                    }
+                    None => BlockOutcome {
+                        message_index: target_idx,
+                        block_index: Some(slot.block_index),
+                        block_type,
+                        action: BlockAction::NoCompressionApplied {
+                            content_type: format!(
+                                "multimodal_{media_type}"
+                            ),
+                        },
+                    },
+                }
+            }
             SlotKind::Compressible {
                 block_type,
                 content_text,
@@ -1003,6 +1078,18 @@ enum SlotKind {
     /// Block type is on the cache-hot list — record but do not
     /// dispatch.
     HotZone(String),
+    /// Multimodal block (image_url or input_audio) — compress via
+    /// dedicated image/audio compressors.
+    Multimodal {
+        block_type: String,
+        /// The base64-encoded payload (with data-URI prefix if present).
+        data: String,
+        /// Byte range of the JSON string value (including quotes) in
+        /// the raw body that should be replaced.
+        data_byte_range: (usize, usize),
+        /// `"image"` or `"audio"` — selects the compressor.
+        media_type: String,
+    },
 }
 
 /// Walk the buffered body, return one `PlanSlot` per block in the
@@ -1126,8 +1213,193 @@ fn plan_block_replacements(
                     .ok_or(PlanError::OffsetMissing)?;
                 (text_raw.get(), off)
             }
+            "image_url" => {
+                // Parse the nested image_url.url field.
+                #[derive(Deserialize)]
+                struct ImageUrlBlock<'a> {
+                    #[serde(borrow, default)]
+                    image_url: Option<&'a RawValue>,
+                }
+                let h: ImageUrlBlock<'_> =
+                    serde_json::from_str(block_raw.get()).map_err(|_| PlanError::ParseFailed)?;
+                let Some(url_block_raw) = h.image_url else {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                };
+                // Parse image_url.url to get the URL string.
+                #[derive(Deserialize)]
+                struct UrlField<'a> {
+                    #[serde(borrow, default)]
+                    url: Option<&'a RawValue>,
+                }
+                let url_h: UrlField<'_> = serde_json::from_str(url_block_raw.get())
+                    .map_err(|_| PlanError::ParseFailed)?;
+                let Some(url_raw) = url_h.url else {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                };
+                let url_str = url_raw.get();
+                if !url_str.starts_with('"') {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                }
+                let url_value: String =
+                    serde_json::from_str(url_str).map_err(|_| PlanError::ParseFailed)?;
+                if !looks_like_image_base64(&url_value) {
+                    // Not a data-URI image — leave untouched.
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                }
+                let url_offset_in_block =
+                    bytes_offset_of(block_raw.get(), url_raw.get())
+                        .ok_or(PlanError::OffsetMissing)?;
+                let url_start_in_body = block_offset_in_body + url_offset_in_block;
+                let url_end_in_body = url_start_in_body + url_str.len();
+                slots.push(PlanSlot {
+                    block_index: block_idx,
+                    kind: SlotKind::Multimodal {
+                        block_type,
+                        data: url_value,
+                        data_byte_range: (url_start_in_body, url_end_in_body),
+                        media_type: "image".to_string(),
+                    },
+                });
+                continue;
+            }
+            "input_audio" => {
+                // Parse the nested input_audio.data field.
+                #[derive(Deserialize)]
+                struct InputAudioBlock<'a> {
+                    #[serde(borrow, default)]
+                    input_audio: Option<&'a RawValue>,
+                }
+                let h: InputAudioBlock<'_> =
+                    serde_json::from_str(block_raw.get()).map_err(|_| PlanError::ParseFailed)?;
+                let Some(audio_block_raw) = h.input_audio else {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                };
+                // Parse input_audio.data to get the base64 string.
+                #[derive(Deserialize)]
+                struct DataField<'a> {
+                    #[serde(borrow, default)]
+                    data: Option<&'a RawValue>,
+                }
+                let data_h: DataField<'_> = serde_json::from_str(audio_block_raw.get())
+                    .map_err(|_| PlanError::ParseFailed)?;
+                let Some(data_raw) = data_h.data else {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                };
+                let data_str = data_raw.get();
+                if !data_str.starts_with('"') {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                }
+                let data_value: String =
+                    serde_json::from_str(data_str).map_err(|_| PlanError::ParseFailed)?;
+                if !looks_like_audio_base64(&data_value) {
+                    slots.push(PlanSlot {
+                        block_index: block_idx,
+                        kind: SlotKind::Compressible {
+                            block_type,
+                            content_text: String::new(),
+                            content_byte_range: (
+                                block_offset_in_body,
+                                block_offset_in_body,
+                            ),
+                        },
+                    });
+                    continue;
+                }
+                let data_offset_in_block =
+                    bytes_offset_of(block_raw.get(), data_raw.get())
+                        .ok_or(PlanError::OffsetMissing)?;
+                let data_start_in_body = block_offset_in_body + data_offset_in_block;
+                let data_end_in_body = data_start_in_body + data_str.len();
+                slots.push(PlanSlot {
+                    block_index: block_idx,
+                    kind: SlotKind::Multimodal {
+                        block_type,
+                        data: data_value,
+                        data_byte_range: (data_start_in_body, data_end_in_body),
+                        media_type: "audio".to_string(),
+                    },
+                });
+                continue;
+            }
             _ => {
-                // image, document, etc. — record as compressible
+                // document, etc. — record as compressible
                 // block-type but with empty content so no compressor
                 // runs.
                 slots.push(PlanSlot {
@@ -1860,18 +2132,95 @@ pub fn compress_openai_chat_live_zone(
     let mut replacements: Vec<Replacement> = Vec::new();
 
     for (msg_idx, slot) in all_slots {
-        let detected = detect_content_type(&slot.content_text);
-        let outcome = compress_one_block(
-            &slot.content_text,
-            detected.content_type,
-            slot.content_byte_range,
-            msg_idx,
-            slot.block_index,
-            slot.block_type,
-            tokenizer.as_ref(),
-            &mut replacements,
-            None, // PR-C2: no CCR store yet on the OpenAI path.
-        );
+        // Multimodal blocks (image_url / input_audio) are routed to
+        // dedicated compressors; text blocks go through the normal
+        // dispatcher.
+        let outcome = match slot.block_type.as_str() {
+            "image_url" | "input_audio" => {
+                let media_type = if slot.block_type == "image_url" {
+                    "image"
+                } else {
+                    "audio"
+                };
+                let original_bytes = slot.content_text.len();
+                let compressed = if media_type == "image" {
+                    compress_image(&slot.content_text, None).ok()
+                } else {
+                    compress_audio(&slot.content_text, None).ok()
+                };
+                match compressed {
+                    Some(compressed_str) => {
+                        let compressed_bytes = compressed_str.len();
+                        if compressed_bytes >= original_bytes {
+                            BlockOutcome {
+                                message_index: msg_idx,
+                                block_index: slot.block_index,
+                                block_type: slot.block_type,
+                                action: BlockAction::RejectedNotSmaller {
+                                    strategy: if media_type == "image" {
+                                        "image_compressor"
+                                    } else {
+                                        "audio_compressor"
+                                    },
+                                    original_bytes,
+                                    compressed_bytes,
+                                    original_tokens: 0,
+                                    compressed_tokens: 0,
+                                },
+                            }
+                        } else {
+                            let replacement_bytes =
+                                serde_json::to_vec(&compressed_str)
+                                    .expect("string is always JSON-encodable");
+                            replacements.push(Replacement {
+                                range: slot.content_byte_range,
+                                replacement: replacement_bytes,
+                            });
+                            BlockOutcome {
+                                message_index: msg_idx,
+                                block_index: slot.block_index,
+                                block_type: slot.block_type,
+                                action: BlockAction::Compressed {
+                                    strategy: if media_type == "image" {
+                                        "image_compressor"
+                                    } else {
+                                        "audio_compressor"
+                                    },
+                                    original_bytes,
+                                    compressed_bytes,
+                                    original_tokens: 0,
+                                    compressed_tokens: 0,
+                                },
+                            }
+                        }
+                    }
+                    None => BlockOutcome {
+                        message_index: msg_idx,
+                        block_index: slot.block_index,
+                        block_type: slot.block_type,
+                        action: BlockAction::NoCompressionApplied {
+                            content_type: format!(
+                                "multimodal_{media_type}"
+                            ),
+                        },
+                    },
+                }
+            }
+            _ => {
+                let detected = detect_content_type(&slot.content_text);
+                compress_one_block(
+                    &slot.content_text,
+                    detected.content_type,
+                    slot.content_byte_range,
+                    msg_idx,
+                    slot.block_index,
+                    slot.block_type,
+                    tokenizer.as_ref(),
+                    &mut replacements,
+                    None, // PR-C2: no CCR store yet on the OpenAI path.
+                )
+            }
+        };
         block_outcomes.push(outcome);
     }
 
@@ -2021,45 +2370,135 @@ fn plan_openai_user_message(
         let header: BlockHeader<'_> =
             serde_json::from_str(part_raw.get()).map_err(|_| PlanError::ParseFailed)?;
         let block_type = header.r#type.unwrap_or("unknown").to_string();
-        if block_type != "text" {
-            // Skip image_url / other non-text parts.
-            continue;
-        }
-
-        // Extract the `text` field byte range.
-        #[derive(Deserialize)]
-        struct TextHeader<'a> {
-            #[serde(borrow, default)]
-            text: Option<&'a RawValue>,
-        }
-        let h: TextHeader<'_> =
-            serde_json::from_str(part_raw.get()).map_err(|_| PlanError::ParseFailed)?;
-        let Some(text_raw) = h.text else {
-            continue;
-        };
 
         let part_offset_in_content =
             bytes_offset_of(content_str, part_raw.get()).ok_or(PlanError::OffsetMissing)?;
         let part_offset_in_body = content_offset_in_body + part_offset_in_content;
-        let text_offset_in_part =
-            bytes_offset_of(part_raw.get(), text_raw.get()).ok_or(PlanError::OffsetMissing)?;
 
-        let text_str = text_raw.get();
-        if !text_str.starts_with('"') {
-            continue;
+        match block_type.as_str() {
+            "image_url" => {
+                // Parse the nested image_url.url field.
+                #[derive(Deserialize)]
+                struct ImageUrlPart<'a> {
+                    #[serde(borrow, default)]
+                    image_url: Option<&'a RawValue>,
+                }
+                let h: ImageUrlPart<'_> =
+                    serde_json::from_str(part_raw.get()).map_err(|_| PlanError::ParseFailed)?;
+                let Some(url_block_raw) = h.image_url else {
+                    continue;
+                };
+                #[derive(Deserialize)]
+                struct UrlField<'a> {
+                    #[serde(borrow, default)]
+                    url: Option<&'a RawValue>,
+                }
+                let url_h: UrlField<'_> = serde_json::from_str(url_block_raw.get())
+                    .map_err(|_| PlanError::ParseFailed)?;
+                let Some(url_raw) = url_h.url else {
+                    continue;
+                };
+                let url_str = url_raw.get();
+                if !url_str.starts_with('"') {
+                    continue;
+                }
+                let url_value: String =
+                    serde_json::from_str(url_str).map_err(|_| PlanError::ParseFailed)?;
+                if !looks_like_image_base64(&url_value) {
+                    continue;
+                }
+                let url_offset_in_part =
+                    bytes_offset_of(part_raw.get(), url_raw.get())
+                        .ok_or(PlanError::OffsetMissing)?;
+                let url_start_in_body = part_offset_in_body + url_offset_in_part;
+                let url_end_in_body = url_start_in_body + url_str.len();
+                slots.push(OpenAiPlanSlot {
+                    block_index: Some(part_idx),
+                    block_type: "image_url".to_string(),
+                    content_text: url_value,
+                    content_byte_range: (url_start_in_body, url_end_in_body),
+                });
+            }
+            "input_audio" => {
+                // Parse the nested input_audio.data field.
+                #[derive(Deserialize)]
+                struct InputAudioPart<'a> {
+                    #[serde(borrow, default)]
+                    input_audio: Option<&'a RawValue>,
+                }
+                let h: InputAudioPart<'_> =
+                    serde_json::from_str(part_raw.get()).map_err(|_| PlanError::ParseFailed)?;
+                let Some(audio_block_raw) = h.input_audio else {
+                    continue;
+                };
+                #[derive(Deserialize)]
+                struct DataField<'a> {
+                    #[serde(borrow, default)]
+                    data: Option<&'a RawValue>,
+                }
+                let data_h: DataField<'_> = serde_json::from_str(audio_block_raw.get())
+                    .map_err(|_| PlanError::ParseFailed)?;
+                let Some(data_raw) = data_h.data else {
+                    continue;
+                };
+                let data_str = data_raw.get();
+                if !data_str.starts_with('"') {
+                    continue;
+                }
+                let data_value: String =
+                    serde_json::from_str(data_str).map_err(|_| PlanError::ParseFailed)?;
+                if !looks_like_audio_base64(&data_value) {
+                    continue;
+                }
+                let data_offset_in_part =
+                    bytes_offset_of(part_raw.get(), data_raw.get())
+                        .ok_or(PlanError::OffsetMissing)?;
+                let data_start_in_body = part_offset_in_body + data_offset_in_part;
+                let data_end_in_body = data_start_in_body + data_str.len();
+                slots.push(OpenAiPlanSlot {
+                    block_index: Some(part_idx),
+                    block_type: "input_audio".to_string(),
+                    content_text: data_value,
+                    content_byte_range: (data_start_in_body, data_end_in_body),
+                });
+            }
+            "text" => {
+                // Extract the `text` field byte range.
+                #[derive(Deserialize)]
+                struct TextHeader<'a> {
+                    #[serde(borrow, default)]
+                    text: Option<&'a RawValue>,
+                }
+                let h: TextHeader<'_> =
+                    serde_json::from_str(part_raw.get()).map_err(|_| PlanError::ParseFailed)?;
+                let Some(text_raw) = h.text else {
+                    continue;
+                };
+                let text_offset_in_part = bytes_offset_of(part_raw.get(), text_raw.get())
+                    .ok_or(PlanError::OffsetMissing)?;
+
+                let text_str = text_raw.get();
+                if !text_str.starts_with('"') {
+                    continue;
+                }
+                let unescaped: String =
+                    serde_json::from_str(text_str).map_err(|_| PlanError::ParseFailed)?;
+
+                let text_start_in_body = part_offset_in_body + text_offset_in_part;
+                let text_end_in_body = text_start_in_body + text_str.len();
+
+                slots.push(OpenAiPlanSlot {
+                    block_index: Some(part_idx),
+                    block_type: "user_text".to_string(),
+                    content_text: unescaped,
+                    content_byte_range: (text_start_in_body, text_end_in_body),
+                });
+            }
+            _ => {
+                // Other block types — skip.
+                continue;
+            }
         }
-        let unescaped: String =
-            serde_json::from_str(text_str).map_err(|_| PlanError::ParseFailed)?;
-
-        let text_start_in_body = part_offset_in_body + text_offset_in_part;
-        let text_end_in_body = text_start_in_body + text_str.len();
-
-        slots.push(OpenAiPlanSlot {
-            block_index: Some(part_idx),
-            block_type: "user_text".to_string(),
-            content_text: unescaped,
-            content_byte_range: (text_start_in_body, text_end_in_body),
-        });
     }
 
     Ok(slots)
