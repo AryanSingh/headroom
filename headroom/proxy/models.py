@@ -324,6 +324,19 @@ class ProxyConfig:
     pipeline_extensions: list[Any] = field(default_factory=list)
     discover_pipeline_extensions: bool = True
 
+    # SSO / OIDC (enterprise IdP authentication).
+    # When enabled, Bearer tokens are validated against the configured IdP.
+    # Env: HEADROOM_SSO_DISCOVERY_URL, HEADROOM_SSO_JWKS_URI, etc.
+    sso_enabled: bool = False
+    sso_provider_type: str = "oidc"  # "oidc", "jwt", "introspect"
+    sso_discovery_url: str | None = None
+    sso_jwks_uri: str | None = None
+    sso_issuer: str | None = None
+    sso_audience: str | None = None
+    sso_introspection_url: str | None = None
+    sso_role_mapping: dict[str, str] = field(default_factory=dict)
+    sso_default_role: str = "viewer"
+
     # Subscription Window Tracking (Anthropic OAuth accounts)
     subscription_tracking_enabled: bool = True
     subscription_poll_interval_s: int = 300

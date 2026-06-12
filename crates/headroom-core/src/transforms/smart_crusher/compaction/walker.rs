@@ -37,11 +37,9 @@ use super::classifier::{classify_cell, CellClass};
 use super::compactor::{compact, CompactConfig};
 use super::formatter::{CsvSchemaFormatter, Formatter};
 use super::ir::OpaqueKind;
-use crate::ccr::CcrStore;
+use crate::ccr::{compute_key, CcrStore};
 use crate::transforms::audio_compressor::{compress_audio, looks_like_audio_base64};
 use crate::transforms::image_compressor::{compress_image, looks_like_image_base64};
-
-use sha2::{Digest, Sha256};
 
 /// Walks any JSON value and applies lossless compaction in place.
 ///
@@ -220,22 +218,21 @@ pub fn try_parse_json_container(s: &str) -> Option<Value> {
 /// regardless of store presence — same input → same marker — so the
 /// runtime contract is stable across configurations.
 ///
-/// Marker format: `<<ccr:HASH,KIND,SIZE>>` where HASH is the 12-char
-/// SHA-256 hex prefix of the payload bytes, KIND is `base64` / `string`
-/// / `html` / custom, SIZE is humanized (`123B`, `4.5KB`, `1.2MB`).
+/// Marker format: `<<ccr:HASH,KIND,SIZE>>` where HASH is the 16-char
+/// BLAKE3 hex prefix of the payload bytes (via [`compute_key`]),
+/// KIND is `base64` / `string` / `html` / custom, SIZE is humanized
+/// (`123B`, `4.5KB`, `1.2MB`).
+///
+/// **NOTE:** HASH uses the same `compute_key` (BLAKE3 → 16 hex chars)
+/// as the live-zone CCR dispatcher, so both the SmartCrusher opaque-blob
+/// path and the live-zone dispatcher produce markers in the same format
+/// that the Python tool-injection regex detects.
 pub fn emit_opaque_ccr_marker(
     payload: &str,
     kind: &OpaqueKind,
     store: Option<&Arc<dyn CcrStore>>,
 ) -> String {
-    let mut h = Sha256::new();
-    h.update(payload.as_bytes());
-    let hash: String = h
-        .finalize()
-        .iter()
-        .take(6)
-        .map(|b| format!("{b:02x}"))
-        .collect();
+    let hash = compute_key(payload.as_bytes());
     if let Some(s) = store {
         s.put(&hash, payload);
     }

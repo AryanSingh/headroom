@@ -199,11 +199,12 @@ class CCRToolInjector:
     # - Kompress: [100 lines compressed to 10. Retrieve more: hash=abc123]
     # - LogCompressor: [200 lines compressed to 20. Retrieve more: hash=abc123]
     # - SearchCompressor: [50 matches compressed to 5. Retrieve more: hash=abc123]
+    # - CCR opaque: <<ccr:abc123def4567890,base64,4.5KB>> (live-zone + walker)
     # - Generic: any [... compressed ... hash=xxx] pattern
     _marker_patterns: list[re.Pattern] = field(
         default_factory=lambda: [
             # All patterns require exactly 16 hex characters for hash validation
-            # CCR uses SHA256 truncated to 16 hex chars (64 bits) for collision resistance
+            # CCR uses BLAKE3 truncated to 16 hex chars for collision resistance
             # Requiring exact length prevents hash spoofing attacks with shorter hashes
             #
             # Standard format: [N <type> compressed to M. Retrieve more: hash=xxx]
@@ -211,6 +212,10 @@ class CCRToolInjector:
             re.compile(r"\[(\d+) \w+ compressed to (\d+)\. Retrieve more: hash=([a-f0-9]{16})\]"),
             # Legacy format without "to M" or "Retrieve more:" (old TextCompressor)
             re.compile(r"\[(\d+) \w+ compressed\. hash=([a-f0-9]{16})\]"),
+            # CCR opaque-blob markers: <<ccr:HASH,KIND,SIZE>>
+            # Emitted by walker.rs emit_opaque_ccr_marker() for base64/image/audio/episodic_memory blobs.
+            # Also matches the simpler live-zone format: <<ccr:HASH>>
+            re.compile(r"<<ccr:([a-f0-9]{16})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>"),
             # Generic fallback: any compression marker with hash (exactly 16 chars)
             re.compile(r"\[.*?compressed.*?hash=([a-f0-9]{16})\]", re.IGNORECASE),
         ]

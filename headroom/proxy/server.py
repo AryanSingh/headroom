@@ -1994,6 +1994,66 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "Set Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>.",
         )
 
+    # ── RBAC dependency ────────────────────────────────────────────────
+    # Usage: Depends(_require_rbac_permission("stats.read"))
+    # Resolves caller's role from headers/org-store, checks permission.
+    # Falls through to admin (backward-compatible) when no RBAC configured.
+    _rbac_checker_ref = None
+    try:
+        from headroom.rbac import get_rbac_checker
+
+        _rbac_checker_ref = get_rbac_checker()
+    except Exception:
+        logger.debug("RBAC checker not available", exc_info=True)
+
+    def _require_rbac_permission(permission: str):
+        """Factory that returns a dependency checking a specific RBAC permission."""
+
+        async def _check(request: Request):
+            if _rbac_checker_ref is None:
+                return  # No RBAC — allow (backward-compatible)
+            role = _rbac_checker_ref.resolve_role(request)
+            _rbac_checker_ref.check_permission(role, permission)
+
+        return _check
+
+    # ── SSO token validation dependency ────────────────────────────────
+    # When SSO is configured, validates Bearer tokens against the enterprise
+    # IdP. Adds X-Headroom-Sso-Role header so RBAC can resolve from SSO claims.
+    _sso_validator_ref = None
+    try:
+        from headroom.sso import SsoConfig, SsoValidator
+
+        _sso_config = SsoConfig.from_env()
+        if _sso_config.enabled:
+            _sso_validator_ref = SsoValidator(_sso_config)
+            logger.info("SSO validation enabled (provider: %s)", _sso_config.provider_type)
+    except Exception:
+        logger.debug("SSO validator not available", exc_info=True)
+
+    async def _validate_sso_token(request: Request):
+        """Dependency that validates SSO tokens and injects role into headers."""
+        if _sso_validator_ref is None:
+            return  # No SSO configured
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return  # No Bearer token — let admin auth handle it
+        token = auth_header[7:].strip()
+        try:
+            from headroom.sso import SsoError
+
+            claims = await _sso_validator_ref.validate_token(token)
+            # Inject SSO role into request headers for RBAC resolution
+            request.headers.__dict__["_list"].append(
+                (b"x-headroom-role", claims.role.encode())
+            )
+            request.headers.__dict__["_list"].append(
+                (b"x-headroom-user-id", claims.subject.encode())
+            )
+        except SsoError as e:
+            logger.debug("SSO token validation failed: %s", e)
+            # Don't reject — let admin auth handle fallback
+
     # Entitlement enforcement dependency.
     # Usage: Depends(_require_entitlement("team_analytics"))
     # Returns the entitlement checker for further use. Raises 403 if the
@@ -2216,7 +2276,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         payload["runtime"] = _runtime_payload()
         return JSONResponse(status_code=200, content=payload)
 
-    @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth)])
+    @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
     async def dashboard():
         """Serve the Headroom dashboard UI."""
         return get_dashboard_html()
@@ -2662,7 +2722,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             _stats_snapshot["expires_at"] = time.monotonic() + DASHBOARD_STATS_CACHE_TTL_SECONDS
             return payload
 
-    @app.get("/stats", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
     async def stats(cached: bool = False):
         """Get comprehensive proxy statistics.
 
@@ -2682,7 +2742,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return await _get_cached_stats_payload()
         return await _build_stats_payload()
 
-    @app.post("/stats/reset", dependencies=[Depends(_require_loopback), Depends(_require_admin_auth)])
+    @app.post("/stats/reset", dependencies=[Depends(_require_loopback), Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.reset"))])
     async def stats_reset(request: Request):
         """Reset in-memory proxy stats for local test/debug isolation."""
         await proxy.metrics.reset_runtime()
@@ -2709,7 +2769,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 pass
         return JSONResponse(status_code=200, content={"status": "reset"})
 
-    @app.get("/stats-history", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/stats-history", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.history"))])
     async def stats_history(
         format: Literal["json", "csv"] = "json",
         series: Literal["history", "hourly", "daily", "weekly", "monthly"] = "history",
@@ -2726,7 +2786,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
-    @app.get("/transformations/feed", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/transformations/feed", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("transformations.read"))])
     async def transformations_feed(limit: int = 20):
         """Get recent message transformations for the live feed.
 
@@ -2763,7 +2823,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Entitlement Status ──────────────────────────────────
 
-    @app.get("/entitlements", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/entitlements", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("entitlements.read"))])
     async def entitlements_status():
         """Current entitlement tier and available features.
 
@@ -2792,7 +2852,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Audit Log Query ─────────────────────────────────────
 
-    @app.get("/audit/events", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/audit/events", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("audit.read"))])
     async def audit_events(
         action: str | None = None,
         actor: str | None = None,
@@ -2818,7 +2878,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         total = proxy.audit_logger.count(action=action)
         return {"events": events, "total": total, "limit": limit, "offset": offset}
 
-    @app.get("/audit/export", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/audit/export", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("audit.export"))])
     async def audit_export(format: Literal["jsonl", "json"] = "jsonl", limit: int = 1000):
         """Export audit events as JSONL or JSON array.
 
@@ -2838,14 +2898,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Org / Workspace / Project Management ────────────────
 
-    @app.get("/orgs", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/orgs", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
     async def list_orgs():
         """List all organizations."""
         if not proxy.org_store:
             raise HTTPException(status_code=503, detail="Org store not available")
         return {"orgs": proxy.org_store.list_orgs()}
 
-    @app.post("/orgs", dependencies=[Depends(_require_admin_auth)])
+    @app.post("/orgs", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.write"))])
     async def create_org(request: Request):
         """Create a new organization."""
         if not proxy.org_store:
@@ -2877,7 +2937,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 pass
         return {"org": org}
 
-    @app.get("/orgs/{org_id}", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/orgs/{org_id}", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
     async def get_org(org_id: str):
         """Get organization with full hierarchy."""
         if not proxy.org_store:
@@ -2887,7 +2947,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Organization not found")
         return {"org": hierarchy}
 
-    @app.post("/orgs/{org_id}/workspaces", dependencies=[Depends(_require_admin_auth)])
+    @app.post("/orgs/{org_id}/workspaces", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("workspaces.write"))])
     async def create_workspace(org_id: str, request: Request):
         """Create a workspace in an organization."""
         if not proxy.org_store:
@@ -2904,14 +2964,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         return {"workspace": ws}
 
-    @app.get("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
     async def list_projects(workspace_id: str):
         """List projects in a workspace."""
         if not proxy.org_store:
             raise HTTPException(status_code=503, detail="Org store not available")
         return {"projects": proxy.org_store.list_projects(workspace_id)}
 
-    @app.post("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth)])
+    @app.post("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("projects.write"))])
     async def create_project(workspace_id: str, request: Request):
         """Create a project in a workspace."""
         if not proxy.org_store:
@@ -2931,7 +2991,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: License Status ────────────────────────────────────
 
-    @app.get("/license-status", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/license-status", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("license.read"))])
     async def license_status():
         """Current license status and usage reporting state.
 
@@ -2965,7 +3025,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Reports ───────────────────────────────────────────
 
-    @app.get("/reports/savings", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/reports/savings", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("reports.read"))])
     async def reports_savings(format: Literal["json", "csv"] = "json"):
         """ROI summary report: tokens saved, cost saved, compression ratios.
 
@@ -3031,7 +3091,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return report
 
-    @app.get("/reports/usage", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/reports/usage", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("reports.read"))])
     async def reports_usage(format: Literal["json", "csv"] = "json"):
         """Usage report: requests by provider, model, stack, and time.
 
@@ -3083,7 +3143,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Retention Controls ────────────────────────────────
 
-    @app.get("/retention/stats", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/retention/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
     async def retention_stats():
         """Retention policy configuration and cleanup statistics."""
         from headroom.retention import get_retention_manager
@@ -3091,7 +3151,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         manager = get_retention_manager()
         return {"retention": manager.get_stats()}
 
-    @app.post("/retention/cleanup", dependencies=[Depends(_require_admin_auth)])
+    @app.post("/retention/cleanup", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("retention.write"))])
     async def retention_cleanup(request: Request):
         """Trigger an immediate retention cleanup cycle."""
         from headroom.retention import get_retention_manager
@@ -3117,7 +3177,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: RBAC Management ───────────────────────────────────
 
-    @app.get("/rbac/roles", dependencies=[Depends(_require_admin_auth)])
+    @app.get("/rbac/roles", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))])
     async def rbac_list_roles():
         """List all role assignments."""
         from headroom.rbac import get_rbac_checker
@@ -3125,7 +3185,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         checker = get_rbac_checker()
         return {"assignments": checker.list_assignments()}
 
-    @app.post("/rbac/roles", dependencies=[Depends(_require_admin_auth)])
+    @app.post("/rbac/roles", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))])
     async def rbac_assign_role(request: Request):
         """Assign a role to a user.
 
@@ -3166,7 +3226,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.delete(
         "/rbac/roles/{user_id}",
-        dependencies=[Depends(_require_admin_auth)],
+        dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))],
     )
     async def rbac_revoke_role(user_id: str, request: Request):
         """Revoke a user's role assignment."""
@@ -3761,6 +3821,84 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.post("/v1/compress")
     async def compress_messages(request: Request):
         return await proxy.handle_compress(request)
+
+    # ── Enterprise: Analytics Dashboard Rollups ─────────────────────────
+
+    @app.get("/analytics/dashboard", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
+    async def analytics_dashboard():
+        """Aggregated dashboard view: key metrics, trends, and health score.
+
+        Returns a single payload optimized for a dashboard widget.
+        """
+        m = proxy.metrics
+        cost_stats = proxy.cost_tracker.stats() if proxy.cost_tracker else {}
+        total_before = m.tokens_input_total + m.tokens_saved_total
+        savings_pct = round(m.tokens_saved_total / max(1, total_before) * 100, 2)
+
+        # Health score: composite of savings %, error rate, latency
+        error_rate = m.requests_failed / max(1, m.requests_total) * 100
+        avg_latency = m.latency_sum_ms / max(1, m.latency_count)
+        health_score = max(0, min(100, round(
+            savings_pct * 0.5
+            + (100 - min(error_rate, 100)) * 0.3
+            + max(0, 100 - avg_latency / 10) * 0.2,
+            1,
+        )))
+
+        return {
+            "health_score": health_score,
+            "tokens": {
+                "input": m.tokens_input_total,
+                "output": m.tokens_output_total,
+                "saved": m.tokens_saved_total,
+                "savings_percent": savings_pct,
+            },
+            "cost": {
+                "total_usd": cost_stats.get("total_cost_usd", 0.0),
+                "saved_usd": cost_stats.get("total_savings_usd", 0.0),
+            },
+            "requests": {
+                "total": m.requests_total,
+                "cached": m.requests_cached,
+                "failed": m.requests_failed,
+                "error_rate_percent": round(error_rate, 2),
+            },
+            "latency": {
+                "avg_ms": round(avg_latency, 2),
+                "min_ms": round(m.latency_min_ms, 2) if m.latency_min_ms != float("inf") else 0,
+                "max_ms": round(m.latency_max_ms, 2),
+            },
+            "top_providers": dict(sorted(m.requests_by_provider.items(), key=lambda x: -x[1])[:5]),
+            "top_models": dict(sorted(m.requests_by_model.items(), key=lambda x: -x[1])[:5]),
+            "top_strategies": dict(sorted(m.compressions_by_strategy.items(), key=lambda x: -x[1])[:5]),
+            "generated_at": _iso_utc_now(),
+        }
+
+    @app.get("/analytics/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
+    async def analytics_projects():
+        """Per-project token savings breakdown.
+
+        Uses the persistent savings tracker to attribute savings to projects.
+        """
+        persistent = proxy.metrics.savings_tracker.stats_preview()
+        projects = persistent.get("projects", {})
+
+        project_list = []
+        for name, data in projects.items():
+            project_list.append({
+                "name": name,
+                "tokens_saved": data.get("tokens_saved", 0),
+                "requests": data.get("requests", 0),
+                "avg_savings_percent": data.get("avg_savings_percent", 0),
+            })
+
+        project_list.sort(key=lambda p: p["tokens_saved"], reverse=True)
+
+        return {
+            "projects": project_list,
+            "total_projects": len(project_list),
+            "generated_at": _iso_utc_now(),
+        }
 
     register_provider_routes(app, proxy)
 

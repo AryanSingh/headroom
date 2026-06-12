@@ -72,6 +72,11 @@ pub struct AppState {
     /// route hits `bearer()`. Tests override via
     /// [`AppState::with_token_source`].
     pub vertex_token_source: Arc<dyn crate::vertex::TokenSource>,
+    /// Optional CCR store for retrieval-marker injection. When set,
+    /// the live-zone dispatcher stashes original block content keyed
+    /// by its BLAKE3 hash so downstream agents can retrieve it via
+    /// `headroom_retrieve(hash)`. Default: `None` (no persistence).
+    pub ccr_store: Option<Arc<dyn headroom_core::ccr::CcrStore>>,
 }
 
 /// PR-E6: maximum number of sessions tracked by the drift detector
@@ -101,13 +106,33 @@ impl AppState {
         let vertex_token_source: Arc<dyn crate::vertex::TokenSource> =
             Arc::new(crate::vertex::adc::GcpAdcTokenSource::new());
 
-        Ok(Self {
+        let tier = config.license_tier;
+        let state = Self {
             config: Arc::new(config),
             client,
             bedrock_credentials: None,
             drift_state: DriftState::new(DRIFT_DETECTOR_CAPACITY),
             vertex_token_source,
-        })
+            ccr_store: None,
+        };
+
+        // Log license tier on startup.
+        match tier {
+            crate::config::LicenseTier::OpenSource => {
+                tracing::debug!(
+                    license_tier = "opensource",
+                    "running in open-source mode (no license key)"
+                );
+            }
+            ref t => {
+                tracing::info!(
+                    license_tier = %t,
+                    "license tier resolved; advanced features available"
+                );
+            }
+        }
+
+        Ok(state)
     }
 
     /// PR-D1: attach AWS credentials resolved out-of-band (via
@@ -117,6 +142,15 @@ impl AppState {
     /// credentials unset (the catch-all paths never read them).
     pub fn with_bedrock_credentials(mut self, creds: aws_credential_types::Credentials) -> Self {
         self.bedrock_credentials = Some(Arc::new(creds));
+        self
+    }
+
+    /// Attach a CCR store for retrieval-marker injection. When set,
+    /// the live-zone dispatcher stashes original block content keyed
+    /// by its BLAKE3 hash so downstream agents can retrieve it via
+    /// `headroom_retrieve(hash)`.
+    pub fn with_ccr_store(mut self, store: Arc<dyn headroom_core::ccr::CcrStore>) -> Self {
+        self.ccr_store = Some(store);
         self
     }
 
@@ -683,12 +717,13 @@ pub(crate) async fn forward_http(
                 // dispatcher so cache_control auto-placement gates on
                 // PAYG only. Pulled from request extensions where it
                 // was stashed at request entry (line ~325 above).
-                compression::compress_anthropic_request(
+                compression::compress_anthropic_request_with_ccr(
                     &buffered,
                     state.config.compression_mode,
                     state.config.cache_control_auto_frozen,
                     auth_mode,
                     &request_id,
+                    state.ccr_store.as_deref(),
                 )
             }
             compression::CompressibleEndpoint::OpenAiChatCompletions => {

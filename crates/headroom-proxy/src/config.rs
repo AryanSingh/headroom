@@ -471,6 +471,75 @@ pub struct CliArgs {
         default_value = "https://www.googleapis.com/auth/cloud-platform"
     )]
     pub vertex_adc_scope: String,
+
+    /// Headroom license key for commercial features. When set, the
+    /// proxy resolves the entitlement tier from the key and gates
+    /// advanced compression features. `None` = open-source mode
+    /// (all core compression features available, no tier gating).
+    #[arg(long = "license-key", env = "HEADROOM_LICENSE_KEY")]
+    pub license_key: Option<String>,
+}
+
+/// Resolved entitlement tier from the license key. Determines
+/// which compression features are available.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum LicenseTier {
+    /// Open-source mode: no license key, all core features available.
+    #[default]
+    OpenSource = 0,
+    /// Team tier: org analytics, policy presets, budget controls.
+    Team = 1,
+    /// Business tier: project model, rate limiting, code graph.
+    Business = 2,
+    /// Enterprise tier: SSO, RBAC, audit logs, retention controls.
+    Enterprise = 3,
+}
+
+impl LicenseTier {
+    /// Resolve tier from a license key string. Currently uses simple
+    /// prefix matching as a local-only heuristic. Production will
+    /// add remote validation via the Headroom license server.
+    pub fn from_license_key(key: &str) -> Self {
+        if key.starts_with("ent-") {
+            LicenseTier::Enterprise
+        } else if key.starts_with("biz-") {
+            LicenseTier::Business
+        } else if key.starts_with("team-") {
+            LicenseTier::Team
+        } else if key.is_empty() {
+            LicenseTier::OpenSource
+        } else {
+            // Unknown key format: assume Team as minimum valid license.
+            LicenseTier::Team
+        }
+    }
+
+    /// Whether this tier allows advanced compression (LiveZone mode).
+    /// OpenSource gets basic compression; Team+ gets all modes.
+    pub fn allows_live_zone(&self) -> bool {
+        *self >= LicenseTier::Team
+    }
+
+    /// Whether this tier allows CCR (Cache-Control Reversibility).
+    pub fn allows_ccr(&self) -> bool {
+        *self >= LicenseTier::Team
+    }
+
+    /// Whether this tier allows episodic memory compression.
+    pub fn allows_episodic_memory(&self) -> bool {
+        *self >= LicenseTier::Business
+    }
+}
+
+impl std::fmt::Display for LicenseTier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OpenSource => write!(f, "opensource"),
+            Self::Team => write!(f, "team"),
+            Self::Business => write!(f, "business"),
+            Self::Enterprise => write!(f, "enterprise"),
+        }
+    }
 }
 
 fn parse_duration(s: &str) -> Result<Duration, String> {
@@ -553,6 +622,10 @@ pub struct Config {
     /// PR-D4: GCP ADC OAuth scope used when fetching the bearer
     /// token. Default `https://www.googleapis.com/auth/cloud-platform`.
     pub vertex_adc_scope: String,
+    /// Headroom license key. `None` in open-source mode.
+    pub license_key: Option<String>,
+    /// Resolved entitlement tier from the license key.
+    pub license_tier: LicenseTier,
 }
 
 impl Config {
@@ -589,6 +662,8 @@ impl Config {
             bedrock_validate_eventstream_crc: args.bedrock_validate_eventstream_crc,
             vertex_region: args.vertex_region,
             vertex_adc_scope: args.vertex_adc_scope,
+            license_tier: args.license_key.as_deref().map(LicenseTier::from_license_key).unwrap_or_default(),
+            license_key: args.license_key,
         }
     }
 
@@ -643,6 +718,8 @@ impl Config {
             // only; the upstream URL is `upstream`).
             vertex_region: "us-central1".to_string(),
             vertex_adc_scope: "https://www.googleapis.com/auth/cloud-platform".to_string(),
+            license_key: None,
+            license_tier: LicenseTier::default(),
         }
     }
 }

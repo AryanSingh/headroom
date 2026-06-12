@@ -42,7 +42,7 @@ use bytes::Bytes;
 use headroom_core::auth_mode::AuthMode as RequestAuthMode;
 use headroom_core::transforms::live_zone::DEFAULT_MODEL;
 use headroom_core::transforms::{
-    compress_anthropic_live_zone, BlockAction, ExclusionReason, LiveZoneError, LiveZoneOutcome,
+    compress_anthropic_live_zone_with_ccr, BlockAction, ExclusionReason, LiveZoneError, LiveZoneOutcome,
 };
 use serde_json::Value;
 
@@ -152,6 +152,21 @@ pub fn compress_anthropic_request(
     cache_control_policy: CacheControlAutoFrozen,
     auth_mode: RequestAuthMode,
     request_id: &str,
+) -> Outcome {
+    compress_anthropic_request_with_ccr(body, mode, cache_control_policy, auth_mode, request_id, None)
+}
+
+/// Same as [`compress_anthropic_request`] but with an optional CCR
+/// store for retrieval-marker injection. When `ccr_store` is `Some(_)`
+/// and a compressor produces a strictly smaller block, the dispatcher
+/// stores the original content keyed by its BLAKE3 hash.
+pub fn compress_anthropic_request_with_ccr(
+    body: &Bytes,
+    mode: CompressionMode,
+    cache_control_policy: CacheControlAutoFrozen,
+    auth_mode: RequestAuthMode,
+    request_id: &str,
+    ccr_store: Option<&dyn headroom_core::ccr::CcrStore>,
 ) -> Outcome {
     if matches!(mode, CompressionMode::Off) {
         tracing::info!(
@@ -355,7 +370,7 @@ pub fn compress_anthropic_request(
     // getting compression, not losing it). The plumbing here lets
     // F2.2 vary per-block thresholds by mode without touching this
     // call site again.
-    match compress_anthropic_live_zone(&dispatch_body, frozen_count, auth_mode.into(), model) {
+    match compress_anthropic_live_zone_with_ccr(&dispatch_body, frozen_count, auth_mode.into(), model, ccr_store) {
         Ok(LiveZoneOutcome::NoChange { manifest }) => {
             let block_count = manifest.block_outcomes.len();
             let blocks_excluded = manifest
