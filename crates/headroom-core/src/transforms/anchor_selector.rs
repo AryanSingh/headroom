@@ -780,7 +780,7 @@ impl AnchorSelector {
             1.0
         };
 
-        let region_items: Vec<Value> = items[start_idx..end_idx].to_vec();
+        let region_items: &[Value] = &items[start_idx..end_idx];
         let mut candidates: Vec<(usize, f64)> = Vec::new();
 
         for i in 0..num_candidates {
@@ -791,7 +791,7 @@ impl AnchorSelector {
             }
             let item = &items[idx];
             let score = if item.is_object() {
-                calculate_information_score(item, &region_items)
+                calculate_information_score(item, region_items)
             } else {
                 0.5
             };

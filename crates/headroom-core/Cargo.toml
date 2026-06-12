@@ -83,6 +83,10 @@ unidiff = "0.4"
 # happen as a post-filter on the byte offsets the automaton returns.
 # Default features (std, perf-literal) keep the build small.
 aho-corasick = "1"
+# `memchr` for SIMD-accelerated newline scanning in diff/log line splitting.
+# Replaces naive `str::split('\\n')` with byte-parallel search that skips
+# UTF-8 validation overhead on every split iteration.
+memchr = "2"
 # `rayon` powers the pipeline orchestrator's parallel reformat-vs-bloat
 # evaluation: while a worker thread runs the structural reformat passes,
 # another set of threads run the per-offload bloat estimators in parallel.

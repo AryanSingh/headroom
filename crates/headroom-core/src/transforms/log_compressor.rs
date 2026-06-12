@@ -48,11 +48,33 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder, MatchKind};
+use memchr::memchr_iter;
 use md5::{Digest, Md5};
 use regex::Regex;
 
 use crate::ccr::CcrStore;
 use crate::transforms::adaptive_sizer::compute_optimal_k;
+
+// ─── SIMD-accelerated line splitting ──────────────────────────────────────
+//
+// Uses `memchr` to leverage hardware SIMD (SSE2/AVX2/NEON) for newline
+// scanning — ~4-8× faster than a scalar byte loop for large inputs.
+
+#[inline]
+fn split_lines_memchr(text: &str) -> Vec<&str> {
+    let bytes = text.as_bytes();
+    if bytes.len() < 256 {
+        return text.split('\n').collect();
+    }
+    let mut lines = Vec::with_capacity(bytes.len() / 40);
+    let mut start = 0;
+    for pos in memchr_iter(b'\n', bytes) {
+        lines.push(&text[start..pos]);
+        start = pos + 1;
+    }
+    lines.push(&text[start..]);
+    lines
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -619,7 +641,7 @@ impl LogCompressor {
         store: Option<&dyn CcrStore>,
     ) -> (LogCompressionResult, LogCompressorStats) {
         let mut stats = LogCompressorStats::default();
-        let lines: Vec<&str> = content.split('\n').collect();
+        let lines: Vec<&str> = split_lines_memchr(content);
         let original_line_count = lines.len();
 
         if original_line_count < self.config.min_lines_for_ccr {

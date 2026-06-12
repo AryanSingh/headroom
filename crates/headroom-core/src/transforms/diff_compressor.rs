@@ -39,10 +39,40 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+use memchr::memchr_iter;
 use md5::{Digest, Md5};
 use regex::Regex;
 
 use crate::ccr::CcrStore;
+
+// ─── SIMD-accelerated line splitting ──────────────────────────────────────
+//
+// `memchr` uses hardware SIMD (SSE2/AVX2/NEON) to scan for newline bytes
+// ~4-8× faster than a scalar byte loop for large inputs. For inputs under
+// ~256 bytes the overhead of the SIMD path roughly equals the scalar scan,
+// so we fall back to the standard `split('\n')` below that threshold.
+
+/// Split `text` on `\\n` using SIMD-accelerated byte scanning when the input
+/// is large enough to benefit. Returns the same `Vec<&str>` as
+/// `text.split('\n').collect()` (trailing-newline produces an empty final
+/// element, matching Python semantics).
+#[inline]
+fn split_lines_memchr(text: &str) -> Vec<&str> {
+    let bytes = text.as_bytes();
+    // For small inputs the SIMD overhead isn't worth it.
+    if bytes.len() < 256 {
+        return text.split('\n').collect();
+    }
+    let mut lines = Vec::with_capacity(bytes.len() / 40); // ~40 chars/line heuristic
+    let mut start = 0;
+    for pos in memchr_iter(b'\n', bytes) {
+        lines.push(&text[start..pos]);
+        start = pos + 1;
+    }
+    // Include the trailing segment (may be empty if text ends with \n).
+    lines.push(&text[start..]);
+    lines
+}
 
 // ─── Score-weight constants ────────────────────────────────────────────────
 //
@@ -284,7 +314,7 @@ impl DiffCompressor {
         // Python: `lines = content.split("\n")`. Rust `split` matches `str.split`
         // semantics: a trailing newline produces an empty final element, exactly
         // like Python. Critical for byte-equal `original_line_count`.
-        let lines: Vec<&str> = content.split('\n').collect();
+        let lines: Vec<&str> = split_lines_memchr(content);
         let original_line_count = lines.len();
         stats.input_lines = original_line_count;
 
