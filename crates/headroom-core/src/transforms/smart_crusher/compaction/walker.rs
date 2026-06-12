@@ -139,6 +139,18 @@ fn walk_string(s: String, ctx: &DocumentCompactor) -> Value {
         };
     }
 
+    // Episodic memory block: detect the sentinel tag and route straight
+    // to CCR for zero-token reversible compression. This runs BEFORE
+    // the generic opaque-blob path because memory blocks may be short
+    // enough to fall under the opaque_min_bytes threshold.
+    if s.starts_with("[SYSTEM: Past Session Memories]") {
+        return Value::String(emit_opaque_ccr_marker(
+            &s,
+            &OpaqueKind::EpisodicMemory,
+            ctx.ccr_store.as_ref(),
+        ));
+    }
+
     // Long opaque blob: classify, then route image/audio through
     // multimodal compressors for aggressive downsampling + CCR.
     if let CellClass::Opaque(kind) = classify_cell(&Value::String(s.clone()), &ctx.config.classify)
@@ -231,6 +243,7 @@ pub fn emit_opaque_ccr_marker(
         OpaqueKind::Base64Blob => "base64",
         OpaqueKind::ImageBlob => "image",
         OpaqueKind::AudioBlob => "audio",
+        OpaqueKind::EpisodicMemory => "episodic_memory",
         OpaqueKind::LongString => "string",
         OpaqueKind::HtmlChunk => "html",
         OpaqueKind::Other(s) => s.as_str(),

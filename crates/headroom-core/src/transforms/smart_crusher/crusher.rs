@@ -971,6 +971,7 @@ fn opaque_kind_label(kind: &super::compaction::OpaqueKind) -> &str {
         OpaqueKind::Base64Blob => "base64",
         OpaqueKind::ImageBlob => "image",
         OpaqueKind::AudioBlob => "audio",
+        OpaqueKind::EpisodicMemory => "episodic_memory",
         OpaqueKind::LongString => "string",
         OpaqueKind::HtmlChunk => "html",
         OpaqueKind::Other(s) => s.as_str(),

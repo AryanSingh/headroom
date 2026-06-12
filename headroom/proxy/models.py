@@ -271,6 +271,13 @@ class ProxyConfig:
     memory_bridge_auto_import: bool = False
     memory_bridge_export_path: str = ""
 
+    # Episodic Memory (file-backed cross-session memory)
+    # Extracts insights from completed sessions and injects them into
+    # new sessions. Gated on HEADROOM_EPISODIC_MEMORY_ENABLED=1.
+    episodic_memory_enabled: bool = False
+    episodic_idle_timeout_seconds: int = 300  # 5 min idle before extraction
+    episodic_extraction_model: str = "claude-3-haiku-20240307"
+
     # License / Usage Reporting
     license_key: str | None = None
     license_cloud_url: str = "https://app.headroomlabs.ai"

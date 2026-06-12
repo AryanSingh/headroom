@@ -604,6 +604,20 @@ class HeadroomProxy(
         # Turn counter for context tracking
         self._turn_counter = 0
 
+        # Episodic Memory Session Tracker (file-backed cross-session memory)
+        self.episodic_tracker = None
+        if config.episodic_memory_enabled:
+            from headroom.memory.session_tracker import EpisodicSessionTracker
+            from headroom.memory.store import EpisodicMemoryStore
+
+            _ep_store = EpisodicMemoryStore()
+            self.episodic_tracker = EpisodicSessionTracker(
+                _ep_store,
+                idle_timeout_seconds=config.episodic_idle_timeout_seconds,
+                extraction_model=config.episodic_extraction_model,
+            )
+            logger.info("Episodic Memory: ENABLED (idle timeout: %ds)", config.episodic_idle_timeout_seconds)
+
         # Memory Handler (persistent user memory)
         self.memory_handler: MemoryHandler | None = None
         if config.memory_enabled:
@@ -1507,6 +1521,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     await proxy.usage_reporter.start(proxy)
                 if proxy.traffic_learner:
                     await proxy.traffic_learner.start()
+                if proxy.episodic_tracker:
+                    proxy.episodic_tracker.start_sweeper()
+                    logger.info("Episodic Memory: session sweeper started")
 
                 # Only start beacon if we acquire the lock (first worker wins)
                 _beacon_is_owner[0] = _try_acquire_beacon_lock()
@@ -1530,6 +1547,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 await proxy.usage_reporter.stop()
             if proxy.traffic_learner:
                 await proxy.traffic_learner.stop()
+            if proxy.episodic_tracker:
+                proxy.episodic_tracker.stop_sweeper()
             if proxy.code_graph_watcher:
                 proxy.code_graph_watcher.stop()
             await proxy.shutdown()

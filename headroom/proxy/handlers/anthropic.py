@@ -1655,6 +1655,43 @@ class AnthropicHandlerMixin:
                 if remembered_event.headers is not None:
                     headers = remembered_event.headers
 
+            # Episodic Memory: inject cross-session memories for new conversations.
+            # Gated on episodic_tracker availability and new-session detection
+            # (<=2 messages = just system prompt + first user turn).
+            episodic_injected = False
+            _ep_tracker = getattr(self, "episodic_tracker", None)
+            if _ep_tracker and _ep_tracker.enabled and len(optimized_messages) <= 2:
+                try:
+                    # Resolve project path from request context
+                    _cwd_header = request.headers.get("x-headroom-cwd", "")
+                    _proj_root = getattr(
+                        self.memory_handler.config, "project_root_override", ""
+                    ) if self.memory_handler else ""
+                    _project_path = _cwd_header or _proj_root or os.getcwd()
+
+                    # Record this request for session tracking
+                    _ep_tracker.on_request(_project_path, optimized_messages)
+
+                    # Load and inject episodic memories
+                    _ep_memory = _ep_tracker.load_episodic_memories(_project_path)
+                    if _ep_memory:
+                        _ep_before = optimized_messages
+                        optimized_messages = (
+                            self._append_context_to_latest_non_frozen_user_turn(
+                                optimized_messages,
+                                _ep_memory,
+                                frozen_message_count=frozen_message_count,
+                            )
+                        )
+                        if optimized_messages is not _ep_before:
+                            episodic_injected = True
+                            logger.info(
+                                f"[{request_id}] Episodic Memory: injected for "
+                                f"{_project_path[:32]}... ({len(_ep_memory)} chars)"
+                            )
+                except Exception as e:
+                    logger.debug(f"[{request_id}] Episodic Memory: injection failed: {e}")
+
             # Update body
             body["messages"] = optimized_messages
             if tools or _original_tools is not None:

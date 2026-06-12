@@ -32,6 +32,9 @@ pub enum OpaqueKind {
     /// Audio data-URI or raw base64 identified as audio.
     /// Routed through `compress_audio` for downsampling + CCR.
     AudioBlob,
+    /// Episodic memory block (starts with ``[SYSTEM: Past Session Memories]``).
+    /// Routed directly to CCR for zero-token reversible compression.
+    EpisodicMemory,
     /// Long opaque string the classifier couldn't otherwise place.
     LongString,
     /// HTML/XML chunk (detected by `<` density).
