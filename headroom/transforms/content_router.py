@@ -1961,7 +1961,7 @@ class ContentRouter(Transform):
         # to preserve pre-F2.2 behaviour for non-proxy callers.
         self._runtime_compression_policy = kwargs.get("compression_policy")
 
-        tokens_before = sum(tokenizer.count_text(str(m.get("content", ""))) for m in messages)
+        tokens_before = tokenizer.count_messages(messages)
         context = kwargs.get("context", "")
         hook_biases: dict[int, float] = kwargs.get("biases") or {}
 
@@ -2305,9 +2305,7 @@ class ContentRouter(Transform):
         # Build final message list from slots
         transformed_messages = [m for m in result_slots if m is not None]
 
-        tokens_after = sum(
-            tokenizer.count_text(str(m.get("content", ""))) for m in transformed_messages
-        )
+        tokens_after = tokenizer.count_messages(transformed_messages)
 
         # Log routing summary
         parts = []
@@ -2467,7 +2465,7 @@ class ContentRouter(Transform):
             protect_text_blocks = True
         elif role == "assistant" and not compress_assistant_text_blocks:
             protect_text_blocks = True
-        elif role not in ("assistant", "tool", "function"):
+        elif role not in ("user", "assistant", "tool", "function"):
             protect_text_blocks = True
         else:
             protect_text_blocks = False

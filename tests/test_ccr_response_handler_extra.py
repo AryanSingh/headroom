@@ -72,7 +72,7 @@ def test_parse_ccr_tool_calls_google_and_other_calls() -> None:
                             "functionCall": {
                                 "name": CCR_TOOL_NAME,
                                 "args": {
-                                    "hash": "aaaaaaaaaaaaaaaaaaaaaaaa",
+                                    "hash": "aaaaaaaaaaaaaaaa",
                                     "query": "pizza",
                                 },
                             }
@@ -87,7 +87,7 @@ def test_parse_ccr_tool_calls_google_and_other_calls() -> None:
     assert ccr_calls == [
         CCRToolCall(
             tool_call_id=CCR_TOOL_NAME,
-            hash_key="aaaaaaaaaaaaaaaaaaaaaaaa",
+            hash_key="aaaaaaaaaaaaaaaa",
             query="pizza",
         )
     ]
@@ -172,7 +172,7 @@ async def test_handle_response_openai_success_and_failure(monkeypatch: pytest.Mo
                             "type": "function",
                             "function": {
                                 "name": CCR_TOOL_NAME,
-                                "arguments": '{"hash":"aaaaaaaaaaaaaaaaaaaaaaaa"}',
+                                "arguments": '{"hash":"aaaaaaaaaaaaaaaa"}',
                             },
                         }
                     ],
@@ -185,7 +185,7 @@ async def test_handle_response_openai_success_and_failure(monkeypatch: pytest.Mo
         "_execute_retrieval",
         lambda call: CCRToolResult(
             tool_call_id=call.tool_call_id,
-            content='{"hash":"aaaaaaaaaaaaaaaaaaaaaaaa"}',
+            content='{"hash":"aaaaaaaaaaaaaaaa"}',
             success=True,
         ),
     )
@@ -252,7 +252,7 @@ def test_streaming_buffer_and_parse_sse_helpers() -> None:
                                     "id": "call_1",
                                     "function": {
                                         "name": "headroom_retrieve",
-                                        "arguments": '{"hash":"aaaaaaaaaaaa',
+                                        "arguments": '{"hash":"aaaaaaaa',
                                     },
                                 }
                             ]
@@ -267,7 +267,7 @@ def test_streaming_buffer_and_parse_sse_helpers() -> None:
                             "tool_calls": [
                                 {
                                     "index": 0,
-                                    "function": {"arguments": 'aaaaaaaaaaaa"}'},
+                                    "function": {"arguments": 'aaaaaaaa"}'},
                                 }
                             ]
                         }
@@ -280,7 +280,7 @@ def test_streaming_buffer_and_parse_sse_helpers() -> None:
     assert message["content"] == "Hi"
     assert message["tool_calls"][0]["id"] == "call_1"
     assert message["tool_calls"][0]["function"]["arguments"] == (
-        '{"hash":"aaaaaaaaaaaaaaaaaaaaaaaa"}'
+        '{"hash":"aaaaaaaaaaaaaaaa"}'
     )
 
 

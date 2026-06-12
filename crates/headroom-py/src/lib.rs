@@ -655,12 +655,16 @@ struct PySmartCrusher {
 #[pymethods]
 impl PySmartCrusher {
     #[new]
-    #[pyo3(signature = (config = None))]
-    fn new(config: Option<&PySmartCrusherConfig>) -> Self {
+    #[pyo3(signature = (config = None, ccr_db_path = None))]
+    fn new(config: Option<&PySmartCrusherConfig>, ccr_db_path: Option<String>) -> Self {
         let cfg = config.map(|c| c.inner.clone()).unwrap_or_default();
-        Self {
-            inner: RustSmartCrusher::new(cfg),
+        let mut inner = RustSmartCrusher::new(cfg);
+        if let Some(path) = ccr_db_path {
+            if let Ok(store) = headroom_core::ccr::backends::SqliteCcrStore::open(&path, 300) {
+                inner.ccr_store = Some(std::sync::Arc::new(store));
+            }
         }
+        Self { inner }
     }
 
     /// Construct WITHOUT the lossless-first compaction stage. The
@@ -669,12 +673,17 @@ impl PySmartCrusher {
     /// Used by the legacy parity fixture harness — those fixtures
     /// were recorded against the pre-PR4 lossy-only behavior.
     #[staticmethod]
-    #[pyo3(signature = (config = None))]
-    fn without_compaction(config: Option<&PySmartCrusherConfig>) -> Self {
+    #[pyo3(signature = (config = None, ccr_db_path = None))]
+    fn without_compaction(config: Option<&PySmartCrusherConfig>, ccr_db_path: Option<String>) -> Self {
         let cfg = config.map(|c| c.inner.clone()).unwrap_or_default();
-        Self {
-            inner: RustSmartCrusher::without_compaction(cfg),
+        let mut inner = RustSmartCrusher::without_compaction(cfg);
+        if let Some(path) = ccr_db_path {
+            match headroom_core::ccr::backends::SqliteCcrStore::open(&path, 300) {
+                Ok(store) => inner.ccr_store = Some(std::sync::Arc::new(store)),
+                Err(e) => panic!("Failed to open SqliteCcrStore at {path}: {e}"),
+            }
         }
+        Self { inner }
     }
 
     /// Construct with the lossless-first compaction stage's formatter
@@ -682,14 +691,22 @@ impl PySmartCrusher {
     /// or `"markdown-kv"`. Raises `ValueError` on unknown names so a
     /// misconfigured knob is visible instead of silently falling back.
     #[staticmethod]
-    #[pyo3(signature = (config = None, format_name = "csv-schema"))]
+    #[pyo3(signature = (config = None, format_name = "csv-schema", ccr_db_path = None))]
     fn with_compaction_format(
         config: Option<&PySmartCrusherConfig>,
         format_name: &str,
+        ccr_db_path: Option<String>,
     ) -> PyResult<Self> {
         let cfg = config.map(|c| c.inner.clone()).unwrap_or_default();
         match RustSmartCrusher::with_compaction_format(cfg, format_name) {
-            Some(inner) => Ok(Self { inner }),
+            Some(mut inner) => {
+                if let Some(path) = ccr_db_path {
+                    if let Ok(store) = headroom_core::ccr::backends::SqliteCcrStore::open(&path, 300) {
+                        inner.ccr_store = Some(std::sync::Arc::new(store));
+                    }
+                }
+                Ok(Self { inner })
+            }
             None => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "unknown compaction format {format_name:?}; expected one of: {}",
                 headroom_core::transforms::smart_crusher::compaction::CompactionStage::SUPPORTED_FORMAT_NAMES.join(", ")

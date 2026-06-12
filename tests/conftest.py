@@ -5,6 +5,7 @@
 import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["HEADROOM_CCR_BACKEND"] = "memory"
 
 import json
 import tempfile
@@ -60,6 +61,14 @@ def _reset_headroom_logger_propagation():
     import logging as _logging
 
     _logging.getLogger("headroom").propagate = True
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _isolated_ccr_db(tmp_path):
+    """Isolate the CCR database to a temporary directory for each test."""
+    db_path = tmp_path / "ccr.db"
+    os.environ["HEADROOM_CCR_DB_PATH"] = str(db_path)
     yield
 
 

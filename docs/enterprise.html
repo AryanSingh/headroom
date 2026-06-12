@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headroom — Enterprise | Context Optimization for AI Agents</title>
+    <meta name="description" content="Self-hosted context optimization and governance layer for AI agents. Reduce costs 60-95%, preserve privacy, and govern AI workflows across providers.">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --border: #1e1e2e;
+            --text: #e4e4e7;
+            --text-muted: #9ca3af;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --green: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.1);
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+
+        /* Nav */
+        .nav { position: fixed; top: 0; width: 100%; background: rgba(10,10,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); z-index: 100; padding: 0 2rem; }
+        .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+        .nav-logo span { color: var(--accent); }
+        .nav-links { display: flex; gap: 2rem; align-items: center; }
+        .nav-links a { color: var(--text-muted); font-size: 0.9rem; }
+        .nav-links a:hover { color: var(--text); }
+        .btn { display: inline-flex; align-items: center; padding: 0.6rem 1.25rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-lg { padding: 0.85rem 1.75rem; font-size: 1rem; }
+
+        /* Hero */
+        .hero { padding: 8rem 2rem 5rem; text-align: center; max-width: 900px; margin: 0 auto; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem; border-radius: 999px; background: var(--green-bg); border: 1px solid rgba(16,185,129,0.3); color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 1.5rem; }
+        .hero h1 { font-size: 3.2rem; font-weight: 800; line-height: 1.15; margin-bottom: 1.25rem; letter-spacing: -0.02em; }
+        .hero h1 .accent { color: var(--accent); }
+        .hero p { font-size: 1.2rem; color: var(--text-muted); max-width: 700px; margin: 0 auto 2rem; }
+        .hero-ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+        /* Proof bar */
+        .proof-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); max-width: 1000px; margin: 0 auto 5rem; border-radius: 12px; overflow: hidden; }
+        .proof-item { background: var(--bg-card); padding: 1.5rem; text-align: center; }
+        .proof-item .number { font-size: 1.8rem; font-weight: 800; color: var(--green); }
+        .proof-item .label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* Sections */
+        .section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
+        .section-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.75rem; }
+        .section h2 { font-size: 2.2rem; font-weight: 700; margin-bottom: 1rem; letter-spacing: -0.01em; }
+        .section .subtitle { font-size: 1.1rem; color: var(--text-muted); max-width: 650px; margin-bottom: 3rem; }
+
+        /* Problem grid */
+        .problem-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .problem-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem; }
+        .problem-card .icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+        .problem-card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .problem-card p { font-size: 0.9rem; color: var(--text-muted); }
+
+        /* Feature grid */
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; transition: border-color 0.2s; }
+        .feature-card:hover { border-color: var(--accent); }
+        .feature-card .icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem; }
+        .feature-card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .feature-card p { font-size: 0.88rem; color: var(--text-muted); }
+
+        /* How it works */
+        .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; counter-reset: step; }
+        .step { text-align: center; position: relative; }
+        .step::before { counter-increment: step; content: counter(step); display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: white; font-size: 1.25rem; font-weight: 700; margin: 0 auto 1rem; }
+        .step h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .step p { font-size: 0.9rem; color: var(--text-muted); }
+
+        /* Comparison */
+        .comparison { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
+        .comparison th, .comparison td { padding: 0.85rem 1.25rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .comparison th { color: var(--text-muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .comparison td:first-child { font-weight: 500; }
+        .comparison .check { color: var(--green); }
+        .comparison .cross { color: var(--text-muted); }
+        .comparison tr:hover td { background: var(--bg-card); }
+
+        /* Pricing */
+        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; display: flex; flex-direction: column; }
+        .pricing-card.featured { border-color: var(--accent); position: relative; }
+        .pricing-card.featured::before { content: 'MOST POPULAR'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 999px; letter-spacing: 0.05em; }
+        .pricing-card .tier { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .pricing-card .price { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .pricing-card .price span { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); }
+        .pricing-card .desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+        .pricing-card ul { list-style: none; margin-bottom: 1.5rem; flex: 1; }
+        .pricing-card ul li { padding: 0.4rem 0; font-size: 0.88rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+        .pricing-card ul li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+        /* Security */
+        .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .security-item { display: flex; gap: 1rem; align-items: flex-start; }
+        .security-item .icon { width: 40px; height: 40px; border-radius: 8px; background: var(--green-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.1rem; }
+        .security-item h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .security-item p { font-size: 0.85rem; color: var(--text-muted); }
+
+        /* Enterprise features preview */
+        .enterprise-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+        .ef-card { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 12px; padding: 1.5rem; opacity: 0.8; }
+        .ef-card .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--orange); background: rgba(245,158,11,0.1); padding: 0.2rem 0.6rem; border-radius: 999px; margin-bottom: 0.75rem; }
+        .ef-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.35rem; }
+        .ef-card p { font-size: 0.83rem; color: var(--text-muted); }
+
+        /* ROI */
+        .roi-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+        .roi-left h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }
+        .roi-left p { color: var(--text-muted); margin-bottom: 1.5rem; }
+        .roi-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .roi-metric { text-align: center; padding: 1rem; background: rgba(99,102,241,0.05); border-radius: 8px; }
+        .roi-metric .value { font-size: 1.5rem; font-weight: 800; color: var(--green); }
+        .roi-metric .label { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* CTA */
+        .cta-section { text-align: center; padding: 5rem 2rem; }
+        .cta-section h2 { font-size: 2rem; font-weight: 700; margin-bottom: 1rem; }
+        .cta-section p { color: var(--text-muted); margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto; }
+        .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+        /* Footer */
+        .footer { border-top: 1px solid var(--border); padding: 3rem 2rem; max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .footer-links { display: flex; gap: 2rem; }
+        .footer-links a { color: var(--text-muted); font-size: 0.85rem; }
+        .footer-copy { color: var(--text-muted); font-size: 0.85rem; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .proof-bar, .feature-grid, .pricing-grid, .steps, .problem-grid, .security-grid, .enterprise-features { grid-template-columns: 1fr; }
+            .roi-box { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+    <div class="nav-inner">
+        <div class="nav-logo"><span>Head</span>room</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#security">Security</a>
+            <a href="https://headroom-docs.vercel.app/docs">Docs</a>
+            <a href="https://github.com/chopratejas/headroom" class="btn btn-outline">GitHub</a>
+            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary">Request a Pilot</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-badge">🔒 Local-first · Self-hosted · No data leaves your infrastructure</div>
+    <h1>The context and cost control layer <br>for <span class="accent">AI agents</span></h1>
+    <p>Reduce agent spend 60–95%, fit more usable context, and govern AI workflows across providers — without sending prompts to another SaaS.</p>
+    <div class="hero-ctas">
+        <a href="https://headroom-docs.vercel.app/docs/quickstart" class="btn btn-primary btn-lg">Start Free</a>
+        <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
+    </div>
+</section>
+
+<!-- Proof Bar -->
+<div class="proof-bar">
+    <div class="proof-item">
+        <div class="number">60–95%</div>
+        <div class="label">Token savings</div>
+    </div>
+    <div class="proof-item">
+        <div class="number">6</div>
+        <div class="label">Compression algorithms</div>
+    </div>
+    <div class="proof-item">
+        <div class="number">100%</div>
+        <div class="label">Reversible retrieval</div>
+    </div>
+    <div class="proof-item">
+        <div class="number">Local</div>
+        <div class="label">Data stays on your infra</div>
+    </div>
+</div>
+
+<!-- Problem -->
+<section class="section">
+    <div class="section-label">The Problem</div>
+    <h2>Agent context is expensive and ungoverned</h2>
+    <p class="subtitle">Your AI agents burn tokens on verbose tool outputs, logs, and search results. Provider caching helps — but not enough.</p>
+    <div class="problem-grid">
+        <div class="problem-card">
+            <div class="icon">💸</div>
+            <h3>Tool outputs bloat fast</h3>
+            <p>Code search results, file diffs, test output, and logs consume 60–90% of your context window — and your LLM budget.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">🔒</div>
+            <h3>Provider caching is provider-locked</h3>
+            <p>Native caching from Anthropic, OpenAI, and Google works inside a single provider. It doesn't help across providers, tools, or payload types.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">📊</div>
+            <h3>No visibility into AI spend</h3>
+            <p>Teams have no idea where tokens go. No per-team analytics, no project rollups, no exportable reports for ROI reviews.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">🛡️</div>
+            <h3>Governance gap</h3>
+            <p>No policy control, no audit trail, no SSO. Enterprise security teams can't approve deployments without these.</p>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="section">
+    <div class="section-label">How It Works</div>
+    <h2>Three steps to governed, optimized context</h2>
+    <div class="steps">
+        <div class="step">
+            <h3>Deploy the proxy</h3>
+            <p>Run Headroom locally, in Docker, or in your Kubernetes cluster. Zero code changes — just point your agent at the proxy.</p>
+        </div>
+        <div class="step">
+            <h3>Context flows through</h3>
+            <p>Headroom detects content type (JSON, code, logs, diffs) and applies the right compressor. Originals stored locally for retrieval.</p>
+        </div>
+        <div class="step">
+            <h3>Save, govern, measure</h3>
+            <p>60–95% fewer tokens. Team analytics. Policy presets. Audit logs. Your data never leaves your infrastructure.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+    <div class="section-label">Capabilities</div>
+    <h2>Built for agent infrastructure</h2>
+    <p class="subtitle">Every feature designed for teams running AI agents at scale.</p>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(99,102,241,0.1);">⚡</div>
+            <h3>Rust-core compression</h3>
+            <p>Sub-millisecond compression with 6 algorithms: SmartCrusher (JSON), CodeCompressor (AST), LogCompressor, DiffCompressor, SearchCompressor, and Kompress-base (ML).</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(16,185,129,0.1);">🔄</div>
+            <h3>Reversible retrieval (CCR)</h3>
+            <p>Original payloads stored locally, retrievable on demand. Best of both worlds: cheap context on the wire, full fidelity when the LLM needs it.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(245,158,11,0.1);">🌐</div>
+            <h3>Cross-provider optimization</h3>
+            <p>Single proxy for Anthropic, OpenAI, Google, Bedrock, and Vertex. One layer, all providers, no vendor lock-in.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(239,68,68,0.1);">🤖</div>
+            <h3>Agent-aware transforms</h3>
+            <p>Works with Claude Code, Cursor, Codex, Copilot, Aider, and any OpenAI-compatible client. Detects content type and applies the right compressor.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(168,85,247,0.1);">📈</div>
+            <h3>Team analytics & governance</h3>
+            <p>See where AI spend goes across teams and projects. Policy presets, usage reports, and exportable data for ROI reviews.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon" style="background: rgba(20,184,166,0.1);">🧠</div>
+            <h3>Cross-agent memory</h3>
+            <p>Shared context across Claude, Codex, and Gemini. Episodic memory extracts insights from past sessions and injects them into new ones.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Why Not Native Caching -->
+<section class="section">
+    <div class="section-label">Why Headroom</div>
+    <h2>Beyond provider-native caching</h2>
+    <p class="subtitle">Native caching helps inside a single provider. Headroom works across the entire agent stack.</p>
+    <table class="comparison">
+        <thead>
+            <tr>
+                <th>Capability</th>
+                <th>Native Caching</th>
+                <th>Headroom</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Cross-provider</td>
+                <td class="cross">✗ Provider-locked</td>
+                <td class="check">✓ Anthropic, OpenAI, Google, Bedrock, Vertex</td>
+            </tr>
+            <tr>
+                <td>Tool output compression</td>
+                <td class="cross">✗ Conversation prefixes only</td>
+                <td class="check">✓ JSON, code, logs, diffs, search, images, audio</td>
+            </tr>
+            <tr>
+                <td>Reversible retrieval</td>
+                <td class="cross">✗ Lossy or limited</td>
+                <td class="check">✓ Full originals stored locally, retrievable on demand</td>
+            </tr>
+            <tr>
+                <td>Team analytics</td>
+                <td class="cross">✗ None</td>
+                <td class="check">✓ Per-team, per-project, per-agent breakdowns</td>
+            </tr>
+            <tr>
+                <td>Policy control</td>
+                <td class="cross">✗ None</td>
+                <td class="check">✓ Presets by team, project, or agent class</td>
+            </tr>
+            <tr>
+                <td>Data residency</td>
+                <td class="check">✓ Provider handles</td>
+                <td class="check">✓ Customer infrastructure</td>
+            </tr>
+            <tr>
+                <td>Audit logs</td>
+                <td class="cross">✗ None</td>
+                <td class="check">✓ Enterprise tier</td>
+            </tr>
+            <tr>
+                <td>SSO / RBAC</td>
+                <td class="cross">✗ None</td>
+                <td class="check">✓ Enterprise tier</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ROI -->
+<section class="section">
+    <div class="section-label">ROI</div>
+    <h2>Measurable savings in 14 days</h2>
+    <div class="roi-box">
+        <div class="roi-left">
+            <h3>Typical pilot results</h3>
+            <p>Teams running Headroom see immediate, measurable savings. Our pilot framework captures baseline metrics, deploys in under 30 minutes, and delivers weekly ROI reports.</p>
+            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary">Start a Pilot →</a>
+        </div>
+        <div class="roi-metrics">
+            <div class="roi-metric">
+                <div class="value">75%</div>
+                <div class="label">Average token savings</div>
+            </div>
+            <div class="roi-metric">
+                <div class="value">4.4 mo</div>
+                <div class="label">Typical payback period</div>
+            </div>
+            <div class="roi-metric">
+                <div class="value">92%</div>
+                <div class="label">Code search compression</div>
+            </div>
+            <div class="roi-metric">
+                <div class="value">0%</div>
+                <div class="label">Quality degradation</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Security -->
+<section class="section" id="security">
+    <div class="section-label">Security & Privacy</div>
+    <h2>Your data stays in your infrastructure</h2>
+    <p class="subtitle">Headroom is local-first by default. No prompts, tool outputs, or conversation content ever leave your network.</p>
+    <div class="security-grid">
+        <div class="security-item">
+            <div class="icon">🏠</div>
+            <div>
+                <h4>Local-first deployment</h4>
+                <p>Runs in your infrastructure, behind your firewall. Docker, docker-compose, or Kubernetes.</p>
+            </div>
+        </div>
+        <div class="security-item">
+            <div class="icon">🚫</div>
+            <div>
+                <h4>No prompt content in telemetry</h4>
+                <p>Optional telemetry sends only aggregate counts — request count, tokens saved, model distribution. Never message content.</p>
+            </div>
+        </div>
+        <div class="security-item">
+            <div class="icon">📴</div>
+            <div>
+                <h4>Air-gap support</h4>
+                <p>Pre-download models and run fully offline. No external network access required after initial setup.</p>
+            </div>
+        </div>
+        <div class="security-item">
+            <div class="icon">🔐</div>
+            <div>
+                <h4>Internal header stripping</h4>
+                <p>Drops all x-headroom-* headers before forwarding to prevent proxy fingerprinting.</p>
+            </div>
+        </div>
+        <div class="security-item">
+            <div class="icon">⏱️</div>
+            <div>
+                <h4>7-day offline grace period</h4>
+                <p>If license server is unreachable, cached license data is used for up to 7 days. Proxy continues normally.</p>
+            </div>
+        </div>
+        <div class="security-item">
+            <div class="icon">📋</div>
+            <div>
+                <h4>Security review packet</h4>
+                <p>Architecture diagrams, data flow documentation, and FAQ for enterprise security review. Contact us for access.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enterprise Features Preview -->
+    <div class="enterprise-features">
+        <div class="ef-card">
+            <div class="badge">Coming Soon</div>
+            <h4>SSO / SAML</h4>
+            <p>Enterprise single sign-on integration for admin dashboard and proxy access.</p>
+        </div>
+        <div class="ef-card">
+            <div class="badge">Coming Soon</div>
+            <h4>RBAC</h4>
+            <p>Role-based access control for admin, operator, and viewer roles.</p>
+        </div>
+        <div class="ef-card">
+            <div class="badge">Coming Soon</div>
+            <h4>Audit Logs</h4>
+            <p>Comprehensive audit trail for all administrative actions and configuration changes.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section class="section" id="pricing">
+    <div class="section-label">Pricing</div>
+    <h2>Start free, scale with your team</h2>
+    <p class="subtitle">Open-core model: full-featured OSS, paid tiers for teams and enterprises.</p>
+    <div class="pricing-grid">
+        <div class="pricing-card">
+            <div class="tier">Builder</div>
+            <div class="price">Free <span>forever</span></div>
+            <div class="desc">Individual engineers. Full compression, local-first.</div>
+            <ul>
+                <li>All 6 compression algorithms</li>
+                <li>CCR reversible retrieval</li>
+                <li>Proxy, SDK, CLI, MCP</li>
+                <li>Local dashboard</li>
+                <li>Cross-agent memory</li>
+                <li>Community support</li>
+            </ul>
+            <a href="https://headroom-docs.vercel.app/docs/quickstart" class="btn btn-outline" style="width: 100%; justify-content: center;">Get Started</a>
+        </div>
+        <div class="pricing-card featured">
+            <div class="tier">Team</div>
+            <div class="price">$1,500 <span>/month</span></div>
+            <div class="desc">Small engineering teams. Shared visibility and policy.</div>
+            <ul>
+                <li>Everything in Builder</li>
+                <li>Org-level analytics</li>
+                <li>Historical reporting</li>
+                <li>Policy presets</li>
+                <li>Usage exports (CSV)</li>
+                <li>Email support (business hours)</li>
+                <li>Deployment assistance</li>
+            </ul>
+            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary" style="width: 100%; justify-content: center;">Request Pilot</a>
+        </div>
+        <div class="pricing-card">
+            <div class="tier">Enterprise</div>
+            <div class="price">Custom</div>
+            <div class="desc">Security-sensitive orgs. SSO, RBAC, audit logs, air-gap.</div>
+            <ul>
+                <li>Everything in Team</li>
+                <li>SSO / SAML</li>
+                <li>RBAC</li>
+                <li>Audit logs</li>
+                <li>Retention controls</li>
+                <li>Air-gap deployment</li>
+                <li>Dedicated support engineer</li>
+                <li>Premium SLA (24/7)</li>
+            </ul>
+            <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline" style="width: 100%; justify-content: center;">Contact Sales</a>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <h2>Ready to govern your agent context?</h2>
+    <p>Start free in 60 seconds, or talk to us about a team pilot with measurable ROI.</p>
+    <div class="cta-buttons">
+        <a href="https://headroom-docs.vercel.app/docs/quickstart" class="btn btn-primary btn-lg">Start Free</a>
+        <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-copy">© 2026 Headroom Labs. Apache 2.0.</div>
+    <div class="footer-links">
+        <a href="https://headroom-docs.vercel.app/docs">Docs</a>
+        <a href="https://github.com/chopratejas/headroom">GitHub</a>
+        <a href="https://discord.gg/yRmaUNpsPJ">Discord</a>
+        <a href="mailto:hello@headroomlabs.ai">Contact</a>
+    </div>
+</footer>
+
+</body>
+</html>

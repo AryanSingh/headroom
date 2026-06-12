@@ -22,8 +22,10 @@ Usage:
 
 from .base import CompressionStoreBackend
 from .memory import InMemoryBackend
+from .sqlite import SqliteBackend
 
 __all__ = [
     "CompressionStoreBackend",
     "InMemoryBackend",
+    "SqliteBackend",
 ]

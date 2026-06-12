@@ -716,6 +716,13 @@ class HeadroomProxy(
                 report_interval=config.license_report_interval,
             )
 
+        # Entitlement checker (feature gating by tier)
+        from headroom.entitlements import EntitlementChecker
+
+        self.entitlement_checker = EntitlementChecker(
+            plan=config.entitlement_tier,
+        )
+
         # Traffic Learner (live pattern extraction from proxy traffic)
         # Only activates with --learn flag; requires --memory for backend
         self.traffic_learner: TrafficLearner | None = None
@@ -1519,6 +1526,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 asyncio.create_task(_log_toin_stats_periodically())
                 if proxy.usage_reporter:
                     await proxy.usage_reporter.start(proxy)
+                    # Sync entitlement tier from validated license
+                    if proxy.usage_reporter._license_info and proxy.usage_reporter._license_info.plan:
+                        from headroom.entitlements import EntitlementChecker
+
+                        proxy.entitlement_checker = EntitlementChecker(
+                            plan=proxy.usage_reporter._license_info.plan,
+                        )
+                        logger.info(
+                            "Entitlement tier synced from license: %s",
+                            proxy.entitlement_checker.plan_name,
+                        )
                 if proxy.traffic_learner:
                     await proxy.traffic_learner.start()
                 if proxy.episodic_tracker:

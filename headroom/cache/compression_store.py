@@ -314,7 +314,7 @@ class CompressionStore:
             # in-memory, so changing the hash function on upgrade has no
             # persistence-side effect — the same content always hashes
             # deterministically under whichever function is in use.
-            hash_key = hashlib.sha256(original.encode()).hexdigest()[:24]
+            hash_key = hashlib.sha256(original.encode()).hexdigest()[:16]
 
         entry = CompressionEntry(
             hash=hash_key,
@@ -1190,11 +1190,15 @@ def _create_default_ccr_backend() -> CompressionStoreBackend | None:
     """Create a CCR backend from env (e.g. HEADROOM_CCR_BACKEND=redis).
 
     Loads adapters via setuptools entry point 'headroom.ccr_backend'.
-    Returns None to use default InMemoryBackend.
+    If HEADROOM_CCR_BACKEND is empty or "sqlite", returns SqliteBackend pointing to ~/.headroom/ccr.db.
+    Returns None to use InMemoryBackend if HEADROOM_CCR_BACKEND="memory".
     """
-    backend_type = (os.environ.get("HEADROOM_CCR_BACKEND") or "").strip().lower()
-    if not backend_type or backend_type == "memory":
+    backend_type = (os.environ.get("HEADROOM_CCR_BACKEND") or "sqlite").strip().lower()
+    if backend_type == "memory":
         return None
+    if backend_type == "sqlite":
+        from .backends.sqlite import SqliteBackend
+        return SqliteBackend(os.path.expanduser("~/.headroom/ccr.db"))
     try:
         from importlib.metadata import entry_points
 

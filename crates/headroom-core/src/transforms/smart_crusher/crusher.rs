@@ -83,8 +83,8 @@ pub struct CrushArrayResult {
     /// - `"smart_sample"` / `"top_n"` / `"cluster"` / `"time_series"` —
     ///   lossy path with row-dropping.
     pub strategy_info: String,
-    /// 12-char SHA-256 hex prefix of the **full original input**.
-    /// Populated when the lossy path dropped rows; the runtime is
+    /// 16-char SHA-256 hex prefix of the **full original input**.
+    /// Used when the input structure has items dropped, and we are
     /// expected to cache the original items keyed by this hash so a
     /// retrieval tool can serve them back. `None` when nothing was
     /// dropped (lossless path or below adaptive_k boundary).
@@ -933,7 +933,7 @@ fn canonical_array_json(items: &[Value]) -> String {
     serde_json::to_string(items).unwrap_or_default()
 }
 
-/// 12-char SHA-256 hex prefix of an already-serialized canonical JSON
+/// 16-char SHA-256 hex prefix of an already-serialized canonical JSON
 /// string. Caller is responsible for producing the canonical form via
 /// [`canonical_array_json`] (or another byte-equal serializer) — the
 /// hash is over the bytes, so a stable serializer is the contract.
@@ -943,7 +943,7 @@ fn hash_canonical(canonical: &str) -> String {
     h.update(canonical.as_bytes());
     h.finalize()
         .iter()
-        .take(6)
+        .take(8)
         .map(|b| format!("{b:02x}"))
         .collect()
 }
@@ -1309,7 +1309,7 @@ mod tests {
         );
         // CCR hash populated for retrieval.
         let h = result.ccr_hash.expect("ccr_hash populated on drop");
-        assert_eq!(h.len(), 12);
+        assert_eq!(h.len(), 16);
         // Marker visible in dropped_summary.
         assert!(
             result.dropped_summary.contains(&format!("<<ccr:{h}")),

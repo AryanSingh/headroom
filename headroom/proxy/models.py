@@ -283,6 +283,11 @@ class ProxyConfig:
     license_cloud_url: str = "https://app.headroomlabs.ai"
     license_report_interval: int = 300
 
+    # Entitlement tier (auto-detected from license if set, or manual override).
+    # Values: "builder" (free), "team", "business", "enterprise".
+    # CLI: --entitlement-tier <tier>. Env: HEADROOM_ENTITLEMENT_TIER=<tier>.
+    entitlement_tier: str | None = None
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

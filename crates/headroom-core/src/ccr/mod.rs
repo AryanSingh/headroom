@@ -62,16 +62,15 @@ pub const DEFAULT_CAPACITY: usize = 1000;
 /// Default TTL — 5 minutes, matching Python.
 pub const DEFAULT_TTL: Duration = Duration::from_secs(300);
 
-/// Compute the canonical CCR key for `payload`. BLAKE3 → first 24 hex
-/// chars (96 bits — collision-resistant for the bounded LRU population
-/// the proxy will hold). Centralized here so every call site (live-zone
+/// Compute the canonical CCR key for `payload`. BLAKE3 → first 16 hex
+/// chars. Centralized here so every call site (live-zone
 /// dispatcher, tests, future Python parity) hashes the same way.
 pub fn compute_key(payload: &[u8]) -> String {
     let h = blake3::hash(payload);
     let hex = h.to_hex();
-    // Stable 24-char prefix matches the Python tool-injection regex
-    // (`[a-f0-9]{24}`) — see `headroom/ccr/tool_injection.py:211`.
-    hex.as_str()[..24].to_string()
+    // Stable 16-char prefix matches the Python tool-injection regex
+    // (`[a-f0-9]{16}`) — see `headroom/ccr/tool_injection.py:211`.
+    hex.as_str()[..16].to_string()
 }
 
 /// Standard `<<ccr:HASH>>` marker injected into compressed block content
@@ -87,9 +86,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn compute_key_is_24_hex_chars() {
+    fn compute_key_is_16_hex_chars() {
         let k = compute_key(b"hello world");
-        assert_eq!(k.len(), 24);
+        assert_eq!(k.len(), 16);
         assert!(k
             .chars()
             .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));

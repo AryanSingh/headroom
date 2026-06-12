@@ -64,6 +64,28 @@ def extract_user_query(messages: list[dict[str, Any]]) -> str:
     return ""
 
 
+def get_text_content(content: Any) -> str:
+    """Extract only the text parts from a message content (str or list of blocks).
+    Ignores non-text blocks (like images) instead of stringifying them.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(str(block.get("text", "")))
+                elif "type" not in block and "text" in block:
+                    parts.append(str(block.get("text", "")))
+            elif isinstance(block, str):
+                parts.append(block)
+        return "\n".join(parts)
+    if content is None:
+        return ""
+    return str(content)
+
+
 def compute_messages_hash(messages: list[dict[str, Any]]) -> str:
     """Compute hash of messages list for deduplication."""
     # Serialize deterministically

@@ -347,15 +347,16 @@ class SmartCrusher(Transform):
                 f"expected one of: {', '.join(_SUPPORTED_COMPACTION_FORMATS)}"
             )
         self._compaction_format = resolved_format if with_compaction else None
+        ccr_db_path = os.environ.get("HEADROOM_CCR_DB_PATH", os.path.expanduser("~/.headroom/ccr.db")) if self._ccr_config.enabled else None
         if not with_compaction:
-            self._rust = _RustSmartCrusher.without_compaction(rust_cfg)
+            self._rust = _RustSmartCrusher.without_compaction(rust_cfg, ccr_db_path=ccr_db_path)
         elif resolved_format == "csv-schema":
             # Keep the `new()` constructor for the default path so its
             # byte-parity coverage stays on the exact production
             # codepath.
-            self._rust = _RustSmartCrusher(rust_cfg)
+            self._rust = _RustSmartCrusher(rust_cfg, ccr_db_path=ccr_db_path)
         else:
-            self._rust = _RustSmartCrusher.with_compaction_format(rust_cfg, resolved_format)
+            self._rust = _RustSmartCrusher.with_compaction_format(rust_cfg, resolved_format, ccr_db_path=ccr_db_path)
 
     def crush(self, content: str, query: str = "", bias: float = 1.0) -> CrushResult:
         """Crush a single JSON content string.

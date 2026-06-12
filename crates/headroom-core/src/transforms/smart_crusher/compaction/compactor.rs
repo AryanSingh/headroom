@@ -390,9 +390,9 @@ fn hash_opaque(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
     let digest = h.finalize();
-    // 12-char hex prefix — collision-resistant enough for a single
+    // 16-char hex prefix — collision-resistant enough for a single
     // payload in flight, short enough to keep the marker compact.
-    let hex: String = digest.iter().take(6).map(|b| format!("{b:02x}")).collect();
+    let hex: String = digest.iter().take(8).map(|b| format!("{b:02x}")).collect();
     hex
 }
 
@@ -728,6 +728,6 @@ mod tests {
         let h3 = hash_opaque(b"different");
         assert_eq!(h1, h2);
         assert_ne!(h1, h3);
-        assert_eq!(h1.len(), 12);
+        assert_eq!(h1.len(), 16);
     }
 }
