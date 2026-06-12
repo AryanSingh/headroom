@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Headroom Admin Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117; --bg2: #161822; --bg3: #1e2030; --bg4: #252840;
+    --text: #e2e4f0; --text2: #9398b0; --text3: #6b7094;
+    --accent: #6c63ff; --accent2: #8b83ff; --green: #22c55e; --red: #ef4444;
+    --orange: #f59e0b; --blue: #3b82f6; --cyan: #06b6d4;
+    --border: #2a2d42; --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  
+  /* ── Layout ─────────────────────────────────────────────────────── */
+  .shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  .sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 24px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .main { padding: 32px; max-width: 1400px; }
+  
+  /* ── Sidebar ────────────────────────────────────────────────────── */
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px; }
+  .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white; }
+  .logo-text { font-size: 16px; font-weight: 600; }
+  .logo-badge { font-size: 10px; background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+  
+  .nav-section { margin-bottom: 24px; }
+  .nav-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 8px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px; color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--accent); color: white; }
+  .nav-icon { width: 18px; text-align: center; font-size: 14px; }
+  
+  .tier-badge { margin-top: auto; padding: 12px; background: var(--bg3); border-radius: 8px; text-align: center; }
+  .tier-badge .label { font-size: 11px; color: var(--text3); }
+  .tier-badge .value { font-size: 14px; font-weight: 600; color: var(--accent2); }
+  
+  /* ── Header ─────────────────────────────────────────────────────── */
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .header h1 { font-size: 24px; font-weight: 700; }
+  .header-actions { display: flex; gap: 12px; }
+  
+  /* ── Cards ──────────────────────────────────────────────────────── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .stat-label { font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-change { font-size: 12px; margin-top: 4px; }
+  .stat-change.positive { color: var(--green); }
+  .stat-change.negative { color: var(--red); }
+  
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 16px; font-weight: 600; }
+  
+  /* ── Table ──────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  tr:hover td { background: var(--bg3); }
+  
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-orange { background: rgba(245,158,11,0.15); color: var(--orange); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge-purple { background: rgba(108,99,255,0.15); color: var(--accent2); }
+  
+  /* ── Buttons ────────────────────────────────────────────────────── */
+  .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--text3); color: var(--text); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  
+  /* ── Health Score ───────────────────────────────────────────────── */
+  .health-ring { width: 120px; height: 120px; position: relative; margin: 0 auto 16px; }
+  .health-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .health-ring circle { fill: none; stroke-width: 8; }
+  .health-ring .bg { stroke: var(--bg4); }
+  .health-ring .fill { stroke: var(--green); stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+  .health-score { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; }
+  
+  /* ── Two-column layout ──────────────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .shell { grid-template-columns: 1fr; } .sidebar { display: none; } }
+  
+  /* ── Progress bar ───────────────────────────────────────────────── */
+  .progress-bar { height: 6px; background: var(--bg4); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s ease; }
+  
+  /* ── Modal ──────────────────────────────────────────────────────── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; width: 90%; max-width: 480px; }
+  .modal h2 { font-size: 18px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .form-group input, .form-group select { width: 100%; padding: 8px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">H</div>
+      <span class="logo-text">Headroom</span>
+      <span class="logo-badge">Admin</span>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="showSection('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="showSection('analytics')"><span class="nav-icon">📈</span> Analytics</div>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-label">Management</div>
+      <div class="nav-item" onclick="showSection('orgs')"><span class="nav-icon">🏢</span> Organizations</div>
+      <div class="nav-item" onclick="showSection('users')"><span class="nav-icon">👥</span> Users &amp; Roles</div>
+      <div class="nav-item" onclick="showSection('audit')"><span class="nav-icon">📋</span> Audit Log</div>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-label">System</div>
+      <div class="nav-item" onclick="showSection('license')"><span class="nav-icon">🔑</span> License</div>
+      <div class="nav-item" onclick="showSection('retention')"><span class="nav-icon">🗑️</span> Retention</div>
+      <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Settings</div>
+    </div>
+    
+    <div class="tier-badge">
+      <div class="label">Current Tier</div>
+      <div class="value" id="tier-display">Enterprise</div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Dashboard Section -->
+    <div id="section-dashboard" class="section">
+      <div class="header">
+        <h1>Dashboard</h1>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="refreshDashboard()">↻ Refresh</button>
+          <button class="btn btn-primary" onclick="exportReport()">↓ Export</button>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Health Score</div>
+          <div class="stat-value" id="health-score">--</div>
+          <div class="stat-change positive">↑ System operational</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tokens Saved</div>
+          <div class="stat-value" id="tokens-saved">--</div>
+          <div class="stat-change positive" id="savings-pct">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Cost Saved</div>
+          <div class="stat-value" id="cost-saved">--</div>
+          <div class="stat-change positive">USD</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Requests</div>
+          <div class="stat-value" id="total-requests">--</div>
+          <div class="stat-change" id="error-rate">--</div>
+        </div>
+      </div>
+      
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Top Providers</span>
+          </div>
+          <table>
+            <thead><tr><th>Provider</th><th>Requests</th></tr></thead>
+            <tbody id="providers-table"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Top Strategies</span>
+          </div>
+          <table>
+            <thead><tr><th>Strategy</th><th>Compressions</th></tr></thead>
+            <tbody id="strategies-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Organizations Section -->
+    <div id="section-orgs" class="section" style="display:none">
+      <div class="header">
+        <h1>Organizations</h1>
+        <button class="btn btn-primary" onclick="showCreateOrg()">+ New Organization</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Name</th><th>Slug</th><th>Workspaces</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody id="orgs-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users & Roles Section -->
+    <div id="section-users" class="section" style="display:none">
+      <div class="header">
+        <h1>Users &amp; Roles</h1>
+        <button class="btn btn-primary" onclick="showAssignRole()">+ Assign Role</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Role Assignments</span></div>
+        <table>
+          <thead><tr><th>User ID</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody id="roles-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Audit Log Section -->
+    <div id="section-audit" class="section" style="display:none">
+      <div class="header">
+        <h1>Audit Log</h1>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="exportAudit('json')">Export JSON</button>
+          <button class="btn btn-outline" onclick="exportAudit('jsonl')">Export JSONL</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <select id="audit-action-filter" class="btn btn-outline" onchange="loadAuditEvents()">
+            <option value="">All Actions</option>
+            <option value="org.created">org.created</option>
+            <option value="auth.access_denied">auth.access_denied</option>
+            <option value="compression.request">compression.request</option>
+            <option value="stats.reset">stats.reset</option>
+            <option value="retention.cleanup">retention.cleanup</option>
+          </select>
+          <input type="number" id="audit-limit" value="50" min="10" max="500" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;width:100px;" onchange="loadAuditEvents()">
+        </div>
+        <table>
+          <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Success</th><th>Detail</th></tr></thead>
+          <tbody id="audit-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- License Section -->
+    <div id="section-license" class="section" style="display:none">
+      <div class="header"><h1>License Status</h1></div>
+      <div class="card" id="license-card">
+        <p style="color:var(--text3)">Loading license status...</p>
+      </div>
+    </div>
+
+    <!-- Retention Section -->
+    <div id="section-retention" class="section" style="display:none">
+      <div class="header">
+        <h1>Retention Controls</h1>
+        <button class="btn btn-danger" onclick="runCleanup()">🗑 Run Cleanup</button>
+      </div>
+      <div class="card" id="retention-card">
+        <p style="color:var(--text3)">Loading retention stats...</p>
+      </div>
+    </div>
+
+    <!-- Settings Section -->
+    <div id="section-settings" class="section" style="display:none">
+      <div class="header"><h1>Settings</h1></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Entitlements</span></div>
+        <div id="entitlements-list" style="color:var(--text3)">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div id="section-analytics" class="section" style="display:none">
+      <div class="header"><h1>Analytics</h1></div>
+      <div class="card" id="analytics-card">
+        <p style="color:var(--text3)">Loading project analytics...</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Org Modal -->
+<div class="modal-overlay" id="modal-create-org">
+  <div class="modal">
+    <h2>Create Organization</h2>
+    <div class="form-group">
+      <label>Organization Name</label>
+      <input type="text" id="org-name" placeholder="Acme Corp">
+    </div>
+    <div class="form-group">
+      <label>Admin Email</label>
+      <input type="email" id="org-admin-email" placeholder="admin@acme.com">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-create-org')">Cancel</button>
+      <button class="btn btn-primary" onclick="createOrg()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Role Modal -->
+<div class="modal-overlay" id="modal-assign-role">
+  <div class="modal">
+    <h2>Assign Role</h2>
+    <div class="form-group">
+      <label>User ID / Email</label>
+      <input type="text" id="role-user-id" placeholder="user@example.com">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="role-select">
+        <option value="viewer">Viewer (read-only)</option>
+        <option value="operator">Operator (read + write)</option>
+        <option value="admin">Admin (full access)</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-assign-role')">Cancel</button>
+      <button class="btn btn-primary" onclick="assignRole()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+// ── Navigation ──────────────────────────────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).style.display = 'block';
+  event.currentTarget.classList.add('active');
+  
+  // Load section data
+  if (name === 'dashboard') loadDashboard();
+  else if (name === 'orgs') loadOrgs();
+  else if (name === 'users') loadRoles();
+  else if (name === 'audit') loadAuditEvents();
+  else if (name === 'license') loadLicense();
+  else if (name === 'retention') loadRetention();
+  else if (name === 'settings') loadEntitlements();
+  else if (name === 'analytics') loadAnalytics();
+}
+
+// ── API helpers ─────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  const adminKey = localStorage.getItem('headroom_admin_key');
+  if (adminKey) headers['Authorization'] = 'Bearer ' + adminKey;
+  const res = await fetch(API_BASE + path, { ...opts, headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const data = await api('/analytics/dashboard');
+    document.getElementById('health-score').textContent = data.health_score;
+    document.getElementById('tokens-saved').textContent = formatNumber(data.tokens.saved);
+    document.getElementById('savings-pct').textContent = data.tokens.savings_percent + '% savings';
+    document.getElementById('total-requests').textContent = formatNumber(data.requests.total);
+    document.getElementById('error-rate').textContent = data.requests.error_rate_percent + '% error rate';
+    
+    // Providers table
+    const pt = document.getElementById('providers-table');
+    pt.innerHTML = Object.entries(data.top_providers).map(([k,v]) => 
+      `<tr><td>${k}</td><td>${formatNumber(v)}</td></tr>`
+    ).join('') || '<tr><td colspan="2" style="color:var(--text3)">No data</td></tr>';
+    
+    // Strategies table
+    const st = document.getElementById('strategies-table');
+    st.innerHTML = Object.entries(data.top_strategies).map(([k,v]) => 
+      `<tr><td>${k}</td><td>${formatNumber(v)}</td></tr>`
+    ).join('') || '<tr><td colspan="2" style="color:var(--text3)">No data</td></tr>';
+  } catch (e) {
+    document.getElementById('health-score').textContent = '--';
+  }
+}
+function refreshDashboard() { loadDashboard(); }
+
+// ── Organizations ───────────────────────────────────────────────────
+async function loadOrgs() {
+  try {
+    const data = await api('/orgs');
+    const orgs = data.organizations || data || [];
+    const tb = document.getElementById('orgs-table');
+    if (!Array.isArray(orgs) || orgs.length === 0) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text3)">No organizations. Create one to get started.</td></tr>';
+      return;
+    }
+    tb.innerHTML = orgs.map(o => `<tr>
+      <td><strong>${o.name}</strong></td>
+      <td>${o.slug || '--'}</td>
+      <td>--</td>
+      <td>${o.created_at || '--'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button></td>
+    </tr>`).join('');
+  } catch (e) { console.error(e); }
+}
+function showCreateOrg() { document.getElementById('modal-create-org').classList.add('active'); }
+async function createOrg() {
+  const name = document.getElementById('org-name').value;
+  const email = document.getElementById('org-admin-email').value;
+  if (!name) return;
+  await api('/orgs', { method: 'POST', body: JSON.stringify({ name, admin_email: email }) });
+  closeModal('modal-create-org');
+  loadOrgs();
+}
+
+// ── Roles ───────────────────────────────────────────────────────────
+async function loadRoles() {
+  try {
+    const data = await api('/rbac/roles');
+    const assignments = data.assignments || {};
+    const tb = document.getElementById('roles-table');
+    const entries = Object.entries(assignments);
+    if (entries.length === 0) {
+      tb.innerHTML = '<tr><td colspan="3" style="color:var(--text3)">No role assignments. Users default to admin.</td></tr>';
+      return;
+    }
+    tb.innerHTML = entries.map(([uid, role]) => `<tr>
+      <td>${uid}</td>
+      <td><span class="badge badge-${role === 'admin' ? 'purple' : role === 'operator' ? 'blue' : 'green'}">${role}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="revokeRole('${uid}')">Revoke</button></td>
+    </tr>`).join('');
+  } catch (e) { console.error(e); }
+}
+function showAssignRole() { document.getElementById('modal-assign-role').classList.add('active'); }
+async function assignRole() {
+  const user_id = document.getElementById('role-user-id').value;
+  const role = document.getElementById('role-select').value;
+  if (!user_id) return;
+  await api('/rbac/roles', { method: 'POST', body: JSON.stringify({ user_id, role }) });
+  closeModal('modal-assign-role');
+  loadRoles();
+}
+async function revokeRole(uid) {
+  await api('/rbac/roles/' + encodeURIComponent(uid), { method: 'DELETE' });
+  loadRoles();
+}
+
+// ── Audit ───────────────────────────────────────────────────────────
+async function loadAuditEvents() {
+  try {
+    const action = document.getElementById('audit-action-filter').value;
+    const limit = document.getElementById('audit-limit').value;
+    let url = `/audit/events?limit=${limit}`;
+    if (action) url += `&action=${action}`;
+    const data = await api(url);
+    const events = data.events || [];
+    const tb = document.getElementById('audit-table');
+    if (events.length === 0) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text3)">No audit events.</td></tr>';
+      return;
+    }
+    tb.innerHTML = events.map(e => `<tr>
+      <td style="white-space:nowrap">${new Date(e.timestamp).toLocaleString()}</td>
+      <td><span class="badge badge-blue">${e.action}</span></td>
+      <td>${e.actor}</td>
+      <td>${e.success ? '<span class="badge badge-green">OK</span>' : '<span class="badge badge-red">FAIL</span>'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${typeof e.detail === 'object' ? JSON.stringify(e.detail) : (e.detail || '')}</td>
+    </tr>`).join('');
+  } catch (e) { console.error(e); }
+}
+function exportAudit(format) {
+  window.open(API_BASE + `/audit/export?format=${format}`, '_blank');
+}
+
+// ── License ─────────────────────────────────────────────────────────
+async function loadLicense() {
+  try {
+    const data = await api('/license-status');
+    document.getElementById('license-card').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Plan</div><div class="stat-value">${data.plan || 'N/A'}</div></div>
+        <div class="stat-card"><div class="stat-label">Status</div><div class="stat-value"><span class="badge badge-green">${data.status || 'unknown'}</span></div></div>
+        <div class="stat-card"><div class="stat-label">Quota Tokens</div><div class="stat-value">${formatNumber(data.quota_tokens || 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Trial Expires</div><div class="stat-value">${data.trial_expires_at || 'N/A'}</div></div>
+      </div>`;
+  } catch (e) {
+    document.getElementById('license-card').innerHTML = '<p style="color:var(--text3)">Could not load license status.</p>';
+  }
+}
+
+// ── Retention ───────────────────────────────────────────────────────
+async function loadRetention() {
+  try {
+    const data = await api('/retention/stats');
+    document.getElementById('retention-card').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Enabled</div><div class="stat-value">${data.enabled ? '✅' : '❌'}</div></div>
+        <div class="stat-card"><div class="stat-label">Audit Events</div><div class="stat-value">${formatNumber(data.audit_events || 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Episodic Memories</div><div class="stat-value">${formatNumber(data.episodic_memories || 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Next Cleanup</div><div class="stat-value">${data.next_cleanup || 'N/A'}</div></div>
+      </div>`;
+  } catch (e) {
+    document.getElementById('retention-card').innerHTML = '<p style="color:var(--text3)">Could not load retention stats.</p>';
+  }
+}
+async function runCleanup() {
+  if (!confirm('Run retention cleanup now?')) return;
+  await api('/retention/cleanup', { method: 'POST' });
+  loadRetention();
+}
+
+// ── Entitlements ────────────────────────────────────────────────────
+async function loadEntitlements() {
+  try {
+    const data = await api('/entitlements');
+    const features = data.features || {};
+    const tier = data.tier || 'unknown';
+    document.getElementById('tier-display').textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+    
+    let html = `<p style="margin-bottom:12px">Current tier: <strong>${tier}</strong></p>`;
+    const groups = {};
+    for (const [f, info] of Object.entries(features)) {
+      const req = info.required_tier || 'builder';
+      if (!groups[req]) groups[req] = [];
+      groups[req].push({ name: f, available: info.available });
+    }
+    for (const [t, feats] of Object.entries(groups).sort()) {
+      html += `<h3 style="margin:16px 0 8px;font-size:14px;color:var(--text2)">${t.toUpperCase()} Features</h3>`;
+      html += feats.map(f => `<span class="badge ${f.available ? 'badge-green' : 'badge-red'}" style="margin:2px">${f.name}</span>`).join(' ');
+    }
+    document.getElementById('entitlements-list').innerHTML = html;
+  } catch (e) {
+    document.getElementById('entitlements-list').innerHTML = '<p style="color:var(--text3)">Could not load entitlements.</p>';
+  }
+}
+
+// ── Analytics ───────────────────────────────────────────────────────
+async function loadAnalytics() {
+  try {
+    const data = await api('/analytics/projects');
+    const projects = data.projects || [];
+    const card = document.getElementById('analytics-card');
+    if (projects.length === 0) {
+      card.innerHTML = '<p style="color:var(--text3)">No project data yet. Projects appear after compression requests.</p>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Project</th><th>Tokens Saved</th><th>Requests</th><th>Avg Savings</th></tr></thead><tbody>';
+    for (const p of projects) {
+      html += `<tr><td>${p.name}</td><td>${formatNumber(p.tokens_saved)}</td><td>${formatNumber(p.requests)}</td><td>${p.avg_savings_percent}%</td></tr>`;
+    }
+    html += '</tbody></table>';
+    card.innerHTML = html;
+  } catch (e) {
+    document.getElementById('analytics-card').innerHTML = '<p style="color:var(--text3)">Could not load analytics.</p>';
+  }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function formatNumber(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function exportReport() { window.open(API_BASE + '/reports/savings?format=json', '_blank'); }
+
+// ── Init ────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+
+</body>
+</html>

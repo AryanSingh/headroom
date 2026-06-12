@@ -3825,8 +3825,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # ── Enterprise: Analytics Dashboard Rollups ─────────────────────────
 
     @app.get("/analytics/dashboard", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
-    async def analytics_dashboard():
+    async def analytics_dashboard(org_id: str | None = None):
         """Aggregated dashboard view: key metrics, trends, and health score.
+
+        Optional query params:
+            org_id: Filter analytics to a specific organization.
 
         Returns a single payload optimized for a dashboard widget.
         """
@@ -3845,7 +3848,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             1,
         )))
 
-        return {
+        result = {
             "health_score": health_score,
             "tokens": {
                 "input": m.tokens_input_total,
@@ -3874,17 +3877,58 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "generated_at": _iso_utc_now(),
         }
 
+        # Org-scoped: if org_id provided, verify it exists and add context
+        if org_id and proxy.org_store:
+            try:
+                hierarchy = proxy.org_store.get_org_hierarchy(org_id)
+                if hierarchy:
+                    result["scope"] = {
+                        "org_id": org_id,
+                        "org_name": hierarchy.get("name", ""),
+                        "workspaces": len(hierarchy.get("workspaces", [])),
+                        "projects": sum(
+                            len(ws.get("projects", []))
+                            for ws in hierarchy.get("workspaces", [])
+                        ),
+                    }
+                else:
+                    result["scope"] = {"org_id": org_id, "error": "org_not_found"}
+            except Exception:
+                result["scope"] = {"org_id": org_id, "error": "lookup_failed"}
+
+        return result
+
     @app.get("/analytics/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
-    async def analytics_projects():
+    async def analytics_projects(org_id: str | None = None):
         """Per-project token savings breakdown.
+
+        Optional query params:
+            org_id: Filter projects to a specific organization.
 
         Uses the persistent savings tracker to attribute savings to projects.
         """
         persistent = proxy.metrics.savings_tracker.stats_preview()
         projects = persistent.get("projects", {})
 
+        # If org_id specified, resolve project paths belonging to that org
+        org_project_paths: set[str] = set()
+        if org_id and proxy.org_store:
+            try:
+                hierarchy = proxy.org_store.get_org_hierarchy(org_id)
+                if hierarchy:
+                    for ws in hierarchy.get("workspaces", []):
+                        for proj in ws.get("projects", []):
+                            if proj.get("path"):
+                                org_project_paths.add(proj["path"])
+                            org_project_paths.add(proj.get("name", ""))
+            except Exception:
+                pass
+
         project_list = []
         for name, data in projects.items():
+            # Filter by org if specified
+            if org_project_paths and name not in org_project_paths:
+                continue
             project_list.append({
                 "name": name,
                 "tokens_saved": data.get("tokens_saved", 0),
@@ -3894,11 +3938,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         project_list.sort(key=lambda p: p["tokens_saved"], reverse=True)
 
-        return {
+        result = {
             "projects": project_list,
             "total_projects": len(project_list),
             "generated_at": _iso_utc_now(),
         }
+        if org_id:
+            result["scope"] = {"org_id": org_id}
+        return result
 
     register_provider_routes(app, proxy)
 
