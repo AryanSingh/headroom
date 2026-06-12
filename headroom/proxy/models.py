@@ -307,6 +307,18 @@ class ProxyConfig:
     # Default: 50MB (reduced from 100MB for safer memory usage).
     max_body_mb: int = 50
 
+    # Audit logging (enterprise compliance).
+    # When enabled, all admin actions are logged to a SQLite database.
+    # Env: HEADROOM_AUDIT_DISABLED=1 to disable.
+    audit_enabled: bool = True
+    audit_db_path: str | None = None  # None = ~/.headroom/audit.db
+
+    # Org / workspace / project model (enterprise multi-tenant).
+    # When enabled, org management endpoints are available.
+    # Env: HEADROOM_ORG_DISABLED=1 to disable.
+    org_enabled: bool = True
+    org_db_path: str | None = None  # None = ~/.headroom/org.db
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

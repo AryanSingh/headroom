@@ -723,6 +723,30 @@ class HeadroomProxy(
             plan=config.entitlement_tier,
         )
 
+        # Audit logger (enterprise compliance — structured event logging)
+        self.audit_logger = None
+        if getattr(config, "audit_enabled", True):
+            try:
+                from headroom.audit import get_audit_logger
+
+                self.audit_logger = get_audit_logger(
+                    db_path=getattr(config, "audit_db_path", None),
+                )
+            except Exception:
+                logger.debug("Audit logger init failed", exc_info=True)
+
+        # Org store (enterprise multi-tenant model)
+        self.org_store = None
+        if getattr(config, "org_enabled", True):
+            try:
+                from headroom.org import get_org_store
+
+                self.org_store = get_org_store(
+                    db_path=getattr(config, "org_db_path", None),
+                )
+            except Exception:
+                logger.debug("Org store init failed", exc_info=True)
+
         # Traffic Learner (live pattern extraction from proxy traffic)
         # Only activates with --learn flag; requires --memory for backend
         self.traffic_learner: TrafficLearner | None = None
@@ -1543,6 +1567,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     proxy.episodic_tracker.start_sweeper()
                     logger.info("Episodic Memory: session sweeper started")
 
+                # Start retention manager
+                from headroom.retention import get_retention_manager
+
+                retention_mgr = get_retention_manager()
+                if retention_mgr.enabled:
+                    await retention_mgr.start()
+                    logger.info("Retention manager started")
+
                 # Only start beacon if we acquire the lock (first worker wins)
                 _beacon_is_owner[0] = _try_acquire_beacon_lock()
                 if _beacon_is_owner[0]:
@@ -1551,12 +1583,46 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     logger.debug("Beacon: skipping (another worker owns the lock)")
 
                 app.state.ready = True
+
+                # Audit: log system start
+                if proxy.audit_logger:
+                    try:
+                        from headroom.audit import AuditEvent
+
+                        await proxy.audit_logger.async_log(
+                            AuditEvent(
+                                action="system.start",
+                                actor="system",
+                                detail={
+                                    "version": __version__,
+                                    "tier": proxy.entitlement_checker.plan_name,
+                                    "port": config.port,
+                                },
+                            )
+                        )
+                    except Exception:
+                        logger.debug("Audit log failed", exc_info=True)
+
                 yield
             except Exception as exc:
                 app.state.startup_error = str(exc)
                 raise
         finally:
             app.state.ready = False
+            # Audit: log system stop
+            if proxy.audit_logger:
+                try:
+                    from headroom.audit import AuditEvent
+
+                    await proxy.audit_logger.async_log(
+                        AuditEvent(
+                            action="system.stop",
+                            actor="system",
+                            detail={"version": __version__},
+                        )
+                    )
+                except Exception:
+                    logger.debug("Audit log failed", exc_info=True)
             # Shutdown
             if _beacon_is_owner[0]:
                 await _beacon.stop()
@@ -1567,6 +1633,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 await proxy.traffic_learner.stop()
             if proxy.episodic_tracker:
                 proxy.episodic_tracker.stop_sweeper()
+            # Stop retention manager
+            try:
+                from headroom.retention import get_retention_manager
+
+                retention_mgr = get_retention_manager()
+                await retention_mgr.stop()
+            except Exception:
+                pass
             if proxy.code_graph_watcher:
                 proxy.code_graph_watcher.stop()
             await proxy.shutdown()
@@ -1919,6 +1993,57 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             detail="Invalid or missing admin API key. "
             "Set Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>.",
         )
+
+    # Entitlement enforcement dependency.
+    # Usage: Depends(_require_entitlement("team_analytics"))
+    # Returns the entitlement checker for further use. Raises 403 if the
+    # current tier doesn't include the requested feature.
+    _entitlement_checker_ref = proxy.entitlement_checker
+
+    def _require_entitlement(feature: str):
+        """Factory that returns a dependency checking a specific feature."""
+
+        async def _check(request: Request):
+            if _entitlement_checker_ref is None:
+                return  # No checker — allow (backward-compatible)
+            if not _entitlement_checker_ref.is_entitled(feature):
+                from headroom.entitlements import EntitlementError, FEATURE_TIERS
+
+                required = FEATURE_TIERS.get(feature)
+                # Log the denial
+                try:
+                    from headroom.audit import AuditEvent, get_audit_logger
+
+                    await get_audit_logger().async_log(
+                        AuditEvent(
+                            action="entitlement.denied",
+                            actor=request.headers.get("x-headroom-user-id", "anonymous"),
+                            detail={
+                                "feature": feature,
+                                "required_tier": required.name if required else "unknown",
+                                "current_tier": _entitlement_checker_ref.plan_name,
+                                "path": str(request.url.path),
+                            },
+                            success=False,
+                            ip_address=getattr(request.client, "host", None),
+                            user_agent=request.headers.get("user-agent"),
+                        )
+                    )
+                except Exception:
+                    logger.debug("Failed to log entitlement denial", exc_info=True)
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "feature_not_available",
+                        "feature": feature,
+                        "required_tier": required.name.lower() if required else "unknown",
+                        "current_tier": _entitlement_checker_ref.plan_name,
+                        "upgrade_url": "https://headroomlabs.ai/pricing",
+                        "contact": "hello@headroomlabs.ai",
+                    },
+                )
+
+        return _check
 
     # X-Headroom-Stack: SDK adapters (TS openai/anthropic/etc.) tag their
     # requests so telemetry can segment by integration surface. Registered
@@ -2558,7 +2683,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return await _build_stats_payload()
 
     @app.post("/stats/reset", dependencies=[Depends(_require_loopback), Depends(_require_admin_auth)])
-    async def stats_reset():
+    async def stats_reset(request: Request):
         """Reset in-memory proxy stats for local test/debug isolation."""
         await proxy.metrics.reset_runtime()
         if proxy.cost_tracker:
@@ -2567,6 +2692,21 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         async with _stats_snapshot_lock:
             _stats_snapshot["value"] = None
             _stats_snapshot["expires_at"] = 0.0
+        # Audit the reset
+        if proxy.audit_logger:
+            try:
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="stats.reset",
+                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        detail={},
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception:
+                pass
         return JSONResponse(status_code=200, content={"status": "reset"})
 
     @app.get("/stats-history", dependencies=[Depends(_require_admin_auth)])
@@ -2620,6 +2760,435 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 )
 
         return {"transformations": transformations, "log_full_messages": log_full_messages}
+
+    # ── Enterprise: Entitlement Status ──────────────────────────────────
+
+    @app.get("/entitlements", dependencies=[Depends(_require_admin_auth)])
+    async def entitlements_status():
+        """Current entitlement tier and available features.
+
+        Shows what features are enabled at the current tier and what
+        features require an upgrade.
+        """
+        checker = proxy.entitlement_checker
+        if checker is None:
+            return {"error": "Entitlement checker not initialized"}
+        from headroom.entitlements import EntitlementTier, FEATURE_TIERS
+
+        available = checker.list_features()
+        all_features = sorted(FEATURE_TIERS.items(), key=lambda x: x[1].value)
+        return {
+            "current_tier": checker.plan_name,
+            "available_count": len(available),
+            "total_features": len(FEATURE_TIERS),
+            "features": {
+                name: {
+                    "available": checker.is_entitled(name),
+                    "required_tier": tier.name.lower(),
+                }
+                for name, tier in all_features
+            },
+        }
+
+    # ── Enterprise: Audit Log Query ─────────────────────────────────────
+
+    @app.get("/audit/events", dependencies=[Depends(_require_admin_auth)])
+    async def audit_events(
+        action: str | None = None,
+        actor: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ):
+        """Query audit events.
+
+        Enterprise feature — requires audit_logs (enterprise tier).
+        """
+        if not proxy.audit_logger:
+            raise HTTPException(status_code=503, detail="Audit logging not available")
+        events = proxy.audit_logger.query(
+            action=action,
+            actor=actor,
+            since=since,
+            until=until,
+            limit=min(limit, 500),
+            offset=offset,
+        )
+        total = proxy.audit_logger.count(action=action)
+        return {"events": events, "total": total, "limit": limit, "offset": offset}
+
+    @app.get("/audit/export", dependencies=[Depends(_require_admin_auth)])
+    async def audit_export(format: Literal["jsonl", "json"] = "jsonl", limit: int = 1000):
+        """Export audit events as JSONL or JSON array.
+
+        Enterprise feature — requires audit_logs (enterprise tier).
+        """
+        if not proxy.audit_logger:
+            raise HTTPException(status_code=503, detail="Audit logging not available")
+        if format == "jsonl":
+            content = proxy.audit_logger.export_jsonl(limit=limit)
+            return Response(
+                content=content,
+                media_type="application/x-ndjson",
+                headers={"Content-Disposition": 'attachment; filename="audit-events.jsonl"'},
+            )
+        events = proxy.audit_logger.query(limit=limit)
+        return {"events": events, "count": len(events)}
+
+    # ── Enterprise: Org / Workspace / Project Management ────────────────
+
+    @app.get("/orgs", dependencies=[Depends(_require_admin_auth)])
+    async def list_orgs():
+        """List all organizations."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        return {"orgs": proxy.org_store.list_orgs()}
+
+    @app.post("/orgs", dependencies=[Depends(_require_admin_auth)])
+    async def create_org(request: Request):
+        """Create a new organization."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        body = await request.json()
+        name = body.get("name")
+        if not name:
+            raise HTTPException(status_code=400, detail="name is required")
+        org = proxy.org_store.create_org(
+            name=name,
+            admin_email=body.get("admin_email"),
+            slug=body.get("slug"),
+            settings=body.get("settings"),
+        )
+        # Audit the action
+        if proxy.audit_logger:
+            try:
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="config.changed",
+                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        detail={"action": "org_created", "org_id": org["id"], "name": name},
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception:
+                pass
+        return {"org": org}
+
+    @app.get("/orgs/{org_id}", dependencies=[Depends(_require_admin_auth)])
+    async def get_org(org_id: str):
+        """Get organization with full hierarchy."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        hierarchy = proxy.org_store.get_org_hierarchy(org_id)
+        if not hierarchy:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return {"org": hierarchy}
+
+    @app.post("/orgs/{org_id}/workspaces", dependencies=[Depends(_require_admin_auth)])
+    async def create_workspace(org_id: str, request: Request):
+        """Create a workspace in an organization."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        body = await request.json()
+        name = body.get("name")
+        if not name:
+            raise HTTPException(status_code=400, detail="name is required")
+        ws = proxy.org_store.create_workspace(
+            org_id=org_id,
+            name=name,
+            slug=body.get("slug"),
+            settings=body.get("settings"),
+        )
+        return {"workspace": ws}
+
+    @app.get("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth)])
+    async def list_projects(workspace_id: str):
+        """List projects in a workspace."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        return {"projects": proxy.org_store.list_projects(workspace_id)}
+
+    @app.post("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth)])
+    async def create_project(workspace_id: str, request: Request):
+        """Create a project in a workspace."""
+        if not proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        body = await request.json()
+        name = body.get("name")
+        if not name:
+            raise HTTPException(status_code=400, detail="name is required")
+        proj = proxy.org_store.create_project(
+            workspace_id=workspace_id,
+            name=name,
+            slug=body.get("slug"),
+            path=body.get("path"),
+            settings=body.get("settings"),
+        )
+        return {"project": proj}
+
+    # ── Enterprise: License Status ────────────────────────────────────
+
+    @app.get("/license-status", dependencies=[Depends(_require_admin_auth)])
+    async def license_status():
+        """Current license status and usage reporting state.
+
+        Shows license key presence, plan, validation status, quota usage,
+        and reporting configuration.
+        """
+        reporter = proxy.usage_reporter
+        result: dict[str, Any] = {
+            "has_license_key": bool(config.license_key),
+            "reporting_enabled": reporter is not None,
+            "reporting_interval_seconds": config.license_report_interval,
+        }
+        if reporter and reporter._license_info:
+            li = reporter._license_info
+            result.update({
+                "status": li.status,
+                "plan": li.plan,
+                "org_id": li.org_id,
+                "quota_tokens": li.quota_tokens,
+                "used_tokens": getattr(li, "used_tokens", None),
+                "trial_expires_at": (
+                    li.trial_expires_at.isoformat() if li.trial_expires_at else None
+                ),
+                "last_validated_at": getattr(reporter, "_last_validated_at", None),
+            })
+        elif config.license_key:
+            result["status"] = "unvalidated"
+        else:
+            result["status"] = "no_license"
+        return result
+
+    # ── Enterprise: Reports ───────────────────────────────────────────
+
+    @app.get("/reports/savings", dependencies=[Depends(_require_admin_auth)])
+    async def reports_savings(format: Literal["json", "csv"] = "json"):
+        """ROI summary report: tokens saved, cost saved, compression ratios.
+
+        Enterprise feature — gated on org_analytics (team tier).
+        """
+        m = proxy.metrics
+        total_tokens_before = m.tokens_input_total + m.tokens_saved_total
+        savings_pct = (
+            round(m.tokens_saved_total / total_tokens_before * 100, 2)
+            if total_tokens_before > 0
+            else 0
+        )
+
+        cost_stats = proxy.cost_tracker.stats() if proxy.cost_tracker else {}
+        cost_saved = cost_stats.get("total_savings_usd", 0.0)
+
+        report = {
+            "report_type": "savings_summary",
+            "generated_at": _iso_utc_now(),
+            "period": "all_time",
+            "tokens": {
+                "input_total": m.tokens_input_total,
+                "output_total": m.tokens_output_total,
+                "saved_total": m.tokens_saved_total,
+                "before_compression": total_tokens_before,
+                "savings_percent": savings_pct,
+            },
+            "cost": {
+                "total_usd": cost_stats.get("total_cost_usd", 0.0),
+                "saved_usd": cost_saved,
+                "by_model": cost_stats.get("by_model", {}),
+            },
+            "compression": {
+                "requests_total": m.requests_total,
+                "requests_cached": m.requests_cached,
+                "cache_hit_rate": (
+                    round(m.requests_cached / max(1, m.requests_total) * 100, 2)
+                ),
+                "by_strategy": dict(m.compressions_by_strategy),
+                "tokens_by_strategy": dict(m.tokens_saved_by_strategy),
+            },
+        }
+
+        if format == "csv":
+            import csv
+            import io
+
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow(["Metric", "Value"])
+            writer.writerow(["Input Tokens", m.tokens_input_total])
+            writer.writerow(["Output Tokens", m.tokens_output_total])
+            writer.writerow(["Tokens Saved", m.tokens_saved_total])
+            writer.writerow(["Savings Percent", savings_pct])
+            writer.writerow(["Total Cost USD", report["cost"]["total_usd"]])
+            writer.writerow(["Cost Saved USD", cost_saved])
+            writer.writerow(["Cache Hit Rate", report["compression"]["cache_hit_rate"]])
+            filename = f"headroom-savings-{_iso_utc_now()[:10]}.csv"
+            return Response(
+                content=buf.getvalue(),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        return report
+
+    @app.get("/reports/usage", dependencies=[Depends(_require_admin_auth)])
+    async def reports_usage(format: Literal["json", "csv"] = "json"):
+        """Usage report: requests by provider, model, stack, and time.
+
+        Enterprise feature — gated on org_analytics (team tier).
+        """
+        m = proxy.metrics
+        report = {
+            "report_type": "usage_summary",
+            "generated_at": _iso_utc_now(),
+            "requests": {
+                "total": m.requests_total,
+                "cached": m.requests_cached,
+                "rate_limited": m.requests_rate_limited,
+                "failed": m.requests_failed,
+                "by_provider": dict(m.requests_by_provider),
+                "by_model": dict(m.requests_by_model),
+                "by_stack": dict(m.requests_by_stack),
+            },
+            "latency": {
+                "average_ms": round(m.latency_sum_ms / max(1, m.latency_count), 2),
+                "min_ms": round(m.latency_min_ms, 2) if m.latency_min_ms != float("inf") else 0,
+                "max_ms": round(m.latency_max_ms, 2),
+            },
+            "transformations": {
+                "by_strategy": dict(m.compressions_by_strategy),
+            },
+        }
+
+        if format == "csv":
+            import csv
+            import io
+
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow(["Provider", "Requests"])
+            for provider, count in m.requests_by_provider.items():
+                writer.writerow([provider, count])
+            writer.writerow([])
+            writer.writerow(["Model", "Requests"])
+            for model, count in m.requests_by_model.items():
+                writer.writerow([model, count])
+            filename = f"headroom-usage-{_iso_utc_now()[:10]}.csv"
+            return Response(
+                content=buf.getvalue(),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        return report
+
+    # ── Enterprise: Retention Controls ────────────────────────────────
+
+    @app.get("/retention/stats", dependencies=[Depends(_require_admin_auth)])
+    async def retention_stats():
+        """Retention policy configuration and cleanup statistics."""
+        from headroom.retention import get_retention_manager
+
+        manager = get_retention_manager()
+        return {"retention": manager.get_stats()}
+
+    @app.post("/retention/cleanup", dependencies=[Depends(_require_admin_auth)])
+    async def retention_cleanup(request: Request):
+        """Trigger an immediate retention cleanup cycle."""
+        from headroom.retention import get_retention_manager
+
+        manager = get_retention_manager()
+        results = await manager.run_cleanup()
+        # Audit the action
+        if proxy.audit_logger:
+            try:
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="retention.cleanup",
+                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        detail=results,
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception:
+                pass
+        return {"status": "completed", "results": results}
+
+    # ── Enterprise: RBAC Management ───────────────────────────────────
+
+    @app.get("/rbac/roles", dependencies=[Depends(_require_admin_auth)])
+    async def rbac_list_roles():
+        """List all role assignments."""
+        from headroom.rbac import get_rbac_checker
+
+        checker = get_rbac_checker()
+        return {"assignments": checker.list_assignments()}
+
+    @app.post("/rbac/roles", dependencies=[Depends(_require_admin_auth)])
+    async def rbac_assign_role(request: Request):
+        """Assign a role to a user.
+
+        Body: {"user_id": "...", "role": "admin|operator|viewer"}
+        """
+        from headroom.rbac import AdminRole, get_rbac_checker
+
+        body = await request.json()
+        user_id = body.get("user_id")
+        role_str = body.get("role")
+        if not user_id or not role_str:
+            raise HTTPException(status_code=400, detail="user_id and role are required")
+        try:
+            role = AdminRole(role_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role: {role_str}. Must be: admin, operator, viewer",
+            )
+        checker = get_rbac_checker()
+        checker.assign_role(user_id, role)
+        # Audit the action
+        if proxy.audit_logger:
+            try:
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="rbac.role_assigned",
+                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        detail={"target_user": user_id, "role": role.value},
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception:
+                pass
+        return {"status": "assigned", "user_id": user_id, "role": role.value}
+
+    @app.delete(
+        "/rbac/roles/{user_id}",
+        dependencies=[Depends(_require_admin_auth)],
+    )
+    async def rbac_revoke_role(user_id: str, request: Request):
+        """Revoke a user's role assignment."""
+        from headroom.rbac import get_rbac_checker
+
+        checker = get_rbac_checker()
+        revoked = checker.revoke_role(user_id)
+        if proxy.audit_logger:
+            try:
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="rbac.role_revoked",
+                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        detail={"target_user": user_id, "revoked": revoked},
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception:
+                pass
+        return {"status": "revoked" if revoked else "not_found", "user_id": user_id}
 
     @app.get("/subscription-window")
     async def subscription_window():
@@ -3642,6 +4211,36 @@ if __name__ == "__main__":
         "Bodies larger are forwarded unchanged. Also settable via HEADROOM_MAX_BODY_MB.",
     )
 
+    # Entitlements & enterprise
+    parser.add_argument(
+        "--entitlement-tier",
+        default=None,
+        help="Override entitlement tier (builder, team, business, enterprise). "
+        "Auto-detected from license when set. Also settable via HEADROOM_ENTITLEMENT_TIER.",
+    )
+    parser.add_argument(
+        "--audit-db-path",
+        default=None,
+        help="Path to audit log SQLite database. Default: ~/.headroom/audit.db. "
+        "Also settable via HEADROOM_AUDIT_DB_PATH.",
+    )
+    parser.add_argument(
+        "--no-audit",
+        action="store_true",
+        help="Disable audit logging (enabled by default).",
+    )
+    parser.add_argument(
+        "--org-db-path",
+        default=None,
+        help="Path to org/workspace/project SQLite database. Default: ~/.headroom/org.db. "
+        "Also settable via HEADROOM_ORG_DB_PATH.",
+    )
+    parser.add_argument(
+        "--no-org",
+        action="store_true",
+        help="Disable org store (enabled by default).",
+    )
+
     # Rate limiting
     parser.add_argument("--no-rate-limit", action="store_true", help="Disable rate limiting")
     parser.add_argument("--rpm", type=int, default=60, help="Requests per minute")
@@ -3741,6 +4340,17 @@ if __name__ == "__main__":
         admin_api_key=args.admin_api_key or os.environ.get("HEADROOM_ADMIN_API_KEY"),
         cors_origins=_cors_origins_list,
         max_body_mb=_get_env_int("HEADROOM_MAX_BODY_MB", args.max_body_mb),
+        # Enterprise
+        entitlement_tier=args.entitlement_tier
+        or os.environ.get("HEADROOM_ENTITLEMENT_TIER"),
+        audit_enabled=not args.no_audit
+        and not _get_env_bool("HEADROOM_AUDIT_DISABLED", False),
+        audit_db_path=args.audit_db_path
+        or os.environ.get("HEADROOM_AUDIT_DB_PATH"),
+        org_enabled=not args.no_org
+        and not _get_env_bool("HEADROOM_ORG_DISABLED", False),
+        org_db_path=args.org_db_path
+        or os.environ.get("HEADROOM_ORG_DB_PATH"),
     )
 
     # Get worker and concurrency settings
