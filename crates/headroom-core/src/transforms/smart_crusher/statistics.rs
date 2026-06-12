@@ -155,7 +155,7 @@ fn python_int_parse(s: &str) -> Option<i64> {
 /// - `check_order`: when true, also require ascending order in the
 ///   original array (the Python flag — IDs are usually ascending in
 ///   source order, scores are usually descending).
-pub fn detect_sequential_pattern(values: &[Value], check_order: bool) -> bool {
+pub fn detect_sequential_pattern(values: &[&Value], check_order: bool) -> bool {
     if values.len() < 5 {
         return false;
     }
@@ -323,18 +323,23 @@ mod tests {
         assert!(e > 0.7);
     }
 
+    // Helper to convert Vec<Value> to Vec<&Value> for updated API.
+    fn refs(v: &[Value]) -> Vec<&Value> {
+        v.iter().collect()
+    }
+
     // ---------- detect_sequential_pattern ----------
 
     #[test]
     fn sequential_simple_int_ascending() {
         let v: Vec<Value> = (1..=10).map(|i| json!(i)).collect();
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
     fn sequential_too_few_values() {
         let v = vec![json!(1), json!(2), json!(3)];
-        assert!(!detect_sequential_pattern(&v, true));
+        assert!(!detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -347,7 +352,7 @@ mod tests {
             json!(43),
             json!(17),
         ];
-        assert!(!detect_sequential_pattern(&v, true));
+        assert!(!detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -355,13 +360,13 @@ mod tests {
         // Descending sequence — if check_order=true, must NOT be flagged
         // as sequential (Python: scores descend, IDs ascend).
         let v: Vec<Value> = (1..=10).rev().map(|i| json!(i)).collect();
-        assert!(!detect_sequential_pattern(&v, true));
+        assert!(!detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
     fn sequential_descending_without_check_order_accepted() {
         let v: Vec<Value> = (1..=10).rev().map(|i| json!(i)).collect();
-        assert!(detect_sequential_pattern(&v, false));
+        assert!(detect_sequential_pattern(&refs(&v), false));
     }
 
     #[test]
@@ -371,7 +376,7 @@ mod tests {
         // numeric value here originated as a string, so we refuse.
         let v: Vec<Value> = (1..=10).map(|i| json!(format!("{:03}", i))).collect();
         assert!(
-            !detect_sequential_pattern(&v, true),
+            !detect_sequential_pattern(&refs(&v), true),
             "BUG #2 fix: zero-padded string IDs must not be classified as sequential"
         );
     }
@@ -383,7 +388,7 @@ mod tests {
         // should still be detected (the unambiguous ints dominate the
         // signal).
         let v = vec![json!(1), json!(2), json!("3"), json!(4), json!(5), json!(6)];
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -398,13 +403,13 @@ mod tests {
             json!(true),
             json!(false),
         ];
-        assert!(!detect_sequential_pattern(&v, true));
+        assert!(!detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
     fn sequential_floats_with_unit_step() {
         let v: Vec<Value> = (1..=10).map(|i| json!(i as f64)).collect();
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -413,7 +418,7 @@ mod tests {
         // = 1.0, all diffs in [0.5, 2.0], should be sequential. (Suggestion
         // S6 in code review — pins float arithmetic doesn't drift.)
         let v: Vec<Value> = vec![json!(1.5), json!(2.5), json!(3.5), json!(4.5), json!(5.5)];
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -428,7 +433,7 @@ mod tests {
             json!("jkl"),
             json!("mno"),
         ];
-        assert!(!detect_sequential_pattern(&v, true));
+        assert!(!detect_sequential_pattern(&refs(&v), true));
     }
 
     #[test]
@@ -444,7 +449,7 @@ mod tests {
             json!("005"),
             json!("006"),
         ];
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 
     // ---------- python_int_parse ----------
@@ -505,6 +510,6 @@ mod tests {
             json!(5),
             json!(6),
         ];
-        assert!(detect_sequential_pattern(&v, true));
+        assert!(detect_sequential_pattern(&refs(&v), true));
     }
 }

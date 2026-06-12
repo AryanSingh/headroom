@@ -33,7 +33,7 @@ use super::types::FieldStats;
 ///      `unique_ratio > 0.95` → confidence 0.9.
 ///    - Has a value range AND `unique_ratio > 0.95` → confidence 0.85.
 /// 4. Catch-all: very high uniqueness (`> 0.98`) → confidence 0.7.
-pub fn detect_id_field_statistically(stats: &FieldStats, values: &[Value]) -> (bool, f64) {
+pub fn detect_id_field_statistically(stats: &FieldStats, values: &[&Value]) -> (bool, f64) {
     // Hard gate matching Python line 494.
     if stats.unique_ratio < 0.9 {
         return (false, 0.0);
@@ -158,10 +158,8 @@ pub fn detect_score_field_statistically(stats: &FieldStats, items: &[Value]) -> 
         .filter_map(|item| item.as_object().and_then(|m| m.get(&stats.name)))
         .collect();
 
-    // Sequential check — IDs are sequential, scores aren't. We need
-    // owned `Value`s for `detect_sequential_pattern`; clone the sample.
-    let sample_owned: Vec<Value> = sample_values.iter().map(|v| (*v).clone()).collect();
-    if detect_sequential_pattern(&sample_owned, true) {
+    // Sequential check — IDs are sequential, scores aren't.
+    if detect_sequential_pattern(&sample_values, true) {
         return (false, 0.0);
     }
 
@@ -235,11 +233,16 @@ mod tests {
 
     // ---------- detect_id_field_statistically ----------
 
+    // Helper to convert Vec<Value> to Vec<&Value> for updated API.
+    fn refs(v: &[Value]) -> Vec<&Value> {
+        v.iter().collect()
+    }
+
     #[test]
     fn id_field_low_uniqueness_rejected() {
         let s = stats("status", "string", 0.5);
         let values: Vec<Value> = vec![json!("ok"), json!("error"), json!("ok"), json!("ok")];
-        assert_eq!(detect_id_field_statistically(&s, &values), (false, 0.0));
+        assert_eq!(detect_id_field_statistically(&s, &refs(&values)), (false, 0.0));
     }
 
     #[test]
@@ -248,7 +251,7 @@ mod tests {
         let values: Vec<Value> = (0..20)
             .map(|i| json!(format!("550e8400-e29b-41d4-a716-{:012x}", i)))
             .collect();
-        let (is_id, conf) = detect_id_field_statistically(&s, &values);
+        let (is_id, conf) = detect_id_field_statistically(&s, &refs(&values));
         assert!(is_id);
         assert_eq!(conf, 0.95);
     }
@@ -261,7 +264,7 @@ mod tests {
         let values: Vec<Value> = (0..20)
             .map(|i| json!(format!("a3f7b2c{:06x}d8e1f4a7", i)))
             .collect();
-        let (is_id, conf) = detect_id_field_statistically(&s, &values);
+        let (is_id, conf) = detect_id_field_statistically(&s, &refs(&values));
         assert!(is_id);
         assert!((conf - 0.8).abs() < 1e-9);
     }
@@ -273,7 +276,7 @@ mod tests {
         s.min_val = Some(1.0);
         s.max_val = Some(100.0);
         let values: Vec<Value> = (1..=100).map(|i| json!(i)).collect();
-        let (is_id, conf) = detect_id_field_statistically(&s, &values);
+        let (is_id, conf) = detect_id_field_statistically(&s, &refs(&values));
         assert!(is_id);
         assert!((conf - 0.9).abs() < 1e-9);
     }
@@ -286,7 +289,7 @@ mod tests {
         s.min_val = Some(0.0);
         s.max_val = Some(0.0); // zero range → numeric range branch fails
         let values: Vec<Value> = (0..100).map(|_| json!(0)).collect();
-        let (is_id, conf) = detect_id_field_statistically(&s, &values);
+        let (is_id, conf) = detect_id_field_statistically(&s, &refs(&values));
         assert!(is_id);
         assert!((conf - 0.7).abs() < 1e-9);
     }

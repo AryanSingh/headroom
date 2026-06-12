@@ -135,12 +135,12 @@ impl SmartAnalyzer {
         // for explicit nulls but no entry for missing. Mirror both as
         // Value::Null in our local `values` vec — Python's downstream
         // `non_null_values` filter unifies both forms anyway.
-        let values: Vec<Value> = items
+        let values: Vec<&Value> = items
             .iter()
             .filter_map(|i| i.as_object())
-            .map(|obj| obj.get(key).cloned().unwrap_or(Value::Null))
+            .map(|obj| obj.get(key).unwrap_or(&Value::Null))
             .collect();
-        let non_null: Vec<&Value> = values.iter().filter(|v| !v.is_null()).collect();
+        let non_null: Vec<&Value> = values.iter().filter(|v| !v.is_null()).copied().collect();
 
         if non_null.is_empty() {
             return FieldStats {
@@ -179,7 +179,7 @@ impl SmartAnalyzer {
         // Python: `str(v)` for any v (None → "None"). Match exactly to keep
         // unique-count parity with fixtures. python_repr handles None as
         // "None", bool as "True"/"False", etc.
-        let str_values: Vec<String> = values.iter().map(python_repr).collect();
+        let str_values: Vec<String> = values.iter().map(|v| python_repr(v)).collect();
         let unique_set: BTreeSet<&String> = str_values.iter().collect();
         let unique_count = unique_set.len();
         let unique_ratio = if values.is_empty() {
@@ -433,10 +433,10 @@ impl SmartAnalyzer {
         let mut id_uniqueness: f64 = 0.0;
         let mut id_confidence: f64 = 0.0;
         for (name, stats) in field_stats {
-            let values: Vec<Value> = items
+            let values: Vec<&Value> = items
                 .iter()
                 .filter_map(|i| i.as_object())
-                .map(|o| o.get(name).cloned().unwrap_or(Value::Null))
+                .map(|o| o.get(name).unwrap_or(&Value::Null))
                 .collect();
             let (is_id, confidence) = detect_id_field_statistically(stats, &values);
             if is_id && confidence > id_confidence {
