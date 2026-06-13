@@ -27,7 +27,8 @@
   <a href="#agent-compatibility-matrix">Agents</a> ·
   <a href="https://discord.gg/yRmaUNpsPJ">Discord</a> ·
   <a href="llms.txt">llms.txt</a> ·
-  <a href="ENTERPRISE.md">Enterprise</a>
+  <a href="ENTERPRISE.md">Enterprise</a> ·
+  <a href="artifacts/pricing-sheet.md">Pricing</a>
 </p>
 
 <p align="center"><sub>
@@ -164,6 +165,18 @@ Platform support note: macOS auth reuse via Copilot CLI Keychain storage has bee
 **Skip it if you…**
 - only use a single provider's native compaction and don't need cross-agent memory
 - work in a sandboxed environment where local processes can't run
+
+## Commercial resources
+
+For buyers, operators, and security reviewers:
+
+- [Enterprise overview](ENTERPRISE.md)
+- [Pricing sheet](artifacts/pricing-sheet.md)
+- [Packaging matrix](artifacts/packaging-matrix.md)
+- [Security one-pager](artifacts/security-one-pager.md)
+- [Deployment architecture](docs/deployment-architecture.md)
+- [Commercialization execution kit](artifacts/COMMERCIALIZATION_EXECUTION_KIT.md)
+- [Artifacts index](artifacts/README.md)
 
 <details>
 <summary><b>Integrations — drop Headroom into any stack</b></summary>

@@ -20,6 +20,18 @@
 
 ## Outreach Sequence
 
+### Positioning Reminder
+
+Lead with:
+- governed AI agent infrastructure
+- cross-provider context control
+- local-first deployment
+- measurable savings plus reviewable admin controls
+
+Do not lead with:
+- generic prompt compression only
+- cheapest token proxy framing
+
 ### Touch 1: Short Intro (Day 1)
 
 **Channel:** Email or LinkedIn DM  
@@ -33,7 +45,7 @@
 >
 > I noticed your team is using {{Agent}} for {{use_case}}. One pattern we see across teams running AI agents is that tool outputs, logs, and search results bloat context fast — often 60-90% of tokens are verbose payloads that could be compressed without losing information.
 >
-> We built Headroom, a local-first proxy that compresses those payloads by 60-95% before they hit the LLM. Same answers, fraction of the cost. Zero code changes — just point your proxy at it.
+> We built Headroom, a local-first proxy that compresses those payloads by 60-95% before they hit the LLM while also giving teams a governed admin plane for reporting, identity, and auditability. Same answers, fraction of the cost. Zero code changes — just point your proxy at it.
 >
 > Would it be worth a 15-minute call to see if this could save your team money?
 >
@@ -48,7 +60,7 @@
 >
 > Building agent infrastructure across multiple providers (Anthropic, OpenAI, Bedrock) usually means managing context optimization separately for each one.
 >
-> We built Headroom — a single proxy layer that compresses context across all providers, with reversible retrieval so nothing is lost. Teams running it typically see 60-95% token reduction on tool outputs and logs.
+> We built Headroom — a single proxy layer that compresses context across all providers, with reversible retrieval so nothing is lost, and an enterprise admin surface for reporting and governance. Teams running it typically see 60-95% token reduction on tool outputs and logs.
 >
 > Happy to show you how it works in a short call.
 >

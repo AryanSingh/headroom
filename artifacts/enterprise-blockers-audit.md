@@ -4,6 +4,8 @@
 **Audience:** Product team, engineering leads  
 **Purpose:** Identify blockers, gaps, strengths, and risks for enterprise sales
 
+> Historical note: this audit reflects the state before the latest commercialization implementation pass. Several items originally listed here as blockers or gaps have since been implemented in the repo, including SSO-aware admin auth, RBAC, audit logs, retention controls, fleet management APIs, and SCIM-style provisioning APIs. Use [IMPLEMENTATION_STATUS_CHECKLIST.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/IMPLEMENTATION_STATUS_CHECKLIST.md) for current status.
+
 ---
 
 ## BLOCKERS (Must Fix Before Enterprise Sale)

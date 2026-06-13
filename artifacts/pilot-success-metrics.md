@@ -17,7 +17,8 @@ Every pilot must have measurable success criteria defined before deployment:
 1. **Primary metric:** Token savings percentage (target: >50%)
 2. **Secondary metric:** Latency impact (target: <5% increase)
 3. **Quality metric:** Output quality maintained (subjective + objective)
-4. **Adoption metric:** Team willingness to continue after pilot
+4. **Governance metric:** Required admin or enterprise controls verified if in scope
+5. **Adoption metric:** Team willingness to continue after pilot
 
 ---
 
@@ -67,6 +68,14 @@ Capture these BEFORE deploying Headroom:
 | Compression rollbacks | Headroom logs | <2% of requests |
 | Agent failure rate | Agent logs | No increase |
 
+### Governance Metrics
+| Metric | How to Measure | Target |
+|--------|---------------|--------|
+| Admin auth verified | Admin walkthrough | Pass |
+| Audit export verified | Export endpoint | Pass when in scope |
+| Retention settings reviewed | Admin checklist | Pass when in scope |
+| RBAC roles validated | Role-based endpoint access | Pass when in scope |
+
 ### Performance Metrics
 | Metric | How to Measure | Target |
 |--------|---------------|--------|
@@ -97,6 +106,7 @@ Capture these BEFORE deploying Headroom:
 | Context-limit errors | 12/week | 4/week | -67% | ✅ |
 | Quality (user feedback) | — | "Good" | — | ✅ |
 | Proxy latency (p50) | — | 8ms | — | ✅ |
+| Governance milestone | — | Audit export verified | — | ✅ |
 
 #### Deployment Status
 - [ ] Proxy running stable

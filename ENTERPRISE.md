@@ -2,67 +2,59 @@
 
 > **The context, cost, and governance layer for AI agents.**
 
-Headroom is a self-hosted, local-first proxy that compresses AI agent context by 60–95% while giving teams visibility, policy control, and enterprise-grade security. Your prompts never leave your infrastructure.
+Headroom is a self-hosted, local-first proxy that reduces waste in agent traffic while giving teams a governed admin plane for analytics, policy, identity, and auditability.
 
----
+## Why Teams Buy Headroom
 
-## Why Enterprise Teams Choose Headroom
+### Local-first deployment
+- Runs in customer infrastructure
+- No prompt content leaves the environment except the upstream provider request
+- Docker, Kubernetes, and Helm deployment paths are available
 
-### Cross-Provider Context Optimization
-A single proxy layer for Anthropic, OpenAI, Google, Bedrock, and Vertex AI. No vendor lock-in, no per-provider optimization, one governance surface.
+### Cross-provider optimization
+- One layer across Anthropic, OpenAI, Google, Bedrock, and Vertex
+- Preserves developer workflows across Claude Code, Codex, Cursor, Aider, Copilot, and OpenAI-compatible clients
 
-### Reversible Compression (CCR)
-Unlike lossy compression, Headroom stores originals locally and provides retrieval markers. The LLM gets compressed context on the wire — and full fidelity on demand via `headroom_retrieve`.
+### Reversible compression
+- CCR keeps originals locally and lets the model recover fidelity on demand
+- Avoids the quality tradeoffs of blind lossy compression
 
-### Local-First, Self-Hosted
-Runs in your infrastructure, behind your firewall. Docker, docker-compose, or Kubernetes. No external API calls for compression. No data retention on external servers.
+### Governance for shared deployments
+- Team and business reporting
+- Enterprise admin controls
+- Identity, audit, retention, and fleet operations
 
-### Team Governance & Analytics
-See where AI spend goes across teams, projects, and agents. Policy presets by team or agent class. Exportable reports for ROI reviews.
+## Commercial Tiers
 
----
+| Tier | Best For | Key Commercial Features |
+|------|----------|-------------------------|
+| **Builder** | Individual engineers | Core compression, proxy, SDK, CLI, local dashboard |
+| **Team** | One engineering team | Team analytics, usage reports, savings profiles, policy presets |
+| **Business** | Platform teams | Workspace and project model, historical and exportable reporting, K8s and Helm |
+| **Enterprise** | Security-sensitive orgs | SSO, RBAC, audit logs, retention, fleet management, SCIM, air-gap support |
 
-## Enterprise Features
+## Available Now
 
-### Available Now
-
-| Feature | Description |
-|---------|-------------|
-| **Core proxy** | `headroom proxy --port 8787`, zero code changes |
-| **6 compression algorithms** | SmartCrusher (JSON), CodeCompressor (AST), LogCompressor, DiffCompressor, SearchCompressor, Kompress-base (ML) |
-| **Multimodal compression** | Image and audio compression with CCR storage |
-| **CCR reversible retrieval** | Originals stored locally, retrievable on demand |
-| **Multi-provider support** | Anthropic, OpenAI, Google, Bedrock, Vertex AI |
-| **Agent compatibility** | Claude Code, Codex, Cursor, Aider, Copilot, any OpenAI-compatible client |
-| **Cross-agent memory** | Shared context across agents, episodic memory |
-| **Local dashboard** | Real-time compression metrics and cost tracking |
-| **Rate limiting** | Token bucket rate limiter per client |
-| **Budget controls** | USD budget limits (hourly/daily/monthly) |
-| **Internal header stripping** | Drops x-headroom-* headers to prevent fingerprinting |
-| **Docker deployment** | Production Dockerfile and docker-compose |
-
-### Coming Soon
-
-| Feature | Tier | Target |
-|---------|------|--------|
-| **SSO / SAML** | Enterprise | Q3 2026 |
-| **RBAC** | Enterprise | Q3 2026 |
-| **Audit logs** | Enterprise | Q3 2026 |
-| **Retention controls** | Enterprise | Q4 2026 |
-| **Org/project/workspace model** | Business | Q3 2026 |
-| **Team analytics** | Business | Q3 2026 |
-| **Exportable reports (CSV/PDF)** | Business | Q3 2026 |
-| **Policy presets** | Business | Q3 2026 |
-| **Kubernetes manifests** | Team | Q3 2026 |
-| **Helm chart** | Business | Q4 2026 |
-| **Air-gap deployment guide** | Enterprise | Q4 2026 |
-| **SOC 2 readiness** | Enterprise | Q4 2026 |
-
----
+| Capability | Status |
+|-----------|--------|
+| Core proxy and compression pipeline | Available |
+| CCR reversible retrieval | Available |
+| Multi-provider support | Available |
+| Team analytics and usage reports | Available |
+| Workspace and project management | Available |
+| Historical and exportable reports | Available |
+| Kubernetes manifests | Available |
+| Helm chart | Available |
+| SSO-aware admin authentication | Available |
+| RBAC | Available |
+| Audit log query and export | Available |
+| Retention controls | Available |
+| Fleet management APIs | Available |
+| SCIM-style provisioning APIs | Available |
 
 ## Deployment Options
 
-### Local (Fastest)
+### Local
 ```bash
 pip install "headroom-ai[all]"
 headroom proxy --port 8787
@@ -70,150 +62,64 @@ headroom proxy --port 8787
 
 ### Docker
 ```bash
-docker pull ghcr.io/chopratejas/headroom:latest
-docker run -p 8787:8787 -e ANTHROPIC_API_KEY=$KEY ghcr.io/chopratejas/headroom:latest
-```
-
-### docker-compose
-```bash
 docker compose up -d
 ```
 
 ### Kubernetes
-Kubernetes manifests and Helm chart coming soon.
-
-### Air-Gapped
-Pre-download ONNX Runtime and Kompress model, then run with:
 ```bash
-HF_HUB_OFFLINE=1 ORT_STRATEGY=system headroom proxy --port 8787
+kubectl apply -f k8s/
 ```
 
----
+### Helm
+```bash
+helm install headroom ./helm/headroom
+```
 
-## Security & Privacy
+### Air-gapped
+- Pre-stage model/runtime dependencies
+- Run with `HF_HUB_OFFLINE=1`
+- Use `ORT_STRATEGY=system`
 
-### Data Residency
-- **Prompts:** Processed in memory, never persisted
-- **CCR originals:** SQLite DB in workspace directory (customer-managed)
-- **Memory store:** SQLite DB in workspace directory (customer-managed)
-- **Request logs:** Local JSONL file (if enabled, customer-managed)
+## Security and Trust
 
-### Telemetry (Optional)
-- Only active when `HEADROOM_LICENSE_KEY` is set
-- Sends only aggregate counts: request count, tokens saved, model distribution
-- Never sends: message content, API keys, prompts, tool results, user data
-- HTTPS only
+### Enterprise controls
+- SSO or JWT/OIDC admin authentication
+- Role-based access control
+- Audit logging
+- Retention controls
+- Fleet visibility across deployments
+- SCIM-style user and group provisioning APIs
 
-### Air-Gap Support
-- Pre-download ONNX Runtime from `cdn.pyke.io`
-- Pre-download Kompress model from `huggingface.co`
-- Run with `HF_HUB_OFFLINE=1` and `ORT_STRATEGY=system`
-- No external network access required after initial setup
+### Data handling
+- Request content is processed in memory
+- Local stores remain customer-managed
+- Aggregate telemetry is optional and license-gated
 
-### Network Requirements
-| Connection | Required | Purpose |
-|------------|:--------:|---------|
-| LLM provider API | Yes | Forward compressed requests |
-| `cdn.pyke.io` | First run | ONNX Runtime (can be pre-provided) |
-| `huggingface.co` | First run | Kompress model (can be pre-provided) |
-| `app.headroomlabs.ai` | No | License validation (optional) |
-
----
+### Review materials
+- [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SECURITY.md)
+- [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/security-and-privacy.md)
+- [artifacts/security-one-pager.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/security-one-pager.md)
 
 ## Pricing
 
-| Tier | Price | Target |
-|------|-------|--------|
-| **Builder** | Free | Individual engineers |
-| **Team** | $18,000/year | Small engineering teams |
-| **Business** | $42,000/year | Platform teams, multi-project orgs |
-| **Enterprise** | $60k–$150k+/year | Security-sensitive, compliance-heavy |
+| Tier | Price |
+|------|-------|
+| Builder | Free |
+| Team | $18,000/year |
+| Business | $42,000/year |
+| Enterprise | $60,000-$150,000+/year |
 
-→ [Full pricing details](artifacts/pricing-sheet.md)
+Detailed pricing: [artifacts/pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/pricing-sheet.md)
 
----
+## What Still Requires External Work
 
-## Enterprise Support
+These are not code gaps, but business workstreams:
+- Legal contracting and procurement redlines
+- Billing and collections operations
+- Formal certification programs such as SOC 2
+- Design partner acquisition and case-study generation
 
-### Contact
-- **Email:** hello@headroomlabs.ai
-- **GitHub:** github.com/chopratejas/headroom
-- **Discord:** discord.gg/yRmaUNpsPJ
+## Contact
 
-### Support Tiers
-
-| Tier | Response Time | Coverage |
-|------|--------------|----------|
-| Community | Best effort | Discord |
-| Team | Business hours | Email |
-| Business | 4-hour SLA | Business hours |
-| Enterprise | 1-hour critical SLA | 24/7 |
-
-### What's Included in Enterprise
-- Dedicated support engineer
-- Architecture review and deployment hardening
-- Security review packet
-- Compliance documentation (SOC 2, HIPAA readiness)
-- Onboarding package (unlimited sessions)
-- Custom enterprise integrations
-- Quarterly business reviews
-- Air-gap deployment support
-
----
-
-## ROI
-
-Teams running Headroom typically see:
-
-- **60–95%** token savings on tool outputs, logs, and search results
-- **4.4 month** payback period
-- **$50k–$140k/year** in combined token savings and engineering time savings
-- **No quality degradation** — reversible compression preserves fidelity
-
-→ [ROI Calculator](artifacts/roi-calculator.md)
-
----
-
-## Getting Started
-
-### For Individual Engineers
-```bash
-pip install "headroom-ai[all]"
-headroom wrap claude
-```
-
-### For Teams
-1. Deploy Headroom proxy in your infrastructure
-2. Point your agents at the proxy
-3. Capture baseline metrics
-4. Measure savings over 14 days
-5. Decide on paid tier
-
-### For Enterprise
-1. Contact hello@headroomlabs.ai
-2. Security review and architecture assessment
-3. Custom deployment plan
-4. Pilot with measurable success criteria
-5. Contract and onboarding
-
----
-
-## Frequently Asked Questions
-
-**Q: Does Headroom store our prompts?**
-A: No. Message content is processed in memory and never written to disk. CCR stores compressed originals locally — they never leave your infrastructure.
-
-**Q: Can we run Headroom in an air-gapped environment?**
-A: Yes. Pre-download the ONNX Runtime and Kompress model, then run with `HF_HUB_OFFLINE=1` and `ORT_STRATEGY=system`.
-
-**Q: What data is in the telemetry?**
-A: Only aggregate counts: total requests, tokens saved, and model distribution. No message content is ever transmitted.
-
-**Q: Is there a security review packet available?**
-A: Yes. Contact hello@headroomlabs.ai for architecture diagrams, data flow documentation, and compliance documentation.
-
-**Q: How does Headroom handle API keys?**
-A: Keys are passed through to the upstream provider. Headroom does not store or log them.
-
-**Q: Can we audit what Headroom does?**
-A: Yes. JSONL request logs (optional), Prometheus metrics, and local dashboard. Enterprise tier adds comprehensive audit logs.
+- `hello@headroomlabs.ai`
+- `security@headroom.dev`
