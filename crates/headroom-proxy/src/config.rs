@@ -719,7 +719,9 @@ impl Config {
             vertex_region: "us-central1".to_string(),
             vertex_adc_scope: "https://www.googleapis.com/auth/cloud-platform".to_string(),
             license_key: None,
-            license_tier: LicenseTier::default(),
+            // Default to Team tier in tests so compression works
+            // unless a test explicitly opts into OpenSource.
+            license_tier: LicenseTier::Team,
         }
     }
 }

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import pytest
+import shutil
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -75,6 +77,7 @@ def test_ci_commitlint_runs_only_for_pull_requests() -> None:
     assert "github.event_name == 'pull_request'" in content
 
 
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not installed")
 def test_no_openssl_sys_in_wheel_build_tree() -> None:
     """STRUCTURAL INVARIANT: openssl-sys must NOT appear in the wheel
     build's resolved dependency graph.
@@ -135,6 +138,7 @@ def test_no_openssl_sys_in_wheel_build_tree() -> None:
         )
 
 
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not installed")
 def test_no_native_tls_in_wheel_build_tree() -> None:
     """The dual of the openssl-sys gate: native-tls is the proximate
     cause of openssl-sys being pulled. Catch it earlier with a more

@@ -410,7 +410,7 @@ class SmartCrusher(Transform):
     ) -> dict[str, Any]:
         """Crush a JSON array directly and surface the structured result.
 
-        Returns a dict with `items` (kept rows as JSON), `ccr_hash` (12-char
+        Returns a dict with `items` (kept rows as JSON), `ccr_hash` (16-char
         hash if rows were dropped), `dropped_summary` (the marker text),
         `strategy_info`, `compacted` (rendered bytes when lossless won),
         and `compaction_kind`.
@@ -422,7 +422,7 @@ class SmartCrusher(Transform):
         # Row-drop case: Rust returns the structured `ccr_hash` and has
         # already stashed the canonical in its own store. Mirror that
         # entry into the Python compression_store keyed by the same
-        # 12-char SHA-256 hash so /v1/retrieve resolves it.
+        # 16-char SHA-256 hash so /v1/retrieve resolves it.
         ccr_hash = result.get("ccr_hash")
         if ccr_hash:
             self._mirror_single_hash_to_python_store(

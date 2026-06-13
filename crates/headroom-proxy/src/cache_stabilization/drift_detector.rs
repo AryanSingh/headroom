@@ -297,7 +297,7 @@ fn session_key_log_prefix(session_key: &str) -> String {
     hex_prefix(&digest, 16)
 }
 
-/// 12-char hex prefix of the concatenated structural hash. Useful as
+/// 16-char hex prefix of the concatenated structural hash. Useful as
 /// a compact "did the prefix change" indicator in logs without
 /// printing the entire 96-char digest tuple.
 fn structural_hash_log_prefix(hash: &StructuralHash) -> String {

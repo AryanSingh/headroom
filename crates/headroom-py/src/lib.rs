@@ -753,7 +753,7 @@ impl PySmartCrusher {
     /// Input is a JSON string holding an array (`[item, item, ...]`).
     /// Returns a dict with:
     /// - `items`: JSON array string of the kept rows after compression
-    /// - `ccr_hash`: 12-char hash if rows were dropped, else `None`
+    /// - `ccr_hash`: 16-char hash if rows were dropped, else `None`
     /// - `dropped_summary`: `<<ccr:HASH N_rows_offloaded>>` marker
     ///   text, empty if nothing dropped
     /// - `strategy_info`: debug string describing what ran (e.g.
@@ -840,7 +840,7 @@ impl PySmartCrusher {
     /// Look up an original payload by CCR hash.
     ///
     /// When the lossy path drops rows, it stashes the **full original**
-    /// array into the in-memory CCR store keyed by the 12-char hash
+    /// array into the in-memory CCR store keyed by the 16-char hash
     /// embedded in the prompt's `<<ccr:HASH ...>>` marker. The runtime
     /// (proxy server / MCP retrieval tool) calls this to serve the
     /// dropped rows back to the LLM on demand.

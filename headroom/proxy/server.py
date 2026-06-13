@@ -1983,6 +1983,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Request ID propagation — every request gets a unique ID that
+    # follows through the entire middleware stack, logging, and response.
+    # Clients can send X-Request-ID; we generate one if absent.
+    import uuid as _uuid
+
+    @app.middleware("http")
+    async def _request_id_middleware(request, call_next):
+        req_id = request.headers.get("x-request-id") or str(_uuid.uuid4())
+        request.state.headroom_request_id = req_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
+        return response
+
     # API versioning header — every response gets X-Headroom-Version so
     # clients and load balancers can verify which proxy version is serving.
     @app.middleware("http")

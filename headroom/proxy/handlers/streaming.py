@@ -853,6 +853,52 @@ class StreamingMixin:
             body_mutated=body_mutated,
         )
         outbound_headers = {**headers, "content-type": "application/json"}
+
+        # ── Ensemble interception ──
+        # When ensemble is enabled AND the client sends X-Headroom-Ensemble,
+        # fan out to multiple models concurrently and return the best response.
+        if headers.get("x-headroom-ensemble", "").lower() in ("true", "1", "yes"):
+            try:
+                from headroom.proxy.ensemble import EnsembleConfig, EnsembleCoordinator
+
+                _ens_cfg = EnsembleConfig.from_env()
+                if _ens_cfg.enabled:
+                    messages = body.get("messages", [])
+                    coordinator = EnsembleCoordinator(_ens_cfg)
+                    ensemble_result = await coordinator.execute(
+                        messages=messages,
+                        client=self.http_client,
+                        temperature=body.get("temperature", 0.7),
+                        max_tokens=body.get("max_tokens", 4096),
+                    )
+                    # Return the winning response as a non-streaming JSON response
+                    from fastapi.responses import JSONResponse
+
+                    winning = {
+                        "id": f"ensemble-{request_id}",
+                        "model": ensemble_result.winning_model,
+                        "content": ensemble_result.content,
+                        "finish_reason": "ensemble_evaluated",
+                        "_ensemble": {
+                            "winning_model": ensemble_result.winning_model,
+                            "evaluation_reasoning": ensemble_result.evaluation_reasoning,
+                            "total_latency_ms": ensemble_result.total_latency_ms,
+                            "models_evaluated": [
+                                {"model": r.model, "latency_ms": r.latency_ms, "success": r.success}
+                                for r in ensemble_result.all_results
+                            ],
+                        },
+                    }
+                    logger.info(
+                        "[%s] Ensemble: winning model=%s, %d models evaluated in %.1fms",
+                        request_id,
+                        ensemble_result.winning_model,
+                        len(ensemble_result.all_results),
+                        ensemble_result.total_latency_ms,
+                    )
+                    return JSONResponse(content=winning)
+            except Exception as ens_err:
+                logger.warning("[%s] Ensemble failed, falling through to single model: %s", request_id, ens_err)
         log_outbound_request(
             forwarder="streaming",
             method="POST",
@@ -1095,6 +1141,21 @@ class StreamingMixin:
             full_sse_bytes = bytearray()
             parsed_response = None  # Set by memory block; used by CCR + prefix tracker
 
+            # ── Budget tracker (per-request token budget enforcement) ──
+            budget_tracker = None
+            try:
+                from headroom.proxy.budget import BudgetConfig, BudgetTracker
+
+                _budget_cfg = BudgetConfig.from_env()
+                if _budget_cfg.enabled:
+                    budget_tracker = BudgetTracker(
+                        _budget_cfg,
+                        user_budget_tokens=_budget_cfg.default_budget_tokens,
+                        model=model,
+                    )
+            except Exception:
+                pass
+
             try:
                 async with contextlib.aclosing(upstream_response) as response:
                     sse_chunk_index = 0
@@ -1184,6 +1245,30 @@ class StreamingMixin:
                                     "cache_creation_ephemeral_1h_input_tokens"
                                 ]
 
+                        # ── Budget enforcement ──
+                        if budget_tracker is not None and "output_tokens" in stream_state:
+                            budget_tracker.add_tokens(stream_state["output_tokens"] - budget_tracker.tokens_used)
+                            if budget_tracker.should_warn():
+                                warning_chunk = budget_tracker.make_budget_warning_chunk()
+                                yield warning_chunk.encode("utf-8")
+                                logger.info(
+                                    "[%s] Budget warning: %.0f%% used (%d/%d tokens)",
+                                    request_id,
+                                    budget_tracker.percent_used,
+                                    budget_tracker.tokens_used,
+                                    budget_tracker.budget_tokens,
+                                )
+                            if budget_tracker.is_exceeded():
+                                exceeded_chunk = budget_tracker.make_budget_exceeded_chunk()
+                                yield exceeded_chunk.encode("utf-8")
+                                logger.warning(
+                                    "[%s] Budget exceeded: %d/%d tokens — stream terminated",
+                                    request_id,
+                                    budget_tracker.tokens_used,
+                                    budget_tracker.budget_tokens,
+                                )
+                                return  # Stop streaming
+
                 # Memory tool handling after stream completes
                 # Chunks were already yielded in real-time above, so we only
                 # do silent background processing here — no yielding.
@@ -1243,6 +1328,50 @@ class StreamingMixin:
                     )
                     if ccr_parsed:
                         self._record_ccr_feedback_from_response(ccr_parsed, provider, request_id)
+
+                # ── Structured Output post-validation (streaming) ──
+                # Validate the streamed response text against the request's
+                # json_schema. We can't retry (already streamed) so we log.
+                if full_sse_data:
+                    try:
+                        from headroom.proxy.structured_output import (
+                            StructuredOutputConfig,
+                            StructuredOutputValidator,
+                        )
+
+                        _so_cfg = StructuredOutputConfig.from_env()
+                        if _so_cfg.enabled:
+                            _so_validator = StructuredOutputValidator(_so_cfg)
+                            _schema = _so_validator.detect_schema(body)
+                            if _schema is not None:
+                                _so_parsed = (
+                                    parsed_response
+                                    if parsed_response
+                                    else self._parse_sse_to_response(full_sse_data, provider)
+                                )
+                                if _so_parsed:
+                                    _resp_text = ""
+                                    if isinstance(_so_parsed, dict):
+                                        _content_blocks = _so_parsed.get("content", [])
+                                        if isinstance(_content_blocks, list):
+                                            for _block in _content_blocks:
+                                                if isinstance(_block, dict) and _block.get("type") == "text":
+                                                    _resp_text += _block.get("text", "")
+                                    if _resp_text:
+                                        _vresult = _so_validator.validate(_resp_text, _schema)
+                                        if not _vresult.valid:
+                                            logger.warning(
+                                                f"[{request_id}] Structured output streaming validation FAILED: "
+                                                f"errors={_vresult.errors} "
+                                                f"validation_ms={_vresult.validation_time_ms:.1f}"
+                                            )
+                                        else:
+                                            logger.debug(
+                                                f"[{request_id}] Structured output streaming validation OK "
+                                                f"({ _vresult.validation_time_ms:.1f}ms)"
+                                            )
+                    except Exception as _so_err:
+                        logger.debug(f"[{request_id}] Structured output streaming validation error: {_so_err}")
                 if _codex_wire_debug:
                     _debug_parsed_response = (
                         parsed_response

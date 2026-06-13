@@ -90,6 +90,8 @@ class BudgetTracker:
 
     def should_warn(self) -> bool:
         """Return True if we should emit a warning (once)."""
+        if not self.config.enabled:
+            return False
         if self._warned:
             return False
         if self.percent_used >= self.config.warning_threshold_percent:

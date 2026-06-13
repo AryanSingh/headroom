@@ -33,7 +33,7 @@
 //!   parsed value is an array of objects (recursive table); otherwise
 //!   [`CellValue::Scalar`] of the parsed value (saves escaping cost).
 //! - **Opaque blob.** [`CellClass::Opaque`] cells become
-//!   [`CellValue::OpaqueRef`] keyed by a 12-char SHA-256 prefix.
+//!   [`CellValue::OpaqueRef`] keyed by a 16-char SHA-256 prefix.
 //!
 //! [`CellClass`]: super::classifier::CellClass
 //! [`CellClass::StringifiedJson`]: super::classifier::CellClass::StringifiedJson

@@ -2459,6 +2459,48 @@ class AnthropicHandlerMixin:
                                 f"[{request_id}] Security response scan error: {sec_err}"
                             )
 
+                    # ── Structured Output validation (non-streaming) ──
+                    # If the client requested json_schema enforcement, validate the
+                    # response text and log violations. For non-streaming we can also
+                    # retry with error feedback.
+                    if (
+                        resp_json
+                        and response.status_code == 200
+                    ):
+                        try:
+                            from headroom.proxy.structured_output import (
+                                StructuredOutputConfig,
+                                StructuredOutputValidator,
+                            )
+
+                            _so_cfg = StructuredOutputConfig.from_env()
+                            if _so_cfg.enabled:
+                                _so_validator = StructuredOutputValidator(_so_cfg)
+                                _schema = _so_validator.detect_schema(body)
+                                if _schema is not None:
+                                    # Extract text content from Anthropic response
+                                    _resp_text = ""
+                                    if isinstance(resp_json, dict):
+                                        _content_blocks = resp_json.get("content", [])
+                                        if isinstance(_content_blocks, list):
+                                            for _block in _content_blocks:
+                                                if isinstance(_block, dict) and _block.get("type") == "text":
+                                                    _resp_text += _block.get("text", "")
+                                    if _resp_text:
+                                        _vresult = _so_validator.validate(_resp_text, _schema)
+                                        if not _vresult.valid:
+                                            logger.warning(
+                                                f"[{request_id}] Structured output validation FAILED: "
+                                                f"errors={_vresult.errors} "
+                                                f"validation_ms={_vresult.validation_time_ms:.1f}"
+                                            )
+                                            response_headers["x-headroom-schema-valid"] = "false"
+                                            response_headers["x-headroom-schema-errors"] = "; ".join(_vresult.errors[:3])
+                                        else:
+                                            response_headers["x-headroom-schema-valid"] = "true"
+                        except Exception as _so_err:
+                            logger.debug(f"[{request_id}] Structured output validation error: {_so_err}")
+
                     return Response(
                         content=response.content,
                         status_code=response.status_code,

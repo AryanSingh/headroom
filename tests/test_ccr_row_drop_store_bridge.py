@@ -294,7 +294,7 @@ def test_compression_store_explicit_hash_round_trips() -> None:
     reset_compression_store()
     try:
         store = get_compression_store()
-        # SmartCrusher emits 12-char SHA-256 hashes — much shorter than
+        # SmartCrusher emits 16-char SHA-256 hashes — much shorter than
         # the default MD5[:24].
         explicit = "abc123def456"
         returned = store.store(

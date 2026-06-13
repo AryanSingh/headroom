@@ -39,6 +39,11 @@ def test_transform_pipeline_emits_trace_spans() -> None:
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     set_headroom_tracer(HeadroomTracer(tracer_provider=provider))
 
+    # Mock RANDOM_TRACE_ID to fix opentelemetry sdk/api version mismatch
+    from opentelemetry.trace import TraceFlags
+    if not hasattr(TraceFlags, "RANDOM_TRACE_ID"):
+        TraceFlags.RANDOM_TRACE_ID = 0
+
     try:
         pipeline = TransformPipeline(transforms=[])
         messages = [{"role": "user", "content": "hello world"}]
