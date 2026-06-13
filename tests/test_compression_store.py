@@ -464,13 +464,13 @@ class TestCompressionStoreInit:
 class TestCompressionStoreOperations:
     """Tests for CompressionStore store operation."""
 
-    def test_store_returns_24_char_hash(self, store: CompressionStore):
-        """store() returns a 24 character hash (96 bits for collision resistance)."""
+    def test_store_returns_16_char_hash(self, store: CompressionStore):
+        """store() returns a 16 character hex hash (SHA-256 truncated to 64 bits, matching Rust BLAKE3 key length)."""
         hash_key = store.store(
             original="[1,2,3]",
             compressed="[1]",
         )
-        assert len(hash_key) == 24
+        assert len(hash_key) == 16
         assert all(c in "0123456789abcdef" for c in hash_key)
 
     def test_store_hash_is_deterministic(self, store: CompressionStore):
@@ -1432,22 +1432,21 @@ class TestHashCollisionDetection:
         assert "Hash collision detected" not in caplog.text
 
     def test_hash_uses_sha256_truncated(self, store: CompressionStore):
-        """Hash is SHA-256 truncated to 24 characters.
+        """Hash is SHA-256 truncated to 16 characters.
 
         Switched from MD5[:24] in PR #395 to silence CodeQL's
-        py/weak-sensitive-data-hashing rule. SHA-256[:24] gives the
-        same 96-bit collision space (~280 trillion entries for 50%
-        collision under birthday bound) and is FIPS-clean. The cache
-        is in-memory, so changing the hash function on upgrade has no
-        persistence-side effect.
+        py/weak-sensitive-data-hashing rule. SHA-256[:16] gives 64-bit
+        collision space, matching the Rust BLAKE3 key length used in
+        compute_key(). The cache is in-memory, so changing the hash
+        function on upgrade has no persistence-side effect.
         """
         content = "test content"
-        expected_hash = hashlib.sha256(content.encode()).hexdigest()[:24]
+        expected_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
 
         hash_key = store.store(original=content, compressed="[]")
 
         assert hash_key == expected_hash, (
-            "compression_store key must be SHA-256(original)[:24]. "
+            "compression_store key must be SHA-256(original)[:16]. "
             "If this test fails because the hash function was changed, "
             "verify that no caller (incl. /v1/retrieve consumers) "
             "depends on the specific MD5/SHA-256 value — the cache is "

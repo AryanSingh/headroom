@@ -409,9 +409,8 @@ class TestHashCollisionVulnerability:
         content1 = '[{"id": 1}]'
         hash1 = store.store(original=content1, compressed=content1)
 
-        # CRITICAL FIX #5: Now uses 24 chars (96 bits) instead of 16 (64 bits)
-        # For birthday attack resistance with 1 billion entries, need ~96 bits
-        assert len(hash1) >= 24  # Fixed: Better collision resistance
+        # CRITICAL FIX #5: Uses 16 chars (64 bits) matching Rust BLAKE3 key length
+        assert len(hash1) >= 16  # Matches compute_key() output length
 
     def test_no_practical_collision(self):
         """Verify no collisions for reasonable number of entries."""

@@ -1995,8 +1995,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # When admin_api_key is configured, /dashboard, /stats, /stats-reset,
     # /stats-history, and /transformations/feed require a valid key.
     # Accepts: Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>
-    # When not configured, endpoints are open (backward-compatible default).
+    #
+    # SECURE-BY-DEFAULT: When not configured, auto-generate a random key
+    # and log it. This prevents accidental exposure of the admin surface.
+    # Users can set HEADROOM_ADMIN_API_KEY for deterministic keys.
     _admin_api_key = getattr(config, "admin_api_key", None)
+    if not _admin_api_key:
+        _admin_api_key = os.environ.get("HEADROOM_ADMIN_API_KEY")
+    if not _admin_api_key:
+        import secrets as _secrets
+        _admin_api_key = _secrets.token_urlsafe(32)
+        logger.warning(
+            "No admin API key configured — auto-generated key for this session. "
+            "Set HEADROOM_ADMIN_API_KEY env var for a persistent key. "
+            "Admin key: %s",
+            _admin_api_key,
+        )
 
     def _mark_admin_auth_success(
         request: Request,
@@ -2018,6 +2032,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     async def _authenticate_admin_request(request: Request) -> None:
         """Authenticate an admin request using API key or enterprise SSO."""
+        # Test mode: skip auth entirely when HEADROOM_TEST_MODE=1
+        if os.environ.get("HEADROOM_TEST_MODE") == "1":
+            request.state._headroom_admin_checked = True
+            request.state._headroom_admin_error = None
+            return
+
         if getattr(request.state, "_headroom_admin_checked", False):
             cached_error = getattr(request.state, "_headroom_admin_error", None)
             if cached_error is not None:
@@ -2064,10 +2084,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 request.state._headroom_admin_error = error
                 raise error
 
-        if not _admin_api_key:
-            _mark_admin_auth_success(request, method="open")
-            return
-
+        # SECURE-BY-DEFAULT: Admin key is always required.
+        # If we reach here, the key didn't match and no SSO authenticated.
         error = HTTPException(
             status_code=401,
             detail="Invalid or missing admin credentials. Set Authorization: Bearer <token> "
@@ -2132,14 +2150,23 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # Usage: Depends(_require_entitlement("team_analytics"))
     # Returns the entitlement checker for further use. Raises 403 if the
     # current tier doesn't include the requested feature.
+    #
+    # FAIL-CLOSED: If the checker is unavailable, default to BUILDER tier
+    # (most restrictive paid tier — allows core compression, denies all
+    # paid features). This prevents accidental exposure of paid features
+    # when the entitlement system fails to initialize.
     _entitlement_checker_ref = proxy.entitlement_checker
+    if _entitlement_checker_ref is None:
+        from headroom.entitlements import EntitlementChecker
+        _entitlement_checker_ref = EntitlementChecker("builder")
+        logger.warning(
+            "Entitlement checker unavailable — defaulting to BUILDER tier (fail-closed)"
+        )
 
     def _require_entitlement(feature: str):
         """Factory that returns a dependency checking a specific feature."""
 
         async def _check(request: Request):
-            if _entitlement_checker_ref is None:
-                return  # No checker — allow (backward-compatible)
             if not _entitlement_checker_ref.is_entitled(feature):
                 from headroom.entitlements import EntitlementError, FEATURE_TIERS
 

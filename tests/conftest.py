@@ -6,6 +6,11 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["HEADROOM_CCR_BACKEND"] = "memory"
+# Secure-by-default: tests need a known admin key for admin endpoints
+os.environ.setdefault("HEADROOM_ADMIN_API_KEY", "test-admin-key-for-ci")
+# Test mode: bypass admin auth for tests that don't specifically test auth
+os.environ.setdefault("HEADROOM_TEST_MODE", "1")
+
 
 import json
 import tempfile

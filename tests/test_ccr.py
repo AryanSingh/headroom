@@ -52,8 +52,8 @@ class TestCompressionStore:
         )
 
         assert (
-            len(hash_key) == 24
-        )  # SHA256 truncated to 24 chars (96 bits for collision resistance)
+            len(hash_key) == 16
+        )  # SHA256 truncated to 16 chars (matches Rust BLAKE3 key length)
 
         entry = store.retrieve(hash_key)
         assert entry is not None

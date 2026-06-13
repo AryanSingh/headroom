@@ -569,11 +569,19 @@ pub(crate) async fn forward_http(
     //   - path matches a known LLM endpoint
     //   - content-type is application/json
     //
-    // The new `compression_mode` flag is *not* part of the gate. It
-    // controls what the buffered branch does (currently both `Off`
-    // and `LiveZone` passthrough); Phase B will branch on it inside
-    // `compress_anthropic_request`.
-    let should_intercept = state.config.compression
+    // HARD LICENSE ENFORCEMENT: LiveZone compression requires Team+
+    // tier. OpenSource tier gets passthrough-only (proxy forwards
+    // unchanged). This prevents unpaid use of commercial compression.
+    let tier = state.config.license_tier;
+    let effective_compression = state.config.compression
+        && tier.allows_live_zone();
+    if state.config.compression && !tier.allows_live_zone() {
+        tracing::debug!(
+            license_tier = %tier,
+            "compression disabled: LiveZone requires Team+ license tier"
+        );
+    }
+    let should_intercept = effective_compression
         && method == axum::http::Method::POST
         && compression::is_compressible_path(uri.path())
         && is_application_json(req.headers());
@@ -717,13 +725,20 @@ pub(crate) async fn forward_http(
                 // dispatcher so cache_control auto-placement gates on
                 // PAYG only. Pulled from request extensions where it
                 // was stashed at request entry (line ~325 above).
+                // HARD LICENSE ENFORCEMENT: CCR requires Team+ tier.
+                // OpenSource tier passes None to disable cache reversibility.
+                let ccr_for_request = if tier.allows_ccr() {
+                    state.ccr_store.as_deref()
+                } else {
+                    None
+                };
                 compression::compress_anthropic_request_with_ccr(
                     &buffered,
                     state.config.compression_mode,
                     state.config.cache_control_auto_frozen,
                     auth_mode,
                     &request_id,
-                    state.ccr_store.as_deref(),
+                    ccr_for_request,
                 )
             }
             compression::CompressibleEndpoint::OpenAiChatCompletions => {
