@@ -52,12 +52,15 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "orgs.read": AdminRole.VIEWER,
     "license.read": AdminRole.VIEWER,
     "reports.read": AdminRole.VIEWER,
+    "fleet.read": AdminRole.VIEWER,
+    "scim.read": AdminRole.VIEWER,
     # Write (operator+)
     "stats.write": AdminRole.OPERATOR,
     "cache.write": AdminRole.OPERATOR,
     "config.write": AdminRole.OPERATOR,
     "compression.write": AdminRole.OPERATOR,
     "transformations.read": AdminRole.OPERATOR,
+    "fleet.write": AdminRole.OPERATOR,
     # Admin-only
     "stats.reset": AdminRole.ADMIN,
     "config.reset": AdminRole.ADMIN,
@@ -69,6 +72,7 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "rbac.write": AdminRole.ADMIN,
     "retention.write": AdminRole.ADMIN,
     "audit.export": AdminRole.ADMIN,
+    "scim.write": AdminRole.ADMIN,
 }
 
 
@@ -100,6 +104,14 @@ class RbacChecker:
         Returns:
             The resolved AdminRole.
         """
+        request_state = getattr(request, "state", None)
+        state_role = getattr(request_state, "headroom_role", None)
+        if isinstance(state_role, str) and state_role.strip():
+            try:
+                return AdminRole(state_role.strip().lower())
+            except ValueError:
+                logger.debug("Invalid state role value: %s", state_role)
+
         # 1. Explicit role header (testing / proxy chaining)
         role_header = getattr(request, "headers", {})
         explicit_role = role_header.get("x-headroom-role", "").strip().lower()
@@ -110,7 +122,12 @@ class RbacChecker:
                 logger.debug("Invalid X-Headroom-Role header: %s", explicit_role)
 
         # 2. User ID → role assignment lookup
-        user_id = role_header.get("x-headroom-user-id", "").strip()
+        state_user_id = getattr(request_state, "headroom_user_id", None)
+        user_id = (
+            state_user_id.strip()
+            if isinstance(state_user_id, str) and state_user_id.strip()
+            else role_header.get("x-headroom-user-id", "").strip()
+        )
         if user_id and user_id in self._assignments:
             return self._assignments[user_id]
 

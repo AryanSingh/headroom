@@ -206,7 +206,7 @@ class TestFeatureCount:
     """Verify the total feature count is as expected."""
 
     def test_total_feature_count(self):
-        assert len(FEATURE_TIERS) == 59
+        assert len(FEATURE_TIERS) == 61
 
     def test_tier_distribution(self):
         counts = {}
@@ -215,4 +215,4 @@ class TestFeatureCount:
         assert counts[EntitlementTier.BUILDER] == 29
         assert counts[EntitlementTier.TEAM] == 6
         assert counts[EntitlementTier.BUSINESS] == 11
-        assert counts[EntitlementTier.ENTERPRISE] == 13
+        assert counts[EntitlementTier.ENTERPRISE] == 15

@@ -319,6 +319,16 @@ class ProxyConfig:
     org_enabled: bool = True
     org_db_path: str | None = None  # None = ~/.headroom/org.db
 
+    # Fleet registry (enterprise deployment inventory).
+    # Tracks deployment heartbeats and fleet health.
+    fleet_enabled: bool = True
+    fleet_db_path: str | None = None  # None = ~/.headroom/fleet.db
+
+    # SCIM-like provisioning store (enterprise identity sync).
+    # Stores provisioned users/groups for admin-plane integrations.
+    scim_enabled: bool = True
+    scim_db_path: str | None = None  # None = ~/.headroom/scim.db
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

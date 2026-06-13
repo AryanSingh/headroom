@@ -61,7 +61,14 @@ class TestFeatureTiers:
             assert FEATURE_TIERS[f] == EntitlementTier.TEAM, f"{f} should be TEAM tier"
 
     def test_enterprise_features_exist(self):
-        ent_features = ["sso_saml", "rbac", "audit_logs", "retention_controls"]
+        ent_features = [
+            "sso_saml",
+            "rbac",
+            "audit_logs",
+            "retention_controls",
+            "fleet_management",
+            "scim",
+        ]
         for f in ent_features:
             assert FEATURE_TIERS[f] == EntitlementTier.ENTERPRISE, f"{f} should be ENTERPRISE tier"
 

@@ -747,6 +747,30 @@ class HeadroomProxy(
             except Exception:
                 logger.debug("Org store init failed", exc_info=True)
 
+        # Fleet registry (enterprise deployment inventory)
+        self.fleet_store = None
+        if getattr(config, "fleet_enabled", True):
+            try:
+                from headroom.fleet import get_fleet_store
+
+                self.fleet_store = get_fleet_store(
+                    db_path=getattr(config, "fleet_db_path", None),
+                )
+            except Exception:
+                logger.debug("Fleet store init failed", exc_info=True)
+
+        # SCIM provisioning store (enterprise identity sync)
+        self.scim_store = None
+        if getattr(config, "scim_enabled", True):
+            try:
+                from headroom.scim import get_scim_store
+
+                self.scim_store = get_scim_store(
+                    db_path=getattr(config, "scim_db_path", None),
+                )
+            except Exception:
+                logger.debug("SCIM store init failed", exc_info=True)
+
         # Traffic Learner (live pattern extraction from proxy traffic)
         # Only activates with --learn flag; requires --memory for backend
         self.traffic_learner: TrafficLearner | None = None
@@ -1974,25 +1998,88 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # When not configured, endpoints are open (backward-compatible default).
     _admin_api_key = getattr(config, "admin_api_key", None)
 
+    def _mark_admin_auth_success(
+        request: Request,
+        *,
+        method: str,
+        role: str | None = None,
+        user_id: str | None = None,
+        claims: dict[str, Any] | None = None,
+    ) -> None:
+        request.state._headroom_admin_checked = True
+        request.state._headroom_admin_error = None
+        request.state.headroom_admin_auth_method = method
+        if role:
+            request.state.headroom_role = role
+        if user_id:
+            request.state.headroom_user_id = user_id
+        if claims is not None:
+            request.state.headroom_sso_claims = claims
+
+    async def _authenticate_admin_request(request: Request) -> None:
+        """Authenticate an admin request using API key or enterprise SSO."""
+        if getattr(request.state, "_headroom_admin_checked", False):
+            cached_error = getattr(request.state, "_headroom_admin_error", None)
+            if cached_error is not None:
+                raise cached_error
+            return
+
+        auth_header = request.headers.get("authorization", "")
+        bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        admin_header = request.headers.get("x-headroom-admin-key", "")
+
+        if _admin_api_key:
+            if bearer_token == _admin_api_key or admin_header == _admin_api_key:
+                _mark_admin_auth_success(request, method="api_key")
+                return
+
+        if _sso_validator_ref is not None:
+            if not bearer_token:
+                error = HTTPException(
+                    status_code=401,
+                    detail="Missing Bearer token for SSO-protected admin endpoint.",
+                )
+                request.state._headroom_admin_checked = True
+                request.state._headroom_admin_error = error
+                raise error
+            try:
+                from headroom.sso import SsoError
+
+                claims = await _sso_validator_ref.validate_token(bearer_token)
+                _mark_admin_auth_success(
+                    request,
+                    method="sso",
+                    role=claims.role,
+                    user_id=claims.subject,
+                    claims=claims.to_dict(),
+                )
+                return
+            except SsoError as exc:
+                logger.debug("SSO token validation failed: %s", exc)
+                error = HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired SSO bearer token for admin endpoint.",
+                )
+                request.state._headroom_admin_checked = True
+                request.state._headroom_admin_error = error
+                raise error
+
+        if not _admin_api_key:
+            _mark_admin_auth_success(request, method="open")
+            return
+
+        error = HTTPException(
+            status_code=401,
+            detail="Invalid or missing admin credentials. Set Authorization: Bearer <token> "
+            "or X-Headroom-Admin-Key: <key>.",
+        )
+        request.state._headroom_admin_checked = True
+        request.state._headroom_admin_error = error
+        raise error
+
     async def _require_admin_auth(request: Request):
         """Dependency that gates endpoints behind admin API key auth."""
-        if not _admin_api_key:
-            return  # No key configured — open access (backward-compatible)
-        # Check Authorization header: Bearer <key>
-        auth_header = request.headers.get("authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:].strip()
-            if token == _admin_api_key:
-                return
-        # Check X-Headroom-Admin-Key header
-        admin_header = request.headers.get("x-headroom-admin-key", "")
-        if admin_header == _admin_api_key:
-            return
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or missing admin API key. "
-            "Set Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>.",
-        )
+        await _authenticate_admin_request(request)
 
     # ── RBAC dependency ────────────────────────────────────────────────
     # Usage: Depends(_require_rbac_permission("stats.read"))
@@ -2010,6 +2097,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         """Factory that returns a dependency checking a specific RBAC permission."""
 
         async def _check(request: Request):
+            await _authenticate_admin_request(request)
             if _rbac_checker_ref is None:
                 return  # No RBAC — allow (backward-compatible)
             role = _rbac_checker_ref.resolve_role(request)
@@ -2024,7 +2112,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     try:
         from headroom.sso import SsoConfig, SsoValidator
 
-        _sso_config = SsoConfig.from_env()
+        _sso_config = SsoConfig.from_proxy_config(config)
         if _sso_config.enabled:
             _sso_validator_ref = SsoValidator(_sso_config)
             logger.info("SSO validation enabled (provider: %s)", _sso_config.provider_type)
@@ -2035,24 +2123,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         """Dependency that validates SSO tokens and injects role into headers."""
         if _sso_validator_ref is None:
             return  # No SSO configured
-        auth_header = request.headers.get("authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return  # No Bearer token — let admin auth handle it
-        token = auth_header[7:].strip()
         try:
-            from headroom.sso import SsoError
-
-            claims = await _sso_validator_ref.validate_token(token)
-            # Inject SSO role into request headers for RBAC resolution
-            request.headers.__dict__["_list"].append(
-                (b"x-headroom-role", claims.role.encode())
-            )
-            request.headers.__dict__["_list"].append(
-                (b"x-headroom-user-id", claims.subject.encode())
-            )
-        except SsoError as e:
-            logger.debug("SSO token validation failed: %s", e)
-            # Don't reject — let admin auth handle fallback
+            await _authenticate_admin_request(request)
+        except HTTPException:
+            return
 
     # Entitlement enforcement dependency.
     # Usage: Depends(_require_entitlement("team_analytics"))
@@ -2852,7 +2926,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Audit Log Query ─────────────────────────────────────
 
-    @app.get("/audit/events", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("audit.read"))])
+    @app.get(
+        "/audit/events",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("audit.read")),
+            Depends(_require_entitlement("audit_logs")),
+        ],
+    )
     async def audit_events(
         action: str | None = None,
         actor: str | None = None,
@@ -2878,7 +2959,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         total = proxy.audit_logger.count(action=action)
         return {"events": events, "total": total, "limit": limit, "offset": offset}
 
-    @app.get("/audit/export", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("audit.export"))])
+    @app.get(
+        "/audit/export",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("audit.export")),
+            Depends(_require_entitlement("audit_logs")),
+        ],
+    )
     async def audit_export(format: Literal["jsonl", "json"] = "jsonl", limit: int = 1000):
         """Export audit events as JSONL or JSON array.
 
@@ -2898,14 +2986,28 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Org / Workspace / Project Management ────────────────
 
-    @app.get("/orgs", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
+    @app.get(
+        "/orgs",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("orgs.read")),
+            Depends(_require_entitlement("workspace_model")),
+        ],
+    )
     async def list_orgs():
         """List all organizations."""
         if not proxy.org_store:
             raise HTTPException(status_code=503, detail="Org store not available")
         return {"orgs": proxy.org_store.list_orgs()}
 
-    @app.post("/orgs", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.write"))])
+    @app.post(
+        "/orgs",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("orgs.write")),
+            Depends(_require_entitlement("workspace_model")),
+        ],
+    )
     async def create_org(request: Request):
         """Create a new organization."""
         if not proxy.org_store:
@@ -2937,7 +3039,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 pass
         return {"org": org}
 
-    @app.get("/orgs/{org_id}", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
+    @app.get(
+        "/orgs/{org_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("orgs.read")),
+            Depends(_require_entitlement("workspace_model")),
+        ],
+    )
     async def get_org(org_id: str):
         """Get organization with full hierarchy."""
         if not proxy.org_store:
@@ -2947,7 +3056,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Organization not found")
         return {"org": hierarchy}
 
-    @app.post("/orgs/{org_id}/workspaces", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("workspaces.write"))])
+    @app.post(
+        "/orgs/{org_id}/workspaces",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("workspaces.write")),
+            Depends(_require_entitlement("workspace_model")),
+        ],
+    )
     async def create_workspace(org_id: str, request: Request):
         """Create a workspace in an organization."""
         if not proxy.org_store:
@@ -2964,14 +3080,28 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         return {"workspace": ws}
 
-    @app.get("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
+    @app.get(
+        "/workspaces/{workspace_id}/projects",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("orgs.read")),
+            Depends(_require_entitlement("project_model")),
+        ],
+    )
     async def list_projects(workspace_id: str):
         """List projects in a workspace."""
         if not proxy.org_store:
             raise HTTPException(status_code=503, detail="Org store not available")
         return {"projects": proxy.org_store.list_projects(workspace_id)}
 
-    @app.post("/workspaces/{workspace_id}/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("projects.write"))])
+    @app.post(
+        "/workspaces/{workspace_id}/projects",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("projects.write")),
+            Depends(_require_entitlement("project_model")),
+        ],
+    )
     async def create_project(workspace_id: str, request: Request):
         """Create a project in a workspace."""
         if not proxy.org_store:
@@ -3025,7 +3155,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Reports ───────────────────────────────────────────
 
-    @app.get("/reports/savings", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("reports.read"))])
+    @app.get(
+        "/reports/savings",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("reports.read")),
+            Depends(_require_entitlement("usage_reports")),
+        ],
+    )
     async def reports_savings(format: Literal["json", "csv"] = "json"):
         """ROI summary report: tokens saved, cost saved, compression ratios.
 
@@ -3091,7 +3228,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return report
 
-    @app.get("/reports/usage", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("reports.read"))])
+    @app.get(
+        "/reports/usage",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("reports.read")),
+            Depends(_require_entitlement("usage_reports")),
+        ],
+    )
     async def reports_usage(format: Literal["json", "csv"] = "json"):
         """Usage report: requests by provider, model, stack, and time.
 
@@ -3143,7 +3287,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Retention Controls ────────────────────────────────
 
-    @app.get("/retention/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
+    @app.get(
+        "/retention/stats",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+            Depends(_require_entitlement("retention_controls")),
+        ],
+    )
     async def retention_stats():
         """Retention policy configuration and cleanup statistics."""
         from headroom.retention import get_retention_manager
@@ -3151,7 +3302,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         manager = get_retention_manager()
         return {"retention": manager.get_stats()}
 
-    @app.post("/retention/cleanup", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("retention.write"))])
+    @app.post(
+        "/retention/cleanup",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("retention.write")),
+            Depends(_require_entitlement("retention_controls")),
+        ],
+    )
     async def retention_cleanup(request: Request):
         """Trigger an immediate retention cleanup cycle."""
         from headroom.retention import get_retention_manager
@@ -3177,7 +3335,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: RBAC Management ───────────────────────────────────
 
-    @app.get("/rbac/roles", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))])
+    @app.get(
+        "/rbac/roles",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("rbac.write")),
+            Depends(_require_entitlement("rbac")),
+        ],
+    )
     async def rbac_list_roles():
         """List all role assignments."""
         from headroom.rbac import get_rbac_checker
@@ -3185,7 +3350,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         checker = get_rbac_checker()
         return {"assignments": checker.list_assignments()}
 
-    @app.post("/rbac/roles", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))])
+    @app.post(
+        "/rbac/roles",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("rbac.write")),
+            Depends(_require_entitlement("rbac")),
+        ],
+    )
     async def rbac_assign_role(request: Request):
         """Assign a role to a user.
 
@@ -3226,7 +3398,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.delete(
         "/rbac/roles/{user_id}",
-        dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("rbac.write"))],
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("rbac.write")),
+            Depends(_require_entitlement("rbac")),
+        ],
     )
     async def rbac_revoke_role(user_id: str, request: Request):
         """Revoke a user's role assignment."""
@@ -3249,6 +3425,522 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             except Exception:
                 pass
         return {"status": "revoked" if revoked else "not_found", "user_id": user_id}
+
+    async def _audit_admin_action(
+        request: Request,
+        *,
+        action: str,
+        detail: dict[str, Any],
+        org_id: str | None = None,
+        workspace_id: str | None = None,
+        project_id: str | None = None,
+        success: bool = True,
+    ) -> None:
+        if not proxy.audit_logger:
+            return
+        try:
+            from headroom.audit import AuditEvent
+
+            actor = getattr(request.state, "headroom_user_id", None) or request.headers.get(
+                "x-headroom-user-id", "admin"
+            )
+            await proxy.audit_logger.async_log(
+                AuditEvent(
+                    action=action,
+                    actor=actor,
+                    detail=detail,
+                    org_id=org_id,
+                    workspace_id=workspace_id,
+                    project_id=project_id,
+                    success=success,
+                    ip_address=getattr(request.client, "host", None),
+                    user_agent=request.headers.get("user-agent"),
+                )
+            )
+        except Exception:
+            logger.debug("Failed to write admin audit event", exc_info=True)
+
+    def _scim_user_resource(user: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+            "id": user["id"],
+            "userName": user["user_name"],
+            "displayName": user.get("display_name"),
+            "externalId": user.get("external_id"),
+            "active": user.get("active", True),
+            "emails": user.get("emails", []),
+            "meta": {
+                **(user.get("meta") or {}),
+                "resourceType": "User",
+                "created": user.get("created_at"),
+                "lastModified": user.get("updated_at"),
+            },
+        }
+
+    def _scim_group_resource(group: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+            "id": group["id"],
+            "displayName": group["display_name"],
+            "externalId": group.get("external_id"),
+            "members": group.get("members", []),
+            "meta": {
+                **(group.get("meta") or {}),
+                "resourceType": "Group",
+                "created": group.get("created_at"),
+                "lastModified": group.get("updated_at"),
+            },
+        }
+
+    def _scim_list_response(resources: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+            "totalResults": len(resources),
+            "startIndex": 1,
+            "itemsPerPage": len(resources),
+            "Resources": resources,
+        }
+
+    def _extract_scim_updates(body: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:
+        updates: dict[str, Any] = {}
+        operations = body.get("Operations")
+        if isinstance(operations, list):
+            for operation in operations:
+                if not isinstance(operation, dict):
+                    continue
+                path = operation.get("path")
+                value = operation.get("value")
+                if path and path in mapping:
+                    updates[mapping[path]] = value
+                    continue
+                if isinstance(value, dict):
+                    for key, field_name in mapping.items():
+                        if key in value:
+                            updates[field_name] = value[key]
+            return updates
+
+        for key, field_name in mapping.items():
+            if key in body:
+                updates[field_name] = body[key]
+        return updates
+
+    # ── Enterprise: Fleet Management ─────────────────────────────────
+
+    @app.get(
+        "/fleet/deployments",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("fleet.read")),
+            Depends(_require_entitlement("fleet_management")),
+        ],
+    )
+    async def fleet_deployments(org_id: str | None = None, status: str | None = None):
+        """List registered deployments with optional org/status filters."""
+        if not proxy.fleet_store:
+            raise HTTPException(status_code=503, detail="Fleet store not available")
+        return {
+            "deployments": proxy.fleet_store.list_deployments(org_id=org_id, status=status),
+        }
+
+    @app.post(
+        "/fleet/deployments/heartbeat",
+        status_code=201,
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("fleet.write")),
+            Depends(_require_entitlement("fleet_management")),
+        ],
+    )
+    async def fleet_heartbeat(request: Request):
+        """Create or refresh a deployment heartbeat record."""
+        if not proxy.fleet_store:
+            raise HTTPException(status_code=503, detail="Fleet store not available")
+        body = await request.json()
+        deployment = proxy.fleet_store.upsert_heartbeat(
+            deployment_id=body.get("deployment_id"),
+            name=body.get("name"),
+            org_id=body.get("org_id"),
+            workspace_id=body.get("workspace_id"),
+            project_id=body.get("project_id"),
+            environment=body.get("environment"),
+            region=body.get("region"),
+            version=body.get("version"),
+            status=body.get("status", "healthy"),
+            metadata=body.get("metadata"),
+        )
+        await _audit_admin_action(
+            request,
+            action="fleet.heartbeat",
+            detail={
+                "deployment_id": deployment["deployment_id"],
+                "name": deployment.get("name"),
+                "status": deployment.get("status"),
+            },
+            org_id=deployment.get("org_id"),
+            workspace_id=deployment.get("workspace_id"),
+            project_id=deployment.get("project_id"),
+        )
+        return {"deployment": deployment}
+
+    @app.get(
+        "/fleet/deployments/{deployment_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("fleet.read")),
+            Depends(_require_entitlement("fleet_management")),
+        ],
+    )
+    async def fleet_deployment(deployment_id: str):
+        """Fetch a single deployment by ID."""
+        if not proxy.fleet_store:
+            raise HTTPException(status_code=503, detail="Fleet store not available")
+        deployment = proxy.fleet_store.get_deployment(deployment_id)
+        if not deployment:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        return {"deployment": deployment}
+
+    @app.delete(
+        "/fleet/deployments/{deployment_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("fleet.write")),
+            Depends(_require_entitlement("fleet_management")),
+        ],
+    )
+    async def fleet_delete_deployment(deployment_id: str, request: Request):
+        """Delete a deployment record."""
+        if not proxy.fleet_store:
+            raise HTTPException(status_code=503, detail="Fleet store not available")
+        deleted = proxy.fleet_store.delete_deployment(deployment_id)
+        await _audit_admin_action(
+            request,
+            action="fleet.deleted",
+            detail={"deployment_id": deployment_id, "deleted": deleted},
+            success=deleted,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        return {"status": "deleted", "deployment_id": deployment_id}
+
+    @app.get(
+        "/fleet/summary",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("fleet.read")),
+            Depends(_require_entitlement("fleet_management")),
+        ],
+    )
+    async def fleet_summary():
+        """Return fleet-wide health summary."""
+        if not proxy.fleet_store:
+            raise HTTPException(status_code=503, detail="Fleet store not available")
+        return {"summary": proxy.fleet_store.summarize()}
+
+    # ── Enterprise: SCIM Provisioning ────────────────────────────────
+
+    @app.get(
+        "/scim/v2/ServiceProviderConfig",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_service_provider_config():
+        """Minimal SCIM capability descriptor for IdP integrations."""
+        return {
+            "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
+            "patch": {"supported": True},
+            "bulk": {"supported": False},
+            "filter": {"supported": True, "maxResults": 200},
+            "changePassword": {"supported": False},
+            "sort": {"supported": False},
+            "etag": {"supported": False},
+            "authenticationSchemes": [
+                {
+                    "name": "Bearer Token",
+                    "description": "Use SSO bearer tokens or the admin API key",
+                    "type": "oauthbearertoken",
+                    "primary": True,
+                }
+            ],
+        }
+
+    @app.get(
+        "/scim/v2/ResourceTypes",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_resource_types():
+        """Advertise supported SCIM resource types."""
+        return {
+            "Resources": [
+                {"id": "User", "name": "User", "endpoint": "/scim/v2/Users"},
+                {"id": "Group", "name": "Group", "endpoint": "/scim/v2/Groups"},
+            ]
+        }
+
+    @app.get(
+        "/scim/v2/Users",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_list_users(userName: str | None = None):
+        """List provisioned users."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        users = proxy.scim_store.list_users(user_name=userName)
+        return _scim_list_response([_scim_user_resource(user) for user in users])
+
+    @app.post(
+        "/scim/v2/Users",
+        status_code=201,
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_create_user(request: Request):
+        """Create a provisioned user."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        body = await request.json()
+        user_name = body.get("userName") or body.get("user_name")
+        if not user_name:
+            raise HTTPException(status_code=400, detail="userName is required")
+        user = proxy.scim_store.create_user(
+            user_name=user_name,
+            display_name=body.get("displayName") or body.get("display_name"),
+            external_id=body.get("externalId") or body.get("external_id"),
+            active=body.get("active", True),
+            emails=body.get("emails"),
+            meta=body.get("meta"),
+        )
+        await _audit_admin_action(
+            request,
+            action="scim.user_created",
+            detail={"user_id": user["id"], "user_name": user["user_name"]},
+        )
+        return _scim_user_resource(user)
+
+    @app.get(
+        "/scim/v2/Users/{user_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_get_user(user_id: str):
+        """Fetch a provisioned user."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        user = proxy.scim_store.get_user(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return _scim_user_resource(user)
+
+    @app.put(
+        "/scim/v2/Users/{user_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    @app.patch(
+        "/scim/v2/Users/{user_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_update_user(user_id: str, request: Request):
+        """Update a provisioned user using simple SCIM patch semantics."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        body = await request.json()
+        updates = _extract_scim_updates(
+            body,
+            {
+                "userName": "user_name",
+                "user_name": "user_name",
+                "displayName": "display_name",
+                "display_name": "display_name",
+                "externalId": "external_id",
+                "external_id": "external_id",
+                "active": "active",
+                "emails": "emails",
+                "meta": "meta",
+            },
+        )
+        user = proxy.scim_store.update_user(user_id, **updates)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        await _audit_admin_action(
+            request,
+            action="scim.user_updated",
+            detail={"user_id": user_id, "fields": sorted(updates)},
+        )
+        return _scim_user_resource(user)
+
+    @app.delete(
+        "/scim/v2/Users/{user_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_delete_user(user_id: str, request: Request):
+        """Delete a provisioned user."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        deleted = proxy.scim_store.delete_user(user_id)
+        await _audit_admin_action(
+            request,
+            action="scim.user_deleted",
+            detail={"user_id": user_id, "deleted": deleted},
+            success=deleted,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"status": "deleted", "id": user_id}
+
+    @app.get(
+        "/scim/v2/Groups",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_list_groups():
+        """List provisioned groups."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        groups = proxy.scim_store.list_groups()
+        return _scim_list_response([_scim_group_resource(group) for group in groups])
+
+    @app.post(
+        "/scim/v2/Groups",
+        status_code=201,
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_create_group(request: Request):
+        """Create a provisioned group."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        body = await request.json()
+        display_name = body.get("displayName") or body.get("display_name")
+        if not display_name:
+            raise HTTPException(status_code=400, detail="displayName is required")
+        group = proxy.scim_store.create_group(
+            display_name=display_name,
+            external_id=body.get("externalId") or body.get("external_id"),
+            members=body.get("members"),
+            meta=body.get("meta"),
+        )
+        await _audit_admin_action(
+            request,
+            action="scim.group_created",
+            detail={"group_id": group["id"], "display_name": group["display_name"]},
+        )
+        return _scim_group_resource(group)
+
+    @app.get(
+        "/scim/v2/Groups/{group_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.read")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_get_group(group_id: str):
+        """Fetch a provisioned group."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        group = proxy.scim_store.get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
+        return _scim_group_resource(group)
+
+    @app.put(
+        "/scim/v2/Groups/{group_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    @app.patch(
+        "/scim/v2/Groups/{group_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_update_group(group_id: str, request: Request):
+        """Update a provisioned group using simple SCIM patch semantics."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        body = await request.json()
+        updates = _extract_scim_updates(
+            body,
+            {
+                "displayName": "display_name",
+                "display_name": "display_name",
+                "externalId": "external_id",
+                "external_id": "external_id",
+                "members": "members",
+                "meta": "meta",
+            },
+        )
+        group = proxy.scim_store.update_group(group_id, **updates)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
+        await _audit_admin_action(
+            request,
+            action="scim.group_updated",
+            detail={"group_id": group_id, "fields": sorted(updates)},
+        )
+        return _scim_group_resource(group)
+
+    @app.delete(
+        "/scim/v2/Groups/{group_id}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("scim.write")),
+            Depends(_require_entitlement("scim")),
+        ],
+    )
+    async def scim_delete_group(group_id: str, request: Request):
+        """Delete a provisioned group."""
+        if not proxy.scim_store:
+            raise HTTPException(status_code=503, detail="SCIM store not available")
+        deleted = proxy.scim_store.delete_group(group_id)
+        await _audit_admin_action(
+            request,
+            action="scim.group_deleted",
+            detail={"group_id": group_id, "deleted": deleted},
+            success=deleted,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Group not found")
+        return {"status": "deleted", "id": group_id}
 
     @app.get("/subscription-window")
     async def subscription_window():
@@ -3824,7 +4516,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # ── Enterprise: Analytics Dashboard Rollups ─────────────────────────
 
-    @app.get("/analytics/dashboard", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
+    @app.get(
+        "/analytics/dashboard",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+            Depends(_require_entitlement("team_analytics")),
+        ],
+    )
     async def analytics_dashboard(org_id: str | None = None):
         """Aggregated dashboard view: key metrics, trends, and health score.
 
@@ -3898,7 +4597,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return result
 
-    @app.get("/analytics/projects", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("orgs.read"))])
+    @app.get(
+        "/analytics/projects",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("orgs.read")),
+            Depends(_require_entitlement("project_model")),
+        ],
+    )
     async def analytics_projects(org_id: str | None = None):
         """Per-project token savings breakdown.
 
@@ -4258,6 +4964,23 @@ def _parse_tool_profiles(cli_profiles: list[str]) -> dict[str, Any]:
     return profiles
 
 
+def _parse_sso_role_mapping(raw: str | None) -> dict[str, str]:
+    """Parse SSO role mapping from a comma-separated claim=role string."""
+    mapping: dict[str, str] = {}
+    if not raw:
+        return mapping
+    for pair in raw.split(","):
+        entry = pair.strip()
+        if not entry or "=" not in entry:
+            continue
+        claim, role = entry.split("=", 1)
+        claim = claim.strip()
+        role = role.strip()
+        if claim and role:
+            mapping[claim] = role
+    return mapping
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Headroom Proxy Server")
 
@@ -4425,6 +5148,71 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable org store (enabled by default).",
     )
+    parser.add_argument(
+        "--fleet-db-path",
+        default=None,
+        help="Path to fleet registry SQLite database. Default: ~/.headroom/fleet.db. "
+        "Also settable via HEADROOM_FLEET_DB_PATH.",
+    )
+    parser.add_argument(
+        "--no-fleet",
+        action="store_true",
+        help="Disable fleet registry (enabled by default).",
+    )
+    parser.add_argument(
+        "--scim-db-path",
+        default=None,
+        help="Path to SCIM provisioning SQLite database. Default: ~/.headroom/scim.db. "
+        "Also settable via HEADROOM_SCIM_DB_PATH.",
+    )
+    parser.add_argument(
+        "--no-scim",
+        action="store_true",
+        help="Disable SCIM provisioning store (enabled by default).",
+    )
+    parser.add_argument(
+        "--sso-provider-type",
+        default=None,
+        help="SSO provider type: oidc, jwt, or introspect. "
+        "Also settable via HEADROOM_SSO_PROVIDER_TYPE.",
+    )
+    parser.add_argument(
+        "--sso-discovery-url",
+        default=None,
+        help="OIDC discovery URL. Also settable via HEADROOM_SSO_DISCOVERY_URL.",
+    )
+    parser.add_argument(
+        "--sso-jwks-uri",
+        default=None,
+        help="JWKS URI for JWT validation. Also settable via HEADROOM_SSO_JWKS_URI.",
+    )
+    parser.add_argument(
+        "--sso-issuer",
+        default=None,
+        help="Expected SSO token issuer. Also settable via HEADROOM_SSO_ISSUER.",
+    )
+    parser.add_argument(
+        "--sso-audience",
+        default=None,
+        help="Expected SSO token audience. Also settable via HEADROOM_SSO_AUDIENCE.",
+    )
+    parser.add_argument(
+        "--sso-introspection-url",
+        default=None,
+        help="Token introspection URL. Also settable via HEADROOM_SSO_INTROSPECTION_URL.",
+    )
+    parser.add_argument(
+        "--sso-role-mapping",
+        default=None,
+        help="Comma-separated claim=role mappings for SSO. "
+        "Also settable via HEADROOM_SSO_ROLE_MAPPING.",
+    )
+    parser.add_argument(
+        "--sso-default-role",
+        default=None,
+        help="Default role for authenticated SSO users. "
+        "Also settable via HEADROOM_SSO_DEFAULT_ROLE.",
+    )
 
     # Rate limiting
     parser.add_argument("--no-rate-limit", action="store_true", help="Disable rate limiting")
@@ -4484,6 +5272,9 @@ if __name__ == "__main__":
     # Parse CORS origins from CLI or env
     _cors_raw = args.cors_origins or os.environ.get("HEADROOM_CORS_ORIGINS", "")
     _cors_origins_list = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else []
+    _sso_role_mapping = _parse_sso_role_mapping(
+        args.sso_role_mapping or os.environ.get("HEADROOM_SSO_ROLE_MAPPING")
+    )
 
     config = ProxyConfig(
         host=_get_env_str("HEADROOM_HOST", args.host),
@@ -4536,6 +5327,28 @@ if __name__ == "__main__":
         and not _get_env_bool("HEADROOM_ORG_DISABLED", False),
         org_db_path=args.org_db_path
         or os.environ.get("HEADROOM_ORG_DB_PATH"),
+        fleet_enabled=not args.no_fleet
+        and not _get_env_bool("HEADROOM_FLEET_DISABLED", False),
+        fleet_db_path=args.fleet_db_path
+        or os.environ.get("HEADROOM_FLEET_DB_PATH"),
+        scim_enabled=not args.no_scim
+        and not _get_env_bool("HEADROOM_SCIM_DISABLED", False),
+        scim_db_path=args.scim_db_path
+        or os.environ.get("HEADROOM_SCIM_DB_PATH"),
+        sso_provider_type=args.sso_provider_type
+        or os.environ.get("HEADROOM_SSO_PROVIDER_TYPE", "oidc"),
+        sso_discovery_url=args.sso_discovery_url
+        or os.environ.get("HEADROOM_SSO_DISCOVERY_URL"),
+        sso_jwks_uri=args.sso_jwks_uri
+        or os.environ.get("HEADROOM_SSO_JWKS_URI"),
+        sso_issuer=args.sso_issuer or os.environ.get("HEADROOM_SSO_ISSUER"),
+        sso_audience=args.sso_audience
+        or os.environ.get("HEADROOM_SSO_AUDIENCE"),
+        sso_introspection_url=args.sso_introspection_url
+        or os.environ.get("HEADROOM_SSO_INTROSPECTION_URL"),
+        sso_role_mapping=_sso_role_mapping,
+        sso_default_role=args.sso_default_role
+        or os.environ.get("HEADROOM_SSO_DEFAULT_ROLE", "viewer"),
     )
 
     # Get worker and concurrency settings

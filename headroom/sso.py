@@ -117,6 +117,35 @@ class SsoConfig:
             http_timeout=int(os.environ.get("HEADROOM_SSO_HTTP_TIMEOUT", "10")),
         )
 
+    @classmethod
+    def from_proxy_config(cls, config: Any) -> SsoConfig:
+        """Create SSO config from a ProxyConfig-like object.
+
+        Falls back to the environment-derived defaults for fields the config
+        does not explicitly populate so existing deployments keep working.
+        """
+        env_cfg = cls.from_env()
+        role_mapping = getattr(config, "sso_role_mapping", None)
+        if role_mapping is None:
+            role_mapping = dict(env_cfg.role_mapping)
+        return cls(
+            provider_type=getattr(config, "sso_provider_type", None) or env_cfg.provider_type,
+            discovery_url=getattr(config, "sso_discovery_url", None) or env_cfg.discovery_url,
+            jwks_uri=getattr(config, "sso_jwks_uri", None) or env_cfg.jwks_uri,
+            issuer=getattr(config, "sso_issuer", None) or env_cfg.issuer,
+            audience=getattr(config, "sso_audience", None) or env_cfg.audience,
+            introspection_url=getattr(config, "sso_introspection_url", None)
+            or env_cfg.introspection_url,
+            introspection_client_id=env_cfg.introspection_client_id,
+            introspection_client_secret=env_cfg.introspection_client_secret,
+            required_scopes=list(env_cfg.required_scopes),
+            role_mapping=dict(role_mapping),
+            default_role=getattr(config, "sso_default_role", None) or env_cfg.default_role,
+            jwks_cache_ttl=env_cfg.jwks_cache_ttl,
+            clock_skew_tolerance=env_cfg.clock_skew_tolerance,
+            http_timeout=env_cfg.http_timeout,
+        )
+
     @property
     def enabled(self) -> bool:
         """SSO is enabled when a discovery URL or JWKS URI is configured."""

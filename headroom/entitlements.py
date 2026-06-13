@@ -117,6 +117,8 @@ FEATURE_TIERS: dict[str, EntitlementTier] = {
     "dedicated_support": EntitlementTier.ENTERPRISE,
     "premium_sla": EntitlementTier.ENTERPRISE,
     "onboarding_sessions": EntitlementTier.ENTERPRISE,
+    "fleet_management": EntitlementTier.ENTERPRISE,
+    "scim": EntitlementTier.ENTERPRISE,
 }
 
 
