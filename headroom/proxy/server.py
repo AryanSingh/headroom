@@ -1991,6 +1991,87 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         response.headers["X-Headroom-Version"] = __version__
         return response
 
+    # ── LLM Firewall ───────────────────────────────────────────────
+    # Scans incoming messages for prompt injections, PII, and jailbreaks.
+    # Blocks requests with violations when enabled. Also provides a
+    # StreamingRedactor for PII redaction in streaming responses.
+    _firewall_scanner = None
+    _streaming_redactor = None
+    try:
+        from headroom.security.firewall import FirewallConfig, FirewallScanner, StreamingRedactor
+
+        _fw_config = FirewallConfig(
+            enabled=getattr(config, "firewall_enabled", False),
+            block_pii=getattr(config, "firewall_block_pii", True),
+            block_injection=getattr(config, "firewall_block_injection", True),
+            block_jailbreak=getattr(config, "firewall_block_jailbreak", True),
+            redact_streaming=getattr(config, "firewall_redact_streaming", True),
+        )
+        if _fw_config.enabled:
+            _firewall_scanner = FirewallScanner(_fw_config)
+            _streaming_redactor = StreamingRedactor(
+                enabled=_fw_config.redact_streaming,
+            )
+            logger.info("LLM Firewall enabled (injection=%s, pii=%s, jailbreak=%s)",
+                        _fw_config.block_injection, _fw_config.block_pii, _fw_config.block_jailbreak)
+    except Exception:
+        logger.debug("LLM Firewall not available", exc_info=True)
+
+    @app.middleware("http")
+    async def _firewall_scan_middleware(request, call_next):
+        """Scan incoming proxy requests for prompt injections and PII.
+
+        Only scans POST requests to LLM proxy paths (/v1/messages,
+        /v1/chat/completions, /v1/responses). Returns 403 on violations.
+        """
+        if _firewall_scanner is None:
+            return await call_next(request)
+
+        if request.method != "POST":
+            return await call_next(request)
+
+        path = request.url.path
+        if not any(path.startswith(p) for p in (
+            "/v1/messages", "/v1/chat/completions", "/v1/responses",
+        )):
+            return await call_next(request)
+
+        # Read and buffer the body for scanning
+        try:
+            body_bytes = await request.body()
+            if len(body_bytes) > 1024 * 1024:  # skip scanning >1MB bodies
+                return await call_next(request)
+
+            body_json = json.loads(body_bytes)
+            messages = body_json.get("messages", [])
+
+            violations = _firewall_scanner.scan_messages(messages)
+            if violations and _firewall_scanner.should_block(violations):
+                from fastapi.responses import JSONResponse
+                logger.warning(
+                    "Firewall blocked request to %s: %d violation(s)",
+                    path, len(violations),
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "error": {
+                            "type": "forbidden",
+                            "message": "Request blocked by LLM firewall",
+                            "violations": [
+                                {"kind": v.kind.value, "description": v.description}
+                                for v in violations
+                            ],
+                        }
+                    },
+                )
+        except (json.JSONDecodeError, ValueError):
+            pass  # Non-JSON body — let it through
+        except Exception as exc:
+            logger.debug("Firewall scan error (pass-through): %s", exc)
+
+        return await call_next(request)
+
     # Admin API key authentication for sensitive endpoints.
     # When admin_api_key is configured, /dashboard, /stats, /stats-reset,
     # /stats-history, and /transformations/feed require a valid key.
@@ -3969,6 +4050,153 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Group not found")
         return {"status": "deleted", "id": group_id}
 
+    # ── Security: Firewall Status ───────────────────────────────────
+
+    @app.get(
+        "/firewall/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def firewall_status():
+        """Get LLM firewall status and scan statistics."""
+        if _firewall_scanner is None:
+            return {"enabled": False, "message": "Firewall not initialized"}
+        return {
+            "enabled": _firewall_scanner.enabled,
+            "config": {
+                "block_pii": _firewall_scanner.config.block_pii,
+                "block_injection": _firewall_scanner.config.block_injection,
+                "block_jailbreak": _firewall_scanner.config.block_jailbreak,
+                "redact_streaming": _firewall_scanner.config.redact_streaming,
+            },
+        }
+
+    @app.post(
+        "/firewall/scan",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def firewall_scan_text(request: Request):
+        """Scan a text string for security violations (testing/debugging endpoint)."""
+        if _firewall_scanner is None:
+            raise HTTPException(status_code=503, detail="Firewall not initialized")
+        body = await request.json()
+        text = body.get("text", "")
+        messages = body.get("messages", [])
+        if text:
+            violations = _firewall_scanner.scan_text(text)
+        elif messages:
+            violations = _firewall_scanner.scan_messages(messages)
+        else:
+            raise HTTPException(status_code=400, detail="Provide 'text' or 'messages'")
+        return {
+            "violations": [
+                {"kind": v.kind.value, "description": v.description, "confidence": v.confidence}
+                for v in violations
+            ],
+            "block": _firewall_scanner.should_block(violations),
+        }
+
+    # ── Structured Output: Validation ───────────────────────────────
+
+    @app.get(
+        "/structured-output/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def structured_output_status():
+        """Get structured output enforcement status."""
+        try:
+            from headroom.proxy.structured_output import (
+                JSONSCHEMA_AVAILABLE,
+                StructuredOutputConfig,
+            )
+            cfg = StructuredOutputConfig.from_env()
+            return {
+                "enabled": cfg.enabled and JSONSCHEMA_AVAILABLE,
+                "jsonschema_available": JSONSCHEMA_AVAILABLE,
+                "max_retries": cfg.max_retries,
+                "strict_mode": cfg.strict_mode,
+            }
+        except Exception as exc:
+            return {"enabled": False, "error": str(exc)}
+
+    @app.post(
+        "/structured-output/validate",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def structured_output_validate(request: Request):
+        """Validate a JSON string against a schema (testing/debugging endpoint)."""
+        from headroom.proxy.structured_output import StructuredOutputValidator
+
+        body = await request.json()
+        text = body.get("text", "")
+        schema = body.get("schema", {})
+        if not text or not schema:
+            raise HTTPException(status_code=400, detail="Provide 'text' and 'schema'")
+        validator = StructuredOutputValidator()
+        result = validator.validate(text, schema)
+        return {
+            "valid": result.valid,
+            "errors": result.errors,
+            "validation_time_ms": result.validation_time_ms,
+        }
+
+    # ── Multi-Model Ensemble ────────────────────────────────────────
+
+    @app.get(
+        "/ensemble/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def ensemble_status():
+        """Get multi-model ensemble configuration status."""
+        try:
+            from headroom.proxy.ensemble import EnsembleConfig
+
+            cfg = EnsembleConfig.from_env()
+            return {
+                "enabled": cfg.enabled,
+                "default_models": cfg.default_models,
+                "evaluator_model": cfg.evaluator_model,
+                "timeout_seconds": cfg.timeout_seconds,
+            }
+        except Exception as exc:
+            return {"enabled": False, "error": str(exc)}
+
+    # ── Budget Status ───────────────────────────────────────────────
+
+    @app.get(
+        "/budget/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def budget_status():
+        """Get streaming budget cut-off configuration status."""
+        from headroom.proxy.budget import BudgetConfig
+
+        cfg = BudgetConfig.from_env()
+        return {
+            "enabled": cfg.enabled,
+            "default_budget_tokens": cfg.default_budget_tokens,
+            "default_budget_usd": cfg.default_budget_usd,
+            "warning_threshold_percent": cfg.warning_threshold_percent,
+            "hard_limit": cfg.hard_limit,
+        }
+
     @app.get("/subscription-window")
     async def subscription_window():
         """Current Anthropic subscription window utilisation and Headroom contribution.
@@ -5241,6 +5469,59 @@ if __name__ == "__main__":
         "Also settable via HEADROOM_SSO_DEFAULT_ROLE.",
     )
 
+    # LLM Firewall
+    parser.add_argument(
+        "--firewall",
+        action="store_true",
+        help="Enable LLM firewall (prompt injection + PII detection). "
+        "Also settable via HEADROOM_FIREWALL_ENABLED=1.",
+    )
+    parser.add_argument(
+        "--no-firewall",
+        action="store_true",
+        help="Explicitly disable LLM firewall.",
+    )
+
+    # Structured Output
+    parser.add_argument(
+        "--no-structured-output",
+        action="store_true",
+        help="Disable structured output validation (enabled by default when jsonschema is installed).",
+    )
+    parser.add_argument(
+        "--structured-output-max-retries",
+        type=int,
+        default=3,
+        help="Max retries for structured output validation (default: 3).",
+    )
+
+    # Multi-Model Ensemble
+    parser.add_argument(
+        "--ensemble",
+        action="store_true",
+        help="Enable multi-model ensemble execution. "
+        "Also settable via HEADROOM_ENSEMBLE_ENABLED=1.",
+    )
+    parser.add_argument(
+        "--ensemble-evaluator-model",
+        default=None,
+        help="Model to use for ensemble evaluation (default: claude-3-haiku-20240307).",
+    )
+
+    # Budget Cut-offs
+    parser.add_argument(
+        "--budget-cut-off",
+        action="store_true",
+        help="Enable streaming budget cut-offs. "
+        "Also settable via HEADROOM_BUDGET_ENABLED=1.",
+    )
+    parser.add_argument(
+        "--budget-default-tokens",
+        type=int,
+        default=100000,
+        help="Default per-request token budget (default: 100000).",
+    )
+
     # Rate limiting
     parser.add_argument("--no-rate-limit", action="store_true", help="Disable rate limiting")
     parser.add_argument("--rpm", type=int, default=60, help="Requests per minute")
@@ -5376,6 +5657,34 @@ if __name__ == "__main__":
         sso_role_mapping=_sso_role_mapping,
         sso_default_role=args.sso_default_role
         or os.environ.get("HEADROOM_SSO_DEFAULT_ROLE", "viewer"),
+        # LLM Firewall
+        firewall_enabled=(
+            args.firewall
+            or _get_env_bool("HEADROOM_FIREWALL_ENABLED", False)
+        ) and not args.no_firewall,
+        firewall_block_pii=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_PII", False),
+        firewall_block_injection=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_INJECTION", False),
+        firewall_block_jailbreak=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_JAILBREAK", False),
+        firewall_redact_streaming=not _get_env_bool("HEADROOM_FIREWALL_NO_REDACT_STREAMING", False),
+        # Structured Output
+        structured_output_enabled=not args.no_structured_output
+        and not _get_env_bool("HEADROOM_STRUCTURED_OUTPUT_DISABLED", False),
+        structured_output_max_retries=args.structured_output_max_retries,
+        # Multi-Model Ensemble
+        ensemble_enabled=(
+            args.ensemble
+            or _get_env_bool("HEADROOM_ENSEMBLE_ENABLED", False)
+        ),
+        ensemble_evaluator_model=args.ensemble_evaluator_model
+        or _get_env_str("HEADROOM_ENSEMBLE_EVALUATOR_MODEL", "claude-3-haiku-20240307"),
+        ensemble_timeout_seconds=_get_env_float("HEADROOM_ENSEMBLE_TIMEOUT", 120.0),
+        # Budget Cut-offs
+        budget_cut_off_enabled=(
+            args.budget_cut_off
+            or _get_env_bool("HEADROOM_BUDGET_ENABLED", False)
+        ),
+        budget_default_tokens=_get_env_int("HEADROOM_BUDGET_TOKENS", args.budget_default_tokens),
+        budget_default_usd=_get_env_float("HEADROOM_BUDGET_USD", 10.0),
     )
 
     # Get worker and concurrency settings

@@ -329,6 +329,37 @@ class ProxyConfig:
     scim_enabled: bool = True
     scim_db_path: str | None = None  # None = ~/.headroom/scim.db
 
+    # LLM Firewall — prompt injection & PII detection
+    # When enabled, all incoming messages are scanned for injections, PII,
+    # and jailbreaks before reaching the upstream LLM.
+    # Env: HEADROOM_FIREWALL_ENABLED=1
+    firewall_enabled: bool = False
+    firewall_block_pii: bool = True
+    firewall_block_injection: bool = True
+    firewall_block_jailbreak: bool = True
+    firewall_redact_streaming: bool = True
+
+    # Structured Output Enforcement — JSON schema validation + auto-retry
+    # When enabled, responses to json_schema requests are validated and
+    # retried up to N times if the LLM produces invalid JSON.
+    # Env: HEADROOM_STRUCTURED_OUTPUT_ENABLED=1
+    structured_output_enabled: bool = True
+    structured_output_max_retries: int = 3
+
+    # Multi-Model Ensemble — fan-out to multiple models + evaluator
+    # When enabled, requests to headroom-ensemble-v1 are fanned out.
+    # Env: HEADROOM_ENSEMBLE_ENABLED=1
+    ensemble_enabled: bool = False
+    ensemble_evaluator_model: str = "claude-3-haiku-20240307"
+    ensemble_timeout_seconds: float = 120.0
+
+    # Budget Cut-offs — terminate streams when token budget exceeded
+    # When enabled, streaming responses are truncated with a system message.
+    # Env: HEADROOM_BUDGET_ENABLED=1
+    budget_cut_off_enabled: bool = False
+    budget_default_tokens: int = 100_000
+    budget_default_usd: float = 10.0
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)
