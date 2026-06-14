@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
 import logging
 import time
@@ -366,23 +367,23 @@ class SsoValidator:
                 f"Token expired at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(exp))}"
             )
 
-        # Issuer check
+        # Issuer check (timing-safe to prevent timing side-channels)
         if self.config.issuer:
             iss = payload.get("iss", "")
-            if iss != self.config.issuer:
+            if not hmac.compare_digest(iss, self.config.issuer):
                 raise SsoTokenInvalidError(
                     f"Issuer mismatch: expected {self.config.issuer}, got {iss}"
                 )
 
-        # Audience check
+        # Audience check (timing-safe to prevent timing side-channels)
         if self.config.audience:
             aud = payload.get("aud")
             if isinstance(aud, list):
-                if self.config.audience not in aud:
+                if not any(hmac.compare_digest(self.config.audience, a) for a in aud):
                     raise SsoTokenAudienceError(
                         f"Expected audience {self.config.audience} not in {aud}"
                     )
-            elif aud != self.config.audience:
+            elif not hmac.compare_digest(str(aud or ""), self.config.audience):
                 raise SsoTokenAudienceError(
                     f"Expected audience {self.config.audience}, got {aud}"
                 )

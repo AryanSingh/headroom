@@ -2679,8 +2679,24 @@ async def _read_request_body_bytes(request: Request) -> bytes:
 
             dctx = zstandard.ZstdDecompressor()
             reader = dctx.stream_reader(raw)
-            raw = reader.read()
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = reader.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_REQUEST_BODY_SIZE:
+                    reader.close()
+                    raise ValueError(
+                        f"Decompressed zstd body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                        "Possible decompression bomb."
+                    )
+                chunks.append(chunk)
             reader.close()
+            raw = b"".join(chunks)
+        except ValueError:
+            raise
         except ImportError:
             raise ValueError(
                 "Request body is zstd-compressed but the 'zstandard' package is not installed. "
@@ -2689,24 +2705,107 @@ async def _read_request_body_bytes(request: Request) -> bytes:
         except Exception as exc:
             raise ValueError(f"Failed to decompress zstd request body: {exc}") from exc
     elif encoding == "gzip":
-        import gzip as _gzip
+        import io
+        import zlib as _zlib
 
         try:
-            raw = _gzip.decompress(raw)
+            # Stream gzip decompression with intermediate size cap
+            # wbits=15+32 auto-detects gzip format
+            dec = _zlib.decompressobj(15 + 32)
+            buf = io.BytesIO()
+            offset = 0
+            while offset < len(raw):
+                chunk_in = raw[offset : offset + 65536]
+                offset += len(chunk_in)
+                decompressed = dec.decompress(chunk_in)
+                buf.write(decompressed)
+                if buf.tell() > MAX_REQUEST_BODY_SIZE:
+                    raise ValueError(
+                        f"Decompressed gzip body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                        "Possible decompression bomb."
+                    )
+            buf.write(dec.flush())
+            if buf.tell() > MAX_REQUEST_BODY_SIZE:
+                raise ValueError(
+                    f"Decompressed gzip body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                    "Possible decompression bomb."
+                )
+            raw = buf.getvalue()
+        except ValueError:
+            raise
         except Exception as exc:
             raise ValueError(f"Failed to decompress gzip request body: {exc}") from exc
     elif encoding == "deflate":
-        import zlib
+        import io
+        import zlib as _zlib
 
         try:
-            raw = zlib.decompress(raw)
+            # Stream deflate decompression with intermediate size cap.
+            # Content-Encoding: deflate may be zlib-wrapped (RFC 2616) or raw.
+            # Try zlib-wrapped first (wbits=15), fall back to raw (wbits=-15).
+            dec = _zlib.decompressobj(15)
+            buf = io.BytesIO()
+            offset = 0
+            try:
+                while offset < len(raw):
+                    chunk_in = raw[offset : offset + 65536]
+                    offset += len(chunk_in)
+                    decompressed = dec.decompress(chunk_in)
+                    buf.write(decompressed)
+                    if buf.tell() > MAX_REQUEST_BODY_SIZE:
+                        raise ValueError(
+                            f"Decompressed deflate body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                            "Possible decompression bomb."
+                        )
+                buf.write(dec.flush())
+            except _zlib.error:
+                # Fall back to raw deflate
+                dec = _zlib.decompressobj(-15)
+                buf = io.BytesIO()
+                offset = 0
+                while offset < len(raw):
+                    chunk_in = raw[offset : offset + 65536]
+                    offset += len(chunk_in)
+                    decompressed = dec.decompress(chunk_in)
+                    buf.write(decompressed)
+                    if buf.tell() > MAX_REQUEST_BODY_SIZE:
+                        raise ValueError(
+                            f"Decompressed deflate body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                            "Possible decompression bomb."
+                        )
+                buf.write(dec.flush())
+            if buf.tell() > MAX_REQUEST_BODY_SIZE:
+                raise ValueError(
+                    f"Decompressed deflate body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                    "Possible decompression bomb."
+                )
+            raw = buf.getvalue()
+        except ValueError:
+            raise
         except Exception as exc:
             raise ValueError(f"Failed to decompress deflate request body: {exc}") from exc
     elif encoding == "br":
         try:
             import brotli
 
-            raw = brotli.decompress(raw)
+            dec = brotli.Decompressor()
+            chunks = []
+            total = 0
+            offset = 0
+            while offset < len(raw):
+                chunk_in = raw[offset : offset + 65536]
+                offset += len(chunk_in)
+                decompressed = dec.process(chunk_in)
+                total += len(decompressed)
+                if total > MAX_REQUEST_BODY_SIZE:
+                    raise ValueError(
+                        f"Decompressed brotli body exceeds {MAX_REQUEST_BODY_SIZE:,} bytes. "
+                        "Possible decompression bomb."
+                    )
+                chunks.append(decompressed)
+            raw = b"".join(chunks)
+        except ValueError:
+            raise
         except ImportError:
             raise ValueError(
                 "Request body is brotli-compressed but the 'brotli' package is not installed."
@@ -2716,12 +2815,11 @@ async def _read_request_body_bytes(request: Request) -> bytes:
     elif encoding and encoding != "identity":
         raise ValueError(f"Unsupported Content-Encoding: {encoding}")
 
-    # Decompression bomb protection: reject payloads that expand beyond limit
+    # Final size check (covers uncompressed bodies and edge cases)
     if len(raw) > MAX_REQUEST_BODY_SIZE:
         raise ValueError(
-            f"Decompressed request body ({len(raw):,} bytes) exceeds "
-            f"maximum allowed size ({MAX_REQUEST_BODY_SIZE:,} bytes). "
-            "Possible decompression bomb."
+            f"Request body ({len(raw):,} bytes) exceeds "
+            f"maximum allowed size ({MAX_REQUEST_BODY_SIZE:,} bytes)."
         )
 
     return cast(bytes, raw)
