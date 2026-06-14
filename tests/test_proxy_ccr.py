@@ -26,6 +26,7 @@ def client():
         cache_enabled=False,
         rate_limit_enabled=False,
         cost_tracking_enabled=False,
+        entitlement_tier="enterprise",  # CCR requires TEAM+ tier
     )
     app = create_app(config)
     with TestClient(app) as client:
@@ -451,6 +452,7 @@ class TestEndToEndTOINIntegration:
             cache_enabled=False,
             rate_limit_enabled=False,
             cost_tracking_enabled=False,
+            entitlement_tier="enterprise",  # CCR requires TEAM+ tier
         )
         app = create_app(config)
         with TestClient(app) as client:

@@ -362,6 +362,7 @@ def test_v1_compress_then_v1_retrieve_resolves_marker_hash() -> None:
         cache_enabled=False,
         rate_limit_enabled=False,
         cost_tracking_enabled=False,
+        entitlement_tier="enterprise",  # CCR requires TEAM+ tier
     )
     app = create_app(config)
 
@@ -471,6 +472,7 @@ def test_v1_retrieve_unknown_hash_still_404() -> None:
         cache_enabled=False,
         rate_limit_enabled=False,
         cost_tracking_enabled=False,
+        entitlement_tier="enterprise",  # CCR requires TEAM+ tier
     )
     app = create_app(config)
 
