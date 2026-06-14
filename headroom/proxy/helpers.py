@@ -2665,6 +2665,10 @@ async def _read_request_body_bytes(request: Request) -> bytes:
     Mirrors ``_read_request_json`` but returns the bytes pre-parse so
     forwarders can implement byte-faithful passthrough (PR-A3, fixes P0-2).
     Raises ``ValueError`` on any decompression failure.
+
+    **Decompression bomb protection:** After decompression, the output is
+    checked against ``MAX_REQUEST_BODY_SIZE`` (50 MB).  Compressed payloads
+    that expand beyond this limit are rejected to prevent memory exhaustion.
     """
     encoding = (request.headers.get("content-encoding") or "").lower().strip()
     raw = await request.body()
@@ -2711,6 +2715,14 @@ async def _read_request_body_bytes(request: Request) -> bytes:
             raise ValueError(f"Failed to decompress brotli request body: {exc}") from exc
     elif encoding and encoding != "identity":
         raise ValueError(f"Unsupported Content-Encoding: {encoding}")
+
+    # Decompression bomb protection: reject payloads that expand beyond limit
+    if len(raw) > MAX_REQUEST_BODY_SIZE:
+        raise ValueError(
+            f"Decompressed request body ({len(raw):,} bytes) exceeds "
+            f"maximum allowed size ({MAX_REQUEST_BODY_SIZE:,} bytes). "
+            "Possible decompression bomb."
+        )
 
     return cast(bytes, raw)
 

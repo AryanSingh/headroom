@@ -436,3 +436,514 @@ The right strategy is:
 - narrow focus on the most defensible value
 
 If executed this way, Headroom has a credible path from strong OSS product to paid B2B infrastructure business.
+
+---
+
+## 18. Exact Reach-Out Strategy
+
+## Primary Reach-Out Objective
+
+Turn interest into:
+
+- 20 to 30 qualified discovery calls
+- 5 to 10 design-partner conversations
+- 3 active pilots
+- 1 to 2 converted annual contracts
+
+The commercial motion should be **founder-led first**.
+
+Do not hire sales before:
+
+- the ICP is sharp
+- the pitch converts
+- the pilot motion is repeatable
+- the common objections are known
+
+## Reach-Out Priority Order
+
+Use channels in this order:
+
+### 1. Warm intros
+
+Best use:
+- founders
+- CTOs
+- Heads of Engineering
+- platform leads
+
+Why first:
+- highest trust
+- fastest path to real buyer context
+- best way to get first pilots
+
+### 2. OSS-user conversion
+
+Best use:
+- current users who already installed or starred the project
+- teams opening issues related to deployment, memory, analytics, or enterprise controls
+
+Why second:
+- already believe the technical story
+- easier to convert into design partners
+
+### 3. Founder outbound
+
+Best use:
+- target accounts that clearly match the ICP
+- companies with visible agent adoption or AI platform investment
+
+Why third:
+- scalable enough for the first 50 to 100 accounts
+- still personal enough to learn quickly
+
+### 4. Community-driven demand capture
+
+Best use:
+- engineering communities
+- AI infra groups
+- developer productivity circles
+
+Why fourth:
+- good for credibility and top-of-funnel
+- weak as the only GTM channel
+
+### 5. Partner-led intros
+
+Best use:
+- consultancies
+- AI implementation shops
+- cloud architects
+- platform integrators
+
+Why later:
+- useful once packaging and pilot delivery are stable
+
+## Who To Contact First
+
+### For startups
+
+Primary:
+- CTO
+- Head of Engineering
+- VP Engineering
+
+Secondary:
+- Staff engineer owning AI tooling
+- AI infra lead
+
+### For mid-size companies
+
+Primary:
+- platform engineering manager
+- developer productivity lead
+- AI platform lead
+
+Secondary:
+- senior staff engineer
+- security architect after technical fit is proven
+
+### For enterprises
+
+Primary:
+- platform owner
+- AI governance owner
+- developer productivity or internal tooling lead
+
+Secondary:
+- security reviewer
+- procurement only after pilot intent exists
+
+## What Signal To Use For Personalization
+
+Every account should have 1 to 2 sharp reasons for contact.
+
+Good personalization signals:
+
+- public evidence of Claude Code, Codex, Cursor, or Copilot usage
+- hiring for AI platform or agent infrastructure
+- blog posts about internal AI agents
+- engineering team size and platform complexity
+- multi-provider posture
+- security-sensitive environment
+- self-hosting preference
+
+Bad personalization:
+
+- generic “I saw your company does AI”
+- generic token-savings pitch
+- any message that sounds like a commodity proxy pitch
+
+---
+
+## 19. Exact Founder Outbound System
+
+## Weekly Operating Targets
+
+For the first 8 weeks:
+
+- 30 new target accounts researched per week
+- 15 highly personalized first-touch messages per week
+- 30 to 45 total follow-up touches per week
+- 3 to 5 discovery calls booked per week
+- 1 to 2 pilot-qualified opportunities per week
+
+This should stay high-quality, not spray-and-pray.
+
+## CRM Fields
+
+Track every account in one sheet or CRM with these columns:
+
+- company
+- website
+- segment
+- employee band
+- likely buyer
+- likely champion
+- visible AI/agent signal
+- stack guess
+- likely pain
+- outreach angle
+- channel
+- first touch date
+- last touch date
+- reply status
+- call booked
+- pilot fit
+- next step
+- notes
+
+## Account Research Agent Steps
+
+#### Agent 25: Target Account Sourcing Agent
+Objective: build the first 100-account list.
+
+Steps:
+1. Start with companies that visibly use coding agents or internal AI workflows.
+2. Split into 3 buckets:
+   - AI-native startups
+   - engineering-heavy SaaS companies
+   - regulated or security-sensitive enterprises
+3. For each account, identify:
+   - likely technical champion
+   - likely budget owner
+   - one reason Headroom fits now
+4. Assign a score from 1 to 5 for:
+   - urgency
+   - spend potential
+   - technical fit
+   - deployment fit
+5. Only send outbound to accounts scoring at least 14/20.
+
+Deliverables:
+- first 100-account target list
+- 25-account priority list
+- champion map
+
+## Message Creation Agent Steps
+
+#### Agent 26: Personalized Messaging Agent
+Objective: create relevant first-touch copy.
+
+Steps:
+1. Choose one primary angle per account:
+   - cost control
+   - context reliability
+   - self-hosted governance
+   - cross-provider visibility
+2. Mention the signal that triggered outreach.
+3. Keep the message under 120 words.
+4. End with one low-friction ask:
+   - “worth a 20-minute call?”
+   - “should I send the 14-day pilot outline?”
+5. Do not include more than one CTA.
+
+Deliverables:
+- first-touch email set
+- LinkedIn version
+- follow-up versions
+
+## Exact 4-Touch Sequence
+
+### Touch 1: Relevance
+
+When:
+- day 1
+
+Goal:
+- earn a reply
+
+Structure:
+- why them
+- what Headroom is
+- why this matters now
+- one CTA
+
+### Touch 2: Technical credibility
+
+When:
+- day 4
+
+Goal:
+- show this is real infrastructure, not vapor
+
+Structure:
+- one technical proof point
+- one deployment or privacy proof point
+- one short pilot mention
+
+### Touch 3: Business framing
+
+When:
+- day 8
+
+Goal:
+- shift to measurable value
+
+Structure:
+- likely before/after outcome
+- simple 14-day pilot framing
+- ask for owner/champion
+
+### Touch 4: Close the loop
+
+When:
+- day 12
+
+Goal:
+- force a yes, no, or later
+
+Structure:
+- short note
+- who this is best for
+- option to revisit later
+
+## Example LinkedIn Note
+
+Hi {{Name}} — reaching out because teams using Claude Code, Codex, or internal agents often run into the same problem: context gets huge, runs get expensive, and platform teams still lack control over what is happening across providers.
+
+We built Headroom as a local-first context, cost, and governance layer for AI agents. If that is relevant on your side, I can send a short 14-day pilot outline.
+
+## Example Follow-Up After No Reply
+
+Hi {{Name}},
+
+Following up in case this is relevant to whoever owns AI platform or developer tooling internally.
+
+Headroom is strongest when teams:
+
+- use multiple coding agents
+- have large tool outputs or long context chains
+- want self-hosted control instead of another prompt-hosting SaaS
+
+If useful, I can send a short design-partner outline with deployment shape, success metrics, and expected time commitment.
+
+Best,  
+{{Sender}}
+
+---
+
+## 20. Pilot Offer And Conversion Motion
+
+## Default Pilot Offer
+
+Use one standard design-partner offer:
+
+**14-day pilot to measure agent cost reduction, context-fit improvement, and governance visibility in a self-hosted environment.**
+
+## Pilot Entry Criteria
+
+Require all of these before starting:
+
+- a named technical owner
+- one real workflow to measure
+- baseline metrics available or capturable
+- willingness to review results weekly
+- agreement that success can lead to commercial discussion
+
+Reject pilots when:
+
+- there is no clear owner
+- the workflow is too vague
+- the team only wants free consulting
+- the deployment path is unrealistic for the timeline
+
+## Pilot Timeline
+
+### Day 0 to 2
+
+- qualification
+- architecture review
+- baseline metric definition
+- deployment selection
+
+### Day 3 to 5
+
+- install
+- first traffic through Headroom
+- dashboard or stats validation
+
+### Day 6 to 10
+
+- observe usage
+- measure savings
+- track quality regressions
+- document deployment friction
+
+### Day 11 to 14
+
+- final report
+- pricing recommendation
+- close or expansion discussion
+
+## Pilot Success Metrics
+
+Choose 2 to 4, never 10.
+
+Recommended metrics:
+
+- tokens saved
+- compression-adjusted dollar savings
+- cache hit improvement
+- percent of workflows staying within context budget
+- reduction in failed or repeated agent runs
+- visibility gained by team/admin analytics
+
+## Pilot Conversion Agent Steps
+
+#### Agent 27: Pilot Conversion Agent
+Objective: turn pilots into contracts.
+
+Steps:
+1. Define success criteria in writing before kickoff.
+2. Send a midpoint note on day 7 with hard numbers.
+3. Send a final report with:
+   - metrics
+   - deployment summary
+   - rollout recommendation
+   - suggested tier
+4. Ask directly for:
+   - annual contract
+   - expansion scope
+   - quote review date
+5. Ask for case-study or reference permission only after value is proven.
+
+Deliverables:
+- pilot kickoff template
+- midpoint review
+- final ROI memo
+- conversion email
+
+---
+
+## 21. Partner And Community Motion
+
+## Community Motion
+
+Use OSS and technical content to create trust, not to replace sales.
+
+Do:
+
+- publish benchmark-backed posts
+- publish design notes on context governance
+- show deployment patterns for self-hosted teams
+- create comparison content versus native caching alone
+
+Do not:
+
+- overpromise hosted features
+- run broad growth marketing before the pilot engine works
+
+## Partner Motion
+
+Target a small set of technical partners:
+
+- AI implementation consultancies
+- cloud architects doing secure AI rollouts
+- devtool advisors with platform-team access
+
+### Partner Agent Steps
+
+#### Agent 28: Partner Motion Agent
+Objective: generate trusted introductions without building a full channel program.
+
+Steps:
+1. Identify 10 potential partners with AI infra buyers.
+2. Offer a simple co-sell story:
+   - partner handles implementation
+   - Headroom provides product and technical support
+3. Give them:
+   - architecture one-pager
+   - pilot offer summary
+   - pricing overview
+4. Track intro source quality.
+5. Only deepen the relationship with partners who create qualified meetings.
+
+Deliverables:
+- partner target list
+- partner intro kit
+- partner qualification rubric
+
+---
+
+## 22. 90-Day Founder-Led Commercialization Sprint
+
+## Days 1 to 15
+
+- finalize pricing and packaging
+- finalize enterprise/security packet
+- prepare demo environment
+- create first 50-account list
+- send first 15 outbound messages
+
+## Days 16 to 30
+
+- run discovery calls
+- refine messaging from objections
+- launch first 1 to 2 pilots
+- create a weekly pipeline review cadence
+
+## Days 31 to 60
+
+- deliver pilot results
+- convert first design partner
+- publish one benchmark or deployment proof asset
+- expand to second 50-account list
+
+## Days 61 to 90
+
+- close first annual deals
+- standardize onboarding and reporting
+- identify the fastest-closing ICP
+- cut anything that does not move pipeline
+
+## Sprint Metrics
+
+Track these every week:
+
+- new target accounts researched
+- first touches sent
+- reply rate
+- meetings booked
+- qualified opportunities
+- active pilots
+- pilot conversion rate
+- average sales cycle length
+- top 5 objections
+
+---
+
+## 23. Immediate Commercialization Action List
+
+1. Pick one canonical commercialization plan file and use it as source of truth.
+2. Freeze one pricing table and one packaging matrix.
+3. Build a 100-account target list with a 25-account priority subset.
+4. Prepare three personalized outreach angles:
+   - cost and efficiency
+   - context reliability
+   - self-hosted governance
+5. Send the first 15 highly personalized founder-led messages.
+6. Book the first 5 discovery calls.
+7. Use one standard 14-day pilot offer with written success criteria.
+8. Convert the first pilot into a quantified ROI memo.
+9. Use that ROI memo to close the first annual customer.
+10. Only after that, broaden content, community, and partner motion.

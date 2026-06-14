@@ -61,6 +61,7 @@ _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
 
 from headroom.proxy.handlers.openai.utils import *
+from headroom.proxy.handlers.openai.utils import _infer_openai_cache_write_tokens
 
 class OpenAIChatMixin:
     async def handle_openai_chat(
@@ -1324,5 +1325,4 @@ class OpenAIChatMixin:
                     }
                 },
             )
-
 

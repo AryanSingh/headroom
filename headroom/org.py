@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -36,6 +37,18 @@ from headroom import paths as _paths
 logger = logging.getLogger("headroom.org")
 
 ORG_DB_ENV = "HEADROOM_ORG_DB_PATH"
+
+# Defense-in-depth: validate SQL column names match safe identifier pattern.
+# Column names come from hardcoded `allowed` sets, but this guard prevents
+# accidental injection if the allowlist is ever extended carelessly.
+_SAFE_COL_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _validate_col_name(name: str) -> str:
+    """Validate that a column name is a safe SQL identifier."""
+    if not _SAFE_COL_RE.match(name):
+        raise ValueError(f"Invalid SQL column name: {name!r}")
+    return name
 
 
 def _generate_id() -> str:
@@ -175,7 +188,7 @@ class OrgStore:
         if "settings" in updates and isinstance(updates["settings"], dict):
             updates["settings"] = json.dumps(updates["settings"])
         updates["updated_at"] = _now_iso()
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{_validate_col_name(k)} = ?" for k in updates)
         values = list(updates.values()) + [org_id]
         with self._lock:
             conn = self._get_conn()
@@ -257,7 +270,7 @@ class OrgStore:
         if "settings" in updates and isinstance(updates["settings"], dict):
             updates["settings"] = json.dumps(updates["settings"])
         updates["updated_at"] = _now_iso()
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{_validate_col_name(k)} = ?" for k in updates)
         values = list(updates.values()) + [workspace_id]
         with self._lock:
             conn = self._get_conn()
@@ -331,7 +344,7 @@ class OrgStore:
         if "settings" in updates and isinstance(updates["settings"], dict):
             updates["settings"] = json.dumps(updates["settings"])
         updates["updated_at"] = _now_iso()
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{_validate_col_name(k)} = ?" for k in updates)
         values = list(updates.values()) + [project_id]
         with self._lock:
             conn = self._get_conn()

@@ -30,7 +30,10 @@ import pytest
 
 HANDLER_FILES = [
     Path("headroom/proxy/handlers/anthropic.py"),
-    Path("headroom/proxy/handlers/openai.py"),
+    Path("headroom/proxy/handlers/openai/chat.py"),
+    Path("headroom/proxy/handlers/openai/responses.py"),
+    Path("headroom/proxy/handlers/openai/passthrough.py"),
+    Path("headroom/proxy/handlers/openai/compress.py"),
     Path("headroom/proxy/handlers/gemini.py"),
     Path("headroom/proxy/handlers/batch.py"),
 ]

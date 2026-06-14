@@ -61,6 +61,25 @@ _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
 
 from headroom.proxy.handlers.openai.utils import *
+from headroom.proxy.handlers.openai.utils import (
+    _codex_compression_debug_enabled,
+    _codex_ws_text_shape,
+    _compact_openai_responses_tools,
+    _extract_codex_handshake_headers,
+    _extract_responses_usage,
+    _infer_openai_cache_write_tokens,
+    _json_debug_dumps,
+    _json_shape,
+    _log_codex_compression_debug,
+    _openai_responses_context_budget,
+    _openai_responses_result_with_cache_hit,
+    _openai_responses_unit_cache_key,
+    _openai_responses_unit_executor,
+    _openai_responses_unit_parallelism,
+    _resolve_codex_routing_headers,
+    _routing_log_debug,
+    _usage_int,
+)
 
 class OpenAIResponsesMixin:
     def _openai_responses_unit_cache(self) -> tuple[Any, OrderedDict[str, Any]]:
@@ -3961,5 +3980,4 @@ class OpenAIResponsesMixin:
         finally:
             with contextlib.suppress(Exception):
                 await websocket.close()
-
 

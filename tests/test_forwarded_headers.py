@@ -26,6 +26,27 @@ from headroom.proxy.forwarded_headers import (
     trusted_forwarded_headers,
 )
 
+
+@pytest.fixture(autouse=True)
+def _enable_forwarded_headers_log_propagation() -> None:
+    """Keep structured forwarded-header warnings visible to caplog.
+
+    Other tests may initialize proxy logging and disable propagation on
+    ``headroom.proxy`` or this module-specific child logger. These tests assert
+    on structured warning records, so force propagation on for the duration of
+    each test regardless of execution order.
+    """
+    logger_names = ("headroom.proxy", "headroom.proxy.forwarded_headers")
+    originals = {
+        name: logging.getLogger(name).propagate
+        for name in logger_names
+    }
+    for name in logger_names:
+        logging.getLogger(name).propagate = True
+    yield
+    for name, propagate in originals.items():
+        logging.getLogger(name).propagate = propagate
+
 # ──────────────────────────────────────────────────────────────────
 # Fake-request helper
 # ──────────────────────────────────────────────────────────────────

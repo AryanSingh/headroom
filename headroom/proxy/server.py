@@ -2126,11 +2126,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     async def _authenticate_admin_request(request: Request) -> None:
         """Authenticate an admin request using API key or enterprise SSO."""
-        # Test mode: skip auth entirely when HEADROOM_TEST_MODE=1
-        if os.environ.get("HEADROOM_TEST_MODE") == "1":
-            request.state._headroom_admin_checked = True
-            request.state._headroom_admin_error = None
-            return
+        # SECURITY: Test mode bypass removed. Tests use HEADROOM_ADMIN_API_KEY
+        # env var for deterministic auth. The HEADROOM_TEST_MODE flag is
+        # NO LONGER honored for admin auth — it was a security risk that
+        # could expose admin endpoints if accidentally set in production.
 
         if getattr(request.state, "_headroom_admin_checked", False):
             cached_error = getattr(request.state, "_headroom_admin_error", None)

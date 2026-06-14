@@ -45,7 +45,7 @@ def _reset_trackers() -> None:
 
 @pytest.fixture(autouse=True)
 def _enable_headroom_log_propagation() -> Iterator[None]:
-    """Re-enable propagation on the headroom logger during tests.
+    """Re-enable propagation on the headroom loggers during tests.
 
     configure_proxy_logging() calls headroom_logger.propagate = False to prevent
     duplicate writes when the proxy redirects stderr to a log file. In CI the proxy
@@ -54,11 +54,16 @@ def _enable_headroom_log_propagation() -> Iterator[None]:
     sees records that propagate all the way up. This fixture re-enables propagation
     for the duration of each test so caplog captures headroom log records correctly.
     """
-    headroom_logger = logging.getLogger("headroom")
-    original = headroom_logger.propagate
-    headroom_logger.propagate = True
+    logger_names = ("headroom", "headroom.proxy")
+    originals = {
+        name: logging.getLogger(name).propagate
+        for name in logger_names
+    }
+    for name in logger_names:
+        logging.getLogger(name).propagate = True
     yield
-    headroom_logger.propagate = original
+    for name, propagate in originals.items():
+        logging.getLogger(name).propagate = propagate
 
 
 # ---------------------------------------------------------------------------

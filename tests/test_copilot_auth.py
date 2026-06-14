@@ -128,6 +128,8 @@ def test_read_cached_oauth_token_falls_back_to_gh_cli(monkeypatch: pytest.Monkey
     monkeypatch.delenv("COPILOT_GITHUB_TOKEN", raising=False)
     monkeypatch.setattr(copilot_auth, "_read_windows_copilot_cli_oauth_token", lambda: None)
     monkeypatch.setattr(copilot_auth, "_read_macos_keychain_oauth_token", lambda: None)
+    monkeypatch.setattr(copilot_auth, "_read_linux_secret_oauth_token", lambda: None)
+    monkeypatch.setattr(copilot_auth, "_read_file_oauth_token_candidates", lambda: [])
     monkeypatch.setattr(copilot_auth, "_read_gh_cli_oauth_token", lambda: "gho-gh-cli")
 
     assert copilot_auth.read_cached_oauth_token() == "gho-gh-cli"
@@ -143,6 +145,8 @@ def test_read_cached_oauth_token_prefers_copilot_cli_windows_token(
     monkeypatch.setattr(
         copilot_auth, "_read_windows_copilot_cli_oauth_token", lambda: "gho-copilot"
     )
+    monkeypatch.setattr(copilot_auth, "_read_linux_secret_oauth_token", lambda: None)
+    monkeypatch.setattr(copilot_auth, "_read_file_oauth_token_candidates", lambda: [])
     monkeypatch.setattr(copilot_auth, "_read_gh_cli_oauth_token", lambda: "gho-gh-cli")
 
     assert copilot_auth.read_cached_oauth_token() == "gho-copilot"
@@ -158,6 +162,8 @@ def test_read_cached_oauth_token_prefers_macos_keychain_before_gh(
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.setattr(copilot_auth, "_read_windows_copilot_cli_oauth_token", lambda: None)
     monkeypatch.setattr(copilot_auth, "_read_macos_keychain_oauth_token", lambda: "gho-keychain")
+    monkeypatch.setattr(copilot_auth, "_read_linux_secret_oauth_token", lambda: None)
+    monkeypatch.setattr(copilot_auth, "_read_file_oauth_token_candidates", lambda: [])
     monkeypatch.setattr(copilot_auth, "_read_gh_cli_oauth_token", lambda: "gho-gh-cli")
 
     assert copilot_auth.read_cached_oauth_token() == "gho-keychain"

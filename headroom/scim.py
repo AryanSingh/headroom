@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import threading
 import uuid
@@ -14,6 +15,16 @@ from typing import Any
 from headroom import paths as _paths
 
 SCIM_DB_ENV = "HEADROOM_SCIM_DB_PATH"
+
+# Defense-in-depth: validate SQL column names match safe identifier pattern.
+_SAFE_COL_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _validate_col_name(name: str) -> str:
+    """Validate that a column name is a safe SQL identifier."""
+    if not _SAFE_COL_RE.match(name):
+        raise ValueError(f"Invalid SQL column name: {name!r}")
+    return name
 
 
 def _now_iso() -> str:
@@ -137,7 +148,7 @@ class ScimStore:
         if "active" in updates:
             updates["active"] = int(bool(updates["active"]))
         updates["updated_at"] = _now_iso()
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{_validate_col_name(k)} = ?" for k in updates)
         values = list(updates.values()) + [user_id]
         with self._lock:
             conn = self._get_conn()
@@ -203,7 +214,7 @@ class ScimStore:
         if "meta" in updates:
             updates["meta"] = json.dumps(updates["meta"] or {})
         updates["updated_at"] = _now_iso()
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{_validate_col_name(k)} = ?" for k in updates)
         values = list(updates.values()) + [group_id]
         with self._lock:
             conn = self._get_conn()

@@ -230,6 +230,11 @@ class FirewallScanner:
         t0 = time.monotonic()
 
         for msg in messages:
+            role = str(msg.get("role", "")).strip().lower()
+            if role == "tool":
+                # Tool-result payloads are external data, not user instructions.
+                # Scanning them for prompt injection produces noisy false positives.
+                continue
             text = self._extract_text(msg)
             if not text:
                 continue
@@ -397,12 +402,15 @@ class StreamingRedactor:
 
     def __init__(
         self,
+        config: FirewallConfig | None = None,
         *,
-        enabled: bool = True,
+        enabled: bool | None = None,
         max_buffer_tokens: int = 50,
         buffer_timeout_ms: float = 10.0,
     ) -> None:
-        self.enabled = enabled
+        if config is None:
+            config = FirewallConfig.from_env()
+        self.enabled = config.enabled if enabled is None else enabled
         self.max_buffer_tokens = max_buffer_tokens
         self.buffer_timeout_s = buffer_timeout_ms / 1000.0
         self._buffer: list[str] = []
@@ -458,9 +466,12 @@ class StreamingRedactor:
             # Handle Anthropic-style content_block_delta
             if data.get("type") == "content_block_delta":
                 text_delta = data.get("delta", {})
-                if isinstance(text_delta, dict) and text_delta.get("type") == "text_delta":
+                if isinstance(text_delta, dict):
+                    delta_type = text_delta.get("type")
                     text = text_delta.get("text", "")
-                    if text:
+                    if isinstance(text, str) and text and (
+                        delta_type in (None, "", "text_delta")
+                    ):
                         redacted = self.redact_text(text)
                         if redacted != text:
                             text_delta["text"] = redacted
