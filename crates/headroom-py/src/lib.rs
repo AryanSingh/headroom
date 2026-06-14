@@ -674,7 +674,10 @@ impl PySmartCrusher {
     /// were recorded against the pre-PR4 lossy-only behavior.
     #[staticmethod]
     #[pyo3(signature = (config = None, ccr_db_path = None))]
-    fn without_compaction(config: Option<&PySmartCrusherConfig>, ccr_db_path: Option<String>) -> Self {
+    fn without_compaction(
+        config: Option<&PySmartCrusherConfig>,
+        ccr_db_path: Option<String>,
+    ) -> Self {
         let cfg = config.map(|c| c.inner.clone()).unwrap_or_default();
         let mut inner = RustSmartCrusher::without_compaction(cfg);
         if let Some(path) = ccr_db_path {

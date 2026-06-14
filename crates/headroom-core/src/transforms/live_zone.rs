@@ -101,12 +101,12 @@ use serde_json::value::RawValue;
 use serde_json::Value;
 use thiserror::Error;
 
+use super::audio_compressor::{compress_audio, looks_like_audio_base64};
 use super::content_detector::{detect_content_type, ContentType};
 use super::diff_compressor::{DiffCompressor, DiffCompressorConfig};
+use super::image_compressor::{compress_image, looks_like_image_base64};
 use super::log_compressor::{LogCompressor, LogCompressorConfig};
 use super::search_compressor::{SearchCompressor, SearchCompressorConfig};
-use super::audio_compressor::{compress_audio, looks_like_audio_base64};
-use super::image_compressor::{compress_image, looks_like_image_base64};
 use super::smart_crusher::{SmartCrusher, SmartCrusherConfig};
 use crate::ccr::{compute_key, marker_for, CcrStore};
 use crate::tokenizer::get_tokenizer;
@@ -759,9 +759,8 @@ pub fn compress_anthropic_live_zone_with_ccr(
                                 },
                             }
                         } else {
-                            let replacement_bytes =
-                                serde_json::to_vec(&compressed_str)
-                                    .expect("string is always JSON-encodable");
+                            let replacement_bytes = serde_json::to_vec(&compressed_str)
+                                .expect("string is always JSON-encodable");
                             replacements.push(Replacement {
                                 range: data_byte_range,
                                 replacement: replacement_bytes,
@@ -789,9 +788,7 @@ pub fn compress_anthropic_live_zone_with_ccr(
                         block_index: Some(slot.block_index),
                         block_type,
                         action: BlockAction::NoCompressionApplied {
-                            content_type: format!(
-                                "multimodal_{media_type}"
-                            ),
+                            content_type: format!("multimodal_{media_type}"),
                         },
                     },
                 }
@@ -1228,10 +1225,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1250,10 +1244,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1265,10 +1256,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1282,17 +1270,13 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
                 }
-                let url_offset_in_block =
-                    bytes_offset_of(block_raw.get(), url_raw.get())
-                        .ok_or(PlanError::OffsetMissing)?;
+                let url_offset_in_block = bytes_offset_of(block_raw.get(), url_raw.get())
+                    .ok_or(PlanError::OffsetMissing)?;
                 let url_start_in_body = block_offset_in_body + url_offset_in_block;
                 let url_end_in_body = url_start_in_body + url_str.len();
                 slots.push(PlanSlot {
@@ -1321,10 +1305,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1343,10 +1324,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1358,10 +1336,7 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
@@ -1374,17 +1349,13 @@ fn plan_block_replacements(
                         kind: SlotKind::Compressible {
                             block_type,
                             content_text: String::new(),
-                            content_byte_range: (
-                                block_offset_in_body,
-                                block_offset_in_body,
-                            ),
+                            content_byte_range: (block_offset_in_body, block_offset_in_body),
                         },
                     });
                     continue;
                 }
-                let data_offset_in_block =
-                    bytes_offset_of(block_raw.get(), data_raw.get())
-                        .ok_or(PlanError::OffsetMissing)?;
+                let data_offset_in_block = bytes_offset_of(block_raw.get(), data_raw.get())
+                    .ok_or(PlanError::OffsetMissing)?;
                 let data_start_in_body = block_offset_in_body + data_offset_in_block;
                 let data_end_in_body = data_start_in_body + data_str.len();
                 slots.push(PlanSlot {
@@ -2169,9 +2140,8 @@ pub fn compress_openai_chat_live_zone(
                                 },
                             }
                         } else {
-                            let replacement_bytes =
-                                serde_json::to_vec(&compressed_str)
-                                    .expect("string is always JSON-encodable");
+                            let replacement_bytes = serde_json::to_vec(&compressed_str)
+                                .expect("string is always JSON-encodable");
                             replacements.push(Replacement {
                                 range: slot.content_byte_range,
                                 replacement: replacement_bytes,
@@ -2199,9 +2169,7 @@ pub fn compress_openai_chat_live_zone(
                         block_index: slot.block_index,
                         block_type: slot.block_type,
                         action: BlockAction::NoCompressionApplied {
-                            content_type: format!(
-                                "multimodal_{media_type}"
-                            ),
+                            content_type: format!("multimodal_{media_type}"),
                         },
                     },
                 }
@@ -2407,9 +2375,8 @@ fn plan_openai_user_message(
                 if !looks_like_image_base64(&url_value) {
                     continue;
                 }
-                let url_offset_in_part =
-                    bytes_offset_of(part_raw.get(), url_raw.get())
-                        .ok_or(PlanError::OffsetMissing)?;
+                let url_offset_in_part = bytes_offset_of(part_raw.get(), url_raw.get())
+                    .ok_or(PlanError::OffsetMissing)?;
                 let url_start_in_body = part_offset_in_body + url_offset_in_part;
                 let url_end_in_body = url_start_in_body + url_str.len();
                 slots.push(OpenAiPlanSlot {
@@ -2450,9 +2417,8 @@ fn plan_openai_user_message(
                 if !looks_like_audio_base64(&data_value) {
                     continue;
                 }
-                let data_offset_in_part =
-                    bytes_offset_of(part_raw.get(), data_raw.get())
-                        .ok_or(PlanError::OffsetMissing)?;
+                let data_offset_in_part = bytes_offset_of(part_raw.get(), data_raw.get())
+                    .ok_or(PlanError::OffsetMissing)?;
                 let data_start_in_body = part_offset_in_body + data_offset_in_part;
                 let data_end_in_body = data_start_in_body + data_str.len();
                 slots.push(OpenAiPlanSlot {

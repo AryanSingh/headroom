@@ -36,5 +36,6 @@ pub mod anthropic;
 pub mod framing;
 pub mod openai_chat;
 pub mod openai_responses;
+pub mod streaming_compressor;
 
 pub use framing::{FramingError, SseEvent, SseFramer};

@@ -18,8 +18,7 @@ use headroom_core::transforms::smart_crusher::compaction::walker::emit_opaque_cc
 
 /// Generate a realistic episodic memory block of approximately `target_chars` characters.
 fn generate_episodic_memory(target_chars: usize) -> String {
-    let sections = vec![
-        "# Session 2025-01-15\n\n\
+    let sections = ["# Session 2025-01-15\n\n\
          ## User Requests\n\
          - Refactored authentication module to use OAuth2\n\
          - Fixed memory leak in WebSocket handler\n\
@@ -51,8 +50,7 @@ fn generate_episodic_memory(target_chars: usize) -> String {
          ## Files Modified\n\
          - `src/middleware/rate_limit.rs` - token bucket implementation\n\
          - `src/metrics/prometheus.rs` - new metrics endpoint\n\
-         - `migrations/003_multi_tenant.sql` - schema changes\n",
-    ];
+         - `migrations/003_multi_tenant.sql` - schema changes\n"];
 
     let section_text = sections.join("\n");
     let mut result = String::new();
@@ -104,11 +102,7 @@ fn bench_emit_opaque_ccr_marker(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("episodic_ccr/emit_marker");
 
-    for (size_label, chars) in &[
-        ("1KB", 1_000),
-        ("5KB", 5_000),
-        ("10KB", 10_000),
-    ] {
+    for (size_label, chars) in &[("1KB", 1_000), ("5KB", 5_000), ("10KB", 10_000)] {
         let payload = generate_episodic_memory(*chars);
         group.throughput(Throughput::Bytes(payload.len() as u64));
         group.bench_function(format!("sha256_hash_and_store/{size_label}"), |b| {

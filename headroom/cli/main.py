@@ -42,6 +42,7 @@ def _register_commands() -> None:
         init,  # noqa: F401
         install,  # noqa: F401
         learn,  # noqa: F401
+        license,  # noqa: F401
         mcp,  # noqa: F401
         perf,  # noqa: F401
         proxy,  # noqa: F401

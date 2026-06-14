@@ -129,7 +129,12 @@ fn decode_audio_to_pcm(data: &[u8]) -> Result<(Vec<i16>, u32, u16), AudioCompres
     }
 
     let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
         .map_err(|e| AudioCompressError::DecodeError(format!("format probe failed: {e}")))?;
 
     let mut format = probed.format;
@@ -141,8 +146,15 @@ fn decode_audio_to_pcm(data: &[u8]) -> Result<(Vec<i16>, u32, u16), AudioCompres
 
     let track_id = track.id;
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
-    let channels = track.codec_params.channels.map(|c| c.count() as u16).unwrap_or(1);
-    let channels_b = track.codec_params.channels.unwrap_or(symphonia::core::audio::Channels::FRONT_LEFT);
+    let channels = track
+        .codec_params
+        .channels
+        .map(|c| c.count() as u16)
+        .unwrap_or(1);
+    let channels_b = track
+        .codec_params
+        .channels
+        .unwrap_or(symphonia::core::audio::Channels::FRONT_LEFT);
     let codec_params = track.codec_params.clone();
 
     let mut decoder = symphonia::default::get_codecs()

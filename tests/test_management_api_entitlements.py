@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from headroom.audit import reset_audit_logger
@@ -161,8 +162,10 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
     assert sso.enabled is True
 
 
+@pytest.mark.no_auto_admin
 def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch):
     monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
+    monkeypatch.delenv("HEADROOM_ADMIN_API_KEY", raising=False)
     reset_audit_logger()
     reset_fleet_store()
     reset_org_store()

@@ -37,6 +37,7 @@ pub mod live_zone_anthropic;
 pub mod live_zone_openai;
 pub mod live_zone_responses;
 pub mod model_limits;
+pub mod provider_native;
 
 // PR-A4 helper for cache-control floor derivation lives on the
 // passthrough-stub module so PR-B2's live-zone dispatcher can call
@@ -45,7 +46,8 @@ pub mod model_limits;
 // `compress_anthropic_request` is sourced from the live-zone module.
 pub use anthropic::resolve_frozen_count;
 pub use live_zone_anthropic::{
-    compress_anthropic_request, compress_anthropic_request_with_ccr, Outcome, PassthroughReason, PerStrategyTokens,
+    compress_anthropic_request, compress_anthropic_request_with_ccr, Outcome, PassthroughReason,
+    PerStrategyTokens,
 };
 pub use live_zone_openai::{
     compress_openai_chat_request, should_skip_compression, SkipCompressionReason,

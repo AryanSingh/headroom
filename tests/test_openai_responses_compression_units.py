@@ -58,8 +58,13 @@ def test_openai_responses_cached_unit_handles_results_without_router_result():
 
 
 def test_openai_responses_unit_cache_evicts_oldest_entry(monkeypatch):
-    monkeypatch.setattr(openai_handler, "_OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES", 1)
+    from headroom.proxy.handlers.openai import responses as _responses_mod
+
+    monkeypatch.setattr(_responses_mod, "_OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES", 1)
+    # Clear shared cache to avoid cross-test contamination
     handler = OpenAIHandlerMixin()
+    cache = handler._openai_responses_unit_cache()
+    cache[1].clear()
     first = UnitCompressionResult(
         original="first",
         compressed="first compressed",

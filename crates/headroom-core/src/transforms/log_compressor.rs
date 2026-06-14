@@ -48,8 +48,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder, MatchKind};
-use memchr::memchr_iter;
 use md5::{Digest, Md5};
+use memchr::memchr_iter;
 use regex::Regex;
 
 use crate::ccr::CcrStore;

@@ -242,7 +242,10 @@ mod tests {
     fn id_field_low_uniqueness_rejected() {
         let s = stats("status", "string", 0.5);
         let values: Vec<Value> = vec![json!("ok"), json!("error"), json!("ok"), json!("ok")];
-        assert_eq!(detect_id_field_statistically(&s, &refs(&values)), (false, 0.0));
+        assert_eq!(
+            detect_id_field_statistically(&s, &refs(&values)),
+            (false, 0.0)
+        );
     }
 
     #[test]

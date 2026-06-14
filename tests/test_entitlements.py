@@ -45,15 +45,28 @@ class TestEntitlementTier:
 
 
 class TestFeatureTiers:
-    def test_all_core_features_are_builder(self):
+    def test_core_compression_features_are_builder(self):
         core = [
             "smart_crusher", "code_compressor", "log_compressor",
             "diff_compressor", "search_compressor", "kompress",
             "image_compressor", "audio_compressor",
-            "ccr", "ccr_marker", "episodic_memory", "cross_agent_memory",
         ]
         for f in core:
             assert FEATURE_TIERS[f] == EntitlementTier.BUILDER, f"{f} should be BUILDER tier"
+
+    def test_ccr_features_are_team(self):
+        """CCR is gated to TEAM tier."""
+        assert FEATURE_TIERS["ccr"] == EntitlementTier.TEAM
+        assert FEATURE_TIERS["ccr_marker"] == EntitlementTier.TEAM
+
+    def test_memory_features_are_business(self):
+        """Episodic and cross-agent memory gated to BUSINESS."""
+        assert FEATURE_TIERS["episodic_memory"] == EntitlementTier.BUSINESS
+        assert FEATURE_TIERS["cross_agent_memory"] == EntitlementTier.BUSINESS
+
+    def test_live_zone_is_team(self):
+        """Live Zone is gated to TEAM tier."""
+        assert FEATURE_TIERS["live_zone"] == EntitlementTier.TEAM
 
     def test_team_features_exist(self):
         team_features = ["org_analytics", "team_analytics", "policy_presets"]
@@ -77,8 +90,31 @@ class TestEntitlementChecker:
     def test_builder_entitled_to_core(self):
         c = EntitlementChecker("builder")
         assert c.is_entitled("smart_crusher")
-        assert c.is_entitled("ccr")
         assert c.is_entitled("proxy_mode")
+
+    def test_builder_not_entitled_to_ccr(self):
+        """CCR is gated to TEAM — builder should not have access."""
+        c = EntitlementChecker("builder")
+        assert not c.is_entitled("ccr")
+        assert not c.is_entitled("ccr_marker")
+
+    def test_team_entitled_to_ccr(self):
+        """Team tier should have CCR access."""
+        c = EntitlementChecker("team")
+        assert c.is_entitled("ccr")
+        assert c.is_entitled("ccr_marker")
+
+    def test_builder_not_entitled_to_episodic_memory(self):
+        """Episodic memory is gated to BUSINESS."""
+        c = EntitlementChecker("builder")
+        assert not c.is_entitled("episodic_memory")
+        assert not c.is_entitled("cross_agent_memory")
+
+    def test_business_entitled_to_episodic_memory(self):
+        """Business tier should have episodic memory access."""
+        c = EntitlementChecker("business")
+        assert c.is_entitled("episodic_memory")
+        assert c.is_entitled("cross_agent_memory")
 
     def test_builder_not_entitled_to_team(self):
         c = EntitlementChecker("builder")
@@ -105,9 +141,10 @@ class TestEntitlementChecker:
         for feature in FEATURE_TIERS:
             assert c.is_entitled(feature), f"Enterprise should have {feature}"
 
-    def test_unknown_feature_fail_open(self):
+    def test_unknown_feature_fail_closed(self):
+        """Unknown features should be denied (fail-closed)."""
         c = EntitlementChecker("builder")
-        assert c.is_entitled("totally_unknown_feature_xyz")
+        assert not c.is_entitled("totally_unknown_feature_xyz")
 
     def test_none_plan_defaults_to_builder(self):
         c = EntitlementChecker(None)
@@ -122,14 +159,17 @@ class TestEntitlementChecker:
 
 
 class TestRequireEntitled:
-    def test_raises_when_not_entitled(self):
+    def test_require_entitled_raises_when_not_entitled(self):
         c = EntitlementChecker("builder")
         with pytest.raises(EntitlementError) as exc_info:
             c.require_entitled("sso_saml")
         assert exc_info.value.feature == "sso_saml"
         assert exc_info.value.required_tier == EntitlementTier.ENTERPRISE
         assert exc_info.value.current_tier == EntitlementTier.BUILDER
-
+        msg = str(exc_info.value)
+        assert "Enterprise" in msg  # friendly name
+        assert "Free" in msg  # friendly name for builder
+        assert "Upgrade" in msg
     def test_no_raise_when_entitled(self):
         c = EntitlementChecker("enterprise")
         c.require_entitled("sso_saml")  # Should not raise

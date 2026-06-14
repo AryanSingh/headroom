@@ -194,7 +194,11 @@ fn walk_string(s: String, ctx: &DocumentCompactor) -> Value {
             _ => {}
         }
 
-        return Value::String(emit_opaque_ccr_marker(&s, &effective_kind, ctx.ccr_store.as_ref()));
+        return Value::String(emit_opaque_ccr_marker(
+            &s,
+            &effective_kind,
+            ctx.ccr_store.as_ref(),
+        ));
     }
 
     Value::String(s)

@@ -172,15 +172,21 @@ class TestEntitlementCompressionFlow:
     """Verify entitlement checks gate compression features correctly."""
 
     def test_builder_gets_all_core_compression(self, builder_checker):
-        """Builder tier should have access to all core compression."""
+        """Builder tier should have access to core compression (not CCR/memory)."""
         core_features = [
             "smart_crusher", "code_compressor", "log_compressor",
             "diff_compressor", "search_compressor", "kompress",
             "image_compressor", "audio_compressor",
-            "ccr", "ccr_marker", "episodic_memory", "cross_agent_memory",
         ]
         for f in core_features:
             assert builder_checker.is_entitled(f), f"Builder needs {f}"
+
+    def test_builder_denied_ccr_and_memory(self, builder_checker):
+        """Builder should be denied CCR (TEAM) and memory (BUSINESS) features."""
+        assert not builder_checker.is_entitled("ccr")
+        assert not builder_checker.is_entitled("ccr_marker")
+        assert not builder_checker.is_entitled("episodic_memory")
+        assert not builder_checker.is_entitled("cross_agent_memory")
 
     def test_builder_denied_enterprise_compression_features(self, builder_checker):
         """Builder should be denied enterprise-only features."""

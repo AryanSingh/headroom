@@ -22,6 +22,10 @@ from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from headroom.proxy.handlers.openai.utils import (
+    _passthrough_model_from_path,
+    _passthrough_usage_from_json,
+)
 from headroom.proxy.helpers import (
     COMPRESSION_TIMEOUT_SECONDS,
     _headroom_bypass_enabled,

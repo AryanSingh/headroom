@@ -19,6 +19,7 @@ pub mod adaptive_sizer;
 pub mod anchor_selector;
 pub mod audio_compressor;
 pub mod content_detector;
+pub mod deletion_compaction;
 pub mod detection;
 pub mod diff_compressor;
 pub mod image_compressor;
@@ -41,16 +42,15 @@ pub use detection::detect;
 pub use diff_compressor::{
     DiffCompressionResult, DiffCompressor, DiffCompressorConfig, DiffCompressorStats,
 };
-pub use live_zone::{
-    compress_anthropic_live_zone, compress_anthropic_live_zone_with_ccr,
-    compress_openai_chat_live_zone,
-    compress_openai_responses_live_zone, summarize_openai_responses_no_change_reason, AuthMode,
-    BlockAction, BlockOutcome, CompressionManifest, ExclusionReason, LiveZoneError,
-    LiveZoneOutcome,
-};
 pub use image_compressor::{
     compress_image, extract_image_mime, looks_like_image_base64, strip_data_uri_prefix,
     ImageCompressError,
+};
+pub use live_zone::{
+    compress_anthropic_live_zone, compress_anthropic_live_zone_with_ccr,
+    compress_openai_chat_live_zone, compress_openai_responses_live_zone,
+    summarize_openai_responses_no_change_reason, AuthMode, BlockAction, BlockOutcome,
+    CompressionManifest, ExclusionReason, LiveZoneError, LiveZoneOutcome,
 };
 pub use log_compressor::{
     LogCompressionResult, LogCompressor, LogCompressorConfig, LogCompressorStats, LogFormat,
@@ -67,6 +67,11 @@ pub use safety::{tool_pair_indices, ToolPair};
 pub use search_compressor::{
     FileMatches, SearchCompressionResult, SearchCompressor, SearchCompressorConfig,
     SearchCompressorStats, SearchMatch,
+};
+pub use deletion_compaction::{
+    conservative_compactor, moderate_compactor, aggressive_compactor,
+    Aggressiveness, CompactResult, DeletionCompactor, DeletionCompactorConfig,
+    DeletionCompactionError,
 };
 pub use tag_protector::{is_known_html_tag, protect_tags, restore_tags, ProtectStats};
 pub use unidiff_detector::{detect_diff, is_diff};

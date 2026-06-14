@@ -59,10 +59,10 @@ FEATURE_TIERS: dict[str, EntitlementTier] = {
     "kompress": EntitlementTier.BUILDER,
     "image_compressor": EntitlementTier.BUILDER,
     "audio_compressor": EntitlementTier.BUILDER,
-    "ccr": EntitlementTier.BUILDER,
-    "ccr_marker": EntitlementTier.BUILDER,
-    "episodic_memory": EntitlementTier.BUILDER,
-    "cross_agent_memory": EntitlementTier.BUILDER,
+    "ccr": EntitlementTier.TEAM,
+    "ccr_marker": EntitlementTier.TEAM,
+    "episodic_memory": EntitlementTier.BUSINESS,
+    "cross_agent_memory": EntitlementTier.BUSINESS,
     # ── Deployment modes (always available) ──────────────────────────
     "proxy_mode": EntitlementTier.BUILDER,
     "sdk_mode": EntitlementTier.BUILDER,
@@ -85,6 +85,7 @@ FEATURE_TIERS: dict[str, EntitlementTier] = {
     "dashboard": EntitlementTier.BUILDER,
     "metrics_prometheus": EntitlementTier.BUILDER,
     # ── Team features ────────────────────────────────────────────────
+    "live_zone": EntitlementTier.TEAM,
     "org_analytics": EntitlementTier.TEAM,
     "team_analytics": EntitlementTier.TEAM,
     "policy_presets": EntitlementTier.TEAM,
@@ -153,9 +154,12 @@ class EntitlementChecker:
         """
         required = FEATURE_TIERS.get(feature)
         if required is None:
-            # Unknown feature — allow by default (fail open)
-            logger.debug("Feature '%s' not in entitlement map, allowing (fail-open)", feature)
-            return True
+            # Unknown feature — deny by default (fail-closed).
+            # Prevents accidental exposure of features added after this
+            # proxy version was deployed. Operators who intentionally add
+            # new features must register them in FEATURE_TIERS.
+            logger.warning("Feature '%s' not in entitlement map, denying (fail-closed)", feature)
+            return False
         entitled = self._tier >= required
         if not entitled:
             logger.info(
@@ -195,8 +199,17 @@ class EntitlementError(Exception):
         self.feature = feature
         self.required_tier = required_tier
         self.current_tier = current_tier
+        # Use user-friendly tier names (avoid leaking internal enum names)
+        _friendly = {
+            EntitlementTier.BUILDER: "Free",
+            EntitlementTier.TEAM: "Team",
+            EntitlementTier.BUSINESS: "Business",
+            EntitlementTier.ENTERPRISE: "Enterprise",
+        }
+        req_name = _friendly.get(required_tier, required_tier.name)
+        cur_name = _friendly.get(current_tier, current_tier.name)
         super().__init__(
-            f"Feature '{feature}' requires {required_tier.name} tier "
-            f"(current: {current_tier.name}). "
+            f"Feature '{feature}' requires {req_name} plan "
+            f"(current: {cur_name}). "
             f"Upgrade at https://headroomlabs.ai/pricing or contact hello@headroomlabs.ai"
         )

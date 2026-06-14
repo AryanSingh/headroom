@@ -52,6 +52,69 @@ def pytest_runtest_call(item):
 
 
 @pytest.fixture(autouse=True)
+def _auto_admin_auth_header(request):
+    """Auto-inject admin auth header into all httpx requests during tests.
+
+    Since we removed HEADROOM_TEST_MODE bypass for security, tests now need
+    to authenticate with the admin key. Rather than modifying hundreds of
+    individual test files, this fixture patches httpx to automatically include
+    the Authorization header when none is provided.
+
+    Tests that deliberately test unauthenticated access can mark themselves
+    with ``@pytest.mark.no_auto_admin`` to skip this injection.
+    """
+    import httpx
+
+    # Allow individual tests to opt out (e.g., tests that verify 401 behavior)
+    if request.node.get_closest_marker("no_auto_admin"):
+        yield
+        return
+
+    _admin_key = os.environ.get("HEADROOM_ADMIN_API_KEY", "")
+    if not _admin_key:
+        yield
+        return
+
+    _auth_header = f"Bearer {_admin_key}"
+
+    # Patch AsyncClient to auto-inject admin header
+    _orig_async_init = httpx.AsyncClient.__init__
+
+    def _patched_async_init(self, *args, **kwargs):
+        headers = kwargs.get("headers")
+        if headers is None:
+            kwargs["headers"] = {"Authorization": _auth_header}
+        elif isinstance(headers, dict):
+            headers.setdefault("Authorization", _auth_header)
+        elif isinstance(headers, list):
+            has_auth = any(k.lower() == "authorization" for k, _ in headers)
+            if not has_auth:
+                headers.append(("Authorization", _auth_header))
+        return _orig_async_init(self, *args, **kwargs)
+
+    # Patch sync Client (used by TestClient) to auto-inject admin header
+    _orig_sync_init = httpx.Client.__init__
+
+    def _patched_sync_init(self, *args, **kwargs):
+        headers = kwargs.get("headers")
+        if headers is None:
+            kwargs["headers"] = {"Authorization": _auth_header}
+        elif isinstance(headers, dict):
+            headers.setdefault("Authorization", _auth_header)
+        elif isinstance(headers, list):
+            has_auth = any(k.lower() == "authorization" for k, _ in headers)
+            if not has_auth:
+                headers.append(("Authorization", _auth_header))
+        return _orig_sync_init(self, *args, **kwargs)
+
+    httpx.AsyncClient.__init__ = _patched_async_init
+    httpx.Client.__init__ = _patched_sync_init
+    yield
+    httpx.AsyncClient.__init__ = _orig_async_init
+    httpx.Client.__init__ = _orig_sync_init
+
+
+@pytest.fixture(autouse=True)
 def _reset_headroom_logger_propagation():
     """Keep `headroom.*` log records flowing to pytest's caplog handler.
 

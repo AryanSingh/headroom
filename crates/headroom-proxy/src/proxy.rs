@@ -573,8 +573,7 @@ pub(crate) async fn forward_http(
     // tier. OpenSource tier gets passthrough-only (proxy forwards
     // unchanged). This prevents unpaid use of commercial compression.
     let tier = state.config.license_tier;
-    let effective_compression = state.config.compression
-        && tier.allows_live_zone();
+    let effective_compression = state.config.compression && tier.allows_live_zone();
     if state.config.compression && !tier.allows_live_zone() {
         tracing::debug!(
             license_tier = %tier,

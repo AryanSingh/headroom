@@ -392,7 +392,7 @@ def test_handle_openai_responses_ws_resolves_codex_routing_headers():
 
     with patch.dict(sys.modules, {"websockets": MagicMock()}):
         with patch(
-            "headroom.proxy.handlers.openai._resolve_codex_routing_headers",
+            "headroom.proxy.handlers.openai.responses._resolve_codex_routing_headers",
             side_effect=SentinelError("resolved"),
         ):
             with pytest.raises(SentinelError, match="resolved"):

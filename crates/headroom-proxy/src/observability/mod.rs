@@ -41,6 +41,7 @@
 pub mod cache_hit_rate;
 pub mod compression_ratio;
 pub mod metric_names;
+pub mod otel;
 pub mod prometheus;
 pub mod proxy_metrics;
 

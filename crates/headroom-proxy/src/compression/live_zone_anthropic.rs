@@ -42,7 +42,8 @@ use bytes::Bytes;
 use headroom_core::auth_mode::AuthMode as RequestAuthMode;
 use headroom_core::transforms::live_zone::DEFAULT_MODEL;
 use headroom_core::transforms::{
-    compress_anthropic_live_zone_with_ccr, BlockAction, ExclusionReason, LiveZoneError, LiveZoneOutcome,
+    compress_anthropic_live_zone_with_ccr, BlockAction, ExclusionReason, LiveZoneError,
+    LiveZoneOutcome,
 };
 use serde_json::Value;
 
@@ -153,7 +154,14 @@ pub fn compress_anthropic_request(
     auth_mode: RequestAuthMode,
     request_id: &str,
 ) -> Outcome {
-    compress_anthropic_request_with_ccr(body, mode, cache_control_policy, auth_mode, request_id, None)
+    compress_anthropic_request_with_ccr(
+        body,
+        mode,
+        cache_control_policy,
+        auth_mode,
+        request_id,
+        None,
+    )
 }
 
 /// Same as [`compress_anthropic_request`] but with an optional CCR
@@ -370,7 +378,13 @@ pub fn compress_anthropic_request_with_ccr(
     // getting compression, not losing it). The plumbing here lets
     // F2.2 vary per-block thresholds by mode without touching this
     // call site again.
-    match compress_anthropic_live_zone_with_ccr(&dispatch_body, frozen_count, auth_mode.into(), model, ccr_store) {
+    match compress_anthropic_live_zone_with_ccr(
+        &dispatch_body,
+        frozen_count,
+        auth_mode.into(),
+        model,
+        ccr_store,
+    ) {
         Ok(LiveZoneOutcome::NoChange { manifest }) => {
             let block_count = manifest.block_outcomes.len();
             let blocks_excluded = manifest

@@ -59,16 +59,15 @@ pub fn compress_image(
         .map_err(|e| ImageCompressError::ImageParse(e.to_string()))?;
 
     // 5. Resize to 256×256
-    let resized = img.resize(
-        256,
-        256,
-        image::imageops::FilterType::Nearest,
-    );
+    let resized = img.resize(256, 256, image::imageops::FilterType::Nearest);
 
     // 6. Encode to PNG bytes
     let mut png_bytes: Vec<u8> = Vec::new();
     resized
-        .write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
         .map_err(|e| ImageCompressError::Encode(e.to_string()))?;
 
     // 7. Encode to base64
@@ -103,9 +102,7 @@ pub fn looks_like_image_base64(s: &str) -> bool {
         return false;
     }
 
-    if let Ok(bytes) = base64::engine::general_purpose::STANDARD
-        .decode(&s[..clean_len])
-    {
+    if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(&s[..clean_len]) {
         // JPEG magic: FF D8 FF
         if bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
             return true;
@@ -120,11 +117,21 @@ pub fn looks_like_image_base64(s: &str) -> bool {
             return true;
         }
         // GIF magic: 47 49 46 38
-        if bytes.len() >= 4 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 {
+        if bytes.len() >= 4
+            && bytes[0] == 0x47
+            && bytes[1] == 0x49
+            && bytes[2] == 0x46
+            && bytes[3] == 0x38
+        {
             return true;
         }
         // WebP magic: RIFF....WEBP
-        if bytes.len() >= 4 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 {
+        if bytes.len() >= 4
+            && bytes[0] == 0x52
+            && bytes[1] == 0x49
+            && bytes[2] == 0x46
+            && bytes[3] == 0x46
+        {
             return true;
         }
         // BMP magic: 42 4D
@@ -203,10 +210,7 @@ mod tests {
             strip_data_uri_prefix("data:image/jpeg;base64,/9j/4AAQ"),
             "/9j/4AAQ"
         );
-        assert_eq!(
-            strip_data_uri_prefix("rawbase64data"),
-            "rawbase64data"
-        );
+        assert_eq!(strip_data_uri_prefix("rawbase64data"), "rawbase64data");
     }
 
     #[test]

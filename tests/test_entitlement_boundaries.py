@@ -134,7 +134,10 @@ class TestRequireEntitledBoundary:
         assert exc_info.value.feature == "org_analytics"
         assert exc_info.value.required_tier == EntitlementTier.TEAM
         assert exc_info.value.current_tier == EntitlementTier.BUILDER
-        assert "Upgrade" in str(exc_info.value)
+        msg = str(exc_info.value)
+        assert "Team" in msg  # friendly name
+        assert "Free" in msg  # friendly name for builder
+        assert "Upgrade" in msg
 
     def test_require_entitled_raises_for_builder_on_enterprise_feature(self):
         c = EntitlementChecker("builder")
@@ -206,13 +209,13 @@ class TestFeatureCount:
     """Verify the total feature count is as expected."""
 
     def test_total_feature_count(self):
-        assert len(FEATURE_TIERS) == 61
+        assert len(FEATURE_TIERS) == 62
 
     def test_tier_distribution(self):
         counts = {}
         for t in FEATURE_TIERS.values():
             counts[t] = counts.get(t, 0) + 1
-        assert counts[EntitlementTier.BUILDER] == 29
-        assert counts[EntitlementTier.TEAM] == 6
-        assert counts[EntitlementTier.BUSINESS] == 11
+        assert counts[EntitlementTier.BUILDER] == 25
+        assert counts[EntitlementTier.TEAM] == 9
+        assert counts[EntitlementTier.BUSINESS] == 13
         assert counts[EntitlementTier.ENTERPRISE] == 15

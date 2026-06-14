@@ -39,8 +39,8 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 use std::time::Instant;
 
-use memchr::memchr_iter;
 use md5::{Digest, Md5};
+use memchr::memchr_iter;
 use regex::Regex;
 
 use crate::ccr::CcrStore;
