@@ -80,7 +80,7 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
     openai_mod = _load_handler_module(
         monkeypatch,
         "tests.headroom_proxy_handlers_openai",
-        "headroom/proxy/handlers/openai.py",
+        "headroom/proxy/handlers/openai/passthrough.py",
     )
 
     seen: dict[str, object] = {}
@@ -92,7 +92,7 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(openai_mod, "apply_copilot_api_auth", fake_apply)
 
-    class Dummy(openai_mod.OpenAIHandlerMixin):
+    class Dummy(openai_mod.OpenAIPassthroughMixin):
         def __init__(self) -> None:
             self.metrics = SimpleNamespace(record_request=self._record_request)
             self.http_client = SimpleNamespace(request=self._request)

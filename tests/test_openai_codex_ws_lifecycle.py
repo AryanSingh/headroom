@@ -775,7 +775,7 @@ async def test_ws_first_frame_timeout_after_connect_closes_upstream():
     with (
         patch.dict(sys.modules, {"websockets": fake_ws_mod}),
         patch(
-            "headroom.proxy.handlers.openai.WS_FIRST_FRAME_TIMEOUT_SECONDS",
+            "headroom.proxy.handlers.openai.responses.WS_FIRST_FRAME_TIMEOUT_SECONDS",
             0.05,
         ),
     ):
