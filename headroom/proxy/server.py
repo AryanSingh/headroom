@@ -1585,6 +1585,32 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                             "Entitlement tier synced from license: %s",
                             proxy.entitlement_checker.plan_name,
                         )
+                        # ── Enforce entitlement gating on runtime components ──
+                        _ec = proxy.entitlement_checker
+                        if not _ec.is_entitled("ccr"):
+                            proxy.config.ccr_inject_tool = False
+                            proxy.config.ccr_handle_responses = False
+                            proxy.config.ccr_context_tracking = False
+                            proxy.config.ccr_proactive_expansion = False
+                            logger.info(
+                                "CCR DISABLED by entitlement (requires TEAM tier, "
+                                "current: %s)",
+                                _ec.plan_name,
+                            )
+                        if not _ec.is_entitled("episodic_memory"):
+                            proxy.episodic_tracker = None
+                            logger.info(
+                                "Episodic Memory DISABLED by entitlement "
+                                "(requires BUSINESS tier, current: %s)",
+                                _ec.plan_name,
+                            )
+                        if not _ec.is_entitled("live_zone"):
+                            os.environ["HEADROOM_MEMORY_INJECTION_MODE"] = "disabled"
+                            logger.info(
+                                "Live Zone DISABLED by entitlement "
+                                "(requires TEAM tier, current: %s)",
+                                _ec.plan_name,
+                            )
                 if proxy.traffic_learner:
                     await proxy.traffic_learner.start()
                 if proxy.episodic_tracker:
@@ -2085,6 +2111,76 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return await call_next(request)
 
+    # ---------------------------------------------------------------------------
+    # 2.6 FIX: Trial enforcement middleware.
+    # Blocks LLM proxy requests when the 14-day trial has expired and no
+    # paid license has been activated. Health checks, admin endpoints, and
+    # the CLI status path are exempt.
+    # ---------------------------------------------------------------------------
+
+    _trial_enforcement_enabled = os.environ.get(
+        "HEADROOM_TRIAL_ENFORCEMENT", ""
+    ).strip().lower() not in ("0", "false", "no")
+
+    _trial_manager = None
+    if _trial_enforcement_enabled:
+        try:
+            from headroom.trial import TrialManager
+            _trial_manager = TrialManager()
+            logger.info("Trial enforcement middleware enabled")
+        except Exception:
+            logger.debug("TrialManager not available", exc_info=True)
+
+    @app.middleware("http")
+    async def _trial_enforcement_middleware(request, call_next):
+        """Enforce trial expiry: block LLM requests when trial is expired.
+
+        Exempts health/readiness endpoints, admin API, and non-proxy paths.
+        """
+        if _trial_manager is None:
+            return await call_next(request)
+
+        path = request.url.path
+
+        # Exempt non-proxy paths (health, admin, metrics, etc.)
+        if not any(path.startswith(p) for p in (
+            "/v1/messages", "/v1/chat/completions", "/v1/responses",
+            "/v1/conversations",
+        )):
+            return await call_next(request)
+
+        # Only enforce on POST (actual LLM requests)
+        if request.method != "POST":
+            return await call_next(request)
+
+        try:
+            if _trial_manager.enforce_trial():
+                from fastapi.responses import JSONResponse
+                logger.warning(
+                    "Trial expired — blocking request to %s. "
+                    "Activate a license with: headroom license activate <key>",
+                    path,
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "error": {
+                            "type": "trial_expired",
+                            "message": (
+                                "Your 14-day trial has expired. "
+                                "Activate a license to continue using Headroom. "
+                                "Get a license at https://headroomlabs.ai/pricing"
+                            ),
+                            "upgrade_url": "https://headroomlabs.ai/pricing",
+                            "contact": "hello@headroomlabs.ai",
+                        }
+                    },
+                )
+        except Exception as exc:
+            logger.debug("Trial enforcement check failed (pass-through): %s", exc)
+
+        return await call_next(request)
+
     # Admin API key authentication for sensitive endpoints.
     # When admin_api_key is configured, /dashboard, /stats, /stats-reset,
     # /stats-history, and /transformations/feed require a valid key.
@@ -2142,7 +2238,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         admin_header = request.headers.get("x-headroom-admin-key", "")
 
         if _admin_api_key:
-            if bearer_token == _admin_api_key or admin_header == _admin_api_key:
+            import hmac as _hmac
+            if _hmac.compare_digest(bearer_token, _admin_api_key) or _hmac.compare_digest(admin_header, _admin_api_key):
                 _mark_admin_auth_success(request, method="api_key")
                 return
 
@@ -2248,6 +2345,55 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # (most restrictive paid tier — allows core compression, denies all
     # paid features). This prevents accidental exposure of paid features
     # when the entitlement system fails to initialize.
+    #
+    # 2.5 FIX: Periodic refresh — re-read the license cache every 5 minutes
+    # so tier changes (upgrades/downgrades) take effect without restart.
+    _ENTITLEMENT_REFRESH_TTL = 300.0  # seconds
+
+    class _RefreshingEntitlementChecker:
+        """Wraps EntitlementChecker and periodically re-reads the license cache."""
+
+        def __init__(self, initial_checker: Any, refresh_ttl: float = _ENTITLEMENT_REFRESH_TTL):
+            self._checker = initial_checker
+            self._refresh_ttl = refresh_ttl
+            self._last_refresh: float = time.monotonic()
+            self._license_cache_path: Any = None
+            try:
+                from headroom import paths
+                self._license_cache_path = paths.license_cache_path()
+            except Exception:
+                pass
+
+        @property
+        def checker(self) -> Any:
+            self._maybe_refresh()
+            return self._checker
+
+        def _maybe_refresh(self) -> None:
+            now = time.monotonic()
+            if now - self._last_refresh < self._refresh_ttl:
+                return
+            self._last_refresh = now
+            try:
+                if self._license_cache_path is None or not self._license_cache_path.exists():
+                    return
+                from headroom.security.state_crypto import read_hmac_json
+                cache = read_hmac_json(self._license_cache_path)
+                if cache is None:
+                    return
+                plan = cache.get("plan", "builder")
+                from headroom.entitlements import EntitlementChecker
+                new_checker = EntitlementChecker(plan)
+                if new_checker.tier != self._checker.tier:
+                    logger.info(
+                        "Entitlement tier refreshed: %s -> %s (from license cache)",
+                        self._checker.plan_name,
+                        new_checker.plan_name,
+                    )
+                    self._checker = new_checker
+            except Exception:
+                logger.debug("Entitlement refresh failed, keeping current tier", exc_info=True)
+
     _entitlement_checker_ref = proxy.entitlement_checker
     if _entitlement_checker_ref is None:
         from headroom.entitlements import EntitlementChecker
@@ -2255,12 +2401,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         logger.warning(
             "Entitlement checker unavailable — defaulting to BUILDER tier (fail-closed)"
         )
+    _refreshing_checker = _RefreshingEntitlementChecker(_entitlement_checker_ref)
 
     def _require_entitlement(feature: str):
         """Factory that returns a dependency checking a specific feature."""
 
         async def _check(request: Request):
-            if not _entitlement_checker_ref.is_entitled(feature):
+            checker = _refreshing_checker.checker
+            if not checker.is_entitled(feature):
                 from headroom.entitlements import EntitlementError, FEATURE_TIERS
 
                 required = FEATURE_TIERS.get(feature)
@@ -2275,7 +2423,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                             detail={
                                 "feature": feature,
                                 "required_tier": required.name if required else "unknown",
-                                "current_tier": _entitlement_checker_ref.plan_name,
+                                "current_tier": checker.plan_name,
                                 "path": str(request.url.path),
                             },
                             success=False,
@@ -2291,7 +2439,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "error": "feature_not_available",
                         "feature": feature,
                         "required_tier": required.name.lower() if required else "unknown",
-                        "current_tier": _entitlement_checker_ref.plan_name,
+                        "current_tier": checker.plan_name,
                         "upgrade_url": "https://headroomlabs.ai/pricing",
                         "contact": "hello@headroomlabs.ai",
                     },
@@ -4280,7 +4428,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return {"status": "cache disabled"}
 
     # CCR (Compress-Cache-Retrieve) endpoints
-    @app.post("/v1/retrieve")
+    @app.post(
+        "/v1/retrieve",
+        dependencies=[Depends(_require_entitlement("ccr"))],
+    )
     async def ccr_retrieve(request: Request):
         """Retrieve original content from CCR compression cache.
 
@@ -4341,7 +4492,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ),
             )
 
-    @app.get("/v1/retrieve/stats")
+    @app.get(
+        "/v1/retrieve/stats",
+        dependencies=[Depends(_require_entitlement("ccr"))],
+    )
     async def ccr_stats():
         """Get CCR compression store statistics."""
         store = get_compression_store()
@@ -4362,7 +4516,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             ],
         }
 
-    @app.get("/v1/feedback")
+    @app.get(
+        "/v1/feedback",
+        dependencies=[Depends(_require_entitlement("ccr"))],
+    )
     async def ccr_feedback():
         """Get CCR feedback loop statistics and learned patterns.
 
@@ -4620,7 +4777,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             status_code=404, detail=f"No TOIN pattern found with hash starting with: {hash_prefix}"
         )
 
-    @app.get("/v1/retrieve/{hash_key}")
+    @app.get(
+        "/v1/retrieve/{hash_key}",
+        dependencies=[Depends(_require_entitlement("ccr"))],
+    )
     async def ccr_retrieve_get(hash_key: str, query: str | None = None):
         """GET version of CCR retrieve for easier testing."""
         store = get_compression_store()
@@ -4660,7 +4820,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
 
     # CCR Tool Call Handler - for agent frameworks to call when LLM uses headroom_retrieve
-    @app.post("/v1/retrieve/tool_call")
+    @app.post(
+        "/v1/retrieve/tool_call",
+        dependencies=[Depends(_require_entitlement("ccr"))],
+    )
     async def ccr_handle_tool_call(request: Request):
         """Handle a CCR tool call from an LLM response.
 

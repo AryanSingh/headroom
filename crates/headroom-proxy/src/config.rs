@@ -1,6 +1,8 @@
 //! Configuration for the proxy: CLI flags + env vars.
 
 use clap::{Parser, ValueEnum};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use std::net::SocketAddr;
 use std::time::Duration;
 use url::Url;
@@ -496,21 +498,78 @@ pub enum LicenseTier {
 }
 
 impl LicenseTier {
-    /// Resolve tier from a license key string. Currently uses simple
-    /// prefix matching as a local-only heuristic. Production will
-    /// add remote validation via the Headroom license server.
+    /// Resolve tier from a license key string.
+    ///
+    /// When `HEADROOM_LICENSE_HMAC_SECRET` is set, the key format must be
+    /// `{prefix}-{payload}.{hmac_hex}` and the HMAC-SHA256 signature is
+    /// verified. A key with an invalid signature is rejected as OpenSource.
+    ///
+    /// When the env var is unset (dev mode), falls back to prefix-only
+    /// matching for backward compatibility.
     pub fn from_license_key(key: &str) -> Self {
+        if key.is_empty() {
+            return LicenseTier::OpenSource;
+        }
+
+        // Check if HMAC secret is configured for signature verification
+        let hmac_secret = std::env::var("HEADROOM_LICENSE_HMAC_SECRET").ok();
+        if let Some(secret) = hmac_secret.filter(|s| !s.is_empty()) {
+            return Self::from_license_key_hmac(key, &secret);
+        }
+
+        // Dev/fallback mode: prefix-only matching
+        Self::from_license_key_prefix(key)
+    }
+
+    /// HMAC-verified license key parsing.
+    ///
+    /// Expected format: `{prefix}-{payload}.{signature_hex}`
+    /// The signature is HMAC-SHA256 of `{prefix}-{payload}` using the secret.
+    fn from_license_key_hmac(key: &str, secret: &str) -> Self {
+        let (key_part, sig_hex) = match key.rsplit_once('.') {
+            Some((kp, sig)) => (kp, sig),
+            None => {
+                tracing::warn!(
+                    "License key rejected: missing HMAC signature \
+                     (expected format: {{prefix}}-{{payload}}.{{signature}})"
+                );
+                return LicenseTier::OpenSource;
+            }
+        };
+
+        let sig_bytes = match hex::decode(sig_hex) {
+            Ok(b) => b,
+            Err(_) => {
+                tracing::warn!("License key rejected: invalid hex signature");
+                return LicenseTier::OpenSource;
+            }
+        };
+
+        let mut mac =
+            Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key size");
+        mac.update(key_part.as_bytes());
+
+        if mac.verify_slice(&sig_bytes).is_err() {
+            tracing::warn!("License key rejected: HMAC signature mismatch");
+            return LicenseTier::OpenSource;
+        }
+
+        Self::from_license_key_prefix(key_part)
+    }
+
+    /// Prefix-based tier resolution (used when HMAC is not configured,
+    /// or after HMAC verification passes).
+    fn from_license_key_prefix(key: &str) -> Self {
         if key.starts_with("ent-") {
             LicenseTier::Enterprise
         } else if key.starts_with("biz-") {
             LicenseTier::Business
         } else if key.starts_with("team-") {
             LicenseTier::Team
-        } else if key.is_empty() {
-            LicenseTier::OpenSource
         } else {
-            // Unknown key format: assume Team as minimum valid license.
-            LicenseTier::Team
+            // Unknown key prefix: reject as OpenSource (not Team).
+            // Previously defaulted to Team which was a security gap.
+            LicenseTier::OpenSource
         }
     }
 

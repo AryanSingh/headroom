@@ -54,6 +54,7 @@ dependencies = [
     "rich>=13.0.0",               # Rich terminal output
     "opentelemetry-api>=1.24.0",  # Safe no-op OTEL API for instrumentation
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
+    "cryptography>=41.0.0",       # Fernet encryption for local state + HMAC for license cache
     "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
 ]
 
@@ -394,6 +395,7 @@ markers = [
     "slow: slow tests (model loads, large fixtures)",
     "real_llm: tests that hit real LLM APIs; skipped unless explicitly enabled",
     "live: opt-in multi-turn tests that hit real upstream APIs; require provider keys",
+    "no_auto_admin: skip auto-inject of admin auth header (tests that verify 401 behavior)",
 ]
 
 [tool.coverage.run]

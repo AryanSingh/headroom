@@ -1,4 +1,4 @@
-"""Headroom security layer — LLM firewall, PII detection, injection blocking."""
+"""Headroom security layer — LLM firewall, PII detection, injection blocking, state encryption."""
 
 from headroom.security.firewall import (
     FirewallConfig,
@@ -7,6 +7,16 @@ from headroom.security.firewall import (
     Violation,
     ViolationKind,
 )
+from headroom.security.state_crypto import (
+    encrypt_json,
+    decrypt_json,
+    sign_payload,
+    verify_payload,
+    write_encrypted_json,
+    read_encrypted_json,
+    write_hmac_json,
+    read_hmac_json,
+)
 
 __all__ = [
     "FirewallConfig",
@@ -14,4 +24,12 @@ __all__ = [
     "StreamingRedactor",
     "Violation",
     "ViolationKind",
+    "encrypt_json",
+    "decrypt_json",
+    "sign_payload",
+    "verify_payload",
+    "write_encrypted_json",
+    "read_encrypted_json",
+    "write_hmac_json",
+    "read_hmac_json",
 ]

@@ -93,6 +93,20 @@ async-trait = "0.1"
 # the core uses for the CCR cache_key, so no additional hash backend
 # enters the dep tree.
 md-5 = "0.10"
+# PR-SEC: HMAC-SHA256 license key verification. Replaces prefix-only
+# matching with cryptographic signature validation so forged keys are
+# rejected instead of defaulting to Team tier. `hmac` is the standard
+# Rust HMAC crate; `sha2` is already a direct dependency.
+hmac = "0.12"
+# PR-SEC: hex encoding for HMAC signature in license key format.
+hex = "0.4"
+# OpenTelemetry integration for enterprise observability. Provides per-request
+# cost attribution, latency tracking, and the 40+ metrics that competitors
+# like Portkey offer. OTLP/HTTP exporter with non-fatal initialization.
+opentelemetry = { version = "0.27", features = ["trace", "metrics"] }
+opentelemetry_sdk = { version = "0.27", features = ["trace", "rt-tokio", "metrics"] }
+opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client", "trace"] }
+tracing-opentelemetry = "0.28"
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }
