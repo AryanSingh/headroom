@@ -19,8 +19,8 @@ info:
     email: hello@headroomlabs.ai
     url: https://headroomlabs.ai
   license:
-    name: Apache-2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0
+    name: Headroom Commercial License
+    url: https://headroomlabs.ai/legal/commercial-license
 
 servers:
   - url: http://localhost:8080

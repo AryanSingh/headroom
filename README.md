@@ -16,7 +16,7 @@
   <a href="https://pypi.org/project/headroom-ai/"><img src="https://img.shields.io/pypi/v/headroom-ai.svg" alt="PyPI"></a>
   <a href="https://www.npmjs.com/package/headroom-ai"><img src="https://img.shields.io/npm/v/headroom-ai.svg" alt="npm"></a>
   <a href="https://huggingface.co/chopratejas/kompress-v2-base"><img src="https://img.shields.io/badge/model-Kompress--v2--base-yellow.svg" alt="Model: Kompress-v2-base"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-open--core-blue.svg" alt="License: Open Core (Apache-2.0 + Commercial)"></a>
   <a href="https://headroom-docs.vercel.app/docs"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Docs"></a>
 </p>
 
@@ -327,4 +327,4 @@ Devcontainers in `.devcontainer/` (default + `memory-stack` with Qdrant & Neo4j)
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Open-core: the client (compression engine, proxy, SDKs, CLI, MCP server, base model) is **Apache 2.0**; the commercial core (control plane, enterprise modules, agent-tuned models) is **proprietary, All Rights Reserved**. See **[LICENSING.md](LICENSING.md)** (authoritative boundary), [LICENSE](LICENSE), and [LICENSE-COMMERCIAL](LICENSE-COMMERCIAL).

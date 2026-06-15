@@ -1,0 +1,38 @@
+# Build configuration for the PROPRIETARY `headroom-ee` distribution.
+#
+# `headroom_ee/` in this directory is a SYMLINK to the repo-root `headroom_ee/`
+# package. The canonical source stays at the repo root (importable in local dev
+# because the OSS package uses `python-source = "."`), while this directory gives
+# uv/hatchling a clean, editable-installable distribution with no parent-path tricks.
+#
+# Build:        cd packaging/headroom-ee && uv build        (or: python -m build)
+# Editable dev: handled by the uv workspace ([tool.uv.workspace] in the root pyproject)
+#               -> `uv sync --extra ee`
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "headroom-ee"
+version = "0.25.0"
+description = "Headroom commercial (enterprise edition) components — proprietary, All Rights Reserved."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "LicenseRef-Headroom-Commercial" }
+authors = [{ name = "Headroom Labs" }]   # TODO: set the real legal entity (see LICENSING.md)
+classifiers = [
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "cutctx-ai",              # the open-source Apache-2.0 client (published as cutctx-ai / headroom-ai)
+    "cryptography>=41.0.0",   # trial/seat state + license verification
+]
+
+[project.urls]
+Homepage = "https://headroomlabs.ai"
+
+# Source comes from the symlinked `headroom_ee/` package in this directory.
+[tool.hatch.build.targets.wheel]
+packages = ["headroom_ee"]

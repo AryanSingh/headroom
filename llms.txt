@@ -1,6 +1,6 @@
 # Headroom
 
-> Context optimization layer for LLM applications. Compress tool outputs, logs, files, and RAG chunks before they reach the model. Same answers, 60–95% fewer tokens. Library, proxy, and MCP server. Apache 2.0, local-first.
+> Context optimization layer for LLM applications. Compress tool outputs, logs, files, and RAG chunks before they reach the model. Same answers, 60–95% fewer tokens. Library, proxy, and MCP server. Open-core (Apache-2.0 client + proprietary commercial core), local-first.
 
 Headroom is shipped as a Python package (`headroom-ai`), a TypeScript package (`headroom-ai`), an OpenAI + Anthropic-compatible HTTP proxy (`headroom proxy`), and an MCP server (`headroom_compress`, `headroom_retrieve`, `headroom_stats` tools). All four modes use the same compression pipeline: per-content-type compressors (JSON, code, logs, diffs, text) feed into a Compress-Cache-Retrieve (CCR) store so compression stays reversible — the LLM can ask for the original whenever it wants.
 
@@ -64,4 +64,4 @@ The canonical, always-current documentation index lives at the docs site below. 
 
 ## Licensing
 
-Apache 2.0. Use commercially, modify, redistribute. Data stays on the user's machine when running the library, proxy, or MCP server locally. Anonymous telemetry enabled by default; set `HEADROOM_TELEMETRY=off` to disable.
+Open-core licensing. The client (library, proxy, CLI, MCP server, SDKs, base model) is Apache 2.0 — use commercially, modify, redistribute. The commercial core (control plane, enterprise admin, agent-tuned models) is proprietary; see LICENSING.md. Data stays on the user's machine when running the library, proxy, or MCP server locally. Anonymous telemetry enabled by default; set `HEADROOM_TELEMETRY=off` to disable.

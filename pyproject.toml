@@ -7,6 +7,9 @@ name = "cutctx-ai"
 version = "0.25.0"
 description = "The Context Optimization Layer for LLM Applications - Cut costs by 50-90%"
 readme = "README.md"
+# Open-core: this published package is the Apache-2.0 client surface.
+# Commercial modules (see LICENSING.md) are proprietary and must be
+# separated out of this distribution before release (see "package separation").
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
@@ -59,6 +62,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Commercial ("enterprise edition") components — proprietary; see LICENSING.md.
+# Installs the `headroom-ee` workspace package (editable in dev via uv):
+#   uv sync --extra ee
+ee = ["headroom-ee"]
 # Proxy server (most common install: pip install cutctx-ai[proxy])
 proxy = [
     "fastapi>=0.100.0",
@@ -281,6 +288,16 @@ name = "pypi"
 url = "https://pypi.org/simple/"
 default = true
 
+# Open-core workspace: the proprietary commercial distribution is a separate member
+# so `uv` installs it editable in dev. Its source is the repo-root `headroom_ee/`
+# package (symlinked into packaging/headroom-ee/). It is excluded from the OSS wheel
+# via [tool.maturin] exclude. See LICENSING.md.
+[tool.uv.workspace]
+members = ["packaging/headroom-ee"]
+
+[tool.uv.sources]
+headroom-ee = { workspace = true }
+
 [tool.maturin]
 # Where the Python package lives. With `python-source = "."` and the
 # package directory `headroom/` at repo root, maturin includes every file
@@ -296,6 +313,15 @@ include = [
     { path = "NOTICE", format = "sdist" },
 ]
 python-source = "."
+# Open-core: keep the proprietary `headroom_ee` package and its build config OUT
+# of the Apache-2.0 OSS wheel/sdist. `headroom_ee` ships as a SEPARATE commercial
+# distribution (see packaging/headroom-ee/ and LICENSING.md). Without this exclude,
+# `python-source = "."` would sweep the sibling `headroom_ee/` package into the
+# Apache wheel.
+exclude = [
+    "headroom_ee/**/*",
+    "packaging/**/*",
+]
 module-name = "headroom._core"
 # The cdylib source lives under `crates/headroom-py`. Maturin invokes
 # `cargo build` with this manifest to produce `_core.cdylib`, then injects
@@ -381,6 +407,11 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Put the repo root on sys.path so tests import BOTH the OSS `headroom` package and
+# the proprietary `headroom_ee` package (the Apache shims at headroom/<mod>.py rebind
+# to headroom_ee). Without this, CI that runs against an installed OSS-only wheel
+# could not resolve the commercial implementations.
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
