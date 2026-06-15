@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headroom License Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-dark: #0f1117;
+            --accent: #6366f1;
+            --text-light: #e5e7eb;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-button {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 8px;
+        }
+
+        .tab-button:hover {
+            color: var(--accent);
+        }
+
+        .tab-button.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .code-block {
+            background-color: #1a1f2e;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 0.8;
+        }
+
+        .copy-btn.copied {
+            background-color: #10b981;
+        }
+
+        .tier-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .tier-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+        }
+
+        .tier-badge {
+            display: inline-block;
+            background-color: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .feature-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .feature-table th {
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .feature-table td {
+            border-bottom: 1px solid #30363d;
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .feature-table tr:hover {
+            background-color: #1a1f2e;
+        }
+
+        .tier-badge-small {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .tier-builder { background-color: rgba(107, 114, 128, 0.2); color: #d1d5db; }
+        .tier-team { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+        .tier-business { background-color: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+        .tier-enterprise { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+        .sub-tab-button {
+            cursor: pointer;
+            padding: 8px 16px;
+            border-bottom: 2px solid transparent;
+            background-color: transparent;
+            color: var(--text-light);
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .sub-tab-button:hover {
+            color: var(--accent);
+        }
+
+        .sub-tab-button.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .sub-tab-content {
+            display: none;
+        }
+
+        .sub-tab-content.active {
+            display: block;
+        }
+
+        .input-field {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-light);
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            width: 100%;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .button-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .button-primary:hover {
+            opacity: 0.9;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .button-secondary {
+            background-color: #161b22;
+            color: var(--text-light);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .button-secondary:hover {
+            background-color: #1a1f2e;
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .info-box {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-left: 4px solid var(--accent);
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .success-box {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #d1fae5;
+        }
+
+        .headroom-logo {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-gray-950">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="border-b border-gray-800 bg-gray-900">
+            <div class="max-w-6xl mx-auto px-6 py-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">H</span>
+                    </div>
+                    <div class="headroom-logo">Headroom</div>
+                </div>
+                <h1 class="text-3xl font-bold text-white mb-2">License Portal</h1>
+                <p class="text-gray-400">Manage your license key, explore plans, and get started</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+            <!-- Tab Navigation -->
+            <div class="flex gap-8 border-b border-gray-800 mb-8">
+                <button class="tab-button active" data-tab="activate">
+                    <span class="text-white font-semibold">Activate License</span>
+                </button>
+                <button class="tab-button" data-tab="pricing">
+                    <span class="text-white font-semibold">Plans & Pricing</span>
+                </button>
+                <button class="tab-button" data-tab="features">
+                    <span class="text-white font-semibold">Feature Reference</span>
+                </button>
+                <button class="tab-button" data-tab="quickstart">
+                    <span class="text-white font-semibold">Quick Start</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: Activate License -->
+            <div id="activate" class="tab-content active">
+                <div class="max-w-2xl">
+                    <h2 class="text-2xl font-bold text-white mb-6">Activate Your License</h2>
+
+                    <div class="mb-8">
+                        <label class="block text-sm font-semibold text-gray-300 mb-3">License Key</label>
+                        <input
+                            type="text"
+                            id="licenseInput"
+                            placeholder="team-xxxxxxxxxxxxx"
+                            class="input-field mb-4"
+                        >
+                        <p class="text-gray-500 text-sm">Enter your license key to see features and deployment options</p>
+                    </div>
+
+                    <div id="tierDisplay" class="hidden mb-8">
+                        <div class="bg-gray-900 rounded-lg border border-gray-800 p-6">
+                            <div class="mb-4">
+                                <p class="text-sm text-gray-400 mb-2">License Tier</p>
+                                <div id="tierName" class="text-2xl font-bold text-indigo-400"></div>
+                            </div>
+
+                            <div class="mb-6">
+                                <p class="text-sm text-gray-400 mb-3">Included Features</p>
+                                <div id="featuresList" class="space-y-2"></div>
+                            </div>
+
+                            <div class="bg-gray-950 rounded p-4 mb-6">
+                                <p class="text-xs text-gray-500 mb-2">Export Command</p>
+                                <div class="code-block">
+                                    <code id="exportCommand">export HEADROOM_LICENSE_KEY=</code>
+                                    <button class="copy-btn" onclick="copyCode('exportCommand')">Copy</button>
+                                </div>
+                            </div>
+
+                            <div class="info-box">
+                                Also set <code class="bg-gray-900 px-1 rounded text-indigo-300">HEADROOM_LICENSE_HMAC_SECRET</code> — contact <a href="mailto:hello@headroomlabs.ai" class="text-indigo-400 hover:underline">hello@headroomlabs.ai</a> for your secret
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="noLicenseMsg" class="text-center py-12 text-gray-500">
+                        <p class="mb-2">Enter a license key above to get started</p>
+                        <p class="text-sm">License keys start with team-, biz-, or ent-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Plans & Pricing -->
+            <div id="pricing" class="tab-content">
+                <h2 class="text-2xl font-bold text-white mb-8">Plans & Pricing</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Builder -->
+                    <div class="tier-card">
+                        <div class="tier-badge">Free</div>
+                        <h3 class="text-xl font-bold text-white mb-2">Builder</h3>
+                        <p class="text-gray-400 text-sm mb-6">For individual engineers</p>
+
+                        <div class="mb-8">
+                            <p class="text-3xl font-bold text-white">$0</p>
+                            <p class="text-gray-500 text-sm">Forever free</p>
+                        </div>
+
+                        <ul class="space-y-3 mb-8 text-sm">
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Core compression engine</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Proxy, CLI, SDK, MCP</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Local dashboard</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Docker deployment</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Community support</span>
+                            </li>
+                        </ul>
+
+                        <button class="button-primary w-full">Get Started Free</button>
+                    </div>
+
+                    <!-- Team -->
+                    <div class="tier-card">
+                        <div class="tier-badge">Popular</div>
+                        <h3 class="text-xl font-bold text-white mb-2">Team</h3>
+                        <p class="text-gray-400 text-sm mb-6">One engineering team</p>
+
+                        <div class="mb-8">
+                            <p class="text-3xl font-bold text-white">$1,500</p>
+                            <p class="text-gray-500 text-sm">/month billed annually</p>
+                        </div>
+
+                        <ul class="space-y-3 mb-8 text-sm">
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Everything in Builder</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Team analytics dashboard</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Usage reports & savings profiles</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Budget controls</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Business-hours support</span>
+                            </li>
+                        </ul>
+
+                        <a href="mailto:hello@headroomlabs.ai" class="button-primary w-full block text-center">Contact sales →</a>
+                    </div>
+
+                    <!-- Business -->
+                    <div class="tier-card">
+                        <div class="tier-badge">Advanced</div>
+                        <h3 class="text-xl font-bold text-white mb-2">Business</h3>
+                        <p class="text-gray-400 text-sm mb-6">Platform teams</p>
+
+                        <div class="mb-8">
+                            <p class="text-3xl font-bold text-white">$3,500</p>
+                            <p class="text-gray-500 text-sm">/month billed annually</p>
+                        </div>
+
+                        <ul class="space-y-3 mb-8 text-sm">
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Everything in Team</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Workspace & project model</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Historical & exportable reports</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Kubernetes & Helm</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Deployment advisory</span>
+                            </li>
+                        </ul>
+
+                        <a href="mailto:hello@headroomlabs.ai" class="button-primary w-full block text-center">Contact sales →</a>
+                    </div>
+
+                    <!-- Enterprise -->
+                    <div class="tier-card">
+                        <div class="tier-badge">Enterprise</div>
+                        <h3 class="text-xl font-bold text-white mb-2">Enterprise</h3>
+                        <p class="text-gray-400 text-sm mb-6">Security-sensitive orgs</p>
+
+                        <div class="mb-8">
+                            <p class="text-3xl font-bold text-white">Custom</p>
+                            <p class="text-gray-500 text-sm">$60K—$150K+/year</p>
+                        </div>
+
+                        <ul class="space-y-3 mb-8 text-sm">
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Everything in Business</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>SSO & RBAC</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Audit logs & retention</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>SCIM provisioning</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-indigo-400">✓</span>
+                                <span>Premium support</span>
+                            </li>
+                        </ul>
+
+                        <a href="mailto:hello@headroomlabs.ai" class="button-primary w-full block text-center">Contact sales →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Feature Reference -->
+            <div id="features" class="tab-content">
+                <h2 class="text-2xl font-bold text-white mb-6">Feature Reference</h2>
+
+                <div class="mb-6 flex gap-4">
+                    <input
+                        type="text"
+                        id="featureSearch"
+                        placeholder="Search features..."
+                        class="input-field flex-1"
+                    >
+                    <select id="tierFilter" class="input-field max-w-xs">
+                        <option value="">All Tiers</option>
+                        <option value="builder">Builder</option>
+                        <option value="team">Team</option>
+                        <option value="business">Business</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Min. Tier</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="featureTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 4: Quick Start -->
+            <div id="quickstart" class="tab-content">
+                <h2 class="text-2xl font-bold text-white mb-8">Quick Start</h2>
+
+                <div class="mb-8">
+                    <div class="flex gap-2 mb-6 border-b border-gray-800">
+                        <button class="sub-tab-button active" data-subtab="pip">pip</button>
+                        <button class="sub-tab-button" data-subtab="proxy">Proxy</button>
+                        <button class="sub-tab-button" data-subtab="docker">Docker</button>
+                        <button class="sub-tab-button" data-subtab="kubernetes">Kubernetes</button>
+                    </div>
+
+                    <!-- pip -->
+                    <div id="pip" class="sub-tab-content active">
+                        <p class="text-gray-400 mb-4">Install Headroom via pip and run locally</p>
+                        <div class="code-block mb-4">
+                            <code>pip install "headroom-ai[all]"
+headroom proxy --port 8787</code>
+                            <button class="copy-btn" onclick="copyCode('pip-code')">Copy</button>
+                        </div>
+                        <div class="info-box">
+                            Your proxy will be available at <code class="bg-gray-900 px-1 rounded text-indigo-300">http://localhost:8787</code>. Set your API keys and license key in environment variables.
+                        </div>
+                    </div>
+
+                    <!-- Proxy -->
+                    <div id="proxy" class="sub-tab-content">
+                        <p class="text-gray-400 mb-4">Configure a client to route traffic through Headroom</p>
+                        <div class="code-block mb-4">
+                            <code>export OPENAI_API_BASE=http://localhost:8787/v1
+export ANTHROPIC_API_KEY=sk-ant-...
+export HEADROOM_LICENSE_KEY=team-...</code>
+                            <button class="copy-btn" onclick="copyCode('proxy-code')">Copy</button>
+                        </div>
+                        <div class="info-box">
+                            Your client will automatically compress requests before forwarding to upstream providers. Headroom supports Anthropic, OpenAI, Google, Bedrock, and Vertex.
+                        </div>
+                    </div>
+
+                    <!-- Docker -->
+                    <div id="docker" class="sub-tab-content">
+                        <p class="text-gray-400 mb-4">Deploy Headroom in Docker</p>
+                        <div class="code-block mb-4">
+                            <code>docker compose up -d</code>
+                            <button class="copy-btn" onclick="copyCode('docker-code')">Copy</button>
+                        </div>
+                        <div class="info-box">
+                            Clone the repository and run <code class="bg-gray-900 px-1 rounded text-indigo-300">docker compose up -d</code> in the project directory. Mount your license key via environment variables or volumes.
+                        </div>
+                    </div>
+
+                    <!-- Kubernetes -->
+                    <div id="kubernetes" class="sub-tab-content">
+                        <p class="text-gray-400 mb-4">Deploy Headroom on Kubernetes</p>
+                        <div class="code-block mb-4">
+                            <code>kubectl apply -f k8s/
+# or use Helm
+helm install headroom ./helm/headroom \
+  --set licenseKey=team-... \
+  --set hmacSecret=...</code>
+                            <button class="copy-btn" onclick="copyCode('kubernetes-code')">Copy</button>
+                        </div>
+                        <div class="info-box">
+                            For Enterprise deployments, refer to our Kubernetes manifests and Helm chart documentation. Contact <a href="mailto:hello@headroomlabs.ai" class="text-indigo-400 hover:underline">hello@headroomlabs.ai</a> for deployment guidance.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-gray-800 bg-gray-900 mt-12">
+            <div class="max-w-6xl mx-auto px-6 py-8 text-center text-gray-500 text-sm">
+                <p>Questions? Contact <a href="mailto:hello@headroomlabs.ai" class="text-indigo-400 hover:underline">hello@headroomlabs.ai</a> or visit <a href="https://headroomlabs.ai" class="text-indigo-400 hover:underline">headroomlabs.ai</a></p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Feature mapping from FEATURE_TIERS
+        const featureTiers = {
+            // ── Core compression ──────────────────────────
+            "smart_crusher": "builder",
+            "code_compressor": "builder",
+            "log_compressor": "builder",
+            "diff_compressor": "builder",
+            "search_compressor": "builder",
+            "kompress": "builder",
+            "image_compressor": "builder",
+            "audio_compressor": "builder",
+            "ccr": "team",
+            "ccr_marker": "team",
+            "episodic_memory": "business",
+            "cross_agent_memory": "business",
+            // ── Deployment modes ──────────────────────────
+            "proxy_mode": "builder",
+            "sdk_mode": "builder",
+            "cli_wrap": "builder",
+            "mcp_mode": "builder",
+            "docker": "builder",
+            // ── Provider support ──────────────────────────
+            "anthropic": "builder",
+            "openai": "builder",
+            "google": "builder",
+            "bedrock": "builder",
+            "vertex": "builder",
+            // ── Agent compatibility ───────────────────────
+            "claude_code": "builder",
+            "codex": "builder",
+            "cursor": "builder",
+            "copilot": "builder",
+            "aider": "builder",
+            // ── Observability ─────────────────────────────
+            "dashboard": "builder",
+            "metrics_prometheus": "builder",
+            // ── Team features ─────────────────────────────
+            "live_zone": "team",
+            "org_analytics": "team",
+            "team_analytics": "team",
+            "policy_presets": "team",
+            "usage_reports": "team",
+            "savings_profiles": "team",
+            "budget_controls": "team",
+            // ── Business features ─────────────────────────
+            "project_model": "business",
+            "workspace_model": "business",
+            "historical_reporting": "business",
+            "exportable_reports": "business",
+            "rate_limiting": "business",
+            "request_logs": "business",
+            "compression_hooks": "business",
+            "custom_tool_profiles": "business",
+            "code_graph": "business",
+            "code_aware_compression": "business",
+            "traffic_learning": "business",
+            // ── Enterprise features ───────────────────────
+            "sso_saml": "enterprise",
+            "rbac": "enterprise",
+            "audit_logs": "enterprise",
+            "retention_controls": "enterprise",
+            "air_gap": "enterprise",
+            "kubernetes": "enterprise",
+            "helm": "enterprise",
+            "compliance": "enterprise",
+            "soc2_reports": "enterprise",
+            "hipaa_readiness": "enterprise",
+            "dedicated_support": "enterprise",
+            "premium_sla": "enterprise",
+            "onboarding_sessions": "enterprise",
+            "fleet_management": "enterprise",
+            "scim": "enterprise",
+        };
+
+        const featureDescriptions = {
+            "smart_crusher": "Intelligent compression of prompts and contexts",
+            "code_compressor": "Specialized compression for source code",
+            "log_compressor": "Compression for log files and traces",
+            "diff_compressor": "Efficient diff and patch compression",
+            "search_compressor": "Search result and retrieval compression",
+            "kompress": "Advanced token optimization engine",
+            "image_compressor": "Visual context compression",
+            "audio_compressor": "Audio transcript compression",
+            "ccr": "Reversible compression with recovery",
+            "ccr_marker": "Marker-based context recovery",
+            "episodic_memory": "Time-indexed conversation memory",
+            "cross_agent_memory": "Shared memory between agents",
+            "proxy_mode": "API proxy deployment mode",
+            "sdk_mode": "SDK integration mode",
+            "cli_wrap": "CLI wrapper for tools",
+            "mcp_mode": "Model Context Protocol support",
+            "docker": "Docker containerization",
+            "anthropic": "Claude/Anthropic support",
+            "openai": "OpenAI API support",
+            "google": "Google Vertex & Gemini support",
+            "bedrock": "AWS Bedrock support",
+            "vertex": "Google Vertex AI support",
+            "claude_code": "Claude Code integration",
+            "codex": "GitHub Codex support",
+            "cursor": "Cursor IDE integration",
+            "copilot": "GitHub Copilot integration",
+            "aider": "Aider integration",
+            "dashboard": "Local web dashboard",
+            "metrics_prometheus": "Prometheus metrics export",
+            "live_zone": "Real-time activity monitoring",
+            "org_analytics": "Organization-level analytics",
+            "team_analytics": "Team-level analytics dashboard",
+            "policy_presets": "Pre-built policy templates",
+            "usage_reports": "Usage reporting and exports",
+            "savings_profiles": "Token savings tracking",
+            "budget_controls": "Budget enforcement",
+            "project_model": "Project-based organization",
+            "workspace_model": "Workspace segmentation",
+            "historical_reporting": "Historical data retention",
+            "exportable_reports": "Export reports to CSV/PDF",
+            "rate_limiting": "Request rate limiting",
+            "request_logs": "Detailed request logging",
+            "compression_hooks": "Custom compression plugins",
+            "custom_tool_profiles": "Tool-specific compression profiles",
+            "code_graph": "Code dependency analysis",
+            "code_aware_compression": "Context-aware code compression",
+            "traffic_learning": "Adaptive compression from patterns",
+            "sso_saml": "SAML/SSO authentication",
+            "rbac": "Role-based access control",
+            "audit_logs": "Audit logging and export",
+            "retention_controls": "Data retention policies",
+            "air_gap": "Air-gapped deployment support",
+            "kubernetes": "Kubernetes deployment support",
+            "helm": "Helm chart deployment",
+            "compliance": "Compliance frameworks",
+            "soc2_reports": "SOC 2 compliance ready",
+            "hipaa_readiness": "HIPAA compliance support",
+            "dedicated_support": "Dedicated support team",
+            "premium_sla": "Premium SLA guarantee",
+            "onboarding_sessions": "Onboarding support",
+            "fleet_management": "Multi-deployment management",
+            "scim": "SCIM user provisioning",
+        };
+
+        const tierNames = {
+            "builder": "Builder",
+            "team": "Team",
+            "business": "Business",
+            "enterprise": "Enterprise",
+        };
+
+        const tierFeatures = {
+            "builder": [
+                "Smart Crusher",
+                "Code Compressor",
+                "Log Compressor",
+                "Diff Compressor",
+                "Search Compressor",
+                "Image & Audio Compression",
+                "Proxy, CLI, SDK, MCP Modes",
+                "Local Dashboard",
+                "All Provider Support",
+                "All Agent Integrations",
+            ],
+            "team": [
+                "Everything in Builder",
+                "Team Analytics Dashboard",
+                "Usage Reports",
+                "Savings Profiles",
+                "Policy Presets",
+                "Budget Controls",
+                "CCR (Reversible Compression)",
+                "Business-hours Support",
+            ],
+            "business": [
+                "Everything in Team",
+                "Workspace Model",
+                "Project Model",
+                "Historical Reporting",
+                "Exportable Reports",
+                "Code-aware Compression",
+                "Kubernetes & Helm",
+                "Deployment Advisory",
+            ],
+            "enterprise": [
+                "Everything in Business",
+                "SSO & SAML",
+                "RBAC",
+                "Audit Logs",
+                "Retention Controls",
+                "Fleet Management",
+                "SCIM Provisioning",
+                "Air-gap Deployment",
+                "Premium Support & SLA",
+                "Security Review Support",
+            ],
+        };
+
+        // Tab navigation
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.getElementById(tabName).classList.add('active');
+
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+
+                if (tabName === 'features') {
+                    populateFeatureTable();
+                }
+            });
+        });
+
+        // Sub-tab navigation
+        document.querySelectorAll('.sub-tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const subtabName = this.dataset.subtab;
+                const parent = this.closest('[class*="mb-"]')?.parentElement || this.parentElement;
+
+                document.querySelectorAll('.sub-tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.getElementById(subtabName).classList.add('active');
+
+                document.querySelectorAll('.sub-tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+
+        // License input handling
+        document.getElementById('licenseInput').addEventListener('input', function(e) {
+            const key = e.target.value.trim();
+            const tierDisplay = document.getElementById('tierDisplay');
+            const noLicenseMsg = document.getElementById('noLicenseMsg');
+
+            if (!key) {
+                tierDisplay.classList.add('hidden');
+                noLicenseMsg.classList.remove('hidden');
+                return;
+            }
+
+            // Parse tier from prefix
+            let tier = 'builder';
+            if (key.startsWith('team-')) tier = 'team';
+            else if (key.startsWith('biz-')) tier = 'business';
+            else if (key.startsWith('ent-')) tier = 'enterprise';
+
+            // Update display
+            document.getElementById('tierName').textContent = tierNames[tier];
+
+            const featuresList = document.getElementById('featuresList');
+            featuresList.innerHTML = tierFeatures[tier]
+                .map(f => `<div class="flex items-start gap-2"><span class="text-indigo-400 mt-0.5">✓</span><span>${f}</span></div>`)
+                .join('');
+
+            document.getElementById('exportCommand').textContent = `export HEADROOM_LICENSE_KEY=${key}`;
+
+            noLicenseMsg.classList.add('hidden');
+            tierDisplay.classList.remove('hidden');
+        });
+
+        // Feature table population
+        function populateFeatureTable() {
+            const tbody = document.getElementById('featureTableBody');
+            tbody.innerHTML = '';
+
+            const features = Object.entries(featureTiers).sort((a, b) => a[0].localeCompare(b[0]));
+
+            features.forEach(([feature, tier]) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="font-mono text-sm text-indigo-400">${feature}</td>
+                    <td><span class="tier-badge-small tier-${tier}">${tierNames[tier]}</span></td>
+                    <td>${featureDescriptions[feature] || ''}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Feature search and filter
+        document.getElementById('featureSearch').addEventListener('input', filterFeatures);
+        document.getElementById('tierFilter').addEventListener('change', filterFeatures);
+
+        function filterFeatures() {
+            const search = document.getElementById('featureSearch').value.toLowerCase();
+            const tierFilter = document.getElementById('tierFilter').value;
+
+            document.querySelectorAll('#featureTableBody tr').forEach(row => {
+                const featureName = row.cells[0].textContent.toLowerCase();
+                const featureTier = row.cells[1].textContent.toLowerCase();
+
+                const matchesSearch = featureName.includes(search);
+                const matchesTier = !tierFilter || featureTier.includes(tierNames[tierFilter].toLowerCase());
+
+                row.style.display = (matchesSearch && matchesTier) ? '' : 'none';
+            });
+        }
+
+        // Copy code functionality
+        function copyCode(elementId) {
+            const codeElement = document.getElementById(elementId);
+            const text = codeElement.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Add code block IDs for copy functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('.code-block code');
+            codeBlocks.forEach((block, index) => {
+                if (!block.id) {
+                    block.id = `code-block-${index}`;
+                }
+            });
+
+            // Set specific IDs for deployment code blocks
+            document.querySelector('#pip .code-block code').id = 'pip-code';
+            document.querySelector('#proxy .code-block code').id = 'proxy-code';
+            document.querySelector('#docker .code-block code').id = 'docker-code';
+            document.querySelector('#kubernetes .code-block code').id = 'kubernetes-code';
+        });
+    </script>
+</body>
+</html>
