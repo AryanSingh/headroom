@@ -261,9 +261,11 @@ class CompressionProfile:
                     was_retrieved,
                 )
 
-            # Mark one session update per content type
-            for content_type in self.stats:
-                self.stats[content_type].sessions_seen += 1
+            # Mark session seen only for content types actually encountered this session
+            seen_types = {s.get("content_type") for s in stats if s.get("content_type")}
+            for content_type in seen_types:
+                if content_type in self.stats:
+                    self.stats[content_type].sessions_seen += 1
 
             self._dirty = True
             logger.info(
