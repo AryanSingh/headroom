@@ -16,6 +16,7 @@ the implementation under ``headroom_ee/billing/``.
 from __future__ import annotations
 
 import sys as _sys
+from typing import TYPE_CHECKING
 
 try:
     import headroom_ee.billing as _impl
@@ -25,4 +26,10 @@ except ImportError as _e:  # commercial component not installed (community editi
         "(Headroom Commercial License -- see LICENSING.md)."
     ) from _e
 
-_sys.modules[__name__] = _impl
+_sys.modules[__name__] = _impl  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    # Re-export the public API for static type-checkers (mypy/IDEs). At runtime the
+    # sys.modules rebind above makes `from headroom.billing import X` resolve to
+    # headroom_ee.billing; this makes the same names visible to static analysis.
+    from headroom_ee.billing import *  # noqa: F401,F403

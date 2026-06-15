@@ -11,6 +11,7 @@ commercial ``headroom_ee`` distribution is installed.
 from __future__ import annotations
 
 import sys as _sys
+from typing import TYPE_CHECKING
 
 try:
     import headroom_ee.org as _impl
@@ -20,4 +21,10 @@ except ImportError as _e:  # commercial component not installed (community editi
         "(Headroom Commercial License -- see LICENSING.md)."
     ) from _e
 
-_sys.modules[__name__] = _impl
+_sys.modules[__name__] = _impl  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    # Re-export the public API for static type-checkers (mypy/IDEs). At runtime the
+    # sys.modules rebind above makes `from headroom.org import X` resolve to
+    # headroom_ee.org; this makes the same names visible to static analysis.
+    from headroom_ee.org import *  # noqa: F401,F403
