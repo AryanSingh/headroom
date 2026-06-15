@@ -30,11 +30,16 @@ done
 echo "CutCtx Claude Code Plugin Installer"
 echo "===================================="
 
-# Check prerequisites
-if ! command -v headroom &>/dev/null; then
-  echo "Error: headroom CLI not found."
-  echo "Install: pip install headroom-ai[all]"
-  exit 1
+# Determine CLI command (cutctx first, headroom fallback)
+CLI="cutctx"
+if ! command -v cutctx &>/dev/null; then
+  if command -v headroom &>/dev/null; then
+    CLI="headroom"
+  else
+    echo "Error: cutctx CLI not found."
+    echo "Install: pip install cutctx-ai"
+    exit 1
+  fi
 fi
 
 # 1. Register MCP server with Claude Code CLI
@@ -43,10 +48,11 @@ if [[ $INSTALL_MCP -eq 1 ]]; then
   echo "1. Registering MCP server with Claude Code..."
 
   # Remove any existing registration first
+  claude mcp remove cutctx -s user 2>/dev/null || true
   claude mcp remove headroom -s user 2>/dev/null || true
 
   # Register via claude mcp add (writes to ~/.claude.json)
-  if claude mcp add headroom -s user -- headroom mcp serve 2>&1; then
+  if claude mcp add cutctx -s user -- ${CLI} mcp serve 2>&1; then
     echo "   ✓ MCP server registered (stdio, user scope)"
   else
     echo "   ⚠ claude mcp add failed — trying file fallback..."
@@ -61,8 +67,8 @@ if os.path.exists(config_path):
 else:
     config = {}
 servers = config.setdefault('mcpServers', {})
-servers['headroom'] = {
-    'command': 'headroom',
+servers['cutctx'] = {
+    'command': '${CLI}',
     'args': ['mcp', 'serve'],
     'env': {}
 }
@@ -73,7 +79,7 @@ print('   ✓ MCP server written to ~/.claude.json')
 "
     else
       echo "   ✗ Could not register MCP server — add manually:"
-      echo "     claude mcp add headroom -s user -- headroom mcp serve"
+      echo "     claude mcp add cutctx -s user -- ${CLI} mcp serve"
       exit 1
     fi
   fi
@@ -81,8 +87,8 @@ print('   ✓ MCP server written to ~/.claude.json')
   # Verify
   echo ""
   echo "   Verifying..."
-  if claude mcp get headroom 2>&1 | grep -q "headroom"; then
-    echo "   ✓ Verified: headroom MCP server is registered"
+  if claude mcp get cutctx 2>&1 | grep -q "cutctx"; then
+    echo "   ✓ Verified: CutCtx MCP server is registered"
   else
     echo "   ⚠ Registration may need a Claude Code restart"
   fi
@@ -95,7 +101,7 @@ fi
 echo ""
 echo "2. Proxy environment..."
 echo "   Set ANTHROPIC_BASE_URL=${PROXY_URL} when launching Claude Code"
-echo "   Or use: headroom wrap claude (auto-sets env + starts proxy)"
+echo "   Or use: ${CLI} wrap claude (auto-sets env + starts proxy)"
 
 echo ""
 echo "===================================="
@@ -103,10 +109,10 @@ echo "Installation complete!"
 echo ""
 echo "To use:"
 echo "  Option A (recommended):"
-echo "    headroom wrap claude        # starts proxy + launches Claude"
+echo "    ${CLI} wrap claude        # starts proxy + launches Claude"
 echo ""
 echo "  Option B (manual):"
-echo "    headroom proxy              # start proxy in background"
+echo "    ${CLI} proxy              # start proxy in background"
 echo "    ANTHROPIC_BASE_URL=${PROXY_URL} claude"
 echo ""
 echo "To uninstall: bash $(dirname "$0")/uninstall.sh"

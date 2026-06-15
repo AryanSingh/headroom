@@ -17,19 +17,19 @@
   ],
   "tools": [
     {
-      "name": "headroom_retrieve",
+      "name": "cutctx_retrieve",
       "description": "Retrieve original uncompressed content from a CutCtx compression marker",
-      "command": "headroom mcp serve"
+      "command": "cutctx mcp serve"
     },
     {
-      "name": "headroom_compress",
+      "name": "cutctx_compress",
       "description": "Compress content on demand using CutCtx algorithms",
-      "command": "headroom mcp serve"
+      "command": "cutctx mcp serve"
     },
     {
-      "name": "headroom_stats",
+      "name": "cutctx_status",
       "description": "View session compression statistics and token savings",
-      "command": "headroom mcp serve"
+      "command": "cutctx mcp serve"
     }
   ],
   "provider": {

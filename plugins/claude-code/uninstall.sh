@@ -12,14 +12,16 @@ echo ""
 echo "1. Removing MCP server from Claude Code..."
 
 if command -v claude &>/dev/null; then
-  if claude mcp remove headroom -s user 2>&1; then
-    echo "   ✓ MCP server removed"
+  if claude mcp remove cutctx -s user 2>&1; then
+    echo "   ✓ CutCtx MCP server removed"
   else
-    echo "   headroom MCP not found or already removed"
+    echo "   CutCtx MCP not found or already removed"
   fi
+  # Also clean up legacy headroom registration
+  claude mcp remove headroom -s user 2>/dev/null || true
 else
   echo "   ⚠ claude CLI not found — remove manually:"
-  echo "     claude mcp remove headroom -s user"
+  echo "     claude mcp remove cutctx -s user"
 fi
 
 # 2. Also remove from legacy mcp.json if present
@@ -36,14 +38,18 @@ if not os.path.exists(path):
 with open(path) as f:
     config = json.load(f)
 servers = config.get('mcpServers', {})
-if 'headroom' in servers:
-    del servers['headroom']
+changed = False
+for key in ('cutctx', 'headroom'):
+    if key in servers:
+        del servers[key]
+        changed = True
+if changed:
     with open(path, 'w') as f:
         json.dump(config, f, indent=2)
         f.write('\n')
     print('   ✓ Removed from mcp.json')
 else:
-    print('   headroom not in mcp.json')
+    print('   No CutCtx entries in mcp.json')
 "
   fi
 fi
@@ -53,4 +59,4 @@ echo "======================================"
 echo "Uninstall complete!"
 echo ""
 echo "The proxy is still running if you started it separately."
-echo "Kill it with: pkill -f 'headroom proxy' or 'kill \$(lsof -ti:8787)'"
+echo "Kill it with: pkill -f 'cutctx proxy' or 'kill \$(lsof -ti:8787)'"

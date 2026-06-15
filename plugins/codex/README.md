@@ -5,7 +5,7 @@ Context compression for OpenAI Codex — compress tool outputs, retrieve origina
 ## What It Does
 
 - **Routes Codex traffic through CutCtx proxy** for automatic compression
-- **Provides MCP tools** for on-demand compress/retrieve/stats
+- **Provides MCP tools** for on-demand compress/retrieve/status
 - **Tracks token savings** across your session
 - **Works with any OpenAI-compatible model** via the proxy
 
@@ -62,15 +62,15 @@ cutctx proxy
 Codex CLI → CutCtx Proxy (port 8787) → OpenAI API
                ↓
          MCP Server (stdio)
-         ├── headroom_retrieve
-         ├── headroom_compress
-         └── headroom_stats
+         ├── cutctx_retrieve
+         ├── cutctx_compress
+         └── cutctx_status
 ```
 
 1. **Traffic Routing**: Codex sends requests to the local proxy instead of OpenAI directly
 2. **Compression**: The proxy compresses large tool outputs (file listings, search results)
-3. **Retrieval**: When Codex needs full content, it calls `headroom_retrieve` via MCP
-4. **Stats**: View compression ratios and token savings via `headroom_stats`
+3. **Retrieval**: When Codex needs full content, it calls `cutctx_retrieve` via MCP
+4. **Status**: View compression ratios and token savings via `cutctx_status`
 
 ## Configuration
 

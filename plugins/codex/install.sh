@@ -31,17 +31,16 @@ done
 echo "CutCtx Codex Plugin Installer"
 echo "=============================="
 
-# Check prerequisites
-if ! command -v cutctx &>/dev/null && ! command -v headroom &>/dev/null; then
-  echo "Error: cutctx/headroom CLI not found."
-  echo "Install: pip install cutctx-ai"
-  exit 1
-fi
-
-# Determine CLI command
+# Determine CLI command (cutctx first, headroom fallback)
 CLI="cutctx"
 if ! command -v cutctx &>/dev/null; then
-  CLI="headroom"
+  if command -v headroom &>/dev/null; then
+    CLI="headroom"
+  else
+    echo "Error: cutctx CLI not found."
+    echo "Install: pip install cutctx-ai"
+    exit 1
+  fi
 fi
 
 # 1. Configure Codex provider in ~/.codex/config.toml
