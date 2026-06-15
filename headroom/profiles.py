@@ -165,7 +165,7 @@ class CompressionProfile:
         self._session_count = sum(s.sessions_seen for s in self.stats.values()) if self.stats else 0
 
     @classmethod
-    def load(workspace_dir: Path | None = None) -> CompressionProfile:
+    def load(cls, workspace_dir: Path | None = None) -> CompressionProfile:
         """Load profile for current workspace.
 
         Args:
