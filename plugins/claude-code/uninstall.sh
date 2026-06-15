@@ -7,64 +7,45 @@ set -euo pipefail
 echo "CutCtx Claude Code Plugin Uninstaller"
 echo "======================================"
 
-# 1. Remove plugin directory
-TARGET_DIR="${HOME}/.claude/plugins/cutctx"
-if [[ -d "${TARGET_DIR}" ]]; then
-  echo "1. Removing plugin directory..."
-  rm -rf "${TARGET_DIR}"
-  echo "   ✓ Removed ${TARGET_DIR}"
-else
-  echo "1. Plugin directory not found — skipping"
-fi
-
-# 2. Remove from settings.json
-SETTINGS_FILE="${HOME}/.claude/settings.json"
+# 1. Remove MCP server from Claude Code
 echo ""
-echo "2. Removing from ${SETTINGS_FILE}..."
+echo "1. Removing MCP server from Claude Code..."
 
-if command -v python3 &>/dev/null && [[ -f "${SETTINGS_FILE}" ]]; then
-  python3 -c "
-import json, os
-
-settings_path = os.path.expanduser('~/.claude/settings.json')
-if not os.path.exists(settings_path):
-    print('   Settings file not found — skipping')
-    exit(0)
-
-with open(settings_path) as f:
-    settings = json.load(f)
-
-plugins = settings.get('plugins', {})
-if 'cutctx' in plugins:
-    del plugins['cutctx']
-    settings['plugins'] = plugins
-    with open(settings_path, 'w') as f:
-        json.dump(settings, f, indent=2)
-        f.write('\n')
-    print('   ✓ Removed cutctx from settings.json')
-else:
-    print('   cutctx not in settings.json — skipping')
-"
-else
-  echo "   ⚠ python3 not found — remove cutctx from settings.json manually"
-fi
-
-# 3. Uninstall MCP server
-echo ""
-echo "3. Removing MCP server..."
-CLI="cutctx"
-if ! command -v cutctx &>/dev/null; then
-  CLI="headroom"
-fi
-
-if command -v ${CLI} &>/dev/null; then
-  if ${CLI} mcp uninstall 2>/dev/null; then
+if command -v claude &>/dev/null; then
+  if claude mcp remove headroom -s user 2>&1; then
     echo "   ✓ MCP server removed"
   else
-    echo "   ⚠ MCP uninstall failed — run manually: ${CLI} mcp uninstall"
+    echo "   headroom MCP not found or already removed"
   fi
 else
-  echo "   ⚠ CLI not found — remove MCP config manually"
+  echo "   ⚠ claude CLI not found — remove manually:"
+  echo "     claude mcp remove headroom -s user"
+fi
+
+# 2. Also remove from legacy mcp.json if present
+LEGACY_CONFIG="${HOME}/.claude/mcp.json"
+if [[ -f "${LEGACY_CONFIG}" ]]; then
+  echo ""
+  echo "2. Checking legacy mcp.json..."
+  if command -v python3 &>/dev/null; then
+    python3 -c "
+import json, os
+path = os.path.expanduser('~/.claude/mcp.json')
+if not os.path.exists(path):
+    exit(0)
+with open(path) as f:
+    config = json.load(f)
+servers = config.get('mcpServers', {})
+if 'headroom' in servers:
+    del servers['headroom']
+    with open(path, 'w') as f:
+        json.dump(config, f, indent=2)
+        f.write('\n')
+    print('   ✓ Removed from mcp.json')
+else:
+    print('   headroom not in mcp.json')
+"
+  fi
 fi
 
 echo ""
@@ -72,4 +53,4 @@ echo "======================================"
 echo "Uninstall complete!"
 echo ""
 echo "The proxy is still running if you started it separately."
-echo "Kill it with: pkill -f 'cutctx proxy' or 'kill \$(lsof -ti:8787)'"
+echo "Kill it with: pkill -f 'headroom proxy' or 'kill \$(lsof -ti:8787)'"

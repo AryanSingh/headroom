@@ -1,27 +1,26 @@
 #!/usr/bin/env bash
 # CutCtx Claude Code Plugin Installer
-# Usage: bash install.sh [--proxy-url URL] [--no-mcp] [--no-hook]
+# Usage: bash install.sh [--proxy-url URL] [--no-mcp]
 
 set -euo pipefail
 
 PROXY_URL="${CUTCTX_PROXY_URL:-http://127.0.0.1:8787}"
 INSTALL_MCP=1
-INSTALL_HOOK=1
-PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+PORT="${CUTCTX_PORT:-8787}"
 
 # Parse args
 while [[ $# -gt 0 ]]; do
   case $1 in
     --proxy-url) PROXY_URL="$2"; shift 2 ;;
+    --port) PORT="$2"; PROXY_URL="http://127.0.0.1:${PORT}"; shift 2 ;;
     --no-mcp) INSTALL_MCP=0; shift ;;
-    --no-hook) INSTALL_HOOK=0; shift ;;
     -h|--help)
-      echo "Usage: $0 [--proxy-url URL] [--no-mcp] [--no-hook]"
+      echo "Usage: $0 [--proxy-url URL] [--port PORT] [--no-mcp]"
       echo ""
       echo "Options:"
       echo "  --proxy-url URL   Proxy URL (default: http://127.0.0.1:8787)"
+      echo "  --port PORT       Proxy port (default: 8787)"
       echo "  --no-mcp          Skip MCP server installation"
-      echo "  --no-hook         Skip hook installation"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -32,95 +31,82 @@ echo "CutCtx Claude Code Plugin Installer"
 echo "===================================="
 
 # Check prerequisites
-if ! command -v cutctx &>/dev/null && ! command -v headroom &>/dev/null; then
-  echo "Error: cutctx/headroom CLI not found."
-  echo "Install: pip install cutctx-ai"
+if ! command -v headroom &>/dev/null; then
+  echo "Error: headroom CLI not found."
+  echo "Install: pip install headroom-ai[all]"
   exit 1
 fi
 
-# Determine CLI command
-CLI="cutctx"
-if ! command -v cutctx &>/dev/null; then
-  CLI="headroom"
-fi
-
-# 1. Install plugin to ~/.claude/plugins/cutctx/
-CLAUDE_PLUGINS_DIR="${HOME}/.claude/plugins"
-TARGET_DIR="${CLAUDE_PLUGINS_DIR}/cutctx"
-
-echo ""
-echo "1. Installing plugin to ${TARGET_DIR}..."
-mkdir -p "${TARGET_DIR}"
-cp -r "${PLUGIN_DIR}/.claude-plugin" "${TARGET_DIR}/"
-cp -r "${PLUGIN_DIR}/hooks" "${TARGET_DIR}/"
-cp "${PLUGIN_DIR}/README.md" "${TARGET_DIR}/"
-echo "   ✓ Plugin files installed"
-
-# 2. Register plugin in ~/.claude/settings.json
-SETTINGS_FILE="${HOME}/.claude/settings.json"
-echo ""
-echo "2. Registering plugin in ${SETTINGS_FILE}..."
-
-if command -v python3 &>/dev/null; then
-  python3 -c "
-import json, os, sys
-
-settings_path = os.path.expanduser('~/.claude/settings.json')
-os.makedirs(os.path.dirname(settings_path), exist_ok=True)
-
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        settings = json.load(f)
-else:
-    settings = {}
-
-plugins = settings.get('plugins', {})
-plugins['cutctx'] = {
-    'path': '${TARGET_DIR}',
-    'enabled': True
-}
-settings['plugins'] = plugins
-
-with open(settings_path, 'w') as f:
-    json.dump(settings, f, indent=2)
-    f.write('\n')
-
-print('   ✓ Plugin registered in settings.json')
-"
-else
-  echo "   ⚠ python3 not found — add plugin to settings.json manually"
-fi
-
-# 3. Install MCP server
+# 1. Register MCP server with Claude Code CLI
 if [[ $INSTALL_MCP -eq 1 ]]; then
   echo ""
-  echo "3. Installing MCP server..."
-  if ${CLI} mcp install --agent claude --proxy-url "${PROXY_URL}" 2>/dev/null; then
-    echo "   ✓ MCP server installed"
+  echo "1. Registering MCP server with Claude Code..."
+
+  # Remove any existing registration first
+  claude mcp remove headroom -s user 2>/dev/null || true
+
+  # Register via claude mcp add (writes to ~/.claude.json)
+  if claude mcp add headroom -s user -- headroom mcp serve 2>&1; then
+    echo "   ✓ MCP server registered (stdio, user scope)"
   else
-    echo "   ⚠ MCP install failed — run manually: ${CLI} mcp install --agent claude"
+    echo "   ⚠ claude mcp add failed — trying file fallback..."
+    # Fallback: write directly to ~/.claude.json
+    if command -v python3 &>/dev/null; then
+      python3 -c "
+import json, os
+config_path = os.path.expanduser('~/.claude.json')
+if os.path.exists(config_path):
+    with open(config_path) as f:
+        config = json.load(f)
+else:
+    config = {}
+servers = config.setdefault('mcpServers', {})
+servers['headroom'] = {
+    'command': 'headroom',
+    'args': ['mcp', 'serve'],
+    'env': {}
+}
+with open(config_path, 'w') as f:
+    json.dump(config, f, indent=2)
+    f.write('\n')
+print('   ✓ MCP server written to ~/.claude.json')
+"
+    else
+      echo "   ✗ Could not register MCP server — add manually:"
+      echo "     claude mcp add headroom -s user -- headroom mcp serve"
+      exit 1
+    fi
+  fi
+
+  # Verify
+  echo ""
+  echo "   Verifying..."
+  if claude mcp get headroom 2>&1 | grep -q "headroom"; then
+    echo "   ✓ Verified: headroom MCP server is registered"
+  else
+    echo "   ⚠ Registration may need a Claude Code restart"
   fi
 else
   echo ""
-  echo "3. Skipping MCP installation (--no-mcp)"
+  echo "1. Skipping MCP installation (--no-mcp)"
 fi
 
-# 4. Install hooks
-if [[ $INSTALL_HOOK -eq 1 ]]; then
-  echo ""
-  echo "4. Installing hooks..."
-  # Hooks are already in the plugin directory
-  # Claude Code reads hooks from .claude-plugin/hooks.json
-  echo "   ✓ Hooks installed (via plugin directory)"
-fi
+# 2. Set up proxy environment
+echo ""
+echo "2. Proxy environment..."
+echo "   Set ANTHROPIC_BASE_URL=${PROXY_URL} when launching Claude Code"
+echo "   Or use: headroom wrap claude (auto-sets env + starts proxy)"
 
 echo ""
 echo "===================================="
 echo "Installation complete!"
 echo ""
-echo "Next steps:"
-echo "  1. Start the proxy: ${CLI} proxy"
-echo "  2. Restart Claude Code to pick up the plugin"
-echo "  3. The plugin will auto-start the proxy on future sessions"
+echo "To use:"
+echo "  Option A (recommended):"
+echo "    headroom wrap claude        # starts proxy + launches Claude"
+echo ""
+echo "  Option B (manual):"
+echo "    headroom proxy              # start proxy in background"
+echo "    ANTHROPIC_BASE_URL=${PROXY_URL} claude"
 echo ""
 echo "To uninstall: bash $(dirname "$0")/uninstall.sh"
