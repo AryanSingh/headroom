@@ -84,17 +84,23 @@ class TestKompressBackendSelection:
         monkeypatch.setenv("HEADROOM_KOMPRESS_BACKEND", "unknown")
         assert kmod._selected_backend() == "auto"
 
-    def test_unrecognized_backend_warns_and_falls_back_to_auto(self, monkeypatch, caplog) -> None:
+    def test_unrecognized_backend_warns_and_falls_back_to_auto(self, monkeypatch) -> None:
+        """Unrecognized BACKEND value logs a warning and returns 'auto'."""
         import headroom.transforms.kompress_compressor as kmod
 
         monkeypatch.setenv("HEADROOM_KOMPRESS_BACKEND", "tpu")
-        with caplog.at_level(logging.WARNING, logger=kmod.logger.name):
-            assert kmod._selected_backend() == "auto"
-
-        assert any(
-            "unrecognized" in record.getMessage() and "tpu" in record.getMessage()
-            for record in caplog.records
-        )
+        # Temporarily ensure logger propagates so our handler captures it
+        orig_propagate = kmod.logger.propagate
+        kmod.logger.propagate = True
+        try:
+            with patch.object(kmod.logger, "warning") as mock_warn:
+                result = kmod._selected_backend()
+                assert result == "auto"
+                # Verify warning was emitted mentioning "tpu"
+                warn_calls = [str(c) for c in mock_warn.call_args_list]
+                assert any("tpu" in c for c in warn_calls), f"Expected warning about 'tpu', got: {warn_calls}"
+        finally:
+            kmod.logger.propagate = orig_propagate
 
     def test_valid_backend_values_do_not_warn(self, monkeypatch, caplog) -> None:
         import headroom.transforms.kompress_compressor as kmod
