@@ -75,7 +75,7 @@ fn build_crush_array_dict<'py>(
     compacted: Option<String>,
     compaction_kind: Option<&'static str>,
 ) -> Bound<'py, PyDict> {
-    let dict = PyDict::new(py);
+    let dict = PyDict::new_bound(py);
     dict.set_item("items", kept_json).unwrap();
     dict.set_item("ccr_hash", ccr_hash).unwrap();
     dict.set_item("dropped_summary", dropped_summary).unwrap();
@@ -899,7 +899,7 @@ impl PyDetectionResult {
     /// the underlying Rust value.
     #[getter]
     fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         for (k, v) in &self.inner.metadata {
             // Convert each JSON value into the closest Python primitive.
             // Detection metadata is always a flat dict of scalars (ints,
@@ -1058,7 +1058,7 @@ fn content_has_error_indicators(text: &str) -> bool {
 #[pyfunction]
 fn keyword_registry_snapshot(py: Python<'_>) -> Py<PyDict> {
     let registry = KeywordRegistry::default_set();
-    let dict = PyDict::new(py);
+    let dict = PyDict::new_bound(py);
     for (key, words) in registry.as_map() {
         dict.set_item(key, words).unwrap();
     }
@@ -1169,7 +1169,7 @@ impl PySearchCompressionResult {
     }
     #[getter]
     fn summaries<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         for (k, v) in &self.inner.summaries {
             dict.set_item(k, v).unwrap();
         }
@@ -1369,7 +1369,7 @@ impl PyLogCompressionResult {
     }
     #[getter]
     fn stats<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         for (k, v) in &self.inner.stats {
             dict.set_item(k, v).unwrap();
         }
@@ -1561,7 +1561,7 @@ fn compress_openai_responses_live_zone(
                 .collect();
             let reason = rust_summarize_openai_responses_no_change_reason(&manifest).to_string();
             (
-                PyBytes::new(py, body).unbind(),
+                PyBytes::new_bound(py, body).unbind(),
                 false,
                 saved,
                 transforms,
@@ -1579,7 +1579,7 @@ fn compress_openai_responses_live_zone(
                 .map(String::from)
                 .collect();
             (
-                PyBytes::new(py, bytes).unbind(),
+                PyBytes::new_bound(py, bytes).unbind(),
                 true,
                 saved,
                 transforms,
@@ -1590,7 +1590,7 @@ fn compress_openai_responses_live_zone(
             // BodyNotJson / NoMessagesArray are non-fatal: nothing to
             // compress, fall through to passthrough byte-for-byte.
             (
-                PyBytes::new(py, body).unbind(),
+                PyBytes::new_bound(py, body).unbind(),
                 false,
                 0,
                 Vec::new(),

@@ -21,6 +21,7 @@ help:
 	@echo "  make fmt-check          - cargo fmt --all -- --check"
 	@echo "  make lint               - cargo clippy --workspace -- -D warnings"
 	@echo "  make clean              - cargo clean"
+	@echo "  make dev-ee             - uv sync --extra ee + maturin develop"
 	@echo ""
 	@echo "Pre-push verification (run BEFORE git push to catch CI failures locally):"
 	@echo "  make ci-precheck        - run all CI gates (rust + python + commitlint)"
@@ -76,6 +77,10 @@ clippy lint:
 
 clean:
 	$(CARGO) clean
+
+dev-ee:
+	uv sync --all-extras
+	PATH=$(HOME)/.cargo/bin:$$PATH .venv/bin/maturin develop --profile dev
 
 # ─── Pre-push CI gate ──────────────────────────────────────────────────────
 #
