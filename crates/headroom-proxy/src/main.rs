@@ -5,9 +5,11 @@
 //! `--upstream`. See RUST_DEV.md for the operator runbook.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use clap::Parser;
-use headroom_proxy::config::CliArgs;
+use headroom_proxy::config::{CliArgs, CcrBackendKind};
+use headroom_core::ccr::backends::CcrBackendConfig;
 use headroom_proxy::{build_app, AppState, Config};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -32,6 +34,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     let mut state = AppState::new(config.clone())?;
+
+    // Wire CCR store when configured. The live-zone dispatcher uses
+    // this to stash original block content keyed by BLAKE3 hash so
+    // downstream agents can retrieve it via `headroom_retrieve(hash)`.
+    if let Some(ccr_store) = init_ccr_store(&config) {
+        // Box<dyn CcrStore> → Arc<dyn CcrStore> via leak+Box::into_raw
+        // (the store lives for process lifetime, so no leak concern).
+        let store: Arc<dyn headroom_core::ccr::CcrStore> = Arc::from(ccr_store);
+        state = state.with_ccr_store(store);
+    }
 
     // PR-D1: resolve AWS credentials at startup via the `aws-config`
     // default chain. Loaded once so per-request signing is cheap.
@@ -92,6 +104,81 @@ fn init_tracing(level: &str) {
         .with(filter)
         .with(json_layer)
         .try_init();
+}
+
+/// Initialize the CCR store based on configuration.
+///
+/// Returns `Some(Box<dyn CcrStore>)` when a backend is configured,
+/// `None` when no CCR store is requested.
+fn init_ccr_store(config: &Config) -> Option<Box<dyn headroom_core::ccr::CcrStore>> {
+    let backend_kind = match config.ccr_backend {
+        Some(kind) => kind,
+        None => {
+            // Auto-detect: if --ccr-path is set, default to sqlite.
+            if config.ccr_path.is_some() {
+                CcrBackendKind::Sqlite
+            } else {
+                return None;
+            }
+        }
+    };
+
+    let ttl = config.ccr_ttl_seconds;
+    let backend_config = match backend_kind {
+        CcrBackendKind::InMemory => CcrBackendConfig::InMemory {
+            capacity: headroom_core::ccr::DEFAULT_CAPACITY,
+            ttl_seconds: ttl,
+        },
+        CcrBackendKind::Sqlite => {
+            let path = config.ccr_path.as_deref().unwrap_or("~/.headroom/ccr.db");
+            // Expand ~ in path using HOME env var (cross-platform).
+            let expanded = if let Some(rest) = path.strip_prefix('~') {
+                match std::env::var("HOME") {
+                    Ok(home) => std::path::PathBuf::from(home).join(rest.trim_start_matches('/')),
+                    Err(_) => std::path::PathBuf::from(path),
+                }
+            } else {
+                std::path::PathBuf::from(path)
+            };
+            // Ensure parent directory exists.
+            if let Some(parent) = expanded.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    tracing::warn!(
+                        event = "ccr_dir_create_failed",
+                        path = %expanded.display(),
+                        error = %e,
+                        "failed to create CCR store directory; SQLite open may fail"
+                    );
+                }
+            }
+            CcrBackendConfig::Sqlite {
+                path: expanded,
+                ttl_seconds: ttl,
+            }
+        }
+    };
+
+    match headroom_core::ccr::backends::from_config(&backend_config) {
+        Ok(store) => {
+            tracing::info!(
+                event = "ccr_store_initialized",
+                backend = ?backend_kind,
+                ttl_seconds = ttl,
+                "CCR store ready for retrieval-marker injection"
+            );
+            Some(store)
+        }
+        Err(e) => {
+            tracing::error!(
+                event = "ccr_store_init_failed",
+                error = %e,
+                "CCR store initialization failed; compression will work but \
+                 retrieval markers cannot be stored. Agents using \
+                 headroom_retrieve(hash) will get cache misses."
+            );
+            None
+        }
+    }
 }
 
 /// PR-D1: resolve AWS credentials for Bedrock SigV4 signing.

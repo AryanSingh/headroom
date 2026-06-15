@@ -313,21 +313,21 @@ class TestFeatureFlagWiring:
         assert "_firewall_scan_middleware" in source
 
     def test_firewall_endpoints_present(self):
-        source = open("headroom/proxy/server.py").read()
+        source = open("headroom/proxy/routes/admin.py").read()
         assert "/firewall/status" in source
         assert "/firewall/scan" in source
 
     def test_structured_output_endpoints_present(self):
-        source = open("headroom/proxy/server.py").read()
+        source = open("headroom/proxy/routes/admin.py").read()
         assert "/structured-output/status" in source
         assert "/structured-output/validate" in source
 
     def test_ensemble_endpoints_present(self):
-        source = open("headroom/proxy/server.py").read()
+        source = open("headroom/proxy/routes/admin.py").read()
         assert "/ensemble/status" in source
 
     def test_budget_endpoints_present(self):
-        source = open("headroom/proxy/server.py").read()
+        source = open("headroom/proxy/routes/admin.py").read()
         assert "/budget/status" in source
 
     def test_entitlement_enforcement_on_compression(self):

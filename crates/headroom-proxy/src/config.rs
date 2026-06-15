@@ -480,6 +480,52 @@ pub struct CliArgs {
     /// (all core compression features available, no tier gating).
     #[arg(long = "license-key", env = "HEADROOM_LICENSE_KEY")]
     pub license_key: Option<String>,
+
+    /// CCR (Cache-Control Reversibility) backend for storing
+    /// compressed block originals so downstream agents can retrieve
+    /// them via `headroom_retrieve(hash)`.
+    ///
+    /// `in_memory`: bounded LRU, lost on restart. Good for testing.
+    /// `sqlite`: persistent WAL-mode DB at `--ccr-path`. Production
+    /// default when `--ccr-path` is set.
+    ///
+    /// When unset and `--ccr-path` is also unset, no CCR store is
+    /// created (compression works but markers can't be retrieved).
+    ///
+    /// Source priority: CLI flag → `HEADROOM_CCR_BACKEND` env var →
+    /// auto-detect from `--ccr-path`.
+    #[arg(
+        long = "ccr-backend",
+        env = "HEADROOM_CCR_BACKEND",
+        value_enum,
+    )]
+    pub ccr_backend: Option<CcrBackendKind>,
+
+    /// Path for the SQLite CCR store database file. When set with
+    /// `--ccr-backend=sqlite` (or when `--ccr-backend` is unset and
+    /// this path is provided), creates a persistent SQLite CCR store.
+    /// The database file is created if it doesn't exist.
+    ///
+    /// Source priority: CLI flag → `HEADROOM_CCR_PATH` env var →
+    /// default (`~/.headroom/ccr.db` when `--ccr-backend` is `sqlite`).
+    #[arg(long = "ccr-path", env = "HEADROOM_CCR_PATH")]
+    pub ccr_path: Option<String>,
+
+    /// TTL for CCR cache entries in seconds. Default: 300 (5 minutes).
+    /// Higher values keep compressed originals retrievable longer but
+    /// consume more disk/memory.
+    #[arg(long = "ccr-ttl-seconds", env = "HEADROOM_CCR_TTL_SECONDS", default_value = "300")]
+    pub ccr_ttl_seconds: u64,
+}
+
+/// CCR backend kind selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "snake_case")]
+pub enum CcrBackendKind {
+    /// In-memory LRU cache. Lost on restart. Good for testing.
+    InMemory,
+    /// SQLite-backed persistent store. Production default.
+    Sqlite,
 }
 
 /// Resolved entitlement tier from the license key. Determines
@@ -685,6 +731,12 @@ pub struct Config {
     pub license_key: Option<String>,
     /// Resolved entitlement tier from the license key.
     pub license_tier: LicenseTier,
+    /// CCR backend kind. `None` = no CCR store.
+    pub ccr_backend: Option<CcrBackendKind>,
+    /// Path for SQLite CCR store. `None` = use default or in-memory.
+    pub ccr_path: Option<String>,
+    /// TTL for CCR cache entries in seconds.
+    pub ccr_ttl_seconds: u64,
 }
 
 impl Config {
@@ -723,6 +775,9 @@ impl Config {
             vertex_adc_scope: args.vertex_adc_scope,
             license_tier: args.license_key.as_deref().map(LicenseTier::from_license_key).unwrap_or_default(),
             license_key: args.license_key,
+            ccr_backend: args.ccr_backend,
+            ccr_path: args.ccr_path,
+            ccr_ttl_seconds: args.ccr_ttl_seconds,
         }
     }
 
@@ -781,6 +836,10 @@ impl Config {
             // Default to Team tier in tests so compression works
             // unless a test explicitly opts into OpenSource.
             license_tier: LicenseTier::Team,
+            // CCR store off by default in tests.
+            ccr_backend: None,
+            ccr_path: None,
+            ccr_ttl_seconds: 300,
         }
     }
 }
