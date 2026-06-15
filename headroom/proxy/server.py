@@ -1,4 +1,4 @@
-"""Headroom Proxy Server - Production Ready.
+"""CutCtx Proxy Server - Production Ready.
 
 A full-featured LLM proxy with optimization, caching, rate limiting,
 and observability.

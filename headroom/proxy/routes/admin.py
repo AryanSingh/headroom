@@ -165,6 +165,24 @@ def create_admin_router(
     _firewall_scanner = firewall_scanner
     _Dep = Depends
 
+    # ── Enterprise Admin Dashboard ────────────────────────────────────
+    from pathlib import Path as _Path
+    from fastapi.responses import HTMLResponse as _HTMLResponse
+
+    _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "docs" / "admin-dashboard.html"
+
+    @router.get("/admin", response_class=_HTMLResponse, include_in_schema=False)
+    async def admin_dashboard():
+        """Serve the enterprise admin dashboard UI."""
+        try:
+            content = _DASHBOARD_PATH.read_text(encoding="utf-8")
+            return _HTMLResponse(content=content)
+        except FileNotFoundError:
+            return _HTMLResponse(
+                content="<h1>CutCtx Admin Dashboard</h1><p>Dashboard file not found.</p>",
+                status_code=404,
+            )
+
     # ── Entitlement Status ────────────────────────────────────────────
 
     @router.get(

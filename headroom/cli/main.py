@@ -1,4 +1,4 @@
-"""Main CLI entry point for Headroom."""
+"""Main CLI entry point for CutCtx."""
 
 import click
 
@@ -16,18 +16,23 @@ def get_version() -> str:
 
 
 @click.group(context_settings=CLI_CONTEXT_SETTINGS)
-@click.version_option(get_version(), "--version", "-v", prog_name="headroom")
+@click.version_option(get_version(), "--version", "-v", prog_name="cutctx")
 @click.pass_context
 def main(ctx: click.Context) -> None:
-    """Headroom - The Context Optimization Layer for LLM Applications.
+    """CutCtx - The Context Optimization Layer for LLM Applications.
 
     Manage memories, run the optimization proxy, and analyze metrics.
 
     \b
     Examples:
-        headroom proxy              Start the optimization proxy
-        headroom memory list        List stored memories
-        headroom memory stats       Show memory statistics
+        cutctx setup                Unified setup with agent detection
+        cutctx proxy                Start the optimization proxy
+        cutctx memory list          List stored memories
+        cutctx orgs list            List organizations
+        cutctx audit list           List audit events
+        cutctx rbac list            List role assignments
+        cutctx config-check         Validate configuration
+        cutctx sso-test             Test SSO configuration
     """
     ctx.ensure_object(dict)
 
@@ -37,16 +42,22 @@ def _register_commands() -> None:
     """Register all subcommand groups."""
     from . import (
         agent_savings,  # noqa: F401
+        audit,  # noqa: F401
         capture,  # noqa: F401
+        config_check,  # noqa: F401
         evals,  # noqa: F401
         init,  # noqa: F401
         install,  # noqa: F401
         learn,  # noqa: F401
         license,  # noqa: F401
         mcp,  # noqa: F401
+        orgs,  # noqa: F401
         perf,  # noqa: F401
         proxy,  # noqa: F401
+        rbac,  # noqa: F401
         savings,  # noqa: F401
+        setup,  # noqa: F401
+        sso_test,  # noqa: F401
         tools,  # noqa: F401
         wrap,  # noqa: F401
     )

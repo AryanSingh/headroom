@@ -1,4 +1,4 @@
-"""Headroom CLI - Command-line interface for memory and proxy management.
+"""CutCtx CLI - Command-line interface for memory and proxy management.
 
 The subcommand submodules are imported eagerly below so they are bound as
 attributes of `headroom.cli`. Click registration happens via side effects in
@@ -13,16 +13,24 @@ survives that kind of sys.modules mutation.
 """
 
 from . import (  # noqa: F401
+    agent_savings,
+    audit,
     billing,
     capture,
+    config_check,
     evals,
     init,
     install,
     learn,
     license,
     mcp,
+    orgs,
     perf,
     proxy,
+    rbac,
+    savings,
+    setup,
+    sso_test,
     tools,
     wrap,
 )
