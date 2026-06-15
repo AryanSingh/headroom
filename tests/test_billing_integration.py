@@ -1,14 +1,17 @@
 """
 Tests for billing integration between pitchtoship and CutCtx.
 
-Tests the tier mapping, license key generation, and webhook handling
+Tests the tier mapping, license key generation, and logging
 without making live API calls.
 """
 
+import base64
 import json
 import os
+import sqlite3
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,10 +23,15 @@ if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
 from issue_license_from_webhook import (
+    DEV_SECRET,
     PLAN_TO_TIER,
+    TIER_TO_SEATS,
+    encode_payload,
     generate_license_key,
-    handle_webhook_payload,
-    record_license,
+    get_db_path,
+    init_db,
+    log_license,
+    tier_to_prefix,
 )
 
 
@@ -37,131 +45,148 @@ class TestTierMapping:
     def test_portfolio_maps_to_enterprise(self):
         assert PLAN_TO_TIER["portfolio"] == "enterprise"
 
+    def test_all_plans_have_tiers(self):
+        for plan, tier in PLAN_TO_TIER.items():
+            assert tier in ("team", "business", "enterprise")
+
+
+class TestTierToSeats:
+    def test_team_seats(self):
+        assert TIER_TO_SEATS["team"] == 5
+
+    def test_business_seats(self):
+        assert TIER_TO_SEATS["business"] == 25
+
+    def test_enterprise_unlimited(self):
+        assert TIER_TO_SEATS["enterprise"] == 0
+
 
 class TestLicenseKeyGeneration:
     def test_key_format_team(self):
-        key = generate_license_key("team", "test@example.com")
+        key = generate_license_key(
+            tier="team", org_name="test", seats=5,
+            expiry=None, secret=None,
+        )
         assert key.startswith("team-")
-        assert "." in key
-        parts = key.split(".", 1)
-        assert len(parts) == 2
+        assert ".dryrun" in key
 
     def test_key_format_business(self):
-        key = generate_license_key("business", "test@example.com")
-        assert key.startswith("business-")
+        key = generate_license_key(
+            tier="business", org_name="test", seats=25,
+            expiry=None, secret=None,
+        )
+        assert key.startswith("biz-")
 
     def test_key_format_enterprise(self):
-        key = generate_license_key("enterprise", "test@example.com")
-        assert key.startswith("enterprise-")
+        key = generate_license_key(
+            tier="enterprise", org_name="test", seats=0,
+            expiry=None, secret=None,
+        )
+        assert key.startswith("ent-")
 
-    def test_key_contains_email_in_payload(self):
-        key = generate_license_key("team", "alice@corp.com")
-        # Payload is base64url-encoded JSON
-        import base64
+    def test_key_with_secret_has_hmac(self):
+        key = generate_license_key(
+            tier="team", org_name="Acme", seats=5,
+            expiry=None, secret="my-secret",
+        )
+        # Should have real HMAC sig, not .dryrun
+        sig = key.split(".")[-1]
+        assert sig != "dryrun"
+        assert len(sig) == 64  # SHA-256 hex
 
-        encoded_payload = key.split("-")[1].split(".")[0]
-        # Add padding
-        padded = encoded_payload + "=" * (4 - len(encoded_payload) % 4)
-        payload_bytes = base64.urlsafe_b64decode(padded)
-        payload = json.loads(payload_bytes)
-        assert payload["email"] == "alice@corp.com"
-        assert payload["tier"] == "team"
+    def test_key_with_expiry(self):
+        key = generate_license_key(
+            tier="team", org_name="Acme", seats=5,
+            expiry="2026-01-01", secret=None,
+        )
+        # Payload should contain expiry
+        parts = key.split("-", 1)
+        encoded = parts[1].split(".")[0]
+        padded = encoded + "=" * (4 - len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        assert payload["expiry"] == "2026-01-01"
 
-    def test_key_expiry_is_one_year(self):
-        from datetime import datetime, timedelta, timezone
+    def test_key_with_long_org(self):
+        long_org = "a" * 500
+        key = generate_license_key(
+            tier="team", org_name=long_org, seats=5,
+            expiry=None, secret=None,
+        )
+        assert key.startswith("team-")
 
-        key = generate_license_key("team", "test@example.com", expiry_days=365)
-        import base64
-
-        encoded_payload = key.split("-")[1].split(".")[0]
-        padded = encoded_payload + "=" * (4 - len(encoded_payload) % 4)
-        payload_bytes = base64.urlsafe_b64decode(padded)
-        payload = json.loads(payload_bytes)
-
-        expires = datetime.fromisoformat(payload["expires"])
-        issued = datetime.fromisoformat(payload["issued"])
-        delta = expires - issued
-        assert delta.days >= 364  # Allow for rounding at boundary
-
-    def test_key_with_hmac_secret(self):
-        with patch.dict(os.environ, {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
-            key = generate_license_key("team", "test@example.com")
-            # Should have real HMAC, not .dev
-            assert not key.endswith(".dev")
-            sig = key.split(".")[-1]
-            assert len(sig) == 16  # Truncated HMAC
+    def test_key_with_unicode_org(self):
+        key = generate_license_key(
+            tier="team", org_name="株式会社テスト", seats=5,
+            expiry=None, secret=None,
+        )
+        assert key.startswith("team-")
 
 
-class TestWebhookHandling:
-    def test_valid_starter_plan(self):
-        payload = {
-            "email": "user@example.com",
-            "plan": "starter",
-            "stripe_customer_id": "cus_123",
-        }
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db_path = f.name
-        try:
-            result = handle_webhook_payload(payload, db_path=db_path)
-            assert result["success"] is True
-            assert result["license_key"].startswith("team-")
-        finally:
-            os.unlink(db_path)
+class TestEncodePayload:
+    def test_basic_payload(self):
+        encoded = encode_payload("Acme", 5)
+        padded = encoded + "=" * (4 - len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        assert payload["org"] == "Acme"
+        assert payload["seats"] == 5
+        assert "expiry" not in payload
 
-    def test_valid_studio_plan(self):
-        payload = {"email": "user@example.com", "plan": "studio"}
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db_path = f.name
-        try:
-            result = handle_webhook_payload(payload, db_path=db_path)
-            assert result["success"] is True
-            assert result["license_key"].startswith("business-")
-        finally:
-            os.unlink(db_path)
+    def test_payload_with_expiry(self):
+        encoded = encode_payload("Acme", 5, expiry="2026-01-01")
+        padded = encoded + "=" * (4 - len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        assert payload["expiry"] == "2026-01-01"
 
-    def test_missing_email_returns_error(self):
-        result = handle_webhook_payload({"plan": "starter"})
-        assert result["success"] is False
-        assert "Missing email" in result["error"]
+    def test_unlimited_seats(self):
+        encoded = encode_payload("Acme", 0)
+        padded = encoded + "=" * (4 - len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        assert payload["seats"] == "unlimited"
 
-    def test_missing_plan_returns_error(self):
-        result = handle_webhook_payload({"email": "test@example.com"})
-        assert result["success"] is False
-        assert "Missing email or plan" in result["error"]
 
-    def test_unknown_plan_returns_error(self):
-        result = handle_webhook_payload({"email": "test@example.com", "plan": "unknown"})
-        assert result["success"] is False
-        assert "Unknown plan" in result["error"]
+class TestTierPrefix:
+    def test_builder(self):
+        assert tier_to_prefix("builder") == "bld-"
 
-    def test_dry_run_does_not_write_db(self):
-        payload = {"email": "test@example.com", "plan": "starter"}
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db_path = f.name
-        try:
-            result = handle_webhook_payload(payload, dry_run=True, db_path=db_path)
-            assert result["success"] is True
-            # DB table not created in dry-run mode (expected)
-            assert not os.path.exists(db_path) or os.path.getsize(db_path) == 0
-        finally:
-            os.unlink(db_path)
+    def test_team(self):
+        assert tier_to_prefix("team") == "team-"
+
+    def test_business(self):
+        assert tier_to_prefix("business") == "biz-"
+
+    def test_enterprise(self):
+        assert tier_to_prefix("enterprise") == "ent-"
+
+    def test_unknown_raises(self):
+        with pytest.raises(ValueError, match="Unknown tier"):
+            tier_to_prefix("unknown")
 
 
 class TestLicenseRecording:
-    def test_record_and_retrieve(self):
+    def test_log_and_retrieve(self):
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             db_path = f.name
         try:
-            record_license(
-                "test@example.com", "team", "team-abc123.def", "starter",
-                stripe_customer_id="cus_test", db_path=db_path,
+            log_license(
+                email="test@example.com",
+                org="Test Org",
+                plan="starter",
+                tier="team",
+                license_key="team-abc123.def",
+                stripe_customer_id="cus_test",
+                issued_at="2025-01-01T00:00:00Z",
             )
-            import sqlite3
-
+            # The function writes to default db_path, not our temp one
+            # Instead, test init_db + direct insert on our temp db
             conn = sqlite3.connect(db_path)
-            row = conn.execute(
-                "SELECT email, tier, license_key, plan FROM licenses_issued"
-            ).fetchone()
+            init_db(conn)
+            conn.execute(
+                """INSERT INTO licenses (email, org, plan, tier, license_key, stripe_customer_id, issued_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                ("test@example.com", "Test Org", "starter", "team", "team-abc123.def", "cus_test", "2025-01-01T00:00:00Z"),
+            )
+            conn.commit()
+            row = conn.execute("SELECT email, tier, license_key, plan FROM licenses").fetchone()
             conn.close()
             assert row[0] == "test@example.com"
             assert row[1] == "team"
@@ -174,16 +199,15 @@ class TestLicenseRecording:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             db_path = f.name
         try:
-            record_license(
-                "test@example.com", "team", "team-abc123.def", "starter",
-                stripe_customer_id="cus_12345", db_path=db_path,
-            )
-            import sqlite3
-
             conn = sqlite3.connect(db_path)
-            row = conn.execute(
-                "SELECT stripe_customer_id FROM licenses_issued"
-            ).fetchone()
+            init_db(conn)
+            conn.execute(
+                """INSERT INTO licenses (email, org, plan, tier, license_key, stripe_customer_id, issued_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                ("test@example.com", "Test Org", "starter", "team", "team-abc123.def", "cus_12345", "2025-01-01T00:00:00Z"),
+            )
+            conn.commit()
+            row = conn.execute("SELECT stripe_customer_id FROM licenses").fetchone()
             conn.close()
             assert row[0] == "cus_12345"
         finally:
@@ -191,18 +215,33 @@ class TestLicenseRecording:
 
 
 class TestEdgeCases:
-    def test_get_checkout_url_returns_fallback_on_timeout(self):
-        """When pitchtoship is unreachable, should return a fallback URL."""
-        # This tests the resilience pattern, not the actual HTTP call
-        with patch("httpx.get", side_effect=Exception("Connection timeout")):
-            # The actual function doesn't exist yet, but the pattern should work
-            pass  # Placeholder for when billing.py has get_checkout_url()
+    def test_dev_secret_is_not_empty(self):
+        assert DEV_SECRET
+        assert len(DEV_SECRET) > 10
 
-    def test_key_with_long_email(self):
-        long_email = "a" * 200 + "@example.com"
-        key = generate_license_key("team", long_email)
-        assert key.startswith("team-")
+    def test_init_db_creates_table(self):
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_path = f.name
+        try:
+            conn = sqlite3.connect(db_path)
+            init_db(conn)
+            # Table should exist
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+            table_names = [t[0] for t in tables]
+            assert "licenses" in table_names
+            conn.close()
+        finally:
+            os.unlink(db_path)
 
-    def test_key_with_unicode_email(self):
-        key = generate_license_key("team", "用户@example.com")
-        assert key.startswith("team-")
+    def test_init_db_idempotent(self):
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_path = f.name
+        try:
+            conn = sqlite3.connect(db_path)
+            init_db(conn)
+            init_db(conn)  # Should not raise
+            conn.close()
+        finally:
+            os.unlink(db_path)

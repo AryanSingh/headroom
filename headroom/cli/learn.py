@@ -98,6 +98,18 @@ Use 'auto' (default) to scan all detected agents."""
     help="Parallel workers for session scanning. "
     "Default: auto (min of CPU count, 8). Use 1 for serial.",
 )
+@click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    help="Watch for new sessions and auto-apply learnings.",
+)
+@click.option(
+    "--last",
+    type=int,
+    default=None,
+    help="Only analyze the last N sessions.",
+)
 def learn(
     project: Path | None,
     analyze_all: bool,
@@ -105,6 +117,8 @@ def learn(
     agent: str,
     model: str | None,
     workers: int | None,
+    watch: bool,
+    last: int | None,
 ) -> None:
     """Learn from past tool call failures to prevent future ones.
 
@@ -125,6 +139,10 @@ def learn(
         headroom learn --agent codex --all    # Analyze all Codex sessions
     """
     import os
+
+    if watch:
+        _run_watch_mode(agent=agent, model=model, apply=apply)
+        return
 
     from ..learn.analyzer import SessionAnalyzer, _detect_default_model
     from ..learn.registry import auto_detect_plugins, get_plugin
@@ -261,3 +279,67 @@ def learn(
             f"Total: {total_projects} projects, {total_failures} failures, "
             f"{total_recommendations} recommendations"
         )
+
+
+def _run_watch_mode(agent: str, model: str | None, apply: bool) -> None:
+    """Run in watch mode: monitor for new sessions and auto-apply learnings."""
+    import asyncio
+
+    from ..learn.registry import auto_detect_plugins, get_plugin
+
+    if agent == "auto":
+        detected = auto_detect_plugins()
+        if not detected:
+            click.echo("No coding agent data found for watch mode.")
+            return
+        plugins = detected
+    else:
+        plugins = [get_plugin(agent)]
+
+    dirs = []
+    for plugin in plugins:
+        projects = plugin.discover_projects()
+        for proj in projects:
+            dirs.append(proj.project_path)
+
+    if not dirs:
+        click.echo("No agent session directories found to watch.")
+        return
+
+    from ..learn.watcher import SessionWatcher
+
+    async def on_session(path: Path) -> None:
+        click.echo(f"\n[cutctx learn] New session detected: {path.name}")
+        # Re-run learn for the affected project
+        project_dir = path.parent
+        for plugin in plugins:
+            writer = plugin.create_writer()
+            all_projects = plugin.discover_projects()
+            targets = [p for p in all_projects if project_dir in p.project_path.parents or p.project_path == project_dir]
+            if targets:
+                from ..learn.analyzer import SessionAnalyzer, _detect_default_model
+
+                resolved_model = model or _detect_default_model()
+                analyzer = SessionAnalyzer(model=resolved_model)
+                sessions = plugin.scan_project(targets[0], max_workers=4)
+                if sessions:
+                    result_data = analyzer.analyze(targets[0], sessions)
+                    if result_data.recommendations:
+                        click.echo(f"  Found {len(result_data.recommendations)} recommendations")
+                        if apply:
+                            writer.write(result_data.recommendations, targets[0], dry_run=False)
+                            click.echo(f"  Applied to {targets[0].project_path}")
+                        else:
+                            click.echo("  Dry run — use --apply to write.")
+                break
+
+    click.echo("cutctx learn --watch active. Press Ctrl+C to stop.")
+    click.echo(f"Watching {len(dirs)} directory(ies):")
+    for d in dirs:
+        click.echo(f"  {d}")
+
+    watcher = SessionWatcher(dirs, on_session)
+    try:
+        asyncio.run(watcher.run())
+    except KeyboardInterrupt:
+        click.echo("\nStopped watching.")

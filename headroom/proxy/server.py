@@ -3218,6 +3218,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
     )
 
+    # ── License validation + Stripe webhook routes ──────────────────
+    try:
+        from headroom.proxy.routes.license_validation import (
+            router as license_router,
+        )
+
+        app.include_router(license_router)
+    except ImportError:
+        pass
+
     register_provider_routes(app, proxy)
 
     return app
