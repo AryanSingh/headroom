@@ -22,7 +22,7 @@ tower = { workspace = true }
 tower-http = { version = "0.6", features = ["trace", "request-id", "util"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "fmt"] }
-reqwest = { version = "0.12", default-features = false, features = ["stream", "rustls-tls", "http2"] }
+reqwest = { version = "0.12", default-features = false, features = ["stream", "rustls-tls", "http2", "json"] }
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 clap = { workspace = true, features = ["derive", "env"] }
 serde = { workspace = true }

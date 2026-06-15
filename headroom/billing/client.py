@@ -1,0 +1,42 @@
+"""Client for interacting with the Headroom license portal."""
+
+import os
+import time
+from typing import Set
+
+import httpx
+
+_CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
+
+def get_portal_url() -> str:
+    """Get the base URL for the license portal."""
+    return os.environ.get("HEADROOM_LICENSE_API_URL", "https://api.cutctx.dev")
+
+def is_revoked(license_key: str) -> bool:
+    """Check if a license key is revoked, using a 5-minute local cache. Fails open."""
+    now = time.time()
+    if now > _CRL_CACHE["expires_at"]:
+        try:
+            resp = httpx.get(f"{get_portal_url()}/v1/license/crl", timeout=5.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                _CRL_CACHE["revoked"] = set(data.get("revoked", []))
+                _CRL_CACHE["expires_at"] = now + 300  # Cache for 5 mins
+        except Exception:
+            pass  # Fail open on network errors
+            
+    revoked_set = _CRL_CACHE["revoked"]
+    assert isinstance(revoked_set, set)
+    return license_key in revoked_set
+
+def activate_instance(license_key: str, instance_id: str) -> bool:
+    """Register this instance activation with the portal. Fails open."""
+    try:
+        resp = httpx.post(
+            f"{get_portal_url()}/v1/license/activate",
+            json={"license_key": license_key, "instance_id": instance_id},
+            timeout=5.0
+        )
+        return resp.status_code == 200
+    except Exception:
+        return True  # Fail open

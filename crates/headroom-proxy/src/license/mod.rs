@@ -1,3 +1,5 @@
+pub mod client;
+
 use crate::config::LicenseTier;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -93,6 +95,11 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
             return LicenseTier::OpenSource;
         }
     };
+
+    if crate::license::client::is_revoked(token) {
+        tracing::warn!("License token rejected: key is revoked via CRL");
+        return LicenseTier::OpenSource;
+    }
 
     match payload.tier.as_str() {
         "enterprise" => LicenseTier::Enterprise,

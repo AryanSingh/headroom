@@ -74,6 +74,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
+    // Activate license and fetch CRL on startup
+    if let Some(key) = config.license_key.as_deref() {
+        let api_url = std::env::var("HEADROOM_LICENSE_API_URL")
+            .unwrap_or_else(|_| "https://api.cutctx.dev".to_string());
+        
+        let instance_id = uuid::Uuid::new_v4().to_string(); // In a real system, persist this
+        
+        tracing::info!("Activating license and fetching CRL from {}...", api_url);
+        if let Err(e) = headroom_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id).await {
+            tracing::warn!("Failed to activate license / fetch CRL: {}", e);
+        }
+    }
+
     let app = build_app(state).into_make_service_with_connect_info::<SocketAddr>();
 
     let listener = tokio::net::TcpListener::bind(config.listen).await?;

@@ -25,6 +25,35 @@ async def validate_license(
     return result
 
 
+from pydantic import BaseModel
+
+class ActivateRequest(BaseModel):
+    license_key: str
+    instance_id: str
+
+@router.post("/v1/license/activate")
+async def activate_license(req: ActivateRequest) -> dict:
+    """Activate a proxy instance."""
+    from headroom.billing.license_db import get_license_db
+
+    db = get_license_db()
+    result = db.validate(req.license_key)
+    if not result["valid"]:
+        raise HTTPException(status_code=403, detail=result)
+        
+    db.activate_instance(req.license_key, req.instance_id)
+    return {"status": "ok"}
+
+
+@router.get("/v1/license/crl")
+async def get_crl() -> dict:
+    """Get the Certificate Revocation List (CRL)."""
+    from headroom.billing.license_db import get_license_db
+
+    db = get_license_db()
+    return {"revoked": db.get_crl()}
+
+
 @router.post("/webhooks/stripe")
 async def stripe_webhook(request: Request) -> dict:
     """Handle Stripe webhook events."""
