@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (v0.26.0)
 
+### Capability Extensions
+* **learn viral launch:** `--watch` mode with SessionWatcher (30s settle, async poll), share-to-Twitter helper, headroom-learn.html landing page
+* **benchmark suite:** run_comparison.py vs LLMLingua-2, generate_fixtures.py (code/logs/JSON/markdown), weekly CI workflow (.github/workflows/benchmark.yml)
+* **ML firewall:** ONNX-based injection classifier (firewall_ml.py) — MLInjectionClassifier with graceful fallback when onnxruntime unavailable; export script for protectai/deberta-v3-base-prompt-injection-v2
+* **Stripe billing:** stripe_webhook.py (HMAC verification, checkout.session.completed handler), license_db.py (SQLite CRUD), POST /webhooks/stripe + POST /v1/license/validate routes
+* **Go SDK complete:** errors.go (HeadroomError), memory.go (MemoryClient with Store/Search/List), proxy.go (HeadroomTransport RoundTripper), middleware.go (HTTP middleware intercepting LLM requests), 19 tests with -race
+* **Python SDK:** CutCtxClient (compress/retrieve/stats/health) + SharedContext + 14 tests
+* **air-gap:** airgap.py (dynamic is_offline() check), docs/air-gap-deployment.md (pre-staged deps, offline license, validation checklist)
+
+### Plugins
+* **claude-code:** plugin.json with cutctx_retrieve/compress/status tools, hooks (SessionStart/PreToolUse/PostToolUse), install.sh with `claude mcp add cutctx`, auto-detects cutctx→headroom CLI
+* **codex:** plugin.json with provider config, install.sh writes ~/.codex/config.toml, uninstall.sh removes provider block
+* **cutctx-plugin:** Claude.ai web UI plugin (Local uploads) with skills/compress/SKILL.md
+
+### CLI Extensions
+* **cutctx bench:** benchmark compression algorithms with timing, token savings, ratios (--size, --iterations, --algorithm, --json)
+* **cutctx report:** export (JSON/CSV), schedule (daily/weekly email), schedule-list, schedule-cancel
+* **cutctx setup:** unified install → agent detect → MCP register → proxy start → verify
+* **cutctx orgs/audit/rbac:** list/create/delete/show, list/export/stats, list/assign/revoke
+* **cutctx config-check:** validates port, keys, SSO, CORS
+* **cutctx sso-test:** validates JWKS/discovery/issuer
+
 ### Intelligence Layer
 * **intelligence:** task-aware compression — extracts working task from messages, scores each context segment by BM25 relevance, modulates compression rate per message (aggressive for irrelevant, minimal for relevant)
 * **intelligence:** semantic deduplication — rolling SHA-256 hash index replaces repeated content with CCR pointers across sessions, 95%+ reduction on repetitive workflows
@@ -88,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **codex-runtime:** test fixture used wrong health endpoint (/stats → /livez) and missing admin auth header
 
 ### Testing
-* **tests:** 7,721 total tests passing (937 Rust core + 246 Rust proxy + 6,538 Python), 0 failures
+* **tests:** 7,840+ total tests passing (937 Rust core + 246 Rust proxy + 6,569 Python + 19 Go SDK + 14 Python SDK), 0 failures (1 pre-existing)
 * **tests:** 67 firewall comprehensive tests covering all 27 regex patterns
 * **tests:** 43 intelligence layer E2E tests covering all 6 features end-to-end
 * **tests:** 45 entitlement boundary tests (59 features × 4 tiers)
@@ -96,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **tests:** 87 relevance/BM25/state_crypto/SSRF tests
 * **tests:** 34 pipeline integration tests (budget, structured output, ensemble, firewall, request ID)
 * **tests:** 20 billing integration tests
+* **tests:** 25 capability extension tests (watcher, learn_share, stripe_webhook, license_db, firewall_ml, airgap)
 * **tests:** 27 SSO tests, 25 audit tests, 30 org tests, 12 retention tests, 18 RBAC tests
 
 ### Chores

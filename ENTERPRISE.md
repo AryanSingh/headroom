@@ -1,10 +1,10 @@
-# Headroom Enterprise
+# CutCtx Enterprise
 
 > **The context, cost, and governance layer for AI agents.**
 
-Headroom is a self-hosted, local-first proxy that reduces waste in agent traffic while giving teams a governed admin plane for analytics, policy, identity, and auditability.
+CutCtx is a self-hosted, local-first proxy that reduces waste in agent traffic while giving teams a governed admin plane for analytics, policy, identity, and auditability.
 
-## Why Teams Buy Headroom
+## Why Teams Buy CutCtx
 
 ### Local-first deployment
 - Runs in customer infrastructure
@@ -56,8 +56,8 @@ Headroom is a self-hosted, local-first proxy that reduces waste in agent traffic
 
 ### Local
 ```bash
-pip install "headroom-ai[all]"
-headroom proxy --port 8787
+pip install cutctx-ai
+cutctx proxy --port 8787
 ```
 
 ### Docker
@@ -72,13 +72,14 @@ kubectl apply -f k8s/
 
 ### Helm
 ```bash
-helm install headroom ./helm/headroom
+helm install cutctx ./helm/cutctx
 ```
 
 ### Air-gapped
 - Pre-stage model/runtime dependencies
 - Run with `HF_HUB_OFFLINE=1`
 - Use `ORT_STRATEGY=system`
+- See [docs/air-gap-deployment.md](docs/air-gap-deployment.md) for full runbook
 
 ## Security and Trust
 
@@ -118,6 +119,32 @@ These are not code gaps, but business workstreams:
 - Billing and collections operations
 - Formal certification programs such as SOC 2
 - Design partner acquisition and case-study generation
+
+## Capability Extensions
+
+| Feature | Status |
+|---------|--------|
+| Intelligence layer (6 features: task-aware, dedup, budget, profiles, shared-state, cost-forecast) | Available |
+| LLM Firewall (27 regex patterns + ML classifier) | Available |
+| Structured output validation with auto-retry | Available |
+| Multi-model ensemble routing | Available |
+| Budget cut-offs with progressive compression | Available |
+| Episodic memory (cross-session learning) | Available |
+| Multimodal compression (image + audio) | Available |
+| Stripe billing integration | Available |
+| Go SDK (full: Client, Memory, Proxy, SharedContext) | Available |
+| Python SDK (CutCtxClient + SharedContext) | Available |
+| Benchmark suite (vs LLMLingua-2) | Available |
+
+## Plugins
+
+| Agent | Plugin | Install |
+|-------|--------|---------|
+| Claude Code | `plugins/claude-code/` | `cutctx setup` or `bash plugins/claude-code/install.sh` |
+| Codex | `plugins/codex/` | `cutctx setup` or `bash plugins/codex/install.sh` |
+| Claude.ai (web) | `plugins/cutctx-plugin/` | Upload ZIP to Plugins → Personal → Local uploads |
+| Hermes | `plugins/hermes/` | `pip install headroom-hermes` |
+| OpenClaw | `plugins/openclaw/` | `npm install @cutctx/openclaw` |
 
 ## Contact
 
