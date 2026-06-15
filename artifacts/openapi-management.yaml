@@ -239,6 +239,69 @@ paths:
               schema:
                 type: string
 
+  /v1/license/activate:
+    post:
+      tags: [Admin]
+      summary: Activate a license instance
+      description: Register a proxy instance activation against a license key.
+      operationId: activateLicense
+      security: []
+      responses:
+        "200":
+          description: Activated
+        "401":
+          description: Invalid license
+        "403":
+          description: Revoked or expired
+
+  /v1/license/crl:
+    get:
+      tags: [Admin]
+      summary: Get Certificate Revocation List
+      description: Returns the list of revoked license keys.
+      operationId: getCRL
+      security: []
+      responses:
+        "200":
+          description: CRL
+
+  /v1/license/checkout-seat:
+    post:
+      tags: [Admin]
+      summary: Checkout a seat lease
+      description: Lease a seat for a user.
+      operationId: checkoutSeat
+      security: []
+      responses:
+        "200":
+          description: Seat leased
+        "429":
+          description: No seats available
+
+  /v1/license/start-trial:
+    post:
+      tags: [Admin]
+      summary: Start a trial
+      description: Start a 14-day server-side trial.
+      operationId: startTrial
+      security: []
+      responses:
+        "200":
+          description: Trial started
+        "409":
+          description: Trial already exists
+
+  /v1/license/check-trial:
+    post:
+      tags: [Admin]
+      summary: Check trial status
+      description: Check if a trial is active.
+      operationId: checkTrial
+      security: []
+      responses:
+        "200":
+          description: Trial status
+
 components:
   securitySchemes:
     BearerAuth:
