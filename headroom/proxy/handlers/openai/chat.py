@@ -347,6 +347,18 @@ class OpenAIChatMixin:
         optimized_messages = messages
         optimized_tokens = original_tokens
 
+        # Intelligence pipeline: pre-compression (task extraction, profile, shared context)
+        _intel_ctx = None
+        try:
+            from headroom.proxy.intelligence_pipeline import IntelligencePipeline
+            _intel_pipeline = IntelligencePipeline.from_config(self.config)
+            if _intel_pipeline.any_enabled():
+                _intel_ctx = _intel_pipeline.pre_compression(
+                    messages, model, request_id,
+                )
+        except Exception as e:
+            logger.debug(f"[{request_id}] Intelligence pre-compression failed: {e}")
+
         # Get prefix cache tracker for this session
         openai_session_id = self.session_tracker_store.compute_session_id(request, model, messages)
         openai_prefix_tracker = self.session_tracker_store.get_or_create(
@@ -720,6 +732,20 @@ class OpenAIChatMixin:
                 optimized_messages = remembered_event.messages
             if remembered_event.tools is not None:
                 tools = remembered_event.tools
+
+        # Intelligence pipeline: post-compression (dedup, context budget, profiles, cost)
+        if _intel_ctx is not None:
+            try:
+                optimized_messages = _intel_pipeline.post_compression(
+                    optimized_messages,
+                    original_messages,
+                    _intel_ctx,
+                    request_id,
+                    input_tokens=original_tokens,
+                    output_tokens=0,
+                )
+            except Exception as e:
+                logger.debug(f"[{request_id}] Intelligence post-compression failed: {e}")
 
         body["messages"] = optimized_messages
         if tools or _original_tools is not None:
