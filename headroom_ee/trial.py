@@ -36,6 +36,7 @@ class TrialState:
     org_id: str | None = None
     activated: bool = False  # True once user has activated a license
     expired_notified: bool = False  # True once we've shown expiration warning
+    trial_token: str | None = None  # Server-side trial token
 
     @property
     def elapsed_days(self) -> float:
@@ -62,6 +63,7 @@ class TrialState:
             org_id=d.get("org_id"),
             activated=d.get("activated", False),
             expired_notified=d.get("expired_notified", False),
+            trial_token=d.get("trial_token"),
         )
 
 
@@ -101,9 +103,13 @@ class TrialManager:
     def state(self) -> TrialState:
         return self._load()
 
-    def start_trial(self, org_id: str | None = None) -> TrialState:
+    def start_trial(self, org_id: str | None = None, trial_token: str | None = None, customer_email: str | None = None) -> TrialState:
         """Start a new trial. Called on first proxy start or license activation."""
-        self._state = TrialState(started_at=time.time(), org_id=org_id)
+        if trial_token and customer_email:
+            from headroom.billing.client import start_trial as server_start_trial
+            server_start_trial(trial_token, customer_email)
+
+        self._state = TrialState(started_at=time.time(), org_id=org_id, trial_token=trial_token)
         self._save()
         logger.info("Trial started for org=%s, expires in %d days", org_id, TRIAL_DAYS)
         return self._state
@@ -138,6 +144,26 @@ class TrialManager:
                 "elapsed_days": state.elapsed_days,
                 "activated": True,
             }
+
+        # Check server-side trial state if token is present
+        if state.trial_token:
+            from headroom.billing.client import is_trial_active
+            if is_trial_active(state.trial_token):
+                return {
+                    "active": True,
+                    "expired": False,
+                    "remaining_days": 14.0,  # Trust the server
+                    "elapsed_days": state.elapsed_days,
+                    "activated": False,
+                }
+            else:
+                return {
+                    "active": False,
+                    "expired": True,
+                    "remaining_days": 0.0,
+                    "elapsed_days": state.elapsed_days,
+                    "activated": False,
+                }
 
         return {
             "active": not state.is_expired,

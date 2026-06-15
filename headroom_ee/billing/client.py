@@ -54,3 +54,29 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
         return True
     except Exception:
         return True
+
+def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86400.0) -> bool:
+    """Start a server-side trial. Returns True on success or fail-open."""
+    try:
+        resp = httpx.post(
+            f"{get_portal_url()}/v1/license/start-trial",
+            json={"trial_token": trial_token, "customer_email": customer_email, "duration": duration},
+            timeout=5.0
+        )
+        return resp.status_code == 200
+    except Exception:
+        return True  # Fail open
+
+def is_trial_active(trial_token: str) -> bool:
+    """Check if a trial is active. Returns True if active or fail-open."""
+    try:
+        resp = httpx.post(
+            f"{get_portal_url()}/v1/license/check-trial",
+            json={"trial_token": trial_token},
+            timeout=5.0
+        )
+        if resp.status_code == 200:
+            return resp.json().get("active", True)
+        return True  # Fail open
+    except Exception:
+        return True  # Fail open

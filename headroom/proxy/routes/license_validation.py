@@ -77,6 +77,38 @@ async def checkout_seat(req: CheckoutSeatRequest) -> dict:
     return {"status": "ok"}
 
 
+class StartTrialRequest(BaseModel):
+    trial_token: str
+    customer_email: str
+    duration: float = 14 * 86400.0
+
+
+@router.post("/v1/license/start-trial")
+async def start_trial(req: StartTrialRequest) -> dict:
+    """Start a server-side trial."""
+    from headroom.billing.license_db import get_license_db
+    db = get_license_db()
+    
+    success = db.start_trial(req.trial_token, req.customer_email, req.duration)
+    if not success:
+        raise HTTPException(status_code=409, detail={"error": "trial_already_started"})
+    return {"status": "ok"}
+
+
+class CheckTrialRequest(BaseModel):
+    trial_token: str
+
+
+@router.post("/v1/license/check-trial")
+async def check_trial(req: CheckTrialRequest) -> dict:
+    """Check if a trial is active."""
+    from headroom.billing.license_db import get_license_db
+    db = get_license_db()
+    
+    active = db.is_trial_active(req.trial_token)
+    return {"active": active}
+
+
 @router.post("/webhooks/stripe")
 async def stripe_webhook(request: Request) -> dict:
     """Handle Stripe webhook events."""
