@@ -13,11 +13,13 @@ survives that kind of sys.modules mutation.
 """
 
 from . import (  # noqa: F401
+    billing,
     capture,
     evals,
     init,
     install,
     learn,
+    license,
     mcp,
     perf,
     proxy,

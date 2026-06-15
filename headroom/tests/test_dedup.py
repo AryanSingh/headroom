@@ -42,7 +42,7 @@ class TestBasicDedup:
         """Second occurrence should be replaced with pointer."""
         dedup = SessionDeduplicator()
 
-        content = "This is a test message that is long enough to trigger deduplication" * 10
+        content = "This is a test message that is long enough to trigger deduplication" * 20
 
         # First turn
         messages_1 = [{"role": "tool", "content": content}]

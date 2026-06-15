@@ -781,7 +781,7 @@ class MultiAgentCoordinator:
         with self._lock:
             if agent_id not in self._agent_compressions:
                 self._agent_compressions[agent_id] = []
-            self._agent_compressions[agent_id].append(content_hash)
+            self._agent_compressions[agent_id].append((workspace_key, content_hash))
 
         return SharedCompressionResult(
             compressed_content=compressed,
@@ -816,8 +816,8 @@ class MultiAgentCoordinator:
         total_original_tokens = 0
         total_compressed_tokens = 0
 
-        for content_hash in compressed_hashes:
-            entry = self._cache.get_entry(content_hash)
+        for workspace_key, content_hash in compressed_hashes:
+            entry = self._cache.get_entry(content_hash, workspace_key)
             if entry:
                 compressed_items.append(
                     {

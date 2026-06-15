@@ -3,17 +3,17 @@ requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "headroom-ai"
+name = "cutctx-ai"
 version = "0.25.0"
 description = "The Context Optimization Layer for LLM Applications - Cut costs by 50-90%"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
-    { name = "Headroom Contributors" }
+    { name = "CutCtx Contributors" }
 ]
 maintainers = [
-    { name = "Headroom Contributors" }
+    { name = "CutCtx Contributors" }
 ]
 keywords = [
     "llm",
@@ -59,7 +59,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Proxy server (most common install: pip install headroom-ai[proxy])
+# Proxy server (most common install: pip install cutctx-ai[proxy])
 proxy = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0,<1.0",
@@ -77,9 +77,9 @@ proxy = [
 # Production ASGI/WSGI server — Unix-only (gunicorn does not support Windows).
 # Kept separate from [proxy] so that dev, CI, and Windows users are not forced
 # to install a non-functional package.  Production deployments should use:
-#   pip install headroom-ai[proxy,proxy-prod]
+#   pip install cutctx-ai[proxy,proxy-prod]
 proxy-prod = [
-    "headroom-ai[proxy]",
+    "cutctx-ai[proxy]",
     "gunicorn>=21.0.0; sys_platform != 'win32'",
 ]
 # AST-based code compression (tree-sitter)
@@ -192,7 +192,7 @@ voice = [
 ]
 # Voice training (includes voice deps + training extras)
 voice-train = [
-    "headroom-ai[voice]",
+    "cutctx-ai[voice]",
     "datasets>=2.14.0",
     "accelerate>=0.20.0",
 ]
@@ -245,18 +245,18 @@ dev = [
 ]
 # All optional dependencies (everything you need)
 all = [
-    "headroom-ai[proxy,code,ml,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp]",
+    "cutctx-ai[proxy,code,ml,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp]",
 ]
 
 [project.scripts]
-headroom = "headroom.cli:main"
+cutctx = "headroom.cli:main"
 
 [project.urls]
-Homepage = "https://headroom-docs.vercel.app"
-Documentation = "https://headroom-docs.vercel.app/docs"
-Repository = "https://github.com/chopratejas/headroom"
-Issues = "https://github.com/chopratejas/headroom/issues"
-Changelog = "https://github.com/chopratejas/headroom/blob/main/CHANGELOG.md"
+Homepage = "https://cutctx.dev"
+Documentation = "https://cutctx.dev/docs"
+Repository = "https://github.com/AryanSingh/cutcxt"
+Issues = "https://github.com/AryanSingh/cutcxt/issues"
+Changelog = "https://github.com/AryanSingh/cutcxt/blob/main/CHANGELOG.md"
 # llms.txt convention (llmstxt.org) — point AI agents / LLM crawlers
 # at the auto-generated docs index so they can resolve install paths
 # and entry points without a follow-up fetch.
@@ -264,7 +264,7 @@ Changelog = "https://github.com/chopratejas/headroom/blob/main/CHANGELOG.md"
 
 # Maturin builds a single wheel containing both the Python source under
 # `headroom/` AND the compiled Rust extension `headroom/_core.so` (cdylib
-# from `crates/headroom-py`). One `pip install headroom-ai` ships everything
+# from `crates/headroom-py`). One `pip install cutctx-ai` ships everything
 # atomically — no separate `headroom-core-py` package, no chicken-and-egg,
 # no PIP_FIND_LINKS plumbing. Phase A0's runtime fail-loud check still
 # exists but only fires if someone forces an sdist install on a platform

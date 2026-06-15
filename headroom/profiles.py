@@ -392,7 +392,7 @@ class ProfileManager:
     """
 
     @classmethod
-    def get_profile(workspace_dir: Path | None = None) -> CompressionProfile:
+    def get_profile(cls, workspace_dir: Path | None = None) -> CompressionProfile:
         """Get or load profile, with caching.
 
         Args:
@@ -416,7 +416,7 @@ class ProfileManager:
             return _profile_cache[workspace_hash]
 
     @classmethod
-    def clear_cache(self) -> None:
+    def clear_cache(cls) -> None:
         """Clear cached profiles.
 
         Mainly for testing.

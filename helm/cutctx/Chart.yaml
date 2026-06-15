@@ -1,0 +1,18 @@
+apiVersion: v2
+name: cutctx
+description: CutCtx — open-source context compression proxy for AI agents
+type: application
+version: 0.1.0
+appVersion: "0.25.0"
+keywords:
+  - ai
+  - llm
+  - context-compression
+  - proxy
+  - cost-optimization
+home: https://cutctx.dev
+sources:
+  - https://github.com/AryanSingh/cutcxt
+maintainers:
+  - name: CutCtx Contributors
+    email: hello@cutctx.dev

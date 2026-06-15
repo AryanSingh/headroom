@@ -1,5 +1,5 @@
 {
-  "name": "headroom-ai",
+  "name": "cutctx-ai",
   "version": "0.25.0",
   "description": "Compress LLM context. Save tokens. Fit more into every request.",
   "type": "module",

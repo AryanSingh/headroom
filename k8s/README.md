@@ -1,4 +1,4 @@
-# Headroom Proxy — Kubernetes Deployment
+# CutCtx Proxy — Kubernetes Deployment
 
 ## Quick Start
 
@@ -7,18 +7,18 @@
 kubectl apply -f k8s/
 
 # 2. Edit secret with your keys
-kubectl edit secret headroom-proxy-secret -n headroom
+kubectl edit secret cutctx-proxy-secret -n cutctx
 
 # 3. Verify deployment
-kubectl get pods -n headroom
-kubectl logs -f deployment/headroom-proxy -n headroom
+kubectl get pods -n cutctx
+kubectl logs -f deployment/cutctx-proxy -n cutctx
 ```
 
 ## Prerequisites
 
 - Kubernetes 1.25+
 - `kubectl` configured with cluster access
-- Headroom Docker image available (build with `docker build -t headroom-proxy .`)
+- CutCtx Docker image available (build with `docker build -t cutctx-proxy .`)
 - (Optional) ingress-nginx controller for external access
 - (Optional) cert-manager for TLS certificates
 
@@ -78,10 +78,10 @@ HEADROOM_PROXY_UPSTREAM_URL: "https://your-proxy.example.com"
 
 ```bash
 # Manual scale
-kubectl scale deployment headroom-proxy --replicas=5 -n headroom
+kubectl scale deployment cutctx-proxy --replicas=5 -n cutctx
 
 # Check HMA status
-kubectl get hpa -n headroom
+kubectl get hpa -n cutctx
 ```
 
 ## Monitoring
@@ -90,7 +90,7 @@ Prometheus metrics available at `/metrics`:
 
 ```bash
 # Port-forward to check metrics
-kubectl port-forward svc/headroom-proxy 8080:80 -n headroom
+kubectl port-forward svc/cutctx-proxy 8080:80 -n cutctx
 curl http://localhost:8080/metrics
 ```
 
@@ -104,20 +104,20 @@ Key metrics:
 
 ```bash
 # Update image tag
-kubectl set image deployment/headroom-proxy headroom-proxy=headroom-proxy:0.26.0 -n headroom
+kubectl set image deployment/cutctx-proxy cutctx-proxy=cutctx-proxy:0.26.0 -n cutctx
 
 # Watch rollout
-kubectl rollout status deployment/headroom-proxy -n headroom
+kubectl rollout status deployment/cutctx-proxy -n cutctx
 
 # Rollback if needed
-kubectl rollout undo deployment/headroom-proxy -n headroom
+kubectl rollout undo deployment/cutctx-proxy -n cutctx
 ```
 
 ## Troubleshooting
 
 ### Pod stuck in CrashLoopBackOff
 ```bash
-kubectl logs -p deployment/headroom-proxy -n headroom
+kubectl logs -p deployment/cutctx-proxy -n cutctx
 # Check: OOM? (increase memory limit)
 # Check: License key? (check secret)
 # Check: Upstream unreachable? (check network policy)
@@ -126,7 +126,7 @@ kubectl logs -p deployment/headroom-proxy -n headroom
 ### Compression not working
 ```bash
 # Verify compression is enabled
-kubectl exec -it deployment/headroom-proxy -n headroom -- env | grep COMPRESSION
+kubectl exec -it deployment/cutctx-proxy -n cutctx -- env | grep COMPRESSION
 # Should show: HEADROOM_PROXY_COMPRESSION=1
 ```
 

@@ -398,9 +398,11 @@ class ContextBudgetController:
 
             return total
 
-        except ImportError:
+        except Exception:
             # Fallback: rough estimate (4 chars = ~1 token)
-            logger.debug("tiktoken not available; using fallback token counting")
+            # Catches ImportError (tiktoken not installed) and network errors
+            # (tiktoken tries to download encoding files on first use)
+            logger.debug("tiktoken not available or failed to load; using fallback token counting")
             total = 0
             for msg in messages:
                 if isinstance(msg, dict):

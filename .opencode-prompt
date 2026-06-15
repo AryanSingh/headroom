@@ -1,0 +1,13 @@
+Read COMPETITIVE_ANALYSIS.md in the project root. Based on the gap analysis, implement the following 5 improvements in order of priority:
+
+1. **OpenTelemetry Integration** (P0): Add OTel span emission for each compression operation in headroom-core. Add a new `tracing_opentelemetry` integration that emits spans with content_type, compression_ratio, latency_ms, and token_savings metrics. Wire it through headroom-proxy.
+
+2. **Deletion-Based Compaction Mode** (P1): Add a new `compaction.rs` transform in headroom-core/src/transforms/ that implements deletion-based context compaction (removing low-signal tokens while preserving verbatim fidelity of surviving content). Use a simple TF-IDF or keyword-density heuristic for signal scoring. Expose it as a new compression mode alongside existing SmartCrusher/CodeCompressor/Kompress-base.
+
+3. **Streaming-Aware Compression** (P1): Enhance the headroom-proxy SSE handling to apply lightweight compression to streaming chunks. Add a `streaming_compressor` module that buffers SSE chunks and applies compression incrementally with configurable flush thresholds.
+
+4. **Anthropic Compaction API Integration** (P0): In headroom-proxy, detect the `compact-2026-01-12` beta header on Anthropic requests and forward it, while Headroom compresses non-conversation content. Add a provider-specific handler that leverages Anthropic's native compaction for conversation history.
+
+5. **Semantic Caching Layer** (P0): Add a semantic cache in headroom-core that uses embedding similarity (via Kompress-base or a lightweight embedding model) to detect near-duplicate prompts and serve cached responses. Expose cache_hit metrics through OTel.
+
+Focus on Rust implementation in headroom-core and headroom-proxy crates. Write tests for each new module. Do NOT modify headroom-py or headroom-parity.

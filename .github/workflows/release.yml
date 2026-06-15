@@ -5,12 +5,12 @@ name: Release
 # All values are referenced via ${{ env.VAR }} throughout the workflow.
 env:
   # PyPI
-  PYPI_PACKAGE: headroom-ai
+  PYPI_PACKAGE: cutctx-ai
   PYPI_ENVIRONMENT: pypi
 
   # npm (npmjs.org)
   NPM_REGISTRY_URL: https://registry.npmjs.org
-  NPM_SDK_PACKAGE: headroom-ai
+  NPM_SDK_PACKAGE: cutctx-ai
   NPM_OPENCLAW_PACKAGE: headroom-openclaw
 
   # GitHub Package Registry
@@ -196,7 +196,7 @@ jobs:
           npm pack --pack-destination ../../release-assets
 
           cd ../../plugins/openclaw
-          npm install ../../release-assets/headroom-ai-${{ needs.detect-version.outputs.npm_version }}.tgz
+          npm install ../../release-assets/cutctx-ai-${{ needs.detect-version.outputs.npm_version }}.tgz
           npm install
           npm run build
           npm version ${{ needs.detect-version.outputs.npm_version }} --no-git-tag-version --allow-same-version
@@ -210,9 +210,9 @@ jobs:
 
   # Cross-platform wheel matrix. Each entry produces wheels for cp310/11/12/13
   # in one maturin invocation (PyO3 ABI3 forward-compat handles 3.14+ until
-  # we bump pyo3 past 0.22). The `headroom-ai` wheel contains the entire
+  # we bump pyo3 past 0.22). The `cutctx-ai` wheel contains the entire
   # Python source under `headroom/` plus the compiled `headroom/_core.so`
-  # — one atomic install via `pip install headroom-ai`.
+  # — one atomic install via `pip install cutctx-ai`.
   build-wheels:
     needs: [detect-version, build]
     # Minimal privilege: this job only checks out source, builds wheels,
@@ -602,7 +602,7 @@ jobs:
                 aarch64-unknown-linux-gnu) arch_tag=manylinux_2_28_aarch64 ;;
                 *) echo "ERROR: unknown wheel target $WHEEL_TARGET" >&2; exit 1 ;;
               esac
-              whl=$(find /wheels -maxdepth 1 -type f -name "headroom_ai-*-${py_tag}-${py_tag}-${arch_tag}.whl" -print -quit)
+              whl=$(find /wheels -maxdepth 1 -type f -name "cutctx_ai-*-${py_tag}-${py_tag}-${arch_tag}.whl" -print -quit)
               if [ -z "$whl" ]; then
                 # No version-specific wheel — fall back to a stable-ABI
                 # (abi3) wheel. A cp3<floor>-abi3 wheel installs on any
@@ -610,7 +610,7 @@ jobs:
                 # forward-compatible to 3.14+ (Cargo.toml pyo3 abi3-py310).
                 # Pick the abi3 wheel whose floor is <= the interpreter.
                 py_minor=${PYTHON_VERSION#*.}
-                abi3=$(find /wheels -maxdepth 1 -type f -name "headroom_ai-*-abi3-${arch_tag}.whl" -print -quit)
+                abi3=$(find /wheels -maxdepth 1 -type f -name "cutctx_ai-*-abi3-${arch_tag}.whl" -print -quit)
                 if [ -n "$abi3" ]; then
                   abi3_base=${abi3##*/}
                   abi3_floor=${abi3_base#*-cp3}
@@ -647,12 +647,12 @@ jobs:
           set -e
           py_tag=cp$(echo "$PYTHON_VERSION" | tr -d .)
           # macOS wheels are tagged macosx_*_arm64 (Apple Silicon only).
-          whl=$(find dist -maxdepth 1 -type f -name "headroom_ai-*-${py_tag}-${py_tag}-macosx_*_arm64.whl" -print -quit)
+          whl=$(find dist -maxdepth 1 -type f -name "cutctx_ai-*-${py_tag}-${py_tag}-macosx_*_arm64.whl" -print -quit)
           if [ -z "$whl" ]; then
             # Stable-ABI (abi3) fallback — see the Linux path above. A
             # cp3<floor>-abi3 wheel installs on any CPython >= floor.
             py_minor=${PYTHON_VERSION#*.}
-            abi3=$(find dist -maxdepth 1 -type f -name "headroom_ai-*-abi3-macosx_*_arm64.whl" -print -quit)
+            abi3=$(find dist -maxdepth 1 -type f -name "cutctx_ai-*-abi3-macosx_*_arm64.whl" -print -quit)
             if [ -n "$abi3" ]; then
               abi3_base=${abi3##*/}
               abi3_floor=${abi3_base#*-cp3}
@@ -840,7 +840,7 @@ jobs:
           const fs = require("fs");
           const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
           pkg.dependencies = pkg.dependencies || {};
-          delete pkg.dependencies["headroom-ai"];
+          delete pkg.dependencies["cutctx-ai"];
           fs.writeFileSync("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
           EOF
           npm install
@@ -850,10 +850,10 @@ jobs:
           node <<'EOF'
           const fs = require("fs");
           const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-          const scopedSdk = `@${process.env.GITHUB_PACKAGES_SCOPE}/headroom-ai`;
+          const scopedSdk = `@${process.env.GITHUB_PACKAGES_SCOPE}/cutctx-ai`;
           pkg.name = `@${process.env.GITHUB_PACKAGES_SCOPE}/${pkg.name}`;
           pkg.dependencies = pkg.dependencies || {};
-          delete pkg.dependencies["headroom-ai"];
+          delete pkg.dependencies["cutctx-ai"];
           pkg.dependencies[scopedSdk] = `^${pkg.version}`;
           pkg.publishConfig = {
             ...(pkg.publishConfig || {}),

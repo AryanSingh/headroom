@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "headroom-oauth2"
+name = "cutctx-oauth2"
 version = "0.1.0"
-description = "Generic OAuth2 client-credentials upstream-auth extension for the Headroom proxy"
+description = "Generic OAuth2 client-credentials upstream-auth extension for the CutCtx proxy"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -38,7 +38,7 @@ Issues = "https://github.com/chopratejas/headroom/issues"
 
 # Registers with Headroom's opt-in proxy-extension seam (headroom/proxy/extensions.py).
 # Enable at runtime with `--proxy-extension oauth2` or HEADROOM_PROXY_EXTENSIONS=oauth2.
-[project.entry-points."headroom.proxy_extension"]
+[project.entry-points."cutctx.proxy_extension"]
 oauth2 = "headroom_oauth2:install"
 
 [tool.setuptools.packages.find]

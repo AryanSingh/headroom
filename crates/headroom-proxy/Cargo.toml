@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Headroom transparent reverse proxy (Rust, axum). Phase 1: drop-in passthrough in front of the Python proxy."
 
 [[bin]]
-name = "headroom-proxy"
+name = "cutctx"
 path = "src/main.rs"
 
 [lib]

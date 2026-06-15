@@ -1,9 +1,9 @@
-site_name: Headroom
+site_name: CutCtx
 docs_dir: wiki
 site_description: "The Context Optimization Layer for LLM Applications — compress everything your AI agent reads."
-site_url: https://chopratejas.github.io/headroom
-repo_url: https://github.com/chopratejas/headroom
-repo_name: chopratejas/headroom
+site_url: https://aryansingh.github.io/cutcxt
+repo_url: https://github.com/AryanSingh/cutcxt
+repo_name: AryanSingh/cutcxt
 edit_uri: edit/main/docs/
 
 theme:
@@ -128,9 +128,9 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/chopratejas/headroom
+      link: https://github.com/AryanSingh/cutcxt
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/headroom-ai/
+      link: https://pypi.org/project/cutctx-ai/
     - icon: fontawesome/brands/discord
       link: https://discord.gg/yRmaUNpsPJ
   generator: false

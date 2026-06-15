@@ -292,3 +292,143 @@ def upgrade(tier: str | None, auto_open: bool) -> None:
             click.echo("\nCould not open browser. Visit the URL above manually.")
     else:
         click.echo(f"\nVisit the URL above to complete your upgrade.")
+
+
+@license.command()
+@click.option(
+    "--tier",
+    type=click.Choice(["builder", "team", "business", "enterprise"], case_sensitive=False),
+    required=True,
+    help="License tier to generate",
+)
+@click.option(
+    "--org",
+    required=True,
+    help="Organization name",
+)
+@click.option(
+    "--seats",
+    type=int,
+    default=1,
+    help="Number of seats (default: 1)",
+)
+@click.option(
+    "--expiry",
+    help="Expiry date (YYYY-MM-DD format, optional)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Generate unsigned key without secret (for testing)",
+)
+def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool) -> None:
+    """Generate a signed license key (admin only).
+
+    Generates an HMAC-SHA256 signed license key for the specified tier.
+    Requires HEADROOM_LICENSE_HMAC_SECRET to be set, unless --dry-run is used.
+
+    The key format is: {prefix}-{payload}.{signature}
+      - prefix: tier-based (bld-, team-, biz-, ent-)
+      - payload: JSON with org, seats, expiry (base64url encoded)
+      - signature: HMAC-SHA256 hex of the key portion
+
+    \b
+    Examples:
+        headroom license generate --tier team --org acme --seats 10
+        headroom license generate --tier enterprise --org widgetcorp --dry-run
+        headroom license generate --tier business --org startup --expiry 2026-12-31
+    """
+    import base64
+    import hashlib
+    import hmac
+    import os
+    from datetime import datetime
+
+    def encode_payload(org_name: str, num_seats: int, exp_date: str | None = None) -> str:
+        """Encode org_name, seats, and optional expiry as base64url JSON."""
+        payload = {
+            "org": org_name,
+            "seats": num_seats,
+        }
+        if exp_date:
+            payload["expiry"] = exp_date
+
+        json_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        b64_bytes = base64.urlsafe_b64encode(json_bytes).rstrip(b"=")
+        return b64_bytes.decode("ascii")
+
+    def tier_to_prefix(tier_name: str) -> str:
+        """Map tier name to license key prefix."""
+        tier_lower = tier_name.lower()
+        mapping = {
+            "builder": "bld-",
+            "team": "team-",
+            "business": "biz-",
+            "enterprise": "ent-",
+        }
+        if tier_lower not in mapping:
+            raise ValueError(f"Unknown tier: {tier_name}")
+        return mapping[tier_lower]
+
+    # Validate expiry format if provided
+    if expiry:
+        try:
+            datetime.strptime(expiry, "%Y-%m-%d")
+        except ValueError:
+            click.echo(f"Error: Invalid expiry date '{expiry}'. Use YYYY-MM-DD format.", err=True)
+            raise SystemExit(1)
+
+    # Get secret from environment or require --dry-run
+    secret = None
+    if not dry_run:
+        secret = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET")
+        if not secret:
+            click.echo(
+                "Error: HEADROOM_LICENSE_HMAC_SECRET not set.\n"
+                "Set the env var or use --dry-run to generate unsigned keys.",
+                err=True,
+            )
+            raise SystemExit(1)
+
+    try:
+        prefix = tier_to_prefix(tier)
+        payload = encode_payload(org, seats, expiry)
+        unsigned_key = f"{prefix}{payload}"
+
+        if secret:
+            sig_bytes = hmac.new(
+                secret.encode("utf-8"),
+                unsigned_key.encode("utf-8"),
+                hashlib.sha256,
+            ).digest()
+            sig_hex = sig_bytes.hex()
+            signed_key = f"{unsigned_key}.{sig_hex}"
+        else:
+            signed_key = None
+
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
+
+    # Output
+    click.echo("Headroom License Key Generated")
+    click.echo("=" * 60)
+    click.echo(f"Tier:               {tier}")
+    click.echo(f"Organization:       {org}")
+    click.echo(f"Seats:              {seats}")
+    if expiry:
+        click.echo(f"Expiry:             {expiry}")
+    else:
+        click.echo(f"Expiry:             (none)")
+    click.echo()
+
+    if dry_run:
+        click.echo("DRY RUN (unsigned key)")
+        click.echo(f"Key:                {unsigned_key}")
+    else:
+        click.echo("Signed License Key")
+        click.echo(f"Key:                {signed_key}")
+        click.echo()
+        click.echo("To activate this license, run:")
+        click.echo(f"  headroom license activate {signed_key}")

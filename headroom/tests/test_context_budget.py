@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pytest
+from unittest.mock import patch
 
 from headroom.context_budget import (
     BudgetPolicy,
@@ -272,8 +273,10 @@ class TestContextBudgetController:
     def test_count_tokens_multiple_messages(self):
         """Token counting scales with content size."""
         controller = ContextBudgetController()
-        short = [{"role": "user", "content": "hi"}]
-        long = [{"role": "user", "content": "hi"}] * 10
+        # Use content long enough for the char-based fallback to return >0
+        content = "hello world how are you doing today this is a test message"
+        short = [{"role": "user", "content": content}]
+        long = [{"role": "user", "content": content}] * 10
 
         tokens_short = controller._count_tokens(short)
         tokens_long = controller._count_tokens(long)
@@ -309,14 +312,12 @@ class TestContextBudgetController:
         """Compression flag set when zone is YELLOW."""
         controller = ContextBudgetController(max_tokens=100)
 
-        # Artificially put in YELLOW zone
-        controller._tokens_used = 70  # 70%
         assert controller._get_zone(70) == BudgetZone.YELLOW
 
         messages = [{"role": "user", "content": "test"}] * 5
-        # Note: actual compression may fail if headroom.compress not available
-        # but the flag should still be set if we're in YELLOW zone
-        controller.apply(messages)
+        # Mock _count_tokens so apply() sees 70 tokens (YELLOW zone)
+        with patch.object(controller, '_count_tokens', return_value=70):
+            controller.apply(messages)
 
         # The controller should mark that it tried compression
         # (even if it fell back to original)
@@ -373,8 +374,8 @@ class TestBudgetZoneTransitions:
         """Zone transitions from YELLOW to RED."""
         controller = ContextBudgetController(max_tokens=1000)
 
-        controller._tokens_used = 800  # 80% = YELLOW boundary
-        assert controller._get_zone(800) == BudgetZone.YELLOW
+        controller._tokens_used = 750  # 75% = YELLOW zone
+        assert controller._get_zone(750) == BudgetZone.YELLOW
 
         controller._tokens_used = 850  # 85% = RED zone
         assert controller._get_zone(850) == BudgetZone.RED
