@@ -111,6 +111,7 @@
       <div class="nav-item" onclick="showSection('license',this)"><span class="nav-icon">🔑</span> License</div>
       <div class="nav-item" onclick="showSection('retention',this)"><span class="nav-icon">🗑️</span> Retention</div>
       <div class="nav-item" onclick="showSection('intelligence',this)"><span class="nav-icon">🧠</span> Intelligence</div>
+      <div class="nav-item" onclick="showSection('ccr',this)"><span class="nav-icon">📦</span> CCR Browser</div>
       <div class="nav-item" onclick="showSection('subscription',this)"><span class="nav-icon">💳</span> Subscription</div>
       <div class="nav-item" onclick="showSection('settings',this)"><span class="nav-icon">⚙️</span> Settings</div>
     </div>
@@ -188,6 +189,11 @@
         <button class="btn btn-primary" onclick="scanText()">Scan</button>
         <div id="scan-results" style="margin-top:16px"></div>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><span class="card-title">Recent Scan History</span><button class="btn btn-outline btn-sm" onclick="clearScanHistory()">Clear</button></div>
+        <table><thead><tr><th>Time</th><th>Input</th><th>Violations</th><th>Blocked</th></tr></thead><tbody id="scan-history-table"></tbody></table>
+        <div id="scan-history-empty" class="empty-state" style="display:none">No scans performed yet.</div>
+      </div>
     </div>
 
     <!-- SSO -->
@@ -217,7 +223,22 @@
     <!-- Intelligence -->
     <div id="section-intelligence" class="section" style="display:none">
       <div class="header"><h1>Intelligence Layer</h1></div>
-      <div class="card" id="intelligence-card"><p style="color:var(--text3)">Loading...</p></div>
+      <div id="intelligence-features" class="stats-grid"><p style="color:var(--text3)">Loading...</p></div>
+      <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Feature Details</span></div><div id="intelligence-details" style="color:var(--text3)">Loading details...</div></div>
+    </div>
+
+    <!-- CCR Browser -->
+    <div id="section-ccr" class="section" style="display:none">
+      <div class="header"><h1>CCR Content Browser</h1></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Stored Compressions</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <input type="text" id="ccr-search" placeholder="Search by hash prefix or content..." style="flex:1;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+          <button class="btn btn-outline" onclick="loadCCR()">Search</button>
+        </div>
+        <table><thead><tr><th>Hash</th><th>Kind</th><th>Size</th><th>Created</th></tr></thead><tbody id="ccr-table"></tbody></table>
+        <div id="ccr-empty" class="empty-state" style="display:none">CCR store is empty. Content will appear here after compression.</div>
+      </div>
     </div>
 
     <!-- Subscription -->
@@ -237,6 +258,10 @@
       <div class="card">
         <div class="card-header"><span class="card-title">Entitlements</span></div>
         <div id="entitlements-list" style="color:var(--text3)">Loading...</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Plan &amp; Pricing</span></div>
+        <div id="pricing-info" style="color:var(--text3)">Loading...</div>
       </div>
     </div>
   </main>
@@ -276,7 +301,7 @@ function showSection(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-'+name).style.display='block';
   if (el) el.classList.add('active');
-  const loaders = { dashboard:loadDashboard, analytics:loadAnalytics, orgs:loadOrgs, users:loadRoles, audit:loadAuditEvents, fleet:loadFleet, firewall:loadFirewall, sso:loadSSO, license:loadLicense, retention:loadRetention, intelligence:loadIntelligence, subscription:loadSubscription, settings:loadEntitlements };
+  const loaders = { dashboard:loadDashboard, analytics:loadAnalytics, orgs:loadOrgs, users:loadRoles, audit:loadAuditEvents, fleet:loadFleet, firewall:loadFirewall, sso:loadSSO, license:loadLicense, retention:loadRetention, intelligence:loadIntelligence, ccr:loadCCR, subscription:loadSubscription, settings:loadEntitlements };
   if (loaders[name]) loaders[name]();
 }
 
@@ -412,8 +437,13 @@ async function scanText() {
   try {
     const d=await api('/firewall/scan',{method:'POST',body:JSON.stringify({text})});
     const v=d.violations||[];
-    if (!v.length) { document.getElementById('scan-results').innerHTML='<span class="badge badge-green">No violations detected</span>'; return; }
-    document.getElementById('scan-results').innerHTML=v.map(x=>`<div style="margin-bottom:8px"><span class="badge badge-${x.block?'red':'orange'}">${x.kind}</span> ${x.description} ${x.matched_text?'<code style="color:var(--text3)">'+x.matched_text.substring(0,60)+'</code>':''}</div>`).join('');
+    if (!v.length) { document.getElementById('scan-results').innerHTML='<span class="badge badge-green">No violations detected</span>'; }
+    else { document.getElementById('scan-results').innerHTML=v.map(x=>`<div style="margin-bottom:8px"><span class="badge badge-${x.block?'red':'orange'}">${x.kind}</span> ${x.description} ${x.matched_text?'<code style="color:var(--text3)">'+x.matched_text.substring(0,60)+'</code>':''}</div>`).join(''); }
+    // Save to scan history
+    const history=getScanHistory();
+    history.unshift({time:new Date().toISOString(),input:text,violations:v.length,blocked:d.blocked||v.some(x=>x.block)});
+    saveScanHistory(history);
+    renderScanHistory();
   } catch(e) { document.getElementById('scan-results').innerHTML='<span class="badge badge-red">Scan failed</span>'; }
 }
 
@@ -476,9 +506,66 @@ async function runCleanup() {
 async function loadIntelligence() {
   try {
     const d=await api('/intelligence/status');
-    const features=['task_aware','dedup','context_budget','profiles','shared_context','cost_forecast'];
-    document.getElementById('intelligence-card').innerHTML=`<div class="stats-grid">${features.map(f=>`<div class="stat-card"><div class="stat-label">${f.replace(/_/g,' ')}</div><div class="stat-value">${d[f]?'✅':'❌'}</div></div>`).join('')}</div>`;
-  } catch(e) { document.getElementById('intelligence-card').innerHTML='<div class="empty-state">Intelligence layer status unavailable.</div>'; }
+    const features=[
+      {key:'task_aware',name:'Task-Aware',desc:'Extracts task context and scores relevance per message',icon:'🎯'},
+      {key:'dedup',name:'Semantic Dedup',desc:'Hash-indexed deduplication with CCR pointer replacement',icon:'🔗'},
+      {key:'context_budget',name:'Context Budget',desc:'Progressive compression as token budget fills',icon:'📊'},
+      {key:'profiles',name:'Cross-Session Profiles',desc:'Learns compression patterns per workspace over time',icon:'📋'},
+      {key:'shared_context',name:'Multi-Agent Shared State',desc:'Shared compression cache across agents',icon:'🤝'},
+      {key:'cost_forecast',name:'Cost Forecasting',desc:'Pre-task cost estimation and policy engine',icon:'💰'}
+    ];
+    document.getElementById('intelligence-features').innerHTML=features.map(f=>`<div class="stat-card"><div class="stat-label">${f.icon} ${f.name}</div><div class="stat-value">${d[f.key]?'✅ Enabled':'❌ Disabled'}</div><div style="font-size:12px;color:var(--text3);margin-top:4px">${f.desc}</div></div>`).join('');
+    const enabled=features.filter(f=>d[f.key]).map(f=>f.name);
+    const disabled=features.filter(f=>!d[f.key]).map(f=>f.name);
+    document.getElementById('intelligence-details').innerHTML=`<div style="padding:8px 0"><p style="margin-bottom:8px"><strong>Enabled (${enabled.length}):</strong> ${enabled.length?enabled.join(', '):'None'}</p><p><strong>Disabled (${disabled.length}):</strong> ${disabled.length?disabled.join(', '):'None'}</p><p style="margin-top:12px;color:var(--text3)">Configure with CLI flags: --task-aware, --dedup, --context-budget, --profiles, --shared-context, --cost-forecast</p></div>`;
+  } catch(e) { document.getElementById('intelligence-features').innerHTML='<div class="empty-state">Intelligence layer status unavailable.</div>'; }
+}
+
+// ── CCR Browser ──────────────────────────────────────────────────
+async function loadCCR() {
+  try {
+    const stats=await api('/v1/retrieve/stats').catch(()=>({}));
+    const events=await api('/audit/events?action=ccr.store&limit=20').catch(()=>({events:[]}));
+    const entries=events.events||[];
+    const search=document.getElementById('ccr-search').value.toLowerCase();
+    const filtered=search?entries.filter(e=>{const d=typeof e.detail==='object'?JSON.stringify(e.detail):'';return d.toLowerCase().includes(search)||((e.detail||'')+'').toLowerCase().includes(search);}):entries;
+    if(!filtered.length){document.getElementById('ccr-table').innerHTML='';document.getElementById('ccr-empty').style.display='block';return;}
+    document.getElementById('ccr-empty').style.display='none';
+    document.getElementById('ccr-table').innerHTML=filtered.map(e=>{
+      const d=typeof e.detail==='object'?e.detail:{};
+      const hash=(d.hash||d.key||'--').substring(0,16);
+      const kind=d.kind||d.type||'unknown';
+      const size=d.size||d.byte_size||'--';
+      const time=new Date(e.timestamp).toLocaleString();
+      return `<tr><td><code>${hash}</code></td><td><span class="badge badge-blue">${kind}</span></td><td>${typeof size==='number'?fmt(size)+' bytes':size}</td><td style="white-space:nowrap">${time}</td></tr>`;
+    }).join('');
+  } catch(e) { document.getElementById('ccr-table').innerHTML='';document.getElementById('ccr-empty').style.display='block'; }
+}
+
+// ── Firewall Scan History ────────────────────────────────────────
+function getScanHistory() {
+  try { return JSON.parse(localStorage.getItem('cutctx_scan_history')||'[]'); } catch(e) { return []; }
+}
+function saveScanHistory(history) {
+  localStorage.setItem('cutctx_scan_history', JSON.stringify(history.slice(0,20)));
+}
+function renderScanHistory() {
+  const h=getScanHistory();
+  if(!h.length){document.getElementById('scan-history-table').innerHTML='';document.getElementById('scan-history-empty').style.display='block';return;}
+  document.getElementById('scan-history-empty').style.display='none';
+  document.getElementById('scan-history-table').innerHTML=h.map(s=>`<tr><td style="white-space:nowrap">${new Date(s.time).toLocaleString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.input.substring(0,50)}</td><td><span class="badge ${s.violations>0?'badge-red':'badge-green'}">${s.violations}</span></td><td>${s.blocked?'<span class="badge badge-red">Yes</span>':'<span class="badge badge-green">No</span>'}</td></tr>`).join('');
+}
+function clearScanHistory() { localStorage.removeItem('cutctx_scan_history'); renderScanHistory(); toast('Scan history cleared'); }
+
+// ── Pricing Info ─────────────────────────────────────────────────
+async function loadPricingInfo() {
+  try {
+    const d=await api('/entitlements');
+    const tier=d.tier||'builder';
+    const tierInfo={builder:{name:'Builder',price:'Free',desc:'For individual developers'},team:{name:'Team',price:'$49/mo',desc:'For small teams'},business:{name:'Business',price:'$199/mo',desc:'For growing organizations'},enterprise:{name:'Enterprise',price:'Custom',desc:'For large deployments'}};
+    const t=tierInfo[tier]||tierInfo.builder;
+    document.getElementById('pricing-info').innerHTML=`<div style="padding:8px 0"><p style="font-size:16px;font-weight:600;margin-bottom:4px">${t.name} <span style="color:var(--accent2)">${t.price}</span></p><p style="color:var(--text3);margin-bottom:12px">${t.desc}</p><a href="/pricing" target="_blank" class="btn btn-outline btn-sm">View Plans</a> <a href="mailto:hello@cutctx.dev?subject=CutCtx%20Upgrade" class="btn btn-primary btn-sm" style="margin-left:8px">Upgrade</a></div>`;
+  } catch(e) { document.getElementById('pricing-info').innerHTML='<div class="empty-state">Could not load plan info.</div>'; }
 }
 
 // ── Subscription ─────────────────────────────────────────────────
@@ -510,6 +597,7 @@ async function loadEntitlements() {
       h+=feats.map(f=>`<span class="badge ${f.available?'badge-green':'badge-red'}" style="margin:2px">${f.name}</span>`).join(' ');
     }
     document.getElementById('entitlements-list').innerHTML=h;
+    loadPricingInfo();
   } catch(e) { document.getElementById('entitlements-list').innerHTML='<div class="empty-state">Could not load entitlements.</div>'; }
 }
 function saveAdminKey() {
@@ -524,6 +612,7 @@ function testSSO() { toast('Run cutctx sso-test in terminal for full validation'
 
 // ── Init ─────────────────────────────────────────────────────────
 loadDashboard();
+renderScanHistory();
 setInterval(loadDashboard, 30000);
 </script>
 </body>

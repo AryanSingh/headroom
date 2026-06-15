@@ -43,6 +43,7 @@ def _register_commands() -> None:
     from . import (
         agent_savings,  # noqa: F401
         audit,  # noqa: F401
+        bench,  # noqa: F401
         capture,  # noqa: F401
         config_check,  # noqa: F401
         evals,  # noqa: F401
@@ -55,6 +56,7 @@ def _register_commands() -> None:
         perf,  # noqa: F401
         proxy,  # noqa: F401
         rbac,  # noqa: F401
+        report,  # noqa: F401
         savings,  # noqa: F401
         setup,  # noqa: F401
         sso_test,  # noqa: F401

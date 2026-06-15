@@ -1,74 +1,66 @@
-# CutCtx Go SDK
+# cutctx-go
 
-A Go client for the [CutCtx](https://cutctx.dev) context compression proxy.
-
-CutCtx compresses LLM context windows by 50-70% with zero quality loss. This SDK communicates with the CutCtx proxy HTTP API — no native bindings needed.
+Go SDK for [CutCtx](https://cutctx.dev) — AI context compression proxy.
 
 ## Quickstart
 
 ```go
-package main
+import cutctx "github.com/cutctx/cutctx-go"
 
-import (
-    "context"
-    "fmt"
-    "log"
-
-    cutctx "github.com/AryanSingh/cutcxt/sdk/go"
+client := cutctx.New(
+    cutctx.WithAPIKey(os.Getenv("CUTCTX_LICENSE_KEY")),
 )
-
-func main() {
-    client := cutctx.New(
-        cutctx.WithProxyURL("http://localhost:8787"),
-        cutctx.WithAPIKey("your-api-key"),
-    )
-
-    messages := []cutctx.Message{
-        {Role: "user", Content: "Explain quantum computing in simple terms."},
-    }
-
-    compressed, err := client.Compress(context.Background(), messages)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    fmt.Printf("Compressed %d messages\n", len(compressed))
-}
+compressed, err := client.Compress(ctx, messages)
+// Use compressed messages with your LLM client — tokens reduced 60–95%
 ```
+
+## Installation
+
+```
+go get github.com/cutctx/cutctx-go
+```
+
+## Options
+
+| Option | Default | Description |
+|---|---|---|
+| `WithProxyURL(url)` | `http://localhost:8787` | CutCtx proxy base URL |
+| `WithAPIKey(key)` | `""` | License key sent as `X-CutCtx-Key` header |
+| `WithModel(model)` | `claude-sonnet-4-6` | Target model for cost estimation |
+| `WithTimeout(d)` | `30s` | HTTP client timeout |
 
 ## API
 
-### `New(opts ...Option) *Client`
+### `Compress(ctx, messages) ([]Message, error)`
 
-Create a new client.
+POST `/v1/compress` — returns semantically compressed messages.
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `WithProxyURL(url)` | `http://localhost:8787` | CutCtx proxy URL |
-| `WithAPIKey(key)` | `""` | Upstream LLM API key |
-| `WithModel(model)` | `claude-sonnet-4-20250514` | Model name for compression |
-| `WithHTTPClient(c)` | default | Custom HTTP client |
-| `WithTimeout(d)` | `30s` | HTTP timeout |
+### `Retrieve(ctx, ref) (string, error)`
 
-### `client.Compress(ctx, messages) ([]Message, error)`
+GET `/v1/retrieve/{ref}` — fetches original content for a `[headroom:ref:HASH]` pointer.
 
-Compress messages through the CutCtx proxy. Returns compressed messages.
+### `Stats() Stats`
 
-### `client.Retrieve(ctx, ref) (string, error)`
+Returns lifetime statistics: `TokensOriginal`, `TokensCompressed`, `RequestsTotal`, `CompressionRatio`.
 
-Retrieve original content for a CCR reference (e.g., `<<ccr:abc123>>`).
+## Shared Context
 
-### `client.Stats(ctx) (*Stats, error)`
+Thread-safe key-value store for sharing context across operations:
 
-Get compression statistics from the proxy.
-
-## Requirements
-
-- Go 1.21+
-- CutCtx proxy running (see [docs](https://cutctx.dev/docs))
-
-## Testing
-
-```bash
-go test ./sdk/go/...
+```go
+sc := cutctx.NewSharedContext()
+sc.Put("project", "my-app")
+val, ok := sc.Get("project")  // ("my-app", true)
+stats := sc.Stats()            // SharedStats{Entries: 1, Keys: ["project"]}
+sc.Clear()
 ```
+
+### `SharedContext` API
+
+| Method | Description |
+|---|---|
+| `Put(key, value)` | Store a key-value pair |
+| `Get(key) (string, bool)` | Retrieve a value by key |
+| `List() map[string]string` | Return a copy of all entries |
+| `Clear()` | Remove all entries |
+| `Stats() SharedStats` | Get entry count and sorted keys |
