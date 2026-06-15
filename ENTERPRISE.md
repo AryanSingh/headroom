@@ -84,6 +84,7 @@ helm install cutctx ./helm/cutctx
 ## Security and Trust
 
 ### Enterprise controls
+- Ed25519 Token Licensing (Seat Leases, Server-Side Trials, Offline Tolerance)
 - SSO or JWT/OIDC admin authentication
 - Role-based access control
 - Audit logging
