@@ -40,3 +40,17 @@ def activate_instance(license_key: str, instance_id: str) -> bool:
         return resp.status_code == 200
     except Exception:
         return True  # Fail open
+
+def checkout_seat(license_key: str, user_id: str) -> bool:
+    """Checkout or renew a seat lease. Returns False if no seats available, True otherwise (fails open)."""
+    try:
+        resp = httpx.post(
+            f"{get_portal_url()}/v1/license/checkout-seat",
+            json={"license_key": license_key, "user_id": user_id, "lease_duration": 3600.0},
+            timeout=5.0
+        )
+        if resp.status_code == 429:
+            return False
+        return True
+    except Exception:
+        return True

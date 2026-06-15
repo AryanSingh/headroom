@@ -51,3 +51,29 @@ pub fn is_revoked(license_key: &str) -> bool {
         false
     }
 }
+
+#[derive(Serialize)]
+struct CheckoutSeatRequest<'a> {
+    license_key: &'a str,
+    user_id: &'a str,
+    lease_duration: f64,
+}
+
+/// Checkout or renew a seat lease. Returns false if no seats available, true otherwise (fails open).
+pub async fn checkout_seat(api_url: &str, license_key: &str, user_id: &str) -> bool {
+    let client = reqwest::Client::new();
+    match client.post(&format!("{}/v1/license/checkout-seat", api_url))
+        .json(&CheckoutSeatRequest { license_key, user_id, lease_duration: 3600.0 })
+        .send()
+        .await 
+    {
+        Ok(resp) => {
+            if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                false // No seats available
+            } else {
+                true // OK or other error (fail open)
+            }
+        }
+        Err(_) => true // Fail open on network error
+    }
+}

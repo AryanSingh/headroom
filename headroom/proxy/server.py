@@ -1572,6 +1572,24 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 # Startup
                 await proxy.startup()
                 asyncio.create_task(_log_toin_stats_periodically())
+
+                async def _checkout_seat_periodically() -> None:
+                    from headroom.billing.client import checkout_seat
+                    import asyncio
+                    import uuid
+                    import os
+                    license_key = os.environ.get("HEADROOM_LICENSE_KEY")
+                    if not license_key:
+                        return
+                    user_id = f"python-proxy-{uuid.uuid4()}"
+                    while True:
+                        if not checkout_seat(license_key, user_id):
+                            logger.error("License seat limit exceeded! Running in degraded mode.")
+                        else:
+                            logger.debug("Successfully renewed seat lease for Python proxy.")
+                        await asyncio.sleep(1800)
+                
+                asyncio.create_task(_checkout_seat_periodically())
                 if proxy.usage_reporter:
                     await proxy.usage_reporter.start(proxy)
                     # Sync entitlement tier from validated license

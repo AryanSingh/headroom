@@ -54,6 +54,29 @@ async def get_crl() -> dict:
     return {"revoked": db.get_crl()}
 
 
+class CheckoutSeatRequest(BaseModel):
+    license_key: str
+    user_id: str
+    lease_duration: float = 3600.0
+
+
+@router.post("/v1/license/checkout-seat")
+async def checkout_seat(req: CheckoutSeatRequest) -> dict:
+    """Checkout or renew a seat lease."""
+    from headroom.billing.license_db import get_license_db
+
+    db = get_license_db()
+    result = db.validate(req.license_key)
+    if not result["valid"]:
+        raise HTTPException(status_code=403, detail=result)
+        
+    success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
+    if not success:
+        raise HTTPException(status_code=429, detail={"error": "no_seats_available"})
+        
+    return {"status": "ok"}
+
+
 @router.post("/webhooks/stripe")
 async def stripe_webhook(request: Request) -> dict:
     """Handle Stripe webhook events."""

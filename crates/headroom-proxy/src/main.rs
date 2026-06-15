@@ -85,6 +85,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if let Err(e) = headroom_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id).await {
             tracing::warn!("Failed to activate license / fetch CRL: {}", e);
         }
+
+        // Periodic seat checkout ping
+        let api_url_clone = api_url.clone();
+        let key_clone = key.to_string();
+        let user_id = format!("proxy-{}", instance_id);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1800)); // 30 mins
+            loop {
+                interval.tick().await;
+                if !headroom_proxy::license::client::checkout_seat(&api_url_clone, &key_clone, &user_id).await {
+                    tracing::error!("License seat limit exceeded! Running in degraded mode.");
+                } else {
+                    tracing::debug!("Successfully renewed seat lease.");
+                }
+            }
+        });
     }
 
     let app = build_app(state).into_make_service_with_connect_info::<SocketAddr>();
