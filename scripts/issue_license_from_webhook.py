@@ -298,31 +298,52 @@ def main() -> None:
     # Expiry: 1 year from today (UTC)
     expiry = (datetime.utcnow() + timedelta(days=365)).strftime("%Y-%m-%d")
 
-    # Resolve HMAC secret
-    secret: Optional[str] = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET") or ""
-    if not secret:
-        if args.dry_run:
-            secret = None  # unsigned placeholder
-            print(
-                "[warn] HEADROOM_LICENSE_HMAC_SECRET not set -- dry-run key is UNSIGNED",
-                file=sys.stderr,
-            )
-        else:
-            secret = DEV_SECRET
-            print(
-                "[warn] HEADROOM_LICENSE_HMAC_SECRET not set -- using dev fallback secret. "
-                "DO NOT use this key in production.",
-                file=sys.stderr,
-            )
+    # Check for Ed25519 Issuer Config
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from headroom_ee.billing.license_token import sign_license, get_default_issuer_config
+    
+    kid, priv_hex = get_default_issuer_config()
 
-    # Generate license key
-    license_key = generate_license_key(
-        tier=tier,
-        org_name=args.org,
-        seats=seats,
-        expiry=expiry,
-        secret=secret,
-    )
+    if kid and priv_hex:
+        if args.dry_run:
+            print("[warn] dry-run for hrk1 token uses real keys but does not email/log", file=sys.stderr)
+        
+        extra = {"org": args.org, "seats": seats if seats > 0 else "unlimited"}
+        if expiry:
+            extra["expiry"] = expiry
+            
+        try:
+            license_key = sign_license(tier, kid, priv_hex, extra)
+        except Exception as e:
+            print(f"Error signing hrk1 license: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Resolve HMAC secret
+        secret: Optional[str] = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET") or ""
+        if not secret:
+            if args.dry_run:
+                secret = None  # unsigned placeholder
+                print(
+                    "[warn] HEADROOM_LICENSE_HMAC_SECRET not set -- dry-run key is UNSIGNED",
+                    file=sys.stderr,
+                )
+            else:
+                secret = DEV_SECRET
+                print(
+                    "[warn] Neither Ed25519 nor HMAC secret set -- using dev fallback HMAC secret. "
+                    "DO NOT use this key in production.",
+                    file=sys.stderr,
+                )
+
+        # Generate legacy license key
+        license_key = generate_license_key(
+            tier=tier,
+            org_name=args.org,
+            seats=seats,
+            expiry=expiry,
+            secret=secret,
+        )
 
     issued_at = datetime.utcnow().isoformat() + "Z"
 
