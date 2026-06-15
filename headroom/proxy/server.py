@@ -4357,7 +4357,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "hard_limit": cfg.hard_limit,
         }
 
-    @app.get("/subscription-window")
+    @app.get(
+        "/subscription-window",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def subscription_window():
         """Current Anthropic subscription window utilisation and Headroom contribution.
 
@@ -4382,12 +4388,24 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         await tracker.maybe_poll_on_demand()
         return JSONResponse(content=tracker.render_state())
 
-    @app.get("/quota")
+    @app.get(
+        "/quota",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def quota():
         """Unified quota/rate-limit stats for all registered providers (Anthropic, Codex, Copilot)."""
         return JSONResponse(content=get_quota_registry().get_all_stats())
 
-    @app.get("/metrics")
+    @app.get(
+        "/metrics",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def metrics():
         """Prometheus metrics endpoint."""
         return PlainTextResponse(
@@ -4419,7 +4437,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         report = tracker.get_report()
         return report.to_dict()
 
-    @app.post("/cache/clear")
+    @app.post(
+        "/cache/clear",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("cache.write")),
+        ],
+    )
     async def clear_cache():
         """Clear the response cache."""
         if proxy.cache:
@@ -4552,7 +4576,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
         }
 
-    @app.get("/v1/feedback/{tool_name}")
+    @app.get(
+        "/v1/feedback/{tool_name}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def ccr_feedback_for_tool(tool_name: str):
         """Get compression hints for a specific tool.
 
@@ -4588,7 +4618,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         }
 
     # Telemetry endpoints (Data Flywheel)
-    @app.get("/v1/telemetry")
+    @app.get(
+        "/v1/telemetry",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def telemetry_stats():
         """Get telemetry statistics for the data flywheel.
 
@@ -4611,7 +4647,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         telemetry = get_telemetry_collector()
         return telemetry.get_stats()
 
-    @app.get("/v1/telemetry/export")
+    @app.get(
+        "/v1/telemetry/export",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def telemetry_export():
         """Export full telemetry data for aggregation.
 
@@ -4627,7 +4669,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         telemetry = get_telemetry_collector()
         return telemetry.export_stats()
 
-    @app.post("/v1/telemetry/import")
+    @app.post(
+        "/v1/telemetry/import",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.write")),
+        ],
+    )
     async def telemetry_import(request: Request):
         """Import telemetry data from another source.
 
@@ -4638,10 +4686,21 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         """
         telemetry = get_telemetry_collector()
         data = await request.json()
+        # Validate imported data is a dict with expected structure
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+        if "tool_patterns" in data and not isinstance(data["tool_patterns"], dict):
+            raise HTTPException(status_code=400, detail="tool_patterns must be a JSON object")
         telemetry.import_stats(data)
         return {"status": "imported", "current_stats": telemetry.get_stats()}
 
-    @app.get("/v1/telemetry/tools")
+    @app.get(
+        "/v1/telemetry/tools",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def telemetry_tools():
         """Get telemetry statistics for all tracked tool signatures.
 
@@ -4657,7 +4716,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "tools": {sig_hash: stats.to_dict() for sig_hash, stats in all_stats.items()},
         }
 
-    @app.get("/v1/telemetry/tools/{signature_hash}")
+    @app.get(
+        "/v1/telemetry/tools/{signature_hash}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def telemetry_tool_detail(signature_hash: str):
         """Get detailed telemetry for a specific tool signature.
 
@@ -4679,7 +4744,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         }
 
     # TOIN (Tool Output Intelligence Network) endpoints
-    @app.get("/v1/toin/stats")
+    @app.get(
+        "/v1/toin/stats",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def toin_stats():
         """Get overall TOIN statistics.
 
@@ -4697,7 +4768,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         toin = get_toin()
         return toin.get_stats()
 
-    @app.get("/v1/toin/patterns")
+    @app.get(
+        "/v1/toin/patterns",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def toin_patterns(limit: int = 20):
         """List TOIN patterns with most samples.
 
@@ -4752,7 +4829,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return patterns_list[:limit]
 
-    @app.get("/v1/toin/pattern/{hash_prefix}")
+    @app.get(
+        "/v1/toin/pattern/{hash_prefix}",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def toin_pattern_detail(hash_prefix: str):
         """Get detailed TOIN pattern info by hash prefix.
 
@@ -4940,7 +5023,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         }
 
     # Compression-only endpoint (for TypeScript SDK and other HTTP clients)
-    @app.post("/v1/compress")
+    @app.post(
+        "/v1/compress",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
     async def compress_messages(request: Request):
         return await proxy.handle_compress(request)
 

@@ -21,8 +21,30 @@ import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger("headroom.proxy.structured_output")
+
+# SSRF protection: only allow known provider base URLs
+_ALLOWED_BASE_HOSTS = {
+    "api.anthropic.com",
+    "api.openai.com",
+    "generativelanguage.googleapis.com",
+}
+
+
+def _validate_base_url(url: str) -> str:
+    """Validate and return a base URL, blocking SSRF attempts."""
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    if host not in _ALLOWED_BASE_HOSTS:
+        raise ValueError(
+            f"SSRF blocked: base_url host '{host}' is not in the allowed list. "
+            f"Allowed: {', '.join(sorted(_ALLOWED_BASE_HOSTS))}"
+        )
+    if parsed.scheme not in ("https", "http"):
+        raise ValueError(f"SSRF blocked: base_url scheme '{parsed.scheme}' is not allowed")
+    return url
 
 
 # ---------------------------------------------------------------------------
@@ -338,7 +360,7 @@ class StructuredOutputValidator:
     ) -> str:
         """Call Anthropic Messages API."""
         api_key = kwargs.pop("api_key", None)
-        base_url = kwargs.pop("base_url", "https://api.anthropic.com")
+        base_url = _validate_base_url(kwargs.pop("base_url", "https://api.anthropic.com"))
 
         headers = {
             "Content-Type": "application/json",
@@ -383,7 +405,7 @@ class StructuredOutputValidator:
     ) -> str:
         """Call OpenAI Chat Completions API."""
         api_key = kwargs.pop("api_key", None)
-        base_url = kwargs.pop("base_url", "https://api.openai.com")
+        base_url = _validate_base_url(kwargs.pop("base_url", "https://api.openai.com"))
 
         headers = {
             "Content-Type": "application/json",

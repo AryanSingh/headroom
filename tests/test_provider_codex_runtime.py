@@ -167,12 +167,23 @@ class _CodexProxyStack:
         return f"http://127.0.0.1:{self.proxy_port}/stats"
 
 
+_PROXY_ADMIN_KEY = "codex-runtime-test-admin-key"
+
+
 @pytest.fixture(scope="module")
 def codex_proxy_stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_CodexProxyStack]:
     temp_home = tmp_path_factory.mktemp("codex-proxy-home")
-    previous_env = {name: os.environ.get(name) for name in ("HEADROOM_REQUIRE_RUST_CORE", "HOME")}
+    previous_env = {
+        name: os.environ.get(name)
+        for name in (
+            "HEADROOM_REQUIRE_RUST_CORE",
+            "HOME",
+            "HEADROOM_ADMIN_API_KEY",
+        )
+    }
     os.environ["HEADROOM_REQUIRE_RUST_CORE"] = "false"
     os.environ["HOME"] = str(temp_home)
+    os.environ["HEADROOM_ADMIN_API_KEY"] = _PROXY_ADMIN_KEY
 
     upstream_port = _free_port()
     upstream = _MockOpenAIServer(("127.0.0.1", upstream_port))
@@ -184,7 +195,7 @@ def codex_proxy_stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_Cod
     proxy.start()
 
     try:
-        _wait_for_stats(f"http://127.0.0.1:{proxy_port}/stats")
+        _wait_for_healthz(f"http://127.0.0.1:{proxy_port}/livez")
         yield _CodexProxyStack(proxy_port=proxy_port, upstream=upstream, proxy=proxy)
     finally:
         proxy.stop()
@@ -197,7 +208,8 @@ def codex_proxy_stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_Cod
                 os.environ[name] = value
 
 
-def _wait_for_stats(url: str) -> None:
+def _wait_for_healthz(url: str) -> None:
+    """Poll /healthz (no auth required) until proxy is ready."""
     deadline = time.time() + 10.0
     while time.time() < deadline:
         try:
@@ -211,7 +223,11 @@ def _wait_for_stats(url: str) -> None:
 
 
 def _model_count(stats_url: str, model: str) -> int:
-    response = httpx.get(stats_url, timeout=5.0)
+    response = httpx.get(
+        stats_url,
+        headers={"Authorization": f"Bearer {_PROXY_ADMIN_KEY}"},
+        timeout=5.0,
+    )
     response.raise_for_status()
     payload = response.json()
     return int(payload["requests"]["by_model"].get(model, 0))
