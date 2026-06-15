@@ -182,7 +182,11 @@ class LocalEmbedder:
         self._model = MLModelRegistry.get_sentence_transformer(self._model_name, self._device)
 
         # Get actual dimension from loaded model
-        self._dimension = self._model.get_sentence_embedding_dimension()
+        try:
+            self._dimension = self._model.get_embedding_dimension()
+        except AttributeError:
+            # Backward compatibility with older sentence-transformers
+            self._dimension = self._model.get_sentence_embedding_dimension()
         logger.info(
             f"Model loaded (shared): {self._model_name}, dimension={self._dimension}, device={self._device}"
         )

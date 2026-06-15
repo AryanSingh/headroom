@@ -67,10 +67,8 @@ from .utils import extract_user_query as _extract_user_query
 
 logger = logging.getLogger(__name__)
 
-try:
-    from headroom.cli.upgrade_prompt import maybe_show_upgrade_prompt as _maybe_upgrade
-except ImportError:
-    _maybe_upgrade = None
+_maybe_upgrade = None  # Lazy-loaded on first compress() call to avoid CLI import chain
+_UPGRADE_PROMPT_FAILED = False  # Set True after ImportError to avoid retrying
 
 
 # Lazy-initialized singleton pipeline
@@ -331,11 +329,17 @@ def compress(
             transforms_applied=result.transforms_applied,
         )
 
+        # Lazy-load upgrade prompt on first compress() call so `import headroom`
+        # does not eagerly pull in the CLI → memory chain.
+        global _maybe_upgrade, _UPGRADE_PROMPT_FAILED
+        if _maybe_upgrade is None and not _UPGRADE_PROMPT_FAILED:
+            try:
+                from headroom.cli.upgrade_prompt import maybe_show_upgrade_prompt
+                _maybe_upgrade = maybe_show_upgrade_prompt
+            except ImportError:
+                _UPGRADE_PROMPT_FAILED = True
         if _maybe_upgrade is not None:
             try:
-                # Attempt to read monthly token count and tier from config or
-                # entitlement state if available; fall back to tokens_before
-                # for this call and 'builder' tier (free tier default).
                 monthly_tokens = getattr(cfg, 'monthly_tokens_compressed', tokens_before)
                 tier = getattr(cfg, 'tier', 'builder')
                 _maybe_upgrade(monthly_tokens, tier)
