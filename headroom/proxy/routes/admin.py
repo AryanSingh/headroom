@@ -171,7 +171,12 @@ def create_admin_router(
 
     _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "docs" / "admin-dashboard.html"
 
-    @router.get("/admin", response_class=_HTMLResponse, include_in_schema=False)
+    @router.get(
+        "/admin",
+        response_class=_HTMLResponse,
+        include_in_schema=False,
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("dashboard.read"))],
+    )
     async def admin_dashboard():
         """Serve the enterprise admin dashboard UI."""
         try:
