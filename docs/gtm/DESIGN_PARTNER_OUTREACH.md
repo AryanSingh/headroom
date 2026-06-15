@@ -1,124 +1,103 @@
-# Design Partner Outreach Templates
-
-## Target Persona
-
-**VP Engineering or Staff Engineer** at a company with 5-50 engineers actively using Claude Code, Codex, or Cursor. Monthly LLM bill > $2,000.
-
-**Ideal signals:**
-- Company blog posts about AI-assisted development
-- Open-source repos with AI agent tooling
-- Job postings for "AI infrastructure" or "developer tooling"
-- Active presence in AI coding communities
-
----
+# CutCtx Design Partner Outreach
 
 ## 1. Cold Outreach Email
 
-**Subject:** Cut your LLM context costs by 60% — free pilot for your team
+### Subject Lines (A/B Test)
 
-Hi [NAME],
+- **A:** "Your LLM API bill — quick question"
+- **B:** "Cutting Claude Code spend at [Company] — 60 seconds"
 
-I noticed your team is using [Claude Code / Codex / Cursor] for development. Most teams we talk to are spending 3-5x more on LLM tokens than necessary because their context windows are bloated with redundant information.
+### Body
 
-CutCtx is a context compression layer that sits between your agents and LLM APIs. It strips redundant tokens while preserving everything that matters — and it's fully reversible (zero quality loss).
+Hi [First Name],
 
-**What we're offering:**
-- Free Team tier ($49/mo value) for 3 months
-- Direct input into our roadmap
-- Weekly 30-min call to help optimize your workflows
+LLM API bills at AI-heavy teams can spiral fast — $2–5K/month before you've even noticed. Most of it is repeated context getting sent with every request.
 
-**What we need:**
-- Honest feedback on what works and what doesn't
-- Permission to publish a case study after the pilot
+We built CutCtx: a transparent proxy that sits between your agents and the Claude/OpenAI APIs and compresses context 60–95%. Nothing changes in your code. No data leaves your infra.
 
-Our early users are seeing 50-70% token reduction on multi-turn agent sessions. Would you be open to a 15-minute call this week to see if it's a fit?
+A few teams are already running it in prod and cutting token spend by more than half. We're looking for 5 design partners to shape the roadmap — free access in exchange for honest feedback.
 
-Best,
-[YOUR_NAME]
-CutCtx — Context compression for AI agents
+Would a 20-minute call be worth it to see if the math works for your stack?
+
+[Your Name]
 
 ---
 
-## 2. Follow-Up Email (Day 7)
+## 2. Follow-up Email (Day 7, No Response)
 
-**Subject:** Re: Cut your LLM context costs by 60%
+### Subject: Re: Your LLM API bill — quick question
 
-Hi [NAME],
+Hi [First Name],
 
-Just following up on my note from last week. I know you're busy, so here's the 30-second version:
+Following up on my note from last week.
 
-CutCtx compresses AI agent context by 50-70% with zero quality loss. We're looking for 3-5 design partners to help shape the product.
+Quick math worth running: if your team pushes 10M tokens/month at $3/M, that's $30K/year. CutCtx typically cuts that 60–95%.
 
-Free for 3 months. No commitment required.
+I put together a 2-minute walkthrough here: [Loom/Doc link]
 
-Would a quick 10-minute demo work better than a call? I can send a Loom walkthrough instead.
+Happy to dig into your specific numbers if it's relevant.
 
-Best,
-[YOUR_NAME]
-
----
-
-## 3. Demo Talking Points (15-Minute Call)
-
-1. **The Problem:** AI agents (Claude Code, Codex, Cursor) send massive context windows with redundant information. Every token costs money, and context bloat degrades response quality.
-
-2. **How CutCtx Works:** A transparent proxy layer that sits in front of your LLM APIs. It compresses context before it reaches the model, then decompresses the response. The agent never knows it's there.
-
-3. **Key Differentiator:** CutCtx is the only compression tool that's fully reversible. Other tools (LLMLingua, Morph) delete tokens permanently. CutCtx stores compressed data in a local cache and retrieves it when needed. Zero information loss.
-
-4. **Early Results:** 50-70% token reduction on multi-turn sessions. 10-30% cost reduction on typical agent workflows. Sub-millisecond latency overhead.
-
-5. **What We're Building Next:** Task-aware compression (understands what the agent is working on), semantic deduplication (removes repeated content across sessions), and cost forecasting (predicts spend before it happens).
+[Your Name]
 
 ---
 
-## 4. Design Partner Agreement Terms
+## 3. LinkedIn DM
 
-### What They Get:
-- **Free Team tier** for 3 months ($49/mo value, $147 total)
-- **Direct roadmap input** — quarterly planning sessions
-- **Priority support** — dedicated Slack channel or email
-- **Custom features** — up to 2 feature requests fast-tracked
-- **Case study co-authorship** — they approve all content before publication
-
-### What We Get:
-- **Weekly 30-minute feedback call** during the pilot
-- **Access to anonymized usage data** (compression ratios, error rates)
-- **Permission to publish a case study** (with their approval)
-- **Logo and quote** for our website (optional but appreciated)
-- **First right of refusal** for annual contract at discounted rate
-
-### Terms:
-- Pilot starts on [START_DATE] and runs for 90 days
-- Either party can end with 2 weeks' notice
-- No financial commitment required during pilot
-- Data stays on their infrastructure (local-first)
-- Provider does not access prompt data or LLM interactions
+Hi [First Name] — noticed [Company] is shipping a lot with Claude/Codex. Curious what your monthly token spend looks like. We built a compression proxy that's cutting API costs 60–95% for teams like yours. Worth a quick chat?
 
 ---
 
-## 5. Email Templates by Persona
+## 4. Intro Call Agenda (20 minutes)
 
-### For VP Engineering:
-> Focus on cost savings and team productivity. Mention specific dollar amounts if possible.
-> "Your team is likely spending $X/mo on context tokens. CutCtx can reduce that by 50-70%."
+**Goal:** Understand their pain, show real compression, and present the design partner offer.
 
-### For Staff Engineer:
-> Focus on technical architecture and integration. Mention zero-config proxy mode.
-> "Drop-in replacement for your existing LLM proxy. Same API, 60% fewer tokens."
-
-### For AI/ML Lead:
-> Focus on quality preservation and reversibility. Mention the CCR cache.
-> "Unlike LLMLingua, CutCtx is fully reversible. Compressed context is cached and retrievable."
+| Time | Topic | Notes |
+|------|-------|-------|
+| 0–3 min | **Their LLM usage today** | What are they building? Rough monthly token spend? Which APIs (Claude, OpenAI, Codex, Cursor)? |
+| 3–8 min | **Live compression demo** | Run a real request through CutCtx — show before/after token counts. Use their stack if possible (Claude Code, agent loops, etc.). |
+| 8–13 min | **The design partner offer** | Walk through what they get and what we ask (see Section 5). Emphasize: free Team tier, direct roadmap input, no obligation after 12 months. |
+| 13–17 min | **Their questions** | Let them drive. Common ones: data privacy, latency overhead, integration complexity, what "anonymized metrics" means. |
+| 17–20 min | **Next steps / access** | If interested: send agreement, provision seats, schedule first weekly call. If not sure: send doc, follow up in 3 days. |
 
 ---
 
-## 6. Outreach Tracker
+## 5. Design Partner Agreement Terms
 
-| Name | Company | Role | Contact Date | Follow-up | Status | Notes |
-|------|---------|------|-------------|-----------|--------|-------|
+*Plain English — no legalese.*
+
+### What You Get
+
+- **Free CutCtx Team license (5 seats) for 12 months** — that's ~$2,940 at list price, on us.
+- **Weekly 30-minute product call with the founding team** for months 1–3, then monthly for months 4–12. You talk directly to the people building it.
+- **Direct influence on next quarter's roadmap** — if you need a feature, we'll prioritize it if it makes sense for the product.
+- **Beta access to all new features** before public release.
+
+### What We Ask
+
+- **Attend feedback calls** — weekly for months 1–3, monthly for months 4–12. If you can't make one, just let us know.
+- **Share anonymized usage metrics** — tokens compressed, cost saved. We never see the content of your prompts or context. Just the numbers.
+- **Allow an anonymized case study** — we'll write it, you review it before it goes anywhere. If you're not happy with it, we don't publish.
+- **Intro to 2 other potential design partners** at your 3-month check-in — just people you think might have the same problem. No pressure on them.
+
+### The Fine Print (Still Plain English)
+
+- Either party can exit with 30 days notice, no hard feelings.
+- Your data stays in your infra. CutCtx is a local-first proxy — nothing is stored on our servers.
+- The case study right only covers aggregated metrics and your general experience. We won't quote you or name your company without separate written approval.
+- After 12 months, you move to a paid plan or we part ways cleanly.
+
+---
+
+## 6. Target Company Tracking Template
+
+| Company | Contact | Title | LLM Usage Signal | Outreach Date | Status | Notes |
+|---------|---------|-------|-----------------|--------------|--------|-------|
+| | | | | | | |
+| | | | | | | |
+| | | | | | | |
+| | | | | | | |
 | | | | | | | |
 
----
+**Status options:** `Identified` / `Emailed` / `Followed Up` / `Replied` / `Call Scheduled` / `Call Done` / `Agreement Sent` / `Active Partner` / `Passed`
 
-*Review and customize templates before sending. Personalization is key.*
+**LLM Usage Signal examples:** "Claude Code heavy user (GitHub)", "Posted about GPT-4 costs on Twitter", "Job listing requires LLM API experience", "Using Cursor at scale (blog post)", "Raised Series A, AI-native product"

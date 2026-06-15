@@ -1,9 +1,26 @@
 package cutctx
 
-// WithAPIKey sets the API key for the upstream LLM provider.
-// This is an alias for the top-level function for discoverability.
-var _ = WithAPIKey
+import "time"
 
-// WithHTTPClient sets a custom HTTP client.
-// This is an alias for the top-level function for discoverability.
-var _ = WithHTTPClient
+// Option configures a Client
+type Option func(*Client)
+
+// WithProxyURL sets the CutCtx proxy base URL (default: http://localhost:8787)
+func WithProxyURL(url string) Option {
+	return func(c *Client) { c.proxyURL = url }
+}
+
+// WithAPIKey sets the CutCtx license key sent as X-CutCtx-Key header
+func WithAPIKey(key string) Option {
+	return func(c *Client) { c.apiKey = key }
+}
+
+// WithModel sets the target model name used for cost estimation
+func WithModel(model string) Option {
+	return func(c *Client) { c.model = model }
+}
+
+// WithTimeout sets the HTTP client timeout (default: 30s)
+func WithTimeout(d time.Duration) Option {
+	return func(c *Client) { c.httpClient.Timeout = d }
+}

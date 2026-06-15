@@ -1,62 +1,65 @@
 """
-In-CLI upgrade prompt for CutCtx.
-
-Shows a one-time-per-day upgrade nudge when Builder tier users exceed
-500K compressed tokens in a month.
+Upgrade prompt for Builder-tier users approaching free tier limits.
+Shown at most once per day to avoid spamming.
 """
+from __future__ import annotations
 
+import sys
 import os
-from datetime import datetime, timezone
+from datetime import date
 from pathlib import Path
 
-_PROMPT_DIR = Path(os.environ.get("CUTCTX_DATA_DIR", os.path.expanduser("~/.cutctx")))
-_PROMPTED_FILE = _PROMPT_DIR / "prompted_today"
+MONTHLY_FREE_TOKENS = 500_000
+_PROMPT_FLAG_DIR = Path.home() / ".cutctx"
+_PROMPT_FLAG_FILE = _PROMPT_FLAG_DIR / "prompted_today"
 
 
-def _get_today_key() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-
-def _already_prompted_today() -> bool:
-    """Check if we've already shown the upgrade prompt today."""
-    if not _PROMPTED_FILE.exists():
-        return False
+def _was_prompted_today() -> bool:
+    """Return True if we already showed the prompt today."""
     try:
-        stored_key = _PROMPTED_FILE.read_text().strip()
-        return stored_key == _get_today_key()
-    except Exception:
-        return False
+        if _PROMPT_FLAG_FILE.exists():
+            return _PROMPT_FLAG_FILE.read_text().strip() == str(date.today())
+    except OSError:
+        pass
+    return False
 
 
 def _mark_prompted() -> None:
-    """Record that we showed the prompt today."""
+    """Write today's date to the flag file."""
     try:
-        _PROMPT_DIR.mkdir(parents=True, exist_ok=True)
-        _PROMPTED_FILE.write_text(_get_today_key())
-    except Exception:
+        _PROMPT_FLAG_DIR.mkdir(parents=True, exist_ok=True)
+        _PROMPT_FLAG_FILE.write_text(str(date.today()))
+    except OSError:
         pass
 
 
-def maybe_show_upgrade_prompt(tokens_compressed: int, tier: str) -> None:
+def maybe_show_upgrade_prompt(tokens_compressed_this_month: int, tier: str) -> None:
     """
-    Show an upgrade prompt if:
-    - tier == 'builder' AND tokens_compressed > 500_000 this month
-    - OR if compression fails due to entitlement check
+    Show upgrade nudge if:
+    - tier == 'builder' (free tier)
+    - tokens_compressed_this_month >= MONTHLY_FREE_TOKENS
+    - Haven't shown the prompt today
 
-    Prints a one-line message. Only shows once per day.
+    Prints to stderr so it doesn't interfere with stdout pipeline output.
     """
     if tier.lower() != "builder":
         return
-
-    if tokens_compressed < 500_000:
+    if tokens_compressed_this_month < MONTHLY_FREE_TOKENS:
+        return
+    if _was_prompted_today():
         return
 
-    if _already_prompted_today():
-        return
+    _mark_prompted()
+
+    # Use ANSI yellow if stderr is a terminal
+    use_color = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+    start = "\033[33m" if use_color else ""
+    end = "\033[0m" if use_color else ""
 
     print(
-        f"\033[33m💡 You've compressed {tokens_compressed:,} tokens this month.\n"
-        f"   Upgrade to CutCtx Team for unlimited compression + analytics.\n"
-        f"   → cutctx billing checkout --tier team\033[0m"
+        f"\n{start}💡 You've compressed {tokens_compressed_this_month:,}+ tokens this month "
+        f"(free tier: {MONTHLY_FREE_TOKENS:,} tokens/month).{end}\n"
+        f"   Upgrade to CutCtx Team for unlimited compression + savings analytics.\n"
+        f"   → cutctx billing checkout --tier team\n",
+        file=sys.stderr,
     )
-    _mark_prompted()

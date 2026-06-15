@@ -10,7 +10,7 @@
 
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://headroom-docs.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.dev';
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "headroom.fullname" . }}
+  name: {{ include "cutctx.fullname" . }}
   labels:
-    {{- include "headroom.labels" . | nindent 4 }}
+    {{- include "cutctx.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -33,7 +33,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "headroom.fullname" $ }}
+                name: {{ include "cutctx.fullname" $ }}
                 port:
                   name: http
           {{- end }}

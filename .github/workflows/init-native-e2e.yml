@@ -45,7 +45,7 @@ jobs:
         # Rust extension cannot build for `win_amd64` until the upstream
         # CRT conflict is resolved. Re-add `windows-latest` once the wheel
         # builds cleanly there. Tracked in the project plan; not a blocker
-        # for headroom-ai installs on Linux + macOS.
+        # for cutctx-ai installs on Linux + macOS.
         os: [ubuntu-latest, macos-latest]
         target: [claude, codex, copilot, openclaw]
         exclude:

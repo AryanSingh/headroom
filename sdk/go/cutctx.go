@@ -1,15 +1,3 @@
-// Package cutctx provides a Go client for the CutCtx context compression proxy.
-//
-// CutCtx compresses LLM context windows by 50-70% with zero quality loss.
-// This SDK communicates with the CutCtx proxy HTTP API — no native bindings needed.
-//
-// Quickstart:
-//
-//	client := cutctx.New(cutctx.WithProxyURL("http://localhost:8787"))
-//	messages := []cutctx.Message{
-//	    {Role: "user", Content: "Hello, how are you?"},
-//	}
-//	compressed, err := client.Compress(context.Background(), messages)
 package cutctx
 
 import (
@@ -17,192 +5,126 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
-// Message represents a chat message in the OpenAI/Anthropic format.
+// Message is a chat message passed to/from the LLM
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-// Stats represents compression statistics from the proxy.
-type Stats struct {
-	RequestsTotal      int     `json:"requests_total"`
-	TokensInputTotal   int     `json:"tokens_input_total"`
-	TokensSavedTotal   int     `json:"tokens_saved_total"`
-	CompressionRatio   float64 `json:"compression_ratio"`
-}
-
-// Client is the CutCtx client for compressing and retrieving context.
-type Client struct {
-	proxyURL    string
-	apiKey      string
-	httpClient  *http.Client
-	model       string
-}
-
-// Option configures the Client.
-type Option func(*Client)
-
-// WithProxyURL sets the CutCtx proxy URL (default: http://localhost:8787).
-func WithProxyURL(url string) Option {
-	return func(c *Client) { c.proxyURL = url }
-}
-
-// WithAPIKey sets the API key for the upstream LLM provider.
-func WithAPIKey(key string) Option {
-	return func(c *Client) { c.apiKey = key }
-}
-
-// WithHTTPClient sets a custom HTTP client.
-func WithHTTPClient(client *http.Client) Option {
-	return func(c *Client) { c.httpClient = client }
-}
-
-// WithModel sets the model name for compression requests.
-func WithModel(model string) Option {
-	return func(c *Client) { c.model = model }
-}
-
-// WithTimeout sets the HTTP client timeout.
-func WithTimeout(d time.Duration) Option {
-	return func(c *Client) { c.httpClient.Timeout = d }
-}
-
-// New creates a new CutCtx client with the given options.
-func New(opts ...Option) *Client {
-	c := &Client{
-		proxyURL: "http://localhost:8787",
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		model: "claude-sonnet-4-20250514",
-	}
-	for _, opt := range opts {
-		opt(c)
-	}
-	return c
-}
-
-// compressRequest is the request body for POST /v1/compress.
-type compressRequest struct {
+// CompressRequest is sent to the proxy
+type CompressRequest struct {
 	Messages []Message `json:"messages"`
 	Model    string    `json:"model,omitempty"`
 }
 
-// compressResponse is the response from POST /v1/compress.
-type compressResponse struct {
-	Compressed  []Message `json:"compressed"`
-	OriginalTokens int   `json:"original_tokens"`
-	CompressedTokens int `json:"compressed_tokens"`
-	SavingsPercent float64 `json:"savings_percent"`
+// Stats holds lifetime compression statistics for this client
+type Stats struct {
+	TokensOriginal   int64
+	TokensCompressed int64
+	RequestsTotal    int64
+	CompressionRatio float64
 }
 
-// Compress sends messages through the CutCtx proxy for compression.
+// Client is the CutCtx compression client
+type Client struct {
+	proxyURL   string
+	apiKey     string
+	model      string
+	httpClient *http.Client
+	origTotal  atomic.Int64
+	compTotal  atomic.Int64
+	reqTotal   atomic.Int64
+}
+// New creates a new Client. Defaults: proxyURL=http://localhost:8787, timeout=30s
+func New(opts ...Option) *Client {
+	c := &Client{
+		proxyURL: "http://localhost:8787",
+		model:    "claude-sonnet-4-6",
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c
+}
+
+// Compress sends messages through CutCtx and returns compressed messages.
+// POST {proxyURL}/v1/compress
 func (c *Client) Compress(ctx context.Context, messages []Message) ([]Message, error) {
-	reqBody := compressRequest{
-		Messages: messages,
-		Model:    c.model,
-	}
-	bodyBytes, err := json.Marshal(reqBody)
+	body, err := json.Marshal(CompressRequest{Messages: messages, Model: c.model})
 	if err != nil {
-		return nil, fmt.Errorf("cutctx: failed to marshal request: %w", err)
+		return nil, fmt.Errorf("cutctx: marshal: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.proxyURL+"/v1/compress", bytes.NewReader(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.proxyURL+"/v1/compress", bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("cutctx: failed to create request: %w", err)
+		return nil, fmt.Errorf("cutctx: new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		req.Header.Set("X-CutCtx-Key", c.apiKey)
 	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cutctx: request failed: %w", err)
+		return nil, fmt.Errorf("cutctx: compress request: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("cutctx: proxy returned %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("cutctx: compress: status %d", resp.StatusCode)
 	}
-
-	var result compressResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("cutctx: failed to decode response: %w", err)
+	var out struct {
+		Messages []Message `json:"messages"`
 	}
-
-	return result.Compressed, nil
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("cutctx: decode response: %w", err)
+	}
+	c.reqTotal.Add(1)
+	return out.Messages, nil
 }
 
-// Retrieve fetches the original content for a CCR reference.
+// Retrieve fetches original content for a [headroom:ref:HASH] pointer.
+// GET {proxyURL}/v1/retrieve/{ref}
 func (c *Client) Retrieve(ctx context.Context, ref string) (string, error) {
-	reqBody := map[string]string{"ref": ref}
-	bodyBytes, err := json.Marshal(reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.proxyURL+"/v1/retrieve/"+ref, nil)
 	if err != nil {
-		return "", fmt.Errorf("cutctx: failed to marshal request: %w", err)
+		return "", fmt.Errorf("cutctx: retrieve request: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.proxyURL+"/v1/retrieve", bytes.NewReader(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("cutctx: failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		req.Header.Set("X-CutCtx-Key", c.apiKey)
 	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("cutctx: request failed: %w", err)
+		return "", fmt.Errorf("cutctx: retrieve: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("cutctx: proxy returned %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("cutctx: retrieve: status %d", resp.StatusCode)
 	}
-
-	var result struct {
+	var out struct {
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("cutctx: failed to decode response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", fmt.Errorf("cutctx: retrieve decode: %w", err)
 	}
-
-	return result.Content, nil
+	return out.Content, nil
 }
 
-// Stats fetches compression statistics from the proxy.
-func (c *Client) Stats(ctx context.Context) (*Stats, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.proxyURL+"/stats", nil)
-	if err != nil {
-		return nil, fmt.Errorf("cutctx: failed to create request: %w", err)
+// Stats returns current lifetime statistics
+func (c *Client) Stats() Stats {
+	orig := c.origTotal.Load()
+	comp := c.compTotal.Load()
+	ratio := 0.0
+	if orig > 0 {
+		ratio = float64(comp) / float64(orig)
 	}
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	return Stats{
+		TokensOriginal:   orig,
+		TokensCompressed: comp,
+		RequestsTotal:    c.reqTotal.Load(),
+		CompressionRatio: ratio,
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("cutctx: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("cutctx: proxy returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var stats Stats
-	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		return nil, fmt.Errorf("cutctx: failed to decode response: %w", err)
-	}
-
-	return &stats, nil
 }

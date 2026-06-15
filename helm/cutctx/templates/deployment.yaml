@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "headroom.fullname" . }}
+  name: {{ include "cutctx.fullname" . }}
   labels:
-    {{- include "headroom.labels" . | nindent 4 }}
+    {{- include "cutctx.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "headroom.selectorLabels" . | nindent 6 }}
+      {{- include "cutctx.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "headroom.selectorLabels" . | nindent 8 }}
+        {{- include "cutctx.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "headroom.serviceAccountName" . }}
+      serviceAccountName: {{ include "cutctx.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -34,47 +34,47 @@ spec:
               containerPort: {{ .Values.proxy.port }}
               protocol: TCP
           env:
-            - name: HEADROOM_HOST
+            - name: CUTCTX_HOST
               value: "0.0.0.0"
-            - name: HEADROOM_PORT
+            - name: CUTCTX_PORT
               value: "{{ .Values.proxy.port }}"
-            - name: HEADROOM_PROXY_COMPRESSION
+            - name: CUTCTX_PROXY_COMPRESSION
               value: "{{ .Values.proxy.compression }}"
-            - name: HEADROOM_PROXY_COMPRESSION_MODE
+            - name: CUTCTX_PROXY_COMPRESSION_MODE
               value: "{{ .Values.proxy.compressionMode }}"
-            - name: HEADROOM_BACKEND
+            - name: CUTCTX_BACKEND
               value: "{{ .Values.proxy.backend }}"
-            - name: HEADROOM_MODE
+            - name: CUTCTX_MODE
               value: "{{ .Values.proxy.mode }}"
-            - name: HEADROOM_MAX_BODY_MB
+            - name: CUTCTX_MAX_BODY_MB
               value: "{{ .Values.proxy.maxBodyMb }}"
-            - name: HEADROOM_AUDIT_DISABLED
+            - name: CUTCTX_AUDIT_DISABLED
               value: "{{ if .Values.audit.enabled }}0{{ else }}1{{ end }}"
             {{- if .Values.proxy.upstream }}
-            - name: HEADROOM_PROXY_UPSTREAM
+            - name: CUTCTX_PROXY_UPSTREAM
               value: "{{ .Values.proxy.upstream }}"
             {{- end }}
             {{- if .Values.enterprise.adminApiKey }}
-            - name: HEADROOM_ADMIN_API_KEY
+            - name: CUTCTX_ADMIN_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "headroom.fullname" . }}-secrets
+                  name: {{ include "cutctx.fullname" . }}-secrets
                   key: admin-api-key
             {{- end }}
             {{- if .Values.enterprise.entitlementTier }}
-            - name: HEADROOM_ENTITLEMENT_TIER
+            - name: CUTCTX_ENTITLEMENT_TIER
               value: "{{ .Values.enterprise.entitlementTier }}"
             {{- end }}
             {{- if .Values.sso.enabled }}
-            - name: HEADROOM_SSO_PROVIDER_TYPE
+            - name: CUTCTX_SSO_PROVIDER_TYPE
               value: "{{ .Values.sso.providerType }}"
-            - name: HEADROOM_SSO_DISCOVERY_URL
+            - name: CUTCTX_SSO_DISCOVERY_URL
               value: "{{ .Values.sso.discoveryUrl }}"
-            - name: HEADROOM_SSO_JWKS_URI
+            - name: CUTCTX_SSO_JWKS_URI
               value: "{{ .Values.sso.jwksUri }}"
-            - name: HEADROOM_SSO_ISSUER
+            - name: CUTCTX_SSO_ISSUER
               value: "{{ .Values.sso.issuer }}"
-            - name: HEADROOM_SSO_AUDIENCE
+            - name: CUTCTX_SSO_AUDIENCE
               value: "{{ .Values.sso.audience }}"
             {{- end }}
             {{- with .Values.extraEnv }}

@@ -67,6 +67,11 @@ from .utils import extract_user_query as _extract_user_query
 
 logger = logging.getLogger(__name__)
 
+try:
+    from headroom.cli.upgrade_prompt import maybe_show_upgrade_prompt as _maybe_upgrade
+except ImportError:
+    _maybe_upgrade = None
+
 
 # Lazy-initialized singleton pipeline
 _pipeline = None
@@ -317,7 +322,7 @@ def compress(
                 )
             )
 
-        return CompressResult(
+        compress_result = CompressResult(
             messages=compressed_messages,
             tokens_before=tokens_before,
             tokens_after=tokens_after,
@@ -325,6 +330,19 @@ def compress(
             compression_ratio=ratio,
             transforms_applied=result.transforms_applied,
         )
+
+        if _maybe_upgrade is not None:
+            try:
+                # Attempt to read monthly token count and tier from config or
+                # entitlement state if available; fall back to tokens_before
+                # for this call and 'builder' tier (free tier default).
+                monthly_tokens = getattr(cfg, 'monthly_tokens_compressed', tokens_before)
+                tier = getattr(cfg, 'tier', 'builder')
+                _maybe_upgrade(monthly_tokens, tier)
+            except Exception:
+                pass  # Never block compression due to upgrade prompt errors
+
+        return compress_result
 
     except Exception as e:
         get_otel_metrics().record_compression_failure(

@@ -26,7 +26,7 @@ kubectl logs -f deployment/cutctx-proxy -n cutctx
 
 | File | Description |
 |------|-------------|
-| `namespace.yaml` | Headroom namespace |
+| `namespace.yaml` | CutCtx namespace |
 | `configmap.yaml` | Non-sensitive configuration |
 | `secret.yaml` | Secrets template (edit before deploying) |
 | `deployment.yaml` | 2-replica deployment with probes + resource limits |
@@ -44,9 +44,9 @@ Edit `secret.yaml` before deploying:
 
 ```yaml
 stringData:
-  HEADROOM_LICENSE_KEY: "your-license-key"
-  HEADROOM_ADMIN_API_KEY: "your-admin-key"
-  HEADROOM_UPSTREAM_API_KEY: "your-anthropic-or-openai-key"
+  CUTCTX_LICENSE_KEY: "your-license-key"
+  CUTCTX_ADMIN_API_KEY: "your-admin-key"
+  CUTCTX_UPSTREAM_API_KEY: "your-anthropic-or-openai-key"
 ```
 
 ### Optional: Upstream URL
@@ -55,7 +55,7 @@ If your LLM provider requires a custom base URL:
 
 ```yaml
 # In configmap.yaml
-HEADROOM_PROXY_UPSTREAM_URL: "https://your-proxy.example.com"
+CUTCTX_PROXY_UPSTREAM_URL: "https://your-proxy.example.com"
 ```
 
 ### Resource Sizing
@@ -95,10 +95,10 @@ curl http://localhost:8080/metrics
 ```
 
 Key metrics:
-- `headroom_compression_ratio` — compression effectiveness
-- `headroom_request_duration_seconds` — latency histogram
-- `headroom_ccr_store_size` — CCR cache entries
-- `headroom_tokens_saved_total` — cumulative tokens saved
+- `cutctx_compression_ratio` — compression effectiveness
+- `cutctx_request_duration_seconds` — latency histogram
+- `cutctx_ccr_store_size` — CCR cache entries
+- `cutctx_tokens_saved_total` — cumulative tokens saved
 
 ## Upgrading
 
@@ -127,12 +127,12 @@ kubectl logs -p deployment/cutctx-proxy -n cutctx
 ```bash
 # Verify compression is enabled
 kubectl exec -it deployment/cutctx-proxy -n cutctx -- env | grep COMPRESSION
-# Should show: HEADROOM_PROXY_COMPRESSION=1
+# Should show: CUTCTX_PROXY_COMPRESSION=1
 ```
 
 ### High memory usage
 ```bash
 # Check CCR store size
-curl -H "X-Headroom-Admin-Key: YOUR_KEY" http://localhost:8080/stats
+curl -H "X-CutCtx-Admin-Key: YOUR_KEY" http://localhost:8080/stats
 # Consider reducing max_body_bytes or adding Redis CCR backend
 ```

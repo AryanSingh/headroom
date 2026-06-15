@@ -8,22 +8,22 @@ metadata:
     app.kubernetes.io/component: proxy
 data:
   # Compression — enable by default in K8s
-  HEADROOM_PROXY_COMPRESSION: "1"
-  HEADROOM_PROXY_COMPRESSION_MODE: "live-zone"
+  CUTCTX_PROXY_COMPRESSION: "1"
+  CUTCTX_PROXY_COMPRESSION_MODE: "live-zone"
   # Auth mode policy enforcement
-  HEADROOM_PROXY_AUTH_MODE_POLICY_ENFORCEMENT: "enabled"
+  CUTCTX_PROXY_AUTH_MODE_POLICY_ENFORCEMENT: "enabled"
   # Cache control auto-frozen
-  HEADROOM_PROXY_CACHE_CONTROL_AUTO_FROZEN: "enabled"
+  CUTCTX_PROXY_CACHE_CONTROL_AUTO_FROZEN: "enabled"
   # Strip internal headers from upstream requests
-  HEADROOM_PROXY_STRIP_INTERNAL_HEADERS: "enabled"
+  CUTCTX_PROXY_STRIP_INTERNAL_HEADERS: "enabled"
   # Body size limit (50MB)
-  HEADROOM_MAX_BODY_MB: "50"
+  CUTCTX_MAX_BODY_MB: "50"
   # CORS — closed by default
-  HEADROOM_CORS_ORIGINS: ""
+  CUTCTX_CORS_ORIGINS: ""
   # Logging
   RUST_LOG: "info"
-  HEADROOM_LOG_LEVEL: "info"
+  CUTCTX_LOG_LEVEL: "info"
   # Telemetry — opt-in
-  HEADROOM_TELEMETRY_ENABLED: "false"
+  CUTCTX_TELEMETRY_ENABLED: "false"
   # Episodic memory — opt-in
-  HEADROOM_EPISODIC_MEMORY_ENABLED: "false"
+  CUTCTX_EPISODIC_MEMORY_ENABLED: "false"

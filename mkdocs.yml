@@ -1,9 +1,9 @@
 site_name: CutCtx
 docs_dir: wiki
 site_description: "The Context Optimization Layer for LLM Applications — compress everything your AI agent reads."
-site_url: https://aryansingh.github.io/cutcxt
-repo_url: https://github.com/AryanSingh/cutcxt
-repo_name: AryanSingh/cutcxt
+site_url: https://cutctx.dev
+repo_url: https://github.com/cutctx/cutctx
+repo_name: cutctx/cutctx
 edit_uri: edit/main/docs/
 
 theme:
@@ -128,7 +128,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/AryanSingh/cutcxt
+      link: https://github.com/cutctx/cutctx
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/cutctx-ai/
     - icon: fontawesome/brands/discord
