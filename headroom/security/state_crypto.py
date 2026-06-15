@@ -148,15 +148,23 @@ def write_encrypted_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(f"{_ENCRYPTED_MARKER}\n{token}\n")
 
 
+_STRICT_STATE_ENV = "HEADROOM_STRICT_STATE"
+
+
 def read_encrypted_json(path: Path) -> dict[str, Any] | None:
     """Read and decrypt a JSON dict from a file.
 
-    Falls back to reading as plain JSON if the file doesn't have the
-    encrypted marker (migration/compatibility). Returns None if the file
-    doesn't exist or is corrupt.
+    Falls back to reading as plain JSON only if ``HEADROOM_STRICT_STATE`` is
+    not set — this preserves backward-compat for users upgrading from older
+    versions that stored plain JSON. In strict mode (production deployments),
+    plain JSON files are rejected to prevent tampered-file substitution attacks.
+
+    Returns None if the file doesn't exist or is corrupt.
     """
     if not path.exists():
         return None
+
+    strict = os.environ.get(_STRICT_STATE_ENV, "").strip().lower() in ("1", "true", "yes")
 
     try:
         content = path.read_text()
@@ -164,9 +172,23 @@ def read_encrypted_json(path: Path) -> dict[str, Any] | None:
         if len(lines) == 2 and lines[0] == _ENCRYPTED_MARKER:
             return decrypt_json(lines[1])
     except Exception:
-        logger.warning("Failed to decrypt %s, trying plain JSON", path)
+        logger.warning("Failed to decrypt %s, trying plain JSON fallback", path)
 
-    # Fallback: plain JSON (migration path)
+    if strict:
+        logger.error(
+            "State file at %s is not encrypted and HEADROOM_STRICT_STATE=1 is set. "
+            "Refusing to load plain JSON to prevent tampered-file substitution. "
+            "Delete the file and restart to create a fresh encrypted state.",
+            path,
+        )
+        return None
+
+    # Fallback: plain JSON (migration path — disabled in strict mode)
+    logger.warning(
+        "State file at %s is not encrypted (plain JSON). Loading for migration. "
+        "Set HEADROOM_STRICT_STATE=1 to reject unencrypted files in production.",
+        path,
+    )
     try:
         return json.loads(content)
     except (json.JSONDecodeError, ValueError):

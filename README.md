@@ -52,7 +52,7 @@ Headroom compresses everything your AI agent reads — tool outputs, logs, RAG c
 - **Agent wrap** — `headroom wrap claude|codex|cursor|aider|copilot` in one command
 - **MCP server** — `headroom_compress`, `headroom_retrieve`, `headroom_stats` for any MCP client
 - **Cross-agent memory** — shared store across Claude, Codex, Gemini, auto-dedup
-- **`headroom learn`** — mines failed sessions, writes corrections to `CLAUDE.md` / `AGENTS.md`
+- **`headroom learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session
 - **Reversible (CCR)** — originals are cached for retrieval on demand
 
 ## How it works (30 seconds)
