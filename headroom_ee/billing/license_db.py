@@ -24,6 +24,36 @@ CREATE TABLE IF NOT EXISTS licenses (
     expires_at REAL NOT NULL,
     active INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS activations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    license_key TEXT NOT NULL,
+    instance_id TEXT NOT NULL,
+    activated_at REAL NOT NULL,
+    UNIQUE(license_key, instance_id)
+);
+
+CREATE TABLE IF NOT EXISTS revocations (
+    license_key TEXT PRIMARY KEY,
+    revoked_at REAL NOT NULL,
+    reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS seat_leases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    license_key TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    leased_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    UNIQUE(license_key, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS trials (
+    trial_token TEXT PRIMARY KEY,
+    customer_email TEXT NOT NULL,
+    started_at REAL NOT NULL,
+    expires_at REAL NOT NULL
+);
 """
 
 
@@ -113,6 +143,87 @@ class LicenseDB:
             }
             for r in rows
         ]
+
+    def activate_instance(self, license_key: str, instance_id: str) -> bool:
+        """Record a proxy instance activation against this license."""
+        try:
+            self._conn.execute(
+                "INSERT INTO activations (license_key, instance_id, activated_at) VALUES (?, ?, ?)",
+                (license_key, instance_id, time.time())
+            )
+            self._conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def revoke_license(self, license_key: str, reason: str = "") -> None:
+        """Revoke a license key (add to CRL)."""
+        self._conn.execute(
+            "INSERT OR REPLACE INTO revocations (license_key, revoked_at, reason) VALUES (?, ?, ?)",
+            (license_key, time.time(), reason)
+        )
+        self._conn.commit()
+
+    def is_revoked(self, license_key: str) -> bool:
+        """Check if a license is revoked."""
+        row = self._conn.execute(
+            "SELECT 1 FROM revocations WHERE license_key = ?", (license_key,)
+        ).fetchone()
+        return bool(row)
+
+    def checkout_seat(self, license_key: str, user_id: str, lease_duration: float) -> bool:
+        """Checkout or renew a seat lease. Returns False if no seats available."""
+        now = time.time()
+        # Clean up expired leases
+        self._conn.execute("DELETE FROM seat_leases WHERE expires_at < ?", (now,))
+
+        # Check max seats
+        record = self.get(license_key)
+        if not record:
+            return False
+
+        active_leases = self._conn.execute(
+            "SELECT count(*) FROM seat_leases WHERE license_key = ?", (license_key,)
+        ).fetchone()[0]
+
+        if record.seats > 0 and active_leases >= record.seats:
+            # Check if user already has a lease (renew)
+            user_lease = self._conn.execute(
+                "SELECT 1 FROM seat_leases WHERE license_key = ? AND user_id = ?",
+                (license_key, user_id)
+            ).fetchone()
+            if not user_lease:
+                return False
+
+        self._conn.execute(
+            """INSERT OR REPLACE INTO seat_leases (license_key, user_id, leased_at, expires_at)
+               VALUES (?, ?, ?, ?)""",
+            (license_key, user_id, now, now + lease_duration)
+        )
+        self._conn.commit()
+        return True
+
+    def start_trial(self, trial_token: str, customer_email: str, duration: float) -> bool:
+        """Start a new trial using a signed token."""
+        now = time.time()
+        try:
+            self._conn.execute(
+                "INSERT INTO trials (trial_token, customer_email, started_at, expires_at) VALUES (?, ?, ?, ?)",
+                (trial_token, customer_email, now, now + duration)
+            )
+            self._conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def is_trial_active(self, trial_token: str) -> bool:
+        """Check if a trial is active and not expired."""
+        row = self._conn.execute(
+            "SELECT expires_at FROM trials WHERE trial_token = ?", (trial_token,)
+        ).fetchone()
+        if not row:
+            return False
+        return row[0] > time.time()
 
     def close(self) -> None:
         """Close the database connection."""
