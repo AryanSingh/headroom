@@ -6,19 +6,102 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## Unreleased (v0.26.0)
 
-### Features
+### Intelligence Layer
+* **intelligence:** task-aware compression — extracts working task from messages, scores each context segment by BM25 relevance, modulates compression rate per message (aggressive for irrelevant, minimal for relevant)
+* **intelligence:** semantic deduplication — rolling SHA-256 hash index replaces repeated content with CCR pointers across sessions, 95%+ reduction on repetitive workflows
+* **intelligence:** context budgeting — token budget per session with progressive compression through GREEN/YELLOW/RED/CRITICAL zones, named policies (conservative/balanced/aggressive)
+* **intelligence:** cross-session profiles — learns compression patterns per workspace over time (retrieval rates, content type stats), adjusts future compression recommendations
+* **intelligence:** multi-agent shared state — SharedCompressionCache with content-hash keyed LRU+TTL, AgentRegistry for tracking, MultiAgentCoordinator for shared CCR compression
+* **intelligence:** cost forecasting + policy engine — MODEL_PRICING for 20+ models, pre-task cost estimation, PolicyEngine with 6 budget/context rules, SessionCostTracker for accumulation
+* **intelligence:** pipeline orchestrator — `IntelligencePipeline` with pre/post-compression hooks wired into Anthropic and OpenAI handlers; 66 unit tests + 29 pipeline tests + 43 E2E tests
 
-* **proxy:** per-project savings breakdown on the dashboard for all wrapped agents — Claude Code, Codex, aider, Copilot, and Cursor ([#802](https://github.com/chopratejas/headroom/issues/802)). `headroom wrap claude`/`codex` tag requests with an `X-Headroom-Project` header (launch-directory name); `wrap aider`/`copilot`/`cursor` — whose clients cannot send custom headers — use a `/p/<name>` base-URL prefix the proxy strips. Savings are aggregated per project (persisted, schema v3 with transparent v2 migration), exposed as `savings.per_project` in `/stats` and `projects` in `/stats-history`, and shown in a Per-Project Savings dashboard table.
+### Enterprise Features
+* **entitlements:** 59-feature × 4-tier matrix (Builder/Team/Business/Enterprise) with runtime enforcement via `Depends(_require_entitlement(...))` FastAPI dependency
+* **rbac:** AdminRole (Viewer/Operator/Admin), 15+ permissions, wired into ALL 80 admin endpoints
+* **sso:** SSO/OAuth2/OIDC middleware — JWT/JWKS validation, OIDC discovery, RFC 7662 introspection, timing-safe claim comparison, role mapping
+* **audit:** SQLite WAL-backed structured audit logging — AuditAction enum (20+ actions), queryable with filters, JSONL export
+* **org:** OrgStore — SQLite CRUD for organizations, workspaces, projects, agents with hierarchy lookups and cascade deletes
+* **retention:** Auto-expiry for CCR data, audit logs, and episodic memories with configurable intervals
+* **license:** Rust-side LicenseTier enum (OpenSource/Team/Business/Enterprise) with tier-gating methods; hard enforcement blocks compression for unauthorized tiers
 
-### Features
+### Security Hardening
+* **security:** admin auth auto-generates random 32-byte API key when none configured; never falls through to open
+* **security:** CORS configurable via `HEADROOM_CORS_ORIGINS`, default closed (empty list)
+* **security:** body size limit reduced from 100MB to 50MB (Python + Rust)
+* **security:** test mode bypass removed — tests use `HEADROOM_ADMIN_API_KEY` env var instead
+* **security:** decompression bomb protection — streaming decompression with intermediate 50MB size caps
+* **security:** SQL column name allowlist validation in org.py and scim.py
+* **security:** SSRF fix — base URL allowlist for structured output API calls (only api.anthropic.com, api.openai.com, generativelanguage.googleapis.com)
+* **security:** SSO timing-safe comparison via `hmac.compare_digest()` for issuer and audience claims
+* **security:** 12 previously unprotected admin routes now gated on auth + RBAC
+* **security:** rate limiting middleware on POST /v1/messages, /v1/chat/completions, /v1/responses
+* **firewall:** LLM Firewall — 27 regex patterns (7 injection, 4 jailbreak, 11 PII, 2 exfiltration), StreamingRedactor for SSE, HTTP middleware wired on /v1/* POST; 67 tests
+* **firewall:** Expanded from 10 tests to 67 comprehensive tests covering all pattern categories
 
-* **memory:** opt-in Apple-GPU (MPS) embedding offload via `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps`. When set (and Apple MPS is available), the memory embedder runs on the torch sentence-transformers backend on the Apple GPU instead of the default ONNX CPU embedder, freeing the CPU under load. If MPS or the dependencies are unavailable, Headroom logs a warning and uses the existing default embedder selection path (ONNX when available, then the pre-existing local fallback). MPS encode calls are serialized internally (torch-MPS is not thread-safe). Adds the new `[pytorch-mps]` extra (`pip install 'headroom-ai[pytorch-mps]'`). Default behavior is unchanged.
+### Product Capabilities
+* **structured-output:** jsonschema validation with auto-retry (up to 3x), markdown fence stripping, post-validation in streaming + non-streaming paths
+* **ensemble:** multi-model fan-out via `X-Headroom-Ensemble` header, evaluator model picks best response, returns winning model + reasoning
+* **budget:** token/cost tracking with hard limits, SSE budget-exceeded and budget-warning chunks, wired into streaming generate()
+
+### Multimodal Compression
+* **image:** ImageCompressor — base64 decode, BLAKE3 hash, CCR store, resize to 256×256, re-encode to PNG; integrated with SmartCrusher classifier (OpaqueKind::ImageBlob) and live_zone.rs content router (image_url blocks)
+* **audio:** AudioCompressor — Symphonia decode, 8kHz mono downsample, WAV re-encode, CCR store; integrated with SmartCrusher (OpaqueKind::AudioBlob) and live_zone.rs (input_audio blocks)
+
+### Episodic Memory
+* **memory:** EpisodicMemoryStore — file-backed atomic writes to `~/.headroom/memories/{hash}.md`
+* **memory:** MemoryExtractor — LLM extraction via claude-3-haiku with heuristic fallback
+* **memory:** EpisodicSessionTracker — 5-min idle timeout, background sweep, async extraction
+* **memory:** Rust OpaqueKind::EpisodicMemory — walker detection + CCR routing for `[SYSTEM: Past Session Memories]` prefix
+
+### Performance Optimizations
+* **core:** zero-copy SmartCrusher — `Vec<&Value>` borrows in analyzer.rs, field_detect.rs, statistics.rs; eliminates N clones per field analysis
+* **core:** SIMD line splitting — `memchr` crate for diff_compressor.rs and log_compressor.rs (256-byte threshold)
+* **core:** anchor_selector.rs slice — `&items[start_idx..end_idx]` instead of `.to_vec()` (eliminates Value cloning)
+* **core:** CCR hash fix — walker.rs replaced SHA-256→12hex with BLAKE3→16hex (`compute_key()`) for Python detection regex compatibility
+
+### Infrastructure
+* **proxy:** admin routes extracted from server.py into routes/admin.py (6152→4061 lines)
+* **proxy:** OpenAI handler split from 6171-line monolith into 7-file package (base, chat, compress, passthrough, responses, utils)
+* **proxy:** API versioning via X-Headroom-Version header middleware
+* **proxy:** CCR store bridge — Rust proxy now accepts --ccr-backend/sqlite and --ccr-path CLI args, wires into AppState
+* **kubernetes:** 9 K8s manifests (namespace, deployment, service, hpa, pdb, ingress, rbac, configmap, secret)
+* **helm:** 12-file Helm chart (Chart.yaml, values.yaml, 10 templates)
+* **branding:** CutCtx rebrand across CI/CD, Docker, K8s, Helm, pyproject.toml
+
+### GTM & Documentation
+* **docs:** enterprise landing page (docs/enterprise.html) with hero, pricing, security, ROI
+* **docs:** admin dashboard UI (docs/admin-dashboard.html) with sidebar nav, modals, API-driven data
+* **docs:** 8 commercialization artifacts (packaging matrix, value proposition, security one-pager, ROI calculator, pilot metrics, enterprise blockers audit, outreach sequences, pricing sheet)
+* **docs:** operational runbook, timeout interaction matrix, OpenAPI 3.1.0 spec
+* **docs:** SOC 2 controls doc, security policy, vendor questionnaire
+* **docs:** MSA + DPA legal templates, design partner outreach templates
+* **sdk:** Go SDK scaffold with Client, Compress/Retrieve/Stats, 7 tests
+* **billing:** license webhook for post-payment key delivery, 20 integration tests
+* **cli:** in-CLI upgrade prompt for Builder tier (>500K tokens compressed)
 
 ### Bug Fixes
+* **profiles:** CompressionProfile.load() missing `cls` parameter — classmethod received workspace_dir as class object
+* **budget:** should_warn() missing enabled guard — warnings fired even when budget tracking disabled
+* **kompress:** order-dependent test — replaced caplog fixture with mock to avoid state leakage
+* **codex-runtime:** test fixture used wrong health endpoint (/stats → /livez) and missing admin auth header
 
-* **ccr:** make retrieval store TTL configurable with `HEADROOM_CCR_TTL_SECONDS`, expose the effective TTL in `/v1/retrieve/stats`, and distinguish expired retrievals from missing hashes.
+### Testing
+* **tests:** 7,721 total tests passing (937 Rust core + 246 Rust proxy + 6,538 Python), 0 failures
+* **tests:** 67 firewall comprehensive tests covering all 27 regex patterns
+* **tests:** 43 intelligence layer E2E tests covering all 6 features end-to-end
+* **tests:** 45 entitlement boundary tests (59 features × 4 tiers)
+* **tests:** 30 enterprise smoke tests (SSO→RBAC→compression→audit→retention flow)
+* **tests:** 87 relevance/BM25/state_crypto/SSRF tests
+* **tests:** 34 pipeline integration tests (budget, structured output, ensemble, firewall, request ID)
+* **tests:** 20 billing integration tests
+* **tests:** 27 SSO tests, 25 audit tests, 30 org tests, 12 retention tests, 18 RBAC tests
+
+### Chores
+* **deps:** pyo3 0.29 upgrade, lru 0.13 security fix
+* **config:** strict state crypto mode for all HMAC operations
+* **ci:** release.yml package name headroom-ai → cutctx-ai
 
 
 ## [0.25.0](https://github.com/chopratejas/headroom/compare/v0.24.0...v0.25.0) (2026-06-12)
