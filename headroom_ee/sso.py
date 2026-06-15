@@ -25,7 +25,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import hmac
 import json
 import logging
@@ -320,7 +319,6 @@ class SsoValidator:
         try:
             header_b64 = parts[0]
             payload_b64 = parts[1]
-            signature_b64 = parts[2]
 
             # Decode header
             header_padded = header_b64 + "=" * (4 - len(header_b64) % 4)
