@@ -1,203 +1,192 @@
-# CutCtx Product Capability Matrix
+# CutCtx — Corrected Product Capability & Gap Analysis
 
-Full inventory of every feature, how it's accessed, and gaps.
-
----
-
-## 1. COMPRESSION ALGORITHMS (8 algorithms)
-
-| Algorithm | Module | How to Access | CLI | API | Dashboard | Pipeline | Gap |
-|-----------|--------|--------------|-----|-----|-----------|----------|-----|
-| SmartCrusher | `transforms/smart_crusher.py` | Auto (proxy) | ✅ Default | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| CodeCompressor | `transforms/code_compressor.py` | `--code-aware` flag | ✅ | ✅ | ✅ Stats | ✅ Wired | — |
-| DiffCompressor | `transforms/diff_compressor.py` | Auto (proxy) | ✅ Default | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| LogCompressor | `transforms/log_compressor.py` | Auto (proxy) | ✅ Default | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| SearchCompressor | `transforms/search_compressor.py` | Auto (proxy) | ✅ Default | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| CacheAligner | `transforms/cache_aligner.py` | Auto (proxy) | ✅ Default | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| Kompress (ML) | `transforms/kompress_compressor.py` | Auto (proxy) | `--disable-kompress` to turn off | ✅ Auto | ✅ Stats | ✅ Wired | — |
-| ImageCompressor | `transforms/image_compressor.py` | Auto (proxy) | N/A | ✅ Auto | ❌ No stats | ✅ Wired | No image-specific stats |
-| AudioCompressor | `transforms/audio_compressor.py` | Auto (proxy) | N/A | ✅ Auto | ❌ No stats | ✅ Wired | No audio-specific stats |
-
-## 2. INTELLIGENCE LAYER (6 features)
-
-| Feature | Module | How to Access | CLI | API | Dashboard | Pipeline | Gap |
-|---------|--------|--------------|-----|-----|-----------|----------|-----|
-| Task-Aware Compression | `compression/task_aware.py` | `--task-aware` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-| Semantic Dedup | `dedup.py` | `--dedup` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-| Context Budget | `context_budget.py` | `--context-budget` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-| Cross-Session Profiles | `profiles.py` | `--profiles` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-| Multi-Agent Shared State | `shared_context.py` | `--shared-context` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-| Cost Forecasting + Policy | `cost_forecast.py` | `--cost-forecast` | ✅ | ✅ Status | ❌ | ✅ Wired | **No dashboard** |
-
-## 3. SECURITY & ACCESS CONTROL (6 features)
-
-| Feature | Module | How to Access | CLI | API | Dashboard | Gap |
-|---------|--------|--------------|-----|-----|-----------|-----|
-| Admin Auth | `server.py` | `--admin-api-key` | ✅ | ✅ Auto-gen | ❌ | **No key rotation UI** |
-| RBAC | `rbac.py` | `/rbac/roles` | N/A | ✅ REST | ❌ | **No dashboard** |
-| SSO/OAuth2 | `sso.py` | `--sso-*` flags | ✅ | ✅ Config | ❌ | **No dashboard, no IdP test tool** |
-| Audit Logging | `audit.py` | `/audit/events`, `/audit/export` | N/A | ✅ REST | ❌ | **No dashboard** |
-| LLM Firewall | `security/firewall.py` | `--firewall` | ✅ | ✅ `/firewall/scan` | ❌ | **No dashboard, no scan history** |
-| Entitlements | `entitlements.py` | `/entitlements` | `--entitlement-tier` | ✅ REST | ❌ | **No dashboard** |
-
-## 4. ENTERPRISE FEATURES (8 features)
-
-| Feature | Module | How to Access | CLI | API | Dashboard | Gap |
-|---------|--------|--------------|-----|-----|-----------|-----|
-| Org Model | `org.py` | `/orgs` CRUD | N/A | ✅ REST | ❌ | **No dashboard** |
-| Fleet Management | `fleet.py` | `/fleet/*` | `--fleet-db-path` | ✅ REST | ❌ | **No dashboard** |
-| SCIM Provisioning | `scim.py` | `/scim/v2/*` | `--scim-db-path` | ✅ SCIM v2 | ❌ | **No IdP integration wizard** |
-| Retention Controls | `retention.py` | `/retention/*` | `--retention-*` | ✅ REST | ❌ | **No dashboard** |
-| License Management | `usage_reporter.py` | `/license-status` | `--license-key` | ✅ REST | ❌ | **No license activation UI** |
-| Reports | `server.py` | `/reports/*` | N/A | ✅ CSV/JSON | ❌ | **No dashboard** |
-| Analytics | `server.py` | `/analytics/*` | N/A | ✅ REST | ❌ | **No dashboard** |
-| Subscription/Quota | `subscription.py` | `/subscription-window`, `/quota` | N/A | ✅ REST | ❌ | **No dashboard** |
-
-## 5. PRODUCT CAPABILITIES (4 features)
-
-| Feature | Module | How to Access | CLI | API | Dashboard | Pipeline | Gap |
-|---------|--------|--------------|-----|-----|-----------|----------|-----|
-| Structured Output | `proxy/structured_output.py` | `--no-structured-output` | ✅ | ✅ `/structured-output/*` | ❌ | Status only | **Not auto-triggered by request** |
-| Multi-Model Ensemble | `proxy/ensemble.py` | `--ensemble` + header | ✅ | ✅ `/ensemble/status` | ❌ | Header-triggered | **No dashboard** |
-| Budget Cut-offs | `proxy/budget.py` | `--budget-cut-off` | ✅ | ✅ `/budget/status` | ❌ | ✅ Wired | **No dashboard** |
-| CCR (Cache Compression) | `ccr/` | `--ccr-backend` | ✅ | ✅ `/v1/retrieve` | ❌ | ✅ Wired | **No retrieval dashboard** |
-
-## 6. DEPLOYMENT & INTEGRATION (8 access points)
-
-| Integration | Location | How to Install | Features Exposed | Gap |
-|------------|----------|---------------|-----------------|-----|
-| CLI Binary | `cutctx` (Rust) | `pip install headroom-ai` | proxy, compress, stats, retrieve | **Only 4 subcommands** |
-| Python Proxy | `server.py` | `python -m headroom.proxy.server` | All 80+ routes | ✅ Complete |
-| Rust Proxy | `headroom-proxy` binary | `cargo build --release` | Compression + CCR | ✅ Complete |
-| MCP Server | `mcp_server.py` | `cutctx mcp serve` | 3 tools (retrieve, status, proxy_start) | **Only 3 tools** |
-| Claude Code Plugin | `plugins/claude-code/` | `install.sh` | MCP integration | ✅ Complete |
-| Codex Plugin | `plugins/codex/` | `install.sh` | MCP integration | ✅ Complete |
-| Claude.ai Web Plugin | `plugins/cutctx-plugin/` | ZIP upload | Skill (compression commands) | **No auto-start, no tool** |
-| Go SDK | `sdk/go/` | `go get` | Compress, Retrieve, Stats | ✅ Complete |
-| TypeScript SDK | `sdk/typescript/` | `npm install` | Compress, hooks, shared-context | ✅ Complete |
-| Docker | `Dockerfile` | `docker build` | Full proxy | ✅ Complete |
-| Kubernetes | `k8s/` | `kubectl apply` | Full proxy + HPA + PDB | ✅ Complete |
-| Helm | `helm/cutctx/` | `helm install` | Full proxy + all enterprise | ✅ Complete |
-
-## 7. OBSERVABILITY (4 features)
-
-| Feature | Module | How to Access | Gap |
-|---------|--------|--------------|-----|
-| Dashboard (HTML) | `dashboard/` | `GET /dashboard` | ✅ Exists — token savings, compression stats |
-| Prometheus Metrics | `observability/` | `GET /metrics` | ✅ Exists — 20+ metrics |
-| Stats API | `server.py` | `GET /stats` | ✅ Exists — request/token/cost breakdowns |
-| Transformations Feed | `server.py` | `GET /transformations/feed` | ✅ Exists — live compression log |
-| OTel Tracing | `observability/` | Env vars | ✅ Exists — Langfuse + OTel |
-| Admin Dashboard UI | `docs/admin-dashboard.html` | Open in browser | **NOT SERVED — static file only** |
+**Corrected after deep codebase audit. Previous analysis had stale claims about CLI, dashboard, and MCP.**
 
 ---
 
-## ACCESS GAP ANALYSIS
+## WHAT ACTUALLY EXISTS
 
-### 🔴 CRITICAL GAPS (Features exist but have NO discoverable interface)
+### 1. CLI (`cutctx` — Python Click CLI via `pyproject.toml`)
 
-| # | Gap | Impact | Fix |
-|---|-----|--------|-----|
-| 1 | **No CLI subcommands** — `cutctx` binary only runs the proxy. No `cutctx compress`, `cutctx stats`, `cutctx orgs`, `cutctx audit`, etc. | Users can't use compression or management from terminal | Add subcommands to Rust CLI |
-| 2 | **80+ API endpoints with NO UI** — Enterprise features (RBAC, audit, orgs, SSO, retention, fleet, SCIM, reports, analytics) are raw REST only | Enterprise admins can't use the product without writing scripts | Build admin dashboard or CLI |
-| 3 | **Admin Dashboard HTML not served** — `docs/admin-dashboard.html` exists but is a static file, not mounted on the proxy | Nobody can access it | Mount on `/admin` route |
-| 4 | **Intelligence layer has no dashboard** — 6 features (task-aware, dedup, budget, profiles, shared-context, cost-forecast) have status endpoints but no visual | Operators can't see intelligence layer activity | Add to dashboard |
-| 5 | **MCP server only exposes 3 tools** — `headroom_retrieve`, `cutctx_status`, `cutctx_proxy_start`. Missing: compress, scan (firewall), validate (structured output), org management | Claude Code users can't access most features | Expand MCP tool set |
+Entry point: `cutctx = "headroom.cli:main"` (Python Click, 13 subcommand groups)
 
-### 🟡 HIGH GAPS (Features exist but access is awkward)
+| Command | Module | Lines | What It Does |
+|---------|--------|-------|-------------|
+| `cutctx proxy` | `cli/proxy.py` | 1,118 | Start proxy server with full config |
+| `cutctx wrap <agent>` | `cli/wrap.py` | 4,315 | Wrap claude/copilot/codex/aider/cursor/openclaw through proxy |
+| `cutctx memory list/stats/search/add/update/delete/import/export` | `cli/memory.py` | 895 | Full memory management (optional: numpy/hnswlib) |
+| `cutctx savings report/timeline/export/open` | `cli/savings.py` | 595 | Token savings reporting + analytics |
+| `cutctx billing checkout/portal` | `cli/billing.py` | 120 | Open checkout/portal in browser |
+| `cutctx license activate/status/upgrade` | `cli/license.py` | 434 | License key management |
+| `cutctx evals memory/memory-v2` | `cli/evals.py` | 697 | Run LoCoMo memory evaluations |
+| `cutctx install/uninstall/status` | `cli/install.py` | 333 | Persistent install + runtime management |
+| `cutctx init` | `cli/init.py` | 943 | Durable agent initialization |
+| `cutctx tools install/doctor/list` | `cli/tools.py` | 238 | Bundled tools (ast-grep, difftastic, scc) |
+| `cutctx agent-savings` | `cli/agent_savings.py` | 230 | Agent token-savings profiles |
+| `cutctx capture network-diff` | `cli/capture.py` | 81 | Network capture + differential reports |
+| `cutctx learn` | `cli/learn.py` | 263 | Offline failure learning |
+| `cutctx mcp serve/install/status` | `cli/mcp.py` | ~200 | MCP server management |
 
-| # | Gap | Impact | Fix |
-|---|-----|--------|-----|
-| 6 | **No `cutctx compress` CLI** — Compression only works through the proxy, not standalone | Can't compress files from terminal | Add compress subcommand |
-| 7 | **No `cutctx stats` CLI** — Stats only via API | Can't check savings from terminal | Add stats subcommand |
-| 8 | **No license activation flow** — `--license-key` flag exists but no interactive setup | Users don't know how to activate | Add `cutctx license activate` |
-| 9 | **No RBAC role management UI** — Can assign roles via API but no visual | Admins can't see who has what access | Add to admin dashboard |
-| 10 | **No SSO configuration wizard** — 9 env vars to set, no validation tool | Hard to set up SSO | Add `cutctx sso test` |
-| 11 | **No firewall scan history** — Can scan but results aren't stored | Can't audit what was blocked | Add scan log |
-| 12 | **No structured output auto-trigger** — Status endpoint exists but it's not wired into the request pipeline automatically | Feature is dormant unless manually configured | Wire into middleware |
-| 13 | **No CCR retrieval dashboard** — Can retrieve by hash but can't browse stored content | Can't see what's in CCR store | Add retrieval browser |
+**Total CLI: ~10,000+ lines across 14 subcommand groups.**
 
-### 🟢 MEDIUM GAPS (Nice to have)
+### 2. Dashboard (`GET /dashboard` — 2,273-line HTML template)
 
-| # | Gap | Impact | Fix |
-|---|-----|--------|-----|
-| 14 | **No `cutctx dashboard` CLI** — Can't open dashboard from terminal | Minor UX | Add subcommand |
-| 15 | **No health check CLI** — Can't verify proxy is running from terminal | Minor UX | Add `cutctx status` |
-| 16 | **No config validation** — Can't test config before starting proxy | Bad configs fail at runtime | Add `cutctx config check` |
-| 17 | **No benchmark CLI** — Benchmarks exist in `benchmarks/` but no `cutctx bench` | Can't measure performance | Add subcommand |
-| 18 | **Go SDK missing shared-context** — TypeScript SDK has it, Go doesn't | Incomplete parity | Add to Go SDK |
-| 19 | **No Python SDK** — Only Go and TypeScript | Python users must use proxy directly | Add Python SDK |
+- Real-time monitoring with Tailwind CSS + htmx + Alpine.js
+- Token savings overview, compression ratios, cost tracking
+- Transformation feed (live compression log)
+- Dark/light theme toggle
+- HTMX-powered auto-refresh
+
+### 3. MCP Server (`headroom/mcp_server.py` — 253 lines)
+
+3 tools exposed:
+- `headroom_retrieve` — retrieve original content from CCR markers (with BM25 query filtering)
+- `cutctx_status` — check proxy health + compression stats
+- `cutctx_proxy_start` — auto-start proxy if not running
+
+### 4. MCP Registry (`headroom/mcp_registry/` — 8 files)
+
+- `ClaudeRegistrar` — registers MCP in `~/.claude.json`
+- `CodexRegistrar` — registers MCP in Codex TOML config
+- `install_everywhere()` — auto-detect + register across all agents
+- `ServerSpec` — universal server description
+
+### 5. Proxy Routes (80+ endpoints)
+
+**server.py (11 routes):**
+- `/livez`, `/readyz`, `/health` — health probes
+- `/debug/tasks`, `/debug/ws-sessions`, `/debug/warmup` — debug (loopback only)
+- `/dashboard` — monitoring UI
+- `/stats`, `/stats/reset`, `/stats-history`, `/transformations/feed` — stats
+
+**routes/admin.py (69 routes):**
+- `/entitlements` — feature gating status
+- `/audit/events`, `/audit/export` — audit log query + export
+- `/orgs` CRUD, `/orgs/{id}/workspaces`, `/workspaces/{id}/projects` — org model
+- `/license-status` — license info
+- `/reports/savings`, `/reports/usage` — CSV/JSON reports
+- `/retention/stats`, `/retention/cleanup` — data retention
+- `/rbac/roles` CRUD — role-based access
+- `/fleet/*` — fleet management
+- `/scim/v2/*` — SCIM provisioning (14 endpoints)
+- `/firewall/status`, `/firewall/scan` — LLM firewall
+- `/structured-output/status`, `/structured-output/validate` — structured output
+- `/ensemble/status`, `/budget/status` — ensemble + budget
+- `/intelligence/*/status` (6 endpoints) — intelligence layer
+- `/subscription-window`, `/quota`, `/metrics` — subscription + metrics
+- `/cache/clear` — cache management
+- `/v1/retrieve/*`, `/v1/feedback/*`, `/v1/telemetry/*`, `/v1/toin/*` — data APIs
+- `/v1/compress` — direct compression
+- `/analytics/dashboard`, `/analytics/projects` — analytics
+
+**Rust proxy routes:**
+- `/healthz`, `/healthz/upstream` — health
+- `/metrics` — Prometheus
+- `/v1/chat/completions`, `/v1/responses` — OpenAI endpoints
+- `/v1/messages` — Anthropic endpoint (catch-all)
+- `/v1beta1/projects/:p/locations/:l/publishers/anthropic/models/:m` — Vertex
+- `/model/:id/invoke`, `/model/:id/converse`, `/model/:id/invoke-with-response-stream` — Bedrock
+- `/v1/conversations/*` — Conversations API passthrough
+
+### 6. Python Proxy CLI Args (61 flags)
+
+Core: `--host`, `--port`, `--backend`, `--workers`, `--limit-concurrency`
+Providers: `--openai-api-url`, `--anthropic-api-url`, `--vertex-api-url`, `--bedrock-region`, `--bedrock-profile`, `--openrouter-api-key`, `--anyllm-provider`
+Compression: `--no-optimize`, `--min-tokens`, `--max-items`, `--tool-profile`, `--compress-user-messages`, `--disable-kompress`, `--exclude-tools`, `--code-aware`
+Cache: `--no-cache`, `--cache-ttl`
+Security: `--admin-api-key`, `--cors-origins`, `--max-body-mb`
+Enterprise: `--entitlement-tier`, `--audit-db-path`, `--no-audit`, `--org-db-path`, `--no-org`, `--fleet-db-path`, `--no-fleet`, `--scim-db-path`, `--no-scim`
+SSO: `--sso-provider-type`, `--sso-discovery-url`, `--sso-jwks-uri`, `--sso-issuer`, `--sso-audience`, `--sso-introspection-url`, `--sso-role-mapping`, `--sso-default-role`
+Features: `--firewall`, `--no-structured-output`, `--ensemble`, `--budget-cut-off`, `--budget-default-tokens`
+Intelligence: `--task-aware`, `--dedup`, `--context-budget`, `--context-budget-max-tokens`, `--context-budget-policy`, `--profiles`, `--shared-context`, `--cost-forecast`
+Rate limiting: `--no-rate-limit`, `--rpm`, `--tpm`
+Cost: `--budget`, `--budget-period`
+Connection: `--max-connections`, `--max-keepalive`, `--no-http2`
+Logging: `--log-file`, `--log-messages`
+
+### 7. SDKs
+
+- **Go SDK** (`sdk/go/`): Client with Compress, Retrieve, Stats methods
+- **TypeScript SDK** (`sdk/typescript/`): client.ts, compress.ts, hooks.ts, shared-context.ts, adapters/
+
+### 8. Plugins
+
+- `plugins/claude-code/` — Claude Code MCP integration
+- `plugins/codex/` — Codex plugin
+- `plugins/cutctx-plugin/` — Claude.ai web plugin
+- `plugins/headroom-agent-hooks/` — Agent hooks
+- `plugins/headroom-oauth2/` — OAuth2 client-credentials
+- `plugins/hermes/` — Hermes integration
+- `plugins/openclaw/` — OpenClaw integration
+
+### 9. Deployment
+
+- Docker (multi-stage, distroless)
+- Docker Compose
+- Kubernetes (9 manifests)
+- Helm chart (12 files)
 
 ---
 
-## CLI SUBCOMMAND GAP (most critical)
+## ACTUAL GAPS (corrected)
 
-Current `cutctx` binary (Rust) exposes:
-```
-cutctx          # runs the proxy (only command)
-```
+### 🔴 CRITICAL — Buyer can't complete core workflows without help
 
-Users expect:
-```
-cutctx proxy              # start proxy (✅ exists as default)
-cutctx compress < file    # compress from terminal
-cutctx stats              # show compression stats
-cutctx retrieve <hash>    # retrieve original from CCR
-cutctx status             # check if proxy is running
-cutctx dashboard          # open dashboard in browser
-cutctx license activate   # activate license key
-cutctx license status     # show license status
-cutctx orgs list          # list organizations
-cutctx orgs create <name> # create organization
-cutctx audit --since 7d   # show audit logs
-cutctx rbac list          # show role assignments
-cutctx rbac assign <user> <role>  # assign role
-cutctx sso test           # test SSO configuration
-cutctx config check       # validate configuration
-cutctx firewall scan <text>  # scan text for violations
-cutctx bench              # run benchmarks
-cutctx mcp serve          # start MCP server (Python)
-```
+| # | Gap | What exists | What's missing | Impact |
+|---|-----|-------------|---------------|--------|
+| 1 | **No unified "install + verify" flow** | `cutctx init`, `cutctx wrap`, `cutctx install` exist but are scattered | No single `cutctx setup` that does: install → detect agents → register MCP → start proxy → verify savings | Buyer needs founder help to get started |
+| 2 | **Dashboard doesn't show enterprise admin state** | Dashboard shows compression stats | No RBAC viewer, no org management, no audit log viewer, no SSO status, no retention config, no fleet view | Enterprise buyer can't see governance controls |
+| 3 | **No ROI proof path** | `cutctx savings report` exists, `/reports/savings` API exists | No end-to-end "install → use for 7 days → show savings report" workflow documented or automated | Buyer can't prove value before paying |
+| 4 | **MCP server is thin** | 3 tools (retrieve, status, proxy_start) | No `headroom_compress` (the memo claims it exists but it doesn't), no `headroom_scan` (firewall), no admin tools | Claude Code users can't access most features via MCP |
+| 5 | **No pricing page or activation flow** | `cutctx billing checkout` opens browser, `cutctx license activate` exists | No in-product pricing comparison, no tier selection, no trial-to-paid conversion flow | Buyer doesn't know what to pay for |
 
----
+### 🟡 HIGH — Enterprise workflows are API-first only
 
-## DASHBOARD GAP (second most critical)
+| # | Gap | What exists | What's missing |
+|---|-----|-------------|---------------|
+| 6 | **RBAC has no UI** | API: `/rbac/roles` GET/POST/DELETE | No dashboard view, no CLI command, no visual role assignment |
+| 7 | **Org management has no UI** | API: `/orgs` CRUD | No dashboard view, no CLI command (`cutctx orgs list`) |
+| 8 | **Audit logs have no UI** | API: `/audit/events`, `/audit/export` | No dashboard viewer, no CLI command (`cutctx audit list`) |
+| 9 | **SSO config has no validation** | 8 CLI flags + env vars | No `cutctx sso test` to validate config before startup |
+| 10 | **Fleet management has no UI** | API: `/fleet/*` | No dashboard view, no CLI command |
+| 11 | **SCIM has no setup wizard** | API: `/scim/v2/*` (14 endpoints) | No IdP integration guide, no test tool |
+| 12 | **Retention has no UI** | API: `/retention/stats`, `/retention/cleanup` | No dashboard config, no CLI command |
+| 13 | **Reports have no scheduled export** | API: `/reports/savings`, `/reports/usage` (CSV/JSON) | No cron/scheduled reports, no email delivery |
+| 14 | **Analytics has no dashboard** | API: `/analytics/dashboard`, `/analytics/projects` | No visual analytics page |
+| 15 | **Subscription/quota has no UI** | API: `/subscription-window`, `/quota` | No dashboard view |
 
-Current dashboard (`GET /dashboard`):
-- ✅ Token savings overview
-- ✅ Compression ratio by strategy
-- ✅ Request count over time
-- ✅ Cost savings
+### 🟢 MEDIUM — Polish and completeness
 
-Missing from dashboard:
-- ❌ Intelligence layer activity (task-aware, dedup, budget)
-- ❌ Audit log viewer
-- ❌ RBAC role management
-- ❌ Org/workspace/project management
-- ❌ SSO configuration status
-- ❌ Firewall scan history
-- ❌ CCR content browser
-- ❌ Fleet deployment status
-- ❌ License activation
-- ❌ Analytics (per-project, per-org)
-- ❌ Report generation (CSV/JSON export)
-- ❌ Retention policy configuration
-- ❌ SCIM provisioning status
-- ❌ Subscription/quota overview
+| # | Gap | What exists | What's missing |
+|---|-----|-------------|---------------|
+| 16 | **Intelligence layer is invisible** | 6 features wired into pipeline, status endpoints exist | No dashboard showing dedup hits, budget zones, task relevance scores, cost forecasts |
+| 17 | **Firewall has no scan history** | `/firewall/scan` endpoint | Results not stored, no history, no dashboard |
+| 18 | **CCR has no content browser** | `/v1/retrieve` by hash | No browse/search UI, no stats on stored content |
+| 19 | **No config validation** | 61 CLI flags | No `cutctx config check` to validate before starting |
+| 20 | **No benchmark CLI** | Benchmarks in `benchmarks/` dir | No `cutctx bench` subcommand |
+| 21 | **Go SDK missing shared-context** | TypeScript SDK has it | Go SDK doesn't expose shared-context |
+| 22 | **No Python SDK** | Go + TypeScript SDKs exist | Python users must use proxy directly or CLI |
+| 23 | **`docs/admin-dashboard.html` not served** | 400+ line admin dashboard HTML | Static file, not mounted on any route |
 
 ---
 
-## SUMMARY
+## CORRECTED SCORE
 
-| Category | Total Features | With CLI | With API | With Dashboard | Gap Score |
-|----------|---------------|----------|----------|---------------|-----------|
-| Compression | 9 | 7/9 | 9/9 | 1/9 | 🟡 |
-| Intelligence | 6 | 6/6 | 6/6 | 0/6 | 🔴 |
-| Security | 6 | 3/6 | 6/6 | 0/6 | 🔴 |
+| Category | Features | CLI | API | Dashboard | Score |
+|----------|----------|-----|-----|-----------|-------|
+| Compression | 9 | 7/9 | 9/9 | 1/9 | 🟡 Good |
+| CLI Tools | 14 groups | 14/14 | N/A | N/A | ✅ Strong |
+| Intelligence | 6 | 6/6 | 6/6 | 0/6 | 🟡 |
+| Security | 6 | 3/6 | 6/6 | 0/6 | 🟡 |
 | Enterprise | 8 | 2/8 | 8/8 | 0/8 | 🔴 |
-| Product | 4 | 3/4 | 4/4 | 0/4 | 🔴 |
-| Deployment | 11 | 2/11 | N/A | N/A | 🟡 |
-| Observability | 5 | 0/5 | 5/5 | 1/5 | 🟡 |
-| **TOTAL** | **49** | **23/49** | **38/49** | **2/49** | **🔴** |
+| Dashboard | 1 | N/A | N/A | 1/1 | ✅ Exists |
+| MCP | 3 tools | 3/3 | N/A | N/A | 🟡 Thin |
+| SDKs | 2 | N/A | N/A | N/A | 🟡 No Python |
+| Deployment | 4 | N/A | N/A | N/A | ✅ Complete |
+| **TOTAL** | **53** | **35/44** | **29/29** | **2/24** | **Enterprise UI is the gap** |
 
-**Key finding:** 38 features have API endpoints but only 2 have dashboard UI, and only 23 have CLI access. The product is API-rich but interface-poor.
+## BOTTOM LINE
+
+**The CLI is actually strong** (14 subcommand groups, 10K+ lines). The **dashboard exists** and is functional. The **real gap is enterprise admin UI** — 29 API endpoints have no corresponding dashboard or CLI commands. The product works from the terminal but enterprise buyers need visual governance controls.
+
+The memo's recommendation stands: **Add dashboard views for RBAC, orgs, audit, analytics, and retention.** That's the commercialization blocker, not missing functionality.
