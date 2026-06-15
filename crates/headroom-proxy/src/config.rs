@@ -557,14 +557,19 @@ impl LicenseTier {
             return LicenseTier::OpenSource;
         }
 
-        // Check if HMAC secret is configured for signature verification
+        // Ed25519 signed license token
+        if key.starts_with("hrk1.") {
+            return crate::license::verify_license_token(key);
+        }
+
+        // Legacy HMAC verification
         let hmac_secret = std::env::var("HEADROOM_LICENSE_HMAC_SECRET").ok();
         if let Some(secret) = hmac_secret.filter(|s| !s.is_empty()) {
             return Self::from_license_key_hmac(key, &secret);
         }
 
-        // Dev/fallback mode: prefix-only matching
-        Self::from_license_key_prefix(key)
+        tracing::warn!("License key rejected: insecure prefix matching is disabled. Provide an hrk1 token or set HEADROOM_LICENSE_HMAC_SECRET.");
+        LicenseTier::OpenSource
     }
 
     /// HMAC-verified license key parsing.

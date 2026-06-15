@@ -9,6 +9,7 @@ pub mod error;
 pub mod handlers;
 pub mod headers;
 pub mod health;
+pub mod license;
 pub mod observability;
 pub mod proxy;
 pub mod responses_items;
