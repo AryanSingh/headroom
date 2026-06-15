@@ -315,6 +315,9 @@ jobs:
           command: sdist
           args: --out dist
 
+      - name: Leak guard — OSS wheel + sdist must not contain headroom_ee
+        run: python3 scripts/assert_oss_wheel_clean.py dist
+
       - name: Verify sdist license-file metadata matches tarball contents
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |

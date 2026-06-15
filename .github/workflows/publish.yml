@@ -41,6 +41,9 @@ jobs:
           maturin sdist --out dist
           maturin build --release --out dist
 
+      - name: Leak guard — OSS wheel + sdist must not contain headroom_ee
+        run: python3 scripts/assert_oss_wheel_clean.py dist
+
       - name: Generate SBOM (CycloneDX)
         run: |
           pip install -e ".[proxy]"
