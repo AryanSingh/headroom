@@ -1,0 +1,42 @@
+{
+  "name": "cutctx-codex",
+  "version": "0.26.0",
+  "description": "CutCtx context compression for OpenAI Codex — compress, retrieve, and observe token savings.",
+  "author": {
+    "name": "CutCtx Contributors",
+    "url": "https://github.com/AryanSingh/cutcxt"
+  },
+  "homepage": "https://github.com/AryanSingh/cutcxt",
+  "repository": "https://github.com/AryanSingh/cutcxt",
+  "keywords": [
+    "cutctx",
+    "context-compression",
+    "token-savings",
+    "codex",
+    "openai"
+  ],
+  "tools": [
+    {
+      "name": "headroom_retrieve",
+      "description": "Retrieve original uncompressed content from a CutCtx compression marker",
+      "command": "headroom mcp serve"
+    },
+    {
+      "name": "headroom_compress",
+      "description": "Compress content on demand using CutCtx algorithms",
+      "command": "headroom mcp serve"
+    },
+    {
+      "name": "headroom_stats",
+      "description": "View session compression statistics and token savings",
+      "command": "headroom mcp serve"
+    }
+  ],
+  "provider": {
+    "name": "cutctx",
+    "base_url": "http://127.0.0.1:8787/v1",
+    "env": {
+      "OPENAI_BASE_URL": "http://127.0.0.1:8787/v1"
+    }
+  }
+}
