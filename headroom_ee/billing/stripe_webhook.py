@@ -58,9 +58,7 @@ def verify_stripe_signature(payload: bytes, sig_header: str) -> bool:
     timestamp = parts.get("t", "")
     v1 = parts.get("v1", "")
     signed = f"{timestamp}.".encode() + payload
-    expected = hmac.new(
-        STRIPE_WEBHOOK_SECRET.encode(), signed, hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, v1)
 
 
@@ -75,9 +73,7 @@ def generate_license_key(tier: str, customer_id: str) -> str:
     if not secret:
         raise ValueError("HEADROOM_LICENSE_HMAC_SECRET not set")
     payload = f"{tier}:{random_id}:{customer_id}"
-    sig = hmac.new(
-        secret.encode(), payload.encode(), hashlib.sha256
-    ).hexdigest()[:16]
+    sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
     return f"{tier}-{random_id}-{sig}"
 
 
@@ -133,9 +129,7 @@ def _save_license(record: LicenseRecord) -> None:
     db.upsert(record)
 
 
-def _send_license_email(
-    email: str, key: str, tier: str, seats: int
-) -> None:
+def _send_license_email(email: str, key: str, tier: str, seats: int) -> None:
     """Send license key via email."""
     logger.info(
         "License issued: %s -> %s (%s, %d seats)",

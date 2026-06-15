@@ -96,9 +96,7 @@ class SsoConfig:
                     role_mapping[claim.strip()] = role.strip()
 
         required_scopes_raw = os.environ.get("HEADROOM_SSO_REQUIRED_SCOPES", "")
-        required_scopes = [
-            s.strip() for s in required_scopes_raw.split(",") if s.strip()
-        ]
+        required_scopes = [s.strip() for s in required_scopes_raw.split(",") if s.strip()]
 
         return cls(
             provider_type=os.environ.get("HEADROOM_SSO_PROVIDER_TYPE", "oidc"),
@@ -108,16 +106,12 @@ class SsoConfig:
             audience=os.environ.get("HEADROOM_SSO_AUDIENCE"),
             introspection_url=os.environ.get("HEADROOM_SSO_INTROSPECTION_URL"),
             introspection_client_id=os.environ.get("HEADROOM_SSO_INTROSPECTION_CLIENT_ID"),
-            introspection_client_secret=os.environ.get(
-                "HEADROOM_SSO_INTROSPECTION_CLIENT_SECRET"
-            ),
+            introspection_client_secret=os.environ.get("HEADROOM_SSO_INTROSPECTION_CLIENT_SECRET"),
             required_scopes=required_scopes,
             role_mapping=role_mapping,
             default_role=os.environ.get("HEADROOM_SSO_DEFAULT_ROLE", "viewer"),
             jwks_cache_ttl=int(os.environ.get("HEADROOM_SSO_JWKS_CACHE_TTL", "3600")),
-            clock_skew_tolerance=int(
-                os.environ.get("HEADROOM_SSO_CLOCK_SKEW_TOLERANCE", "60")
-            ),
+            clock_skew_tolerance=int(os.environ.get("HEADROOM_SSO_CLOCK_SKEW_TOLERANCE", "60")),
             http_timeout=int(os.environ.get("HEADROOM_SSO_HTTP_TIMEOUT", "10")),
         )
 
@@ -236,9 +230,7 @@ class _JwksCache:
     def is_stale(self) -> bool:
         return time.time() - self._fetched_at > self._ttl
 
-    async def get_or_fetch(
-        self, jwks_uri: str, http_timeout: int = 10
-    ) -> dict[str, Any]:
+    async def get_or_fetch(self, jwks_uri: str, http_timeout: int = 10) -> dict[str, Any]:
         if not self.is_stale and self._keys:
             return self._keys
         async with self._lock:
@@ -257,9 +249,7 @@ class _JwksCache:
                 data = resp.json()
                 self._keys = {k["kid"]: k for k in data.get("keys", [])}
                 self._fetched_at = time.time()
-                logger.info(
-                    "JWKS fetched: %d keys from %s", len(self._keys), jwks_uri
-                )
+                logger.info("JWKS fetched: %d keys from %s", len(self._keys), jwks_uri)
                 return self._keys
         except Exception as e:
             logger.error("Failed to fetch JWKS from %s: %s", jwks_uri, e)
@@ -386,9 +376,7 @@ class SsoValidator:
                         f"Expected audience {self.config.audience} not in {aud}"
                     )
             elif not hmac.compare_digest(str(aud or ""), self.config.audience):
-                raise SsoTokenAudienceError(
-                    f"Expected audience {self.config.audience}, got {aud}"
-                )
+                raise SsoTokenAudienceError(f"Expected audience {self.config.audience}, got {aud}")
 
         # Scope check
         scopes = self._extract_scopes(payload)
@@ -421,7 +409,10 @@ class SsoValidator:
         try:
             auth = None
             if self.config.introspection_client_id:
-                auth = (self.config.introspection_client_id, self.config.introspection_client_secret or "")
+                auth = (
+                    self.config.introspection_client_id,
+                    self.config.introspection_client_secret or "",
+                )
 
             async with httpx.AsyncClient(timeout=self.config.http_timeout) as client:
                 resp = await client.post(

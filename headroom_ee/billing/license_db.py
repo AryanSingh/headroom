@@ -79,12 +79,7 @@ class LicenseDB:
         ).fetchone()
         if not row:
             return None
-        cols = [
-            d[0]
-            for d in self._conn.execute(
-                "SELECT * FROM licenses LIMIT 0"
-            ).description
-        ]
+        cols = [d[0] for d in self._conn.execute("SELECT * FROM licenses LIMIT 0").description]
         return _LicenseRecord(**dict(zip(cols, row)))
 
     def validate(self, license_key: str) -> dict:

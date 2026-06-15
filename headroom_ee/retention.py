@@ -74,9 +74,7 @@ class RetentionConfig:
             ),
             episodic_enabled=_get_bool("HEADROOM_RETENTION_EPISODIC_ENABLED", True),
             episodic_max_age_days=_get_int("HEADROOM_RETENTION_EPISODIC_MAX_AGE_DAYS", 30),
-            cleanup_interval_seconds=_get_int(
-                "HEADROOM_RETENTION_CLEANUP_INTERVAL", 3600
-            ),
+            cleanup_interval_seconds=_get_int("HEADROOM_RETENTION_CLEANUP_INTERVAL", 3600),
             cleanup_batch_size=_get_int("HEADROOM_RETENTION_CLEANUP_BATCH_SIZE", 100),
         )
 
@@ -104,11 +102,7 @@ class RetentionManager:
     @property
     def enabled(self) -> bool:
         """Check if any retention policy is enabled."""
-        return (
-            self.config.ccr_enabled
-            or self.config.audit_enabled
-            or self.config.episodic_enabled
-        )
+        return self.config.ccr_enabled or self.config.audit_enabled or self.config.episodic_enabled
 
     async def start(self) -> None:
         """Start the background cleanup task."""
@@ -172,19 +166,13 @@ class RetentionManager:
         results = {"ccr_deleted": 0, "audit_deleted": 0, "episodic_deleted": 0}
 
         if self.config.ccr_enabled:
-            results["ccr_deleted"] = await asyncio.to_thread(
-                self._cleanup_ccr_entries
-            )
+            results["ccr_deleted"] = await asyncio.to_thread(self._cleanup_ccr_entries)
 
         if self.config.audit_enabled:
-            results["audit_deleted"] = await asyncio.to_thread(
-                self._cleanup_audit_log
-            )
+            results["audit_deleted"] = await asyncio.to_thread(self._cleanup_audit_log)
 
         if self.config.episodic_enabled:
-            results["episodic_deleted"] = await asyncio.to_thread(
-                self._cleanup_episodic_memories
-            )
+            results["episodic_deleted"] = await asyncio.to_thread(self._cleanup_episodic_memories)
 
         self._stats["ccr_deleted"] += results["ccr_deleted"]
         self._stats["audit_deleted"] += results["audit_deleted"]
@@ -209,9 +197,7 @@ class RetentionManager:
             from headroom.cache.compression_store import get_compression_store
 
             store = get_compression_store()
-            deleted = store.cleanup_expired(
-                max_age_seconds=self.config.ccr_max_age_seconds
-            )
+            deleted = store.cleanup_expired(max_age_seconds=self.config.ccr_max_age_seconds)
             # Also enforce max entries limit
             store.truncate(max_entries=self.config.ccr_max_entries)
             return deleted
@@ -221,7 +207,11 @@ class RetentionManager:
 
     def _cleanup_audit_log(self) -> int:
         """Remove old audit log entries and checkpoint WAL."""
-        db_path = Path(os.environ.get("HEADROOM_AUDIT_DB_PATH", "")) if os.environ.get("HEADROOM_AUDIT_DB_PATH") else Path.home() / ".headroom" / "audit.db"
+        db_path = (
+            Path(os.environ.get("HEADROOM_AUDIT_DB_PATH", ""))
+            if os.environ.get("HEADROOM_AUDIT_DB_PATH")
+            else Path.home() / ".headroom" / "audit.db"
+        )
         if not db_path.exists():
             return 0
 

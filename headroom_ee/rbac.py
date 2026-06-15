@@ -163,9 +163,7 @@ class RbacChecker:
                     "error": "insufficient_permissions",
                     "role": role.value,
                     "required_permission": permission,
-                    "required_role": PERMISSION_MAP.get(
-                        permission, AdminRole.ADMIN
-                    ).value,
+                    "required_role": PERMISSION_MAP.get(permission, AdminRole.ADMIN).value,
                 },
             )
 

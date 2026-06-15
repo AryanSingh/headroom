@@ -7,6 +7,7 @@ Headroom Commercial License (see LICENSING.md). This shim re-exports it at the
 historical ``headroom.seats`` path so existing call sites keep working when the
 commercial ``headroom_ee`` distribution is installed.
 """
+
 from __future__ import annotations
 
 import sys as _sys

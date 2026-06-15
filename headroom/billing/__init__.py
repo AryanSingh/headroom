@@ -12,6 +12,7 @@ Rebinding this package to ``headroom_ee.billing`` repoints its ``__path__`` at t
 commercial package, so ``from headroom.billing.license_db import ...`` resolves to
 the implementation under ``headroom_ee/billing/``.
 """
+
 from __future__ import annotations
 
 import sys as _sys

@@ -253,9 +253,7 @@ class OrgStore:
 
     def get_workspace(self, workspace_id: str) -> dict[str, Any] | None:
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM workspaces WHERE id = ?", (workspace_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
         return self._row_to_dict(row) if row else None
 
     def list_workspaces(self, org_id: str) -> list[dict[str, Any]]:
@@ -326,9 +324,7 @@ class OrgStore:
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM projects WHERE id = ?", (project_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
         return self._row_to_dict(row) if row else None
 
     def list_projects(self, workspace_id: str) -> list[dict[str, Any]]:
@@ -390,9 +386,7 @@ class OrgStore:
 
     def get_agent(self, agent_id: str) -> dict[str, Any] | None:
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM agents WHERE id = ?", (agent_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
         return self._row_to_dict(row) if row else None
 
     def list_agents(self, project_id: str) -> list[dict[str, Any]]:
@@ -445,9 +439,7 @@ class OrgStore:
     def find_project_by_path(self, path: str) -> dict[str, Any] | None:
         """Find a project by filesystem path."""
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM projects WHERE path = ?", (path,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM projects WHERE path = ?", (path,)).fetchone()
         return self._row_to_dict(row) if row else None
 
     # ------------------------------------------------------------------
