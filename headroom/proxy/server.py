@@ -4357,6 +4357,102 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "hard_limit": cfg.hard_limit,
         }
 
+    # ── Intelligence Layer Status ─────────────────────────────────────
+
+    @app.get(
+        "/intelligence/task-aware/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def task_aware_status():
+        """Get task-aware compression status."""
+        return {
+            "enabled": getattr(config, "task_aware_enabled", False),
+            "description": "Modulate compression based on relevance to current task",
+        }
+
+    @app.get(
+        "/intelligence/dedup/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def dedup_status():
+        """Get semantic deduplication status."""
+        from headroom.dedup import MIN_DEDUP_TOKENS
+
+        return {
+            "enabled": getattr(config, "dedup_enabled", False),
+            "min_dedup_tokens": MIN_DEDUP_TOKENS,
+            "description": "Replace repeated content with CCR pointer references",
+        }
+
+    @app.get(
+        "/intelligence/context-budget/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def context_budget_status():
+        """Get context budget controller status."""
+        return {
+            "enabled": getattr(config, "context_budget_enabled", False),
+            "max_tokens": getattr(config, "context_budget_max_tokens", 100_000),
+            "policy": getattr(config, "context_budget_policy", "balanced"),
+            "description": "Progressive compression as token budget fills",
+        }
+
+    @app.get(
+        "/intelligence/profiles/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def profiles_status():
+        """Get cross-session compression profiles status."""
+        return {
+            "enabled": getattr(config, "profiles_enabled", False),
+            "description": "Learn compression patterns per workspace across sessions",
+        }
+
+    @app.get(
+        "/intelligence/shared-context/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def shared_context_status():
+        """Get multi-agent shared compression state status."""
+        return {
+            "enabled": getattr(config, "shared_context_enabled", False),
+            "description": "Shared compression cache across multiple agents",
+        }
+
+    @app.get(
+        "/intelligence/cost-forecast/status",
+        dependencies=[
+            Depends(_require_admin_auth),
+            Depends(_require_rbac_permission("stats.read")),
+        ],
+    )
+    async def cost_forecast_status():
+        """Get cost forecasting + policy engine status."""
+        try:
+            from headroom.cost_forecast import MODEL_PRICING
+            return {
+                "enabled": getattr(config, "cost_forecast_enabled", False),
+                "models_priced": len(MODEL_PRICING),
+                "description": "Pre-task cost estimation and policy-driven compression",
+            }
+        except Exception as exc:
+            return {"enabled": False, "error": str(exc)}
+
     @app.get(
         "/subscription-window",
         dependencies=[
@@ -5795,6 +5891,42 @@ if __name__ == "__main__":
     parser.add_argument("--budget", type=float, help="Budget limit in USD")
     parser.add_argument("--budget-period", choices=["hourly", "daily", "monthly"], default="daily")
 
+    # ── Intelligence Layer ───────────────────────────────────────────────
+    parser.add_argument(
+        "--task-aware", action="store_true",
+        help="Enable task-aware compression (modulate by relevance to current task).",
+    )
+    parser.add_argument(
+        "--dedup", action="store_true",
+        help="Enable semantic deduplication (replace repeated content with CCR pointers).",
+    )
+    parser.add_argument(
+        "--context-budget", action="store_true",
+        help="Enable context budget controller (progressive compression as budget fills).",
+    )
+    parser.add_argument(
+        "--context-budget-max-tokens", type=int, default=100_000,
+        help="Max token budget for context budget controller (default: 100000).",
+    )
+    parser.add_argument(
+        "--context-budget-policy",
+        choices=["conservative", "balanced", "aggressive"],
+        default="balanced",
+        help="Context budget compression policy (default: balanced).",
+    )
+    parser.add_argument(
+        "--profiles", action="store_true",
+        help="Enable cross-session compression profiles (learn patterns per workspace).",
+    )
+    parser.add_argument(
+        "--shared-context", action="store_true",
+        help="Enable multi-agent shared compression state.",
+    )
+    parser.add_argument(
+        "--cost-forecast", action="store_true",
+        help="Enable cost forecasting + policy engine.",
+    )
+
     # Logging
     parser.add_argument("--log-file", help="Log file path")
     parser.add_argument("--log-messages", action="store_true", help="Log full messages")
@@ -5949,6 +6081,27 @@ if __name__ == "__main__":
         ),
         budget_default_tokens=_get_env_int("HEADROOM_BUDGET_TOKENS", args.budget_default_tokens),
         budget_default_usd=_get_env_float("HEADROOM_BUDGET_USD", 10.0),
+        # ── Intelligence Layer ───────────────────────────────────────────
+        task_aware_enabled=(
+            args.task_aware or _get_env_bool("HEADROOM_TASK_AWARE_ENABLED", False)
+        ),
+        dedup_enabled=(
+            args.dedup or _get_env_bool("HEADROOM_DEDUP_ENABLED", False)
+        ),
+        context_budget_enabled=(
+            args.context_budget or _get_env_bool("HEADROOM_CONTEXT_BUDGET_ENABLED", False)
+        ),
+        context_budget_max_tokens=_get_env_int("HEADROOM_CONTEXT_BUDGET_MAX_TOKENS", args.context_budget_max_tokens),
+        context_budget_policy=os.environ.get("HEADROOM_CONTEXT_BUDGET_POLICY", args.context_budget_policy),
+        profiles_enabled=(
+            args.profiles or _get_env_bool("HEADROOM_PROFILES_ENABLED", False)
+        ),
+        shared_context_enabled=(
+            args.shared_context or _get_env_bool("HEADROOM_SHARED_CONTEXT_ENABLED", False)
+        ),
+        cost_forecast_enabled=(
+            args.cost_forecast or _get_env_bool("HEADROOM_COST_FORECAST_ENABLED", False)
+        ),
     )
 
     # Get worker and concurrency settings

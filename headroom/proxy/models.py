@@ -360,6 +360,33 @@ class ProxyConfig:
     budget_default_tokens: int = 100_000
     budget_default_usd: float = 10.0
 
+    # ── Intelligence Layer ───────────────────────────────────────────────
+    # Task-Aware Compression — modulate compression based on extracted task.
+    # Env: HEADROOM_TASK_AWARE_ENABLED=1
+    task_aware_enabled: bool = False
+
+    # Semantic Deduplication — replace repeated content with CCR pointers.
+    # Env: HEADROOM_DEDUP_ENABLED=1
+    dedup_enabled: bool = False
+
+    # Context Budget — progressive compression as token budget fills.
+    # Env: HEADROOM_CONTEXT_BUDGET_ENABLED=1
+    context_budget_enabled: bool = False
+    context_budget_max_tokens: int = 100_000
+    context_budget_policy: str = "balanced"  # conservative / balanced / aggressive
+
+    # Cross-Session Profiles — learn compression patterns per workspace.
+    # Env: HEADROOM_PROFILES_ENABLED=1
+    profiles_enabled: bool = False
+
+    # Multi-Agent Shared State — shared compression cache across agents.
+    # Env: HEADROOM_SHARED_CONTEXT_ENABLED=1
+    shared_context_enabled: bool = False
+
+    # Cost Forecasting + Policy Engine — pre-task cost estimation + policy rules.
+    # Env: HEADROOM_COST_FORECAST_ENABLED=1
+    cost_forecast_enabled: bool = False
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

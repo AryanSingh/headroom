@@ -171,11 +171,18 @@ class EntitlementChecker:
         return entitled
 
     def require_entitled(self, feature: str) -> None:
-        """Raise if the feature is not available. Used for hard gates."""
+        """Raise if the feature is not available. Used for hard gates.
+
+        For features not registered in FEATURE_TIERS (unknown features),
+        raises EntitlementError with required_tier=ENTERPRISE so the error
+        message guides the user to contact sales rather than exposing internals.
+        Previously this would raise a bare KeyError — crash instead of a clean gate.
+        """
         if not self.is_entitled(feature):
+            required_tier = FEATURE_TIERS.get(feature, EntitlementTier.ENTERPRISE)
             raise EntitlementError(
                 feature=feature,
-                required_tier=FEATURE_TIERS[feature],
+                required_tier=required_tier,
                 current_tier=self._tier,
             )
 
