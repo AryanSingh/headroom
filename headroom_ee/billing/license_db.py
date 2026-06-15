@@ -171,6 +171,11 @@ class LicenseDB:
         ).fetchone()
         return bool(row)
 
+    def get_crl(self) -> list[str]:
+        """Get all revoked license keys."""
+        rows = self._conn.execute("SELECT license_key FROM revocations").fetchall()
+        return [r[0] for r in rows]
+
     def checkout_seat(self, license_key: str, user_id: str, lease_duration: float) -> bool:
         """Checkout or renew a seat lease. Returns False if no seats available."""
         now = time.time()
