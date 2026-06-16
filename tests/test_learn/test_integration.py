@@ -89,6 +89,10 @@ class TestIdempotency:
         writer.write(recs, proj, dry_run=False)
         second_content = (tmp_path / "CLAUDE.md").read_text()
 
+        import re
+        first_content = re.sub(r'<!-- provenance: .*? -->\n', '', first_content)
+        second_content = re.sub(r'<!-- provenance: .*? -->\n', '', second_content)
+
         # Content should be identical (replaced, not appended)
         assert first_content == second_content
         assert second_content.count("uv run python") == 1

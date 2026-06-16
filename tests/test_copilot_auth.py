@@ -216,6 +216,10 @@ def test_read_cached_oauth_token_skips_expired_entries(
         encoding="utf-8",
     )
     monkeypatch.setenv("GITHUB_COPILOT_TOKEN_FILE", str(hosts))
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_ENTERPRISE_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_API_TOKEN", raising=False)
     monkeypatch.setattr(copilot_auth, "_read_windows_copilot_cli_oauth_token", lambda: None)
     monkeypatch.setattr(copilot_auth, "_read_macos_keychain_oauth_token", lambda: None)
     monkeypatch.setattr(copilot_auth, "_read_gh_cli_oauth_token", lambda: None)

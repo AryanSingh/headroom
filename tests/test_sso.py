@@ -143,6 +143,10 @@ class TestSsoValidator(unittest.TestCase):
         # Pre-populate JWKS cache so we don't make HTTP calls
         validator._jwks_cache._keys = {"key1": {"kty": "RSA"}}
         validator._jwks_cache._fetched_at = time.time()
+        # Skip real signature verification (stub keys have no key material)
+        async def _no_sig_verify(token, key, algorithm):
+            pass
+        validator._verify_signature = _no_sig_verify
         return validator
 
     def test_not_configured_raises(self):

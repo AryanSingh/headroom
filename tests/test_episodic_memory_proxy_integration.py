@@ -127,7 +127,7 @@ class TestMemoryBlockFormat:
             project_path="/my/project",
         )
         assert block.startswith("[SYSTEM: Past Session Memories]")
-        assert "episodic_extractor" in block
+        assert "extracted" in block
         assert "/my/project" in block
 
     def test_empty_insights_produces_empty_block(self):

@@ -125,7 +125,7 @@ class TestLearnShare:
         text = format_twitter_text(1, "Claude Code", "use cargo test instead of pytest")
         assert "Claude Code" in text
         assert "use cargo test instead of pytest" in text
-        assert "cutctx" in text.lower() or "cutctx" in text
+        assert "headroom" in text.lower()
 
     def test_format_twitter_text_multiple(self):
         from headroom.cli.learn_share import format_twitter_text
