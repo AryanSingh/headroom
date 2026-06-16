@@ -461,6 +461,13 @@ pub(crate) async fn forward_http(
         if let Some(p) = policy {
             if p.req_comp.unwrap_or(false) {
                 forced_req_comp = true;
+                tracing::info!(
+                    event = "policy_enforced",
+                    request_id = %request_id,
+                    org_id = %org,
+                    workspace_id = ?ws,
+                    "forced compression required by policy"
+                );
             }
             // For budget and limits, ideally we would check local counters.
             // Currently just fetching and caching is implemented as per P2-5.

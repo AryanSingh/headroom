@@ -41,6 +41,20 @@ async def create_or_update_policy(
         workspace_id=policy.workspace_id,
         **kwargs
     )
+    
+    try:
+        from headroom_ee.audit.api import get_store as get_audit_store
+        audit_store = get_audit_store()
+        audit_store.append_event(
+            tenant_id=policy.org_id,
+            actor="admin", # Assuming admin for now
+            action="policy.upsert",
+            payload={"workspace_id": policy.workspace_id, "changes": kwargs}
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to emit audit event: {e}")
+
     return result
 
 @router.get("/{org_id}/signed")

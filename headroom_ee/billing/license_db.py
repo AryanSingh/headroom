@@ -152,9 +152,24 @@ class LicenseDB:
                 (license_key, instance_id, time.time()),
             )
             self._conn.commit()
+            self._emit_audit("license.activate_instance", {"license_key": license_key, "instance_id": instance_id})
             return True
         except sqlite3.IntegrityError:
             return False
+
+    def _emit_audit(self, action: str, payload: dict) -> None:
+        try:
+            from headroom_ee.audit.api import get_store as get_audit_store
+            store = get_audit_store()
+            store.append_event(
+                tenant_id="system",  # License actions are system-level
+                actor="admin",
+                action=action,
+                payload=payload,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to emit audit event: {e}")
 
     def revoke_license(self, license_key: str, reason: str = "") -> None:
         """Revoke a license key (add to CRL)."""
@@ -163,6 +178,7 @@ class LicenseDB:
             (license_key, time.time(), reason),
         )
         self._conn.commit()
+        self._emit_audit("license.revoke", {"license_key": license_key, "reason": reason})
 
     def is_revoked(self, license_key: str) -> bool:
         """Check if a license is revoked."""
@@ -206,6 +222,7 @@ class LicenseDB:
             (license_key, user_id, now, now + lease_duration),
         )
         self._conn.commit()
+        self._emit_audit("license.checkout_seat", {"license_key": license_key, "user_id": user_id, "duration": lease_duration})
         return True
 
     def start_trial(self, trial_token: str, customer_email: str, duration: float) -> bool:
@@ -217,6 +234,7 @@ class LicenseDB:
                 (trial_token, customer_email, now, now + duration),
             )
             self._conn.commit()
+            self._emit_audit("license.start_trial", {"trial_token": trial_token, "customer_email": customer_email, "duration": duration})
             return True
         except sqlite3.IntegrityError:
             return False
