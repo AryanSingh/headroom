@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -41,7 +45,7 @@ async def create_or_update_policy(
         workspace_id=policy.workspace_id,
         **kwargs
     )
-    
+
     try:
         from headroom_ee.audit.api import get_store as get_audit_store
         audit_store = get_audit_store()
