@@ -16,7 +16,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -51,7 +50,6 @@ class MLInjectionClassifier:
 
         try:
             import onnxruntime as ort  # noqa: F811
-
             from transformers import AutoTokenizer  # noqa: F811
 
             self._session = ort.InferenceSession(

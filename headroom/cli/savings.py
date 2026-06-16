@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -10,8 +9,7 @@ from typing import Any
 
 import click
 
-from headroom.cost_forecast import MODEL_PRICING, _resolve_model_pricing
-from headroom.storage import create_storage
+from headroom.cost_forecast import _resolve_model_pricing
 
 from .main import main
 

@@ -163,16 +163,16 @@ def generate_markdown_fixture() -> str:
             f"JSON compression, CodeCompressor for source code, and DiffCompressor "
             f"for diff/patch content.\n"
         )
-        sections.append(f"### Usage\n")
+        sections.append("### Usage\n")
         sections.append(
-            f"```bash\ncutctx proxy --port 8787 --compression-mode live-zone\n```\n"
+            "```bash\ncutctx proxy --port 8787 --compression-mode live-zone\n```\n"
         )
-        sections.append(f"### Configuration\n")
+        sections.append("### Configuration\n")
         sections.append(
-            f"| Setting | Default | Description |\n"
-            f"|---------|---------|-------------|\n"
-            f"| `max_body_mb` | 50 | Maximum request body size |\n"
-            f"| `compression_mode` | live-zone | Compression strategy |\n"
+            "| Setting | Default | Description |\n"
+            "|---------|---------|-------------|\n"
+            "| `max_body_mb` | 50 | Maximum request body size |\n"
+            "| `compression_mode` | live-zone | Compression strategy |\n"
         )
 
     return "\n".join(sections)

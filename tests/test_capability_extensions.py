@@ -6,10 +6,9 @@ import asyncio
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Learn Watcher
@@ -174,7 +173,7 @@ class TestStripeWebhook:
                 verify_stripe_signature(b'payload', "t=123,v1=bad")
 
     def test_handle_checkout_completed(self):
-        from headroom.billing.stripe_webhook import LicenseRecord, handle_checkout_completed
+        from headroom.billing.stripe_webhook import handle_checkout_completed
 
         event_data = {
             "object": {

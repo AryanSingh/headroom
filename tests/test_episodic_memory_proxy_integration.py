@@ -14,9 +14,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -28,7 +25,6 @@ pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 
 from headroom.memory.store import EpisodicMemoryStore, compute_project_hash
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

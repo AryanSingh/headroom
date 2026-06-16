@@ -10,16 +10,9 @@
 
 from __future__ import annotations
 
-import hashlib
-import os
-import tempfile
-import threading
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # =====================================================================
 # 1. Task-Aware Compression
@@ -198,7 +191,7 @@ class TestSessionDeduplicator:
         assert result.chunk_count == 0  # System messages not counted
 
     def test_short_content_not_deduped(self):
-        from headroom.dedup import SessionDeduplicator, MIN_DEDUP_TOKENS
+        from headroom.dedup import MIN_DEDUP_TOKENS, SessionDeduplicator
 
         dedup = SessionDeduplicator()
         short_content = "x" * (MIN_DEDUP_TOKENS * 2)  # 400 chars = ~100 tokens < 200
@@ -267,7 +260,7 @@ class TestContextBudgetController:
     """Tests for ContextBudgetController."""
 
     def test_green_zone_no_compression(self):
-        from headroom.context_budget import ContextBudgetController, BudgetZone
+        from headroom.context_budget import BudgetZone, ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=100_000)
         msgs = [{"role": "user", "content": "Hello"}] * 10
@@ -597,7 +590,7 @@ class TestCostEstimator:
         assert estimate.compressed_input_tokens == 50_000
 
     def test_unknown_model_uses_default(self):
-        from headroom.cost_forecast import CostEstimator, _DEFAULT_INPUT_PER_M
+        from headroom.cost_forecast import _DEFAULT_INPUT_PER_M, CostEstimator
 
         est = CostEstimator(model="unknown-model-xyz")
         estimate = est.estimate(input_tokens=1_000_000)
@@ -618,14 +611,14 @@ class TestPolicyEngine:
     """Tests for PolicyEngine."""
 
     def test_default_light_strategy(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine(model="claude-sonnet-4-5")
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=10_000)
         assert decision.strategy == CompressionStrategy.LIGHT
 
     def test_budget_critical_emergency(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=0.30, input_tokens=10_000)
@@ -633,28 +626,28 @@ class TestPolicyEngine:
         assert decision.compression_ratio <= 0.20
 
     def test_budget_low_aggressive(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=1.50, input_tokens=10_000)
         assert decision.strategy == CompressionStrategy.AGGRESSIVE
 
     def test_large_context_moderate(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=150_000)
         assert decision.strategy == CompressionStrategy.MODERATE
 
     def test_medium_context_light(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=75_000)
         assert decision.strategy == CompressionStrategy.LIGHT
 
     def test_budget_priority_over_context(self):
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         # Large context but low budget — budget rule wins (higher priority)

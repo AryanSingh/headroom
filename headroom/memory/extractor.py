@@ -17,7 +17,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from typing import Any
@@ -308,7 +307,7 @@ def format_memory_block(insights: str, project_path: str = "") -> str:
         return ""
 
     header = "[SYSTEM: Past Session Memories]"
-    meta = f"<!-- source: episodic_extractor -->"
+    meta = "<!-- source: episodic_extractor -->"
     if project_path:
         meta = f"<!-- source: episodic_extractor, project: {project_path} -->"
 

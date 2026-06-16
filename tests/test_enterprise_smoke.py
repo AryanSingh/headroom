@@ -9,23 +9,20 @@ without requiring a live proxy server.
 
 from __future__ import annotations
 
-import asyncio
-import json
-import os
-import tempfile
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from headroom.audit import AuditAction, AuditEvent, AuditLogger, get_audit_logger, reset_audit_logger
-from headroom.entitlements import EntitlementChecker, EntitlementTier, FEATURE_TIERS
-from headroom.org import OrgStore, get_org_store, reset_org_store
-from headroom.rbac import AdminRole, RbacChecker, get_rbac_checker, reset_rbac_checker
+from headroom.audit import (
+    AuditEvent,
+    AuditLogger,
+)
+from headroom.entitlements import FEATURE_TIERS, EntitlementChecker, EntitlementTier
+from headroom.org import OrgStore
+from headroom.rbac import AdminRole, RbacChecker, reset_rbac_checker
 from headroom.retention import RetentionConfig, RetentionManager
-from headroom.sso import SsoClaims, SsoConfig, SsoValidator
-
+from headroom.sso import SsoClaims, SsoConfig
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 

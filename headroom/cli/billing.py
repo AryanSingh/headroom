@@ -59,7 +59,7 @@ def checkout(tier: str, email: str | None, billing: str, no_browser: bool) -> No
     Maps the tier to a PitchToShip plan (team -> starter, business -> studio,
     enterprise -> portfolio) and generates a checkout URL via the billing API.
     """
-    from headroom.billing import PITCHTOSHIP_BASE_URL, get_checkout_url, map_tier_to_plan
+    from headroom.billing import get_checkout_url, map_tier_to_plan
 
     # Map tier to plan
     plan = map_tier_to_plan(tier)
@@ -102,7 +102,7 @@ def portal(email: str, no_browser: bool) -> None:
     Examples:
         headroom billing portal --email user@example.com
     """
-    from headroom.billing import PITCHTOSHIP_BASE_URL, get_portal_url
+    from headroom.billing import get_portal_url
 
     # Get portal URL from pitchtoship
     portal_url = get_portal_url(email)

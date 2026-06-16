@@ -10,8 +10,6 @@ import csv
 import io
 import json
 import logging
-import time
-from dataclasses import fields, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -167,6 +165,7 @@ def create_admin_router(
 
     # ── Enterprise Admin Dashboard ────────────────────────────────────
     from pathlib import Path as _Path
+
     from fastapi.responses import HTMLResponse as _HTMLResponse
 
     _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "docs" / "admin-dashboard.html"
@@ -199,7 +198,7 @@ def create_admin_router(
         checker = _proxy.entitlement_checker
         if checker is None:
             return {"error": "Entitlement checker not initialized"}
-        from headroom.entitlements import EntitlementTier, FEATURE_TIERS
+        from headroom.entitlements import FEATURE_TIERS
 
         available = checker.list_features()
         all_features = sorted(FEATURE_TIERS.items(), key=lambda x: x[1].value)

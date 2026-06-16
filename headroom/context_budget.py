@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -295,7 +295,7 @@ class ContextBudgetController:
 
         # Compress old messages using headroom's compress API
         try:
-            from headroom.compress import compress, CompressConfig
+            from headroom.compress import CompressConfig, compress
 
             config = CompressConfig(
                 compress_user_messages=True,

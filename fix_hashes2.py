@@ -1,5 +1,6 @@
 import re
-with open("tests/test_ccr_tool_injection.py", "r") as f:
+
+with open("tests/test_ccr_tool_injection.py") as f:
     content = f.read()
 
 def replacer(match):

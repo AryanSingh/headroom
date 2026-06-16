@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import os
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 # Ensure test HMAC secret is set before any module imports it
 os.environ.setdefault("HEADROOM_LICENSE_HMAC_SECRET", "test-secret-for-tests")
@@ -15,14 +15,14 @@ _SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "scripts")
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, os.path.abspath(_SCRIPTS_DIR))
 
+from generate_license import generate_license_key, tier_to_prefix
+
 from headroom.billing import (
     PITCHTOSHIP_BASE_URL,
     get_checkout_url,
     get_portal_url,
     map_tier_to_plan,
 )
-from generate_license import generate_license_key, tier_to_prefix
-
 
 # ---------------------------------------------------------------------------
 # TestTierMapping

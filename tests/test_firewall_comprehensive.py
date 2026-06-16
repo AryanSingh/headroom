@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import pytest
 from headroom.security.firewall import (
-    FirewallConfig,
-    FirewallScanner,
-    StreamingRedactor,
-    ViolationKind,
     _EXFIL_PATTERNS,
     _INJECTION_PATTERNS,
     _JAILBREAK_PATTERNS,
     _PII_PATTERNS,
+    FirewallConfig,
+    FirewallScanner,
+    StreamingRedactor,
+    ViolationKind,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

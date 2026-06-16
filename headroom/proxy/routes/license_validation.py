@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ async def validate_license(
     x_license_key: str = Header(..., description="License key to validate"),
 ) -> dict:
     """Validate a license key. Called by the Rust proxy on startup."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
 
     db = get_license_db()
     result = db.validate(x_license_key)
@@ -25,22 +26,21 @@ async def validate_license(
     return result
 
 
-from pydantic import BaseModel
-
 class ActivateRequest(BaseModel):
     license_key: str
     instance_id: str
 
+
 @router.post("/v1/license/activate")
 async def activate_license(req: ActivateRequest) -> dict:
     """Activate a proxy instance."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
 
     db = get_license_db()
     result = db.validate(req.license_key)
     if not result["valid"]:
         raise HTTPException(status_code=403, detail=result)
-        
+
     db.activate_instance(req.license_key, req.instance_id)
     return {"status": "ok"}
 
@@ -48,7 +48,7 @@ async def activate_license(req: ActivateRequest) -> dict:
 @router.get("/v1/license/crl")
 async def get_crl() -> dict:
     """Get the Certificate Revocation List (CRL)."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
 
     db = get_license_db()
     return {"revoked": db.get_crl()}
@@ -63,17 +63,17 @@ class CheckoutSeatRequest(BaseModel):
 @router.post("/v1/license/checkout-seat")
 async def checkout_seat(req: CheckoutSeatRequest) -> dict:
     """Checkout or renew a seat lease."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
 
     db = get_license_db()
     result = db.validate(req.license_key)
     if not result["valid"]:
         raise HTTPException(status_code=403, detail=result)
-        
+
     success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
     if not success:
         raise HTTPException(status_code=429, detail={"error": "no_seats_available"})
-        
+
     return {"status": "ok"}
 
 
@@ -86,9 +86,10 @@ class StartTrialRequest(BaseModel):
 @router.post("/v1/license/start-trial")
 async def start_trial(req: StartTrialRequest) -> dict:
     """Start a server-side trial."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
+
     db = get_license_db()
-    
+
     success = db.start_trial(req.trial_token, req.customer_email, req.duration)
     if not success:
         raise HTTPException(status_code=409, detail={"error": "trial_already_started"})
@@ -102,9 +103,10 @@ class CheckTrialRequest(BaseModel):
 @router.post("/v1/license/check-trial")
 async def check_trial(req: CheckTrialRequest) -> dict:
     """Check if a trial is active."""
-    from headroom.billing.license_db import get_license_db
+    from headroom_ee.billing.license_db import get_license_db
+
     db = get_license_db()
-    
+
     active = db.is_trial_active(req.trial_token)
     return {"active": active}
 

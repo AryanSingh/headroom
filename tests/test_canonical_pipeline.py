@@ -161,7 +161,7 @@ def test_content_router_protects_instruction_roles_but_compresses_tool_outputs()
     class Tokenizer:
         def count_text(self, text: str) -> int:
             return max(1, len(text.split()))
-            
+
         def count_messages(self, messages: list[dict]) -> int:
             return sum(self.count_text(str(m.get("content", ""))) for m in messages)
 

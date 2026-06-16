@@ -60,29 +60,49 @@ _OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
 
-from headroom.proxy.handlers.openai.utils import (
-    _usage_int, _passthrough_usage_from_json, _passthrough_model_from_path,
-    _openai_responses_unit_parallelism, _openai_responses_unit_executor,
-    _openai_responses_unit_cache_key, _openai_responses_result_with_cache_hit,
-    _codex_ws_text_shape, _json_debug_dumps, _log_codex_compression_debug,
-    _codex_compression_debug_enabled, _json_shape, _routing_log_debug,
-    _json_byte_len, _compact_openai_tool_schema_value, _compact_openai_responses_tools,
-    _responses_input_item_text_bytes, _openai_responses_context_budget,
-    _extract_codex_handshake_headers, _infer_openai_cache_write_tokens,
-    _extract_responses_usage, _decode_openai_bearer_payload, _resolve_codex_routing_headers,
-    logger, _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES, _OPENAI_RESPONSES_UNIT_CACHE_VERSION,
-    _OPENAI_RESPONSES_UNIT_PARALLELISM_ENV, _OPENAI_RESPONSES_UNIT_PARALLELISM_DEFAULT,
-    _OPENAI_RESPONSES_UNIT_PARALLELISM_MAX, _OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK,
-    _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK, _CODEX_COMPRESSION_DEBUG_NOOP,
-    _OPENAI_TOOL_SCHEMA_DROP_KEYS, RESPONSES_CONTEXT_SEARCH_TIMEOUT_SECONDS,
-    WS_FIRST_FRAME_TIMEOUT_SECONDS
-)
-from headroom.proxy.handlers.openai.utils import _resolve_codex_routing_headers
-from headroom.proxy.handlers.openai.chat import OpenAIChatMixin
-from headroom.proxy.handlers.openai.responses import OpenAIResponsesMixin
-from headroom.proxy.handlers.openai.passthrough import OpenAIPassthroughMixin
-from headroom.proxy.handlers.openai.compress import OpenAICompressMixin
 from headroom.proxy.handlers.openai.base import OpenAIBaseMixin
+from headroom.proxy.handlers.openai.chat import OpenAIChatMixin
+from headroom.proxy.handlers.openai.compress import OpenAICompressMixin
+from headroom.proxy.handlers.openai.passthrough import OpenAIPassthroughMixin
+from headroom.proxy.handlers.openai.responses import OpenAIResponsesMixin
+from headroom.proxy.handlers.openai.utils import (
+    _CODEX_COMPRESSION_DEBUG_NOOP,
+    _OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK,
+    _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES,
+    _OPENAI_RESPONSES_UNIT_CACHE_VERSION,
+    _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK,
+    _OPENAI_RESPONSES_UNIT_PARALLELISM_DEFAULT,
+    _OPENAI_RESPONSES_UNIT_PARALLELISM_ENV,
+    _OPENAI_RESPONSES_UNIT_PARALLELISM_MAX,
+    _OPENAI_TOOL_SCHEMA_DROP_KEYS,
+    RESPONSES_CONTEXT_SEARCH_TIMEOUT_SECONDS,
+    WS_FIRST_FRAME_TIMEOUT_SECONDS,
+    _codex_compression_debug_enabled,
+    _codex_ws_text_shape,
+    _compact_openai_responses_tools,
+    _compact_openai_tool_schema_value,
+    _decode_openai_bearer_payload,
+    _extract_codex_handshake_headers,
+    _extract_responses_usage,
+    _infer_openai_cache_write_tokens,
+    _json_byte_len,
+    _json_debug_dumps,
+    _json_shape,
+    _log_codex_compression_debug,
+    _openai_responses_context_budget,
+    _openai_responses_result_with_cache_hit,
+    _openai_responses_unit_cache_key,
+    _openai_responses_unit_executor,
+    _openai_responses_unit_parallelism,
+    _passthrough_model_from_path,
+    _passthrough_usage_from_json,
+    _resolve_codex_routing_headers,
+    _responses_input_item_text_bytes,
+    _routing_log_debug,
+    _usage_int,
+    logger,
+)
+
 
 class OpenAIHandlerMixin(
     OpenAIChatMixin,

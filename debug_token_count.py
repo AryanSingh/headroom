@@ -1,4 +1,5 @@
 from headroom.tokenizers.tiktoken_counter import TiktokenCounter
+
 tokenizer = TiktokenCounter("gpt-4o")
 
 messages = [

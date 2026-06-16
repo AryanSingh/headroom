@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LicensePayload {
     pub tier: String,
+    pub exp: Option<u64>,
 }
 
 /// Public keys mapped by Key ID (kid).
@@ -18,6 +19,14 @@ fn public_keys() -> &'static HashMap<String, VerifyingKey> {
     static KEYS: OnceLock<HashMap<String, VerifyingKey>> = OnceLock::new();
     KEYS.get_or_init(|| {
         let mut map = HashMap::new();
+        // Default compiled-in key for production fallback
+        let default_kid = "prod-1";
+        let default_hex = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
+        if let Ok(bytes) = hex::decode(default_hex) {
+            if let Ok(key) = VerifyingKey::try_from(bytes.as_slice()) {
+                map.insert(default_kid.to_string(), key);
+            }
+        }
         
         // Load from env for testing and dynamic injection. Format: "kid1:hex1,kid2:hex2"
         if let Ok(env_keys) = std::env::var("HEADROOM_LICENSE_PUBLIC_KEYS") {
@@ -99,6 +108,14 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     if crate::license::client::is_revoked(token) {
         tracing::warn!("License token rejected: key is revoked via CRL");
         return LicenseTier::OpenSource;
+    }
+
+    if let Some(exp) = payload.exp {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        if now > exp {
+            tracing::warn!("License token rejected: expired");
+            return LicenseTier::OpenSource;
+        }
     }
 
     match payload.tier.as_str() {

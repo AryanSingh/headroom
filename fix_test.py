@@ -1,6 +1,5 @@
-import re
 
-with open('tests/test_adapter_hooks.py', 'r') as f:
+with open('tests/test_adapter_hooks.py') as f:
     lines = f.readlines()
 
 new_lines = []

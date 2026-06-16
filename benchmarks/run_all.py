@@ -119,14 +119,14 @@ def generate_code_snippet(num_functions: int = 10) -> str:
     lines = ["# Generated Python code"]
     for i in range(num_functions):
         lines.extend([
-            f"",
+            "",
             f"def function_{i}(x, y):",
             f'    """Function {i} with documentation."""',
-            f"    result = x + y",
-            f"    if result > 100:",
-            f"        return result * 2",
-            f"    else:",
-            f"        return result",
+            "    result = x + y",
+            "    if result > 100:",
+            "        return result * 2",
+            "    else:",
+            "        return result",
         ])
     lines.extend([
         "",
@@ -208,7 +208,7 @@ def load_real_corpus(corpus_name: str, corpus_dir: Path, limit: int | None = Non
 
     # Implementation would load from corpus files
     # For now, return synthetic as fallback
-    logger.warning(f"Corpus loading not fully implemented, using synthetic data")
+    logger.warning("Corpus loading not fully implemented, using synthetic data")
     return load_synthetic_data().get(corpus_name, generate_mixed_context())
 
 
@@ -453,14 +453,7 @@ def main() -> int:
     print("-" * 75)
 
     for metric in sorted(results, key=lambda m: (m.tool, m.corpus)):
-        print("{:<15} {:<12} {:<10} {:<12} {:<11.1%} {:<8.1f}ms".format(
-            metric.tool,
-            metric.corpus,
-            metric.input_tokens,
-            metric.output_tokens,
-            metric.compression_ratio,
-            metric.latency_ms,
-        ))
+        print(f"{metric.tool:<15} {metric.corpus:<12} {metric.input_tokens:<10} {metric.output_tokens:<12} {metric.compression_ratio:<11.1%} {metric.latency_ms:<8.1f}ms")
 
     # Save results
     if args.output:

@@ -20,10 +20,12 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
 
-from headroom.compression.universal import UniversalCompressor, UniversalCompressorConfig, CompressionResult
-from headroom.relevance import BM25Scorer, create_scorer
+from headroom.compression.universal import (
+    UniversalCompressor,
+    UniversalCompressorConfig,
+)
+from headroom.relevance import BM25Scorer
 
 logger = logging.getLogger(__name__)
 

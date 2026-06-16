@@ -19,7 +19,6 @@ import sqlite3
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -45,7 +44,7 @@ TIER_TO_SEATS = {
 # License key generation (same HMAC logic as generate_license.py)
 # ---------------------------------------------------------------------------
 
-def encode_payload(org_name: str, seats: int, expiry: Optional[str] = None) -> str:
+def encode_payload(org_name: str, seats: int, expiry: str | None = None) -> str:
     """Encode org_name, seats, and optional expiry as base64url JSON."""
     payload: dict = {
         "org": org_name,
@@ -79,8 +78,8 @@ def generate_license_key(
     tier: str,
     org_name: str,
     seats: int,
-    expiry: Optional[str],
-    secret: Optional[str],
+    expiry: str | None,
+    secret: str | None,
 ) -> str:
     """Generate a signed (or placeholder for dry-run) license key.
 
@@ -137,7 +136,7 @@ def log_license(
     plan: str,
     tier: str,
     license_key: str,
-    stripe_customer_id: Optional[str],
+    stripe_customer_id: str | None,
     issued_at: str,
 ) -> None:
     db_path = get_db_path()
@@ -301,18 +300,18 @@ def main() -> None:
     # Check for Ed25519 Issuer Config
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from headroom_ee.billing.license_token import sign_license, get_default_issuer_config
-    
+    from headroom_ee.billing.license_token import get_default_issuer_config, sign_license
+
     kid, priv_hex = get_default_issuer_config()
 
     if kid and priv_hex:
         if args.dry_run:
             print("[warn] dry-run for hrk1 token uses real keys but does not email/log", file=sys.stderr)
-        
+
         extra = {"org": args.org, "seats": seats if seats > 0 else "unlimited"}
         if expiry:
             extra["expiry"] = expiry
-            
+
         try:
             license_key = sign_license(tier, kid, priv_hex, extra)
         except Exception as e:
@@ -320,7 +319,7 @@ def main() -> None:
             sys.exit(1)
     else:
         # Resolve HMAC secret
-        secret: Optional[str] = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET") or ""
+        secret: str | None = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET") or ""
         if not secret:
             if args.dry_run:
                 secret = None  # unsigned placeholder

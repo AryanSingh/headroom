@@ -7,8 +7,6 @@ from typing import Any
 
 import click
 
-from .main import main
-
 # Sample texts for benchmarking
 _SAMPLE_SMALL = (
     "The quick brown fox jumps over the lazy dog. "
@@ -167,7 +165,6 @@ def bench(size: str, iterations: int, algorithm: str, output_json: bool) -> None
 
 def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
     """Get the list of algorithms to benchmark."""
-    import json as json_mod
 
     algos = []
 

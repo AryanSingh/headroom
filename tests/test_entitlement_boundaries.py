@@ -14,7 +14,6 @@ from headroom.entitlements import (
     EntitlementTier,
 )
 
-
 # ── Tier boundary matrix ────────────────────────────────────────────────
 # For each feature, verify the exact tier boundary:
 # - tier below required → denied

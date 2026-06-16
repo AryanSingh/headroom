@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 from headroom.relevance.base import RelevanceScore
 from headroom.relevance.bm25 import BM25Scorer
 

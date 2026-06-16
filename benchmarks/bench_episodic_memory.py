@@ -36,7 +36,6 @@ from headroom.memory.extractor import (
 )
 from headroom.memory.store import EpisodicMemoryStore
 
-
 # ---------------------------------------------------------------------------
 # Data generators
 # ---------------------------------------------------------------------------

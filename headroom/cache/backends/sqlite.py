@@ -1,10 +1,8 @@
-import json
 import sqlite3
-import time
 from typing import Any
 
-from .base import CompressionStoreBackend
 from ..compression_store import CompressionEntry
+
 
 class SqliteBackend:
     """SQLite backend for CompressionStore that interoperates with Rust's SqliteCcrStore.
@@ -45,15 +43,15 @@ class SqliteBackend:
                 "SELECT original, created_at, ttl_seconds FROM ccr_entries WHERE hash = ?",
                 (hash_key,)
             ).fetchone()
-            
+
             if not row:
                 return None
-            
+
             # The Rust store saves `original` as a BLOB, which might be JSON bytes
             # CompressionEntry expects original to be a string or JSON-compatible string
             original_bytes = row["original"]
             original_str = original_bytes.decode("utf-8") if isinstance(original_bytes, bytes) else original_bytes
-            
+
             return CompressionEntry(
                 hash=hash_key,
                 original_content=original_str,
@@ -122,12 +120,12 @@ class SqliteBackend:
         with sqlite3.connect(self._db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT hash, original, created_at, ttl_seconds FROM ccr_entries").fetchall()
-            
+
             result = []
             for row in rows:
                 original_bytes = row["original"]
                 original_str = original_bytes.decode("utf-8") if isinstance(original_bytes, bytes) else original_bytes
-                
+
                 entry = CompressionEntry(
                     hash=row["hash"],
                     original_content=original_str,

@@ -7,14 +7,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from headroom.rbac import (
-    AdminRole,
     PERMISSION_MAP,
     ROLE_HIERARCHY,
+    AdminRole,
     RbacChecker,
     get_rbac_checker,
     reset_rbac_checker,
 )
-
 
 # ---------------------------------------------------------------------------
 # AdminRole

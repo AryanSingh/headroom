@@ -12,11 +12,10 @@ Tests cover:
 """
 
 import pytest
+
 from headroom.dedup import (
-    SessionDeduplicator,
-    ContentHash,
     DeduplicationResult,
-    MIN_DEDUP_TOKENS,
+    SessionDeduplicator,
 )
 
 

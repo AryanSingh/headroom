@@ -11,9 +11,7 @@ import os
 import sqlite3
 import sys
 import tempfile
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -28,7 +26,6 @@ from issue_license_from_webhook import (
     TIER_TO_SEATS,
     encode_payload,
     generate_license_key,
-    get_db_path,
     init_db,
     log_license,
     tier_to_prefix,

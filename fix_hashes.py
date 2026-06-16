@@ -1,5 +1,4 @@
-import re
-with open("tests/test_ccr_tool_injection.py", "r") as f:
+with open("tests/test_ccr_tool_injection.py") as f:
     content = f.read()
 
 # Replace 24-char test hashes with 16-char hashes

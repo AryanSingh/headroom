@@ -21,17 +21,17 @@ dependencies. All tests are self-contained and fast (no network calls).
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 
 from headroom.compression.task_aware import (
-    TaskExtractor,
     RelevanceModulator,
     TaskAwareCompressor,
     TaskAwareResult,
+    TaskExtractor,
 )
 from headroom.compression.universal import CompressionResult, ContentType
-
 
 # ============================================================================
 # Fixtures

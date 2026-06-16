@@ -19,11 +19,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import subprocess
 import threading
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -187,7 +186,7 @@ class CompressionProfile:
 
         if profile_path.exists():
             try:
-                with open(profile_path, "r") as f:
+                with open(profile_path) as f:
                     data = json.load(f)
                     stats = {
                         name: ContentTypeStats.from_dict(s)

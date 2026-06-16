@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from cutctx_sdk.client import CutCtxClient, _requests
+from cutctx_sdk.client import CutCtxClient
 
 
 class TestCutCtxClient:

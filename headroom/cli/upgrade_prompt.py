@@ -5,7 +5,6 @@ Shown at most once per day to avoid spamming.
 from __future__ import annotations
 
 import sys
-import os
 from datetime import date
 from pathlib import Path
 

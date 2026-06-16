@@ -63,16 +63,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from headroom._version import __version__
 from headroom.agent_savings import proxy_pipeline_kwargs
 from headroom.cache.compression_feedback import get_compression_feedback
-from headroom.cache.compression_store import format_retrieval_miss_detail, get_compression_store
+from headroom.cache.compression_store import get_compression_store
 from headroom.ccr import (
-    CCR_TOOL_NAME,
-    # Batch processing
     CCRResponseHandler,
     CCRToolInjector,
     ContextTracker,
     ContextTrackerConfig,
     ResponseHandlerConfig,
-    parse_tool_call,
 )
 from headroom.config import (
     DEFAULT_EXCLUDE_TOOLS,
@@ -158,7 +155,6 @@ from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
 from headroom.subscription.copilot_quota import get_copilot_quota_tracker
 from headroom.subscription.tracker import (
     configure_subscription_tracker,
-    get_subscription_tracker,
 )
 from headroom.telemetry import get_telemetry_collector
 from headroom.telemetry.beacon import is_telemetry_enabled
@@ -1574,10 +1570,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 asyncio.create_task(_log_toin_stats_periodically())
 
                 async def _checkout_seat_periodically() -> None:
-                    from headroom.billing.client import checkout_seat
                     import asyncio
-                    import uuid
                     import os
+                    import uuid
+
+                    from headroom.billing.client import checkout_seat
                     license_key = os.environ.get("HEADROOM_LICENSE_KEY")
                     if not license_key:
                         return
@@ -1588,7 +1585,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         else:
                             logger.debug("Successfully renewed seat lease for Python proxy.")
                         await asyncio.sleep(1800)
-                
+
                 asyncio.create_task(_checkout_seat_periodically())
                 if proxy.usage_reporter:
                     await proxy.usage_reporter.start(proxy)
@@ -2468,7 +2465,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         async def _check(request: Request):
             checker = _refreshing_checker.checker
             if not checker.is_entitled(feature):
-                from headroom.entitlements import EntitlementError, FEATURE_TIERS
+                from headroom.entitlements import FEATURE_TIERS
 
                 required = FEATURE_TIERS.get(feature)
                 # Log the denial

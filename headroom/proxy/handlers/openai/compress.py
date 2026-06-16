@@ -5,49 +5,17 @@ Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 
 from __future__ import annotations
 
-import asyncio
-import base64
-import contextlib
-import copy
-import hashlib
 import json
 import logging
-import os
 import threading
-import time
-import uuid
-from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import replace
-from datetime import datetime
-from typing import TYPE_CHECKING, Any
-
-from headroom.proxy.helpers import (
-    COMPRESSION_TIMEOUT_SECONDS,
-    _headroom_bypass_enabled,
-    extract_tags,
-    jitter_delay_ms,
-)
-from headroom.proxy.stage_timer import StageTimer, emit_stage_timings_log
-from headroom.proxy.ws_session_registry import (
-    TerminationCause,
-    WebSocketSessionRegistry,
-    WSSessionHandle,
-)
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fastapi import Request, WebSocket
-    from fastapi.responses import JSONResponse, Response, StreamingResponse
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
 
-import httpx
 
-from headroom.copilot_auth import apply_copilot_api_auth, build_copilot_upstream_url
-from headroom.pipeline import PipelineStage, summarize_routing_markers
-from headroom.proxy.auth_mode import classify_auth_mode, classify_client
-from headroom.proxy.compression_decision import CompressionDecision
-from headroom.proxy.cost import _summarize_transforms, header_safe_transforms
-from headroom.proxy.outcome import RequestOutcome
-from headroom.proxy.project_context import classify_project, set_current_project
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -61,6 +29,7 @@ _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
 
 from headroom.proxy.handlers.openai.utils import *
+
 
 class OpenAICompressMixin:
     async def handle_compress(self, request: Request) -> JSONResponse:

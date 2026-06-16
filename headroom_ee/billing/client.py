@@ -1,8 +1,11 @@
 """Client for interacting with the Headroom license portal."""
 
+# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
+
 import os
 import time
-from typing import Set
 
 import httpx
 
@@ -24,7 +27,7 @@ def is_revoked(license_key: str) -> bool:
                 _CRL_CACHE["expires_at"] = now + 300  # Cache for 5 mins
         except Exception:
             pass  # Fail open on network errors
-            
+
     revoked_set = _CRL_CACHE["revoked"]
     assert isinstance(revoked_set, set)
     return license_key in revoked_set

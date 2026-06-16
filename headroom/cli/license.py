@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import logging
 import webbrowser
-from pathlib import Path
 
 import click
 
@@ -63,7 +62,7 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
     cloud_url = cloud_url.rstrip("/")
 
-    click.echo(f"Validating license key...")
+    click.echo("Validating license key...")
     click.echo(f"  Cloud URL: {cloud_url}")
 
     try:
@@ -140,10 +139,9 @@ def status() -> None:
     import json
 
     from headroom import paths
-    from headroom.checkout import upgrade_url
     from headroom.entitlements import EntitlementChecker, EntitlementTier
-    from headroom.security.state_crypto import read_hmac_json
     from headroom.seats import SeatManager
+    from headroom.security.state_crypto import read_hmac_json
     from headroom.trial import TrialManager
 
     cache_path = paths.license_cache_path()
@@ -166,7 +164,7 @@ def status() -> None:
                 validated_at = cache.get("validated_at", "unknown")
 
                 tier = EntitlementTier.from_str(plan)
-                click.echo(f"  License:    Active")
+                click.echo("  License:    Active")
                 click.echo(f"  Plan:       {tier.name} ({plan})")
                 click.echo(f"  Status:     {status_str}")
                 click.echo(f"  Org:        {org_name}")
@@ -291,7 +289,7 @@ def upgrade(tier: str | None, auto_open: bool) -> None:
         except Exception:
             click.echo("\nCould not open browser. Visit the URL above manually.")
     else:
-        click.echo(f"\nVisit the URL above to complete your upgrade.")
+        click.echo("\nVisit the URL above to complete your upgrade.")
 
 
 @license.command()
@@ -420,7 +418,7 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
     if expiry:
         click.echo(f"Expiry:             {expiry}")
     else:
-        click.echo(f"Expiry:             (none)")
+        click.echo("Expiry:             (none)")
     click.echo()
 
     if dry_run:

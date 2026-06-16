@@ -388,8 +388,8 @@ class TestCCREntryPointLoading:
     def test_no_env_returns_sqlite(self, monkeypatch):
         """No HEADROOM_CCR_BACKEND → returns SqliteBackend."""
         monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
-        from headroom.cache.compression_store import _create_default_ccr_backend
         from headroom.cache.backends.sqlite import SqliteBackend
+        from headroom.cache.compression_store import _create_default_ccr_backend
 
         assert isinstance(_create_default_ccr_backend(), SqliteBackend)
 

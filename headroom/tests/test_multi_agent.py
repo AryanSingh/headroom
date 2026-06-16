@@ -12,15 +12,10 @@ import threading
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
 from headroom.shared_context import (
-    AgentContextInfo,
     AgentRegistry,
-    CompressionCacheEntry,
     MultiAgentCoordinator,
     SharedCompressionCache,
-    SharedCompressionResult,
 )
 
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger("headroom.billing")
 
@@ -28,7 +27,7 @@ TIER_TO_PLAN = {
 
 def get_checkout_url(
     plan: str,
-    email: Optional[str] = None,
+    email: str | None = None,
     billing: str = "annual",
 ) -> str:
     """Get a Stripe Checkout URL from PitchToShip billing API.
@@ -45,7 +44,6 @@ def get_checkout_url(
     Returns:
         Full Stripe Checkout URL string.
     """
-    import json
 
     try:
         import httpx

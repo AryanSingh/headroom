@@ -16,16 +16,11 @@ Features tested:
 from __future__ import annotations
 
 import json
-import os
 import tempfile
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from headroom.proxy.intelligence_pipeline import IntelligencePipeline, PipelineContext
-
 
 # ---------------------------------------------------------------------------
 # Helpers — realistic message fixtures
@@ -329,7 +324,7 @@ class TestCrossSessionProfilesE2E:
 
     def test_profile_persists_to_disk(self):
         """Profile data is saved to disk and can be reloaded."""
-        from headroom.profiles import CompressionProfile, _get_profile_path
+        from headroom.profiles import CompressionProfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a profile with a known hash
@@ -580,7 +575,7 @@ class TestCostForecastingE2E:
 
     def test_policy_engine_selects_strategy(self):
         """Policy engine selects appropriate strategy based on budget."""
-        from headroom.cost_forecast import PolicyEngine, CompressionStrategy
+        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine(model="claude-sonnet-4")
 

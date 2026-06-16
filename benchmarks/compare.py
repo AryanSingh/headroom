@@ -36,10 +36,11 @@ import json
 import logging
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import tiktoken
 
@@ -369,16 +370,9 @@ def print_comparison_table(results: list[ComparisonResult]) -> None:
 
         for result in sorted(corpus_results, key=lambda r: -r.compression_ratio):
             if result.success:
-                print("{:<20} {:<12,} {:<12,} {:<11.1%} {:<9.1f}ms {:<14,.0f}".format(
-                    result.tool,
-                    result.input_tokens,
-                    result.output_tokens,
-                    result.compression_ratio,
-                    result.latency_ms,
-                    result.throughput_tokens_per_sec,
-                ))
+                print(f"{result.tool:<20} {result.input_tokens:<12,} {result.output_tokens:<12,} {result.compression_ratio:<11.1%} {result.latency_ms:<9.1f}ms {result.throughput_tokens_per_sec:<14,.0f}")
             else:
-                print("{:<20} ERROR: {}".format(result.tool, result.error))
+                print(f"{result.tool:<20} ERROR: {result.error}")
 
     print("=" * 100)
 
