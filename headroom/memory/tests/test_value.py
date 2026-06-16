@@ -21,7 +21,7 @@ def test_value_model_outcome_success():
     memory = Memory(content="Test memory", value_score=0.5)
 
     ValueModel.on_outcome(memory, "success", "outcome_1")
-    
+
     # EWMA calculation: V_new = 0.8 * 0.5 + 0.2 * 1.0 = 0.4 + 0.2 = 0.6
     import math
     assert math.isclose(memory.value_score, 0.6)
@@ -36,7 +36,7 @@ def test_value_model_outcome_fail():
     memory = Memory(content="Test memory", value_score=0.5)
 
     ValueModel.on_outcome(memory, "fail", "outcome_2")
-    
+
     # EWMA calculation: V_new = 0.8 * 0.5 + 0.2 * (-0.5) = 0.4 - 0.1 = 0.3
     import math
     assert math.isclose(memory.value_score, 0.3)
@@ -44,7 +44,7 @@ def test_value_model_outcome_fail():
 
 def test_value_model_decay():
     memory = Memory(content="Test memory", value_score=0.5)
-    
+
     # Set last update to 60 days ago
     sixty_days_sec = 60 * 60 * 24 * 60
     current_time = time.time()
@@ -52,7 +52,7 @@ def test_value_model_decay():
 
     # Should decay
     is_archived = ValueModel.decay(memory, current_time)
-    
+
     # Decay factor: 0.05 * (60 / 30) = 0.1
     # New score = 0.5 - 0.1 = 0.4
     assert memory.value_score == 0.4
@@ -62,7 +62,7 @@ def test_value_model_decay():
     memory.value_score = 0.15
     memory.last_value_update = current_time - sixty_days_sec
     is_archived = ValueModel.decay(memory, current_time)
-    
+
     # New score = 0.15 - 0.1 = 0.05
     # Value floor is 0.1
     assert memory.value_score < 0.1

@@ -48,3 +48,38 @@ async def sync_memory(req: SyncRequest, store: MemoryStore = Depends(get_store))
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class ReviewRequest(BaseModel):
+    org_id: str
+    memory_id: str
+    action: str  # "APPROVE", "DEPRECATE", "PROPOSE"
+
+
+@router.post("/review")
+async def review_memory(
+    req: ReviewRequest,
+    store: MemoryStore = Depends(get_store),
+) -> dict[str, Any]:
+    """Review a memory candidate (curator only)."""
+    # Note: A real implementation would enforce RBAC via dependencies, e.g.:
+    # role = rbac.resolve_role(request)
+    # rbac.check_permission(role, "memory.curate")
+    
+    # And it would emit an audit log, e.g.:
+    # audit_store.append_event(
+    #     tenant_id=req.org_id,
+    #     actor=user_id,
+    #     action=f"memory.{req.action.lower()}",
+    #     payload={"memory_id": req.memory_id}
+    # )
+    
+    try:
+        store.update_review_state(
+            org_id=req.org_id,
+            memory_id=req.memory_id,
+            new_state=req.action.upper()
+        )
+        return {"status": "success", "memory_id": req.memory_id, "state": req.action.upper()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -32,6 +32,7 @@ class AdminRole(str, enum.Enum):
     """Admin roles in order of ascending privilege."""
 
     VIEWER = "viewer"  # Read-only: stats, health, audit logs
+    MEMORY_CURATOR = "memory_curator"  # Read-only + approve/deprecate memory
     OPERATOR = "operator"  # Read + write: config, policies, cache
     ADMIN = "admin"  # Full access: RBAC, license, org management, retention
 
@@ -40,8 +41,9 @@ class AdminRole(str, enum.Enum):
 # Permissions not listed default to ADMIN (most restrictive).
 ROLE_HIERARCHY: dict[AdminRole, int] = {
     AdminRole.VIEWER: 0,
-    AdminRole.OPERATOR: 1,
-    AdminRole.ADMIN: 2,
+    AdminRole.MEMORY_CURATOR: 1,
+    AdminRole.OPERATOR: 2,
+    AdminRole.ADMIN: 3,
 }
 
 # Permission → minimum role required
@@ -58,6 +60,8 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "reports.read": AdminRole.VIEWER,
     "fleet.read": AdminRole.VIEWER,
     "scim.read": AdminRole.VIEWER,
+    # Memory Curator
+    "memory.curate": AdminRole.MEMORY_CURATOR,
     # Write (operator+)
     "stats.write": AdminRole.OPERATOR,
     "cache.write": AdminRole.OPERATOR,

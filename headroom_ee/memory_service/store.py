@@ -59,6 +59,16 @@ class MemoryStore:
             session.commit()
             return {"server_deltas": server_deltas, "new_watermark": now}
 
+    def update_review_state(self, org_id: str, memory_id: str, new_state: str) -> None:
+        """Update the review state of a memory record."""
+        with self.SessionLocal() as session:
+            record = session.query(MemoryRecord).filter_by(id=memory_id, org_id=org_id).first()
+            if not record:
+                raise ValueError(f"Memory {memory_id} not found in org {org_id}")
+            record.review_state = new_state
+            record.updated_at_ts = time.time()
+            session.commit()
+
     def _dict_to_record(
         self, data: dict[str, Any], org_id: str, workspace_id: str | None, updated_at: float
     ) -> MemoryRecord:

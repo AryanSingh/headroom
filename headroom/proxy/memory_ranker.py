@@ -54,6 +54,7 @@ class MemoryCandidate:
     # legacy callers). Rendered as ``[id]`` in the auto-tail block so the
     # model can pass it to memory_update / memory_delete directly.
     id: str = ""
+    value_score: float = 0.5  # Neutral default for value score
 
     @classmethod
     def from_backend_result(cls, result: object) -> MemoryCandidate:
@@ -78,6 +79,7 @@ class MemoryCandidate:
         related = tuple(str(x) for x in raw_related)
         source_meta = getattr(memory, "metadata", None) or {}
         source = source_meta.get("source") if isinstance(source_meta, dict) else None
+        value_score = float(getattr(memory, "value_score", 0.5)) if memory is not None else 0.5
         return cls(
             content=content,
             score=score,
@@ -85,6 +87,7 @@ class MemoryCandidate:
             source=source,
             related_entities=related,
             id=memory_id,
+            value_score=value_score,
         )
 
 
@@ -204,3 +207,45 @@ class RecencyBoostRanker:
             # Future-dated row (clock skew). Clamp to neutral.
             return 1.0
         return math.exp(-age_days / self.decay_days)
+
+
+@dataclass(frozen=True)
+class ValueRelevanceRanker:
+    """Re-ranker applying value score to the cosine scores.
+
+    Final score: ``cosine × value_score``.
+
+    This ranker ranks memories by `value * relevance` as required for B3 load-bearing injection.
+    """
+
+    def rank(self, candidates: list[MemoryCandidate]) -> list[MemoryCandidate]:
+        """Re-rank by ``score × value_score``. Pure; input unchanged.
+
+        Sorts descending by boosted score. Ties broken by input order
+        (Python's sort is stable) — deterministic output for prefix-
+        cache stability across turns.
+        """
+        if not candidates:
+            return []
+
+        boosted: list[tuple[int, MemoryCandidate, float]] = []
+        for idx, c in enumerate(candidates):
+            # The backend result value_score defaults to 0.5 if not present
+            boosted.append((idx, c, c.score * c.value_score))
+
+        # Sort descending by boosted score; stable on ties
+        boosted.sort(key=lambda triple: (-triple[2], triple[0]))
+
+        return [
+            MemoryCandidate(
+                content=c.content,
+                score=new_score,
+                created_at=c.created_at,
+                source=c.source,
+                related_entities=c.related_entities,
+                id=c.id,
+                value_score=c.value_score,
+            )
+            for _, c, new_score in boosted
+        ]
+

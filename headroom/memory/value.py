@@ -1,7 +1,6 @@
 """Outcome-linked value scoring and decay for memories."""
 
 import time
-from typing import Any
 
 from headroom.memory.models import Memory
 
@@ -48,13 +47,13 @@ class ValueModel:
             return
 
         reward = cls.REWARDS.get(outcome_label, 0.0)
-        
+
         # Apply EWMA: V_new = (1 - alpha) * V_old + alpha * Reward
         memory.value_score = (1.0 - cls.ALPHA) * memory.value_score + cls.ALPHA * reward
-        
+
         # Ensure it stays within bounds
         memory.value_score = max(0.0, min(1.0, memory.value_score))
-        
+
         memory.outcome_links.append(outcome_id)
         memory.last_value_update = time.time()
 
@@ -70,7 +69,7 @@ class ValueModel:
 
         # Decay factor: e.g., drop value by 5% every 30 days
         days_since_update = (current_time - memory.last_value_update) / (60 * 60 * 24)
-        
+
         if days_since_update > 30:
             # Reduce score slightly
             decay_amount = 0.05 * (days_since_update / 30)

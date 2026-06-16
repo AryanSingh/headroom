@@ -307,7 +307,7 @@ def format_memory_block(insights: str, project_path: str = "") -> str:
         return ""
 
     header = "[SYSTEM: Past Session Memories]"
-    
+
     import time
     timestamp = time.time()
     if project_path:

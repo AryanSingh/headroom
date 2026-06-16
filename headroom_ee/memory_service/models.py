@@ -41,6 +41,7 @@ class MemoryRecord(Base):
     value_score = Column(Float, nullable=False, default=0.5)
     access_count = Column(Integer, nullable=False, default=0)
     last_accessed = Column(DateTime, nullable=True)
+    review_state = Column(String, nullable=False, default="PROPOSED") # PROPOSED, APPROVED, DEPRECATED
 
     # Lineage (for supersession)
     supersedes = Column(String, nullable=True)
