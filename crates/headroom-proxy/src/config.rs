@@ -526,6 +526,32 @@ pub struct CliArgs {
     /// URL to fetch policy from
     #[arg(long = "policy-url", env = "HEADROOM_POLICY_URL")]
     pub policy_url: Option<Url>,
+
+    /// Interval in seconds between CRL refresh attempts. Default: 3600 (1h).
+    #[arg(
+        long = "crl-refresh-interval",
+        env = "HEADROOM_CRL_REFRESH_INTERVAL",
+        default_value = "3600"
+    )]
+    pub crl_refresh_interval_secs: u64,
+
+    /// Interval in seconds between heartbeat / seat-checkout pings.
+    /// Default: 1800 (30m).
+    #[arg(
+        long = "heartbeat-interval",
+        env = "HEADROOM_HEARTBEAT_INTERVAL",
+        default_value = "1800"
+    )]
+    pub heartbeat_interval_secs: u64,
+
+    /// Interval in seconds between periodic license re-verification.
+    /// Default: 300 (5m).
+    #[arg(
+        long = "license-check-interval",
+        env = "HEADROOM_LICENSE_CHECK_INTERVAL",
+        default_value = "300"
+    )]
+    pub license_check_interval_secs: u64,
 }
 
 /// CCR backend kind selection.
@@ -540,7 +566,7 @@ pub enum CcrBackendKind {
 
 /// Resolved entitlement tier from the license key. Determines
 /// which compression features are available.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub enum LicenseTier {
     /// Open-source mode: no license key, all core features available.
     #[default]
@@ -756,6 +782,15 @@ pub struct Config {
     pub spend_ledger_url: Option<Url>,
     /// URL to fetch policy from
     pub policy_url: Option<Url>,
+    /// Interval in seconds between CRL (Certificate Revocation List)
+    /// refresh attempts. Default: 3600 (1 hour).
+    pub crl_refresh_interval_secs: u64,
+    /// Interval in seconds between heartbeat / seat-checkout pings.
+    /// Default: 1800 (30 minutes).
+    pub heartbeat_interval_secs: u64,
+    /// Interval in seconds between periodic license re-verification
+    /// (offline lease check + clock rollback). Default: 300 (5 minutes).
+    pub license_check_interval_secs: u64,
 }
 
 impl Config {
@@ -803,6 +838,9 @@ impl Config {
             ccr_ttl_seconds: args.ccr_ttl_seconds,
             spend_ledger_url: args.spend_ledger_url,
             policy_url: args.policy_url,
+            crl_refresh_interval_secs: args.crl_refresh_interval_secs,
+            heartbeat_interval_secs: args.heartbeat_interval_secs,
+            license_check_interval_secs: args.license_check_interval_secs,
         }
     }
 
@@ -867,6 +905,9 @@ impl Config {
             ccr_ttl_seconds: 300,
             spend_ledger_url: None,
             policy_url: None,
+            crl_refresh_interval_secs: 3600,
+            heartbeat_interval_secs: 1800,
+            license_check_interval_secs: 300,
         }
     }
 }

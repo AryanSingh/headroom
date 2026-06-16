@@ -74,39 +74,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    // Activate license and fetch CRL on startup
+    // SP-1: License enforcement hardening — fingerprint binding, CRL refresh,
+    // heartbeat lease, clock rollback detection.
     if let Some(key) = config.license_key.as_deref() {
         let api_url = std::env::var("HEADROOM_LICENSE_API_URL")
             .unwrap_or_else(|_| "https://api.cutctx.dev".to_string());
 
-        let instance_id = uuid::Uuid::new_v4().to_string(); // In a real system, persist this
+        // Compute install fingerprint for machine binding
+        let fingerprint = headroom_proxy::license::fingerprint::compute_fingerprint();
+        let instance_id = uuid::Uuid::new_v4().to_string();
 
-        tracing::info!("Activating license and fetching CRL from {}...", api_url);
+        // SP-1.4: Clock rollback detection at startup
+        if let Some(clock_state) = headroom_proxy::license::fingerprint::load_clock_state() {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            if clock_state.detect_rollback(now) {
+                tracing::warn!(
+                    event = "clock_rollback_detected_startup",
+                    "System clock rolled back >{}s since last run. \
+                     Forcing re-activation.",
+                    headroom_proxy::license::fingerprint::ClockState::MAX_BACKWARD_DRIFT_SECS
+                );
+            }
+        }
+
+        tracing::info!(
+            event = "license_activation",
+            fingerprint = %fingerprint.hash,
+            "Activating license and fetching CRL from {}...",
+            api_url
+        );
         if let Err(e) =
             headroom_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id)
                 .await
         {
-            tracing::warn!("Failed to activate license / fetch CRL: {}", e);
+            tracing::warn!(
+                event = "license_activation_failed",
+                error = %e,
+                "Failed to activate license / fetch CRL"
+            );
         }
 
-        // Periodic seat checkout ping
+        // SP-1.5: Start periodic CRL refresh (fail-closed after grace)
+        headroom_proxy::license::client::start_crl_refresh_task(
+            api_url.clone(),
+            config.crl_refresh_interval_secs,
+        );
+        tracing::info!(
+            event = "crl_refresh_started",
+            interval_secs = config.crl_refresh_interval_secs,
+            "CRL refresh task started"
+        );
+
+        // SP-1.3: Periodic heartbeat / seat lease with fingerprint
         let api_url_clone = api_url.clone();
         let key_clone = key.to_string();
-        let user_id = format!("proxy-{}", instance_id);
+        let fp_clone = fingerprint.hash.clone();
+        let heartbeat_interval = config.heartbeat_interval_secs;
+        let license_check_interval = config.license_check_interval_secs;
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1800)); // 30 mins
+            let mut heartbeat_interval =
+                tokio::time::interval(std::time::Duration::from_secs(heartbeat_interval));
+            let mut license_check_interval =
+                tokio::time::interval(std::time::Duration::from_secs(license_check_interval));
+            // Skip first immediate ticks
+            heartbeat_interval.tick().await;
+            license_check_interval.tick().await;
+
             loop {
-                interval.tick().await;
-                if !headroom_proxy::license::client::checkout_seat(
-                    &api_url_clone,
-                    &key_clone,
-                    &user_id,
-                )
-                .await
-                {
-                    tracing::error!("License seat limit exceeded! Running in degraded mode.");
-                } else {
-                    tracing::debug!("Successfully renewed seat lease.");
+                tokio::select! {
+                    _ = heartbeat_interval.tick() => {
+                        let user_id = format!("proxy-{}", &fp_clone[..12]);
+                        if !headroom_proxy::license::client::checkout_seat(
+                            &api_url_clone,
+                            &key_clone,
+                            &user_id,
+                        )
+                        .await
+                        {
+                            tracing::error!(
+                                event = "seat_limit_exceeded",
+                                "License seat limit exceeded! Running in degraded mode."
+                            );
+                        } else {
+                            tracing::debug!(
+                                event = "seat_lease_renewed",
+                                "Successfully renewed seat lease"
+                            );
+                        }
+                    }
+                    _ = license_check_interval.tick() => {
+                        // SP-1.3: Verify lease is still valid (clock rollback + expiration)
+                        let tier = headroom_proxy::license::verify_license_token(&key_clone);
+                        if tier == headroom_proxy::config::LicenseTier::OpenSource {
+                            tracing::warn!(
+                                event = "license_recheck_failed",
+                                "License re-verification failed — features downgraded to OpenSource"
+                            );
+                        }
+                    }
                 }
             }
         });

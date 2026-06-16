@@ -110,6 +110,9 @@ opentelemetry = { version = "0.27", features = ["trace", "metrics"] }
 opentelemetry_sdk = { version = "0.27", features = ["trace", "rt-tokio", "metrics"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client", "trace"] }
 tracing-opentelemetry = "0.28"
+# SP-2: libc for anti-debug (ptrace on Linux, sysctl on macOS)
+libc = "0.2"
+hostname = "0.4"
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }

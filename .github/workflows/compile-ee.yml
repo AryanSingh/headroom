@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025-2026 Headroom Labs.
+
+name: SP-3: Compile EE (Nuitka)
+
+# SP-3: Compiles headroom_ee to native extensions for release.
+# Produces a wheel with NO .py source — only .so/.pyd native modules.
+# Triggered on publish-ee.yml or manually for testing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version string (e.g. 0.26.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (build but do not publish)"
+        required: false
+        default: "true"
+        type: boolean
+
+jobs:
+  compile-ee:
+    name: Compile headroom_ee (Nuitka)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependencies
+        run: |
+          pip install nuitka ordered-set zstandard build setuptools
+
+      - name: Compile EE modules
+        run: |
+          python scripts/compile_ee.py \
+            --output-dir dist-ee-compiled \
+            --version ${{ inputs.version }}
+
+      - name: Verify no source in compiled wheel (V-7)
+        run: |
+          python scripts/compile_ee.py \
+            --verify-only \
+            --output-dir dist-ee-compiled
+
+      - name: Scan for secrets (V-12)
+        run: |
+          python scripts/sign_artifacts.py scan-secrets --path headroom_ee
+
+      - name: Upload compiled wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: headroom-ee-compiled-wheel
+          path: dist-ee-compiled/*.whl
+
+      - name: Upload compiled extensions
+        uses: actions/upload-artifact@v4
+        with:
+          name: headroom-ee-compiled-extensions
+          path: dist-ee-compiled/_compiled/**/*.so
