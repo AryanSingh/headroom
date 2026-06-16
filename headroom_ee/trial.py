@@ -103,10 +103,16 @@ class TrialManager:
     def state(self) -> TrialState:
         return self._load()
 
-    def start_trial(self, org_id: str | None = None, trial_token: str | None = None, customer_email: str | None = None) -> TrialState:
+    def start_trial(
+        self,
+        org_id: str | None = None,
+        trial_token: str | None = None,
+        customer_email: str | None = None,
+    ) -> TrialState:
         """Start a new trial. Called on first proxy start or license activation."""
         if trial_token and customer_email:
             from headroom.billing.client import start_trial as server_start_trial
+
             server_start_trial(trial_token, customer_email)
 
         self._state = TrialState(started_at=time.time(), org_id=org_id, trial_token=trial_token)
@@ -148,6 +154,7 @@ class TrialManager:
         # Check server-side trial state if token is present
         if state.trial_token:
             from headroom.billing.client import is_trial_active
+
             if is_trial_active(state.trial_token):
                 return {
                     "active": True,

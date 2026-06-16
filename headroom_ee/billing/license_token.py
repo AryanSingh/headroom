@@ -35,6 +35,7 @@ def sign_license(
 
     payload = {
         "tier": tier,
+        "nbf": int(time.time()) - 300, # 5 min clock skew
         "exp": int(time.time()) + (duration_days * 86400),
     }
     if extra_payload:

@@ -149,7 +149,7 @@ class LicenseDB:
         try:
             self._conn.execute(
                 "INSERT INTO activations (license_key, instance_id, activated_at) VALUES (?, ?, ?)",
-                (license_key, instance_id, time.time())
+                (license_key, instance_id, time.time()),
             )
             self._conn.commit()
             return True
@@ -160,7 +160,7 @@ class LicenseDB:
         """Revoke a license key (add to CRL)."""
         self._conn.execute(
             "INSERT OR REPLACE INTO revocations (license_key, revoked_at, reason) VALUES (?, ?, ?)",
-            (license_key, time.time(), reason)
+            (license_key, time.time(), reason),
         )
         self._conn.commit()
 
@@ -195,7 +195,7 @@ class LicenseDB:
             # Check if user already has a lease (renew)
             user_lease = self._conn.execute(
                 "SELECT 1 FROM seat_leases WHERE license_key = ? AND user_id = ?",
-                (license_key, user_id)
+                (license_key, user_id),
             ).fetchone()
             if not user_lease:
                 return False
@@ -203,7 +203,7 @@ class LicenseDB:
         self._conn.execute(
             """INSERT OR REPLACE INTO seat_leases (license_key, user_id, leased_at, expires_at)
                VALUES (?, ?, ?, ?)""",
-            (license_key, user_id, now, now + lease_duration)
+            (license_key, user_id, now, now + lease_duration),
         )
         self._conn.commit()
         return True
@@ -214,7 +214,7 @@ class LicenseDB:
         try:
             self._conn.execute(
                 "INSERT INTO trials (trial_token, customer_email, started_at, expires_at) VALUES (?, ?, ?, ?)",
-                (trial_token, customer_email, now, now + duration)
+                (trial_token, customer_email, now, now + duration),
             )
             self._conn.commit()
             return True

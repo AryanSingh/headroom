@@ -82,7 +82,7 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-lint-${{ hashFiles('pyproject.toml') }}
           restore-keys: ${{ runner.os }}-pip-lint-
-      - run: python -m pip install --upgrade pip ruff mypy
+      - run: pip install --upgrade pip ruff==0.9.4 mypy
       - name: ruff check
         run: ruff check .
       - name: ruff format --check

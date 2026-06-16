@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import sys
-from cryptography.hazmat.primitives.asymmetric import ed25519
+
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
+
 
 def generate_keypair():
     private_key = ed25519.Ed25519PrivateKey.generate()
@@ -11,15 +12,15 @@ def generate_keypair():
     priv_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.Raw,
         format=serialization.PrivateFormat.Raw,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
-    
+
     pub_bytes = public_key.public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
     )
-    
+
     return priv_bytes.hex(), pub_bytes.hex()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Ed25519 keypair for HRK1 license tokens")
@@ -36,6 +37,7 @@ def main():
     print("\nPython Issuer Configuration:")
     print(f'export HEADROOM_LICENSE_PRIVATE_KEY="{priv_hex}"')
     print(f'export HEADROOM_LICENSE_KID="{args.kid}"')
+
 
 if __name__ == "__main__":
     main()

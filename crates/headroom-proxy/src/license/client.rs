@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::RwLock;
 
-static CRL_CACHE: RwLock<Option<HashSet<String>>> = RwLock::new(None);
+static CRL_CACHE: RwLock<Option<(HashSet<String>, u64)>> = RwLock::new(None);
 
 #[derive(Serialize)]
 struct ActivateRequest<'a> {
@@ -33,8 +33,9 @@ pub async fn activate_and_fetch_crl(
     if let Ok(resp) = client.get(&format!("{}/v1/license/crl", api_url)).send().await {
         if resp.status().is_success() {
             if let Ok(crl) = resp.json::<CrlResponse>().await {
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
                 let mut cache = CRL_CACHE.write().unwrap();
-                *cache = Some(crl.revoked.into_iter().collect());
+                *cache = Some((crl.revoked.into_iter().collect(), now));
             }
         }
     }
@@ -42,13 +43,22 @@ pub async fn activate_and_fetch_crl(
     Ok(())
 }
 
-/// Check if a license is revoked. Uses the local CRL cache and fails open.
+/// Check if a license is revoked. Uses the local CRL cache and fails closed after grace window (24h).
 pub fn is_revoked(license_key: &str) -> bool {
     let cache = CRL_CACHE.read().unwrap();
-    if let Some(revoked) = cache.as_ref() {
-        revoked.contains(license_key)
-    } else {
+    if let Some((revoked, last_fetch)) = cache.as_ref() {
+        if revoked.contains(license_key) {
+            return true;
+        }
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        if now > last_fetch + 86400 {
+            // Grace window expired, fail closed
+            return true;
+        }
         false
+    } else {
+        // If we have never fetched it, fail closed to enforce security
+        true
     }
 }
 

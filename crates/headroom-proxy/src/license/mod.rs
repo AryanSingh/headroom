@@ -12,6 +12,7 @@ use std::sync::OnceLock;
 pub struct LicensePayload {
     pub tier: String,
     pub exp: Option<u64>,
+    pub nbf: Option<u64>,
 }
 
 /// Public keys mapped by Key ID (kid).
@@ -21,7 +22,7 @@ fn public_keys() -> &'static HashMap<String, VerifyingKey> {
         let mut map = HashMap::new();
         // Default compiled-in key for production fallback
         let default_kid = "prod-1";
-        let default_hex = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
+        let default_hex = "14ae1a81a66d9757d002ff074975d26d2ea2aed88806a5b806f42ad301b5de30";
         if let Ok(bytes) = hex::decode(default_hex) {
             if let Ok(key) = VerifyingKey::try_from(bytes.as_slice()) {
                 map.insert(default_kid.to_string(), key);
@@ -108,6 +109,14 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     if crate::license::client::is_revoked(token) {
         tracing::warn!("License token rejected: key is revoked via CRL");
         return LicenseTier::OpenSource;
+    }
+
+    if let Some(nbf) = payload.nbf {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        if now < nbf {
+            tracing::warn!("License token rejected: not yet valid (nbf)");
+            return LicenseTier::OpenSource;
+        }
     }
 
     if let Some(exp) = payload.exp {
