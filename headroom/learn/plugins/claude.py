@@ -259,6 +259,21 @@ class ClaudeCodePlugin(LearnPlugin, ConversationScanner):
                             agent_prompt=tool_result_meta.get("prompt", "")[:200],
                         )
                     )
+                    
+                    # Emit A2 OutcomeSignal telemetry
+                    try:
+                        from headroom.telemetry.outcome import OutcomeEmitter, OutcomeEvent, OutcomeSignal
+                        import time
+                        
+                        OutcomeEmitter.emit(OutcomeEvent(
+                            session_id=tool_result_meta.get("agentId", ""),
+                            tenant_id="local",
+                            signal=OutcomeSignal.SUCCESS,
+                            timestamp_ts=time.time(),
+                            context={"prompt": tool_result_meta.get("prompt", "")[:200]}
+                        ))
+                    except Exception as e:
+                        logger.error(f"Failed to record outcome telemetry: {e}")
 
     def _extract_user_events(
         self,
@@ -297,6 +312,21 @@ class ClaudeCodePlugin(LearnPlugin, ConversationScanner):
                                 text=text[:200],
                             )
                         )
+                        
+                        # Emit A2 OutcomeSignal telemetry
+                        try:
+                            from headroom.telemetry.outcome import OutcomeEmitter, OutcomeEvent, OutcomeSignal
+                            import time
+                            
+                            OutcomeEmitter.emit(OutcomeEvent(
+                                session_id="interrupted_session",  # Fixed to a placeholder since session_id is not available
+                                tenant_id="local",
+                                signal=OutcomeSignal.FAILURE,
+                                timestamp_ts=time.time(),
+                                context={"reason": "interrupted"}
+                            ))
+                        except Exception as e:
+                            logger.error(f"Failed to record outcome telemetry: {e}")
 
 
 # =============================================================================

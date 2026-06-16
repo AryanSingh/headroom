@@ -247,6 +247,23 @@ class CCRResponseHandler:
                 # Full retrieval
                 entry = store.retrieve(ccr_call.hash_key)
                 if entry:
+                    # Emit A1 RetrievalLabel telemetry
+                    try:
+                        from headroom.telemetry.episodes import EpisodeStore, RetrievalLabel
+                        import time
+                        
+                        ep_store = EpisodeStore()
+                        label = RetrievalLabel(
+                            episode_id=ccr_call.hash_key,
+                            tenant_id="local",  # Should ideally be extracted from request context, hardcoded for now
+                            retrieved_span_start=0,  # Proxy doesn't track exact line offsets inside chunk
+                            retrieved_span_end=entry.original_item_count,
+                            timestamp_ts=time.time()
+                        )
+                        ep_store.record_retrieval(label)
+                    except Exception as e:
+                        logger.error(f"Failed to record retrieval telemetry: {e}")
+
                     content = json.dumps(
                         {
                             "hash": ccr_call.hash_key,

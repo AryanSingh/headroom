@@ -369,6 +369,26 @@ class CompressionStore:
             # MEDIUM FIX #16: Add to eviction heap for O(log n) eviction
             heapq.heappush(self._eviction_heap, (entry.created_at, hash_key))
 
+        # Emit A1 CompressionEpisode telemetry
+        try:
+            from headroom.telemetry.episodes import EpisodeStore, CompressionEpisode
+            ep_store = EpisodeStore()
+            
+            # Note: start/end line are roughly approximated here since we just have token counts
+            # In a real system, the compressor would pass precise line spans
+            episode = CompressionEpisode(
+                episode_id=hash_key,
+                tenant_id="local",  # Should ideally be extracted from request context
+                original_size=original_tokens,
+                compressed_size=compressed_tokens,
+                start_line=0,
+                end_line=original_item_count,
+                timestamp_ts=time.time()
+            )
+            ep_store.record_compression(episode)
+        except Exception as e:
+            logger.error(f"Failed to record compression telemetry: {e}")
+
         return hash_key
 
     def retrieve(
