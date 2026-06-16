@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
+
 from typing import Any
 
 from headroom_ee.policy.signer import sign_policy

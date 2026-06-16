@@ -113,6 +113,7 @@ ci-precheck-python:
 		echo "error: activate a venv first (e.g. source .venv/bin/activate)"; \
 		exit 1; \
 	fi
+	$(PYTHON) scripts/assert_ee_spdx_headers.py
 	bash scripts/build_rust_extension.sh
 	$(PYTHON) -m pytest -q \
 		tests/test_transforms/test_smart_crusher_bugs.py \
