@@ -143,12 +143,41 @@ class CostEstimator:
         Returns:
             CostEstimate with detailed breakdown.
         """
+        # Compression savings calculation
+        compressed_input = int(input_tokens * compression_ratio)
+        tokens_saved = input_tokens - compressed_input
+
+        try:
+            from headroom.pricing.registry import PricingRegistry
+            from headroom_ee.ledger.pricing import compute_costs
+            # For dynamic EE pricing, use a local registry mock or load actual
+            # Currently just passing empty registry to let compute_costs run if extended
+            # but we fall back to OSS logic if registry doesn't have the model
+            from datetime import date
+            _registry = PricingRegistry(last_updated=date.today())
+            costs = compute_costs(_registry, self.model, input_tokens, output_tokens, tokens_saved)
+            if costs.est_cost_usd is not None:
+                # If EE pricing handles it successfully
+                total_usd = costs.est_cost_usd
+                savings = costs.est_cost_saved_usd or 0.0
+                return CostEstimate(
+                    model=self.model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    input_usd=round(total_usd - (output_tokens / 1_000_000 * self._output_per_m), 6),
+                    output_usd=round((output_tokens / 1_000_000 * self._output_per_m), 6),
+                    total_usd=round(total_usd, 6),
+                    compression_savings_usd=round(savings, 6),
+                    compressed_input_tokens=compressed_input,
+                )
+        except ImportError:
+            pass
+
+        # OSS fallback
         input_usd = (input_tokens / 1_000_000) * self._input_per_m
         output_usd = (output_tokens / 1_000_000) * self._output_per_m
         total_usd = input_usd + output_usd
 
-        # Compression savings
-        compressed_input = int(input_tokens * compression_ratio)
         compressed_input_usd = (compressed_input / 1_000_000) * self._input_per_m
         savings = input_usd - compressed_input_usd
 
