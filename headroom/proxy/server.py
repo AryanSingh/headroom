@@ -3271,6 +3271,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except ImportError:
         pass
 
+    try:
+        from headroom.proxy.routes.residency import router as residency_router
+
+        app.include_router(residency_router)
+        logger.debug("Residency proof route mounted at /v1/residency/proof")
+    except ImportError:
+        pass
+
     register_provider_routes(app, proxy)
 
     return app

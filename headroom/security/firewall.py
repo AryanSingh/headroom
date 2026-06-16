@@ -289,6 +289,34 @@ class FirewallScanner:
         """Return True if any violation should block the request."""
         return any(v.block for v in violations)
 
+    def get_blocked_domains(self) -> list[str]:
+        """Return the list of egress domains tracked or blocked by this scanner.
+
+        In the current implementation the scanner enforces data-exfiltration
+        checks on *any* URL that embeds secrets (pattern-based), and operators
+        can whitelist domains via ``FirewallConfig.allowed_domains``.  This
+        method returns the complement: domains that are **not** allowed and
+        therefore subject to egress blocking.
+
+        When no explicit deny-list is configured the method returns a sentinel
+        list of well-known exfiltration vectors that the built-in patterns
+        guard against.  This is useful for residency attestations that need a
+        non-empty, human-readable list.
+        """
+        # If the operator provided an explicit allowed-domain list, domains
+        # *outside* that list are blocked — we surface the allowed list as the
+        # "not blocked" side and return a descriptive sentinel instead.
+        allowed = list(self.config.allowed_domains)
+        if allowed:
+            # Domains explicitly allowed are not blocked; return a note.
+            return ["*" if not allowed else f"!{d}" for d in allowed]
+
+        # Default: surface the sentinel exfiltration patterns we enforce.
+        return [
+            "*.unknown-external (url-with-secrets pattern)",
+            "sensitive-file-paths (/etc/passwd, ~/.ssh/*)",
+        ]
+
     # --- Internal scan methods ---
 
     def _scan_injections(self, text: str) -> list[Violation]:

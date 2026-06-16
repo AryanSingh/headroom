@@ -280,6 +280,16 @@ def learn(
             f"{total_recommendations} recommendations"
         )
 
+    # Share prompt — only when applying and corrections were made
+    if apply and total_recommendations > 0:
+        try:
+            from .learn_share import print_share_prompt
+
+            top_fix = "See CLAUDE.md for details"
+            print_share_prompt(total_recommendations, agent, top_fix)
+        except Exception:
+            pass  # Share prompt is purely optional
+
 
 def _run_watch_mode(agent: str, model: str | None, apply: bool) -> None:
     """Run in watch mode: monitor for new sessions and auto-apply learnings."""
@@ -309,13 +319,17 @@ def _run_watch_mode(agent: str, model: str | None, apply: bool) -> None:
     from ..learn.watcher import SessionWatcher
 
     async def on_session(path: Path) -> None:
-        click.echo(f"\n[cutctx learn] New session detected: {path.name}")
+        click.echo(f"\n[headroom learn] New session detected: {path.name}")
         # Re-run learn for the affected project
         project_dir = path.parent
         for plugin in plugins:
             writer = plugin.create_writer()
             all_projects = plugin.discover_projects()
-            targets = [p for p in all_projects if project_dir in p.project_path.parents or p.project_path == project_dir]
+            targets = [
+                p
+                for p in all_projects
+                if project_dir in p.project_path.parents or p.project_path == project_dir
+            ]
             if targets:
                 from ..learn.analyzer import SessionAnalyzer, _detect_default_model
 
@@ -333,7 +347,7 @@ def _run_watch_mode(agent: str, model: str | None, apply: bool) -> None:
                             click.echo("  Dry run — use --apply to write.")
                 break
 
-    click.echo("cutctx learn --watch active. Press Ctrl+C to stop.")
+    click.echo("headroom learn --watch active. Press Ctrl+C to stop.")
     click.echo(f"Watching {len(dirs)} directory(ies):")
     for d in dirs:
         click.echo(f"  {d}")

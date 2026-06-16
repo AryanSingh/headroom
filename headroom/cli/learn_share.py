@@ -1,4 +1,10 @@
-"""Generates a shareable summary card after CutCtx learn completes."""
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025-2026 Headroom Labs.
+"""Share prompt generator for headroom learn.
+
+After a successful `headroom learn --apply`, generates a Twitter-ready
+share card showing the number of corrections applied.
+"""
 
 from __future__ import annotations
 
@@ -10,16 +16,16 @@ def format_twitter_text(n_corrections: int, agent: str, top_fix: str) -> str:
     if n_corrections == 1:
         return (
             f"\U0001f916 {agent} made a mistake.\n"
-            f"cutctx learn auto-fixed it in CLAUDE.md:\n\n"
-            f"\u2705 \"{top_fix}\"\n\n"
-            f"#cutctx #AIagents github.com/AryanSingh/cutctx"
+            f"headroom learn auto-fixed it in CLAUDE.md:\n\n"
+            f'\u2705 "{top_fix}"\n\n'
+            f"#headroom #AIagents github.com/headroomlabs/headroom"
         )
     return (
         f"\U0001f916 {agent} just made the same mistake for the {n_corrections}th time.\n"
-        f"cutctx learn auto-fixed it in CLAUDE.md:\n\n"
-        f"\u2705 \"{top_fix}\"\n\n"
+        f"headroom learn auto-fixed it in CLAUDE.md:\n\n"
+        f'\u2705 "{top_fix}"\n\n'
         f"+ {n_corrections - 1} other corrections \u2014 automatically.\n"
-        f"#cutctx #AIagents github.com/AryanSingh/cutctx"
+        f"#headroom #AIagents github.com/headroomlabs/headroom"
     )
 
 

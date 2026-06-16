@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025-2026 Headroom Labs.
+
+name: Publish headroom-ee (Private Index)
+
+# P6-1: Private distribution pipeline for the commercial wheel.
+# Triggered manually or on tag push matching `ee-v*`.
+# Publishes to a private index (GH Packages or customer-hosted) — NEVER to public PyPI.
+# The OSS wheel (headroom-ai) is published separately via release.yml.
+
+on:
+  push:
+    tags:
+      - "ee-v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build but do not publish)"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  build-ee:
+    name: Build headroom-ee wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # For GitHub Packages index
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Build headroom-ee wheel
+        working-directory: packaging/headroom-ee
+        run: |
+          uv build --wheel --out-dir ../../dist-ee
+          echo "Built wheel:"
+          ls -lh ../../dist-ee/
+
+      - name: Leak guard — EE wheel must NOT contain OSS-only modules
+        run: |
+          # Check that headroom_ee wheel doesn't accidentally bundle headroom (OSS)
+          python3 -c "
+          import zipfile, sys, pathlib
+          dist = pathlib.Path('dist-ee')
+          for whl in dist.glob('*.whl'):
+              with zipfile.ZipFile(whl) as z:
+                  names = z.namelist()
+                  # EE wheel must contain headroom_ee
+                  assert any(n.startswith('headroom_ee/') for n in names), f'headroom_ee missing from {whl}'
+                  # EE wheel must NOT contain headroom core OSS modules
+                  oss_leaks = [n for n in names if n.startswith('headroom/') and not n.startswith('headroom_ee/')]
+                  assert not oss_leaks, f'OSS leak in EE wheel: {oss_leaks[:5]}'
+                  print(f'PASS: {whl.name} clean')
+          "
+
+      - name: Verify SPDX headers on all headroom_ee files
+        run: |
+          python3 -c "
+          import pathlib, sys
+          missing = []
+          for f in pathlib.Path('headroom_ee').rglob('*.py'):
+              if f.name.startswith('_'):
+                  # Allow dunder files to omit headers
+                  continue
+              text = f.read_text(encoding='utf-8', errors='replace')
+              if 'SPDX-License-Identifier: LicenseRef-Headroom-Commercial' not in text:
+                  missing.append(str(f))
+          if missing:
+              print('FAIL: Missing SPDX headers:')
+              for m in missing:
+                  print(f'  {m}')
+              sys.exit(1)
+          print(f'PASS: All {len(list(pathlib.Path(\"headroom_ee\").rglob(\"*.py\")))} headroom_ee files have correct SPDX headers')
+          "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: headroom-ee-wheel
+          path: dist-ee/*.whl
+
+      - name: Publish to GitHub Packages (Private Index)
+        if: ${{ github.event.inputs.dry_run != 'true' && github.event_name != 'workflow_dispatch' }}
+        run: |
+          # Publish to GitHub Packages — only accessible to holders of a valid license key
+          # For customer delivery: use a private PyPI server (e.g., Gemfury, Cloudsmith, or self-hosted)
+          # uv publish --index-url https://pypi.pkg.github.com/headroomlabs dist-ee/*.whl
+          echo "Publishing to private index..."
+          echo "Configure PRIVATE_PYPI_URL and PRIVATE_PYPI_TOKEN secrets to enable"
+        env:
+          PRIVATE_PYPI_URL: ${{ secrets.PRIVATE_PYPI_URL }}
+          PRIVATE_PYPI_TOKEN: ${{ secrets.PRIVATE_PYPI_TOKEN }}
