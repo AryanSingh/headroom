@@ -47,9 +47,7 @@ class EpisodicMemoryStore:
 
     def __init__(self, memory_dir: str | Path | None = None) -> None:
         if memory_dir is None:
-            memory_dir = os.environ.get(
-                "HEADROOM_EPISODIC_MEMORY_DIR", _DEFAULT_MEMORY_DIR
-            )
+            memory_dir = os.environ.get("HEADROOM_EPISODIC_MEMORY_DIR", _DEFAULT_MEMORY_DIR)
         self._dir = Path(memory_dir).expanduser()
         self._dir.mkdir(parents=True, exist_ok=True)
 
@@ -160,9 +158,7 @@ class EpisodicMemoryStore:
 
     def list_projects(self) -> list[str]:
         """List all project hashes that have stored memories."""
-        return [
-            f.stem for f in self._dir.glob("*.md") if f.stat().st_size > 0
-        ]
+        return [f.stem for f in self._dir.glob("*.md") if f.stat().st_size > 0]
 
     def get_memory_stats(self, project_hash: str) -> dict[str, Any]:
         """Get stats about stored memories for a project.

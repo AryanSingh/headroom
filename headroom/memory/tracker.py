@@ -374,7 +374,7 @@ def estimate_object_size(obj: Any, seen: set | None = None) -> int:
         size += sum(
             estimate_object_size(k, seen) + estimate_object_size(v, seen) for k, v in obj.items()
         )
-    elif isinstance(obj, (list, tuple, set, frozenset)):
+    elif isinstance(obj, list | tuple | set | frozenset):
         size += sum(estimate_object_size(item, seen) for item in obj)
     elif hasattr(obj, "__dict__"):
         size += estimate_object_size(obj.__dict__, seen)

@@ -107,18 +107,12 @@ class EpisodicSessionTracker:
             )
 
             # Fire extraction in background
-            asyncio.create_task(
-                self._extract_and_store(project_hash, messages)
-            )
+            asyncio.create_task(self._extract_and_store(project_hash, messages))
 
-    async def _extract_and_store(
-        self, project_hash: str, messages: list[dict[str, Any]]
-    ) -> None:
+    async def _extract_and_store(self, project_hash: str, messages: list[dict[str, Any]]) -> None:
         """Extract insights and store them."""
         try:
-            insights = await extract_session_insights(
-                messages, model=self._extraction_model
-            )
+            insights = await extract_session_insights(messages, model=self._extraction_model)
             if insights:
                 self._store.save_memory(project_hash, insights)
                 logger.info(
@@ -169,9 +163,7 @@ class EpisodicSessionTracker:
         session["last_active"] = time.time()
 
         # Append messages (bounded to prevent memory growth)
-        existing_chars = sum(
-            len(str(m.get("content", ""))) for m in session["messages"]
-        )
+        existing_chars = sum(len(str(m.get("content", ""))) for m in session["messages"])
         for msg in messages:
             content = str(msg.get("content", ""))
             if existing_chars + len(content) > MAX_TRANSCRIPT_CHARS:
@@ -200,9 +192,7 @@ class EpisodicSessionTracker:
     def get_stats(self) -> dict[str, Any]:
         """Get tracker stats for the dashboard."""
         return {
-            "active_sessions": len(
-                [s for s in self._sessions.values() if s["messages"]]
-            ),
+            "active_sessions": len([s for s in self._sessions.values() if s["messages"]]),
             "total_tracked": len(self._sessions),
             "enabled": self._enabled,
         }

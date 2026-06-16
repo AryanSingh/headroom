@@ -93,9 +93,7 @@ def _filter_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     elif isinstance(result_content, list):
                         for part in result_content:
                             if isinstance(part, dict) and part.get("type") == "text":
-                                text_parts.append(
-                                    f"[Tool output]: {part.get('text', '')[:500]}"
-                                )
+                                text_parts.append(f"[Tool output]: {part.get('text', '')[:500]}")
 
             if text_parts and not has_tool_error:
                 combined = "\n".join(text_parts)
@@ -224,9 +222,7 @@ async def _llm_extract(
 
         data = resp.json()
         content_blocks = data.get("content", [])
-        text_parts = [
-            b.get("text", "") for b in content_blocks if b.get("type") == "text"
-        ]
+        text_parts = [b.get("text", "") for b in content_blocks if b.get("type") == "text"]
         return "\n".join(text_parts).strip()
 
 
@@ -235,7 +231,6 @@ def _heuristic_extract(messages: list[dict[str, Any]]) -> str:
 
     Extracts simple patterns: file mentions, error messages, user requests.
     """
-    insights: list[str] = []
     user_requests: list[str] = []
     file_mentions: list[str] = []
     errors: list[str] = []
@@ -247,12 +242,27 @@ def _heuristic_extract(messages: list[dict[str, Any]]) -> str:
         # Extract user requests (simple heuristic: messages starting with verbs)
         if role == "user":
             first_word = content.split()[0].lower() if content.split() else ""
-            if first_word in ("add", "create", "fix", "update", "change", "make", "implement", "remove", "delete", "set", "configure"):
+            if first_word in (
+                "add",
+                "create",
+                "fix",
+                "update",
+                "change",
+                "make",
+                "implement",
+                "remove",
+                "delete",
+                "set",
+                "configure",
+            ):
                 user_requests.append(content[:200])
 
         # Extract file mentions
         import re
-        file_matches = re.findall(r'[\w/.-]+\.(?:py|rs|js|ts|jsx|tsx|go|java|rb|css|html|json|yaml|yml|toml|md)', content)
+
+        file_matches = re.findall(
+            r"[\w/.-]+\.(?:py|rs|js|ts|jsx|tsx|go|java|rb|css|html|json|yaml|yml|toml|md)", content
+        )
         file_mentions.extend(file_matches[:5])
 
         # Extract error-related content
@@ -309,9 +319,12 @@ def format_memory_block(insights: str, project_path: str = "") -> str:
     header = "[SYSTEM: Past Session Memories]"
 
     import time
+
     timestamp = time.time()
     if project_path:
-        meta = f"<!-- provenance: source=extracted, created_at={timestamp}, project={project_path} -->"
+        meta = (
+            f"<!-- provenance: source=extracted, created_at={timestamp}, project={project_path} -->"
+        )
     else:
         meta = f"<!-- provenance: source=extracted, created_at={timestamp} -->"
 

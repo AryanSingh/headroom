@@ -1,9 +1,6 @@
 """Tests for Differential Privacy mechanism and beacon privacy guardrails."""
 
-import pytest
-
 from headroom.telemetry.dp import DPMechanism
-from headroom.telemetry.backends.https_beacon import HTTPSBeacon
 
 
 def test_laplace_noise_added():
@@ -25,11 +22,6 @@ def test_zero_epsilon_returns_original():
 
 def test_beacon_blocks_raw_text_keys():
     """Privacy sentinel test: HTTPSBeacon must strip any key not in the safe list."""
-    beacon = HTTPSBeacon(
-        endpoint_url="http://localhost:9999",  # Won't be called in unit test
-        license_token="test-token",
-    )
-
     # Simulate a label record that accidentally includes raw text fields
     malicious_label = {
         "episode_id": "ep_abc",
@@ -76,8 +68,7 @@ def test_beacon_dp_noise_applied_to_sizes():
     dp = DPMechanism(epsilon=0.5)
     original_size = 1000
     noised_values = {
-        int(max(0, dp.add_laplace_noise(original_size, sensitivity=1.0)))
-        for _ in range(30)
+        int(max(0, dp.add_laplace_noise(original_size, sensitivity=1.0))) for _ in range(30)
     }
     # At epsilon=0.5, scale = 2.0 — values should spread across a range
     assert max(noised_values) - min(noised_values) > 0, (

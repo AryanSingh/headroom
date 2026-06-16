@@ -6,6 +6,7 @@ Includes protections to ensure NO RAW TEXT is ever transmitted.
 
 import json
 import logging
+import os
 import urllib.error
 import urllib.request
 from typing import Any
@@ -33,6 +34,16 @@ class HTTPSBeacon:
         Performs a strict privacy scan to ensure no raw text is accidentally
         included in the payload before transmission.
         """
+        # Network egress is opt-in; default OFF (local-first). Set HEADROOM_TELEMETRY_EGRESS=1 to enable.
+        egress_enabled = os.environ.get("HEADROOM_TELEMETRY_EGRESS", "").lower().strip() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        if not egress_enabled:
+            return True
+
         if not labels:
             return True
 

@@ -264,7 +264,7 @@ class TeamSyncWrapper:
         config: Any,
         auth_token: str | None,
         org_id: str,
-        workspace_id: str | None
+        workspace_id: str | None,
     ):
         self._backend = backend
         self._config = config
@@ -272,7 +272,7 @@ class TeamSyncWrapper:
         self._org_id = org_id
         self._workspace_id = workspace_id
         self._syncing = False
-        self._trigger_sync() # Initial sync on load
+        self._trigger_sync()  # Initial sync on load
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._backend, item)

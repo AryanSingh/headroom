@@ -25,22 +25,15 @@ def test_team_sync_store(tmp_path):
     ]
 
     res1 = store.sync(
-        org_id=org_id,
-        workspace_id=workspace_id,
-        since_watermark=0.0,
-        local_deltas=client1_deltas
+        org_id=org_id, workspace_id=workspace_id, since_watermark=0.0, local_deltas=client1_deltas
     )
 
     # Client 1 should receive no server deltas
     assert len(res1["server_deltas"]) == 0
-    watermark1 = res1["new_watermark"]
 
     # Client 2 syncs
     res2 = store.sync(
-        org_id=org_id,
-        workspace_id=workspace_id,
-        since_watermark=0.0,
-        local_deltas=[]
+        org_id=org_id, workspace_id=workspace_id, since_watermark=0.0, local_deltas=[]
     )
 
     # Client 2 should receive Client 1's memory
@@ -50,9 +43,6 @@ def test_team_sync_store(tmp_path):
 
     # Tenant isolation test
     res_b = store.sync(
-        org_id="org_b",
-        workspace_id=workspace_id,
-        since_watermark=0.0,
-        local_deltas=[]
+        org_id="org_b", workspace_id=workspace_id, since_watermark=0.0, local_deltas=[]
     )
     assert len(res_b["server_deltas"]) == 0

@@ -26,10 +26,11 @@ class ScopeLevel(Enum):
 @dataclass
 class Provenance:
     """Provenance tracking for a memory's origin."""
+
     created_by_session: str | None
     created_by_agent: str | None
-    source: str               # "learn" | "manual" | "extracted" | "imported"
-    commit_sha: str | None    # if created during a coding session
+    source: str  # "learn" | "manual" | "extracted" | "imported"
+    commit_sha: str | None  # if created during a coding session
     created_at: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -77,7 +78,7 @@ class Memory:
 
     # Classification
     importance: float = 0.5  # 0.0 - 1.0
-    value_score: float = 0.5 # 0.0 - 1.0 (Outcome-linked EWMA)
+    value_score: float = 0.5  # 0.0 - 1.0 (Outcome-linked EWMA)
     last_value_update: float = 0.0
     citations: list[str] = field(default_factory=list)
     outcome_links: list[str] = field(default_factory=list)

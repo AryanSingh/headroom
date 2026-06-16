@@ -246,7 +246,7 @@ class ToolSignature:
                     all_fields[key].add("string")
                 elif isinstance(value, bool):
                     all_fields[key].add("boolean")
-                elif isinstance(value, (int, float)):
+                elif isinstance(value, int | float):
                     all_fields[key].add("numeric")
                 elif isinstance(value, list):
                     all_fields[key].add("array")

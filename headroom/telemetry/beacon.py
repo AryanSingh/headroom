@@ -1,9 +1,12 @@
 """Anonymous usage telemetry beacon for Headroom.
 
-Sends aggregate-only stats (tokens saved, compression ratios, cache hit rates,
-performance overhead) to help improve Headroom.  No prompts, no content, no PII.
+Local telemetry capture and aggregation may be on by default, but NETWORK
+EGRESS of telemetry to remote endpoints is OFF by default (local-first).
 
-On by default. Opt out with:
+To enable network egress to Supabase, set:
+    HEADROOM_TELEMETRY_EGRESS=1
+
+Opt out of local telemetry capture with:
     HEADROOM_TELEMETRY=off headroom proxy
     headroom proxy --no-telemetry
 """
@@ -162,6 +165,16 @@ class TelemetryBeacon:
         4. A failed Supabase POST silently skips (fire-and-forget).
         The proxy NEVER crashes or slows down because of telemetry.
         """
+        # Network egress is opt-in; default OFF (local-first). Set HEADROOM_TELEMETRY_EGRESS=1 to enable.
+        egress_enabled = os.environ.get("HEADROOM_TELEMETRY_EGRESS", "").lower().strip() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        if not egress_enabled:
+            return
+
         try:
             import httpx
         except ImportError:

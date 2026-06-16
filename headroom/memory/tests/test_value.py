@@ -24,6 +24,7 @@ def test_value_model_outcome_success():
 
     # EWMA calculation: V_new = 0.8 * 0.5 + 0.2 * 1.0 = 0.4 + 0.2 = 0.6
     import math
+
     assert math.isclose(memory.value_score, 0.6)
     assert "outcome_1" in memory.outcome_links
 
@@ -39,6 +40,7 @@ def test_value_model_outcome_fail():
 
     # EWMA calculation: V_new = 0.8 * 0.5 + 0.2 * (-0.5) = 0.4 - 0.1 = 0.3
     import math
+
     assert math.isclose(memory.value_score, 0.3)
 
 

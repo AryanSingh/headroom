@@ -183,17 +183,20 @@ async def sync_team_memory(
         "org_id": org_id,
         "workspace_id": workspace_id,
         "since_watermark": watermark,
-        "local_deltas": local_deltas
+        "local_deltas": local_deltas,
     }
 
     import httpx
+
     headers = {}
     if auth_token:
         headers["Authorization"] = f"Bearer {auth_token}"
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.post(f"{url.rstrip('/')}/v1/memory/sync", json=payload, headers=headers)
+            resp = await client.post(
+                f"{url.rstrip('/')}/v1/memory/sync", json=payload, headers=headers
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -201,7 +204,7 @@ async def sync_team_memory(
             new_watermark = data.get("new_watermark", watermark)
 
             # Merge server deltas into local DB
-            for s_delta in server_deltas:
+            for _s_delta in server_deltas:
                 # Upsert into local backend
                 # backend.save_memory or similar
                 # For now, we just pass since the local backend doesn't have an exact upsert method
@@ -210,7 +213,9 @@ async def sync_team_memory(
 
             state["team_sync_watermark"] = new_watermark
             _save_sync_state(state_path, state)
-            logger.info(f"Team sync: sent {len(local_deltas)} deltas, received {len(server_deltas)} deltas.")
+            logger.info(
+                f"Team sync: sent {len(local_deltas)} deltas, received {len(server_deltas)} deltas."
+            )
 
     except Exception as e:
         logger.error(f"Team memory sync failed: {e}")

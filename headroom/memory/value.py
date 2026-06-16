@@ -24,7 +24,7 @@ class ValueModel:
     @classmethod
     def on_injection(cls, memory: Memory, citation_id: str) -> None:
         """Record that a memory was injected (cited) into a specific turn or episode.
-        
+
         Args:
             memory: The memory being injected.
             citation_id: Unique ID of the turn or episode it was injected into.
@@ -36,7 +36,7 @@ class ValueModel:
     @classmethod
     def on_outcome(cls, memory: Memory, outcome_label: str, outcome_id: str) -> None:
         """Update the memory's value score based on an outcome.
-        
+
         Args:
             memory: The memory to update.
             outcome_label: 'success', 'unknown', or 'fail'.
@@ -60,7 +60,7 @@ class ValueModel:
     @classmethod
     def decay(cls, memory: Memory, current_time: float | None = None) -> bool:
         """Apply periodic time-based decay to uncited/old memories.
-        
+
         Returns:
             bool: True if the memory's value dropped below the floor and should be archived.
         """
