@@ -494,11 +494,7 @@ pub struct CliArgs {
     ///
     /// Source priority: CLI flag → `HEADROOM_CCR_BACKEND` env var →
     /// auto-detect from `--ccr-path`.
-    #[arg(
-        long = "ccr-backend",
-        env = "HEADROOM_CCR_BACKEND",
-        value_enum,
-    )]
+    #[arg(long = "ccr-backend", env = "HEADROOM_CCR_BACKEND", value_enum)]
     pub ccr_backend: Option<CcrBackendKind>,
 
     /// Path for the SQLite CCR store database file. When set with
@@ -514,8 +510,18 @@ pub struct CliArgs {
     /// TTL for CCR cache entries in seconds. Default: 300 (5 minutes).
     /// Higher values keep compressed originals retrievable longer but
     /// consume more disk/memory.
-    #[arg(long = "ccr-ttl-seconds", env = "HEADROOM_CCR_TTL_SECONDS", default_value = "300")]
+    #[arg(
+        long = "ccr-ttl-seconds",
+        env = "HEADROOM_CCR_TTL_SECONDS",
+        default_value = "300"
+    )]
     pub ccr_ttl_seconds: u64,
+
+    /// Spend ledger endpoint URL (Phase 2). When set, the proxy emits
+    /// asynchronous spend events for each completed response to this
+    /// endpoint (`POST /v1/spend/events`).
+    #[arg(long = "spend-ledger-url", env = "HEADROOM_SPEND_LEDGER_URL")]
+    pub spend_ledger_url: Option<Url>,
 }
 
 /// CCR backend kind selection.
@@ -742,6 +748,8 @@ pub struct Config {
     pub ccr_path: Option<String>,
     /// TTL for CCR cache entries in seconds.
     pub ccr_ttl_seconds: u64,
+    /// URL for the proprietary spend ledger backend.
+    pub spend_ledger_url: Option<Url>,
 }
 
 impl Config {
@@ -778,11 +786,16 @@ impl Config {
             bedrock_validate_eventstream_crc: args.bedrock_validate_eventstream_crc,
             vertex_region: args.vertex_region,
             vertex_adc_scope: args.vertex_adc_scope,
-            license_tier: args.license_key.as_deref().map(LicenseTier::from_license_key).unwrap_or_default(),
+            license_tier: args
+                .license_key
+                .as_deref()
+                .map(LicenseTier::from_license_key)
+                .unwrap_or_default(),
             license_key: args.license_key,
             ccr_backend: args.ccr_backend,
             ccr_path: args.ccr_path,
             ccr_ttl_seconds: args.ccr_ttl_seconds,
+            spend_ledger_url: args.spend_ledger_url,
         }
     }
 
@@ -845,6 +858,7 @@ impl Config {
             ccr_backend: None,
             ccr_path: None,
             ccr_ttl_seconds: 300,
+            spend_ledger_url: None,
         }
     }
 }

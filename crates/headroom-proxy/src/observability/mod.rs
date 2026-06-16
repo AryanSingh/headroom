@@ -44,6 +44,7 @@ pub mod metric_names;
 pub mod otel;
 pub mod prometheus;
 pub mod proxy_metrics;
+pub mod spend_emitter;
 
 pub use prometheus::{
     handle_metrics, observe_bedrock_invoke_latency, record_bedrock_eventstream_message,

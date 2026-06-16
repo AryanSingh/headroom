@@ -77,6 +77,9 @@ pub struct AppState {
     /// by its BLAKE3 hash so downstream agents can retrieve it via
     /// `headroom_retrieve(hash)`. Default: `None` (no persistence).
     pub ccr_store: Option<Arc<dyn headroom_core::ccr::CcrStore>>,
+    /// Phase 2 Spend Emitter: emits spend events asynchronously to the
+    /// configured proprietary ledger url. Default: `None`.
+    pub spend_emitter: Option<Arc<crate::observability::spend_emitter::SpendEmitter>>,
 }
 
 /// PR-E6: maximum number of sessions tracked by the drift detector
@@ -108,12 +111,17 @@ impl AppState {
 
         let tier = config.license_tier;
         let state = Self {
-            config: Arc::new(config),
+            config: Arc::new(config.clone()),
             client,
             bedrock_credentials: None,
             drift_state: DriftState::new(DRIFT_DETECTOR_CAPACITY),
             vertex_token_source,
             ccr_store: None,
+            spend_emitter: config.spend_ledger_url.as_ref().map(|url| {
+                Arc::new(crate::observability::spend_emitter::SpendEmitter::new(
+                    url.clone(),
+                ))
+            }),
         };
 
         // Log license tier on startup.
@@ -421,6 +429,24 @@ pub(crate) async fn forward_http(
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok());
 
+    // PR-P2 Spend Emitter: parse tenant context headers once.
+    let org_id = req
+        .headers()
+        .get("x-headroom-org")
+        .and_then(|v| v.to_str().ok().map(String::from));
+    let workspace_id = req
+        .headers()
+        .get("x-headroom-workspace")
+        .and_then(|v| v.to_str().ok().map(String::from));
+    let project_id = req
+        .headers()
+        .get("x-headroom-project")
+        .and_then(|v| v.to_str().ok().map(String::from));
+    let agent_id = req
+        .headers()
+        .get("x-headroom-agent")
+        .and_then(|v| v.to_str().ok().map(String::from));
+
     // Phase F PR-F1: classify auth mode at request entry. The result
     // is stored in request extensions so downstream handlers (cache
     // gates, header injection, lossy-compressor gates) read it
@@ -600,6 +626,8 @@ pub(crate) async fn forward_http(
 
     let reqwest_method = reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|e| ProxyError::InvalidHeader(e.to_string()))?;
+
+    let mut captured_tokens_saved = 0;
 
     let upstream_resp = if should_intercept {
         // Buffer up to `compression_max_body_bytes`. If the body
@@ -786,10 +814,17 @@ pub(crate) async fn forward_http(
         // promised byte-equal passthrough produces a different
         // length downstream.
         let original_buffered_len = buffered.len();
-        let outcome_is_passthrough_class = matches!(
-            outcome,
-            compression::Outcome::NoCompression | compression::Outcome::Passthrough { .. }
-        );
+        let outcome_is_passthrough_class = match &outcome {
+            compression::Outcome::NoCompression | compression::Outcome::Passthrough { .. } => true,
+            compression::Outcome::Compressed {
+                tokens_before,
+                tokens_after,
+                ..
+            } => {
+                captured_tokens_saved = tokens_before.saturating_sub(*tokens_after) as u64;
+                false
+            }
+        };
         let body_to_send = match outcome {
             compression::Outcome::NoCompression => {
                 // PR-B2: forward the *original* buffered bytes. The
@@ -1072,9 +1107,25 @@ pub(crate) async fn forward_http(
     // explicit "never block on parser readiness" contract.
     let rid = request_id.clone();
     let parser_tx = if !matches!(sse_kind, SseStreamKind::None) {
-        let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(SSE_PARSER_QUEUE_DEPTH);
-        let rid_for_parser = request_id.clone();
-        tokio::spawn(run_sse_state_machine(sse_kind, rx, rid_for_parser));
+        let (mut tx, rx) = tokio::sync::mpsc::channel(100);
+        if is_sse {
+            let rid_for_parser = request_id.clone();
+            let spend_emitter = state.spend_emitter.clone();
+            let spend_auth_mode = auth_mode.as_str().to_string();
+
+            tokio::spawn(run_sse_state_machine(
+                sse_kind,
+                rx,
+                rid_for_parser,
+                spend_emitter,
+                org_id,
+                workspace_id,
+                project_id,
+                agent_id,
+                spend_auth_mode,
+                captured_tokens_saved,
+            ));
+        }
         Some(tx)
     } else {
         None
@@ -1304,6 +1355,13 @@ async fn run_sse_state_machine(
     kind: SseStreamKind,
     mut rx: tokio::sync::mpsc::Receiver<bytes::Bytes>,
     request_id: String,
+    spend_emitter: Option<Arc<crate::observability::spend_emitter::SpendEmitter>>,
+    org_id: Option<String>,
+    workspace_id: Option<String>,
+    project_id: Option<String>,
+    agent_id: Option<String>,
+    auth_mode: String,
+    tokens_saved: u64,
 ) {
     use crate::sse::framing::SseFramer;
 
@@ -1374,6 +1432,28 @@ async fn run_sse_state_machine(
                 blocks = state.blocks.len(),
                 "sse stream closed"
             );
+
+            if let Some(emitter) = spend_emitter {
+                emitter.emit(crate::observability::spend_emitter::SpendEvent {
+                    ts: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                    org_id,
+                    workspace_id,
+                    project_id,
+                    agent_id,
+                    model: state.model.clone(),
+                    provider: Some("anthropic".to_string()),
+                    auth_mode,
+                    input_tokens: state.usage.input_tokens,
+                    output_tokens: state.usage.output_tokens,
+                    tokens_saved,
+                    est_cost_usd: None,
+                    est_cost_saved_usd: None,
+                    request_id,
+                });
+            }
         }
         SseStreamKind::OpenAiChat => {
             let mut state = crate::sse::openai_chat::ChunkState::new();
@@ -1472,11 +1552,46 @@ async fn run_sse_state_machine(
             }
             tracing::info!(
                 request_id = %request_id,
-                provider = "openai_chat",
-                choices = state.choices.len(),
-                has_usage = state.usage.is_some(),
+                provider = "openai",
+                endpoint = "chat_completions",
+                input_tokens = state.usage.as_ref().and_then(|u| u.get("prompt_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
+                output_tokens = state.usage.as_ref().and_then(|u| u.get("completion_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 "sse stream closed"
             );
+
+            if let Some(emitter) = spend_emitter {
+                let (input, output) = state
+                    .usage
+                    .as_ref()
+                    .map(|u| {
+                        (
+                            u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
+                            u.get("completion_tokens")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0),
+                        )
+                    })
+                    .unwrap_or((0, 0));
+                emitter.emit(crate::observability::spend_emitter::SpendEvent {
+                    ts: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                    org_id,
+                    workspace_id,
+                    project_id,
+                    agent_id,
+                    model: state.model.clone(),
+                    provider: Some("openai".to_string()),
+                    auth_mode,
+                    input_tokens: input,
+                    output_tokens: output,
+                    tokens_saved,
+                    est_cost_usd: None,
+                    est_cost_saved_usd: None,
+                    request_id,
+                });
+            }
         }
         SseStreamKind::OpenAiResponses => {
             let mut state = crate::sse::openai_responses::ResponseState::new();
@@ -1600,14 +1715,44 @@ async fn run_sse_state_machine(
             }
             tracing::info!(
                 request_id = %request_id,
-                provider = "openai_responses",
-                items = state.items.len(),
-                has_usage = state.usage.is_some(),
-                service_tier = state.service_tier.as_deref().unwrap_or(""),
-                terminal_status = state.terminal_status().unwrap_or(""),
-                incomplete_reason = state.incomplete_reason.as_deref().unwrap_or(""),
+                provider = "openai",
+                endpoint = "responses",
+                input_tokens = state.usage.as_ref().and_then(|u| u.get("input_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
+                output_tokens = state.usage.as_ref().and_then(|u| u.get("output_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 "sse stream closed"
             );
+
+            if let Some(emitter) = spend_emitter {
+                let (input, output) = state
+                    .usage
+                    .as_ref()
+                    .map(|u| {
+                        (
+                            u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
+                            u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0),
+                        )
+                    })
+                    .unwrap_or((0, 0));
+                emitter.emit(crate::observability::spend_emitter::SpendEvent {
+                    ts: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                    org_id,
+                    workspace_id,
+                    project_id,
+                    agent_id,
+                    model: state.model.clone(),
+                    provider: Some("openai".to_string()),
+                    auth_mode,
+                    input_tokens: input,
+                    output_tokens: output,
+                    tokens_saved,
+                    est_cost_usd: None,
+                    est_cost_saved_usd: None,
+                    request_id,
+                });
+            }
         }
         SseStreamKind::None => {}
     }
