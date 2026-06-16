@@ -55,9 +55,7 @@ pub async fn fetch_and_cache_policy(
     None
 }
 
-/// Get the cached policy for an org/workspace. 
-/// Returns `None` if not found or expired (TTL: 5 mins).
-pub fn get_cached_policy(org_id: &str, workspace_id: Option<&str>) -> Option<PolicyPayload> {
+pub fn get_policy(api_url: &str, org_id: &str, workspace_id: Option<&str>) -> Option<PolicyPayload> {
     let key = if let Some(ws) = workspace_id {
         format!("{}::{}", org_id, ws)
     } else {
@@ -65,6 +63,9 @@ pub fn get_cached_policy(org_id: &str, workspace_id: Option<&str>) -> Option<Pol
     };
 
     let cache = POLICY_CACHE.read().unwrap();
+    let mut needs_refresh = false;
+    let mut ret_payload = None;
+
     if let Some(map) = cache.as_ref() {
         if let Some((payload, timestamp)) = map.get(&key) {
             let now = std::time::SystemTime::now()
@@ -72,11 +73,27 @@ pub fn get_cached_policy(org_id: &str, workspace_id: Option<&str>) -> Option<Pol
                 .unwrap()
                 .as_secs();
             
-            // 5 min TTL
-            if now <= timestamp + 300 {
-                return Some(payload.clone());
+            // 5 min TTL for refresh
+            if now > timestamp + 300 {
+                needs_refresh = true;
             }
+            ret_payload = Some(payload.clone());
+        } else {
+            needs_refresh = true;
         }
+    } else {
+        needs_refresh = true;
     }
-    None
+
+    if needs_refresh {
+        let api_url = api_url.to_string();
+        let org_id = org_id.to_string();
+        let ws_id = workspace_id.map(String::from);
+        
+        tokio::spawn(async move {
+            fetch_and_cache_policy(&api_url, &org_id, ws_id.as_deref()).await;
+        });
+    }
+
+    ret_payload
 }

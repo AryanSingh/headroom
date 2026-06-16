@@ -48,6 +48,9 @@ use headroom_core::compression_policy::CompressionPolicy;
 /// resolution + cached tokens with refresh-ahead-of-expiry); tests
 /// inject [`crate::vertex::adc::StaticTokenSource`] so they never
 /// hit real GCP.
+#[derive(Clone, Debug)]
+pub struct RequestedModel(pub String);
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
@@ -453,10 +456,7 @@ pub(crate) async fn forward_http(
         let ws = workspace_id.as_deref();
         let api_url = url.as_str().trim_end_matches('/');
         
-        let policy = match crate::policy::client::get_cached_policy(org, ws) {
-            Some(p) => Some(p),
-            None => crate::policy::client::fetch_and_cache_policy(api_url, org, ws).await,
-        };
+        let policy = crate::policy::client::get_policy(api_url, org, ws);
         
         if let Some(p) = policy {
             if p.req_comp.unwrap_or(false) {
@@ -469,8 +469,60 @@ pub(crate) async fn forward_http(
                     "forced compression required by policy"
                 );
             }
-            // For budget and limits, ideally we would check local counters.
-            // Currently just fetching and caching is implemented as per P2-5.
+            
+            // Enforce budget limits
+            if p.rpm == Some(0) || p.tpm == Some(0) || p.budget_usd == Some(0.0) {
+                tracing::warn!(
+                    event = "policy_rejected",
+                    request_id = %request_id,
+                    org_id = %org,
+                    workspace_id = ?ws,
+                    "request rejected due to exhausted budget or zero rate limits"
+                );
+                return Ok(Response::builder()
+                    .status(http::StatusCode::TOO_MANY_REQUESTS)
+                    .body(Body::from("Policy limit exhausted"))
+                    .unwrap());
+            }
+
+            // Enforce model allowlist
+            if let Some(allowed) = &p.models {
+                let allowed_list: Vec<&str> = allowed.split(',').map(|s| s.trim()).collect();
+                
+                // For OpenAI endpoints we inserted it into extensions in the handler
+                let mut requested_model = req.extensions().get::<RequestedModel>().map(|m| m.0.clone());
+                
+                // For Bedrock/Vertex, we might extract from URI path
+                if requested_model.is_none() {
+                    let path = uri.path();
+                    if path.contains("/model/") {
+                        if let Some(m) = path.split("/model/").nth(1).and_then(|s| s.split('/').next()) {
+                            requested_model = Some(m.to_string());
+                        }
+                    } else if path.contains("/models/") {
+                        if let Some(m) = path.split("/models/").nth(1).and_then(|s| s.split(':').next()) {
+                            requested_model = Some(m.to_string());
+                        }
+                    }
+                }
+
+                if let Some(m) = requested_model {
+                    if !allowed_list.contains(&m.as_str()) && !allowed_list.contains(&"*") {
+                        tracing::warn!(
+                            event = "policy_rejected",
+                            request_id = %request_id,
+                            org_id = %org,
+                            workspace_id = ?ws,
+                            model = %m,
+                            "request rejected due to model not in policy allowlist"
+                        );
+                        return Ok(Response::builder()
+                            .status(http::StatusCode::FORBIDDEN)
+                            .body(Body::from(format!("Model {} is not allowed by policy", m)))
+                            .unwrap());
+                    }
+                }
+            }
         }
     }
 

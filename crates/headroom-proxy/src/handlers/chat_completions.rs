@@ -72,7 +72,7 @@ pub async fn handle_chat_completions(
     if let Some(hs) = builder.headers_mut() {
         *hs = headers;
     }
-    let req = match builder.body(Body::from(body)) {
+    let mut req = match builder.body(Body::from(body.clone())) {
         Ok(r) => r,
         Err(e) => {
             // Building the request out of pieces we already have
@@ -90,6 +90,13 @@ pub async fn handle_chat_completions(
                 .expect("static response");
         }
     };
+
+    // Try to extract the model from the JSON body
+    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&body) {
+        if let Some(m) = json.get("model").and_then(|v| v.as_str()) {
+            req.extensions_mut().insert(crate::proxy::RequestedModel(m.to_string()));
+        }
+    }
 
     forward_http(state, client_addr, req)
         .await
