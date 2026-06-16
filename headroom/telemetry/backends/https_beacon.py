@@ -6,40 +6,50 @@ Includes protections to ensure NO RAW TEXT is ever transmitted.
 
 import json
 import logging
-import urllib.request
 import urllib.error
+import urllib.request
 from typing import Any
 
 from headroom.telemetry.dp import DPMechanism
 
 logger = logging.getLogger(__name__)
 
+
 class HTTPSBeacon:
     """Egresses federated telemetry safely.
-    
+
     Requires explicit opt-in and a valid license token.
     Uses Differential Privacy to noise any numeric counters if federated.
     """
-    
+
     def __init__(self, endpoint_url: str, license_token: str, dp_epsilon: float = 0.5):
         self.endpoint_url = endpoint_url
         self.license_token = license_token
         self.dp = DPMechanism(epsilon=dp_epsilon)
-        
+
     def send_labels(self, labels: list[dict[str, Any]]) -> bool:
         """Send labeled training metadata.
-        
+
         Performs a strict privacy scan to ensure no raw text is accidentally
         included in the payload before transmission.
         """
         if not labels:
             return True
-            
+
         # 1. Blocking Privacy Scan
         # Ensure payload ONLY contains safe keys.
-        safe_keys = {"episode_id", "tenant_id", "label", "original_size", 
-                     "compressed_size", "start_line", "end_line", "session_id", "timestamp_ts"}
-                     
+        safe_keys = {
+            "episode_id",
+            "tenant_id",
+            "label",
+            "original_size",
+            "compressed_size",
+            "start_line",
+            "end_line",
+            "session_id",
+            "timestamp_ts",
+        }
+
         sanitized_labels = []
         for label in labels:
             sanitized = {}
@@ -53,9 +63,9 @@ class HTTPSBeacon:
                 else:
                     sanitized[k] = v
             sanitized_labels.append(sanitized)
-            
-        payload = json.dumps({"labels": sanitized_labels}).encode('utf-8')
-        
+
+        payload = json.dumps({"labels": sanitized_labels}).encode("utf-8")
+
         # 2. Transmit
         req = urllib.request.Request(
             self.endpoint_url,
@@ -63,11 +73,11 @@ class HTTPSBeacon:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.license_token}",
-                "X-Headroom-Beacon": "1"
+                "X-Headroom-Beacon": "1",
             },
-            method="POST"
+            method="POST",
         )
-        
+
         try:
             with urllib.request.urlopen(req, timeout=10) as response:
                 return response.status in (200, 201, 202)

@@ -371,9 +371,10 @@ class CompressionStore:
 
         # Emit A1 CompressionEpisode telemetry
         try:
-            from headroom.telemetry.episodes import EpisodeStore, CompressionEpisode
+            from headroom.telemetry.episodes import CompressionEpisode, EpisodeStore
+
             ep_store = EpisodeStore()
-            
+
             # Note: start/end line are roughly approximated here since we just have token counts
             # In a real system, the compressor would pass precise line spans
             episode = CompressionEpisode(
@@ -383,7 +384,7 @@ class CompressionStore:
                 compressed_size=compressed_tokens,
                 start_line=0,
                 end_line=original_item_count,
-                timestamp_ts=time.time()
+                timestamp_ts=time.time(),
             )
             ep_store.record_compression(episode)
         except Exception as e:
@@ -1218,6 +1219,7 @@ def _create_default_ccr_backend() -> CompressionStoreBackend | None:
         return None
     if backend_type == "sqlite":
         from .backends.sqlite import SqliteBackend
+
         return SqliteBackend(os.path.expanduser("~/.headroom/ccr.db"))
     try:
         from importlib.metadata import entry_points

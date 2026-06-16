@@ -10,7 +10,7 @@ Rules:
 """
 
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 from headroom.telemetry.episodes import CompressionEpisode, RetrievalLabel
 from headroom.telemetry.outcome import OutcomeEvent, OutcomeSignal
@@ -18,32 +18,33 @@ from headroom.training.schema import ExampleLabel, TrainingExample
 
 logger = logging.getLogger(__name__)
 
+
 class LabelBuilder:
     """Builds training examples by joining telemetry events."""
-    
+
     def build_examples(
         self,
         episodes: list[CompressionEpisode],
         retrievals: list[RetrievalLabel],
-        outcomes: list[OutcomeEvent]
+        outcomes: list[OutcomeEvent],
     ) -> Iterator[TrainingExample]:
         """Yield inferred training examples from the provided events."""
-        
+
         # Index retrievals by episode_id
         retrieval_map = {}
         for r in retrievals:
             retrieval_map.setdefault(r.episode_id, []).append(r)
-            
+
         # Index outcomes by tenant (for now, assuming 1 session per tenant for offline processing)
         # In a real system, episodes would be joined by session_id
         outcome_map = {}
         for o in outcomes:
             outcome_map[o.tenant_id] = o
-            
+
         for ep in episodes:
             was_retrieved = ep.episode_id in retrieval_map
             outcome = outcome_map.get(ep.tenant_id)
-            
+
             label = None
             if was_retrieved:
                 # The LLM needed this data. We probably over-compressed.
@@ -52,7 +53,7 @@ class LabelBuilder:
                 # The LLM never needed this data, AND it succeeded.
                 # It was safe to drop.
                 label = ExampleLabel.SAFE_TO_DROP
-                
+
             if label:
                 yield TrainingExample(
                     episode_id=ep.episode_id,
@@ -63,5 +64,5 @@ class LabelBuilder:
                     start_line=ep.start_line,
                     end_line=ep.end_line,
                     session_id=outcome.session_id if outcome else "unknown",
-                    timestamp_ts=ep.timestamp_ts
+                    timestamp_ts=ep.timestamp_ts,
                 )
