@@ -106,3 +106,25 @@ class EpisodeStore:
                 label.timestamp_ts
             ))
             conn.commit()
+
+    def get_episodes(self, limit: int = 100) -> list[CompressionEpisode]:
+        """Get recent compression episodes."""
+        with self._get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT episode_id, tenant_id, original_size, compressed_size, start_line, end_line, timestamp_ts
+                FROM compression_episodes
+                ORDER BY timestamp_ts DESC
+                LIMIT ?
+            ''', (limit,))
+            return [
+                CompressionEpisode(
+                    episode_id=row[0],
+                    tenant_id=row[1],
+                    original_size=row[2],
+                    compressed_size=row[3],
+                    start_line=row[4],
+                    end_line=row[5],
+                    timestamp_ts=row[6]
+                )
+                for row in cursor.fetchall()
+            ]
