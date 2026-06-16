@@ -3258,6 +3258,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         pass
 
     try:
+        from headroom.proxy.routes.license import router as license_router
+
+        app.include_router(license_router)
+    except ImportError:
+        pass
+
+    try:
         from headroom.proxy.routes.audit import router as audit_router
 
         app.include_router(audit_router)
