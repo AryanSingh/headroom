@@ -47,10 +47,11 @@ class PolicyStore:
     ) -> dict[str, Any]:
         """Create or update a policy."""
         with self.SessionLocal() as session:
-            policy = session.query(Policy).filter(
-                Policy.org_id == org_id,
-                Policy.workspace_id == workspace_id
-            ).first()
+            policy = (
+                session.query(Policy)
+                .filter(Policy.org_id == org_id, Policy.workspace_id == workspace_id)
+                .first()
+            )
 
             if not policy:
                 policy = Policy(org_id=org_id, workspace_id=workspace_id, **kwargs)

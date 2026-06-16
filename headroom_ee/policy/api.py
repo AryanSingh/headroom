@@ -13,12 +13,15 @@ from headroom_ee.policy.store import PolicyStore
 # Global store reference
 _store: PolicyStore | None = None
 
+
 def get_store() -> PolicyStore:
     if _store is None:
         raise HTTPException(status_code=500, detail="Policy store not initialized")
     return _store
 
+
 router = APIRouter(prefix="/v1/policies", tags=["Policy"])
+
 
 class PolicyCreate(BaseModel):
     org_id: str
@@ -30,6 +33,7 @@ class PolicyCreate(BaseModel):
     allowed_models: list[str] | None = None
     require_compression: bool = False
 
+
 @router.post("")
 async def create_or_update_policy(
     policy: PolicyCreate,
@@ -40,26 +44,25 @@ async def create_or_update_policy(
     if "allowed_models" in kwargs and kwargs["allowed_models"] is not None:
         kwargs["allowed_models"] = ",".join(kwargs["allowed_models"])
 
-    result = store.upsert_policy(
-        org_id=policy.org_id,
-        workspace_id=policy.workspace_id,
-        **kwargs
-    )
+    result = store.upsert_policy(org_id=policy.org_id, workspace_id=policy.workspace_id, **kwargs)
 
     try:
         from headroom_ee.audit.api import get_store as get_audit_store
+
         audit_store = get_audit_store()
         audit_store.append_event(
             tenant_id=policy.org_id,
-            actor="admin", # Assuming admin for now
+            actor="admin",  # Assuming admin for now
             action="policy.upsert",
-            payload={"workspace_id": policy.workspace_id, "changes": kwargs}
+            payload={"workspace_id": policy.workspace_id, "changes": kwargs},
         )
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error(f"Failed to emit audit event: {e}")
 
     return result
+
 
 @router.get("/{org_id}/signed")
 async def get_signed_policy(

@@ -12,6 +12,7 @@ class Base(DeclarativeBase):
 
 class MemoryRecord(Base):
     """Server-side memory storage model."""
+
     __tablename__ = "memory_records"
 
     # Server tracking

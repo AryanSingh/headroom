@@ -47,14 +47,16 @@ class LedgerQuery:
             if col_name in valid_group_columns:
                 select_cols.append(valid_group_columns[col_name])
 
-        select_cols.extend([
-            func.sum(SpendEvent.est_cost_usd).label("total_cost_usd"),
-            func.sum(SpendEvent.est_cost_saved_usd).label("total_saved_usd"),
-            func.sum(SpendEvent.input_tokens).label("total_input_tokens"),
-            func.sum(SpendEvent.output_tokens).label("total_output_tokens"),
-            func.sum(SpendEvent.tokens_saved).label("total_tokens_saved"),
-            func.count(SpendEvent.id).label("request_count"),
-        ])
+        select_cols.extend(
+            [
+                func.sum(SpendEvent.est_cost_usd).label("total_cost_usd"),
+                func.sum(SpendEvent.est_cost_saved_usd).label("total_saved_usd"),
+                func.sum(SpendEvent.input_tokens).label("total_input_tokens"),
+                func.sum(SpendEvent.output_tokens).label("total_output_tokens"),
+                func.sum(SpendEvent.tokens_saved).label("total_tokens_saved"),
+                func.count(SpendEvent.id).label("request_count"),
+            ]
+        )
 
         query = self.session.query(*select_cols)
 

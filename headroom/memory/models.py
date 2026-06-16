@@ -78,6 +78,9 @@ class Memory:
     # Classification
     importance: float = 0.5  # 0.0 - 1.0
     value_score: float = 0.5 # 0.0 - 1.0 (Outcome-linked EWMA)
+    last_value_update: float = 0.0
+    citations: list[str] = field(default_factory=list)
+    outcome_links: list[str] = field(default_factory=list)
 
     # Lineage (for supersession and bubbling)
     supersedes: str | None = None  # ID of memory this replaced
@@ -131,6 +134,9 @@ class Memory:
             "valid_until": self.valid_until.isoformat() if self.valid_until else None,
             "importance": self.importance,
             "value_score": self.value_score,
+            "last_value_update": self.last_value_update,
+            "citations": self.citations,
+            "outcome_links": self.outcome_links,
             "supersedes": self.supersedes,
             "superseded_by": self.superseded_by,
             "promoted_from": self.promoted_from,
@@ -166,6 +172,9 @@ class Memory:
             else None,
             importance=data.get("importance", 0.5),
             value_score=data.get("value_score", 0.5),
+            last_value_update=data.get("last_value_update", 0.0),
+            citations=data.get("citations", []),
+            outcome_links=data.get("outcome_links", []),
             supersedes=data.get("supersedes"),
             superseded_by=data.get("superseded_by"),
             promoted_from=data.get("promoted_from"),

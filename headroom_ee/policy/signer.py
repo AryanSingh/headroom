@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 def b64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
+
 def sign_policy(
     policy_payload: dict[str, Any],
     kid: str | None = None,
@@ -20,10 +21,16 @@ def sign_policy(
     Format: hrp1.{kid}.{payload_b64url}.{sig_b64url}
     """
     kid = kid or os.environ.get("HEADROOM_POLICY_KID") or os.environ.get("HEADROOM_LICENSE_KID")
-    private_key_hex = private_key_hex or os.environ.get("HEADROOM_POLICY_PRIVATE_KEY") or os.environ.get("HEADROOM_LICENSE_PRIVATE_KEY")
+    private_key_hex = (
+        private_key_hex
+        or os.environ.get("HEADROOM_POLICY_PRIVATE_KEY")
+        or os.environ.get("HEADROOM_LICENSE_PRIVATE_KEY")
+    )
 
     if not kid or not private_key_hex:
-        raise ValueError("Policy signing keys not configured. Set HEADROOM_POLICY_PRIVATE_KEY and HEADROOM_POLICY_KID.")
+        raise ValueError(
+            "Policy signing keys not configured. Set HEADROOM_POLICY_PRIVATE_KEY and HEADROOM_POLICY_KID."
+        )
 
     try:
         priv_bytes = bytes.fromhex(private_key_hex)

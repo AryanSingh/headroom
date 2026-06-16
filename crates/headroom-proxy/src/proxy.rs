@@ -471,7 +471,13 @@ pub(crate) async fn forward_http(
             }
             
             // Enforce budget limits
-            if p.rpm == Some(0) || p.tpm == Some(0) || p.budget_usd == Some(0.0) {
+            let exhausted_budget = if let (Some(budget), Some(spend)) = (p.budget_usd, p.mtd_spend) {
+                spend >= budget
+            } else {
+                false
+            };
+
+            if p.rpm == Some(0) || p.tpm == Some(0) || p.budget_usd == Some(0.0) || exhausted_budget {
                 tracing::warn!(
                     event = "policy_rejected",
                     request_id = %request_id,

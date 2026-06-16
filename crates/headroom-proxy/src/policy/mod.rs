@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 pub struct PolicyPayload {
     pub v: u64,
     pub budget_usd: Option<f64>,
+    pub mtd_spend: Option<f64>,
     pub budget_period: Option<String>,
     pub rpm: Option<u64>,
     pub tpm: Option<u64>,

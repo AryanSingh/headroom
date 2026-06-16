@@ -307,8 +307,12 @@ def format_memory_block(insights: str, project_path: str = "") -> str:
         return ""
 
     header = "[SYSTEM: Past Session Memories]"
-    meta = "<!-- source: episodic_extractor -->"
+    
+    import time
+    timestamp = time.time()
     if project_path:
-        meta = f"<!-- source: episodic_extractor, project: {project_path} -->"
+        meta = f"<!-- provenance: source=extracted, created_at={timestamp}, project={project_path} -->"
+    else:
+        meta = f"<!-- provenance: source=extracted, created_at={timestamp} -->"
 
     return f"{header}\n{meta}\n\n{insights.strip()}\n"

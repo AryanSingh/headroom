@@ -81,11 +81,7 @@ class PolicyResolver:
                     )
 
                     spend = results[0]["total_cost_usd"] if results else 0.0
-
-                    if spend >= policy_dict["budget_limit_usd"]:
-                        # Exhausted!
-                        payload["rpm"] = 0
-                        payload["tpm"] = 0
+                    payload["mtd_spend"] = spend
 
             except Exception as e:
                 # If ledger is uninitialized or unavailable, proceed with static policy

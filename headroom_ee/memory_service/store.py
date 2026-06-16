@@ -25,7 +25,7 @@ class MemoryStore:
         org_id: str,
         workspace_id: str | None,
         since_watermark: float,
-        local_deltas: list[dict[str, Any]]
+        local_deltas: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Merge local deltas with server. Returns new server deltas and a new watermark.
@@ -35,8 +35,7 @@ class MemoryStore:
 
             # 1. Fetch server deltas (items updated since the client's watermark)
             query = session.query(MemoryRecord).filter(
-                MemoryRecord.org_id == org_id,
-                MemoryRecord.updated_at_ts > since_watermark
+                MemoryRecord.org_id == org_id, MemoryRecord.updated_at_ts > since_watermark
             )
             if workspace_id:
                 query = query.filter(MemoryRecord.workspace_id == workspace_id)
@@ -46,7 +45,9 @@ class MemoryStore:
 
             # 2. Process local deltas (upsert)
             for delta in local_deltas:
-                existing = session.query(MemoryRecord).filter_by(id=delta["id"], org_id=org_id).first()
+                existing = (
+                    session.query(MemoryRecord).filter_by(id=delta["id"], org_id=org_id).first()
+                )
                 if existing:
                     # Update fields that are mutable or append-only
                     self._update_record_from_dict(existing, delta)
@@ -58,7 +59,9 @@ class MemoryStore:
             session.commit()
             return {"server_deltas": server_deltas, "new_watermark": now}
 
-    def _dict_to_record(self, data: dict[str, Any], org_id: str, workspace_id: str | None, updated_at: float) -> MemoryRecord:
+    def _dict_to_record(
+        self, data: dict[str, Any], org_id: str, workspace_id: str | None, updated_at: float
+    ) -> MemoryRecord:
         return MemoryRecord(
             id=data["id"],
             updated_at_ts=updated_at,
@@ -84,7 +87,7 @@ class MemoryStore:
             provenance=data.get("provenance"),
             entity_refs=data.get("entity_refs", []),
             metadata_json=data.get("metadata", {}),
-            embedding=data.get("embedding")
+            embedding=data.get("embedding"),
         )
 
     def _update_record_from_dict(self, record: MemoryRecord, data: dict[str, Any]) -> None:

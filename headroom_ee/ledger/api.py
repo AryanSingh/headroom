@@ -16,12 +16,15 @@ from headroom_ee.ledger.store import LedgerStore
 # A simple global store reference, typically initialized at startup.
 _store: LedgerStore | None = None
 
+
 def get_store() -> LedgerStore:
     if _store is None:
         raise HTTPException(status_code=500, detail="Ledger store not initialized")
     return _store
 
+
 router = APIRouter(prefix="/v1/spend", tags=["Spend Ledger"])
+
 
 class SpendEventPayload(BaseModel):
     ts: int
@@ -39,10 +42,10 @@ class SpendEventPayload(BaseModel):
     est_cost_saved_usd: float | None = None
     request_id: str
 
+
 @router.post("/events", status_code=202)
 async def ingest_spend_events(
-    events: list[SpendEventPayload],
-    store: LedgerStore = Depends(get_store)
+    events: list[SpendEventPayload], store: LedgerStore = Depends(get_store)
 ) -> dict[str, Any]:
     """Ingest spend events asynchronously from proxy instances."""
     # Convert Pydantic models to dicts for the store
@@ -53,6 +56,7 @@ async def ingest_spend_events(
         raise HTTPException(status_code=500, detail=str(e)) from e
     return {"status": "accepted", "count": len(events)}
 
+
 @router.get("/query")
 async def query_spend(
     group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
@@ -61,7 +65,7 @@ async def query_spend(
     org_id: str | None = None,
     workspace_id: str | None = None,
     project_id: str | None = None,
-    store: LedgerStore = Depends(get_store)
+    store: LedgerStore = Depends(get_store),
 ) -> list[dict[str, Any]]:
     """Time-series aggregation of spend data."""
     with store.SessionLocal() as session:
@@ -76,6 +80,7 @@ async def query_spend(
         )
     return results
 
+
 @router.get("/export/csv")
 async def export_spend_csv(
     group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
@@ -84,7 +89,7 @@ async def export_spend_csv(
     org_id: str | None = None,
     workspace_id: str | None = None,
     project_id: str | None = None,
-    store: LedgerStore = Depends(get_store)
+    store: LedgerStore = Depends(get_store),
 ) -> StreamingResponse:
     """Export aggregated spend data as CSV."""
     with store.SessionLocal() as session:
@@ -113,8 +118,9 @@ async def export_spend_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=spend_export.csv"}
+        headers={"Content-Disposition": "attachment; filename=spend_export.csv"},
     )
+
 
 @router.get("/dashboard")
 async def spend_dashboard() -> HTMLResponse:

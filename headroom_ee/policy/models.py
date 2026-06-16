@@ -5,11 +5,13 @@ from sqlalchemy.orm import DeclarativeBase
 class Base(DeclarativeBase):
     pass
 
+
 class Policy(Base):
     """Configuration policy for an organization or workspace.
 
     This dictates budgets, rate limits, and allowed models.
     """
+
     __tablename__ = "policies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -21,7 +23,7 @@ class Policy(Base):
 
     # Budgeting
     budget_limit_usd = Column(Float, nullable=True)
-    budget_period = Column(String, nullable=True) # "daily", "monthly", "hourly"
+    budget_period = Column(String, nullable=True)  # "daily", "monthly", "hourly"
 
     # Rate Limiting
     rpm_limit = Column(Integer, nullable=True)
