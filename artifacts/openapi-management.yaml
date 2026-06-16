@@ -302,6 +302,99 @@ paths:
         "200":
           description: Trial status
 
+  /v1/spend/events:
+    post:
+      tags: [Spend Ledger]
+      summary: Ingest spend events
+      operationId: ingestSpend
+      responses:
+        "202":
+          description: Accepted
+  /v1/spend/query:
+    get:
+      tags: [Spend Ledger]
+      summary: Query spend
+      operationId: querySpend
+      responses:
+        "200":
+          description: Spend result
+  /v1/spend/export/csv:
+    get:
+      tags: [Spend Ledger]
+      summary: Export spend to CSV
+      operationId: exportSpendCsv
+      responses:
+        "200":
+          description: CSV data
+  /v1/spend/dashboard:
+    get:
+      tags: [Spend Ledger]
+      summary: Spend dashboard
+      operationId: getSpendDashboard
+      responses:
+        "200":
+          description: HTML dashboard
+
+  /v1/policies:
+    post:
+      tags: [Policy]
+      summary: Create or update policy
+      operationId: upsertPolicy
+      responses:
+        "200":
+          description: Policy created
+  /v1/policies/{org_id}/signed:
+    get:
+      tags: [Policy]
+      summary: Get signed policy
+      operationId: getSignedPolicy
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Signed policy
+
+  /v1/audit/events:
+    post:
+      tags: [Audit]
+      summary: Append audit event
+      operationId: appendAudit
+      responses:
+        "200":
+          description: Appended
+  /v1/audit/events/{tenant_id}:
+    get:
+      tags: [Audit]
+      summary: Get audit events
+      operationId: getAudit
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit events
+  /v1/audit/verify/{tenant_id}:
+    get:
+      tags: [Audit]
+      summary: Verify audit chain
+      operationId: verifyAudit
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification status
+
 components:
   securitySchemes:
     BearerAuth:
