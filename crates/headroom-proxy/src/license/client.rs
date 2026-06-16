@@ -22,24 +22,35 @@ pub async fn activate_and_fetch_crl(
     instance_id: &str,
 ) -> Result<(), reqwest::Error> {
     let client = reqwest::Client::new();
-    
+
     // 1. Activate
-    let _ = client.post(&format!("{}/v1/license/activate", api_url))
-        .json(&ActivateRequest { license_key, instance_id })
+    let _ = client
+        .post(&format!("{}/v1/license/activate", api_url))
+        .json(&ActivateRequest {
+            license_key,
+            instance_id,
+        })
         .send()
         .await;
-        
+
     // 2. Fetch CRL
-    if let Ok(resp) = client.get(&format!("{}/v1/license/crl", api_url)).send().await {
+    if let Ok(resp) = client
+        .get(&format!("{}/v1/license/crl", api_url))
+        .send()
+        .await
+    {
         if resp.status().is_success() {
             if let Ok(crl) = resp.json::<CrlResponse>().await {
-                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
                 let mut cache = CRL_CACHE.write().unwrap();
                 *cache = Some((crl.revoked.into_iter().collect(), now));
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -50,7 +61,10 @@ pub fn is_revoked(license_key: &str) -> bool {
         if revoked.contains(license_key) {
             return true;
         }
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         if now > last_fetch + 86400 {
             // Grace window expired, fail closed
             return true;
@@ -72,10 +86,15 @@ struct CheckoutSeatRequest<'a> {
 /// Checkout or renew a seat lease. Returns false if no seats available, true otherwise (fails open).
 pub async fn checkout_seat(api_url: &str, license_key: &str, user_id: &str) -> bool {
     let client = reqwest::Client::new();
-    match client.post(&format!("{}/v1/license/checkout-seat", api_url))
-        .json(&CheckoutSeatRequest { license_key, user_id, lease_duration: 3600.0 })
+    match client
+        .post(&format!("{}/v1/license/checkout-seat", api_url))
+        .json(&CheckoutSeatRequest {
+            license_key,
+            user_id,
+            lease_duration: 3600.0,
+        })
         .send()
-        .await 
+        .await
     {
         Ok(resp) => {
             if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
@@ -84,6 +103,6 @@ pub async fn checkout_seat(api_url: &str, license_key: &str, user_id: &str) -> b
                 true // OK or other error (fail open)
             }
         }
-        Err(_) => true // Fail open on network error
+        Err(_) => true, // Fail open on network error
     }
 }

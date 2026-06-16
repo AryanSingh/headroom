@@ -28,7 +28,7 @@ fn public_keys() -> &'static HashMap<String, VerifyingKey> {
                 map.insert(default_kid.to_string(), key);
             }
         }
-        
+
         // Load from env for testing and dynamic injection. Format: "kid1:hex1,kid2:hex2"
         if let Ok(env_keys) = std::env::var("HEADROOM_LICENSE_PUBLIC_KEYS") {
             for pair in env_keys.split(',') {
@@ -85,7 +85,10 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     // The signed message is "hrk1.{kid}.{payload_base64url}"
     let signed_message = format!("hrk1.{}.{}", kid, payload_b64);
 
-    if verifying_key.verify(signed_message.as_bytes(), &signature).is_err() {
+    if verifying_key
+        .verify(signed_message.as_bytes(), &signature)
+        .is_err()
+    {
         tracing::warn!("License token rejected: signature verification failed");
         return LicenseTier::OpenSource;
     }
@@ -112,7 +115,10 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     }
 
     if let Some(nbf) = payload.nbf {
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         if now < nbf {
             tracing::warn!("License token rejected: not yet valid (nbf)");
             return LicenseTier::OpenSource;
@@ -120,7 +126,10 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     }
 
     if let Some(exp) = payload.exp {
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         if now > exp {
             tracing::warn!("License token rejected: expired");
             return LicenseTier::OpenSource;

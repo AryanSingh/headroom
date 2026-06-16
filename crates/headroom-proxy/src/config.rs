@@ -522,6 +522,10 @@ pub struct CliArgs {
     /// endpoint (`POST /v1/spend/events`).
     #[arg(long = "spend-ledger-url", env = "HEADROOM_SPEND_LEDGER_URL")]
     pub spend_ledger_url: Option<Url>,
+
+    /// URL to fetch policy from
+    #[arg(long = "policy-url", env = "HEADROOM_POLICY_URL")]
+    pub policy_url: Option<Url>,
 }
 
 /// CCR backend kind selection.
@@ -750,6 +754,8 @@ pub struct Config {
     pub ccr_ttl_seconds: u64,
     /// URL for the proprietary spend ledger backend.
     pub spend_ledger_url: Option<Url>,
+    /// URL to fetch policy from
+    pub policy_url: Option<Url>,
 }
 
 impl Config {
@@ -796,6 +802,7 @@ impl Config {
             ccr_path: args.ccr_path,
             ccr_ttl_seconds: args.ccr_ttl_seconds,
             spend_ledger_url: args.spend_ledger_url,
+            policy_url: args.policy_url,
         }
     }
 
@@ -859,6 +866,7 @@ impl Config {
             ccr_path: None,
             ccr_ttl_seconds: 300,
             spend_ledger_url: None,
+            policy_url: None,
         }
     }
 }

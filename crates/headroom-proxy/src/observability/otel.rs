@@ -15,12 +15,12 @@
 //! initialize, the proxy continues without OTel. A warning is logged
 //! but the proxy remains fully functional.
 
+use opentelemetry::metrics::{Counter, Histogram};
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::KeyValue;
-use opentelemetry::metrics::{Counter, Histogram};
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_sdk::runtime;
+use opentelemetry_sdk::trace::TracerProvider;
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::Registry;
 
@@ -180,12 +180,7 @@ pub fn create_otel_layer(
 // ── Convenience recording functions ─────────────────────────────────────────
 
 /// Record a request metric.
-pub fn record_request(
-    metrics: &OtelMetrics,
-    model: &str,
-    auth_mode: &str,
-    endpoint: &str,
-) {
+pub fn record_request(metrics: &OtelMetrics, model: &str, auth_mode: &str, endpoint: &str) {
     metrics.requests_total.add(
         1,
         &[
@@ -218,9 +213,7 @@ pub fn record_compression(
     metrics
         .compression_tokens_saved
         .add(tokens_saved as u64, &[]);
-    metrics
-        .compression_bytes_saved
-        .add(bytes_saved as u64, &[]);
+    metrics.compression_bytes_saved.add(bytes_saved as u64, &[]);
 }
 
 /// Record a cache hit.

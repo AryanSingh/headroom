@@ -447,6 +447,26 @@ pub(crate) async fn forward_http(
         .get("x-headroom-agent")
         .and_then(|v| v.to_str().ok().map(String::from));
 
+    // PR-P2-5: Policy enforcement
+    let mut forced_req_comp = false;
+    if let (Some(url), Some(org)) = (&state.config.policy_url, &org_id) {
+        let ws = workspace_id.as_deref();
+        let api_url = url.as_str().trim_end_matches('/');
+        
+        let policy = match crate::policy::client::get_cached_policy(org, ws) {
+            Some(p) => Some(p),
+            None => crate::policy::client::fetch_and_cache_policy(api_url, org, ws).await,
+        };
+        
+        if let Some(p) = policy {
+            if p.req_comp.unwrap_or(false) {
+                forced_req_comp = true;
+            }
+            // For budget and limits, ideally we would check local counters.
+            // Currently just fetching and caching is implemented as per P2-5.
+        }
+    }
+
     // Phase F PR-F1: classify auth mode at request entry. The result
     // is stored in request extensions so downstream handlers (cache
     // gates, header injection, lossy-compressor gates) read it
@@ -466,11 +486,14 @@ pub(crate) async fn forward_http(
     // an operator opts in via the env var, so the PR sequence is
     // safely landed in main without flipping the live wire on default
     // users until the final commit.
-    let policy = if state.config.auth_mode_policy_enforcement.is_enabled() {
+    let mut policy = if state.config.auth_mode_policy_enforcement.is_enabled() {
         CompressionPolicy::for_mode(auth_mode)
     } else {
         CompressionPolicy::for_mode(AuthMode::Payg)
     };
+    if forced_req_comp {
+        policy = CompressionPolicy::for_mode(AuthMode::Payg);
+    }
     req.extensions_mut().insert(policy);
 
     // Per PR-A1: structured entry log. The `auth_mode` field is now

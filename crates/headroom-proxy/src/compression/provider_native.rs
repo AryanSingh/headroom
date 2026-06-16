@@ -32,10 +32,7 @@ pub fn is_anthropic_compact_requested(headers: &HeaderMap) -> bool {
     headers
         .get("anthropic-beta")
         .and_then(|v| v.to_str().ok())
-        .map(|v| {
-            v.split(',')
-                .any(|s| s.trim() == "compact-2026-01-12")
-        })
+        .map(|v| v.split(',').any(|s| s.trim() == "compact-2026-01-12"))
         .unwrap_or(false)
 }
 
@@ -85,10 +82,7 @@ impl Default for StrategyConfig {
 }
 
 /// Determine the best compaction strategy for this request.
-pub fn select_strategy(
-    config: &StrategyConfig,
-    headers: &HeaderMap,
-) -> CompactionStrategy {
+pub fn select_strategy(config: &StrategyConfig, headers: &HeaderMap) -> CompactionStrategy {
     // If provider native is not allowed, always use HeadroomNative
     if !config.allow_provider_native {
         return CompactionStrategy::HeadroomNative;
@@ -188,8 +182,7 @@ pub fn prepare_outbound_headers(
                             .filter(|s| *s != "compact-2026-01-12")
                             .collect();
                         if !filtered.is_empty() {
-                            if let Ok(new_value) =
-                                http::HeaderValue::from_str(&filtered.join(", "))
+                            if let Ok(new_value) = http::HeaderValue::from_str(&filtered.join(", "))
                             {
                                 headers.insert(key.clone(), new_value);
                             }

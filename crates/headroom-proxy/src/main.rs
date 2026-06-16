@@ -8,8 +8,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use clap::Parser;
-use headroom_proxy::config::{CliArgs, CcrBackendKind};
 use headroom_core::ccr::backends::CcrBackendConfig;
+use headroom_proxy::config::{CcrBackendKind, CliArgs};
 use headroom_proxy::{build_app, AppState, Config};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -78,11 +78,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(key) = config.license_key.as_deref() {
         let api_url = std::env::var("HEADROOM_LICENSE_API_URL")
             .unwrap_or_else(|_| "https://api.cutctx.dev".to_string());
-        
+
         let instance_id = uuid::Uuid::new_v4().to_string(); // In a real system, persist this
-        
+
         tracing::info!("Activating license and fetching CRL from {}...", api_url);
-        if let Err(e) = headroom_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id).await {
+        if let Err(e) =
+            headroom_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id)
+                .await
+        {
             tracing::warn!("Failed to activate license / fetch CRL: {}", e);
         }
 
@@ -94,7 +97,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1800)); // 30 mins
             loop {
                 interval.tick().await;
-                if !headroom_proxy::license::client::checkout_seat(&api_url_clone, &key_clone, &user_id).await {
+                if !headroom_proxy::license::client::checkout_seat(
+                    &api_url_clone,
+                    &key_clone,
+                    &user_id,
+                )
+                .await
+                {
                     tracing::error!("License seat limit exceeded! Running in degraded mode.");
                 } else {
                     tracing::debug!("Successfully renewed seat lease.");

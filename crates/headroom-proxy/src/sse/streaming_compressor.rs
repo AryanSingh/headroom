@@ -32,7 +32,7 @@ use serde_json::Value;
 
 use super::framing::SseEvent;
 use headroom_core::transforms::deletion_compaction::{
-    DeletionCompactor, DeletionCompactorConfig, Aggressiveness,
+    Aggressiveness, DeletionCompactor, DeletionCompactorConfig,
 };
 
 // ── Configuration ───────────────────────────────────────────────────────────
@@ -360,7 +360,10 @@ mod tests {
 
         assert!(result.is_some());
         let compressed = result.unwrap();
-        assert_eq!(compressed.event_name, Some("content_block_delta".to_string()));
+        assert_eq!(
+            compressed.event_name,
+            Some("content_block_delta".to_string())
+        );
 
         // The compressed text should be shorter
         let json: Value = serde_json::from_str(compressed.data_str().unwrap()).unwrap();
