@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -26,7 +27,7 @@ async def activate_license(req: ActivateRequest) -> dict:
     record = db.get(req.license_key)
     if not record or not record.active:
         raise HTTPException(status_code=401, detail="Invalid license")
-    
+
     success = db.activate_instance(req.license_key, req.instance_id)
     if not success:
         return {"status": "already_activated"}

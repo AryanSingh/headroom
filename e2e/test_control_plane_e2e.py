@@ -1,8 +1,8 @@
-import os
 import pytest
 from fastapi.testclient import TestClient
 
 from headroom.proxy.server import create_app
+
 
 @pytest.fixture
 def client() -> TestClient:

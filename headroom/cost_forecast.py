@@ -148,12 +148,13 @@ class CostEstimator:
         tokens_saved = input_tokens - compressed_input
 
         try:
-            from headroom.pricing.registry import PricingRegistry
-            from headroom_ee.ledger.pricing import compute_costs
             # For dynamic EE pricing, use a local registry mock or load actual
             # Currently just passing empty registry to let compute_costs run if extended
             # but we fall back to OSS logic if registry doesn't have the model
             from datetime import date
+
+            from headroom.pricing.registry import PricingRegistry
+            from headroom_ee.ledger.pricing import compute_costs
             _registry = PricingRegistry(last_updated=date.today())
             costs = compute_costs(_registry, self.model, input_tokens, output_tokens, tokens_saved)
             if costs.est_cost_usd is not None:

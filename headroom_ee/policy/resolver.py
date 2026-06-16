@@ -43,4 +43,47 @@ class PolicyResolver:
             payload["req_comp"] = True
 
         # Sign it
+        
+        # PR-P2-5: Dynamic budget enforcement
+        # If a budget is set, check the actual spend in the ledger.
+        # If spend >= budget, set rpm=0 to instruct the proxy to block requests.
+        if policy_dict.get("budget_limit_usd") is not None:
+            try:
+                from headroom_ee.ledger.api import get_store as get_ledger_store
+                from headroom_ee.ledger.query import LedgerQuery
+                import time
+                from datetime import datetime
+                
+                ledger_store = get_ledger_store()
+                with ledger_store.SessionLocal() as session:
+                    query_engine = LedgerQuery(session)
+                    
+                    # Calculate start of period (e.g. MTD)
+                    period = policy_dict.get("budget_period", "monthly").lower()
+                    now = datetime.utcnow()
+                    
+                    if period == "daily":
+                        start_ts = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+                    else: # default monthly
+                        start_ts = int(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp())
+                    
+                    results = query_engine.aggregate_spend(
+                        group_by=["org_id"], # aggregate total org spend
+                        start_ts=start_ts,
+                        org_id=org_id,
+                        workspace_id=workspace_id
+                    )
+                    
+                    spend = results[0]["total_cost_usd"] if results else 0.0
+                    
+                    if spend >= policy_dict["budget_limit_usd"]:
+                        # Exhausted!
+                        payload["rpm"] = 0
+                        payload["tpm"] = 0
+                        
+            except Exception as e:
+                # If ledger is uninitialized or unavailable, proceed with static policy
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to check budget ledger: {e}")
+
         return sign_policy(payload, kid=kid, private_key_hex=private_key_hex)
