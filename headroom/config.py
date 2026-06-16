@@ -478,6 +478,10 @@ class HeadroomConfig:
     # to the top-level config when PR-B1 retired the rolling-window stage.
     output_buffer_tokens: int = 4000
 
+    # Memory Sync configuration
+    memory_team_sync_enabled: bool = False
+    memory_service_url: str | None = None
+
     # Deprecated compatibility argument. ContentRouter is always present
     # in the default pipeline; accepting this avoids breaking old config
     # constructors while keeping it out of runtime state.

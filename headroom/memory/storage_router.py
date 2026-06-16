@@ -78,6 +78,8 @@ class RequestContext:
     system_prompt: str
     base_user_id: str
     project_root_override: str | None = None
+    auth_token: str | None = None
+    org_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -253,6 +255,57 @@ class ProjectResolver:
         return cleaned[:64]
 
 
+class TeamSyncWrapper:
+    """Wraps a LocalBackend to trigger async syncs with Team Memory Service."""
+
+    def __init__(
+        self,
+        backend: LocalBackend,
+        config: Any,
+        auth_token: str | None,
+        org_id: str,
+        workspace_id: str | None
+    ):
+        self._backend = backend
+        self._config = config
+        self._auth_token = auth_token
+        self._org_id = org_id
+        self._workspace_id = workspace_id
+        self._syncing = False
+        self._trigger_sync() # Initial sync on load
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._backend, item)
+
+    async def save_memory(self, *args: Any, **kwargs: Any) -> Any:
+        res = await self._backend.save_memory(*args, **kwargs)
+        self._trigger_sync()
+        return res
+
+    def _trigger_sync(self) -> None:
+        if self._syncing:
+            return
+        self._syncing = True
+        import asyncio
+
+        from headroom.memory.sync import sync_team_memory
+
+        async def _do_sync() -> None:
+            try:
+                await sync_team_memory(
+                    backend=self._backend,
+                    config=self._config,
+                    auth_token=self._auth_token,
+                    org_id=self._org_id,
+                    workspace_id=self._workspace_id,
+                )
+            finally:
+                self._syncing = False
+
+        # Fire and forget
+        asyncio.create_task(_do_sync())
+
+
 class BackendRouter:
     """Maps a ``RequestContext`` to a ``LocalBackend`` for save/search.
 
@@ -268,17 +321,32 @@ class BackendRouter:
         self,
         config: BackendRouterConfig,
         resolver: ProjectResolver | None = None,
+        global_config: Any = None,
     ) -> None:
         self._config = config
         self._resolver = resolver or ProjectResolver()
         self._backends: OrderedDict[Path, LocalBackend] = OrderedDict()
         self._lock = threading.Lock()
+        self._global_config = global_config
 
-    def backend_for(self, ctx: RequestContext) -> tuple[LocalBackend, ResolvedScope]:
+    def backend_for(self, ctx: RequestContext) -> tuple[Any, ResolvedScope]:
         """Return the backend + scope metadata to use for this request."""
 
         scope = self._resolve_scope(ctx)
         backend = self._get_or_create_backend(scope.db_path)
+
+        # Wrap with team sync if enabled
+        if self._global_config and getattr(self._global_config, "memory_team_sync_enabled", False):
+            org_id = ctx.org_id or "default_org"
+            workspace_id = scope.project_key
+            backend = TeamSyncWrapper(
+                backend=backend,
+                config=self._global_config,
+                auth_token=ctx.auth_token,
+                org_id=org_id,
+                workspace_id=workspace_id,
+            )
+
         return backend, scope
 
     def _resolve_scope(self, ctx: RequestContext) -> ResolvedScope:

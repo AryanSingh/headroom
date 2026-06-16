@@ -394,6 +394,24 @@ paths:
       responses:
         "200":
           description: Verification status
+          
+  /v1/memory/sync:
+    post:
+      tags: [Team Memory]
+      summary: Sync memory deltas
+      operationId: syncMemory
+      responses:
+        "200":
+          description: Sync response
+          
+  /v1/memory/query:
+    post:
+      tags: [Team Memory]
+      summary: Query memory
+      operationId: queryMemory
+      responses:
+        "200":
+          description: Query results
 
 components:
   securitySchemes:

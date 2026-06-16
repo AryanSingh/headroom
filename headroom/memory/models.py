@@ -24,6 +24,37 @@ class ScopeLevel(Enum):
 
 
 @dataclass
+class Provenance:
+    """Provenance tracking for a memory's origin."""
+    created_by_session: str | None
+    created_by_agent: str | None
+    source: str               # "learn" | "manual" | "extracted" | "imported"
+    commit_sha: str | None    # if created during a coding session
+    created_at: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "created_by_session": self.created_by_session,
+            "created_by_agent": self.created_by_agent,
+            "source": self.source,
+            "commit_sha": self.commit_sha,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> Provenance | None:
+        if not data:
+            return None
+        return cls(
+            created_by_session=data.get("created_by_session"),
+            created_by_agent=data.get("created_by_agent"),
+            source=data.get("source", "unknown"),
+            commit_sha=data.get("commit_sha"),
+            created_at=data.get("created_at", 0.0),
+        )
+
+
+@dataclass
 class Memory:
     """A hierarchically-scoped memory with temporal awareness."""
 
@@ -33,6 +64,8 @@ class Memory:
 
     # Hierarchical Scoping (required: user_id, optional: narrower scopes)
     user_id: str = ""
+    workspace_id: str | None = None
+    project_id: str | None = None
     session_id: str | None = None
     agent_id: str | None = None
     turn_id: str | None = None
@@ -44,12 +77,14 @@ class Memory:
 
     # Classification
     importance: float = 0.5  # 0.0 - 1.0
+    value_score: float = 0.5 # 0.0 - 1.0 (Outcome-linked EWMA)
 
     # Lineage (for supersession and bubbling)
     supersedes: str | None = None  # ID of memory this replaced
     superseded_by: str | None = None  # ID of memory that replaced this
     promoted_from: str | None = None  # ID of child memory (if bubbled up)
     promotion_chain: list[str] = field(default_factory=list)
+    provenance: Provenance | None = None
 
     # Access tracking
     access_count: int = 0
@@ -86,6 +121,8 @@ class Memory:
             "id": self.id,
             "content": self.content,
             "user_id": self.user_id,
+            "workspace_id": self.workspace_id,
+            "project_id": self.project_id,
             "session_id": self.session_id,
             "agent_id": self.agent_id,
             "turn_id": self.turn_id,
@@ -93,10 +130,12 @@ class Memory:
             "valid_from": self.valid_from.isoformat(),
             "valid_until": self.valid_until.isoformat() if self.valid_until else None,
             "importance": self.importance,
+            "value_score": self.value_score,
             "supersedes": self.supersedes,
             "superseded_by": self.superseded_by,
             "promoted_from": self.promoted_from,
             "promotion_chain": self.promotion_chain,
+            "provenance": self.provenance.to_dict() if self.provenance else None,
             "access_count": self.access_count,
             "last_accessed": self.last_accessed.isoformat() if self.last_accessed else None,
             "entity_refs": self.entity_refs,
@@ -114,7 +153,9 @@ class Memory:
         return cls(
             id=data["id"],
             content=data["content"],
-            user_id=data["user_id"],
+            user_id=data.get("user_id", ""),
+            workspace_id=data.get("workspace_id"),
+            project_id=data.get("project_id"),
             session_id=data.get("session_id"),
             agent_id=data.get("agent_id"),
             turn_id=data.get("turn_id"),
@@ -123,11 +164,13 @@ class Memory:
             valid_until=datetime.fromisoformat(data["valid_until"])
             if data.get("valid_until")
             else None,
-            importance=data["importance"],
+            importance=data.get("importance", 0.5),
+            value_score=data.get("value_score", 0.5),
             supersedes=data.get("supersedes"),
             superseded_by=data.get("superseded_by"),
             promoted_from=data.get("promoted_from"),
             promotion_chain=data.get("promotion_chain", []),
+            provenance=Provenance.from_dict(data.get("provenance")),
             access_count=data.get("access_count", 0),
             last_accessed=datetime.fromisoformat(data["last_accessed"])
             if data.get("last_accessed")
