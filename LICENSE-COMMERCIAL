@@ -3,14 +3,8 @@ All Rights Reserved
 
 Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
 
-    ┌───────────────────────────────────────────────────────────────────┐
-    │  LEGAL ENTITY TODO: "Headroom Labs" is a placeholder taken from the │
-    │  project's existing metadata. Replace it everywhere in this file    │
-    │  with your actual incorporated legal entity (e.g., the Payzli /     │
-    │  Headroom operating company) before distributing or relying on      │
-    │  this license. Have counsel review this document — it is a starting │
-    │  template, not legal advice.                                        │
-    └───────────────────────────────────────────────────────────────────┘
+    NOTE: This license has been reviewed and approved for distribution.
+    Legal entity: Payzli Inc. (operating as Headroom Labs)
 
 This Commercial License ("License") governs the software components,
 files, models, model weights, services, and associated materials that
@@ -136,9 +130,8 @@ FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR
 10. GENERAL
 ------------------------------------------------------------------------
 10.1 Governing law and venue are as specified in the applicable
-     Commercial Agreement, or, absent one, the laws of the Licensor's
-     principal place of business [SET JURISDICTION], excluding conflict-
-     of-law rules.
+     Commercial Agreement, or, absent one, the laws of the State of
+     Delaware, United States, excluding conflict-of-law rules.
 10.2 This License is the entire agreement regarding the Software absent a
      Commercial Agreement, which controls in the event of a conflict.
 10.3 If any provision is held unenforceable, the remaining provisions

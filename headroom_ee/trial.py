@@ -151,6 +151,20 @@ class TrialManager:
                 "activated": True,
             }
 
+        # Try PitchToShip server-side trial verification first
+        from headroom_ee.billing.pitchtoship_client import is_configured, verify_trial_token
+
+        if is_configured() and state.trial_token:
+            pts_result = verify_trial_token(state.trial_token)
+            if pts_result is not None:
+                return {
+                    "active": pts_result.get("valid", False),
+                    "expired": not pts_result.get("valid", True),
+                    "remaining_days": 14.0 if pts_result.get("valid") else 0.0,
+                    "elapsed_days": state.elapsed_days,
+                    "activated": False,
+                }
+
         # Check server-side trial state if token is present
         if state.trial_token:
             from headroom.billing.client import is_trial_active

@@ -238,6 +238,16 @@ class SeatManager:
         state.seats_limit = seats_limit
         state.last_synced_at = time.time()
 
+        # Also send heartbeat to PitchToShip if configured
+        from headroom_ee.billing.pitchtoship_client import heartbeat_seat, is_configured
+        if is_configured():
+            result = heartbeat_seat(
+                license_key=state.org_id,  # Use org_id as license key reference
+                hwid=f"hr_{state.org_id}",
+            )
+            if result:
+                logger.info("PitchToShip heartbeat sent, seats=%d/%d", result.get("seats_used", 0), result.get("seats_limit", 0))
+
         # Mark excess seats as inactive if limit decreased
         active_seats = [s for s in state.seats.values() if s.is_active]
         if len(active_seats) > seats_limit:

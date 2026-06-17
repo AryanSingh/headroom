@@ -1,4 +1,11 @@
-"""FastAPI route: license validation + Stripe webhook."""
+"""FastAPI route: license validation + Stripe webhook.
+
+Security model:
+  1. Primary: PitchToShip remote verification (returns ECDSA-signed token)
+  2. Fallback: Local ECDSA verification using cached signed token + public key
+  3. Legacy: Local SQLite validation (pre-PitchToShip installations)
+  4. Fail closed: If none succeed, deny access
+"""
 
 from __future__ import annotations
 
@@ -16,14 +23,60 @@ router = APIRouter()
 async def validate_license(
     x_license_key: str = Header(..., description="License key to validate"),
 ) -> dict:
-    """Validate a license key. Called by the Rust proxy on startup."""
-    from headroom_ee.billing.license_db import get_license_db
+    """Validate a license key. Called by the Rust proxy on startup.
 
-    db = get_license_db()
-    result = db.validate(x_license_key)
-    if not result["valid"]:
-        raise HTTPException(status_code=403, detail=result)
-    return result
+    Security chain:
+      1. Try PitchToShip remote verification
+      2. If offline, try ECDSA local verification (cached signed token)
+      3. Fallback to local SQLite validation (legacy installations)
+    """
+    from headroom_ee.billing.pitchtoship_client import (
+        verify_license as pts_verify,
+        verify_signed_token,
+        _get_cached_public_key,
+        _get_cached_signed_token,
+    )
+
+    # 1. Try PitchToShip first (remote validation + get signed token)
+    pts_result = pts_verify(x_license_key, hwid="")
+    if pts_result is not None:
+        logger.info("License validated via PitchToShip for key=%s", x_license_key[:8])
+        return pts_result
+
+    # 2. PitchToShip unreachable — try local ECDSA verification
+    logger.info("PitchToShip unavailable, attempting local ECDSA verification")
+    signed_token = _get_cached_signed_token(x_license_key)
+    if signed_token:
+        public_key = _get_cached_public_key()
+        if public_key:
+            payload = verify_signed_token(signed_token, public_key)
+            if payload:
+                logger.info("License validated via local ECDSA for key=%s", x_license_key[:8])
+                return {
+                    "valid": True,
+                    "tier": payload.get("tier"),
+                    "features": payload.get("features"),
+                    "expires_at": payload.get("expires_at"),
+                    "offline_verified": True,
+                }
+
+    # 3. Legacy fallback: local SQLite validation (pre-PitchToShip)
+    try:
+        from headroom_ee.billing.license_db import get_license_db
+
+        db = get_license_db()
+        result = db.validate(x_license_key)
+        if not result["valid"]:
+            logger.warning("License validation failed (all methods) for key=%s", x_license_key[:8])
+            raise HTTPException(status_code=403, detail=result)
+        logger.info("License validated via local SQLite for key=%s", x_license_key[:8])
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        # 4. Fail closed — no validation method succeeded
+        logger.warning("FAIL CLOSED: All license validation methods failed for key=%s", x_license_key[:8])
+        raise HTTPException(status_code=403, detail={"valid": False, "error": "validation_unavailable"})
 
 
 class ActivateRequest(BaseModel):
