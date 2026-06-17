@@ -28,7 +28,9 @@
   <a href="https://discord.gg/yRmaUNpsPJ">Discord</a> ·
   <a href="llms.txt">llms.txt</a> ·
   <a href="ENTERPRISE.md">Enterprise</a> ·
-  <a href="artifacts/pricing-sheet.md">Pricing</a>
+  <a href="artifacts/pricing-sheet.md">Pricing</a> ·
+  <a href="TERMS.md">Terms</a> ·
+  <a href="PRIVACY.md">Privacy</a>
 </p>
 
 <p align="center"><sub>
