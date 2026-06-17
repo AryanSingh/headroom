@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Headroom ROI Calculator — Token Savings Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e; background: #fafbfc; line-height: 1.6; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .hero p { font-size: 1.1rem; color: #555; }
+    .badge { display: inline-block; background: #0070f3; color: #fff; padding: 0.3rem 0.8rem; border-radius: 16px; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .card { background: #fff; border: 1px solid #e9ecef; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; color: #444; }
+    input, select { width: 100%; padding: 0.65rem 0.8rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
+    input:focus, select:focus { outline: none; border-color: #0070f3; box-shadow: 0 0 0 3px rgba(0,112,243,0.15); }
+    .slider-container { display: flex; align-items: center; gap: 0.75rem; }
+    .slider-container input[type=range] { flex: 1; accent-color: #0070f3; }
+    .slider-value { font-size: 1rem; font-weight: 700; color: #0070f3; min-width: 3.5rem; text-align: right; }
+    .results { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    @media (max-width: 600px) { .results { grid-template-columns: 1fr; } }
+    .result-box { padding: 1.25rem; border-radius: 10px; text-align: center; }
+    .result-box.cost { background: #f8f9fa; border: 1px solid #e9ecef; }
+    .result-box.savings { background: #d4edda; border: 1px solid #c3e6cb; }
+    .result-box.savings-negative { background: #f8d7da; border: 1px solid #f5c6cb; }
+    .result-box.highlight { background: #0070f3; color: #fff; border: none; }
+    .result-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
+    .result-value { font-size: 1.8rem; font-weight: 800; margin-top: 0.25rem; }
+    .result-sub { font-size: 0.8rem; opacity: 0.7; margin-top: 0.15rem; }
+    .full-width { grid-column: 1 / -1; }
+    .pricing-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .pricing-table th, .pricing-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid #e9ecef; }
+    .pricing-table th { background: #f8f9fa; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .cta { text-align: center; padding: 2.5rem 1rem; background: linear-gradient(135deg, #0070f3 0%, #0056b3 100%); border-radius: 12px; color: #fff; margin-top: 1.5rem; }
+    .cta h2 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .cta a { display: inline-block; margin-top: 1rem; padding: 0.75rem 1.8rem; background: #fff; color: #0070f3; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1rem; }
+    .cta a:hover { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <div class="badge">ROI Calculator</div>
+      <h1>Calculate Your LLM Savings</h1>
+      <p>See how much you can save with Headroom's AI context compression.</p>
+    </div>
+
+    <!-- Input Card -->
+    <div class="card">
+      <h2>Your Usage</h2>
+      <div class="form-grid">
+        <div>
+          <label for="promptTokens">Monthly Prompt Tokens</label>
+          <input type="number" id="promptTokens" value="10000000" min="0" step="100000">
+        </div>
+        <div>
+          <label for="completionTokens">Monthly Completion Tokens</label>
+          <input type="number" id="completionTokens" value="2000000" min="0" step="100000">
+        </div>
+        <div>
+          <label for="model">Model</label>
+          <select id="model">
+            <option value="claude35sonnet" data-prompt="3" data-completion="15">Claude 3.5 Sonnet — $3 / $15 per MTok</option>
+            <option value="claude3opus" data-prompt="15" data-completion="75">Claude 3 Opus — $15 / $75 per MTok</option>
+            <option value="gpt4o" data-prompt="2.5" data-completion="10">GPT-4o — $2.50 / $10 per MTok</option>
+            <option value="gpt4omini" data-prompt="0.15" data-completion="0.6">GPT-4o-mini — $0.15 / $0.60 per MTok</option>
+            <option value="gemini15pro" data-prompt="1.25" data-completion="5">Gemini 1.5 Pro — $1.25 / $5 per MTok</option>
+          </select>
+        </div>
+        <div>
+          <label>Compression Ratio</label>
+          <div class="slider-container">
+            <input type="range" id="compression" min="40" max="90" value="65" step="5">
+            <div class="slider-value" id="compressionDisplay">65%</div>
+          </div>
+          <div style="font-size:0.75rem;color:#888;margin-top:0.25rem;">Prompt compression (completion compresses ~30% of this)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Card -->
+    <div class="card">
+      <h2>Your Savings</h2>
+      <div class="results">
+        <div class="result-box cost">
+          <div class="result-label">Without Headroom</div>
+          <div class="result-value" id="costWithout">$0</div>
+          <div class="result-sub">per month</div>
+        </div>
+        <div class="result-box" id="savingsBox">
+          <div class="result-label">With Headroom</div>
+          <div class="result-value" id="costWith">$0</div>
+          <div class="result-sub">per month</div>
+        </div>
+        <div class="result-box highlight full-width">
+          <div class="result-label">Monthly Savings</div>
+          <div class="result-value" id="savingsAmount">$0</div>
+          <div class="result-sub" id="savingsPercent">0% reduction</div>
+        </div>
+        <div class="result-box savings full-width">
+          <div class="result-label">Annual Savings</div>
+          <div class="result-value" id="annualSavings">$0</div>
+          <div class="result-sub" id="breakEven">Break-even vs Team plan: calculating...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pricing Reference -->
+    <div class="card">
+      <h2>Headroom Plans</h2>
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Plan</th>
+            <th>Price</th>
+            <th>Best For</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Builder (Free)</td><td>$0/mo</td><td>Individual developers, personal projects</td></tr>
+          <tr><td>Team</td><td>$1,500/mo ($18k/yr)</td><td>Small teams, growing startups</td></tr>
+          <tr><td>Business</td><td>$3,500/mo ($42k/yr)</td><td>Engineering orgs, platform teams</td></tr>
+          <tr><td>Enterprise</td><td>Custom ($60-150k+/yr)</td><td>Large orgs, compliance-heavy</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta">
+      <h2>Start Saving Today</h2>
+      <p>Free tier available. No credit card required.</p>
+      <a href="https://headroom.sh">Start Free Trial →</a>
+    </div>
+  </div>
+
+  <script>
+    const promptInput = document.getElementById('promptTokens');
+    const completionInput = document.getElementById('completionTokens');
+    const modelSelect = document.getElementById('model');
+    const compressionSlider = document.getElementById('compression');
+    const compressionDisplay = document.getElementById('compressionDisplay');
+
+    function formatCurrency(n) {
+      if (n >= 1000) return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function calculate() {
+      const promptTokens = parseInt(promptInput.value) || 0;
+      const completionTokens = parseInt(completionInput.value) || 0;
+      const option = modelSelect.selectedOptions[0];
+      const promptPrice = parseFloat(option.dataset.prompt);
+      const completionPrice = parseFloat(option.dataset.completion);
+      const compression = parseInt(compressionSlider.value) / 100;
+
+      compressionDisplay.textContent = Math.round(compression * 100) + '%';
+
+      // Cost without Headroom
+      const costWithout = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
+
+      // Cost with Headroom (prompt compresses fully, completion compresses ~30% of prompt ratio)
+      const compressedPrompt = promptTokens * (1 - compression);
+      const compressedCompletion = completionTokens * (1 - compression * 0.3);
+      const costWith = (compressedPrompt / 1_000_000) * promptPrice + (compressedCompletion / 1_000_000) * completionPrice;
+
+      const savings = costWithout - costWith;
+      const savingsPercent = costWithout > 0 ? (savings / costWithout * 100) : 0;
+      const annualSavings = savings * 12;
+      const teamPlanCost = 1500;
+      const breakEvenMonths = savings > 0 ? (teamPlanCost / savings) : Infinity;
+
+      document.getElementById('costWithout').textContent = formatCurrency(costWithout);
+      document.getElementById('costWith').textContent = formatCurrency(costWith);
+      document.getElementById('savingsAmount').textContent = formatCurrency(savings);
+      document.getElementById('savingsPercent').textContent = savingsPercent.toFixed(1) + '% reduction';
+      document.getElementById('annualSavings').textContent = formatCurrency(annualSavings);
+
+      const savingsBox = document.getElementById('savingsBox');
+      savingsBox.className = savings >= 0 ? 'result-box savings' : 'result-box savings-negative';
+
+      if (savings > 0 && breakEvenMonths <= 12) {
+        document.getElementById('breakEven').textContent = `Break-even vs Team plan: ${breakEvenMonths.toFixed(1)} months`;
+      } else if (savings > 0) {
+        document.getElementById('breakEven').textContent = `Break-even vs Team plan: ${breakEvenMonths.toFixed(1)} months (annual savings exceed plan cost)` ;
+      } else {
+        document.getElementById('breakEven').textContent = 'Increase usage to see savings vs Team plan';
+      }
+    }
+
+    promptInput.addEventListener('input', calculate);
+    completionInput.addEventListener('input', calculate);
+    modelSelect.addEventListener('change', calculate);
+    compressionSlider.addEventListener('input', calculate);
+
+    calculate();
+  </script>
+</body>
+</html>
