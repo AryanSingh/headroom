@@ -50,11 +50,11 @@ Headroom compresses everything your AI agent reads — tool outputs, logs, RAG c
 ## What it does
 
 - **Library** — `compress(messages)` in Python or TypeScript, inline in any app
-- **Proxy** — `headroom proxy --port 8787`, zero code changes, any language
-- **Agent wrap** — `headroom wrap claude|codex|cursor|aider|copilot` in one command
-- **MCP server** — `headroom_compress`, `headroom_retrieve`, `headroom_stats` for any MCP client
+- **Proxy** — `cutctx proxy --port 8787`, zero code changes, any language
+- **Agent wrap** — `cutctx wrap claude|codex|cursor|aider|copilot` in one command
+- **MCP server** — `cutctx_compress`, `cutctx_retrieve`, `cutctx_status` for any MCP client
 - **Cross-agent memory** — shared store across Claude, Codex, Gemini, auto-dedup
-- **`headroom learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session
+- **`cutctx learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session
 - **Reversible (CCR)** — originals are cached for retrieval on demand
 
 ## How it works (30 seconds)
@@ -65,14 +65,14 @@ Headroom compresses everything your AI agent reads — tool outputs, logs, RAG c
         │   prompts · tool outputs · logs · RAG results · files
         ▼
     ┌────────────────────────────────────────────────────┐
-    │  Headroom   (runs locally — your data stays here)  │
+    │  CutCtx    (runs locally — your data stays here)  │
     │  ────────────────────────────────────────────────  │
     │  CacheAligner  →  ContentRouter  →  CCR            │
     │                    ├─ SmartCrusher   (JSON)        │
     │                    ├─ CodeCompressor (AST)         │
     │                    └─ Kompress-base  (text, HF)    │
     │                                                    │
-    │  Cross-agent memory  ·  headroom learn  ·  MCP     │
+    │  Cross-agent memory  ·  cutctx learn  ·  MCP     │
     └────────────────────────────────────────────────────┘
         │   compressed prompt  +  retrieval tool
         ▼
@@ -82,7 +82,7 @@ Headroom compresses everything your AI agent reads — tool outputs, logs, RAG c
 - **ContentRouter** — detects content type, selects the right compressor
 - **SmartCrusher / CodeCompressor / Kompress-base** — compress JSON, AST, or prose
 - **CacheAligner** — stabilizes prefixes so provider KV caches actually hit
-- **CCR** — stores originals locally; LLM calls `headroom_retrieve` if it needs them
+- **CCR** — stores originals locally; LLM calls `cutctx_retrieve` if it needs them
 
 → [Architecture](https://headroom-docs.vercel.app/docs/architecture) · [CCR reversible compression](https://headroom-docs.vercel.app/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
 
@@ -94,12 +94,12 @@ pip install "headroom-ai[all]"          # Python
 npm install headroom-ai                 # Node / TypeScript
 
 # 2 — Pick your mode
-headroom wrap claude                    # wrap a coding agent
-headroom proxy --port 8787              # drop-in proxy, zero code changes
+cutctx wrap claude                    # wrap a coding agent
+cutctx proxy --port 8787              # drop-in proxy, zero code changes
 # or: from headroom import compress      # inline library
 
 # 3 — See the savings
-headroom perf
+cutctx perf
 ```
 
 Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
@@ -134,7 +134,7 @@ Reproduce: `python -m headroom.evals suite --tier 1` · [Full benchmarks & metho
 
 ## Agent compatibility matrix
 
-| Agent       | `headroom wrap` | Notes                            |
+| Agent       | `cutctx wrap` | Notes                            |
 |-------------|:---------------:|----------------------------------|
 | Claude Code | ✅              | `--memory` · `--code-graph`      |
 | Codex       | ✅              | shares memory with Claude        |
@@ -143,17 +143,17 @@ Reproduce: `python -m headroom.evals suite --tier 1` · [Full benchmarks & metho
 | Copilot CLI | ✅              | starts proxy + launches          |
 | OpenClaw    | ✅              | installs as ContextEngine plugin |
 
-Any OpenAI-compatible client works via `headroom proxy`. MCP-native: `headroom mcp install`.
+Any OpenAI-compatible client works via `cutctx proxy`. MCP-native: `cutctx mcp install`.
 
 ### GitHub Copilot CLI subscription mode
 
-Headroom can route GitHub Copilot CLI subscription traffic through the local proxy:
+CutCtx can route GitHub Copilot CLI subscription traffic through the local proxy:
 
 ```bash
-headroom wrap copilot --subscription -- --model gpt-4o
+cutctx wrap copilot --subscription -- --model gpt-4o
 ```
 
-This lets Headroom intercept OpenAI-compatible Copilot CLI requests and apply the same proxy compression pipeline before forwarding to GitHub Copilot's hosted API. The wrapper resolves the account-specific Copilot API endpoint and prints it as `COPILOT_PROVIDER_API_URL=...` during launch.
+This lets CutCtx intercept OpenAI-compatible Copilot CLI requests and apply the same proxy compression pipeline before forwarding to GitHub Copilot's hosted API. The wrapper resolves the account-specific Copilot API endpoint and prints it as `COPILOT_PROVIDER_API_URL=...` during launch.
 
 Platform support note: macOS auth reuse via Copilot CLI Keychain storage has been smoke-tested. Windows Credential Manager, Linux Secret Service / `secret-tool`, and Docker/CI token-injection paths are implemented or planned as auth-discovery paths, but still need real OS validation before they should be considered fully vetted. For Docker and CI, prefer passing an explicit `GITHUB_COPILOT_TOKEN` or `GITHUB_COPILOT_GITHUB_TOKEN` rather than relying on host keychain access.
 
@@ -181,7 +181,7 @@ For buyers, operators, and security reviewers:
 - [Artifacts index](artifacts/README.md)
 
 <details>
-<summary><b>Integrations — drop Headroom into any stack</b></summary>
+<summary><b>Integrations — drop CutCtx into any stack</b></summary>
 
 | Your setup             | Hook in with                                                     |
 |------------------------|------------------------------------------------------------------|
@@ -195,7 +195,7 @@ For buyers, operators, and security reviewers:
 | Strands                | [Strands guide](https://headroom-docs.vercel.app/docs/strands)  |
 | ASGI apps              | `app.add_middleware(CompressionMiddleware)`                      |
 | Multi-agent            | `SharedContext().put / .get`                                     |
-| MCP clients            | `headroom mcp install`                                           |
+| MCP clients            | `cutctx mcp install`                                           |
 
 </details>
 
@@ -280,13 +280,13 @@ Two runtime assets are fetched over TLS; if they are blocked, trust your corpora
 
 Running with compression disabled (pure gateway) requires neither asset.
 
-## headroom learn
+## cutctx learn
 
 <p align="center">
-  <img src="headroom_learn.gif" alt="headroom learn in action" width="720">
+  <img src="headroom_learn.gif" alt="cutctx learn in action" width="720">
 </p>
 
-`headroom learn` — mines failed sessions, writes corrections to `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`.
+`cutctx learn` — mines failed sessions, writes corrections to `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`.
 
 ## Documentation
 
@@ -301,17 +301,17 @@ Running with compression disabled (pure gateway) requires neither asset.
 
 ## Compared to
 
-Headroom runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.
+CutCtx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.
 
 |                                                                              | Scope                                          | Deploy                             | Local | Reversible |
 |------------------------------------------------------------------------------|------------------------------------------------|------------------------------------|:-----:|:----------:|
-| **Headroom**                                                                 | All context — tools, RAG, logs, files, history | Proxy · library · middleware · MCP | Yes   | Yes        |
+| **CutCtx**                                                                 | All context — tools, RAG, logs, files, history | Proxy · library · middleware · MCP | Yes   | Yes        |
 | [RTK](https://github.com/rtk-ai/rtk)                                        | CLI command outputs                            | CLI wrapper                        | Yes   | No         |
 | [lean-ctx](https://github.com/yvgude/lean-ctx)                               | CLI commands, MCP tools, editor rules          | CLI wrapper · MCP                  | Yes   | No         |
 | [Compresr](https://compresr.ai), [Token Co.](https://thetokencompany.ai)    | Text sent to their API                         | Hosted API call                    | No    | No         |
 | OpenAI Compaction                                                            | Conversation history                           | Provider-native                    | No    | No         |
 
-> **Attribution.** Headroom ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and Headroom compresses everything downstream of it. Headroom can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `HEADROOM_CONTEXT_TOOL=lean-ctx` before running `headroom wrap ...`.
+> **Attribution.** CutCtx ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and CutCtx compresses everything downstream of it. CutCtx can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `HEADROOM_CONTEXT_TOOL=lean-ctx` before running `cutctx wrap ...`.
 
 ## Contributing
 
