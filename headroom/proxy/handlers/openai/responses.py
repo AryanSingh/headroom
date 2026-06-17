@@ -59,7 +59,6 @@ from headroom.proxy.handlers.openai.utils import *
 from headroom.proxy.handlers.openai.utils import (
     _codex_compression_debug_enabled,
     _codex_ws_text_shape,
-    _compact_openai_responses_tools,
     _extract_codex_handshake_headers,
     _extract_responses_usage,
     _infer_openai_cache_write_tokens,
@@ -651,9 +650,24 @@ class OpenAIResponsesMixin:
         reason: str | None = None
 
         tool_compaction_started = time.perf_counter()
-        compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
-            _compact_openai_responses_tools(working)
-        )
+        # Use shared schema compressor (30+ key drops + description truncation)
+        try:
+            from headroom.proxy.schema_compress import compress_tool_schemas, compress_tool_results
+            _tools_list = working.get("tools")
+            if isinstance(_tools_list, list) and _tools_list:
+                compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
+                    compress_tool_schemas(_tools_list)
+                )
+                if tools_modified:
+                    working = {**working, "tools": compacted_tools}
+            else:
+                tools_modified, tools_before_bytes, tools_after_bytes = False, 0, 0
+        except ImportError:
+            compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
+                _compact_openai_responses_tools(working)
+            )
+            if tools_modified:
+                working = compacted_payload
         _add_timing("compression_tool_schema_compaction", tool_compaction_started)
         if tools_modified:
             working = compacted_payload
@@ -684,6 +698,15 @@ class OpenAIResponsesMixin:
                 )
 
         live_units_started = time.perf_counter()
+
+        # Compress tool results (positional array format for homogeneous data)
+        try:
+            from headroom.proxy.schema_compress import compress_tool_results
+            if working.get("input") and isinstance(working["input"], list):
+                working = {**working, "input": compress_tool_results(working["input"])}
+        except Exception:
+            pass
+
         (
             router_payload,
             router_modified,

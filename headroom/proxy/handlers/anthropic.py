@@ -1724,6 +1724,20 @@ class AnthropicHandlerMixin:
                 tools = self._sort_tools_deterministically(tools)
                 body["tools"] = tools
 
+            # JSON schema compression — strip metadata keys, truncate descriptions
+            try:
+                from headroom.proxy.schema_compress import compress_tool_schemas, compress_tool_results
+
+                if body.get("tools"):
+                    compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(body["tools"])
+                    if tools_were_modified:
+                        body["tools"] = compacted_tools
+                        transforms_list = getattr(self, '_schema_compress_transforms', None)
+                if body.get("messages"):
+                    body["messages"] = compress_tool_results(body["messages"])
+            except Exception as e:
+                logger.debug(f"[{request_id}] Schema compression failed: {e}")
+
             presend_event = self.pipeline_extensions.emit(
                 PipelineStage.PRE_SEND,
                 operation="proxy.request",
@@ -2759,7 +2773,13 @@ class AnthropicHandlerMixin:
                 # Create compressed batch request
                 compressed_params = {**params, "messages": optimized_messages}
                 if tools is not None:
-                    compressed_params["tools"] = self._sort_tools_deterministically(tools)
+                    sorted_tools = self._sort_tools_deterministically(tools)
+                    try:
+                        from headroom.proxy.schema_compress import compress_tool_schemas
+                        sorted_tools, _, _, _ = compress_tool_schemas(sorted_tools)
+                    except Exception:
+                        pass
+                    compressed_params["tools"] = sorted_tools
                 compressed_requests.append(
                     {
                         "custom_id": custom_id,
