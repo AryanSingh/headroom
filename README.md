@@ -42,6 +42,8 @@
 
 Headroom compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
+> Product naming: **Headroom** is the product and company-facing brand. The current CLI and package identifiers remain `cutctx` / `cutctx-ai` for compatibility with existing installs, automation, and docs.
+
 <p align="center">
   <img src="HeadroomDemo-Fast.gif" alt="Headroom in action" width="820">
   <br/><sub>Live: 10,144 → 1,260 tokens — same FATAL found.</sub>

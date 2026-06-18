@@ -20,7 +20,7 @@ description = "Headroom commercial (enterprise edition) components — proprieta
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "LicenseRef-Headroom-Commercial" }
-authors = [{ name = "Headroom Labs" }]   # TODO: set the real legal entity (see LICENSING.md)
+authors = [{ name = "Payzli Inc. (operating as Headroom Labs)" }]
 classifiers = [
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",

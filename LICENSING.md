@@ -2,7 +2,7 @@
 
 Headroom uses an **open-core** licensing model. This file is the **authoritative map** of which parts of the repository are open source and which are proprietary. Where this file conflicts with a stray header or badge, **this file controls**.
 
-> ⚠️ **Legal entity TODO.** The proprietary license names "Headroom Labs" as the copyright holder/licensor, taken from existing repo metadata. Replace it with your actual incorporated entity (e.g. Payzli / the Headroom operating company) in `LICENSE-COMMERCIAL`, `NOTICE`, and the SPDX headers before distributing. **Have counsel review `LICENSE-COMMERCIAL` — it is a template, not legal advice.**
+> ℹ️ **Commercial entity status.** The commercial license now names `Payzli Inc. (operating as Headroom Labs)` as the Licensor in `LICENSE-COMMERCIAL`. Keep that same entity string synchronized anywhere the proprietary distribution identifies its owner, including `packaging/headroom-ee/pyproject.toml` and commercial SPDX headers. If the operating entity changes, update those references before distribution and have counsel re-review the license text.
 
 ---
 
@@ -75,20 +75,20 @@ See [`MOAT/`](MOAT/INDEX.md). These paths are Commercial Components the moment t
 
 1. **The Apache grant on already-published versions is irrevocable.** Every release shipped under Apache-2.0 — PyPI, npm, crates.io, the HuggingFace model, and every public Git tag through v0.25.0 — remains Apache-2.0 **forever**. Anyone may fork the last Apache-licensed release. This relicensing only binds **future** versions and **newly added** Commercial Components.
 2. **You must own or control the copyright to relicense.** Existing `NOTICE`/headers attribute "Headroom Contributors." To enforce the commercial license you need to have authored the relicensed code yourself, or have a Contributor License Agreement (CLA) / assignment from every outside contributor. Audit contributors before relying on this.
-3. **Single-package caveat (action required).** Today the proprietary modules in section A physically live inside the same `headroom/` Python package that is published to PyPI under Apache-2.0. Shipping proprietary files inside an Apache-licensed distribution is inconsistent. Before the next public release you must **separate the commercial code** (see "Required next step").
+3. **Distribution boundary status.** The proprietary implementation now lives under the separate `headroom_ee/` package and the commercial distribution is built from `packaging/headroom-ee/pyproject.toml`. The Apache OSS wheel excludes `headroom_ee/**/*` and `packaging/**/*` via `[tool.maturin] exclude`, so public artifacts do not ship proprietary files. The source tree still contains both packages side by side for development, which is expected in this workspace layout.
 4. **Not legal advice.** This document and `LICENSE-COMMERCIAL` are engineering templates. Have qualified counsel review the license text, the entity name, the jurisdiction, and the contributor situation.
 
 ---
 
-## Required next step — package separation
+## Packaging guardrails
 
-To make the boundary airtight (and avoid shipping proprietary code in the Apache PyPI/npm packages), separate the Commercial Components into their own distribution:
+To keep the boundary airtight (and avoid regressions that accidentally re-mix proprietary code into Apache artifacts), preserve the current split distribution model:
 
-- Move section-A modules into an `ee/` tree or a separate `headroom-commercial` / `headroom-ee` Python package (and a separate service image for `services/**`).
-- The open `headroom-ai` / `cutctx-ai` package depends on stable **interfaces**; commercial implementations are loaded only when the commercial package + a valid entitlement (MOAT C1) are present.
-- Public OSS artifacts (PyPI, npm, crates.io) contain **only** Apache-2.0 code.
+- Keep section-A modules in `headroom_ee/` and ship them only via the separate `headroom-ee` distribution (and separate service images for `services/**` as they land).
+- Keep the open `headroom-ai` / `cutctx-ai` package depending only on stable **interfaces**; commercial implementations should load only when the commercial package + a valid entitlement (MOAT C1) are present.
+- Continue verifying that public OSS artifacts (PyPI, npm, crates.io) contain **only** Apache-2.0 code.
 
-This refactor touches imports, packaging, and tests, so it is intentionally **not** done automatically. It is specced to be handed to an agent as a follow-up (`relicense-split` branch).
+Any future refactor that touches imports, packaging, or release automation should be checked against these guardrails before publication.
 
 ---
 
