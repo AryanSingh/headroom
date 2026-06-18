@@ -11,10 +11,10 @@ import click
 
 
 def _check_cutctx_installed() -> bool:
-    """Check if cutctx-ai or headroom-ai is installed."""
+    """Check if cutctx-ai is installed."""
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pip", "show", "headroom-ai"],
+            [sys.executable, "-m", "pip", "show", "cutctx-ai"],
             capture_output=True, timeout=10,
         )
         return result.returncode == 0
@@ -116,7 +116,7 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
         click.echo(click.style(" OK", fg="green"))
     else:
         click.echo(click.style(" NOT FOUND", fg="yellow"))
-        click.echo("  Install with: pip install headroom-ai")
+        click.echo("  Install with: pip install cutctx-ai")
 
     # Step 2: Detect agents
     agents = []

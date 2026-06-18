@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Headroom — Enterprise | Context Optimization for AI Agents</title>
+    <title>CutCtx — Enterprise | Context Optimization for AI Agents</title>
+    <meta name="description" content="Self-hosted context optimization and governance layer for AI agents. Reduce costs 60-95%, preserve privacy, and govern AI workflows across providers.">
     <meta name="description" content="Self-hosted context optimization and governance layer for AI agents. Reduce costs 60-95%, preserve privacy, and govern AI workflows across providers.">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -154,14 +155,14 @@
 <!-- Navigation -->
 <nav class="nav">
     <div class="nav-inner">
-        <div class="nav-logo"><span>Head</span>room</div>
+        <div class="nav-logo"><span>Cut</span>Ctx</div>
         <div class="nav-links">
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <a href="#security">Security</a>
             <a href="https://cutctx.dev/docs">Docs</a>
-            <a href="https://github.com/cutctx/cutctx" class="btn btn-outline">GitHub</a>
-            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary">Request a Pilot</a>
+            <a href="https://github.com/AryanSingh/cutcxt" class="btn btn-outline">GitHub</a>
+            <a href="mailto:hello@cutctx.dev" class="btn btn-primary">Request a Pilot</a>
         </div>
     </div>
 </nav>
@@ -173,7 +174,7 @@
     <p>Reduce agent spend 60–95%, fit more usable context, and govern AI workflows across providers — without sending prompts to another SaaS.</p>
     <div class="hero-ctas">
         <a href="https://cutctx.dev/docs/quickstart" class="btn btn-primary btn-lg">Start Free</a>
-        <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
+        <a href="mailto:hello@cutctx.dev" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
     </div>
 </section>
 
@@ -233,11 +234,11 @@
     <div class="steps">
         <div class="step">
             <h3>Deploy the proxy</h3>
-            <p>Run Headroom locally, in Docker, or in your Kubernetes cluster. Zero code changes — just point your agent at the proxy.</p>
+            <p>Run CutCtx locally, in Docker, or in your Kubernetes cluster. Zero code changes — just point your agent at the proxy.</p>
         </div>
         <div class="step">
             <h3>Context flows through</h3>
-            <p>Headroom detects content type (JSON, code, logs, diffs) and applies the right compressor. Originals stored locally for retrieval.</p>
+            <p>CutCtx detects content type (JSON, code, logs, diffs) and applies the right compressor. Originals stored locally for retrieval.</p>
         </div>
         <div class="step">
             <h3>Save, govern, measure</h3>
@@ -287,15 +288,15 @@
 
 <!-- Why Not Native Caching -->
 <section class="section">
-    <div class="section-label">Why Headroom</div>
+    <div class="section-label">Why CutCtx</div>
     <h2>Beyond provider-native caching</h2>
-    <p class="subtitle">Native caching helps inside a single provider. Headroom works across the entire agent stack.</p>
+    <p class="subtitle">Native caching helps inside a single provider. CutCtx works across the entire agent stack.</p>
     <table class="comparison">
         <thead>
             <tr>
                 <th>Capability</th>
                 <th>Native Caching</th>
-                <th>Headroom</th>
+                <th>CutCtx</th>
             </tr>
         </thead>
         <tbody>
@@ -350,8 +351,8 @@
     <div class="roi-box">
         <div class="roi-left">
             <h3>Typical pilot results</h3>
-            <p>Teams running Headroom see immediate, measurable savings. Our pilot framework captures baseline metrics, deploys in under 30 minutes, and delivers weekly ROI reports.</p>
-            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary">Start a Pilot →</a>
+            <p>Teams running CutCtx see immediate, measurable savings. Our pilot framework captures baseline metrics, deploys in under 30 minutes, and delivers weekly ROI reports.</p>
+            <a href="mailto:hello@cutctx.dev" class="btn btn-primary">Start a Pilot →</a>
         </div>
         <div class="roi-metrics">
             <div class="roi-metric">
@@ -378,7 +379,7 @@
 <section class="section" id="security">
     <div class="section-label">Security & Privacy</div>
     <h2>Your data stays in your infrastructure</h2>
-    <p class="subtitle">Headroom is local-first by default. No prompts, tool outputs, or conversation content ever leave your network.</p>
+    <p class="subtitle">CutCtx is local-first by default. No prompts, tool outputs, or conversation content ever leave your network.</p>
     <div class="security-grid">
         <div class="security-item">
             <div class="icon">🏠</div>
@@ -424,22 +425,22 @@
         </div>
     </div>
 
-    <!-- Enterprise Features Preview -->
+    <!-- Enterprise Features (Now Available) -->
     <div class="enterprise-features">
-        <div class="ef-card">
-            <div class="badge">Coming Soon</div>
-            <h4>SSO / SAML</h4>
-            <p>Enterprise single sign-on integration for admin dashboard and proxy access.</p>
+        <div class="ef-card" style="border-style: solid; border-color: var(--green);">
+            <div class="badge" style="color: var(--green); background: rgba(16,185,129,0.1);">Available Now</div>
+            <h4>SSO / SAML / OIDC</h4>
+            <p>Enterprise single sign-on integration for admin dashboard and proxy access. JWT, JWKS, and introspection supported.</p>
         </div>
-        <div class="ef-card">
-            <div class="badge">Coming Soon</div>
+        <div class="ef-card" style="border-style: solid; border-color: var(--green);">
+            <div class="badge" style="color: var(--green); background: rgba(16,185,129,0.1);">Available Now</div>
             <h4>RBAC</h4>
-            <p>Role-based access control for admin, operator, and viewer roles.</p>
+            <p>Role-based access control with Viewer, Operator, and Admin roles. 15+ granular permissions wired across all endpoints.</p>
         </div>
-        <div class="ef-card">
-            <div class="badge">Coming Soon</div>
+        <div class="ef-card" style="border-style: solid; border-color: var(--green);">
+            <div class="badge" style="color: var(--green); background: rgba(16,185,129,0.1);">Available Now</div>
             <h4>Audit Logs</h4>
-            <p>Comprehensive audit trail for all administrative actions and configuration changes.</p>
+            <p>Comprehensive SQLite WAL audit trail for all administrative actions, with JSON/CSV export and queryable filters.</p>
         </div>
     </div>
 </section>
@@ -466,7 +467,7 @@
         </div>
         <div class="pricing-card featured">
             <div class="tier">Team</div>
-            <div class="price">$1,500 <span>/month</span></div>
+            <div class="price">$49 <span>/month</span></div>
             <div class="desc">Small engineering teams. Shared visibility and policy.</div>
             <ul>
                 <li>Everything in Builder</li>
@@ -477,7 +478,7 @@
                 <li>Email support (business hours)</li>
                 <li>Deployment assistance</li>
             </ul>
-            <a href="mailto:hello@headroomlabs.ai" class="btn btn-primary" style="width: 100%; justify-content: center;">Request Pilot</a>
+            <a href="mailto:hello@cutctx.dev" class="btn btn-primary" style="width: 100%; justify-content: center;">Request Pilot</a>
         </div>
         <div class="pricing-card">
             <div class="tier">Enterprise</div>
@@ -493,7 +494,7 @@
                 <li>Dedicated support engineer</li>
                 <li>Premium SLA (24/7)</li>
             </ul>
-            <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline" style="width: 100%; justify-content: center;">Contact Sales</a>
+            <a href="mailto:hello@cutctx.dev" class="btn btn-outline" style="width: 100%; justify-content: center;">Contact Sales</a>
         </div>
     </div>
 </section>
@@ -504,18 +505,18 @@
     <p>Start free in 60 seconds, or talk to us about a team pilot with measurable ROI.</p>
     <div class="cta-buttons">
         <a href="https://cutctx.dev/docs/quickstart" class="btn btn-primary btn-lg">Start Free</a>
-        <a href="mailto:hello@headroomlabs.ai" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
+        <a href="mailto:hello@cutctx.dev" class="btn btn-outline btn-lg">Book Enterprise Demo</a>
     </div>
 </section>
 
 <!-- Footer -->
 <footer class="footer">
-    <div class="footer-copy">© 2026 Headroom Labs. Apache 2.0.</div>
+    <div class="footer-copy">© 2026 CutCtx Labs. Apache 2.0.</div>
     <div class="footer-links">
         <a href="https://cutctx.dev/docs">Docs</a>
-        <a href="https://github.com/cutctx/cutctx">GitHub</a>
+        <a href="https://github.com/AryanSingh/cutcxt">GitHub</a>
         <a href="https://discord.gg/yRmaUNpsPJ">Discord</a>
-        <a href="mailto:hello@headroomlabs.ai">Contact</a>
+        <a href="mailto:hello@cutctx.dev">Contact</a>
     </div>
 </footer>
 

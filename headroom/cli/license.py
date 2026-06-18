@@ -1,6 +1,6 @@
 """License management CLI commands.
 
-Provides activate, status, and upgrade commands for managing Headroom licenses.
+Provides activate, status, and upgrade commands for managing CutCtx licenses.
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ logger = logging.getLogger("headroom.cli.license")
 
 @main.group()
 def license() -> None:
-    """Manage your Headroom license.
+    """Manage your CutCtx license.
 
     Activate a license key, check status, or upgrade your plan.
 
     \b
     Examples:
-        headroom license activate hlk_abc123   Activate a license key
-        headroom license status                Show current license status
-        headroom license upgrade               Open upgrade page in browser
+        cutctx license activate hlk_abc123   Activate a license key
+        cutctx license status                Show current license status
+        cutctx license upgrade               Open upgrade page in browser
     """
 
 
@@ -35,8 +35,8 @@ def license() -> None:
 @click.option(
     "--cloud-url",
     envvar="HEADROOM_CLOUD_URL",
-    default="https://app.headroomlabs.ai",
-    help="Headroom cloud API URL (env: HEADROOM_CLOUD_URL)",
+    default="https://app.cutctx.dev",
+    help="CutCtx license server URL (env: HEADROOM_CLOUD_URL)",
 )
 @click.option(
     "--no-browser",
@@ -47,13 +47,13 @@ def license() -> None:
 def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
     """Activate a license key.
 
-    Validates the key against the Headroom cloud API and stores it locally.
+    Validates the key against the CutCtx license server and stores it locally.
     The license key is validated immediately and the tier is applied.
 
     \b
     Examples:
-        headroom license activate hlk_abc123def456
-        headroom license activate hlk_abc123 --cloud-url https://custom.headroomlabs.ai
+        cutctx license activate hlk_abc123def456
+        cutctx license activate hlk_abc123 --cloud-url https://custom.cutctx.dev
     """
     import httpx
 
@@ -121,11 +121,11 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
     elif resp.status_code == 401 or resp.status_code == 403:
         click.echo("Error: Invalid or expired license key.", err=True)
-        click.echo("Check your key and try again, or visit https://headroomlabs.ai/pricing", err=True)
+        click.echo("Check your key and try again, or visit https://cutctx.dev/pricing", err=True)
         raise SystemExit(1) from None
     else:
         click.echo(f"Error: License server returned status {resp.status_code}.", err=True)
-        click.echo("Try again later or contact hello@headroomlabs.ai", err=True)
+        click.echo("Try again later or contact hello@cutctx.dev", err=True)
         raise SystemExit(1) from None
 
 
@@ -146,7 +146,7 @@ def status() -> None:
 
     cache_path = paths.license_cache_path()
 
-    click.echo("Headroom License Status")
+    click.echo("CutCtx License Status")
     click.echo("=" * 50)
 
     # License info (with HMAC integrity verification)
@@ -333,9 +333,9 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
 
     \b
     Examples:
-        headroom license generate --tier team --org acme --seats 10
-        headroom license generate --tier enterprise --org widgetcorp --dry-run
-        headroom license generate --tier business --org startup --expiry 2026-12-31
+        cutctx license generate --tier team --org acme --seats 10
+        cutctx license generate --tier enterprise --org widgetcorp --dry-run
+        cutctx license generate --tier business --org startup --expiry 2026-12-31
     """
     import base64
     import hashlib
@@ -410,7 +410,7 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
         raise SystemExit(1)
 
     # Output
-    click.echo("Headroom License Key Generated")
+    click.echo("CutCtx License Key Generated")
     click.echo("=" * 60)
     click.echo(f"Tier:               {tier}")
     click.echo(f"Organization:       {org}")
@@ -429,4 +429,4 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
         click.echo(f"Key:                {signed_key}")
         click.echo()
         click.echo("To activate this license, run:")
-        click.echo(f"  headroom license activate {signed_key}")
+        click.echo(f"  cutctx license activate {signed_key}")

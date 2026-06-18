@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: Headroom Management API
+  title: CutCtx Management API
   description: |
-    Management and observability endpoints for the Headroom context compression proxy.
+    Management and observability endpoints for the CutCtx context compression proxy.
     
     These endpoints are served by the Python management layer alongside the Rust
     reverse proxy. They require admin API key authentication when configured.
@@ -13,11 +13,11 @@ info:
     - `X-Headroom-Admin-Key: <admin-api-key>` header
     
     When no admin API key is configured, endpoints are open (backward-compatible).
-  version: "0.25.0"
+  version: "0.26.0"
   contact:
-    name: Headroom Labs
-    email: hello@headroomlabs.ai
-    url: https://headroomlabs.ai
+    name: CutCtx Labs
+    email: hello@cutctx.dev
+    url: https://cutctx.dev
   license:
     name: Headroom Commercial License
     url: https://headroomlabs.ai/legal/commercial-license

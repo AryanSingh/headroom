@@ -11,17 +11,17 @@
 <p align="center"><strong>60–95% fewer tokens · library · proxy · MCP · 6 algorithms · local-first · reversible</strong></p>
 
 <p align="center">
-  <a href="https://github.com/chopratejas/headroom/actions/workflows/ci.yml"><img src="https://github.com/chopratejas/headroom/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://app.codecov.io/gh/chopratejas/headroom"><img src="https://codecov.io/gh/chopratejas/headroom/graph/badge.svg" alt="codecov"></a>
-  <a href="https://pypi.org/project/headroom-ai/"><img src="https://img.shields.io/pypi/v/headroom-ai.svg" alt="PyPI"></a>
-  <a href="https://www.npmjs.com/package/headroom-ai"><img src="https://img.shields.io/npm/v/headroom-ai.svg" alt="npm"></a>
+  <a href="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml"><img src="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://app.codecov.io/gh/AryanSingh/cutcxt"><img src="https://codecov.io/gh/AryanSingh/cutcxt/graph/badge.svg" alt="codecov"></a>
+  <a href="https://pypi.org/project/cutctx-ai/"><img src="https://img.shields.io/pypi/v/cutctx-ai.svg" alt="PyPI"></a>
+  <a href="https://www.npmjs.com/package/cutctx-ai"><img src="https://img.shields.io/npm/v/cutctx-ai.svg" alt="npm"></a>
   <a href="https://huggingface.co/chopratejas/kompress-v2-base"><img src="https://img.shields.io/badge/model-Kompress--v2--base-yellow.svg" alt="Model: Kompress-v2-base"></a>
   <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-open--core-blue.svg" alt="License: Open Core (Apache-2.0 + Commercial)"></a>
-  <a href="https://headroom-docs.vercel.app/docs"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Docs"></a>
+  <a href="https://cutctx.dev/docs"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Docs"></a>
 </p>
 
 <p align="center">
-  <a href="https://headroom-docs.vercel.app/docs">Docs</a> ·
+  <a href="https://cutctx.dev/docs">Docs</a> ·
   <a href="#get-started-60-seconds">Install</a> ·
   <a href="#proof">Proof</a> ·
   <a href="#agent-compatibility-matrix">Agents</a> ·
@@ -34,11 +34,11 @@
 </p>
 
 <p align="center"><sub>
-  <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>/llms.txt</code></a> here, or fetch <a href="https://headroom-docs.vercel.app/llms.txt">the live index</a> / <a href="https://headroom-docs.vercel.app/llms-full.txt">full docs blob</a>.
+  <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>/llms.txt</code></a> here, or fetch <a href="https://cutctx.dev/llms.txt">the live index</a> / <a href="https://cutctx.dev/llms-full.txt">full docs blob</a>.
 </sub></p>
 
 ---
-<p align="center"><a href="https://trendshift.io/repositories/20881" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20881" alt="chopratejas%2Fheadroom | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a></p>
+<p align="center"><a href="https://trendshift.io/repositories/20881" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20881" alt="cutctx%2Fcutctx | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a></p>
 
 Headroom compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
@@ -86,14 +86,14 @@ Headroom compresses everything your AI agent reads — tool outputs, logs, RAG c
 - **CacheAligner** — stabilizes prefixes so provider KV caches actually hit
 - **CCR** — stores originals locally; LLM calls `cutctx_retrieve` if it needs them
 
-→ [Architecture](https://headroom-docs.vercel.app/docs/architecture) · [CCR reversible compression](https://headroom-docs.vercel.app/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
+→ [Architecture](https://cutctx.dev/docs/architecture) · [CCR reversible compression](https://cutctx.dev/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
 
 ## Get started (60 seconds)
 
 ```bash
 # 1 — Install
-pip install "headroom-ai[all]"          # Python
-npm install headroom-ai                 # Node / TypeScript
+pip install "cutctx-ai[all]"          # Python
+npm install cutctx-ai                 # Node / TypeScript
 
 # 2 — Pick your mode
 cutctx wrap claude                    # wrap a coding agent
@@ -126,11 +126,11 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | SQuAD v2   | QA       | 100 |        — |  **97%** | 19% compression |
 | BFCL       | Tools    | 100 |        — |  **97%** | 32% compression |
 
-Reproduce: `python -m headroom.evals suite --tier 1` · [Full benchmarks & methodology](https://headroom-docs.vercel.app/docs/benchmarks)
+Reproduce: `python -m headroom.evals suite --tier 1` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
 
-<a href="https://www.star-history.com/?repos=chopratejas%2Fheadroom&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=AryanSingh%2Fcutcxt&type=date&legend=top-left">
  <picture>
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=chopratejas/headroom&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AryanSingh/cutcxt&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -194,7 +194,7 @@ For buyers, operators, and security reviewers:
 | LiteLLM                | `litellm.callbacks = [HeadroomCallback()]`                       |
 | LangChain              | `HeadroomChatModel(your_llm)`                                    |
 | Agno                   | `HeadroomAgnoModel(your_model)`                                  |
-| Strands                | [Strands guide](https://headroom-docs.vercel.app/docs/strands)  |
+| Strands                | [Strands guide](https://cutctx.dev/docs/strands)  |
 | ASGI apps              | `app.add_middleware(CompressionMiddleware)`                      |
 | Multi-agent            | `SharedContext().put / .get`                                     |
 | MCP clients            | `cutctx mcp install`                                           |
@@ -240,9 +240,9 @@ Provider and tool-specific behavior lives under `headroom/providers/` so core or
 ## Install
 
 ```bash
-pip install "headroom-ai[all]"          # Python, everything
-npm install headroom-ai                 # TypeScript / Node
-docker pull ghcr.io/chopratejas/headroom:latest
+pip install "cutctx-ai[all]"          # Python, everything
+npm install cutctx-ai                 # TypeScript / Node
+docker pull ghcr.io/aryansingh/cutctx:latest
 ```
 
 Granular extras: `[proxy]`, `[mcp]`, `[ml]` (Kompress-base), `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
@@ -250,14 +250,14 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]` (Kompress-base), `[code]`, `[memory]
 Using `pipx`? Choose a supported interpreter explicitly:
 
 ```bash
-pipx install --python python3.13 "headroom-ai[all]"
+pipx install --python python3.13 "cutctx-ai[all]"
 ```
 
-→ [Installation guide](https://headroom-docs.vercel.app/docs/installation) — Docker tags, persistent service, PowerShell, devcontainers.
+→ [Installation guide](https://cutctx.dev/docs/installation) — Docker tags, persistent service, PowerShell, devcontainers.
 
 ### Corporate / SSL-inspection environments
 
-If `pip install "headroom-ai[all]"` fails with `CERTIFICATE_VERIFY_FAILED`
+If `pip install "cutctx-ai[all]"` fails with `CERTIFICATE_VERIFY_FAILED`
 (`unable to get local issuer certificate`), your network uses **SSL inspection** — a MITM
 proxy presenting a company-issued CA. The build backend (`maturin`) downloads `rustup` over a
 connection your TLS stack doesn't trust. **Install Rust first** so the build doesn't fetch it:
@@ -269,8 +269,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh && rustup default
 winget install Rustlang.Rustup && rustup default stable
 ```
 
-Restart your shell, then `pip install "headroom-ai[all]"`. A prebuilt wheel avoids the Rust
-build entirely where available: `pip install --only-binary headroom-ai headroom-ai`.
+Restart your shell, then `pip install "cutctx-ai[all]"`. A prebuilt wheel avoids the Rust
+build entirely where available: `pip install --only-binary cutctx-ai cutctx-ai`.
 
 Two runtime assets are fetched over TLS; if they are blocked, trust your corporate CA via
 `REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE` / `CURL_CA_BUNDLE`:
@@ -294,12 +294,12 @@ Running with compression disabled (pure gateway) requires neither asset.
 
 | Start here                                                                    | Go deeper                                                                          |
 |-------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| [Quickstart](https://headroom-docs.vercel.app/docs/quickstart)                | [Architecture](https://headroom-docs.vercel.app/docs/architecture)                 |
-| [Proxy](https://headroom-docs.vercel.app/docs/proxy)                          | [How compression works](https://headroom-docs.vercel.app/docs/how-compression-works) |
-| [MCP tools](https://headroom-docs.vercel.app/docs/mcp)                        | [CCR — reversible compression](https://headroom-docs.vercel.app/docs/ccr)          |
-| [Memory](https://headroom-docs.vercel.app/docs/memory)                        | [Cache optimization](https://headroom-docs.vercel.app/docs/cache-optimization)     |
-| [Failure learning](https://headroom-docs.vercel.app/docs/failure-learning)    | [Benchmarks](https://headroom-docs.vercel.app/docs/benchmarks)                    |
-| [Configuration](https://headroom-docs.vercel.app/docs/configuration)          | [Limitations](https://headroom-docs.vercel.app/docs/limitations)                  |
+| [Quickstart](https://cutctx.dev/docs/quickstart)                | [Architecture](https://cutctx.dev/docs/architecture)                 |
+| [Proxy](https://cutctx.dev/docs/proxy)                          | [How compression works](https://cutctx.dev/docs/how-compression-works) |
+| [MCP tools](https://cutctx.dev/docs/mcp)                        | [CCR — reversible compression](https://cutctx.dev/docs/ccr)          |
+| [Memory](https://cutctx.dev/docs/memory)                        | [Cache optimization](https://cutctx.dev/docs/cache-optimization)     |
+| [Failure learning](https://cutctx.dev/docs/failure-learning)    | [Benchmarks](https://cutctx.dev/docs/benchmarks)                    |
+| [Configuration](https://cutctx.dev/docs/configuration)          | [Limitations](https://cutctx.dev/docs/limitations)                  |
 
 ## Compared to
 
@@ -318,7 +318,7 @@ CutCtx runs **locally**, covers **every** content type, works with every major f
 ## Contributing
 
 ```bash
-git clone https://github.com/chopratejas/headroom.git && cd headroom
+git clone https://github.com/AryanSingh/cutcxt.git && cd cutcxt
 pip install -e ".[dev]" && pytest
 ```
 
