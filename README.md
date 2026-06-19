@@ -8,7 +8,7 @@
                   The context compression layer for AI agents
 </pre></div>
 
-<p align="center"><strong>60–95% fewer tokens · library · proxy · MCP · 6 algorithms · local-first · reversible</strong></p>
+<p align="center"><strong>60–95% fewer tokens · library · proxy · MCP · 12 algorithms · local-first · reversible · intelligence layer</strong></p>
 
 <p align="center">
   <a href="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml"><img src="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -204,16 +204,44 @@ For buyers, operators, and security reviewers:
 <details>
 <summary><b>What's inside</b></summary>
 
-- **SmartCrusher** — universal JSON: arrays of dicts, nested objects, mixed types.
-- **CodeCompressor** — AST-aware for Python, JS, Go, Rust, Java, C++.
-- **Kompress-base** — our HuggingFace model, trained on agentic traces.
-- **Image compression** — 40–90% reduction via trained ML router.
+- **SmartCrusher** — universal JSON compression: arrays of dicts, nested objects, mixed types.
+- **CodeCompressor** — AST-aware compression for Python, JS, Go, Rust, Java, C++.
+- **Kompress-base** — HuggingFace model trained on agentic traces.
+- **DiffCompressor** — diff-aware compression with SIMD-accelerated line splitting.
+- **LogCompressor** — structured log compression with aho-corasick pattern detection.
+- **SearchCompressor** — search result compression with relevance scoring.
+- **Image compression** — inline base64 image compression with CCR storage.
+- **Audio compression** — inline base64 audio compression (WAV/MP3/AAC) with downsampling.
+- **JSON schema compression** — 40% token savings on tool definitions (32 metadata keys stripped).
 - **CacheAligner** — stabilizes prefixes so Anthropic/OpenAI KV caches actually hit.
-- **IntelligentContext** — score-based context fitting with learned importance.
-- **CCR** — reversible compression; LLM retrieves originals on demand.
+- **CCR** — reversible compression; LLM retrieves originals on demand via `cutctx_retrieve`.
 - **Cross-agent memory** — shared store, agent provenance, auto-dedup.
-- **SharedContext** — compressed context passing across multi-agent workflows.
-- **`headroom learn`** — plugin-based failure mining for Claude, Codex, Gemini.
+
+</details>
+
+<details>
+<summary><b>Intelligence layer</b></summary>
+
+- **Task-aware compression** — extracts working task from messages, scores each context segment by BM25 relevance, modulates compression rate per message.
+- **Semantic deduplication** — rolling SHA-256 hash index replaces repeated content with CCR pointers across sessions.
+- **Context budgeting** — token budget per session with progressive compression through GREEN/YELLOW/RED/CRITICAL zones.
+- **Cross-session profiles** — learns compression patterns per workspace over time, adjusts future recommendations.
+- **Multi-agent shared state** — SharedCompressionCache with content-hash keyed LRU+TTL cache.
+- **Cost forecasting** — pre-task cost estimation with PolicyEngine (6 rules), tracks spend across sessions.
+
+</details>
+
+<details>
+<summary><b>Security & governance</b></summary>
+
+- **LLM Firewall** — 27 regex patterns (injection, PII, jailbreak, data exfiltration) + streaming redactor.
+- **Structured output validation** — jsonschema enforcement with 3x auto-retry on invalid JSON.
+- **Multi-model ensemble** — asyncio.gather fan-out with evaluator model picks best response.
+- **Budget cut-offs** — token/cost hard limits with streaming SSE truncation.
+- **SSO/OAuth2** — JWT/JWKS, OIDC discovery, RFC 7662 introspection, timing-safe claim validation.
+- **RBAC** — Viewer/Operator/Admin roles, 15+ permissions, wired into ALL admin endpoints.
+- **Audit logging** — SQLite WAL-backed structured events, queryable with filters, JSONL export.
+- **Entitlements** — 59-feature × 4-tier matrix (Builder/Team/Business/Enterprise) with runtime enforcement.
 
 </details>
 

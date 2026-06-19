@@ -85,12 +85,17 @@ helm install cutctx ./helm/cutctx
 
 ### Enterprise controls
 - Ed25519 Token Licensing (Seat Leases, Server-Side Trials, Offline Tolerance)
-- SSO or JWT/OIDC admin authentication
-- Role-based access control
-- Audit logging
-- Retention controls
+- SSO or JWT/OIDC admin authentication (timing-safe claim validation)
+- Role-based access control (Viewer/Operator/Admin, 15+ permissions)
+- Audit logging (SQLite WAL, structured events, JSONL export)
+- Retention controls (CCR, audit logs, episodic memory auto-expiry)
 - Fleet visibility across deployments
 - SCIM-style user and group provisioning APIs
+- Decompression bomb protection (streaming, 50MB intermediate caps)
+- SSRF protection (base URL allowlist for API calls)
+- SQL column name allowlist validation
+- Rate limiting (token bucket, per-IP)
+- Auto-generated admin API key (secure-by-default, never open)
 
 ### Data handling
 - Request content is processed in memory
@@ -126,6 +131,7 @@ These are not code gaps, but business workstreams:
 | Feature | Status |
 |---------|--------|
 | Intelligence layer (6 features: task-aware, dedup, budget, profiles, shared-state, cost-forecast) | Available |
+| JSON schema compression (40% token savings on tool definitions) | Available |
 | LLM Firewall (27 regex patterns + ML classifier) | Available |
 | Structured output validation with auto-retry | Available |
 | Multi-model ensemble routing | Available |
@@ -133,9 +139,12 @@ These are not code gaps, but business workstreams:
 | Episodic memory (cross-session learning) | Available |
 | Multimodal compression (image + audio) | Available |
 | Stripe billing integration | Available |
-| Go SDK (full: Client, Memory, Proxy, SharedContext) | Available |
+| Go SDK (full: Client, Memory, Proxy, SharedContext, Middleware) | Available |
 | Python SDK (CutCtxClient + SharedContext) | Available |
+| TypeScript SDK | Available |
 | Benchmark suite (vs LLMLingua-2) | Available |
+| React admin dashboard (Vite + React, dark mode, client-side routing) | Available |
+| Air-gap deployment (offline licensing, pre-staged models) | Available |
 
 ## Plugins
 
