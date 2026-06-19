@@ -11,7 +11,7 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("headroom-ai", () => ({
+vi.mock("cutctx-ai", () => ({
   compress: vi.fn(),
 }));
 

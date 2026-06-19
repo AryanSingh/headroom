@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/01-basic-compress.ts
  */
-import { compress } from "headroom-ai";
+import { compress } from "cutctx-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 

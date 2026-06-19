@@ -164,8 +164,8 @@ const integrations: {
   {
     title: 'MCP Tools',
     description:
-      'Three tools for Claude Code, Cursor, or any MCP client: headroom_compress, headroom_retrieve, headroom_stats.',
-    code: 'headroom mcp install && claude',
+      'Three tools for Claude Code, Cursor, or any MCP client: cutctx_compress, cutctx_retrieve, cutctx_stats.',
+    code: 'cutctx mcp install && claude',
     lang: 'bash',
     href: '/docs/mcp',
   },
@@ -173,7 +173,7 @@ const integrations: {
     title: 'TypeScript SDK',
     description:
       'compress(), Vercel AI SDK middleware, OpenAI and Anthropic client wrappers.',
-    code: 'npm install headroom-ai',
+    code: 'npm install cutctx-ai',
     lang: 'bash',
     href: '/docs/vercel-ai-sdk',
   },
@@ -181,7 +181,7 @@ const integrations: {
     title: 'Vercel AI SDK',
     description:
       'One-liner withHeadroom() or headroomMiddleware() for any Vercel AI SDK model.',
-    code: "import { withHeadroom } from 'headroom-ai/vercel-ai'\nconst model = withHeadroom(openai('gpt-4o'))",
+    code: "import { withHeadroom } from 'cutctx-ai/vercel-ai'\nconst model = withHeadroom(openai('gpt-4o'))",
     lang: 'typescript',
     href: '/docs/vercel-ai-sdk',
   },

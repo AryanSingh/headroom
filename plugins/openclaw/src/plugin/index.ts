@@ -2,7 +2,7 @@
  * Headroom OpenClaw Plugin — register ContextEngine + CCR retrieval tool.
  *
  * Usage:
- *   openclaw plugins install headroom-ai/openclaw
+ *   openclaw plugins install cutctx-openclaw
  *
  * Configuration (in ~/.openclaw/config.json or ~/.clawdbot/clawdbot.json):
  *   {

@@ -1,9 +1,9 @@
 ---
 title: Metrics & Monitoring
-description: Monitor compression performance, cost savings, and system health with Headroom's built-in metrics, Prometheus endpoint, and SDK APIs.
+description: Monitor compression performance, cost savings, and system health with CutCtx's built-in metrics, Prometheus endpoint, and SDK APIs.
 ---
 
-Headroom provides comprehensive metrics for monitoring compression performance, cost savings, and system health through both the proxy server and the SDK.
+CutCtx provides comprehensive metrics for monitoring compression performance, cost savings, and system health through both the proxy server and the SDK.
 
 ## Proxy Endpoints
 
@@ -109,7 +109,7 @@ curl http://localhost:8787/health
 The TypeScript SDK queries the proxy for stats:
 
 ```ts twoslash
-import { HeadroomClient } from 'headroom-ai';
+import { HeadroomClient } from 'cutctx-ai';
 
 const client = new HeadroomClient();
 
@@ -124,7 +124,7 @@ console.log(`Savings: ${stats.tokens.savings_percent}%`);
 Every `compress()` call returns metrics:
 
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, { model: 'gpt-4o' });
 console.log(`Tokens: ${result.tokensBefore} -> ${result.tokensAfter}`);
@@ -229,10 +229,10 @@ DEBUG:headroom.transforms.smart_crusher:Kept items: [0,1,2,42,77,97,98,99] (erro
 <Tab value="Proxy">
 ```bash
 # Log to file
-headroom proxy --log-file headroom.jsonl
+cutctx proxy --log-file headroom.jsonl
 
 # Increase verbosity
-headroom proxy --log-level debug
+cutctx proxy --log-level debug
 ```
 </Tab>
 </Tabs>
@@ -244,7 +244,7 @@ headroom proxy --log-level debug
 Set a budget limit in the proxy:
 
 ```bash
-headroom proxy --budget 10.00
+cutctx proxy --budget 10.00
 ```
 
 When the budget is exceeded, requests return a budget exceeded error, the `/stats` endpoint shows budget status, and logs indicate the budget state.

@@ -1,11 +1,11 @@
 # RTK architecture — why wrap-CLI only
 
 **Status:** decided. Locked at Phase G PR-G3 (2026-05).
-**Owner:** Headroom realignment.
+**Owner:** CutCtx realignment.
 
 ## TL;DR
 
-**RTK is a wrap-CLI hook, not a proxy-side compressor.** The Headroom
+**RTK is a wrap-CLI hook, not a proxy-side compressor.** The CutCtx
 proxy does NOT invoke RTK on tool-result content. Future contributors
 who consider moving RTK into the proxy hot path: read this doc first.
 
@@ -14,7 +14,7 @@ who consider moving RTK into the proxy hot path: read this doc first.
 RTK (Realtime Token Kompress) rewrites shell **commands** at exec
 time so that a `git diff` or `grep` invocation emits a more
 compressed output before the agent ever ingests it. RTK runs in the
-wrap-CLI tail — `headroom wrap claude`, `headroom wrap codex`, etc.
+wrap-CLI tail — `cutctx wrap claude`, `cutctx wrap codex`, etc.
 — where it installs a `~/.rtk/bin/rtk` shim ahead of the agent CLI
 and intercepts shelled-out subprocesses.
 
@@ -85,7 +85,7 @@ re-implementing RTK inside the proxy.
 
 ## What the wrap CLI does
 
-Every `headroom wrap <agent>` subcommand:
+Every `cutctx wrap <agent>` subcommand:
 
 1. Ensures the RTK binary is installed via `_ensure_rtk_binary()`.
 2. Injects the `<!-- headroom:rtk-instructions -->` block into the

@@ -23,7 +23,7 @@ def plugin_dir(tmp_path: Path) -> Path:
     """Create a minimal OpenClaw plugin directory fixture."""
     plugin = tmp_path / "plugins" / "openclaw"
     plugin.mkdir(parents=True)
-    (plugin / "package.json").write_text('{"name":"headroom-openclaw"}\n')
+    (plugin / "package.json").write_text('{"name":"cutctx-openclaw"}\n')
     (plugin / "openclaw.plugin.json").write_text('{"id":"headroom"}\n')
     hook_shim = plugin / "hook-shim"
     hook_shim.mkdir()
@@ -61,7 +61,7 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
         "plugins",
         "install",
         "--dangerously-force-unsafe-install",
-        "headroom-ai/openclaw",
+        "cutctx-openclaw",
     ] in cmds
     assert ["openclaw", "config", "validate"] in cmds
     assert ["openclaw", "gateway", "restart"] in cmds
@@ -392,7 +392,7 @@ def test_build_openclaw_plugin_entry_sets_and_clears_python_path() -> None:
 def test_build_openclaw_unwrap_entry_preserves_top_level_metadata() -> None:
     entry = wrap_cli._build_openclaw_unwrap_entry(
         {
-            "source": "headroom-ai/openclaw",
+            "source": "cutctx-openclaw",
             "enabled": True,
             "config": {
                 "pythonPath": "C:\\Python312\\python.exe",
@@ -402,7 +402,7 @@ def test_build_openclaw_unwrap_entry_preserves_top_level_metadata() -> None:
         }
     )
 
-    assert entry["source"] == "headroom-ai/openclaw"
+    assert entry["source"] == "cutctx-openclaw"
     assert entry["enabled"] is False
     assert entry["config"] == {"customFlag": True}
 
@@ -426,7 +426,7 @@ def test_unwrap_openclaw_stops_proxy_by_default(runner: CliRunner) -> None:
 
     assert result.exit_code == 0, result.output
     stop_proxy.assert_called_once_with(9999)
-    assert "Stopped local Headroom proxy on port 9999" in result.output
+    assert "Stopped local CutCtx proxy on port 9999" in result.output
 
 
 def test_wrap_openclaw_no_auto_start_does_not_default_python_path(

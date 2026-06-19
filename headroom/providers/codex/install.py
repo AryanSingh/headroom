@@ -12,8 +12,18 @@ from .runtime import proxy_base_url
 
 _CODEX_MARKER_START = "# --- CutCtx persistent provider ---"
 _CODEX_MARKER_END = "# --- end CutCtx persistent provider ---"
+_LEGACY_CODEX_MARKER_START = "# --- Headroom persistent provider ---"
+_LEGACY_CODEX_MARKER_END = "# --- end Headroom persistent provider ---"
 _CODEX_PATTERN = re.compile(
-    re.escape(_CODEX_MARKER_START) + r".*?" + re.escape(_CODEX_MARKER_END),
+    r"(?:"
+    + re.escape(_CODEX_MARKER_START)
+    + r"|"
+    + re.escape(_LEGACY_CODEX_MARKER_START)
+    + r").*?(?:"
+    + re.escape(_CODEX_MARKER_END)
+    + r"|"
+    + re.escape(_LEGACY_CODEX_MARKER_END)
+    + r")",
     re.DOTALL,
 )
 
@@ -81,7 +91,7 @@ def apply_provider_scope(manifest: DeploymentManifest) -> ManagedMutation | None
     )
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        if _CODEX_MARKER_START in existing:
+        if _CODEX_MARKER_START in existing or _LEGACY_CODEX_MARKER_START in existing:
             merged = _CODEX_PATTERN.sub(section, existing)
         else:
             merged = existing.rstrip() + "\n\n" + section + "\n"
@@ -101,7 +111,7 @@ def revert_provider_scope(mutation: ManagedMutation, manifest: DeploymentManifes
         return
     content = path.read_text(encoding="utf-8")
     # Remove the managed marker block.
-    if _CODEX_MARKER_START in content:
+    if _CODEX_MARKER_START in content or _LEGACY_CODEX_MARKER_START in content:
         content = _CODEX_PATTERN.sub("", content)
     # Strip any orphan top-level keys that a crashed or partial write may have
     # left outside the marker block (mirrors wrap.py _strip_codex_headroom_blocks).

@@ -41,13 +41,15 @@ def test_init_auto_detects_targets(monkeypatch) -> None:
     runner = CliRunner()
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(init_cli, "detect_init_targets", lambda global_scope: ["claude", "codex"])
+    monkeypatch.setattr(
+        init_cli, "detect_init_targets", lambda global_scope: ["claude", "codex", "gemini"]
+    )
     monkeypatch.setattr(init_cli, "_run_init_targets", lambda **kwargs: captured.update(kwargs))
 
     result = runner.invoke(fake_main, ["init", "-g"])
 
     assert result.exit_code == 0, result.output
-    assert captured["targets"] == ["claude", "codex"]
+    assert captured["targets"] == ["claude", "codex", "gemini"]
     assert captured["global_scope"] is True
 
 
@@ -69,11 +71,11 @@ def test_init_fails_when_auto_detection_empty(monkeypatch) -> None:
     assert "No supported user-scope agents were found on PATH" in result.output
     assert "probed the following agents" in result.output
     # Every in-scope target is listed with its lookup status.
-    for target in ("claude", "codex", "copilot", "openclaw"):
+    for target in ("claude", "codex", "copilot", "gemini", "openclaw"):
         assert target in result.output
     # The user is told that -g is still valid and given a concrete next step.
     assert "-g" in result.output
-    assert "headroom init -g claude" in result.output
+    assert "cutctx init -g claude" in result.output
 
 
 def test_format_empty_detection_error_local_scope(monkeypatch) -> None:
@@ -89,8 +91,8 @@ def test_format_empty_detection_error_local_scope(monkeypatch) -> None:
     # Copilot / openclaw are global-only; must not be suggested for local.
     assert "headroom init copilot" not in message
     assert "headroom init openclaw" not in message
-    assert "headroom init claude" in message
-    assert "headroom init codex" in message
+    assert "cutctx init claude" in message
+    assert "cutctx init codex" in message
 
 
 def test_format_empty_detection_error_reports_found_paths(monkeypatch, tmp_path) -> None:
@@ -138,7 +140,7 @@ def test_init_verbose_enables_debug_logging_on_stderr(monkeypatch) -> None:
     assert "[headroom init]" in stderr
     assert "detect_init_targets" in stderr
     assert "global_scope=True" in stderr
-    for target in ("claude", "codex", "copilot", "openclaw"):
+    for target in ("claude", "codex", "copilot", "gemini", "openclaw"):
         assert target in stderr
 
 
@@ -231,7 +233,9 @@ def test_init_copilot_global_writes_hooks_and_env(monkeypatch, tmp_path: Path) -
     init_cli, _ = _load_init_module(monkeypatch)
     captured_env: dict[str, str] = {}
     monkeypatch.setattr(init_cli, "_copilot_config_path", lambda: tmp_path / "copilot-config.json")
-    monkeypatch.setattr(init_cli, "_apply_user_env", lambda values: captured_env.update(values))
+    monkeypatch.setattr(
+        init_cli, "_apply_user_env", lambda values, target: captured_env.update(values)
+    )
     monkeypatch.setattr(init_cli, "_install_copilot_marketplace", lambda: None)
 
     init_cli._init_copilot(global_scope=True, profile="init-user", port=9005, backend="openai")
@@ -244,6 +248,33 @@ def test_init_copilot_global_writes_hooks_and_env(monkeypatch, tmp_path: Path) -
         "COPILOT_PROVIDER_TYPE": "openai",
         "COPILOT_PROVIDER_BASE_URL": "http://127.0.0.1:9005/v1",
         "COPILOT_PROVIDER_WIRE_API": "completions",
+    }
+
+
+def test_init_gemini_global_writes_hooks_and_env(monkeypatch, tmp_path: Path) -> None:
+    init_cli, _ = _load_init_module(monkeypatch)
+    captured_env: dict[str, str] = {}
+    monkeypatch.setattr(init_cli, "_gemini_settings_path", lambda: tmp_path / "settings.json")
+    monkeypatch.setattr(
+        init_cli, "_apply_user_env", lambda values, target: captured_env.update(values)
+    )
+
+    init_cli._init_gemini(global_scope=True, profile="init-user", port=9006)
+
+    payload = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
+    assert payload["tools"]["enableHooks"] is True
+    assert "SessionStart" in payload["hooks"]
+    assert "BeforeTool" in payload["hooks"]
+    session_command = payload["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    before_tool_command = payload["hooks"]["BeforeTool"][0]["hooks"][0]["command"]
+    assert "--profile init-user" in session_command
+    assert "--json-output" in session_command
+    assert "--profile init-user" in before_tool_command
+    assert payload["hooks"]["BeforeTool"][0]["matcher"] == ".*"
+    assert captured_env == {
+        "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:9006",
+        "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:9006",
+        "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:9006",
     }
 
 
@@ -277,6 +308,16 @@ def test_init_openclaw_requires_global(monkeypatch) -> None:
     assert "requires -g" in result.output
 
 
+def test_init_gemini_requires_global(monkeypatch) -> None:
+    _, fake_main = _load_init_module(monkeypatch)
+    runner = CliRunner()
+
+    result = runner.invoke(fake_main, ["init", "gemini"])
+
+    assert result.exit_code != 0
+    assert "requires -g" in result.output
+
+
 def test_init_openclaw_delegates_to_wrap(monkeypatch) -> None:
     init_cli, _ = _load_init_module(monkeypatch)
     calls: list[list[str]] = []
@@ -301,11 +342,11 @@ def test_detect_init_targets_respects_scope(monkeypatch) -> None:
     monkeypatch.setattr(
         init_cli.shutil,
         "which",
-        lambda name: name if name in {"claude", "copilot", "codex", "openclaw"} else None,
+        lambda name: name if name in {"claude", "copilot", "codex", "gemini", "openclaw"} else None,
     )
 
     assert init_cli.detect_init_targets(False) == ["claude", "codex"]
-    assert init_cli.detect_init_targets(True) == ["claude", "copilot", "codex", "openclaw"]
+    assert init_cli.detect_init_targets(True) == ["claude", "copilot", "codex", "gemini", "openclaw"]
 
 
 def test_marketplace_source_prefers_env_override(monkeypatch) -> None:
@@ -478,7 +519,7 @@ def test_ensure_codex_provider_keeps_root_keys_above_existing_table(
 
     Appending the block after a trailing [features] table scoped model_provider
     under it, so Codex refused to start with
-    'invalid type: string "headroom", expected a boolean in features'.
+    'invalid type: string "cutctx", expected a boolean in features'.
     """
     init_cli, _ = _load_init_module(monkeypatch)
     path = tmp_path / "config.toml"
@@ -488,12 +529,12 @@ def test_ensure_codex_provider_keeps_root_keys_above_existing_table(
 
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))
     # model_provider belongs at the document root, not under [features].
-    assert parsed["model_provider"] == "headroom"
+    assert parsed["model_provider"] == "cutctx"
     assert "model_provider" not in parsed["features"]
     assert "openai_base_url" not in parsed["features"]
     # The user's existing table is preserved.
     assert parsed["features"]["codex_hooks"] is True
-    assert parsed["model_providers"]["headroom"]["base_url"] == "http://127.0.0.1:8787/v1"
+    assert parsed["model_providers"]["cutctx"]["base_url"] == "http://127.0.0.1:8787/v1"
 
 
 def test_ensure_codex_provider_replaces_existing_model_provider(
@@ -510,7 +551,7 @@ def test_ensure_codex_provider_replaces_existing_model_provider(
     init_cli._ensure_codex_provider(path, 8787)
 
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))  # raises on a duplicate key
-    assert parsed["model_provider"] == "headroom"
+    assert parsed["model_provider"] == "cutctx"
     assert parsed["features"]["codex_hooks"] is True
 
 
@@ -673,16 +714,16 @@ def test_apply_user_env_routes_by_platform(monkeypatch) -> None:
     manifest = SimpleNamespace(base_env={"OLD": "1"}, tool_envs={})
     windows_calls: list[object] = []
     unix_calls: list[object] = []
-    monkeypatch.setattr(init_cli, "_env_manifest", lambda values: manifest)
+    monkeypatch.setattr(init_cli, "_env_manifest", lambda values, target: manifest)
     monkeypatch.setattr(
         init_cli, "_apply_windows_env_scope", lambda value: windows_calls.append(value)
     )
     monkeypatch.setattr(init_cli, "_apply_unix_env_scope", lambda value: unix_calls.append(value))
 
     monkeypatch.setattr(init_cli, "os", SimpleNamespace(name="nt"))
-    init_cli._apply_user_env({"COPILOT_PROVIDER_TYPE": "openai"})
+    init_cli._apply_user_env({"COPILOT_PROVIDER_TYPE": "openai"}, target="copilot")
     monkeypatch.setattr(init_cli, "os", SimpleNamespace(name="posix"))
-    init_cli._apply_user_env({"COPILOT_PROVIDER_TYPE": "anthropic"})
+    init_cli._apply_user_env({"COPILOT_PROVIDER_TYPE": "anthropic"}, target="copilot")
 
     assert manifest.base_env == {}
     assert manifest.tool_envs == {"copilot": {"COPILOT_PROVIDER_TYPE": "anthropic"}}
@@ -1031,12 +1072,19 @@ def test_run_init_targets_dispatches_supported_targets(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         init_cli,
+        "_init_gemini",
+        lambda **kwargs: calls.append(
+            ("gemini", (kwargs["global_scope"], kwargs["profile"], kwargs["port"]))
+        ),
+    )
+    monkeypatch.setattr(
+        init_cli,
         "_init_openclaw",
         lambda **kwargs: calls.append(("openclaw", (kwargs["global_scope"], kwargs["port"]))),
     )
 
     init_cli._run_init_targets(
-        targets=["claude", "copilot", "codex", "openclaw"],
+        targets=["claude", "copilot", "codex", "gemini", "openclaw"],
         global_scope=True,
         port=9000,
         backend="openai",
@@ -1049,6 +1097,7 @@ def test_run_init_targets_dispatches_supported_targets(monkeypatch) -> None:
         ("claude", (True, "init-profile", 9000)),
         ("copilot", (True, "init-profile", 9000)),
         ("codex", (True, "init-profile", 9000)),
+        ("gemini", (True, "init-profile", 9000)),
         ("openclaw", (True, 9000)),
     ]
 
@@ -1110,6 +1159,24 @@ def test_init_hook_ensure_uses_explicit_profile(monkeypatch) -> None:
     assert ensured == ["init-explicit"]
 
 
+def test_init_hook_ensure_emits_json_when_requested(monkeypatch) -> None:
+    init_cli, fake_main = _load_init_module(monkeypatch)
+    ensured: list[str] = []
+    monkeypatch.setattr(
+        init_cli, "_ensure_profile_running", lambda profile: ensured.append(profile)
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        fake_main,
+        ["init", "hook", "ensure", "--profile", "init-explicit", "--json-output"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert ensured == ["init-explicit"]
+    assert result.output.strip() == "{}"
+
+
 # ---------------------------------------------------------------------------
 # Bug 3 (#406): _ensure_codex_provider must inject openai_base_url
 # ---------------------------------------------------------------------------
@@ -1168,7 +1235,7 @@ def test_init_codex_strip_removes_openai_base_url(monkeypatch, tmp_path: Path) -
     orphan_content = (
         'model = "gpt-4o"\n'
         'openai_base_url = "http://127.0.0.1:8787/v1"\n'
-        'model_provider = "headroom"\n'
+        'model_provider = "cutctx"\n'
     )
     orphan_stripped = init_cli._strip_codex_init_block(orphan_content)
     assert "openai_base_url" not in orphan_stripped, (

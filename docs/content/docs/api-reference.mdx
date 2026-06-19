@@ -1,21 +1,21 @@
 ---
 title: API Reference
-description: Complete API reference for the Headroom Python and TypeScript SDKs. Core client, configuration types, result types, errors, and utilities.
+description: Complete API reference for the CutCtx Python and TypeScript SDKs. Core client, configuration types, result types, errors, and utilities.
 ---
 
-Complete API reference for the Headroom Python and TypeScript SDKs.
+Complete API reference for the CutCtx Python and TypeScript SDKs.
 
 ## Core
 
 ### HeadroomClient
 
-The main entry point for the Headroom SDK.
+The main entry point for the CutCtx SDK.
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 
 <TypeTable type={{
-  baseUrl: { type: 'string', description: 'Base URL for the Headroom proxy' },
+  baseUrl: { type: 'string', description: 'Base URL for the CutCtx proxy' },
   apiKey: { type: 'string', description: 'API key for authentication' },
   timeout: { type: 'number', description: 'Request timeout in milliseconds' },
   fallback: { type: 'boolean', description: 'Return original messages on failure instead of throwing' },
@@ -23,7 +23,7 @@ The main entry point for the Headroom SDK.
 }} />
 
 ```ts twoslash
-import { HeadroomClient } from 'headroom-ai';
+import { HeadroomClient } from 'cutctx-ai';
 
 const client = new HeadroomClient({
   baseUrl: 'http://localhost:8787',
@@ -75,7 +75,7 @@ Create a chat completion with optional optimization.
 The TypeScript SDK uses `compress()` to optimize messages before sending them to your LLM client:
 
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, {
   model: 'gpt-4o',
@@ -88,7 +88,7 @@ const result = await compress(messages, {
 </Tab>
 <Tab value="Python">
 
-Accepts all standard OpenAI/Anthropic parameters plus Headroom-specific overrides:
+Accepts all standard OpenAI/Anthropic parameters plus CutCtx-specific overrides:
 
 <TypeTable type={{
   headroom_mode: { type: '"audit" | "optimize" | "simulate"', description: 'Override mode for this request', default: 'Client default' },
@@ -132,11 +132,11 @@ print(f"Transforms: {plan.transforms_applied}")
 
 ### compress() (TypeScript)
 
-Top-level function to compress messages via the Headroom proxy.
+Top-level function to compress messages via the CutCtx proxy.
 
 <TypeTable type={{
   model: { type: 'string', description: 'Model name for token counting and context limits' },
-  baseUrl: { type: 'string', description: 'Base URL for the Headroom proxy' },
+  baseUrl: { type: 'string', description: 'Base URL for the CutCtx proxy' },
   apiKey: { type: 'string', description: 'API key for authentication' },
   timeout: { type: 'number', description: 'Request timeout in milliseconds' },
   fallback: { type: 'boolean', description: 'Return original messages on failure instead of throwing' },
@@ -147,7 +147,7 @@ Top-level function to compress messages via the Headroom proxy.
 }} />
 
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, {
   model: 'gpt-4o',
@@ -317,7 +317,7 @@ config = CacheAlignerConfig(
 </Tab>
 <Tab value="Python">
 
-Context management is now automatic. Headroom handles rolling window behavior internally based on the model's context limit and the `headroom_keep_turns` / `headroom_output_buffer_tokens` per-request overrides. The `RollingWindowConfig`, `IntelligentContextConfig`, and `ScoringWeights` classes no longer exist as public API.
+Context management is now automatic. CutCtx handles rolling window behavior internally based on the model's context limit and the `headroom_keep_turns` / `headroom_output_buffer_tokens` per-request overrides. The `RollingWindowConfig`, `IntelligentContextConfig`, and `ScoringWeights` classes no longer exist as public API.
 
 </Tab>
 </Tabs>
@@ -513,7 +513,7 @@ scores = scorer.score_items(items=["item 1", "item 2"], query="search query")
 
 ### EmbeddingScorer
 
-Semantic similarity scoring (requires `headroom-ai[relevance]`):
+Semantic similarity scoring (requires `cutctx-ai[relevance]`):
 
 ```python
 from headroom import EmbeddingScorer, embedding_available
@@ -607,7 +607,7 @@ Use `mapProxyError(status, type, message)` to convert proxy error responses to t
 
 | Exception | Meaning |
 |-----------|---------|
-| `HeadroomError` | Base class for all Headroom errors |
+| `HeadroomError` | Base class for all CutCtx errors |
 | `ConfigurationError` | Invalid config values |
 | `ProviderError` | Provider issue (unknown model, etc.) |
 | `StorageError` | Database issue |

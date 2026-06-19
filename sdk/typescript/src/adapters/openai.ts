@@ -20,7 +20,7 @@ interface OpenAILike {
  *
  * @example
  * ```typescript
- * import { withHeadroom } from 'headroom-ai/openai';
+ * import { withHeadroom } from 'cutctx-ai/openai';
  * import OpenAI from 'openai';
  *
  * const client = withHeadroom(new OpenAI());

@@ -3,12 +3,12 @@ title: Strands
 description: Context compression for Strands Agents via model wrapping and hook-based tool output compression.
 ---
 
-Headroom integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) through two patterns: wrap the model for full conversation compression, or hook into tool calls for targeted tool output compression.
+CutCtx integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) through two patterns: wrap the model for full conversation compression, or hook into tool calls for targeted tool output compression.
 
 ## Installation
 
 ```bash
-pip install headroom-ai strands-agents
+pip install cutctx-ai strands-agents
 ```
 
 ## Quick start
@@ -104,7 +104,7 @@ HeadroomStrandsModel.stream()
 Provider API (Bedrock, etc.)
 ```
 
-The model wrapper uses the full Headroom pipeline (CacheAligner, ContentRouter, IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression.
+The model wrapper uses the full CutCtx pipeline (CacheAligner, ContentRouter, IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression.
 
 ## Structured output
 

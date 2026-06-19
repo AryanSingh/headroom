@@ -3,7 +3,7 @@ title: Cache Optimization
 description: Stabilize message prefixes for provider KV cache hits and configure provider-specific caching strategies.
 ---
 
-LLM providers cache prompt prefixes to avoid reprocessing identical input on repeated calls. Headroom's **CacheAligner** stabilizes your message prefixes so these caches actually hit, and then applies provider-specific strategies to maximize savings.
+LLM providers cache prompt prefixes to avoid reprocessing identical input on repeated calls. CutCtx's **CacheAligner** stabilizes your message prefixes so these caches actually hit, and then applies provider-specific strategies to maximize savings.
 
 ## How CacheAligner works
 
@@ -24,13 +24,13 @@ The prefix stays byte-identical across requests, so the provider's KV cache can 
 
 ## Provider-specific strategies
 
-Each LLM provider implements caching differently. Headroom applies the optimal strategy for each.
+Each LLM provider implements caching differently. CutCtx applies the optimal strategy for each.
 
 ### Anthropic
 
 Anthropic supports explicit `cache_control` blocks that mark content as cacheable. Cached input tokens cost **90% less** than regular input tokens.
 
-Headroom automatically inserts `cache_control` breakpoints at the right positions in your messages so that stable prefixes (system prompts, early conversation turns) are cached across requests.
+CutCtx automatically inserts `cache_control` breakpoints at the right positions in your messages so that stable prefixes (system prompts, early conversation turns) are cached across requests.
 
 | Metric | Value |
 |---|---|
@@ -54,7 +54,7 @@ CacheAligner ensures your prefixes remain stable by extracting dynamic content, 
 
 Google provides the **CachedContent API**, which lets you explicitly cache large context (system instructions, documents, tools) and reference it across requests. Cached tokens cost **75% less**.
 
-Headroom can manage CachedContent lifecycle automatically, creating and refreshing cached content objects as needed.
+CutCtx can manage CachedContent lifecycle automatically, creating and refreshing cached content objects as needed.
 
 | Metric | Value |
 |---|---|
@@ -67,12 +67,12 @@ Headroom can manage CachedContent lifecycle automatically, creating and refreshi
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from "headroom-ai";
+import { compress } from "cutctx-ai";
 import type {
   CacheAlignerConfig,
   CacheOptimizerConfig,
   HeadroomConfig,
-} from "headroom-ai";
+} from "cutctx-ai";
 
 // CacheAligner: stabilize prefixes for cache hits
 const cacheAligner: CacheAlignerConfig = {
@@ -150,7 +150,7 @@ client = HeadroomClient(
 
 ## How savings compound
 
-CacheAligner and provider caching work together with Headroom's compression transforms:
+CacheAligner and provider caching work together with CutCtx's compression transforms:
 
 1. **SmartCrusher** reduces token count by 70-90%
 2. **CacheAligner** stabilizes prefixes so provider caches hit

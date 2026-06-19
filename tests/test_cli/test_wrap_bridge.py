@@ -89,8 +89,18 @@ def test_wrap_codex_prepare_only_updates_config(monkeypatch, tmp_path: Path) -> 
     assert result.exit_code == 0, result.output
     config_file = tmp_path / ".codex" / "config.toml"
     assert config_file.exists()
-    assert 'model_provider = "headroom"' in config_file.read_text()
+    assert 'model_provider = "cutctx"' in config_file.read_text()
     assert 'base_url = "http://127.0.0.1:8787/v1"' in config_file.read_text()
+
+
+def test_wrap_gemini_prepare_only_skips_host_binary_lookup() -> None:
+    runner = CliRunner()
+
+    with patch("headroom.cli.wrap.shutil.which") as which_mock:
+        result = runner.invoke(main, ["wrap", "gemini", "--prepare-only", "--no-context-tool"])
+
+    assert result.exit_code == 0, result.output
+    which_mock.assert_not_called()
 
 
 def test_wrap_codex_prepare_only_uses_lean_ctx_when_configured(monkeypatch, tmp_path: Path) -> None:

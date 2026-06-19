@@ -3,7 +3,7 @@ title: SmartCrusher
 description: Statistical JSON and array compression that keeps important items and drops the rest, achieving 70-90% token reduction.
 ---
 
-SmartCrusher is Headroom's compressor for JSON tool outputs. It analyzes arrays statistically, keeps the important items (errors, anomalies, relevant matches), and drops the rest. This is the compressor that fires automatically when ContentRouter detects JSON arrays.
+SmartCrusher is CutCtx's compressor for JSON tool outputs. It analyzes arrays statistically, keeps the important items (errors, anomalies, relevant matches), and drops the rest. This is the compressor that fires automatically when ContentRouter detects JSON arrays.
 
 ## How It Works
 
@@ -33,7 +33,7 @@ The result: a 1,000-item array becomes ~50 items with all the information the LL
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from "headroom-ai";
+import { compress } from "cutctx-ai";
 
 // SmartCrusher fires automatically for JSON tool outputs
 const messages = [
@@ -71,9 +71,9 @@ compressed = crusher.crush(tool_output, query="user's question")
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from "headroom-ai";
+import { compress } from "cutctx-ai";
 
-// Configure via the Headroom proxy or HeadroomClient
+// Configure via the CutCtx proxy or HeadroomClient
 const result = await compress(messages, {
   model: "gpt-4o",
   tokenBudget: 10000, // SmartCrusher will reduce JSON to fit

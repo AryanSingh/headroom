@@ -238,7 +238,44 @@ def test_install_start_rejects_task_lifecycle(monkeypatch) -> None:
     result = runner.invoke(main, ["install", "start"])
 
     assert result.exit_code != 0
-    assert "headroom install start" in result.output
+    assert "cutctx install start" in result.output
+
+
+def test_install_apply_accepts_gemini_manual_target(monkeypatch) -> None:
+    runner = CliRunner()
+    captured: dict[str, object] = {}
+
+    class Manifest:
+        profile = "default"
+        preset = "persistent-service"
+        runtime_kind = "python"
+        supervisor_kind = "service"
+        scope = "user"
+        health_url = "http://127.0.0.1:8787/readyz"
+        targets = ["gemini"]
+        mutations = []
+        artifacts = []
+
+    monkeypatch.setattr(
+        "headroom.cli.install.build_manifest",
+        lambda **kwargs: captured.update(kwargs) or Manifest(),
+    )
+    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda deployment: None)
+    monkeypatch.setattr(
+        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+    )
+
+    result = runner.invoke(
+        main,
+        ["install", "apply", "--providers", "manual", "--target", "gemini"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["targets"] == ["gemini"]
 
 
 def test_install_apply_uses_docker_runtime_for_persistent_docker(monkeypatch) -> None:

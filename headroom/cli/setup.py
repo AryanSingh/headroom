@@ -28,6 +28,7 @@ def _detect_agents() -> list[dict[str, str]]:
     checks = [
         ("claude", "Claude Code", "claude"),
         ("codex", "Codex CLI", "codex"),
+        ("gemini", "Gemini CLI", "gemini"),
         ("cursor", "Cursor", "cursor"),
         ("aider", "Aider", "aider"),
         ("copilot", "GitHub Copilot", "copilot"),

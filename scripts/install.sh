@@ -52,6 +52,7 @@ ${marker_end}"
 
 write_wrapper() {
   local wrapper_path="${INSTALL_DIR}/headroom"
+  local alias_path="${INSTALL_DIR}/cutctx"
 
   {
     printf '#!%s\n\n' "${BASH_PATH}"
@@ -981,7 +982,7 @@ parse_openclaw_wrap_args() {
   shift 11
 
   out_plugin_path=""
-  out_plugin_spec="headroom-ai/openclaw"
+  out_plugin_spec="cutctx-openclaw"
   out_skip_build=0
   out_copy=0
   out_proxy_port=8787
@@ -1073,7 +1074,7 @@ parse_openclaw_wrap_args() {
         shift
         ;;
       *)
-        die "Unsupported option for 'headroom wrap openclaw': $1"
+        die "Unsupported option for 'cutctx wrap openclaw': $1"
         ;;
     esac
   done
@@ -1631,6 +1632,8 @@ WRAPPER
   } >"${wrapper_path}"
 
   chmod +x "${wrapper_path}"
+  cp "${wrapper_path}" "${alias_path}"
+  chmod +x "${alias_path}"
 }
 
 main() {
@@ -1660,13 +1663,14 @@ main() {
 
 Headroom Docker-native install complete.
 
-Installed wrapper:
+Installed wrappers:
   ${INSTALL_DIR}/headroom
+  ${INSTALL_DIR}/cutctx
 
 Next steps:
   1. Restart your shell or run: export PATH="${INSTALL_DIR}:\$PATH"
-  2. Try: headroom proxy
-  3. Docs: https://github.com/chopratejas/headroom/blob/main/docs/docker-install.md
+  2. Try: cutctx proxy
+  3. Docs: https://github.com/AryanSingh/cutcxt/blob/main/docs/docker-install.md
 EOF
 }
 

@@ -21,6 +21,7 @@ from headroom.install.models import ConfigScope, InstallPreset, RuntimeKind, Sup
 from headroom.install.paths import claude_settings_path, codex_config_path, validate_profile_name
 from headroom.install.planner import build_manifest
 from headroom.install.providers import _apply_unix_env_scope, _apply_windows_env_scope
+from headroom.providers.gemini.install import build_install_env as _build_gemini_install_env
 from headroom.install.runtime import (
     acquire_runtime_start_lock,
     resolve_headroom_command,
@@ -43,13 +44,14 @@ _GLOBAL_PROFILE = "init-user"
 _CLAUDE_HOOK_MARKER = "headroom-init-claude"
 _COPILOT_HOOK_MARKER = "headroom-init-copilot"
 _CODEX_HOOK_MARKER = "headroom-init-codex"
+_GEMINI_HOOK_MARKER = "headroom-init-gemini"
 _CODEX_PROVIDER_MARKER_START = "# --- CutCtx init provider ---"
 _CODEX_PROVIDER_MARKER_END = "# --- end CutCtx init provider ---"
 _CODEX_FEATURE_MARKER_START = "# --- CutCtx init features ---"
 _CODEX_FEATURE_MARKER_END = "# --- end CutCtx init features ---"
-_SUPPORTED_TARGETS = ("claude", "copilot", "codex", "openclaw")
+_SUPPORTED_TARGETS = ("claude", "copilot", "codex", "gemini", "openclaw")
 _LOCAL_TARGETS = {"claude", "codex"}
-_GLOBAL_TARGETS = {"claude", "copilot", "codex", "openclaw"}
+_GLOBAL_TARGETS = {"claude", "copilot", "codex", "gemini", "openclaw"}
 _STARTUP_READY_TIMEOUT_SECONDS = 15
 
 
@@ -121,6 +123,10 @@ def _codex_scope_path(global_scope: bool) -> Path:
     if global_scope:
         return codex_config_path()
     return Path.cwd() / ".codex" / "config.toml"
+
+
+def _gemini_settings_path() -> Path:
+    return Path.home() / ".gemini" / "settings.json"
 
 
 def _json_file(path: Path) -> dict[str, Any]:
@@ -203,6 +209,58 @@ def _ensure_copilot_hooks(path: Path, profile: str) -> None:
         ]
         retained.append({"type": "command", "command": command, "cwd": ".", "timeout": 15})
         hooks[event] = retained
+    payload["hooks"] = hooks
+    _write_json(path, payload)
+
+
+def _retain_non_headroom_hook_entries(entries: list[Any], marker: str) -> list[Any]:
+    retained: list[Any] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            retained.append(entry)
+            continue
+        hook_items = entry.get("hooks")
+        if not isinstance(hook_items, list):
+            retained.append(entry)
+            continue
+        has_headroom = any(
+            isinstance(item, dict) and marker in str(item.get("command", ""))
+            for item in hook_items
+        )
+        if not has_headroom:
+            retained.append(entry)
+    return retained
+
+
+def _ensure_gemini_hooks(path: Path, profile: str) -> None:
+    logger.debug("ensure gemini hooks: %s (profile=%s)", path, profile)
+    payload = _json_file(path)
+    tools = dict(payload.get("tools") or {}) if isinstance(payload.get("tools"), dict) else {}
+    tools["enableHooks"] = True
+    payload["tools"] = tools
+
+    hooks = dict(payload.get("hooks") or {}) if isinstance(payload.get("hooks"), dict) else {}
+    command = (
+        f"{_hook_command('--profile', profile)} --marker {_GEMINI_HOOK_MARKER} --json-output"
+    )
+    hook_payload = {"type": "command", "command": command, "timeout": 15000}
+
+    session_entries = list(hooks.get("SessionStart") or []) if isinstance(
+        hooks.get("SessionStart"), list
+    ) else []
+    session_entries = _retain_non_headroom_hook_entries(session_entries, _GEMINI_HOOK_MARKER)
+    session_entries.append({"hooks": [hook_payload]})
+    hooks["SessionStart"] = session_entries
+
+    before_tool_entries = list(hooks.get("BeforeTool") or []) if isinstance(
+        hooks.get("BeforeTool"), list
+    ) else []
+    before_tool_entries = _retain_non_headroom_hook_entries(
+        before_tool_entries, _GEMINI_HOOK_MARKER
+    )
+    before_tool_entries.append({"matcher": ".*", "hooks": [hook_payload]})
+    hooks["BeforeTool"] = before_tool_entries
+
     payload["hooks"] = hooks
     _write_json(path, payload)
 
@@ -449,14 +507,14 @@ def _ensure_runtime_manifest(
     return profile
 
 
-def _env_manifest(values: dict[str, str]) -> Any:
+def _env_manifest(values: dict[str, str], target: str) -> Any:
     return build_manifest(
         profile="init-env",
         preset=InstallPreset.PERSISTENT_TASK.value,
         runtime_kind=RuntimeKind.PYTHON.value,
         scope=ConfigScope.USER.value,
         provider_mode="manual",
-        targets=["copilot"],
+        targets=[target],
         port=8787,
         backend="anthropic",
         anyllm_provider=None,
@@ -468,10 +526,10 @@ def _env_manifest(values: dict[str, str]) -> Any:
     )
 
 
-def _apply_user_env(values: dict[str, str]) -> None:
-    manifest = _env_manifest(values)
+def _apply_user_env(values: dict[str, str], *, target: str) -> None:
+    manifest = _env_manifest(values, target)
     manifest.base_env = {}
-    manifest.tool_envs = {"copilot": values}
+    manifest.tool_envs = {target: values}
     scope = "windows" if os.name == "nt" else "unix"
     logger.debug("apply user env scope=%s keys=%s", scope, sorted(values.keys()))
     if os.name == "nt":
@@ -491,6 +549,10 @@ def _resolve_copilot_env(port: int, backend: str) -> dict[str, str]:
         "COPILOT_PROVIDER_BASE_URL": f"http://127.0.0.1:{port}/v1",
         "COPILOT_PROVIDER_WIRE_API": "completions",
     }
+
+
+def _resolve_gemini_env(port: int) -> dict[str, str]:
+    return _build_gemini_install_env(port=port, backend="ignored")
 
 
 def _marketplace_source() -> str:
@@ -696,7 +758,7 @@ def _init_copilot(*, global_scope: bool, profile: str, port: int, backend: str) 
             "Copilot durable init currently requires -g (current-user scope)."
         )
     _ensure_copilot_hooks(_copilot_config_path(), profile)
-    _apply_user_env(_resolve_copilot_env(port, backend))
+    _apply_user_env(_resolve_copilot_env(port, backend), target="copilot")
     _install_copilot_marketplace()
     click.echo("Configured GitHub Copilot CLI (user scope).")
     click.echo("Restart Copilot CLI to activate CutCtx hooks and provider routing.")
@@ -713,6 +775,17 @@ def _init_codex(*, global_scope: bool, profile: str, port: int) -> None:
             "Codex hooks are currently disabled upstream on Windows; provider routing was still installed."
         )
     click.echo("Restart Codex to activate CutCtx configuration.")
+
+
+def _init_gemini(*, global_scope: bool, profile: str, port: int) -> None:
+    if not global_scope:
+        raise click.ClickException(
+            "Gemini durable init currently requires -g (current-user scope)."
+        )
+    _ensure_gemini_hooks(_gemini_settings_path(), profile)
+    _apply_user_env(_resolve_gemini_env(port), target="gemini")
+    click.echo("Configured Gemini CLI (user scope).")
+    click.echo("Restart Gemini CLI to activate CutCtx hooks and provider routing.")
 
 
 def _init_openclaw(*, global_scope: bool, port: int) -> None:
@@ -763,6 +836,8 @@ def _run_init_targets(
             _init_copilot(global_scope=global_scope, profile=profile, port=port, backend=backend)
         elif target == "codex":
             _init_codex(global_scope=global_scope, profile=profile, port=port)
+        elif target == "gemini":
+            _init_gemini(global_scope=global_scope, profile=profile, port=port)
         elif target == "openclaw":
             _init_openclaw(global_scope=global_scope, port=port)
 
@@ -909,6 +984,21 @@ def init_codex(ctx: click.Context) -> None:
     )
 
 
+@init.command("gemini")
+@click.pass_context
+def init_gemini(ctx: click.Context) -> None:
+    """Install Gemini CLI durable hooks and provider routing."""
+    _run_init_targets(
+        targets=["gemini"],
+        global_scope=bool(_ctx_value(ctx, "global_scope")),
+        port=int(_ctx_value(ctx, "port") or 8787),
+        backend=str(_ctx_value(ctx, "backend") or "anthropic"),
+        anyllm_provider=_ctx_value(ctx, "anyllm_provider"),
+        region=_ctx_value(ctx, "region"),
+        memory=bool(_ctx_value(ctx, "memory")),
+    )
+
+
 @init.command("openclaw")
 @click.pass_context
 def init_openclaw(ctx: click.Context) -> None:
@@ -932,7 +1022,8 @@ def init_hook() -> None:
 @init_hook.command("ensure")
 @click.option("--profile", default=None, help="Explicit deployment profile to ensure.")
 @click.option("--marker", default=None, hidden=True)
-def init_hook_ensure(profile: str | None, marker: str | None) -> None:
+@click.option("--json-output", is_flag=True, hidden=True)
+def init_hook_ensure(profile: str | None, marker: str | None, json_output: bool) -> None:
     """Best-effort ensure used by installed agent hooks."""
     del marker
     profiles: list[str] = []
@@ -946,3 +1037,5 @@ def init_hook_ensure(profile: str | None, marker: str | None) -> None:
             profiles.append(_GLOBAL_PROFILE)
     for name in profiles:
         _ensure_profile_running(name)
+    if json_output:
+        click.echo("{}")

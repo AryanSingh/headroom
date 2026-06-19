@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/05-multi-provider.ts
  */
-import { withHeadroom } from "headroom-ai/vercel-ai";
+import { withHeadroom } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 

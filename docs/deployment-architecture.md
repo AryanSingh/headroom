@@ -13,14 +13,14 @@
 ## Local (Fastest)
 
 ```bash
-pip install "headroom-ai[all]"
-headroom proxy --port 8787
+pip install "cutctx-ai[all]"
+cutctx proxy --port 8787
 ```
 
 **Requirements:** Python 3.10+, 2GB RAM
 
 **What runs:**
-- Headroom proxy (FastAPI + Uvicorn)
+- CutCtx proxy (FastAPI + Uvicorn)
 - Python compression pipeline
 - Rust core (via PyO3)
 - SQLite for CCR and memory
@@ -200,7 +200,7 @@ export HF_HUB_OFFLINE=1
 export ORT_STRATEGY=system
 
 # Run proxy
-headroom proxy --port 8787
+cutctx proxy --port 8787
 ```
 
 **Requirements:**
@@ -215,7 +215,7 @@ headroom proxy --port 8787
 │                    Customer Infrastructure                    │
 │                                                              │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │  AI Agent    │───▶│   Headroom   │───▶│  LLM Provider│   │
+│  │  AI Agent    │───▶│   CutCtx   │───▶│  LLM Provider│   │
 │  │  (Claude,    │    │    Proxy     │    │  (Anthropic, │   │
 │  │   Codex,     │    │  (port 8787) │    │   OpenAI,    │   │
 │  │   Cursor)    │    │              │    │   Google)    │   │
@@ -244,7 +244,7 @@ headroom proxy --port 8787
 
 | Component | CPU | Memory | Disk |
 |-----------|-----|--------|------|
-| Headroom proxy | 0.25–1.0 cores | 256MB–1GB | 100MB |
+| CutCtx proxy | 0.25–1.0 cores | 256MB–1GB | 100MB |
 | CCR database | Negligible | 50MB–500MB | 1GB–10GB |
 | Memory store | Negligible | 50MB–500MB | 100MB–1GB |
 | Request logs | Negligible | 10MB–100MB | 1GB–50GB |
@@ -253,7 +253,7 @@ headroom proxy --port 8787
 ## Scaling
 
 ### Horizontal Scaling
-- Run multiple Headroom proxy instances behind a load balancer
+- Run multiple CutCtx proxy instances behind a load balancer
 - Each instance has its own CCR and memory store (isolated)
 - No shared state between instances
 

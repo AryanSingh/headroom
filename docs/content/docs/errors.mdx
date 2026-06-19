@@ -1,9 +1,9 @@
 ---
 title: Error Handling
-description: How to catch and handle Headroom errors in Python and TypeScript. Error hierarchy, proxy error mapping, and safety guarantees.
+description: How to catch and handle CutCtx errors in Python and TypeScript. Error hierarchy, proxy error mapping, and safety guarantees.
 ---
 
-Headroom provides explicit exceptions for debugging, with a core safety guarantee: **compression failures never break your LLM calls**. If compression fails, the original content passes through unchanged.
+CutCtx provides explicit exceptions for debugging, with a core safety guarantee: **compression failures never break your LLM calls**. If compression fails, the original content passes through unchanged.
 
 ## Error Hierarchy
 
@@ -33,7 +33,7 @@ import {
   ConfigurationError,
   ProviderError,
   mapProxyError,
-} from 'headroom-ai';
+} from 'cutctx-ai';
 ```
 
 </Tab>
@@ -68,7 +68,7 @@ from headroom import (
 <Tab value="TypeScript">
 
 ```ts twoslash
-import { compress, HeadroomConnectionError, HeadroomAuthError, HeadroomCompressError, HeadroomError } from 'headroom-ai';
+import { compress, HeadroomConnectionError, HeadroomAuthError, HeadroomCompressError, HeadroomError } from 'cutctx-ai';
 
 try {
   const result = await compress(messages, { model: 'gpt-4o' });
@@ -80,7 +80,7 @@ try {
   } else if (e instanceof HeadroomCompressError) {
     console.error(`Compress failed (${e.statusCode}):`, e.message);
   } else if (e instanceof HeadroomError) {
-    console.error('Headroom error:', e.message, e.details);
+    console.error('CutCtx error:', e.message, e.details);
   }
 }
 ```
@@ -106,10 +106,10 @@ except ConfigurationError as e:
 
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # Headroom continues to work, just without metrics persistence
+    # CutCtx continues to work, just without metrics persistence
 
 except HeadroomError as e:
-    print(f"Headroom error: {e}")
+    print(f"CutCtx error: {e}")
 ```
 
 </Tab>
@@ -124,7 +124,7 @@ Raised when configuration is invalid.
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { ConfigurationError } from 'headroom-ai';
+import { ConfigurationError } from 'cutctx-ai';
 
 // ConfigurationError is thrown when the proxy returns
 // a configuration_error type in its error response
@@ -177,16 +177,16 @@ Raised when compression fails (rare). In practice, compression errors are caught
 
 ### HeadroomConnectionError (TypeScript)
 
-Raised when the TypeScript SDK cannot connect to the Headroom proxy.
+Raised when the TypeScript SDK cannot connect to the CutCtx proxy.
 
 ```ts twoslash
-import { compress, HeadroomConnectionError } from 'headroom-ai';
+import { compress, HeadroomConnectionError } from 'cutctx-ai';
 
 try {
   await compress(messages, { model: 'gpt-4o' });
 } catch (e) {
   if (e instanceof HeadroomConnectionError) {
-    console.error('Is the proxy running? Start with: headroom proxy');
+    console.error('Is the proxy running? Start with: cutctx proxy');
   }
 }
 ```
@@ -209,7 +209,7 @@ The TypeScript SDK automatically maps proxy error responses to the correct error
 The `mapProxyError()` function handles this mapping:
 
 ```ts twoslash
-import { mapProxyError } from 'headroom-ai';
+import { mapProxyError } from 'cutctx-ai';
 
 const error = mapProxyError(400, 'configuration_error', 'Invalid mode');
 // Returns a ConfigurationError instance
@@ -217,12 +217,12 @@ const error = mapProxyError(400, 'configuration_error', 'Invalid mode');
 
 ## Error Details
 
-All Headroom exceptions include a `details` dict/object with additional context:
+All CutCtx exceptions include a `details` dict/object with additional context:
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { HeadroomError } from 'headroom-ai';
+import { HeadroomError } from 'cutctx-ai';
 
 // HeadroomError.details is Record<string, any> | undefined
 // HeadroomCompressError also has .statusCode and .errorType
@@ -247,7 +247,7 @@ except HeadroomError as e:
 
 ## Safety Guarantee
 
-If compression fails, the original content passes through unchanged. Your LLM calls never fail due to Headroom:
+If compression fails, the original content passes through unchanged. Your LLM calls never fail due to CutCtx:
 
 ```python
 messages = [

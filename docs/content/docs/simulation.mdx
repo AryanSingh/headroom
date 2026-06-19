@@ -3,14 +3,14 @@ title: Simulation
 description: Preview compression results without making an LLM call. Use simulation for cost estimation, debugging, and understanding waste signals.
 ---
 
-Simulation mode lets you preview what Headroom would do to your messages without sending them to an LLM. This is useful for cost estimation, debugging compression behavior, and understanding where token waste comes from.
+Simulation mode lets you preview what CutCtx would do to your messages without sending them to an LLM. This is useful for cost estimation, debugging compression behavior, and understanding where token waste comes from.
 
 ## Basic Usage
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 // compress() returns the same result structure —
 // use it without sending to your LLM to simulate

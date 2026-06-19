@@ -1,6 +1,6 @@
 # Audit Compliance
 
-The Headroom proxy includes a tamper-evident audit log to ensure the integrity of all administrative and system actions.
+The CutCtx proxy includes a tamper-evident audit log to ensure the integrity of all administrative and system actions.
 
 ## Cryptographic Hash Chain
 Every audit event is cryptographically linked to the previous event using an HMAC-SHA256 signature.

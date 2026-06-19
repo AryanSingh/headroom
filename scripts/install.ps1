@@ -66,6 +66,8 @@ function Write-Wrapper {
 
     $wrapperPath = Join-Path $TargetDir 'headroom.ps1'
     $cmdPath = Join-Path $TargetDir 'headroom.cmd'
+    $aliasWrapperPath = Join-Path $TargetDir 'cutctx.ps1'
+    $aliasCmdPath = Join-Path $TargetDir 'cutctx.cmd'
     $resolvedInstallImage = $InstallImage.Replace("'", "''")
 
     $wrapper = @'
@@ -914,7 +916,7 @@ function Parse-OpenClawWrapArgs {
 
     $gatewayProviderIds = New-Object System.Collections.Generic.List[string]
     $pluginPath = $null
-    $pluginSpec = 'headroom-ai/openclaw'
+    $pluginSpec = 'cutctx-openclaw'
     $skipBuild = $false
     $copy = $false
     $proxyPort = 8787
@@ -1020,7 +1022,7 @@ function Parse-OpenClawWrapArgs {
                 continue
             }
             default {
-                Fail "Unsupported option for 'headroom wrap openclaw': $arg"
+                Fail "Unsupported option for 'cutctx wrap openclaw': $arg"
             }
         }
     }
@@ -1767,9 +1769,12 @@ switch ($args[0]) {
     $wrapper = $wrapper.Replace('__HEADROOM_INSTALL_IMAGE__', $resolvedInstallImage)
 
     $cmdWrapper = ([string][char]64) + "echo off`r`npowershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%~dp0headroom.ps1"" %*`r`n"
+    $aliasCmdWrapper = ([string][char]64) + "echo off`r`npowershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%~dp0cutctx.ps1"" %*`r`n"
 
     Set-Content -Path $wrapperPath -Value $wrapper -Encoding utf8
     Set-Content -Path $cmdPath -Value $cmdWrapper -Encoding ascii
+    Set-Content -Path $aliasWrapperPath -Value $wrapper -Encoding utf8
+    Set-Content -Path $aliasCmdPath -Value $aliasCmdWrapper -Encoding ascii
 }
 
 Require-Command docker
@@ -1802,8 +1807,10 @@ Write-Host ""
 Write-Host "Installed wrappers:"
 Write-Host "  $InstallDir\headroom.ps1"
 Write-Host "  $InstallDir\headroom.cmd"
+Write-Host "  $InstallDir\cutctx.ps1"
+Write-Host "  $InstallDir\cutctx.cmd"
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Restart PowerShell"
-Write-Host "  2. Try: headroom proxy"
-Write-Host "  3. Docs: https://github.com/chopratejas/headroom/blob/main/docs/docker-install.md"
+Write-Host "  2. Try: cutctx proxy"
+Write-Host "  3. Docs: https://github.com/AryanSingh/cutcxt/blob/main/docs/docker-install.md"

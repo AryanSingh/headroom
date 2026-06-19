@@ -1,6 +1,6 @@
 # Observability — proxy metrics
 
-The Headroom Rust proxy exposes Prometheus-format metrics on the
+The CutCtx Rust proxy exposes Prometheus-format metrics on the
 `/metrics` endpoint of every running proxy instance. The metric
 catalogue below covers Phase D (Bedrock route instrumentation) and
 Phase G PR-G3 (per-invocation RTK + proxy-wide observability).
@@ -66,7 +66,7 @@ intentional byte mutations do not trip the alarm.
 | `wrap_rtk_invocations_total` | Counter | `tool` | RTK invocations observed via the wrap-CLI tail. Surfaced via the Python proxy's `/metrics` exporter; the wrap CLI bumps `headroom.cli.wrap_rtk_metrics.record_rtk_invocation(...)`. |
 
 > **C4 remediation:** This counter is Python-side because RTK is
-> wrapped by `headroom wrap` (Python CLI) and the wrap-side tail
+> wrapped by `cutctx wrap` (Python CLI) and the wrap-side tail
 > is the natural emit site. The Rust proxy previously held a dead
 > counter for this metric; that has been removed.
 

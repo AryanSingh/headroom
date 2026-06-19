@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -65,3 +67,33 @@ def test_mcp_retrieves_proxy_stored_content(fresh_store) -> None:
 
     assert result.get("source") == "local"
     assert result["original_content"] == original
+
+
+def test_mcp_compress_reports_zero_savings_for_noop_ratio_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    fresh_store,
+) -> None:
+    """No-op compressions should report zero savings even if an upstream
+    compression_ratio field is inconsistent."""
+    pytest.importorskip("mcp", reason="MCP SDK required")
+
+    def fake_compress(messages, model):
+        return SimpleNamespace(
+            messages=messages,
+            tokens_before=131,
+            tokens_after=131,
+            compression_ratio=0.0,
+            transforms_applied=["router:noop"],
+        )
+
+    compress_module = importlib.import_module("headroom.compress")
+    monkeypatch.setattr(compress_module, "compress", fake_compress)
+
+    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    result = server._compress_content("PASS unit test 1\nPASS unit test 2\n")
+
+    assert result["original_tokens"] == 131
+    assert result["compressed_tokens"] == 131
+    assert result["tokens_saved"] == 0
+    assert result["savings_percent"] == 0
+    assert result["transforms"] == ["router:noop"]

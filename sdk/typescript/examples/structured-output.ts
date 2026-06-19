@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/09-structured-output.ts
  */
-import { withHeadroom } from "headroom-ai/vercel-ai";
+import { withHeadroom } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";

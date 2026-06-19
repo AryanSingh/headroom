@@ -1,17 +1,17 @@
-# headroom-ai
+# cutctx-ai
 
 Compress LLM context. Save tokens. Fit more into every request.
 
 ## Install
 
 ```bash
-npm install headroom-ai
+npm install cutctx-ai
 ```
 
 ## Quick Start
 
 ```typescript
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, { model: 'gpt-4o' });
 console.log(`Saved ${result.tokensSaved} tokens (${((1 - result.compressionRatio) * 100).toFixed(0)}%)`);
@@ -23,14 +23,14 @@ const response = await openai.chat.completions.create({
 });
 ```
 
-Requires a running Headroom proxy (`headroom proxy`) or Headroom Cloud API key.
+Requires a running CutCtx proxy (`cutctx proxy`) or CutCtx Cloud API key.
 
 ## Framework Adapters
 
 ### Vercel AI SDK
 
 ```typescript
-import { withHeadroom } from 'headroom-ai/vercel-ai';
+import { withHeadroom } from 'cutctx-ai/vercel-ai';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 
@@ -42,7 +42,7 @@ const { text } = await generateText({ model, messages });
 <summary>Advanced: using middleware directly</summary>
 
 ```typescript
-import { headroomMiddleware } from 'headroom-ai/vercel-ai';
+import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
 import { wrapLanguageModel } from 'ai';
 
 const model = wrapLanguageModel({
@@ -56,7 +56,7 @@ const model = wrapLanguageModel({
 ### OpenAI SDK
 
 ```typescript
-import { withHeadroom } from 'headroom-ai/openai';
+import { withHeadroom } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
 const client = withHeadroom(new OpenAI());
@@ -69,7 +69,7 @@ const response = await client.chat.completions.create({
 ### Anthropic SDK
 
 ```typescript
-import { withHeadroom } from 'headroom-ai/anthropic';
+import { withHeadroom } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
 const client = withHeadroom(new Anthropic());
@@ -83,7 +83,7 @@ const response = await client.messages.create({
 ### Google Gemini
 
 ```typescript
-import { withHeadroom } from 'headroom-ai/gemini';
+import { withHeadroom } from 'cutctx-ai/gemini';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -99,7 +99,7 @@ const result = await model.generateContent({
 The full client provides direct access to the proxy's OpenAI and Anthropic passthrough endpoints, plus metrics, CCR, and observability.
 
 ```typescript
-import { HeadroomClient } from 'headroom-ai';
+import { HeadroomClient } from 'cutctx-ai';
 
 const client = new HeadroomClient({
   baseUrl: 'http://localhost:8787',
@@ -143,7 +143,7 @@ const result = await client.compress(messages, { model: 'gpt-4o', tokenBudget: 4
 See what compression would do without calling the LLM.
 
 ```typescript
-import { simulate } from 'headroom-ai';
+import { simulate } from 'cutctx-ai';
 
 const sim = await simulate(messages, { model: 'gpt-4o' });
 console.log(`Would save ${sim.tokensSaved} tokens (${sim.estimatedSavings})`);
@@ -166,8 +166,8 @@ const sim = await client.chat.completions.simulate({
 Customize compression with pre/post hooks — matching the Python `CompressionHooks` API.
 
 ```typescript
-import { compress, CompressionHooks } from 'headroom-ai';
-import type { CompressContext, CompressEvent } from 'headroom-ai';
+import { compress, CompressionHooks } from 'cutctx-ai';
+import type { CompressContext, CompressEvent } from 'cutctx-ai';
 
 class MyHooks extends CompressionHooks {
   // Modify messages before compression
@@ -194,7 +194,7 @@ const result = await compress(messages, { model: 'gpt-4o', hooks: new MyHooks() 
 Compressed inter-agent context sharing — matching the Python `SharedContext` API.
 
 ```typescript
-import { SharedContext } from 'headroom-ai';
+import { SharedContext } from 'cutctx-ai';
 
 const ctx = new SharedContext({ model: 'gpt-4o', ttl: 3600, maxEntries: 100 });
 
@@ -286,7 +286,7 @@ const patterns = await client.toin.getPatterns(20);
 Full TypeScript interfaces for every Python config dataclass.
 
 ```typescript
-import type { HeadroomConfig, SmartCrusherConfig, CCRConfig } from 'headroom-ai';
+import type { HeadroomConfig, SmartCrusherConfig, CCRConfig } from 'cutctx-ai';
 
 const config: HeadroomConfig = {
   defaultMode: 'optimize',
@@ -323,7 +323,7 @@ import {
   CacheError,
   ValidationError,
   TransformError,
-} from 'headroom-ai';
+} from 'cutctx-ai';
 
 try {
   await client.compress(messages);
@@ -343,7 +343,7 @@ try {
 Auto-detects and converts between OpenAI, Anthropic, Vercel AI SDK, and Gemini formats.
 
 ```typescript
-import { detectFormat, toOpenAI, fromOpenAI } from 'headroom-ai';
+import { detectFormat, toOpenAI, fromOpenAI } from 'cutctx-ai';
 
 const format = detectFormat(messages); // 'openai' | 'anthropic' | 'vercel' | 'gemini'
 const openaiMessages = toOpenAI(messages);
@@ -355,7 +355,7 @@ The `compress()` function handles this automatically — pass any format and get
 ## Configuration
 
 ```typescript
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, {
   model: 'gpt-4o',
@@ -377,16 +377,16 @@ Or use environment variables:
 
 ```typescript
 // Case conversion for proxy communication
-import { deepCamelCase, deepSnakeCase } from 'headroom-ai';
+import { deepCamelCase, deepSnakeCase } from 'cutctx-ai';
 
 const tsObj = deepCamelCase({ tokens_before: 100 }); // { tokensBefore: 100 }
 const pyObj = deepSnakeCase({ tokensBefore: 100 });   // { tokens_before: 100 }
 
 // SSE stream parsing
-import { parseSSE, collectStream } from 'headroom-ai';
+import { parseSSE, collectStream } from 'cutctx-ai';
 
 // Hook helpers
-import { extractUserQuery, countTurns, extractToolCalls } from 'headroom-ai';
+import { extractUserQuery, countTurns, extractToolCalls } from 'cutctx-ai';
 ```
 
 ## License

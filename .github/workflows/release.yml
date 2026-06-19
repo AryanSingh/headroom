@@ -11,7 +11,7 @@ env:
   # npm (npmjs.org)
   NPM_REGISTRY_URL: https://registry.npmjs.org
   NPM_SDK_PACKAGE: cutctx-ai
-  NPM_OPENCLAW_PACKAGE: headroom-openclaw
+  NPM_OPENCLAW_PACKAGE: cutctx-openclaw
 
   # GitHub Package Registry
   GITHUB_PACKAGES_REGISTRY_URL: https://npm.pkg.github.com

@@ -1,6 +1,6 @@
 # AWS Bedrock — Operator Guide
 
-Headroom's Rust proxy ships a native AWS Bedrock InvokeModel surface. After Phase D (PRs D1–D3), Anthropic-on-Bedrock requests are signed, compressed, and observed by the proxy directly — no LiteLLM Python shim on the request path.
+CutCtx's Rust proxy ships a native AWS Bedrock InvokeModel surface. After Phase D (PRs D1–D3), Anthropic-on-Bedrock requests are signed, compressed, and observed by the proxy directly — no LiteLLM Python shim on the request path.
 
 This document covers how to deploy the Bedrock-native surface, how compression policy is applied, and how to read the Prometheus metrics the proxy exports.
 

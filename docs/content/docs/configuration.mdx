@@ -1,20 +1,21 @@
 ---
 title: Configuration
-description: All configuration options for the Headroom Python and TypeScript SDKs, proxy server, and per-request overrides.
+description: All configuration options for the CutCtx Python and TypeScript SDKs, proxy server, and per-request overrides.
 ---
 
-Headroom can be configured via the SDK constructor, proxy command line, environment variables, or per-request overrides.
+CutCtx can be configured via the SDK constructor, proxy command line, environment variables, or per-request overrides.
 
 ## CLI Context Tool
 
-`headroom wrap ...` uses RTK for local shell-output filtering by default.
+`cutctx wrap ...` uses RTK for local shell-output filtering by default.
 Set `HEADROOM_CONTEXT_TOOL=lean-ctx` to have wrap commands install or reuse
 `lean-ctx` and run `lean-ctx init --agent <tool>` instead of RTK setup.
 
 ```bash
 export HEADROOM_CONTEXT_TOOL=lean-ctx
-headroom wrap claude
-headroom wrap codex --prepare-only
+cutctx wrap claude
+cutctx wrap codex --prepare-only
+cutctx wrap gemini --prepare-only
 ```
 
 Supported values are `rtk` and `lean-ctx`; unset defaults to `rtk`.
@@ -32,7 +33,7 @@ Supported values are `rtk` and `lean-ctx`; unset defaults to `rtk`.
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { HeadroomClient } from 'headroom-ai';
+import { HeadroomClient } from 'cutctx-ai';
 
 // Reads from HEADROOM_BASE_URL and HEADROOM_API_KEY automatically
 const client = new HeadroomClient();
@@ -85,7 +86,7 @@ Override configuration for individual requests:
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, {
   model: 'gpt-4o',
@@ -182,7 +183,7 @@ The `RollingWindowConfig`, `IntelligentContextConfig`, and `ScoringWeights` clas
 ### Command Line Options
 
 ```bash
-headroom proxy \
+cutctx proxy \
   --port 8787 \              # Port to listen on
   --host 0.0.0.0 \           # Host to bind to
   --mode token \             # token compression mode; use cache for prefix-cache stability
@@ -194,17 +195,17 @@ headroom proxy \
 
 ```bash
 # Disable optimization (passthrough mode)
-headroom proxy --no-optimize
+cutctx proxy --no-optimize
 
 # Disable semantic caching
-headroom proxy --no-cache
+cutctx proxy --no-cache
 
 # Preserve provider prefix-cache stability instead of maximizing token removal
-headroom proxy --mode cache
+cutctx proxy --mode cache
 
 # Enable memory and live learning
-headroom proxy --memory
-headroom proxy --learn --min-evidence 3
+cutctx proxy --memory
+cutctx proxy --learn --min-evidence 3
 ```
 
 ## Environment Variables
@@ -222,8 +223,8 @@ headroom proxy --learn --min-evidence 3
 | `HEADROOM_TELEMETRY` | Set to `off` to disable anonymous telemetry | enabled |
 | `HEADROOM_STATELESS` | Set to `true` to disable filesystem writes | `false` |
 | `HEADROOM_MODEL_LIMITS` | Custom model config (JSON string or file path) | -- |
-| `HEADROOM_BASE_URL` | Base URL of the Headroom proxy (TypeScript SDK) | `http://localhost:8787` |
-| `HEADROOM_API_KEY` | API key for Headroom Cloud authentication | -- |
+| `HEADROOM_BASE_URL` | Base URL of the CutCtx proxy (TypeScript SDK) | `http://localhost:8787` |
+| `HEADROOM_API_KEY` | API key for CutCtx Cloud authentication | -- |
 | `HEADROOM_CONFIG_DIR` | Canonical config (read-mostly) root. Derives `models.json` and per-plugin config paths when set. | `~/.headroom/config` |
 | `HEADROOM_WORKSPACE_DIR` | Canonical workspace (read-write state) root. Derives savings, memory DB, logs, TOIN, subscription state, and more when set. | `~/.headroom` |
 | `HEADROOM_SAVINGS_PATH` | Override persistent savings file location. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
@@ -238,13 +239,13 @@ headroom proxy --learn --min-evidence 3
 
 ### Filesystem Contract
 
-Headroom resolves every on-disk resource through a two-root model
+CutCtx resolves every on-disk resource through a two-root model
 (`HEADROOM_CONFIG_DIR` + `HEADROOM_WORKSPACE_DIR`) with additive
 precedence rules: explicit argument > per-resource env var > derived
 from canonical root > default. Every legacy env var continues to work
 unchanged.
 
-See the **[Filesystem Contract](https://github.com/chopratejas/headroom/blob/main/wiki/filesystem-contract.md)**
+See the **[Filesystem Contract](/docs/filesystem-contract)**
 page for the full bucket table, plugin-author guidance, and the Docker
 naming overlap note (`HEADROOM_WORKSPACE` is *not* the same as
 `HEADROOM_WORKSPACE_DIR`).

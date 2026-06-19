@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/03-streaming-chat.ts
  */
-import { withHeadroom } from "headroom-ai/vercel-ai";
+import { withHeadroom } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 

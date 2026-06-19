@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Headroom ROI Calculator — Token Savings Tool</title>
+  <title>CutCtx ROI Calculator — Token Savings Tool</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e; background: #fafbfc; line-height: 1.6; }
@@ -47,7 +47,7 @@
     <div class="hero">
       <div class="badge">ROI Calculator</div>
       <h1>Calculate Your LLM Savings</h1>
-      <p>See how much you can save with Headroom's AI context compression.</p>
+      <p>See how much you can save with CutCtx's AI context compression.</p>
     </div>
 
     <!-- Input Card -->
@@ -88,12 +88,12 @@
       <h2>Your Savings</h2>
       <div class="results">
         <div class="result-box cost">
-          <div class="result-label">Without Headroom</div>
+          <div class="result-label">Without CutCtx</div>
           <div class="result-value" id="costWithout">$0</div>
           <div class="result-sub">per month</div>
         </div>
         <div class="result-box" id="savingsBox">
-          <div class="result-label">With Headroom</div>
+          <div class="result-label">With CutCtx</div>
           <div class="result-value" id="costWith">$0</div>
           <div class="result-sub">per month</div>
         </div>
@@ -112,7 +112,7 @@
 
     <!-- Pricing Reference -->
     <div class="card">
-      <h2>Headroom Plans</h2>
+      <h2>CutCtx Plans</h2>
       <table class="pricing-table">
         <thead>
           <tr>
@@ -134,7 +134,7 @@
     <div class="cta">
       <h2>Start Saving Today</h2>
       <p>Free tier available. No credit card required.</p>
-      <a href="https://headroom.sh">Start Free Trial →</a>
+      <a href="https://cutctx.dev">Start Free Trial →</a>
     </div>
   </div>
 
@@ -160,10 +160,10 @@
 
       compressionDisplay.textContent = Math.round(compression * 100) + '%';
 
-      // Cost without Headroom
+      // Cost without CutCtx
       const costWithout = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
 
-      // Cost with Headroom (prompt compresses fully, completion compresses ~30% of prompt ratio)
+      // Cost with CutCtx (prompt compresses fully, completion compresses ~30% of prompt ratio)
       const compressedPrompt = promptTokens * (1 - compression);
       const compressedCompletion = completionTokens * (1 - compression * 0.3);
       const costWith = (compressedPrompt / 1_000_000) * promptPrice + (compressedCompletion / 1_000_000) * completionPrice;

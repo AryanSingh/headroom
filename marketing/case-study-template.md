@@ -1,6 +1,6 @@
 # [Company Name] Case Study
 
-## How [Company] Reduced AI Costs by 70% with Headroom
+## How [Company] Reduced AI Costs by 70% with CutCtx
 
 ### Customer Overview
 
@@ -10,7 +10,7 @@
 | **Industry** | [Industry] |
 | **Size** | [Startup/Scaleup/Enterprise] |
 | **Use Case** | [AI agent platform / Developer tools / etc.] |
-| **Headroom Tier** | [Team/Business/Enterprise] |
+| **CutCtx Tier** | [Team/Business/Enterprise] |
 
 ### The Challenge
 
@@ -22,7 +22,7 @@
 - No visibility into token consumption
 - Budget was being consumed by context, not intelligence
 
-**By the Numbers (Before Headroom):**
+**By the Numbers (Before CutCtx):**
 | Metric | Value |
 |--------|-------|
 | Monthly tokens | [X]M |
@@ -32,7 +32,7 @@
 
 ### The Solution
 
-[Company] integrated Headroom in [timeframe]:
+[Company] integrated CutCtx in [timeframe]:
 
 ```python
 # 3-line integration
@@ -51,7 +51,7 @@ response = llm.complete(compressed)
 
 ### The Results
 
-**After 3 months with Headroom:**
+**After 3 months with CutCtx:**
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -67,7 +67,7 @@ response = llm.complete(compressed)
 
 ### Quote
 
-> "[Testimonial quote from customer about the impact of Headroom]"
+> "[Testimonial quote from customer about the impact of CutCtx]"
 >
 > — [Name], [Title] at [Company]
 
@@ -77,13 +77,13 @@ response = llm.complete(compressed)
 |------|-----------|
 | 1 | Integration + initial testing |
 | 2 | Production deployment |
-| 3 | Optimization with headroom learn |
+| 3 | Optimization with cutctx learn |
 | 4 | Full rollout + cost monitoring |
 
 ### Next Steps
 
 Interested in similar results?
 
-1. **Calculate your ROI**: [headroom.sh/roi](https://headroom.sh/roi)
-2. **Start free trial**: [headroom.sh](https://headroom.sh)
-3. **Talk to sales**: sales@headroom.sh
+1. **Calculate your ROI**: [cutctx.dev/roi](https://cutctx.dev/roi)
+2. **Start free trial**: [cutctx.dev](https://cutctx.dev)
+3. **Talk to sales**: hello@cutctx.dev

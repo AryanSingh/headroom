@@ -40,7 +40,15 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
 
     # plugins/openclaw/package.json
     openclaw_pkg = openclaw / "package.json"
-    openclaw_pkg.write_text(json.dumps({"name": "test", "version": "0.5.25"}))
+    openclaw_pkg.write_text(
+        json.dumps(
+            {
+                "name": "test",
+                "version": "0.5.25",
+                "dependencies": {"cutctx-ai": "^0.5.25"},
+            }
+        )
+    )
 
     repo_claude_marketplace = repo_claude_plugin / "marketplace.json"
     repo_claude_marketplace.write_text(
@@ -109,6 +117,7 @@ def test_version_sync_explicit_version(temp_project: dict[str, Path]) -> None:
     # Verify plugins/openclaw/package.json
     openclaw_pkg = json.loads(temp_project["openclaw_pkg"].read_text())
     assert openclaw_pkg["version"] == "0.7.0"
+    assert openclaw_pkg["dependencies"]["cutctx-ai"] == "^0.7.0"
 
     # Verify sdk/typescript/package.json
     typescript_pkg = json.loads(temp_project["typescript_pkg"].read_text())
@@ -161,6 +170,7 @@ def test_bump_patch(temp_project: dict[str, Path]) -> None:
 
     openclaw_pkg = json.loads(temp_project["openclaw_pkg"].read_text())
     assert openclaw_pkg["version"] == "0.5.26"
+    assert openclaw_pkg["dependencies"]["cutctx-ai"] == "^0.5.26"
 
     typescript_pkg = json.loads(temp_project["typescript_pkg"].read_text())
     assert typescript_pkg["version"] == "0.5.26"
@@ -191,6 +201,7 @@ def test_bump_minor(temp_project: dict[str, Path]) -> None:
 
     openclaw_pkg = json.loads(temp_project["openclaw_pkg"].read_text())
     assert openclaw_pkg["version"] == "0.6.0"
+    assert openclaw_pkg["dependencies"]["cutctx-ai"] == "^0.6.0"
 
     typescript_pkg = json.loads(temp_project["typescript_pkg"].read_text())
     assert typescript_pkg["version"] == "0.6.0"
@@ -221,6 +232,7 @@ def test_bump_major(temp_project: dict[str, Path]) -> None:
 
     openclaw_pkg = json.loads(temp_project["openclaw_pkg"].read_text())
     assert openclaw_pkg["version"] == "1.0.0"
+    assert openclaw_pkg["dependencies"]["cutctx-ai"] == "^1.0.0"
 
     typescript_pkg = json.loads(temp_project["typescript_pkg"].read_text())
     assert typescript_pkg["version"] == "1.0.0"
@@ -282,6 +294,7 @@ def test_plugin_manifests_only_leaves_package_versions_unchanged(
     assert 'version = "0.5.25"' in temp_project["pyproject"].read_text()
     assert '__version__ = "0.5.25"' in temp_project["version_py"].read_text()
     assert json.loads(temp_project["openclaw_pkg"].read_text())["version"] == "0.5.25"
+    assert json.loads(temp_project["openclaw_pkg"].read_text())["dependencies"]["cutctx-ai"] == "^0.5.25"
     assert json.loads(temp_project["typescript_pkg"].read_text())["version"] == "0.5.25"
     assert json.loads(temp_project["claude_plugin"].read_text())["version"] == "0.8.0"
     assert (

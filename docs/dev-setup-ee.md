@@ -1,4 +1,4 @@
-# Headroom Enterprise Edition (EE) Dev Setup
+# CutCtx Enterprise Edition (EE) Dev Setup
 
 This guide details the bring-up process for the `headroom_ee` commercial package.
 

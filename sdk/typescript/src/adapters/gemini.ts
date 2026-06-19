@@ -21,7 +21,7 @@ interface GeminiModelLike {
  *
  * @example
  * ```typescript
- * import { withHeadroom } from 'headroom-ai/gemini';
+ * import { withHeadroom } from 'cutctx-ai/gemini';
  * import { GoogleGenerativeAI } from '@google/generative-ai';
  *
  * const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);

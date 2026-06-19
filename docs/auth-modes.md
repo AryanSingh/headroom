@@ -1,6 +1,6 @@
 # Auth Modes
 
-Headroom classifies every inbound request into one of three **auth modes** at request entry. The mode drives every downstream compression, cache, and header policy decision. Detection is a pure function of HTTP headers — no I/O, no allocation beyond a single `to_lowercase` of the User-Agent, runs in <10us per call.
+CutCtx classifies every inbound request into one of three **auth modes** at request entry. The mode drives every downstream compression, cache, and header policy decision. Detection is a pure function of HTTP headers — no I/O, no allocation beyond a single `to_lowercase` of the User-Agent, runs in <10us per call.
 
 The classifier ships in two equivalent implementations:
 
@@ -46,7 +46,7 @@ Both are byte-for-byte identical on every header set covered by the parity test 
 | Anthropic CLI | `anthropic-cli/` |
 | Antigravity | `antigravity/` |
 
-**Compression policy:** stealth. Provider rate-limits by request count; programmatic-fingerprint detection means Headroom MUST look like the upstream agent. Same compression policy as `OAuth` **plus**:
+**Compression policy:** stealth. Provider rate-limits by request count; programmatic-fingerprint detection means CutCtx MUST look like the upstream agent. Same compression policy as `OAuth` **plus**:
 
 - Preserve `accept-encoding` byte-for-byte.
 - Never inject `X-Headroom-*` headers on upstream-bound requests.

@@ -1,28 +1,28 @@
 ---
 title: Troubleshooting
-description: Solutions for common Headroom issues including proxy startup, connection errors, no token savings, high latency, and installation problems.
+description: Solutions for common CutCtx issues including proxy startup, connection errors, no token savings, high latency, and installation problems.
 ---
 
-Solutions for common Headroom issues.
+Solutions for common CutCtx issues.
 
 ## Proxy Server Issues
 
 ### Proxy will not start
 
-**Symptom**: `headroom proxy` fails or hangs.
+**Symptom**: `cutctx proxy` fails or hangs.
 
 ```bash
 # Check if port is already in use
 lsof -i :8787
 
 # Try a different port
-headroom proxy --port 8788
+cutctx proxy --port 8788
 
 # Check for missing dependencies
-pip install "headroom-ai[proxy]"
+pip install "cutctx-ai[proxy]"
 
 # Run with debug logging
-headroom proxy --log-level debug
+cutctx proxy --log-level debug
 ```
 
 ### Connection refused when calling proxy
@@ -43,7 +43,7 @@ ps aux | grep headroom
 
 ```bash
 # Check proxy logs for the actual error
-headroom proxy --log-level debug
+cutctx proxy --log-level debug
 
 # Verify API key is set
 echo $OPENAI_API_KEY   # or ANTHROPIC_API_KEY
@@ -77,7 +77,7 @@ print(f"SmartCrusher: {stats['transforms']['smart_crusher_enabled']}")
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from 'headroom-ai';
+import { compress } from 'cutctx-ai';
 
 // Ensure the proxy is running in optimize mode
 // (default, unless --no-optimize was passed)
@@ -111,7 +111,7 @@ config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 
 ## Claude Code context window is larger through the proxy
 
-**Symptom**: After pointing Claude Code at Headroom (`ANTHROPIC_BASE_URL`), `/context all`
+**Symptom**: After pointing Claude Code at CutCtx (`ANTHROPIC_BASE_URL`), `/context all`
 shows **more** tokens used than a direct session — the "System tools" and "MCP tools"
 lines grow by tens of thousands of tokens, before you send any message.
 
@@ -128,12 +128,12 @@ proxy. The proxy forwards the `tool_reference` blocks correctly, so deferral wor
 end-to-end (both streaming and non-streaming, subscription and API-key auth).
 
 ```bash
-# Easiest: `headroom wrap claude` sets ENABLE_TOOL_SEARCH=true automatically.
-headroom wrap claude
+# Easiest: `cutctx wrap claude` sets ENABLE_TOOL_SEARCH=true automatically.
+cutctx wrap claude
 
 # Choose the mode (true = always defer, the default; auto / auto:N = defer only
 # when tool definitions exceed N% of the budget; false = off):
-headroom wrap claude --tool-search auto
+cutctx wrap claude --tool-search auto
 
 # Running `claude` manually instead of via wrap? Set it yourself:
 ENABLE_TOOL_SEARCH=true ANTHROPIC_BASE_URL=http://localhost:8787 claude
@@ -206,14 +206,14 @@ config.rolling_window.enabled = False
 
 ## Installation Issues
 
-### pipx installs an older Headroom version
+### pipx installs an older CutCtx version
 
-**Symptom**: PyPI shows a newer `headroom-ai` release, but `pipx install` or
+**Symptom**: PyPI shows a newer `cutctx-ai` release, but `pipx install` or
 `pipx upgrade` keeps an older version. A pinned install can also fail with
 `No matching distribution found`.
 
 **Cause**: `pipx` resolves packages inside its app virtual environment. If that
-environment uses a Python version that Headroom does not publish wheels for yet,
+environment uses a Python version that CutCtx does not publish wheels for yet,
 pip may skip newer releases and choose the newest compatible build it can use.
 
 Check the interpreter:
@@ -225,16 +225,16 @@ pipx list
 Install with a supported Python explicitly:
 
 ```bash
-pipx install --python python3.13 "headroom-ai[all]"
+pipx install --python python3.13 "cutctx-ai[all]"
 ```
 
 For a pinned release:
 
 ```bash
-pipx install --python python3.13 "headroom-ai[all]==0.21.4"
+pipx install --python python3.13 "cutctx-ai[all]==0.21.4"
 ```
 
-If you already have Headroom installed under `pipx`, uninstall it first or
+If you already have CutCtx installed under `pipx`, uninstall it first or
 reinstall it with the supported interpreter.
 
 ### pip install fails with C++ compilation error
@@ -243,10 +243,10 @@ reinstall it with the supported interpreter.
 
 ```bash
 # Linux / Debian-based (including Docker)
-apt-get install -y build-essential && pip install headroom-ai
+apt-get install -y build-essential && pip install cutctx-ai
 
 # macOS (Xcode command line tools)
-xcode-select --install && pip install headroom-ai
+xcode-select --install && pip install cutctx-ai
 ```
 
 For Docker, install and remove build tools in one layer:
@@ -254,7 +254,7 @@ For Docker, install and remove build tools in one layer:
 ```dockerfile
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
-    && pip install "headroom-ai[proxy]" \
+    && pip install "cutctx-ai[proxy]" \
     && apt-get purge -y build-essential && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 ```
@@ -263,29 +263,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
 ```bash
 # Check it is installed in the right environment
-pip show headroom-ai
+pip show cutctx-ai
 
 # If using virtual environment, ensure it is activated
 source venv/bin/activate
 
 # Reinstall
-pip install --upgrade headroom-ai
+pip install --upgrade cutctx-ai
 ```
 
 ### Missing optional dependency
 
 ```bash
 # For proxy server
-pip install "headroom-ai[proxy]"
+pip install "cutctx-ai[proxy]"
 
 # For embedding-based relevance scoring
-pip install "headroom-ai[relevance]"
+pip install "cutctx-ai[relevance]"
 
 # For code compression (tree-sitter)
-pip install "headroom-ai[code]"
+pip install "cutctx-ai[code]"
 
 # For everything
-pip install "headroom-ai[all]"
+pip install "cutctx-ai[all]"
 ```
 
 ## Provider-Specific Issues
@@ -373,7 +373,7 @@ logging.basicConfig(
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
 )
 
-# Or just Headroom logs
+# Or just CutCtx logs
 logging.getLogger("headroom").setLevel(logging.DEBUG)
 ```
 
@@ -421,4 +421,4 @@ print(f"Tokens: {result.tokens_before} -> {result.tokens_after}")
 1. Enable debug logging and check the output
 2. Use `simulate()` to see what transforms would apply
 3. Run `validate_setup()` for configuration issues
-4. File an issue at [github.com/headroom-sdk/headroom](https://github.com/headroom-sdk/headroom/issues) with your Headroom version, Python version, provider, debug log output, and minimal reproduction code
+4. File an issue at [github.com/AryanSingh/headroom](https://github.com/AryanSingh/headroom/issues) with your CutCtx version, Python version, provider, debug log output, and minimal reproduction code

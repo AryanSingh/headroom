@@ -205,7 +205,7 @@ export class ProxyManager {
 
     throw new Error(
       "No usable Headroom launcher found. Tried PATH, local npm, global npm, and Python. " +
-        "Install headroom-ai (npm or pip) and ensure one launcher is available.\n" +
+        "Install cutctx-ai (npm or pip) and ensure one launcher is available.\n" +
         (errors.length > 0 ? `Launch errors: ${errors.join("; ")}` : ""),
     );
   }

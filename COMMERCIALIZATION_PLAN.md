@@ -47,6 +47,25 @@ Success means:
 - pricing validated against real ROI
 - a roadmap that compounds defensibility
 
+## 2.1 Progress Update
+
+**Status as of June 19, 2026:** the repo-side hardening pass is complete.
+
+What is now in place:
+
+- Gemini support is wired into the CLI, init flow, and install registry.
+- OpenClaw publish/install naming now matches the published package.
+- Release version sync and verification now fail on real drift instead of silently passing.
+- The docs site builds successfully again after restoring the missing `docs/lib` support modules.
+- The commercialization docs have been consolidated so this plan is the canonical source of truth.
+
+What remains:
+
+- customer-facing packaging rollout
+- legal and procurement readiness
+- pilot execution and design-partner outreach
+- support and onboarding operations
+
 ---
 
 ## 3. Strategic Positioning

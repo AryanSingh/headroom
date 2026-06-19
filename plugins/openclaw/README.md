@@ -1,4 +1,4 @@
-# @headroom-ai/openclaw
+# cutctx-openclaw
 
 Context compression plugin for [OpenClaw](https://github.com/openclaw/openclaw). Compresses tool outputs, code, logs, and structured data — 70-90% token savings with zero LLM calls.
 
@@ -7,17 +7,17 @@ Context compression plugin for [OpenClaw](https://github.com/openclaw/openclaw).
 Recommended one-command setup:
 
 ```bash
-headroom wrap openclaw
+cutctx wrap openclaw
 ```
 
 Manual install:
 
 ```bash
-pip install "headroom-ai[proxy]"
-openclaw plugins install --dangerously-force-unsafe-install headroom-ai/openclaw
+pip install "cutctx-ai[proxy]"
+openclaw plugins install --dangerously-force-unsafe-install cutctx-openclaw
 ```
 
-This plugin can auto-start a local `headroom proxy` when needed. OpenClaw treats process-launching plugins as unsafe by default, so `--dangerously-force-unsafe-install` is required even if you plan to use a remote proxy (the capability is declared at install time).
+This plugin can auto-start a local `cutctx proxy` when needed. OpenClaw treats process-launching plugins as unsafe by default, so `--dangerously-force-unsafe-install` is required even if you plan to use a remote proxy (the capability is declared at install time).
 
 ## Local Development Install (Detection-Friendly)
 
@@ -121,7 +121,7 @@ GitHub Copilot is a special case because OpenClaw can route it through either Op
 The routing is intentionally lightweight and reversible:
 - the plugin does not persist provider `baseUrl` changes back to `openclaw.json`
 - disabling the plugin, clearing `gatewayProviderIds`, or restarting without Headroom restores OpenClaw's normal provider resolution
-- if you want durable provider rewrites, use `headroom wrap openclaw` instead of relying on plugin install side effects
+- if you want durable provider rewrites, use `cutctx wrap openclaw` instead of relying on plugin install side effects
 
 If you need to disable that behavior:
 
@@ -142,7 +142,7 @@ If you need to disable that behavior:
 
 ### Local proxy (auto-start)
 
-When `proxyUrl` points to localhost (or is omitted), the plugin will auto-start `headroom proxy` if no running proxy is detected. Launch order:
+When `proxyUrl` points to localhost (or is omitted), the plugin will auto-start `cutctx proxy` if no running proxy is detected. Launch order:
 1. `headroom` from `PATH`
 2. local npm bin (`node_modules/.bin/headroom`)
 3. global npm bin
@@ -173,15 +173,15 @@ If you prefer to manage the proxy yourself (or are running a remote instance), s
 Python install:
 
 ```bash
-pip install "headroom-ai[proxy]"
-headroom proxy --host 127.0.0.1 --port 8787
+pip install "cutctx-ai[proxy]"
+cutctx proxy --host 127.0.0.1 --port 8787
 ```
 
 NPM install:
 
 ```bash
-npm install -g headroom-ai
-headroom proxy --host 127.0.0.1 --port 8787
+npm install -g cutctx-ai
+cutctx proxy --host 127.0.0.1 --port 8787
 ```
 
 ## How It Works
@@ -202,7 +202,7 @@ Compression is lossless via CCR (Compress-Cache-Retrieve): originals are stored 
 | `proxyUrl` | auto-detected | Optional URL of a Headroom proxy. Local addresses (`http://127.0.0.1:<port>`, `http://localhost:<port>`) enable auto-start; remote URLs (`https://headroom.example.com`) are connect-only. |
 | `proxyPort` | `8787` | Port used for default auto-detect/auto-start when `proxyUrl` is not set. |
 | `pythonPath` | auto-detected | Optional Python executable override for Python fallback launcher. |
-| `autoStart` | `true` | Auto-start a local `headroom proxy` if not already running (local URLs only; ignored for remote proxies) |
+| `autoStart` | `true` | Auto-start a local `cutctx proxy` if not already running (local URLs only; ignored for remote proxies) |
 | `startupTimeoutMs` | `20000` | Time to wait for auto-started proxy to become healthy |
 | `routeCodexViaProxy` | `true` | Rewrite OpenClaw's built-in `openai-codex` provider to use the active Headroom proxy in memory so upstream Codex requests pass through Headroom. |
 | `gatewayProviderIds` | `[]` | Optional explicit list of OpenClaw provider ids to route through the active Headroom proxy in memory. Friendly aliases `codex`, `claude`, `copilot`, and `gemini` are also accepted. When set, this overrides the default `openai-codex` routing list. |

@@ -1,7 +1,7 @@
 {
   "name": "cutctx-openclaw",
   "version": "0.26.0",
-  "description": "CutCtx context compression plugin for OpenClaw \u2014 70-90% token savings with zero LLM calls",
+  "description": "CutCtx context compression plugin for OpenClaw — 70-90% token savings with zero LLM calls",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cutctx-ai": "^0.22.3"
+    "cutctx-ai": "file:../../../../../../../../tmp/headroom-release-audit/cutctx-ai-0.26.0.tgz"
   },
   "peerDependencies": {
     "openclaw": "*"

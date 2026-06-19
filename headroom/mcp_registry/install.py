@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 import os
-from pathlib import Path
-import shutil
-import sys
 
 from .base import MCPRegistrar, RegisterResult, RegisterStatus, ServerSpec
 from .claude import ClaudeRegistrar
@@ -28,12 +25,6 @@ def _resolve_cutctx_command() -> str:
     env_override = os.environ.get("CUTCTX_CLI_PATH")
     if env_override:
         return env_override
-    sibling = Path(sys.executable).with_name("cutctx")
-    if sibling.exists():
-        return str(sibling)
-    discovered = shutil.which("cutctx")
-    if discovered:
-        return discovered
     return "cutctx"
 
 

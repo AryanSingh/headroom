@@ -6,8 +6,8 @@
  *
  * Run: npx tsx examples/11-openai-anthropic-adapters.ts
  */
-import { withHeadroom as withHeadroomOpenAI } from "headroom-ai/openai";
-import { withHeadroom as withHeadroomAnthropic } from "headroom-ai/anthropic";
+import { withHeadroom as withHeadroomOpenAI } from "cutctx-ai/openai";
+import { withHeadroom as withHeadroomAnthropic } from "cutctx-ai/anthropic";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 

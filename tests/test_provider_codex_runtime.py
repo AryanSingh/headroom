@@ -277,8 +277,8 @@ def _assert_delivery(
 
 def _codex_base_url_from_config(path: Path) -> str:
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))
-    assert parsed["model_provider"] == "headroom"
-    return str(parsed["model_providers"]["headroom"]["base_url"])
+    assert parsed["model_provider"] == "cutctx"
+    return str(parsed["model_providers"]["cutctx"]["base_url"])
 
 
 def _manifest(tmp_path: Path, *, port: int) -> DeploymentManifest:
@@ -377,7 +377,7 @@ def test_provider_scope_codex_config_routes_messages_through_headroom(
     assert mutation is not None
     content = config_path.read_text(encoding="utf-8")
     assert 'env_key = "OPENAI_API_KEY"' not in content
-    assert 'model_provider = "headroom"' in content
+    assert 'model_provider = "cutctx"' in content
 
     _assert_delivery(
         codex_proxy_stack,

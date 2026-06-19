@@ -16,6 +16,7 @@ from headroom.providers.codex.install import apply_provider_scope as apply_codex
 from headroom.providers.codex.install import build_install_env as build_codex_install_env
 from headroom.providers.codex.install import revert_provider_scope as revert_codex_provider_scope
 from headroom.providers.copilot.install import build_install_env as build_copilot_install_env
+from headroom.providers.gemini.install import build_install_env as build_gemini_install_env
 
 
 def _manifest(tmp_path: Path) -> DeploymentManifest:
@@ -68,7 +69,7 @@ def test_apply_and_revert_codex_provider_scope(monkeypatch, tmp_path: Path) -> N
 
     mutation = apply_codex_provider_scope(manifest)
     content = config_path.read_text()
-    assert 'model_provider = "headroom"' in content
+    assert 'model_provider = "cutctx"' in content
     assert 'base_url = "http://127.0.0.1:8787/v1"' in content
     assert 'env_key = "OPENAI_API_KEY"' not in content
     assert "requires_openai_auth" not in content
@@ -76,7 +77,7 @@ def test_apply_and_revert_codex_provider_scope(monkeypatch, tmp_path: Path) -> N
     assert mutation is not None
     revert_codex_provider_scope(mutation, manifest)
     reverted = config_path.read_text()
-    assert 'model_provider = "headroom"' not in reverted
+    assert 'model_provider = "cutctx"' not in reverted
     assert reverted.strip() == 'model = "gpt-4o"'
 
 
@@ -84,6 +85,16 @@ def test_codex_build_install_env_returns_proxy_base_url() -> None:
     env = build_codex_install_env(port=5566, backend="ignored")
 
     assert env == {"OPENAI_BASE_URL": "http://127.0.0.1:5566/v1"}
+
+
+def test_gemini_build_install_env_returns_proxy_base_urls() -> None:
+    env = build_gemini_install_env(port=5566, backend="ignored")
+
+    assert env == {
+        "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:5566",
+        "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:5566",
+        "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:5566",
+    }
 
 
 def test_apply_codex_provider_scope_skips_non_provider_scope(monkeypatch, tmp_path: Path) -> None:
@@ -120,7 +131,7 @@ def test_apply_codex_provider_scope_replaces_existing_managed_block(
     apply_codex_provider_scope(manifest)
 
     content = config_path.read_text()
-    assert content.count("# --- Headroom persistent provider ---") == 1
+    assert content.count("# --- CutCtx persistent provider ---") == 1
     assert 'base_url = "http://127.0.0.1:9999/v1"' in content
     assert 'base_url = "http://127.0.0.1:1111/v1"' not in content
     # Bug 3 (#406): the replacement block must NOT carry requires_openai_auth.
@@ -506,7 +517,7 @@ def test_headroom_provider_block_never_sets_requires_openai_auth(
         )
         # Sanity: the block itself is present and points at the right port.
         assert f'base_url = "http://127.0.0.1:{port}/v1"' in content
-        assert "[model_providers.headroom]" in content
+        assert "[model_providers.cutctx]" in content
 
 
 def test_inject_codex_provider_config_writes_openai_base_url(
@@ -545,7 +556,7 @@ def test_inject_codex_provider_config_writes_openai_base_url(
         f"got:\n{content}"
     )
     # Sanity: the provider block is actually there.
-    assert "[model_providers.headroom]" in content
+    assert "[model_providers.cutctx]" in content
     assert 'base_url = "http://127.0.0.1:8787/v1"' in content
     # requires_openai_auth must also be absent (bug 3 regression guard).
     assert "requires_openai_auth" not in content, (

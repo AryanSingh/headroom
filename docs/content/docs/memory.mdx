@@ -129,7 +129,7 @@ print(f"By category: {stats['categories']}")
 
 ## Temporal Versioning
 
-When facts change, Headroom creates a **supersession chain** that preserves history:
+When facts change, CutCtx creates a **supersession chain** that preserves history:
 
 ```python
 from headroom.memory import HierarchicalMemory, MemoryCategory
@@ -206,7 +206,7 @@ On Apple Silicon you can opt in to running the embedder on the **Apple GPU
 responsive. Install the extra and set the env var:
 
 ```bash
-pip install "headroom-ai[pytorch-mps]"   # also works as [pytorch_mps]
+pip install "cutctx-ai[pytorch-mps]"   # also works as [pytorch_mps]
 export HEADROOM_EMBEDDER_RUNTIME=pytorch_mps
 ```
 

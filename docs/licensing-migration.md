@@ -1,6 +1,6 @@
-# Headroom Licensing Migration
+# CutCtx Licensing Migration
 
-With the release of Headroom Enterprise, we have introduced a robust licensing mechanism based on Ed25519 tokens.
+With the release of CutCtx Enterprise, we have introduced a robust licensing mechanism based on Ed25519 tokens.
 
 ## Migration Steps for Existing Users
 

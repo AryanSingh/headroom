@@ -1,6 +1,6 @@
 # Hosted Control Plane
 
-The Headroom proxy includes a hosted control plane for managing Enterprise features such as spend tracking, policy enforcement, audit logs, and licenses.
+The CutCtx proxy includes a hosted control plane for managing Enterprise features such as spend tracking, policy enforcement, audit logs, and licenses.
 
 ## Endpoints
 
@@ -33,4 +33,4 @@ The Headroom proxy includes a hosted control plane for managing Enterprise featu
 3. **Enterprise Extensions**: The `headroom_ee` package contains proprietary logic for license, spend, policy, and audit storage and cryptography.
 
 ## Self-Hosting
-To self-host the control plane, configure your load balancer to route `/v1/*` paths to a dedicated Headroom proxy instance running with the `--management-only` flag (if available) or simply behind firewall rules restricting access to admin operators.
+To self-host the control plane, configure your load balancer to route `/v1/*` paths to a dedicated CutCtx proxy instance running with the `--management-only` flag (if available) or simply behind firewall rules restricting access to admin operators.

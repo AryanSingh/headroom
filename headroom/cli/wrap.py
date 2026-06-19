@@ -4,6 +4,7 @@ Usage:
     cutctx wrap claude                    # Start proxy + context tool + claude
     cutctx wrap copilot -- --model ...    # Start proxy + launch GitHub Copilot CLI
     cutctx wrap codex                     # Start proxy + OpenAI Codex CLI
+    cutctx wrap gemini                    # Start proxy + Gemini CLI
     cutctx wrap aider                     # Start proxy + aider
     cutctx wrap cursor                    # Start proxy + print Cursor config instructions
     cutctx wrap openclaw                  # Install + configure OpenClaw plugin
@@ -75,6 +76,7 @@ from headroom.providers.copilot import (
     validate_configuration as _validate_copilot_configuration,
 )
 from headroom.providers.cursor import render_setup_lines as _render_cursor_setup_lines
+from headroom.providers.gemini import build_launch_env as _build_gemini_launch_env
 from headroom.providers.openclaw import (
     build_plugin_entry as _build_openclaw_plugin_entry_impl,
 )
@@ -109,7 +111,7 @@ _WRAP_PROXY_TIMEOUT_ML_MODULES = ("torch", "sentence_transformers", "spacy")
 # Code, so the agent loop is unaffected).
 _TOOL_SEARCH_ENV = "ENABLE_TOOL_SEARCH"
 _TOOL_SEARCH_DEFAULT = "true"
-_AGENT_SAVINGS_WRAP_AGENTS = {"claude", "codex", "cursor"}
+_AGENT_SAVINGS_WRAP_AGENTS = {"claude", "codex", "cursor", "gemini"}
 _DEFAULT_AGENT_SAVINGS_PROFILE = "agent-90"
 
 
@@ -587,7 +589,7 @@ def _setup_headroom_mcp(
         result,
         label="MCP retrieve tool",
         verbose=verbose,
-        overwrite_hint=f"headroom mcp install --proxy-url {proxy_url} --force",
+        overwrite_hint=f"cutctx mcp install --proxy-url {proxy_url} --force",
         restart_hint=f"restart {registrar.display_name} if it was already running",
     )
     if line is not None:
@@ -2472,6 +2474,7 @@ def wrap() -> None:
     Supported tools (one Click subcommand per tool):
         cutctx wrap claude              # Claude Code (Anthropic)
         cutctx wrap codex               # OpenAI Codex CLI
+        cutctx wrap gemini              # Google Gemini CLI
         cutctx wrap copilot -- --model claude-sonnet-4-20250514
         cutctx wrap aider               # Aider
         cutctx wrap cursor              # Cursor (prints config instructions)
@@ -3277,6 +3280,110 @@ def codex(
 
 
 # =============================================================================
+# Gemini
+# =============================================================================
+
+
+@wrap.command(context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option(
+    "--no-context-tool",
+    "--no-rtk",
+    "no_rtk",
+    is_flag=True,
+    help="Skip CLI context-tool setup",
+)
+@click.option(
+    "--code-graph",
+    is_flag=True,
+    help="Enable code graph indexing via codebase-memory-mcp (optional)",
+)
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option(
+    "--learn", is_flag=True, help="Enable live traffic learning (patterns saved to GEMINI.md)"
+)
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option(
+    "--backend", default=None, help="API backend: 'anthropic', 'anyllm', 'litellm-vertex', etc."
+)
+@click.option("--anyllm-provider", default=None, help="Provider for any-llm backend")
+@click.option("--region", default=None, help="Cloud region for Bedrock/Vertex")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--prepare-only", is_flag=True, hidden=True)
+@click.argument("gemini_args", nargs=-1, type=click.UNPROCESSED)
+def gemini(
+    port: int,
+    no_rtk: bool,
+    code_graph: bool,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    backend: str | None,
+    anyllm_provider: str | None,
+    region: str | None,
+    verbose: bool,
+    prepare_only: bool,
+    gemini_args: tuple,
+) -> None:
+    """Launch Gemini CLI through CutCtx proxy.
+
+    \b
+    Sets GOOGLE_GEMINI_BASE_URL, GOOGLE_VERTEX_BASE_URL, and
+    CODE_ASSIST_ENDPOINT to route Gemini CLI traffic through CutCtx across
+    Gemini API, Vertex AI, and Cloud Code / Code Assist modes.
+    Sets up the selected CLI context tool so Gemini uses token-optimized
+    commands.
+
+    \b
+    Examples:
+        cutctx wrap gemini                           # Start proxy + context tool + gemini
+        cutctx wrap gemini -- -p "summarize this"   # Pass prompt args through
+        cutctx wrap gemini --no-context-tool        # Skip CLI context-tool setup
+        cutctx wrap gemini --backend litellm-vertex --region us-central1
+    """
+    if not no_rtk:
+        if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
+            click.echo("  Setting up lean-ctx for Gemini...")
+            _setup_lean_ctx_agent("gemini", verbose=verbose)
+        else:
+            click.echo("  Setting up rtk for Gemini...")
+            rtk_path = _ensure_rtk_binary(verbose=verbose)
+            if rtk_path:
+                gemini_md = Path.cwd() / "GEMINI.md"
+                _inject_rtk_instructions(gemini_md, verbose=verbose)
+
+    if prepare_only:
+        return
+
+    gemini_bin = shutil.which("gemini")
+    if not gemini_bin:
+        click.echo("Error: 'gemini' not found in PATH.")
+        click.echo("Install Gemini CLI: npm install -g @google/gemini-cli")
+        raise SystemExit(1)
+
+    env, env_vars_display = _build_gemini_launch_env(
+        port, os.environ, project=_project_name_from_cwd()
+    )
+
+    _launch_tool(
+        binary=gemini_bin,
+        args=gemini_args,
+        env=env,
+        port=port,
+        no_proxy=no_proxy,
+        tool_label="GEMINI",
+        env_vars_display=env_vars_display,
+        learn=learn,
+        memory=memory,
+        agent_type="gemini",
+        code_graph=code_graph,
+        backend=backend,
+        anyllm_provider=anyllm_provider,
+        region=region,
+    )
+
+
+# =============================================================================
 # Aider
 # =============================================================================
 
@@ -3962,7 +4069,7 @@ def openhands(
 )
 @click.option(
     "--plugin-spec",
-    default="headroom-ai/openclaw",
+    default="cutctx-openclaw",
     show_default=True,
     help="NPM plugin spec for OpenClaw install (used when --plugin-path is omitted)",
 )

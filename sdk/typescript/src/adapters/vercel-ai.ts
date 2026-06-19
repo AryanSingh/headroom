@@ -26,7 +26,7 @@ type VercelMessage = any;
  *
  * @example
  * ```typescript
- * import { headroomMiddleware } from 'headroom-ai/vercel-ai';
+ * import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
  * import { wrapLanguageModel } from 'ai';
  * import { openai } from '@ai-sdk/openai';
  *
@@ -97,7 +97,7 @@ export async function compressVercelMessages(
  *
  * @example
  * ```typescript
- * import { withHeadroom } from 'headroom-ai/vercel-ai';
+ * import { withHeadroom } from 'cutctx-ai/vercel-ai';
  * import { openai } from '@ai-sdk/openai';
  * import { generateText } from 'ai';
  *

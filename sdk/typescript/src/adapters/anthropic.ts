@@ -163,7 +163,7 @@ function openAIToAnthropic(messages: OpenAIMessage[]): any[] {
  *
  * @example
  * ```typescript
- * import { withHeadroom } from 'headroom-ai/anthropic';
+ * import { withHeadroom } from 'cutctx-ai/anthropic';
  * import Anthropic from '@anthropic-ai/sdk';
  *
  * const client = withHeadroom(new Anthropic());

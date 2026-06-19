@@ -7,7 +7,7 @@
  *
  * Run: npx tsx examples/12-ccr-retrieve.ts
  */
-import { HeadroomClient } from "headroom-ai";
+import { HeadroomClient } from "cutctx-ai";
 
 // Large dataset that will trigger CCR (Compress-Cache-Retrieve)
 const auditLog = Array.from({ length: 200 }, (_, i) => ({

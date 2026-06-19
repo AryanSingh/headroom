@@ -3,7 +3,7 @@
 ## Data Flow
 
 ```text
-AI Agent -> Headroom Proxy -> Upstream LLM Provider
+AI Agent -> CutCtx Proxy -> Upstream LLM Provider
                |
                +-> Local CCR store
                +-> Local memory store
@@ -30,7 +30,7 @@ AI Agent -> Headroom Proxy -> Upstream LLM Provider
 | Optional license validation and aggregate usage | When a license key is configured | No |
 | Initial runtime and model downloads | First-time setup unless pre-staged | No |
 
-## What Headroom Does Not Claim To Collect
+## What CutCtx Does Not Claim To Collect
 
 - Prompt content for SaaS analytics
 - Tool results for hosted analysis
@@ -76,14 +76,14 @@ The repo now includes the technical controls needed for enterprise review. Forma
 
 ## Buyer FAQ
 
-**Does Headroom store prompts by default?**  
+**Does CutCtx store prompts by default?**
 No. Content is processed in memory. Local stores are customer-managed.
 
-**Can Headroom run without outbound network dependencies after setup?**  
+**Can CutCtx run without outbound network dependencies after setup?**
 Yes, with pre-staged dependencies and offline flags.
 
-**Can admins audit changes?**  
+**Can admins audit changes?**
 Yes. Enterprise deployments can query and export audit logs.
 
-**Can identity be centralized?**  
+**Can identity be centralized?**
 Yes. Enterprise deployments can use SSO-aware admin auth, RBAC, and SCIM-style provisioning APIs.

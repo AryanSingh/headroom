@@ -1,11 +1,11 @@
-# headroom-ai examples
+# cutctx-ai examples
 
 Runnable examples showing how to use the Headroom TypeScript SDK for context compression.
 
 ## Prerequisites
 
 - Node.js 18+
-- A running Headroom proxy (`pip install "headroom-ai[proxy]" && headroom proxy`)
+- A running CutCtx proxy (`pip install "cutctx-ai[proxy]" && cutctx proxy`)
 - `OPENAI_API_KEY` set in your environment (most examples use OpenAI)
 - Optional: `ANTHROPIC_API_KEY` for Anthropic examples
 

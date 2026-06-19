@@ -51,7 +51,7 @@ def test_build_manifest_uses_provider_slice_env_builders_for_all_supported_targe
         runtime_kind="python",
         scope="user",
         provider_mode="manual",
-        targets=["claude", "copilot", "codex", "aider", "cursor"],
+        targets=["claude", "copilot", "codex", "aider", "cursor", "gemini"],
         port=9999,
         backend="anyllm",
         anyllm_provider="groq",
@@ -71,6 +71,11 @@ def test_build_manifest_uses_provider_slice_env_builders_for_all_supported_targe
     assert manifest.tool_envs["cursor"] == {
         "OPENAI_BASE_URL": "http://127.0.0.1:9999/v1",
         "ANTHROPIC_BASE_URL": "http://127.0.0.1:9999",
+    }
+    assert manifest.tool_envs["gemini"] == {
+        "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:9999",
+        "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:9999",
+        "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:9999",
     }
     assert manifest.tool_envs["copilot"] == {
         "COPILOT_PROVIDER_TYPE": "openai",

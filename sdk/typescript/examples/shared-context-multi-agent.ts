@@ -7,8 +7,8 @@
  *
  * Run: npx tsx examples/08-shared-context-multi-agent.ts
  */
-import { SharedContext } from "headroom-ai";
-import { withHeadroom } from "headroom-ai/vercel-ai";
+import { SharedContext } from "cutctx-ai";
+import { withHeadroom } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 

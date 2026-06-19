@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/10-middleware-composition.ts
  */
-import { headroomMiddleware } from "headroom-ai/vercel-ai";
+import { headroomMiddleware } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText, wrapLanguageModel, extractReasoningMiddleware } from "ai";
 

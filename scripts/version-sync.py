@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize version across all headroom packages."""
+"""Synchronize version across all CutCtx release manifests."""
 
 from __future__ import annotations
 
@@ -88,12 +88,14 @@ def update_plugin_versions(root: Path, version: str) -> None:
 
 
 def update_openclaw_package_json(file_path: Path, version: str, sdk_version: str) -> None:
-    """Update openclaw package.json version and headroom-ai dependency range."""
+    """Update openclaw package.json version and cutctx-ai dependency range."""
     with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
     data["version"] = version
-    if "dependencies" in data and "headroom-ai" in data["dependencies"]:
-        data["dependencies"]["headroom-ai"] = f"^{sdk_version}"
+    dependencies = data.setdefault("dependencies", {})
+    if "headroom-ai" in dependencies:
+        del dependencies["headroom-ai"]
+    dependencies["cutctx-ai"] = f"^{sdk_version}"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
@@ -130,7 +132,7 @@ def write_release_metadata(root: Path, version: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Synchronize version across headroom packages")
+    parser = argparse.ArgumentParser(description="Synchronize version across CutCtx packages")
     parser.add_argument(
         "--root",
         type=Path,

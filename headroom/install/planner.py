@@ -26,6 +26,7 @@ SUPPORTED_TARGETS = [
     ToolTarget.CODEX,
     ToolTarget.AIDER,
     ToolTarget.CURSOR,
+    ToolTarget.GEMINI,
     ToolTarget.OPENCLAW,
 ]
 PROVIDER_SCOPE_TARGETS = [

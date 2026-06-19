@@ -1,9 +1,9 @@
 ---
 title: Docker-Native Install
-description: Run Headroom without installing Python or Node.js on the host. A native `headroom` wrapper keeps the proxy and CLI in Docker while your other tools run on the host OS.
+description: Run CutCtx without installing Python or Node.js on the host. A native `cutctx` wrapper keeps the proxy and CLI in Docker while your other tools run on the host OS.
 ---
 
-Run Headroom without installing Python or Node.js on the host. The install scripts add a native `headroom` wrapper that keeps **Headroom itself** in Docker while orchestrating the rest of your workflow on the host OS.
+Run CutCtx without installing Python or Node.js on the host. The install scripts add a native `cutctx` wrapper that keeps **CutCtx itself** in Docker while orchestrating the rest of your workflow on the host OS.
 
 ## One-line install
 
@@ -31,10 +31,10 @@ irm https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.
 
 1. Verifies Docker is installed and available.
 2. Pulls `ghcr.io/chopratejas/headroom:latest` by default, or reuses / pulls `HEADROOM_DOCKER_IMAGE` when you set a custom image override.
-3. Installs a `headroom` wrapper into `~/.local/bin` or `~/bin`.
+3. Installs `cutctx` and compatibility `headroom` wrappers into `~/.local/bin` or `~/bin`.
 4. Updates shell startup files so the wrapper directory is on `PATH`.
 
-The wrapper keeps Headroom inside Docker and mounts host state back into the container so native behavior stays consistent:
+The wrapper keeps CutCtx inside Docker and mounts host state back into the container so native behavior stays consistent:
 
 - project workspace → `/workspace`
 - `~/.headroom`
@@ -48,15 +48,15 @@ Published releases also push versioned GHCR tags such as `ghcr.io/chopratejas/he
 
 ## How the wrapper behaves
 
-### Native Headroom commands
+### Native CutCtx commands
 
 These run directly inside the container:
 
 ```bash
-headroom proxy
-headroom learn
-headroom mcp install
-headroom memory list
+cutctx proxy
+cutctx learn
+cutctx mcp install
+cutctx memory list
 ```
 
 For `proxy`, the wrapper publishes the selected port back to the host:
@@ -67,42 +67,43 @@ docker run --rm -it \
   -v "$PWD:/workspace" \
   -w /workspace \
   ghcr.io/chopratejas/headroom:latest \
-  headroom proxy --host 0.0.0.0 --port 8787
+  cutctx proxy --host 0.0.0.0 --port 8787
 ```
 
 ### `wrap` commands
 
 `wrap` is host-oriented in Docker-native mode:
 
-- the wrapper starts the Headroom proxy in Docker
-- container-side prep writes Headroom config, memory, and selected CLI context-tool setup into mounted host files
+- the wrapper starts the CutCtx proxy in Docker
+- container-side prep writes CutCtx config, memory, and selected CLI context-tool setup into mounted host files
 - the target CLI itself is launched on the host by the wrapper
 
 Supported host wrap flows:
 
-- `headroom wrap claude`
-- `headroom wrap codex`
-- `headroom wrap aider`
-- `headroom wrap cursor`
-- `headroom wrap openclaw`
-- `headroom unwrap openclaw`
+- `cutctx wrap claude`
+- `cutctx wrap codex`
+- `cutctx wrap gemini`
+- `cutctx wrap aider`
+- `cutctx wrap cursor`
+- `cutctx wrap openclaw`
+- `cutctx unwrap openclaw`
 
 OpenClaw remains host-native in Docker-native mode:
 
 - the host must already have the `openclaw` CLI installed
-- `headroom wrap openclaw` installs/configures the Headroom plugin through the host `openclaw` CLI
-- plugin auto-start still launches the installed host `headroom` wrapper from `PATH`, which then runs Headroom in Docker
+- `cutctx wrap openclaw` installs/configures the CutCtx plugin through the host `openclaw` CLI
+- plugin auto-start still launches the installed host `cutctx` wrapper from `PATH`, which then runs CutCtx in Docker
 - local plugin source mode (`--plugin-path`) is also supported, but it may require host `npm` when build steps are needed
 
 ## Persistent Docker lifecycle from the native wrapper
 
-The Docker-native `headroom` wrapper exposes the persistent Docker lifecycle directly:
+The Docker-native `cutctx` wrapper exposes the persistent Docker lifecycle directly:
 
 ```bash
-headroom install apply --profile default --preset persistent-docker
-headroom install status
-headroom install restart
-headroom install remove
+cutctx install apply --profile default --preset persistent-docker
+cutctx install status
+cutctx install restart
+cutctx install remove
 ```
 
 In Docker-native mode this surface is intentionally scoped to **persistent-docker**:
@@ -111,17 +112,17 @@ In Docker-native mode this surface is intentionally scoped to **persistent-docke
 - supported flags: `--profile`, `--port`, `--backend`, `--anyllm-provider`, `--region`, `--mode`, `--memory`, `--no-telemetry`, `--image`
 - not supported: `persistent-service`, `persistent-task`, or provider/user/system mutation flags such as `--scope`, `--providers`, and `--target`
 
-Those broader lifecycle and config-mutation flows still belong to the Python-native `headroom install ...` command.
+Those broader lifecycle and config-mutation flows still belong to the Python-native `cutctx install ...` command.
 
 Persistent Docker deployments launched by the wrapper also tag the proxy process with deployment metadata, so `/health` reports the active `profile`, `preset`, `runtime`, `supervisor`, and `scope` the same way the Python install subsystem does.
 
 ## Docker Compose support
 
-Use `docker/docker-compose.native.yml` when you want an explicit compose-managed proxy or CLI shell, or when you prefer compose over the native wrapper's `headroom install ...` surface.
+Use `docker/docker-compose.native.yml` when you want an explicit compose-managed proxy or CLI shell, or when you prefer compose over the native wrapper's `cutctx install ...` surface.
 
 ### Persistent Docker runtime
 
-The `proxy` service uses `restart: unless-stopped`, so compose can act as the always-on Docker runtime for Headroom:
+The `proxy` service uses `restart: unless-stopped`, so compose can act as the always-on Docker runtime for CutCtx:
 
 ```bash
 export HEADROOM_HOST_HOME="$HOME"
@@ -141,7 +142,7 @@ This is a supported persistent-Docker path when you want the proxy managed expli
 These are two different variables — both are set by the compose file, and both are retained for backward compatibility:
 
 - **`HEADROOM_WORKSPACE`** (host-side) is the directory the compose file bind-mounts into the container as `/workspace`. It behaves like CWD in a native (non-Docker) run.
-- **`HEADROOM_WORKSPACE_DIR`** (inside the container) is the canonical Headroom state root from the [filesystem contract](/docs/filesystem-contract). The compose file sets it to `/tmp/headroom-home/.headroom` so the proxy resolves savings, logs, TOIN, and memory under the bind-mounted `${HOME}/.headroom`.
+- **`HEADROOM_WORKSPACE_DIR`** (inside the container) is the canonical CutCtx state root from the [filesystem contract](/docs/filesystem-contract). The compose file sets it to `/tmp/headroom-home/.headroom` so the proxy resolves savings, logs, TOIN, and memory under the bind-mounted `${HOME}/.headroom`.
 
 You do not need to set `HEADROOM_WORKSPACE_DIR` manually when using the shipped compose file — it is already in the `environment:` block.
 </Callout>
@@ -171,7 +172,7 @@ docker compose -f docker/docker-compose.native.yml run --rm cli mcp install
 
 ## Environment passthrough
 
-The wrapper forwards Headroom and provider environment variables into the container, including common prefixes such as:
+The wrapper forwards CutCtx and provider environment variables into the container, including common prefixes such as:
 
 - `HEADROOM_`
 - `ANTHROPIC_`
@@ -186,11 +187,11 @@ That keeps provider auth and runtime config working without maintaining a separa
 
 ## Notes
 
-- Docker is the only required Headroom runtime dependency on the host.
-- Wrapped tools like Claude Code, Codex CLI, Aider, and Cursor still run on the host when you use `headroom wrap ...`.
+- Docker is the only required CutCtx runtime dependency on the host.
+- Wrapped tools like Claude Code, Codex CLI, Aider, and Cursor still run on the host when you use `cutctx wrap ...`.
 - The install scripts are idempotent: rerunning them refreshes the wrapper and image without duplicating shell profile blocks.
-- For persistent service and task installs, use the Python-native `headroom install ...` workflow — see [Persistent Installs](/docs/persistent-installs).
-- For Docker-native `headroom install ...`, the wrapper persists its profile manifest under `~/.headroom/deploy/<profile>/`.
+- For persistent service and task installs, use the Python-native `cutctx install ...` workflow — see [Persistent Installs](/docs/persistent-installs).
+- For Docker-native `cutctx install ...`, the wrapper persists its profile manifest under `~/.headroom/deploy/<profile>/`.
 
 ## Next steps
 

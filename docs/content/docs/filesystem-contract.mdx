@@ -1,9 +1,9 @@
 ---
 title: Filesystem Contract
-description: Where Headroom writes config, runtime state, logs, and caches — the canonical two-root model, precedence rules, and Docker behavior.
+description: Where CutCtx writes config, runtime state, logs, and caches — the canonical two-root model, precedence rules, and Docker behavior.
 ---
 
-Headroom writes configuration, runtime state, logs, and caches to a small set of well-known paths under the user's home directory. This page is the source of truth for where those paths live, how to override them, and how they behave inside Docker containers.
+CutCtx writes configuration, runtime state, logs, and caches to a small set of well-known paths under the user's home directory. This page is the source of truth for where those paths live, how to override them, and how they behave inside Docker containers.
 
 ## Two-root model
 
@@ -97,7 +97,7 @@ cfg_dir.mkdir(parents=True, exist_ok=True)
 ### npm SDK
 
 ```typescript
-import { pluginConfigDir, pluginWorkspaceDir } from "@headroom/sdk";
+import { pluginConfigDir, pluginWorkspaceDir } from "cutctx-ai";
 
 const cfgDir = pluginConfigDir("my-plugin");
 const stateDir = pluginWorkspaceDir("my-plugin");
@@ -112,7 +112,7 @@ These are **two different variables** with different semantics, both retained fo
 | Variable | Scope | Meaning |
 |---|---|---|
 | `HEADROOM_WORKSPACE` | Host-side (Docker) | Directory to bind-mount into the container as `/workspace` (equivalent to CWD in native runs). Used by `docker-compose.native.yml`. |
-| `HEADROOM_WORKSPACE_DIR` | Inside the container | Canonical Headroom state root. Resolves to `/tmp/headroom-home/.headroom` inside the official container image, which in turn bind-mounts to `${HOME}/.headroom` on the host. |
+| `HEADROOM_WORKSPACE_DIR` | Inside the container | Canonical CutCtx state root. Resolves to `/tmp/headroom-home/.headroom` inside the official container image, which in turn bind-mounts to `${HOME}/.headroom` on the host. |
 
 The official Docker bootstrap (compose file, `scripts/install.sh`, and the Python `install` command) sets `HEADROOM_WORKSPACE_DIR` and `HEADROOM_CONFIG_DIR` inside the container so the proxy resolves state to the bind-mounted path without any user action.
 

@@ -3,7 +3,7 @@ title: Reversible Compression (CCR)
 description: Compress-Cache-Retrieve architecture that makes compression lossless — the LLM can always get the original data back.
 ---
 
-Headroom's CCR (Compress-Cache-Retrieve) architecture makes compression **reversible**. When content is compressed, the original data is cached locally. If the LLM needs the full data, it retrieves it instantly.
+CutCtx's CCR (Compress-Cache-Retrieve) architecture makes compression **reversible**. When content is compressed, the original data is cached locally. If the LLM needs the full data, it retrieves it instantly.
 
 <Callout type="info" title="Nothing is ever thrown away">
   Unlike traditional lossy compression, CCR guarantees that every piece of original data remains accessible. You get 70-90% token savings with zero risk of permanent data loss.
@@ -48,12 +48,12 @@ When SmartCrusher compresses tool output:
 
 ## Phase 2: Tool Injection
 
-Headroom injects a `headroom_retrieve` tool into the LLM's available tools:
+CutCtx injects a `headroom_retrieve` tool into the LLM's available tools:
 
 ```json
 {
   "name": "headroom_retrieve",
-  "description": "Retrieve original uncompressed data from Headroom cache",
+  "description": "Retrieve original uncompressed data from CutCtx cache",
   "parameters": {
     "hash": "The hash key from the compression marker",
     "query": "Optional: search within the cached data"
@@ -72,7 +72,7 @@ When the LLM calls `headroom_retrieve`:
 3. The result is added to the conversation
 4. The API call continues automatically
 
-The client never sees CCR tool calls -- they are handled transparently by Headroom.
+The client never sees CCR tool calls -- they are handled transparently by CutCtx.
 
 ## Phase 4: Context Tracker
 
@@ -116,8 +116,8 @@ CCR works automatically through the proxy, but you can also retrieve cached data
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { compress } from "headroom-ai";
-import type { CCRConfig } from "headroom-ai";
+import { compress } from "cutctx-ai";
+import type { CCRConfig } from "cutctx-ai";
 
 // CCR is enabled by default when compressing through the proxy.
 const result = await compress(messages, {
@@ -168,7 +168,7 @@ Proxy CCR originals are kept for 300 seconds by default. For longer autonomous
 agent runs, set `HEADROOM_CCR_TTL_SECONDS` before starting the proxy:
 
 ```bash
-HEADROOM_CCR_TTL_SECONDS=7200 headroom proxy
+HEADROOM_CCR_TTL_SECONDS=7200 cutctx proxy
 ```
 
 Check the effective setting at `/v1/retrieve/stats` under

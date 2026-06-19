@@ -17,6 +17,18 @@ def _read_json_version(path: Path) -> str:
         return str(json.load(f)["version"])
 
 
+def _read_openclaw_sdk_dependency(path: Path) -> str | None:
+    with open(path, encoding="utf-8") as f:
+        payload = json.load(f)
+    dependencies = payload.get("dependencies")
+    if not isinstance(dependencies, dict):
+        return None
+    value = dependencies.get("cutctx-ai")
+    if value is None:
+        return None
+    return str(value).lstrip("^")
+
+
 def _read_marketplace_versions(path: Path) -> dict[str, str]:
     with open(path, encoding="utf-8") as f:
         payload = json.load(f)
@@ -56,6 +68,13 @@ def main() -> None:
         for file, ver in versions.items():
             print(f"  {file}: {ver}")
         print(f"Expected all to be: {py_ver}")
+        raise SystemExit(1)
+
+    openclaw_sdk_dep = _read_openclaw_sdk_dependency(ROOT / "plugins/openclaw/package.json")
+    if openclaw_sdk_dep != py_ver:
+        print("OpenClaw SDK dependency mismatch detected:")
+        print(f"  plugins/openclaw/package.json: cutctx-ai^{openclaw_sdk_dep or 'missing'}")
+        print(f"Expected cutctx-ai dependency to match: ^{py_ver}")
         raise SystemExit(1)
 
     print(f"All versions aligned at {py_ver}")

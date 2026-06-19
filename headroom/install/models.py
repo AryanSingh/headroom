@@ -55,6 +55,7 @@ class ToolTarget(str, Enum):
     CODEX = "codex"
     AIDER = "aider"
     CURSOR = "cursor"
+    GEMINI = "gemini"
     OPENCLAW = "openclaw"
 
 

@@ -4,6 +4,7 @@ This directory contains the commercialization, procurement, onboarding, and laun
 
 ## Start Here
 
+- [COMMERCIALIZATION_PLAN.md](/Users/aryansingh/Documents/Claude/Projects/headroom/COMMERCIALIZATION_PLAN.md)
 - [COMMERCIALIZATION_EXECUTION_KIT.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/COMMERCIALIZATION_EXECUTION_KIT.md)
 - [pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/pricing-sheet.md)
 - [packaging-matrix.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/packaging-matrix.md)

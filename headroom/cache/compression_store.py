@@ -215,7 +215,11 @@ class CompressionStore:
         # Import here to avoid circular imports
         from .backends import InMemoryBackend
 
-        self._backend: CompressionStoreBackend = backend or InMemoryBackend()
+        # Respect an explicitly provided backend even when it is empty.
+        # Some backends implement ``__len__`` and therefore evaluate falsey
+        # before any entries exist; using ``or`` here silently replaced them
+        # with the in-memory store and broke cross-runtime CCR interop.
+        self._backend: CompressionStoreBackend = backend if backend is not None else InMemoryBackend()
         self._lock = threading.Lock()
         self._max_entries = max_entries
         self._default_ttl = default_ttl
