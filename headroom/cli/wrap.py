@@ -492,7 +492,7 @@ def _setup_lean_ctx_agent(agent: str, verbose: bool = False) -> Path | None:
 
 
 def _remove_claude_rtk_hooks(settings_path: Path | None = None) -> bool:
-    """Remove Headroom/rtk-managed Claude hook entries from settings.json.
+    """Remove CutCtx/rtk-managed Claude hook entries from settings.json.
 
     `rtk init --global --auto-patch` installs a Claude PreToolUse hook that
     points at an ``rtk-rewrite`` script. Unwrap should remove that hook without
@@ -629,7 +629,7 @@ def _setup_serena_mcp(
 
 
 def _remove_headroom_installed_serena_mcp(registrar: Any) -> str:
-    """Remove Serena MCP only if the ledger proves Headroom installed it."""
+    """Remove Serena MCP only if the ledger proves CutCtx installed it."""
     from headroom.mcp_registry.ledger import clear_install, headroom_installed_matching
 
     current = registrar.get_server("serena")
@@ -1551,7 +1551,7 @@ def _query_proxy_health(port: int) -> dict[str, Any] | None:
 
 
 def _proxy_health_config(payload: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Extract the config block from a Headroom /health payload."""
+    """Extract the config block from a CutCtx /health payload."""
     if payload is None:
         return None
     config = payload.get("config")
@@ -2355,7 +2355,7 @@ def _build_openclaw_plugin_entry(
     gateway_provider_ids: tuple[str, ...] | None,
     enabled: bool,
 ) -> dict[str, object]:
-    """Merge managed Headroom plugin settings with any existing entry payload."""
+    """Merge managed CutCtx plugin settings with any existing entry payload."""
     return _build_openclaw_plugin_entry_impl(
         existing_entry=existing_entry,
         proxy_port=proxy_port,
@@ -2373,7 +2373,7 @@ def _build_openclaw_unwrap_entry(existing_entry: Any) -> dict[str, object]:
 
 
 def _write_openclaw_plugin_entry(openclaw_bin: str, entry: dict[str, object]) -> None:
-    """Persist the Headroom plugin config entry."""
+    """Persist the CutCtx plugin config entry."""
     _run_checked(
         [
             openclaw_bin,
