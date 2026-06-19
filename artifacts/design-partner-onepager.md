@@ -57,6 +57,6 @@ A **free, fully instrumented 2-week pilot** (extendable to 30 days):
 
 Platform / AI-infra / developer-productivity leaders at teams running **3+ AI agents** who feel the cost and have no cross-team visibility.
 
-**Next step:** a 30-minute call to scope a 2-week pilot. → hello@headroomlabs.ai
+**Next step:** a 30-minute call to scope a 2-week pilot. → hello@cutctx.dev
 
 <sub>Headroom runs local-first; network telemetry is off by default and opt-in. Apache-2.0 core; enterprise control plane under commercial license.</sub>

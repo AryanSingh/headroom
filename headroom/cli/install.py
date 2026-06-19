@@ -38,7 +38,7 @@ from .main import main
 
 @main.group()
 def install() -> None:
-    """Install and manage persistent Headroom deployments."""
+    """Install and manage persistent CutCtx deployments."""
 
 
 def _require_manifest(profile: str) -> DeploymentManifest:
@@ -96,7 +96,7 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
     if manifest.supervisor_kind == SupervisorKind.TASK.value:
         raise click.ClickException(
             f"Deployment '{manifest.profile}' uses persistent-task scheduling; "
-            f"`headroom install {action}` is not supported for task deployments."
+            f"`cutctx install {action}` is not supported for task deployments."
         )
 
 
@@ -113,7 +113,7 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
     type=click.Choice([runtime.value for runtime in RuntimeKind]),
     default=RuntimeKind.PYTHON.value,
     show_default=True,
-    help="Runtime used to execute Headroom for service/task modes.",
+    help="Runtime used to execute CutCtx for service/task modes.",
 )
 @click.option(
     "--scope",
@@ -180,7 +180,7 @@ def install_apply(
     no_telemetry: bool,
     image: str,
 ) -> None:
-    """Install a persistent Headroom deployment."""
+    """Install a persistent CutCtx deployment."""
 
     if preset == InstallPreset.PERSISTENT_DOCKER.value:
         runtime = RuntimeKind.DOCKER.value

@@ -2,16 +2,16 @@
 
 Exposes:
 
-    headroom sg …           ->  ast-grep (from the ast-grep-cli PyPI wheel)
-    headroom diff A B …     ->  difftastic
-    headroom loc [PATH] …   ->  scc
-    headroom tools install  ->  pre-fetch all bundled binaries
-    headroom tools doctor   ->  print a status table
-    headroom tools list     ->  show the registry
+    cutctx sg …           ->  ast-grep (from the ast-grep-cli PyPI wheel)
+    cutctx diff A B …     ->  difftastic
+    cutctx loc [PATH] …   ->  scc
+    cutctx tools install  ->  pre-fetch all bundled binaries
+    cutctx tools doctor   ->  print a status table
+    cutctx tools list     ->  show the registry
 
 The passthrough commands forward every argument, stdin, stdout, stderr, and
 the exit code verbatim, so agents can invoke them via their existing shell
-tool without any Headroom-specific protocol.
+tool without any CutCtx-specific protocol.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def _exec_tool(tool: str, argv: Sequence[str]) -> None:
         sys.exit(2)
     except binaries.OfflineError as e:
         click.secho(
-            f"error: {e}\nHint: run `headroom tools install` on a networked machine, "
+            f"error: {e}\nHint: run `cutctx tools install` on a networked machine, "
             f"or pass --from <bundle.tar.gz>.",
             fg="red",
             err=True,
@@ -206,7 +206,7 @@ def tools_install_cmd(tools: tuple[str, ...], force: bool) -> None:
                 click.echo(f"{name}: on PATH at {on_path} (pypi wheel)")
             else:
                 click.secho(
-                    f"{name}: not on PATH — `pip install headroom-ai` should provide it",
+                    f"{name}: not on PATH — `pip install cutctx-ai` should provide it",
                     fg="yellow",
                 )
                 exit_code = 1

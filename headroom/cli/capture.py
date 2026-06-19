@@ -12,7 +12,7 @@ from .main import main
 
 @main.group("capture")
 def capture_group() -> None:
-    """Capture and compare network traffic for Headroom investigations."""
+    """Capture and compare network traffic for CutCtx investigations."""
 
 
 @capture_group.command("network-diff")
@@ -28,7 +28,7 @@ def capture_group() -> None:
     "headroom_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="JSONL capture from the Headroom-proxied Claude Code lane.",
+    help="JSONL capture from the CutCtx-proxied Claude Code lane.",
 )
 @click.option(
     "--output",
@@ -55,7 +55,7 @@ def network_diff(
     json_output: Path | None,
     pair_by: str,
 ) -> None:
-    """Compare direct and Headroom MITM capture JSONL files."""
+    """Compare direct and CutCtx MITM capture JSONL files."""
 
     from headroom.capture.network_diff import (
         compare_captures,

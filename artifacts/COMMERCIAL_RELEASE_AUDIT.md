@@ -5,6 +5,8 @@
 **Auditor:** Multi-role review (PM, SWE, QA, UX, Platform, CS)  
 **Verdict:** ⚠️ NOT READY — 4 Critical, 8 High, 12 Medium, 9 Low issues
 
+> Historical note: this audit predates later launch-page fixes. Pricing alignment, enterprise feature badges, and published legal docs have since been updated in the repo. Treat the issue list below as a snapshot of the pre-fix state, not a live blocker list.
+
 ---
 
 ## Product Understanding

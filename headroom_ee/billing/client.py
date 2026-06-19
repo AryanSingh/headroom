@@ -1,4 +1,4 @@
-"""Client for interacting with the Headroom license portal."""
+"""Client for interacting with the PitchToShip license portal."""
 
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
 # Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
@@ -10,11 +10,16 @@ import time
 import httpx
 
 _CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
+_DEFAULT_PORTAL_URL = "https://pitchtoship.com"
 
 
 def get_portal_url() -> str:
-    """Get the base URL for the license portal."""
-    return os.environ.get("HEADROOM_LICENSE_API_URL", "https://api.cutctx.dev")
+    """Get the base URL for the PitchToShip license portal."""
+    return (
+        os.environ.get("PITCHTOSHIP_URL")
+        or os.environ.get("HEADROOM_LICENSE_API_URL")
+        or _DEFAULT_PORTAL_URL
+    ).rstrip("/")
 
 
 def is_revoked(license_key: str) -> bool:

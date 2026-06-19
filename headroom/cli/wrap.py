@@ -1,15 +1,15 @@
-"""Wrap CLI commands to run through Headroom proxy.
+"""Wrap CLI commands to run through CutCtx proxy.
 
 Usage:
-    headroom wrap claude                    # Start proxy + context tool + claude
-    headroom wrap copilot -- --model ...    # Start proxy + launch GitHub Copilot CLI
-    headroom wrap codex                     # Start proxy + OpenAI Codex CLI
-    headroom wrap aider                     # Start proxy + aider
-    headroom wrap cursor                    # Start proxy + print Cursor config instructions
-    headroom wrap openclaw                  # Install + configure OpenClaw plugin
-    headroom wrap claude --no-context-tool  # Without CLI context-tool setup
-    headroom wrap claude --port 9999        # Custom proxy port
-    headroom wrap claude -- --model opus    # Pass args to claude
+    cutctx wrap claude                    # Start proxy + context tool + claude
+    cutctx wrap copilot -- --model ...    # Start proxy + launch GitHub Copilot CLI
+    cutctx wrap codex                     # Start proxy + OpenAI Codex CLI
+    cutctx wrap aider                     # Start proxy + aider
+    cutctx wrap cursor                    # Start proxy + print Cursor config instructions
+    cutctx wrap openclaw                  # Install + configure OpenClaw plugin
+    cutctx wrap claude --no-context-tool  # Without CLI context-tool setup
+    cutctx wrap claude --port 9999        # Custom proxy port
+    cutctx wrap claude -- --model opus    # Pass args to claude
 """
 
 from __future__ import annotations
@@ -253,7 +253,7 @@ def _print_telemetry_notice() -> None:
 
 
 def _check_proxy(port: int) -> bool:
-    """Check if Headroom proxy is running on given port."""
+    """Check if the CutCtx proxy is running on the given port."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
@@ -275,9 +275,9 @@ def _port_bind_error(port: int) -> OSError | None:
 
 def _format_unbindable_port_error(port: int, error: OSError, agent_type: str) -> str:
     """Build an actionable message for ports that fail before uvicorn can bind."""
-    command = "headroom proxy"
+    command = "cutctx proxy"
     if agent_type != "unknown":
-        command = f"headroom wrap {agent_type}"
+        command = f"cutctx wrap {agent_type}"
     suggested_port = port + 1
     return (
         f"Port {port} is unavailable on 127.0.0.1 before the proxy can start: {error}. "
@@ -309,7 +309,7 @@ def _start_proxy(
     anthropic_api_url: str | None = None,
     copilot_api_token: str | None = None,
 ) -> subprocess.Popen:
-    """Start Headroom proxy as a background subprocess.
+    """Start the CutCtx proxy as a background subprocess.
 
     Logs are written to ~/.headroom/logs/proxy.log to avoid pipe buffer
     deadlocks (macOS pipe buffer is ~64KB — a busy proxy fills it quickly,
@@ -811,15 +811,15 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 _RTK_MARKER = "<!-- headroom:rtk-instructions -->"
 
 # Memory MCP markers
-_MEMORY_MCP_MARKER = "# --- Headroom memory MCP (auto-injected) ---"
-_MEMORY_MCP_END = "# --- end Headroom memory ---"
+_MEMORY_MCP_MARKER = "# --- CutCtx memory MCP (auto-injected) ---"
+_MEMORY_MCP_END = "# --- end CutCtx memory ---"
 _MEMORY_AGENTS_MARKER = "<!-- headroom:memory-instructions -->"
 
 # Codex config injection markers
-_CODEX_TOP_LEVEL_MARKER = "# --- Headroom proxy (auto-injected by headroom wrap codex) ---"
-_CODEX_END_MARKER = "# --- end Headroom ---"
-_CODEX_MCP_MARKER = "# --- Headroom MCP server ---"
-_CODEX_MCP_END = "# --- end Headroom MCP server ---"
+_CODEX_TOP_LEVEL_MARKER = "# --- CutCtx proxy (auto-injected by cutctx wrap codex) ---"
+_CODEX_END_MARKER = "# --- end CutCtx ---"
+_CODEX_MCP_MARKER = "# --- CutCtx MCP server ---"
+_CODEX_MCP_END = "# --- end CutCtx MCP server ---"
 # File name used for the pre-wrap snapshot of the Codex config file.  The
 # snapshot lets `headroom unwrap codex` restore the exact prior state, even
 # if the user had their own `model_provider` / `[model_providers.*]` config
@@ -844,7 +844,7 @@ def _codex_config_paths() -> tuple[Path, Path]:
 
 
 def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> str:
-    """Remove all Headroom-managed blocks from a Codex ``config.toml`` string.
+    """Remove all CutCtx-managed blocks from a Codex ``config.toml`` string.
 
     Returns the cleaned content.  Safe to call on content that never contained
     any markers — it will be returned effectively unchanged (only trailing
@@ -880,7 +880,11 @@ def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> s
 
     # Strip any leftover top-level keys that older (or crashed) versions of
     # `wrap codex` may have written outside the marker block.
-    content = re.sub(r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"headroom"[ \t]*\r?\n', "", content)
+    content = re.sub(
+        r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"(headroom|cutctx)"[ \t]*\r?\n',
+        "",
+        content,
+    )
     content = re.sub(
         r'(?m)^[ \t]*openai_base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[ \t]*\r?\n',
         "",
@@ -891,12 +895,13 @@ def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> s
     # write.  We only remove it if the table is recognisably ours (base_url
     # mentions localhost and a Headroom proxy port).  This protects users who
     # happen to have a differently configured `headroom` provider.
-    orphan_headroom_table = re.compile(
-        r"(?ms)^\[model_providers\.headroom\][^\[]*?"
-        r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
-        r"(?=^\[|\Z)"
-    )
-    content = orphan_headroom_table.sub("", content)
+    for provider_name in ("headroom", "cutctx"):
+        orphan_provider_table = re.compile(
+            rf"(?ms)^\[model_providers\.{provider_name}\][^\[]*?"
+            r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
+            r"(?=^\[|\Z)"
+        )
+        content = orphan_provider_table.sub("", content)
 
     return content.lstrip("\n").rstrip() + "\n" if content.strip() else ""
 
@@ -1002,11 +1007,11 @@ def _apply_project_header_env(env: dict[str, str]) -> None:
 
 
 def _inject_codex_provider_config(port: int) -> None:
-    """Inject a Headroom model provider into Codex's config.toml.
+    """Inject a CutCtx model provider into Codex's config.toml.
 
     Two keys are written in the top-level block:
 
-    * ``model_provider = "headroom"`` — selects the custom provider for
+    * ``model_provider = "cutctx"`` — selects the custom provider for
       API-key mode traffic.
     * ``openai_base_url = "http://127.0.0.1:{port}/v1"`` — overrides the
       built-in ``openai`` provider's base URL.  This is the critical key for
@@ -1018,7 +1023,7 @@ def _inject_codex_provider_config(port: int) -> None:
     Safe to call multiple times — the injected block is fully replaced on
     each call, so re-running with a different ``port`` updates the config.
     Before the first injection, the pre-wrap file is snapshotted to
-    ``config.toml.headroom-backup`` so ``headroom unwrap codex``
+    ``config.toml.headroom-backup`` so ``cutctx unwrap codex``
     can restore it byte-for-byte.
     """
     config_file, backup_file = _codex_config_paths()
@@ -1032,14 +1037,14 @@ def _inject_codex_provider_config(port: int) -> None:
     # happens to sit between the two.
     top_level_block = (
         f"{_CODEX_TOP_LEVEL_MARKER}\n"
-        f'model_provider = "headroom"\n'
+        f'model_provider = "cutctx"\n'
         f'openai_base_url = "http://127.0.0.1:{port}/v1"\n'
         f"{_CODEX_END_MARKER}\n"
     )
     provider_section = (
         f"{_CODEX_TOP_LEVEL_MARKER}\n"
-        "[model_providers.headroom]\n"
-        'name = "OpenAI via Headroom proxy"\n'
+        "[model_providers.cutctx]\n"
+        'name = "OpenAI via CutCtx proxy"\n'
         f'base_url = "http://127.0.0.1:{port}/v1"\n'
         f"supports_websockets = true\n"
         # Per-project savings: Codex sends the header only when the mapped
@@ -1075,7 +1080,7 @@ def _inject_codex_provider_config(port: int) -> None:
             content = top_level_block + "\n" + provider_section
 
         config_file.write_text(content)
-        click.echo(f"  Codex config: injected Headroom provider (WS + HTTP) into {config_file}")
+        click.echo(f"  Codex config: injected CutCtx provider (WS + HTTP) into {config_file}")
     except Exception as e:
         click.echo(f"  Warning: could not update Codex config: {e}")
 
@@ -1123,18 +1128,18 @@ def _emit_wrap_interrupted(agent: str, marker_path: Path | None) -> None:
 
     Called when a wrap subcommand catches ``KeyboardInterrupt`` between marker
     injection and proxy startup. The marker file (if any) is left on disk —
-    re-running the same ``headroom wrap <agent>`` command is idempotent and
+    re-running the same ``cutctx wrap <agent>`` command is idempotent and
     safe.
     """
     if marker_path is not None:
         click.echo(
             f"\n  Wrap was interrupted; marker file at {marker_path} is on "
-            f"disk. Rerun `headroom wrap {agent}` to retry — it's idempotent."
+            f"disk. Rerun `cutctx wrap {agent}` to retry — it's idempotent."
         )
     else:
         click.echo(
             f"\n  Wrap was interrupted before any on-disk changes. Rerun "
-            f"`headroom wrap {agent}` to retry — it's idempotent."
+            f"`cutctx wrap {agent}` to retry — it's idempotent."
         )
 
 
@@ -1142,14 +1147,14 @@ _WRAP_BANNER_INNER_WIDTH = 47
 
 
 def _print_wrap_banner(agent: str) -> None:
-    """Print a centered ``HEADROOM WRAP: <AGENT>`` banner.
+    """Print a centered ``CUTCTX WRAP: <AGENT>`` banner.
 
     Every Pattern-B wrap subcommand (proxy-only + watcher loop) used to
     inline this 3-line box by hand with hand-padded spaces, which made
     title-length changes silently miscenter the title. Compute padding
     here so adding a 9th agent just works.
     """
-    title = f"HEADROOM WRAP: {agent.upper()}"
+    title = f"CUTCTX WRAP: {agent.upper()}"
     pad_total = _WRAP_BANNER_INNER_WIDTH - len(title)
     pad_left = pad_total // 2
     pad_right = pad_total - pad_left
@@ -1298,7 +1303,7 @@ def _inject_rtk_instructions(file_path: Path, verbose: bool = False) -> bool:
 
 
 def _inject_memory_mcp_config(db_path: str, user_id: str) -> None:
-    """Register headroom memory as an MCP server in Codex's config.toml.
+    """Register CutCtx memory as an MCP server in Codex's config.toml.
 
     Idempotent — replaces existing section if present.
     """
@@ -1590,7 +1595,7 @@ def _proxy_version(payload: dict[str, Any] | None) -> str | None:
 
 
 def _proxy_needs_version_restart(payload: dict[str, Any] | None) -> bool:
-    """Return True when a running Headroom proxy uses a different package version."""
+    """Return True when a running CutCtx proxy uses a different package version."""
     running_version = _proxy_version(payload)
     return (
         running_version is not None
@@ -1641,14 +1646,14 @@ def _kill_proxy_by_pid(pid: int, port: int) -> bool:
 
 
 def _stop_local_proxy_for_unwrap(port: int) -> str:
-    """Stop a local Headroom proxy for durable unwrap commands.
+    """Stop a local CutCtx proxy for durable unwrap commands.
 
     Returns a status string:
-      * ``"stopped"``: a Headroom proxy was identified and stopped.
+      * ``"stopped"``: a CutCtx proxy was identified and stopped.
       * ``"not_running"``: nothing is listening on the requested port.
       * ``"unidentified"``: something is listening, but it did not expose
-        Headroom's health/config payload, so we did not kill it.
-      * ``"no_pid"``: the service looked like Headroom but did not expose a PID.
+        CutCtx's health/config payload, so we did not kill it.
+      * ``"no_pid"``: the service looked like CutCtx but did not expose a PID.
       * ``"failed"``: a PID was found but the port stayed bound after stop.
     """
 
@@ -1675,19 +1680,19 @@ def _echo_unwrap_proxy_stop_status(status: str, port: int) -> None:
     """Print a human-readable proxy stop result for unwrap commands."""
 
     if status == "stopped":
-        click.echo(f"  Stopped local Headroom proxy on port {port}.")
+        click.echo(f"  Stopped local CutCtx proxy on port {port}.")
     elif status == "not_running":
-        click.echo(f"  No local Headroom proxy detected on port {port}.")
+        click.echo(f"  No local CutCtx proxy detected on port {port}.")
     elif status == "unidentified":
         click.echo(
-            f"  Warning: port {port} is in use, but it did not look like Headroom; left it running."
+            f"  Warning: port {port} is in use, but it did not look like CutCtx; left it running."
         )
     elif status == "no_pid":
         click.echo(
-            f"  Warning: Headroom proxy on port {port} did not expose a PID; left it running."
+            f"  Warning: CutCtx proxy on port {port} did not expose a PID; left it running."
         )
     else:
-        click.echo(f"  Warning: failed to stop Headroom proxy on port {port}; stop it manually.")
+        click.echo(f"  Warning: failed to stop CutCtx proxy on port {port}; stop it manually.")
 
 
 def _find_persistent_manifest(port: int) -> Any:
@@ -1755,7 +1760,7 @@ def _restart_persistent_proxy(manifest: Any, port: int) -> bool:
 
     click.echo(
         f"  Restarting persistent deployment '{manifest.profile}' "
-        f"with Headroom {_HEADROOM_VERSION}..."
+        f"with CutCtx {_HEADROOM_VERSION}..."
     )
     try:
         if manifest.preset == InstallPreset.PERSISTENT_DOCKER.value:
@@ -1854,7 +1859,7 @@ def _ensure_proxy(
                             else f"{len(other_wrappers)} attached wrapper(s)"
                         )
                         click.echo(
-                            f"  Proxy on port {port} is running Headroom {running_version}; "
+                            f"  Proxy on port {port} is running CutCtx {running_version}; "
                             f"current CLI is {_HEADROOM_VERSION}."
                         )
                         click.echo(
@@ -1866,7 +1871,7 @@ def _ensure_proxy(
                         return None
                     raise click.ClickException(
                         f"Persistent deployment '{manifest.profile}' on port {port} "
-                        f"is running stale Headroom {running_version} and could not be restarted."
+                        f"is running stale CutCtx {running_version} and could not be restarted."
                     )
                 click.echo(f"  Proxy already running on port {port}")
                 return None
@@ -1904,7 +1909,7 @@ def _ensure_proxy(
                         else f"{len(other_wrappers)} attached wrapper(s)"
                     )
                     click.echo(
-                        f"  Proxy on port {port} is running Headroom {running_version}; "
+                        f"  Proxy on port {port} is running CutCtx {running_version}; "
                         f"current CLI is {_HEADROOM_VERSION}."
                     )
                     click.echo(
@@ -1914,7 +1919,7 @@ def _ensure_proxy(
                     return None
 
                 click.echo(
-                    f"  Proxy on port {port} is running Headroom {running_version}; "
+                    f"  Proxy on port {port} is running CutCtx {running_version}; "
                     f"restarting with {_HEADROOM_VERSION}..."
                 )
                 proxy_pid = running_config.get("pid") if running_config is not None else None
@@ -2008,7 +2013,7 @@ def _ensure_proxy(
                 helpers._format_unbindable_port_error(port, bind_error, agent_type)
             )
 
-        click.echo(f"  Starting Headroom proxy on port {port}...")
+        click.echo(f"  Starting CutCtx proxy on port {port}...")
         try:
             proc = cast(
                 subprocess.Popen[Any],
@@ -2225,7 +2230,7 @@ def _launch_tool(
 
     try:
         click.echo()
-        padded = f"HEADROOM WRAP: {tool_label}".center(47)
+        padded = f"CUTCTX WRAP: {tool_label}".center(47)
         click.echo("  ╔═══════════════════════════════════════════════╗")
         click.echo(f"  ║{padded}║")
         click.echo("  ╚═══════════════════════════════════════════════╝")
@@ -2249,7 +2254,7 @@ def _launch_tool(
             _setup_code_graph(verbose=False)
 
         click.echo()
-        click.echo(f"  Launching {tool_label} (API routed through Headroom)...")
+        click.echo(f"  Launching {tool_label} (API routed through CutCtx)...")
         for var in env_vars_display:
             click.echo(f"  {var}")
         if args:
@@ -2457,43 +2462,43 @@ def _copy_openclaw_plugin_into_extensions(
 
 @main.group()
 def wrap() -> None:
-    """Wrap CLI tools to run through Headroom.
+    """Wrap CLI tools to run through CutCtx.
 
     \b
-    Starts a Headroom proxy, configures the environment, and launches
-    the target tool so all API calls route through Headroom automatically.
+    Starts a CutCtx proxy, configures the environment, and launches
+    the target tool so all API calls route through CutCtx automatically.
 
     \b
     Supported tools (one Click subcommand per tool):
-        headroom wrap claude              # Claude Code (Anthropic)
-        headroom wrap codex               # OpenAI Codex CLI
-        headroom wrap copilot -- --model claude-sonnet-4-20250514
-        headroom wrap aider               # Aider
-        headroom wrap cursor              # Cursor (prints config instructions)
-        headroom wrap cline               # Cline (VS Code; prints config instructions)
-        headroom wrap continue            # Continue (VS Code/JetBrains; injects systemMessage)
-        headroom wrap goose               # Goose (Block) CLI
-        headroom wrap openhands           # OpenHands CLI
-        headroom wrap openclaw            # OpenClaw plugin bootstrap
+        cutctx wrap claude              # Claude Code (Anthropic)
+        cutctx wrap codex               # OpenAI Codex CLI
+        cutctx wrap copilot -- --model claude-sonnet-4-20250514
+        cutctx wrap aider               # Aider
+        cutctx wrap cursor              # Cursor (prints config instructions)
+        cutctx wrap cline               # Cline (VS Code; prints config instructions)
+        cutctx wrap continue            # Continue (VS Code/JetBrains; injects systemMessage)
+        cutctx wrap goose               # Goose (Block) CLI
+        cutctx wrap openhands           # OpenHands CLI
+        cutctx wrap openclaw            # OpenClaw plugin bootstrap
 
     \b
     `wrap` vs `proxy`:
-        - `headroom wrap <tool>` — convenience: starts the proxy for you,
+        - `cutctx wrap <tool>` — convenience: starts the proxy for you,
           sets the right env vars, and launches the wrapped CLI.
-        - `headroom proxy` — just the proxy. Use this with any
+        - `cutctx proxy` — just the proxy. Use this with any
           OpenAI/Anthropic-compatible client by setting
           ANTHROPIC_BASE_URL / OPENAI_BASE_URL yourself.
 
     \b
-    Note: `headroom wrap opencode` does NOT exist. For opencode, run
-    `headroom proxy` and point opencode at it via OPENAI_BASE_URL.
+    Note: `cutctx wrap opencode` does NOT exist. For opencode, run
+    `cutctx proxy` and point opencode at it via OPENAI_BASE_URL.
     `openclaw` is a separate tool — different from opencode.
     """
 
 
 @main.group()
 def unwrap() -> None:
-    """Undo durable Headroom wrapping for supported tools."""
+    """Undo durable CutCtx wrapping for supported tools."""
 
 
 # =============================================================================
@@ -2513,7 +2518,7 @@ def unwrap() -> None:
 @click.option(
     "--no-mcp",
     is_flag=True,
-    help="Skip headroom MCP server registration (compression markers will be unactionable)",
+    help="Skip CutCtx MCP server registration (compression markers will be unactionable)",
 )
 @click.option("--no-serena", is_flag=True, help="Skip Serena MCP server registration")
 @click.option(
@@ -2556,22 +2561,22 @@ def claude(
     prepare_only: bool,
     claude_args: tuple,
 ) -> None:
-    """Launch Claude Code through Headroom proxy.
+    """Launch Claude Code through CutCtx proxy.
 
     \b
-    Sets ANTHROPIC_BASE_URL to route all Anthropic API calls through Headroom.
+    Sets ANTHROPIC_BASE_URL to route all Anthropic API calls through CutCtx.
     All unknown flags are passed through to claude (e.g. --resume, --model).
 
     \b
     Examples:
-        headroom wrap claude                    # Start everything
-        headroom wrap claude --memory           # With persistent memory
-        headroom wrap claude --resume <id>      # Resume a session
-        headroom wrap claude -- -p              # Claude in print mode
-        headroom wrap claude --code-graph        # With code graph intelligence
-        headroom wrap claude --no-context-tool  # Skip CLI context-tool setup
-        headroom wrap claude --no-mcp           # Skip MCP retrieve tool registration
-        headroom wrap claude --no-serena        # Skip Serena MCP registration
+        cutctx wrap claude                    # Start everything
+        cutctx wrap claude --memory           # With persistent memory
+        cutctx wrap claude --resume <id>      # Resume a session
+        cutctx wrap claude -- -p              # Claude in print mode
+        cutctx wrap claude --code-graph        # With code graph intelligence
+        cutctx wrap claude --no-context-tool  # Skip CLI context-tool setup
+        cutctx wrap claude --no-mcp           # Skip MCP retrieve tool registration
+        cutctx wrap claude --no-serena        # Skip Serena MCP registration
     """
     if prepare_only:
         if not no_rtk:
@@ -2643,7 +2648,7 @@ def claude(
     try:
         click.echo()
         click.echo("  ╔═══════════════════════════════════════════════╗")
-        click.echo("  ║            HEADROOM WRAP: CLAUDE              ║")
+        click.echo("  ║             CUTCTX WRAP: CLAUDE               ║")
         click.echo("  ╚═══════════════════════════════════════════════╝")
         click.echo()
 
@@ -2692,7 +2697,7 @@ def claude(
 
         proxy_url = _claude_proxy_base_url(port)
         click.echo()
-        click.echo("  Launching Claude Code (API routed through Headroom)...")
+        click.echo("  Launching Claude Code (API routed through CutCtx)...")
         if foundry_upstream:
             click.echo(
                 f"  Foundry mode: ANTHROPIC_FOUNDRY_BASE_URL={proxy_url} → upstream {foundry_upstream}"
@@ -2747,8 +2752,8 @@ def claude(
 
 @unwrap.command("claude")
 @click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
-@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local Headroom proxy")
-@click.option("--keep-mcp", is_flag=True, help="Keep Headroom MCP registrations")
+@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local CutCtx proxy")
+@click.option("--keep-mcp", is_flag=True, help="Keep CutCtx MCP registrations")
 @click.option("--keep-rtk", is_flag=True, help="Keep rtk Claude hooks")
 def unwrap_claude(
     port: int,
@@ -2756,10 +2761,10 @@ def unwrap_claude(
     keep_mcp: bool,
     keep_rtk: bool,
 ) -> None:
-    """Undo durable setup from ``headroom wrap claude``."""
+    """Undo durable setup from ``cutctx wrap claude``."""
     click.echo()
     click.echo("  ╔═══════════════════════════════════════════════╗")
-    click.echo("  ║          HEADROOM UNWRAP: CLAUDE              ║")
+    click.echo("  ║            CUTCTX UNWRAP: CLAUDE              ║")
     click.echo("  ╚═══════════════════════════════════════════════╝")
     click.echo()
 
@@ -2772,15 +2777,15 @@ def unwrap_claude(
             removed_code_graph = registrar.unregister_server(_CBM_MCP_SERVER_NAME)
             serena_status = _remove_headroom_installed_serena_mcp(registrar)
             if removed_headroom:
-                click.echo("  Removed Headroom MCP retrieve tool from Claude.")
+                click.echo("  Removed CutCtx MCP retrieve tool from Claude.")
             else:
-                click.echo("  Headroom MCP retrieve tool was not registered in Claude.")
+                click.echo("  CutCtx MCP retrieve tool was not registered in Claude.")
             if removed_code_graph:
                 click.echo("  Removed code graph MCP server from Claude.")
             if serena_status == "removed":
-                click.echo("  Removed Headroom-installed Serena MCP server from Claude.")
+                click.echo("  Removed CutCtx-installed Serena MCP server from Claude.")
             elif serena_status == "failed":
-                click.echo("  Serena MCP server matched Headroom ledger but could not be removed.")
+                click.echo("  Serena MCP server matched the CutCtx ledger but could not be removed.")
         else:
             click.echo("  Claude Code not detected; skipped MCP cleanup.")
     else:
@@ -2795,7 +2800,7 @@ def unwrap_claude(
         click.echo("  Kept rtk Claude hooks (--keep-rtk).")
 
     click.echo()
-    click.echo("✓ Claude is no longer durably wrapped by Headroom.")
+    click.echo("✓ Claude is no longer durably wrapped by CutCtx.")
     if not no_stop_proxy:
         _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(port), port)
     click.echo()
@@ -2846,7 +2851,7 @@ def unwrap_claude(
     "--subscription",
     is_flag=True,
     help=(
-        "Experimental: route GitHub-authenticated Copilot CLI traffic through Headroom "
+        "Experimental: route GitHub-authenticated Copilot CLI traffic through CutCtx "
         "without requiring a provider API key."
     ),
 )
@@ -2867,21 +2872,21 @@ def copilot(
     verbose: bool,
     copilot_args: tuple[str, ...],
 ) -> None:
-    """Launch GitHub Copilot CLI through Headroom proxy.
+    """Launch GitHub Copilot CLI through CutCtx proxy.
 
     \b
     Configures Copilot CLI BYOK provider variables so Copilot routes through
-    the local Headroom proxy. In auto mode, the wrapper uses Anthropic-style
+    the local CutCtx proxy. In auto mode, the wrapper uses Anthropic-style
     routing for the stock proxy backend and OpenAI-compatible routing for
     translated backends such as any-llm and LiteLLM.
 
     \b
     Examples:
-        headroom wrap copilot -- --model claude-sonnet-4-20250514
-        headroom wrap copilot --backend anyllm --anyllm-provider groq -- --model gpt-4o
-        headroom wrap copilot --provider-type openai --wire-api responses -- --model gpt-5.4
-        headroom wrap copilot --subscription -- --model gpt-4.1
-        headroom wrap copilot --no-context-tool -- --prompt "explain this file"
+        cutctx wrap copilot -- --model claude-sonnet-4-20250514
+        cutctx wrap copilot --backend anyllm --anyllm-provider groq -- --model gpt-4o
+        cutctx wrap copilot --provider-type openai --wire-api responses -- --model gpt-5.4
+        cutctx wrap copilot --subscription -- --model gpt-4.1
+        cutctx wrap copilot --no-context-tool -- --prompt "explain this file"
 
     \b
     Copilot hosted API (--subscription and the implicit OAuth path) routes to the
@@ -3018,9 +3023,9 @@ def copilot(
             src = _copilot_provider_key_source(effective_provider_type)
             click.echo(
                 f"\n  Error: Copilot BYOK mode requires a provider API key.\n"
-                f"  `headroom wrap copilot` uses Copilot's BYOK mode, which bypasses GitHub's\n"
+                f"  `cutctx wrap copilot` uses Copilot's BYOK mode, which bypasses GitHub's\n"
                 f"  Copilot API and routes requests directly to the model provider through the\n"
-                f"  Headroom proxy. A GitHub Copilot subscription alone is not sufficient.\n\n"
+                f"  CutCtx proxy. A GitHub Copilot subscription alone is not sufficient.\n\n"
                 f"  Set one of:\n"
                 f"    export {src}=sk-...          # recommended\n"
                 f"    export COPILOT_PROVIDER_API_KEY=sk-...  # also works\n"
@@ -3069,7 +3074,7 @@ def copilot(
 @click.option(
     "--no-mcp",
     is_flag=True,
-    help="Skip headroom MCP server registration (compression markers will be unactionable)",
+    help="Skip CutCtx MCP server registration (compression markers will be unactionable)",
 )
 @click.option("--no-serena", is_flag=True, help="Skip Serena MCP server registration")
 @click.option(
@@ -3114,24 +3119,24 @@ def codex(
     prepare_only: bool,
     codex_args: tuple,
 ) -> None:
-    """Launch OpenAI Codex CLI through Headroom proxy.
+    """Launch OpenAI Codex CLI through CutCtx proxy.
 
     \b
-    Sets OPENAI_BASE_URL to route all OpenAI API calls through Headroom.
+    Sets OPENAI_BASE_URL to route all OpenAI API calls through CutCtx.
     Sets up the selected CLI context tool so Codex uses token-optimized
     commands (60-90% savings on shell output). Also
-    registers the headroom MCP server in the active Codex config file
-    so Codex can call ``headroom_retrieve`` on compression markers.
+    registers the CutCtx MCP server in the active Codex config file
+    so Codex can call ``cutctx_retrieve`` on compression markers.
 
     \b
     Examples:
-        headroom wrap codex                         # Start proxy + context tool + mcp + codex
-        headroom wrap codex -- "fix the bug"        # Pass prompt to codex
-        headroom wrap codex --no-context-tool       # Skip CLI context-tool setup
-        headroom wrap codex --no-mcp                # Skip MCP retrieve tool registration
-        headroom wrap codex --no-serena             # Skip Serena MCP registration
-        headroom wrap codex --port 9999             # Custom proxy port
-        headroom wrap codex --backend anyllm --anyllm-provider groq
+        cutctx wrap codex                         # Start proxy + context tool + mcp + codex
+        cutctx wrap codex -- "fix the bug"        # Pass prompt to codex
+        cutctx wrap codex --no-context-tool       # Skip CLI context-tool setup
+        cutctx wrap codex --no-mcp                # Skip MCP retrieve tool registration
+        cutctx wrap codex --no-serena             # Skip Serena MCP registration
+        cutctx wrap codex --port 9999             # Custom proxy port
+        cutctx wrap codex --backend anyllm --anyllm-provider groq
     """
     # Snapshot Codex config.toml BEFORE any wrap-time mutation so
     # `headroom unwrap codex` can restore the user's pre-wrap state
@@ -3315,19 +3320,19 @@ def aider(
     prepare_only: bool,
     aider_args: tuple,
 ) -> None:
-    """Launch aider through Headroom proxy.
+    """Launch aider through CutCtx proxy.
 
     \b
-    Sets OPENAI_API_BASE to route all API calls through Headroom.
+    Sets OPENAI_API_BASE to route all API calls through CutCtx.
     Sets up the selected CLI context tool so aider uses token-optimized commands.
 
     \b
     Examples:
-        headroom wrap aider                              # Start proxy + context tool + aider
-        headroom wrap aider -- --model gpt-4o            # Use GPT-4o
-        headroom wrap aider -- --model claude-sonnet-4   # Use Claude
-        headroom wrap aider --no-context-tool            # Skip CLI context-tool setup
-        headroom wrap aider --backend litellm-vertex --region us-central1
+        cutctx wrap aider                              # Start proxy + context tool + aider
+        cutctx wrap aider -- --model gpt-4o            # Use GPT-4o
+        cutctx wrap aider -- --model claude-sonnet-4   # Use Claude
+        cutctx wrap aider --no-context-tool            # Skip CLI context-tool setup
+        cutctx wrap aider --backend litellm-vertex --region us-central1
     """
     # Setup CLI context tool for aider.
     if not no_rtk:
@@ -3403,7 +3408,7 @@ def cursor(
     verbose: bool,
     prepare_only: bool,
 ) -> None:
-    """Start Headroom proxy for use with Cursor.
+    """Start CutCtx proxy for use with Cursor.
 
     \b
     Cursor reads its API configuration from its settings UI, not from
@@ -3416,9 +3421,9 @@ def cursor(
 
     \b
     Example:
-        headroom wrap cursor                # Start proxy + context-tool instructions
-        headroom wrap cursor --no-context-tool  # Proxy only, no CLI context tool
-        headroom wrap cursor --port 9999    # Custom proxy port
+        cutctx wrap cursor                # Start proxy + context-tool instructions
+        cutctx wrap cursor --no-context-tool  # Proxy only, no CLI context tool
+        cutctx wrap cursor --port 9999    # Custom proxy port
     """
     cursorrules: Path | None = Path.cwd() / ".cursorrules" if not no_rtk else None
     if not no_rtk:
@@ -3485,7 +3490,7 @@ def cline(
     verbose: bool,
     prepare_only: bool,
 ) -> None:
-    """Start Headroom proxy for use with Cline (VS Code extension).
+    """Start CutCtx proxy for use with Cline (VS Code extension).
 
     \b
     Cline is a VS Code extension that reads its API configuration from the
@@ -3496,7 +3501,7 @@ def cline(
 
     \b
     After running this command, open Cline's settings in VS Code and configure
-    the API Base URL to point at the local Headroom proxy.
+    the API Base URL to point at the local CutCtx proxy.
 
     \b
     Uninstall: there is no ``headroom unwrap cline`` subcommand. To remove the
@@ -3509,9 +3514,9 @@ def cline(
 
     \b
     Examples:
-        headroom wrap cline                  # Start proxy + .clinerules instructions
-        headroom wrap cline --no-context-tool # Proxy only, no CLI context tool
-        headroom wrap cline --port 9999      # Custom proxy port
+        cutctx wrap cline                  # Start proxy + .clinerules instructions
+        cutctx wrap cline --no-context-tool # Proxy only, no CLI context tool
+        cutctx wrap cline --port 9999      # Custom proxy port
     """
     # Pre-compute the marker path so the KeyboardInterrupt handler can report
     # its location even if the interrupt fires before _inject_rtk_instructions
@@ -3593,7 +3598,7 @@ def continue_dev(
     verbose: bool,
     prepare_only: bool,
 ) -> None:
-    """Start Headroom proxy for use with Continue (VS Code / JetBrains).
+    """Start CutCtx proxy for use with Continue (VS Code / JetBrains).
 
     \b
     Continue reads its model configuration from .continue/config.json (a JSON
@@ -3632,10 +3637,10 @@ def continue_dev(
 
     \b
     Examples:
-        headroom wrap continue                # Start proxy + inject systemMessage
-        headroom wrap continue --no-context-tool   # Proxy only
-        headroom wrap continue --port 9999    # Custom proxy port
-        headroom wrap continue --config path/to/config.json
+        cutctx wrap continue                # Start proxy + inject systemMessage
+        cutctx wrap continue --no-context-tool   # Proxy only
+        cutctx wrap continue --port 9999    # Custom proxy port
+        cutctx wrap continue --config path/to/config.json
     """
     config_file = config_path or (Path.cwd() / ".continue" / "config.json")
 
@@ -3723,11 +3728,11 @@ def goose(
     prepare_only: bool,
     goose_args: tuple,
 ) -> None:
-    """Launch Goose (Block) CLI through Headroom proxy.
+    """Launch Goose (Block) CLI through CutCtx proxy.
 
     \b
     Sets OPENAI_BASE_URL and ANTHROPIC_BASE_URL to route Goose's API calls
-    through Headroom. Sets up the selected CLI context tool by injecting RTK
+    through CutCtx. Sets up the selected CLI context tool by injecting RTK
     guidance into .goosehints at the project root (Goose reads this file as
     extra system context).
 
@@ -3742,10 +3747,10 @@ def goose(
 
     \b
     Examples:
-        headroom wrap goose                          # Start proxy + context tool + goose
-        headroom wrap goose -- session               # Start a Goose session
-        headroom wrap goose -- --provider anthropic  # Pass args to goose
-        headroom wrap goose --no-context-tool        # Skip CLI context-tool setup
+        cutctx wrap goose                          # Start proxy + context tool + goose
+        cutctx wrap goose -- session               # Start a Goose session
+        cutctx wrap goose -- --provider anthropic  # Pass args to goose
+        cutctx wrap goose --no-context-tool        # Skip CLI context-tool setup
     """
     # Goose reads .goosehints from the project root as extra context.
     # Pre-compute the marker path so the KeyboardInterrupt handler can report
@@ -3846,11 +3851,11 @@ def openhands(
     prepare_only: bool,
     openhands_args: tuple,
 ) -> None:
-    """Launch OpenHands CLI through Headroom proxy.
+    """Launch OpenHands CLI through CutCtx proxy.
 
     \b
     Sets OPENAI_BASE_URL / ANTHROPIC_BASE_URL to route OpenHands' API calls
-    through Headroom. Instructions are injected via the
+    through CutCtx. Instructions are injected via the
     ``OPENHANDS_INSTRUCTIONS`` environment variable at launch time so the
     on-disk OpenHands config is left untouched.
 
@@ -3865,9 +3870,9 @@ def openhands(
 
     \b
     Examples:
-        headroom wrap openhands                # Start proxy + context tool + openhands
-        headroom wrap openhands -- --task ...  # Pass args to openhands
-        headroom wrap openhands --no-context-tool
+        cutctx wrap openhands                # Start proxy + context tool + openhands
+        cutctx wrap openhands -- --task ...  # Pass args to openhands
+        cutctx wrap openhands --no-context-tool
     """
     # openhands never writes to disk — its rtk guidance ships via the
     # OPENHANDS_INSTRUCTIONS env var below — so marker_path is None and
@@ -3971,13 +3976,13 @@ def openhands(
     is_flag=True,
     help="Install by copying plugin path instead of using --link",
 )
-@click.option("--proxy-port", default=8787, type=int, help="Headroom proxy port")
+@click.option("--proxy-port", default=8787, type=int, help="CutCtx proxy port")
 @click.option("--startup-timeout-ms", default=20000, type=int, help="Proxy startup timeout")
 @click.option(
     "--gateway-provider-id",
     "gateway_provider_ids",
     multiple=True,
-    help="OpenClaw provider id to route through Headroom (repeatable; default: openai-codex)",
+    help="OpenClaw provider id to route through CutCtx (repeatable; default: openai-codex)",
 )
 @click.option(
     "--python-path",
@@ -4012,7 +4017,7 @@ def openclaw(
     prepare_only: bool,
     existing_entry_json: str | None,
 ) -> None:
-    """Install and configure Headroom OpenClaw plugin in one command.
+    """Install and configure the CutCtx OpenClaw plugin in one command.
 
     \b
     What this command does:
@@ -4024,8 +4029,8 @@ def openclaw(
 
     \b
     Example:
-      headroom wrap openclaw
-      headroom wrap openclaw --plugin-path C:\\git\\headroom\\plugins\\openclaw
+      cutctx wrap openclaw
+      cutctx wrap openclaw --plugin-path C:\\git\\headroom\\plugins\\openclaw
     """
     if prepare_only:
         entry = _build_openclaw_plugin_entry(
@@ -4064,7 +4069,7 @@ def openclaw(
 
     click.echo()
     click.echo("  ╔═══════════════════════════════════════════════╗")
-    click.echo("  ║           HEADROOM WRAP: OPENCLAW             ║")
+    click.echo("  ║             CUTCTX WRAP: OPENCLAW             ║")
     click.echo("  ╚═══════════════════════════════════════════════╝")
     click.echo()
     if local_source_mode:
@@ -4175,15 +4180,14 @@ def openclaw(
         click.echo(inspect_result.stdout.strip())
 
     click.echo()
-    click.echo("✓ OpenClaw is configured to use Headroom context compression.")
-    click.echo("  Plugin: headroom")
-    click.echo("  Slot:   plugins.slots.contextEngine = headroom")
+    click.echo("✓ OpenClaw is configured to use CutCtx context compression.")
+    click.echo("  Context engine: CutCtx")
     click.echo()
 
 
 @unwrap.command("openclaw")
-@click.option("--proxy-port", default=8787, type=int, help="Headroom proxy port")
-@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local Headroom proxy")
+@click.option("--proxy-port", default=8787, type=int, help="CutCtx proxy port")
+@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local CutCtx proxy")
 @click.option("--no-restart", is_flag=True, help="Do not restart OpenClaw gateway at the end")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--prepare-only", is_flag=True, hidden=True)
@@ -4196,7 +4200,7 @@ def unwrap_openclaw(
     prepare_only: bool,
     existing_entry_json: str | None,
 ) -> None:
-    """Disable the Headroom OpenClaw plugin and restore the legacy engine slot."""
+    """Disable the CutCtx OpenClaw plugin and restore the legacy engine slot."""
     if prepare_only:
         click.echo(
             json.dumps(
@@ -4212,10 +4216,10 @@ def unwrap_openclaw(
 
     click.echo()
     click.echo("  ╔═══════════════════════════════════════════════╗")
-    click.echo("  ║          HEADROOM UNWRAP: OPENCLAW            ║")
+    click.echo("  ║            CUTCTX UNWRAP: OPENCLAW            ║")
     click.echo("  ╚═══════════════════════════════════════════════╝")
     click.echo()
-    click.echo("  Disabling Headroom plugin and removing engine mapping...")
+    click.echo("  Disabling CutCtx plugin and removing engine mapping...")
 
     existing_entry = _read_openclaw_config_value(openclaw_bin, "plugins.entries.headroom")
     entry = _build_openclaw_unwrap_entry(existing_entry)
@@ -4247,9 +4251,8 @@ def unwrap_openclaw(
             click.echo(inspect_result.stdout.strip())
 
     click.echo()
-    click.echo("✓ OpenClaw Headroom wrap removed.")
-    click.echo("  Plugin: headroom (installed, disabled)")
-    click.echo("  Slot:   plugins.slots.contextEngine = legacy")
+    click.echo("✓ OpenClaw CutCtx wrap removed.")
+    click.echo("  Context engine: legacy")
     if not no_stop_proxy:
         _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(proxy_port), proxy_port)
     click.echo()
@@ -4262,28 +4265,26 @@ def unwrap_openclaw(
 
 @unwrap.command("codex")
 @click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
-@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local Headroom proxy")
+@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local CutCtx proxy")
 def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
-    """Undo ``headroom wrap codex`` edits to the active Codex config file.
+    """Undo ``cutctx wrap codex`` edits to the active Codex config file.
 
     Behaviour:
 
-    * If a pre-wrap backup (``config.toml.headroom-backup``) exists, the
-      original file is restored byte-for-byte and the backup is removed.
-    * Otherwise, if the config file still contains the Headroom-managed
-      block, that block is stripped out and the rest of the file is
-      preserved.
-    * If the config only ever contained Headroom-written content, the file
-      is removed entirely so Codex falls back to its defaults.
-    * If neither a backup nor a Headroom block is present, this is a safe
-      no-op (the user either never wrapped that config, or already unwrapped
-      it). When ``CODEX_HOME`` is unset, print a warning hint because Headroom
-      may be looking at the default config while Codex was wrapped with a
-      custom home.
+    * If a pre-wrap backup exists, the original file is restored byte-for-byte
+      and the backup is removed.
+    * Otherwise, if the config file still contains the CutCtx-managed block,
+      that block is stripped out and the rest of the file is preserved.
+    * If the config only ever contained CutCtx-written content, the file is
+      removed entirely so Codex falls back to its defaults.
+    * If neither a backup nor a CutCtx block is present, this is a safe no-op
+      (the user either never wrapped that config, or already unwrapped it).
+      When ``CODEX_HOME`` is unset, print a warning hint because CutCtx may be
+      looking at the default config while Codex was wrapped with a custom home.
     """
     click.echo()
     click.echo("  ╔═══════════════════════════════════════════════╗")
-    click.echo("  ║           HEADROOM UNWRAP: CODEX              ║")
+    click.echo("  ║             CUTCTX UNWRAP: CODEX              ║")
     click.echo("  ╚═══════════════════════════════════════════════╝")
     click.echo()
 
@@ -4295,21 +4296,21 @@ def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
     if status == "restored":
         click.echo(f"  Restored prior {config_file} from pre-wrap backup.")
     elif status == "cleaned":
-        click.echo(f"  Removed Headroom block from {config_file}; other content preserved.")
+        click.echo(f"  Removed CutCtx block from {config_file}; other content preserved.")
     elif status == "removed":
-        click.echo(f"  Removed {config_file} (contained only Headroom-written config).")
+        click.echo(f"  Removed {config_file} (contained only CutCtx-written config).")
     else:
         if not os.environ.get("CODEX_HOME"):
             click.echo(
-                "  Warning: found no Headroom wrap markers in the default Codex config. "
+                "  Warning: found no CutCtx wrap markers in the default Codex config. "
                 "If you wrapped Codex with CODEX_HOME, rerun unwrap with the same "
                 "environment variable, e.g. CODEX_HOME=/path/to/codex-home "
-                "headroom unwrap codex."
+                "cutctx unwrap codex."
             )
-        click.echo(f"  Nothing to undo: {config_file} has no Headroom wrap markers.")
+        click.echo(f"  Nothing to undo: {config_file} has no CutCtx wrap markers.")
 
     click.echo()
-    click.echo("✓ Codex is no longer routed through the Headroom proxy.")
+    click.echo("✓ Codex is no longer routed through the CutCtx proxy.")
     if not no_stop_proxy:
         _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(port), port)
     click.echo()

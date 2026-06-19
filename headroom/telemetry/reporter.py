@@ -41,6 +41,11 @@ GRACE_PERIOD_SECONDS = 7 * 24 * 3600  # 7 days
 
 # Default cache location (workspace bucket, respects HEADROOM_WORKSPACE_DIR).
 LICENSE_CACHE_PATH = _paths.license_cache_path()
+_DEFAULT_LICENSE_API_URL = (
+    os.environ.get("PITCHTOSHIP_URL")
+    or os.environ.get("HEADROOM_LICENSE_API_URL")
+    or "https://pitchtoship.com"
+)
 
 
 @dataclass
@@ -98,7 +103,7 @@ class UsageReporter:
     def __init__(
         self,
         license_key: str,
-        cloud_url: str = "https://app.headroomlabs.ai",
+        cloud_url: str = _DEFAULT_LICENSE_API_URL,
         report_interval: int = 300,
         cache_path: Path | None = None,
     ):

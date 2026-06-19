@@ -53,3 +53,11 @@ def test_plugin_metadata_points_to_upstream_repo() -> None:
     assert claude["author"]["url"] == expected_repo
     assert claude["homepage"] == expected_repo
     assert claude["repository"] == expected_repo
+
+
+def test_cutctx_codex_plugin_manifest_exists() -> None:
+    plugin = _load_json("plugins/cutctx-plugin/.codex-plugin/plugin.json")
+    assert isinstance(plugin, dict)
+    assert plugin["name"] == "cutctx"
+    assert plugin["interface"]["displayName"] == "CutCtx"
+    assert plugin["repository"] == "https://github.com/cutctx/cutctx"

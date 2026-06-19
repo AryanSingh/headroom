@@ -77,6 +77,7 @@ from headroom.config import (
     ReadLifecycleConfig,
 )
 from headroom.dashboard import get_dashboard_html
+from headroom.checkout import checkout_url, upgrade_url
 from headroom.observability import (
     LangfuseTracingConfig,
     OTelMetricsConfig,
@@ -2224,11 +2225,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                             "type": "trial_expired",
                             "message": (
                                 "Your 14-day trial has expired. "
-                                "Activate a license to continue using Headroom. "
-                                "Get a license at https://headroomlabs.ai/pricing"
+                                "Activate a license to continue using CutCtx. "
+                                "Get a license through PitchToShip."
                             ),
-                            "upgrade_url": "https://headroomlabs.ai/pricing",
-                            "contact": "hello@headroomlabs.ai",
+                            "upgrade_url": checkout_url("team"),
+                            "contact": "hello@cutctx.dev",
                         }
                     },
                 )
@@ -2496,8 +2497,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "feature": feature,
                         "required_tier": required.name.lower() if required else "unknown",
                         "current_tier": checker.plan_name,
-                        "upgrade_url": "https://headroomlabs.ai/pricing",
-                        "contact": "hello@headroomlabs.ai",
+                        "upgrade_url": upgrade_url(checker.plan_name),
+                        "contact": "hello@cutctx.dev",
                     },
                 )
 

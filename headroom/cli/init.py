@@ -43,10 +43,10 @@ _GLOBAL_PROFILE = "init-user"
 _CLAUDE_HOOK_MARKER = "headroom-init-claude"
 _COPILOT_HOOK_MARKER = "headroom-init-copilot"
 _CODEX_HOOK_MARKER = "headroom-init-codex"
-_CODEX_PROVIDER_MARKER_START = "# --- Headroom init provider ---"
-_CODEX_PROVIDER_MARKER_END = "# --- end Headroom init provider ---"
-_CODEX_FEATURE_MARKER_START = "# --- Headroom init features ---"
-_CODEX_FEATURE_MARKER_END = "# --- end Headroom init features ---"
+_CODEX_PROVIDER_MARKER_START = "# --- CutCtx init provider ---"
+_CODEX_PROVIDER_MARKER_END = "# --- end CutCtx init provider ---"
+_CODEX_FEATURE_MARKER_START = "# --- CutCtx init features ---"
+_CODEX_FEATURE_MARKER_END = "# --- end CutCtx init features ---"
 _SUPPORTED_TARGETS = ("claude", "copilot", "codex", "openclaw")
 _LOCAL_TARGETS = {"claude", "codex"}
 _GLOBAL_TARGETS = {"claude", "copilot", "codex", "openclaw"}
@@ -231,38 +231,43 @@ def _replace_marker_block(
 
 
 def _strip_codex_init_block(content: str) -> str:
-    """Remove all Headroom init-managed blocks and orphan keys from a Codex config.toml string."""
+    """Remove all CutCtx init-managed blocks and orphan keys from a Codex config.toml string."""
     import re
 
-    # Remove any provider marker → end marker span, possibly repeated.
-    while _CODEX_PROVIDER_MARKER_START in content and _CODEX_PROVIDER_MARKER_END in content:
-        start = content.index(_CODEX_PROVIDER_MARKER_START)
-        end_idx = content.index(_CODEX_PROVIDER_MARKER_END, start)
-        if end_idx < start:
-            break
-        end = end_idx + len(_CODEX_PROVIDER_MARKER_END)
-        content = content[:start].rstrip("\n") + "\n" + content[end:].lstrip("\n")
-
-    # Remove stale unpaired markers.
-    content = content.replace(_CODEX_PROVIDER_MARKER_START + "\n", "")
-    content = content.replace(_CODEX_PROVIDER_MARKER_END + "\n", "")
+    for marker_start, marker_end in (
+        ("# --- Headroom init provider ---", "# --- end Headroom init provider ---"),
+        (_CODEX_PROVIDER_MARKER_START, _CODEX_PROVIDER_MARKER_END),
+    ):
+        while marker_start in content and marker_end in content:
+            start = content.index(marker_start)
+            end_idx = content.index(marker_end, start)
+            if end_idx < start:
+                break
+            end = end_idx + len(marker_end)
+            content = content[:start].rstrip("\n") + "\n" + content[end:].lstrip("\n")
+        content = content.replace(marker_start + "\n", "")
+        content = content.replace(marker_end + "\n", "")
 
     # Strip any orphan top-level keys that a crashed or partial write may have
     # left outside the marker block.
-    content = re.sub(r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"headroom"[ \t]*\r?\n', "", content)
+    content = re.sub(
+        r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"(headroom|cutctx)"[ \t]*\r?\n',
+        "",
+        content,
+    )
     content = re.sub(
         r'(?m)^[ \t]*openai_base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[ \t]*\r?\n',
         "",
         content,
     )
 
-    # Strip any orphaned [model_providers.headroom] table that is recognisably ours.
-    orphan_headroom_table = re.compile(
-        r"(?ms)^\[model_providers\.headroom\][^\[]*?"
-        r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
-        r"(?=^\[|\Z)"
-    )
-    content = orphan_headroom_table.sub("", content)
+    for provider_name in ("headroom", "cutctx"):
+        orphan_provider_table = re.compile(
+            rf"(?ms)^\[model_providers\.{provider_name}\][^\[]*?"
+            r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
+            r"(?=^\[|\Z)"
+        )
+        content = orphan_provider_table.sub("", content)
 
     return content.lstrip("\n").rstrip() + "\n" if content.strip() else ""
 
@@ -273,10 +278,10 @@ def _ensure_codex_provider(path: Path, port: int) -> None:
     logger.debug("ensure codex provider block: %s (port=%s)", path, port)
     block = (
         f"{_CODEX_PROVIDER_MARKER_START}\n"
-        'model_provider = "headroom"\n'
+        'model_provider = "cutctx"\n'
         f'openai_base_url = "http://127.0.0.1:{port}/v1"\n\n'
-        "[model_providers.headroom]\n"
-        'name = "Headroom init proxy"\n'
+        "[model_providers.cutctx]\n"
+        'name = "CutCtx init proxy"\n'
         f'base_url = "http://127.0.0.1:{port}/v1"\n'
         "supports_websockets = true\n"
         f"{_CODEX_PROVIDER_MARKER_END}"
@@ -650,7 +655,7 @@ def _format_empty_detection_error(global_scope: bool) -> str:
     lines: list[str] = [
         f"No supported {scope_label}-scope agents were found on PATH.",
         "",
-        "Headroom probed the following agents via shutil.which():",
+        "CutCtx probed the following agents via shutil.which():",
     ]
     for name, path in probes:
         status = f"found at {path}" if path else "not found"
@@ -660,19 +665,19 @@ def _format_empty_detection_error(global_scope: bool) -> str:
         [
             "",
             f"The {scope_flag or '--local (no flag)'} option is still supported; "
-            "headroom init just needs to know which agent to target.",
+            "cutctx init just needs to know which agent to target.",
             "Install the agent you want first, then re-run with an explicit target:",
             "",
         ]
     )
     for name, _path in probes:
         flag = " -g" if global_scope else ""
-        lines.append(f"  headroom init{flag} {name}")
+        lines.append(f"  cutctx init{flag} {name}")
 
     lines.extend(
         [
             "",
-            "Tip: run `headroom init --help` to see all options.",
+            "Tip: run `cutctx init --help` to see all options.",
         ]
     )
     return "\n".join(lines)
@@ -682,7 +687,7 @@ def _init_claude(*, global_scope: bool, profile: str, port: int) -> None:
     _ensure_claude_hooks(_claude_scope_path(global_scope), profile, port)
     _install_claude_marketplace("user" if global_scope else "local")
     click.echo(f"Configured Claude Code ({'user' if global_scope else 'local'} scope).")
-    click.echo("Restart Claude Code to activate Headroom hooks and provider routing.")
+    click.echo("Restart Claude Code to activate CutCtx hooks and provider routing.")
 
 
 def _init_copilot(*, global_scope: bool, profile: str, port: int, backend: str) -> None:
@@ -694,7 +699,7 @@ def _init_copilot(*, global_scope: bool, profile: str, port: int, backend: str) 
     _apply_user_env(_resolve_copilot_env(port, backend))
     _install_copilot_marketplace()
     click.echo("Configured GitHub Copilot CLI (user scope).")
-    click.echo("Restart Copilot CLI to activate Headroom hooks and provider routing.")
+    click.echo("Restart Copilot CLI to activate CutCtx hooks and provider routing.")
 
 
 def _init_codex(*, global_scope: bool, profile: str, port: int) -> None:
@@ -707,7 +712,7 @@ def _init_codex(*, global_scope: bool, profile: str, port: int) -> None:
         click.echo(
             "Codex hooks are currently disabled upstream on Windows; provider routing was still installed."
         )
-    click.echo("Restart Codex to activate Headroom configuration.")
+    click.echo("Restart Codex to activate CutCtx configuration.")
 
 
 def _init_openclaw(*, global_scope: bool, port: int) -> None:
@@ -761,7 +766,7 @@ def _run_init_targets(
         elif target == "openclaw":
             _init_openclaw(global_scope=global_scope, port=port)
 
-    # Register the headroom MCP server with every targeted agent that has
+    # Register the CutCtx MCP server with every targeted agent that has
     # a registrar implemented. Wave 1 covers Claude Code; subsequent waves
     # add Cursor / Codex / Continue / Cline / Windsurf / Goose without
     # touching the call sites.
@@ -769,7 +774,7 @@ def _run_init_targets(
 
 
 def _install_headroom_mcp_for_targets(*, targets: list[str], port: int) -> None:
-    """Install the headroom MCP server into each detected target agent."""
+    """Install the CutCtx MCP server into each detected target agent."""
     from headroom.mcp_registry import format_results, install_everywhere
 
     proxy_url = f"http://127.0.0.1:{port}"
@@ -780,7 +785,7 @@ def _install_headroom_mcp_for_targets(*, targets: list[str], port: int) -> None:
     lines = format_results(
         results,
         verbose=True,
-        overwrite_hint=f"headroom mcp install --proxy-url {proxy_url} --force",
+        overwrite_hint=f"cutctx mcp install --proxy-url {proxy_url} --force",
     )
     if lines:
         click.echo("\nMCP retrieve tool:")
@@ -790,7 +795,7 @@ def _install_headroom_mcp_for_targets(*, targets: list[str], port: int) -> None:
 
 @main.group(invoke_without_command=True)
 @click.option("-g", "--global", "global_scope", is_flag=True, help="Install for the current user.")
-@click.option("--port", default=8787, type=int, show_default=True, help="Headroom proxy port.")
+@click.option("--port", default=8787, type=int, show_default=True, help="CutCtx proxy port.")
 @click.option("--backend", default="anthropic", show_default=True, help="Proxy backend.")
 @click.option("--anyllm-provider", default=None, help="Provider for any-llm backends.")
 @click.option("--region", default=None, help="Cloud region for Bedrock / Vertex style backends.")
@@ -813,7 +818,7 @@ def init(
     memory: bool,
     verbose: bool,
 ) -> None:
-    """Install durable Headroom integrations for supported agents."""
+    """Install durable CutCtx integrations for supported agents."""
     if verbose:
         _enable_verbose_logging()
     logger.debug(
@@ -907,7 +912,7 @@ def init_codex(ctx: click.Context) -> None:
 @init.command("openclaw")
 @click.pass_context
 def init_openclaw(ctx: click.Context) -> None:
-    """Install the durable OpenClaw Headroom plugin."""
+    """Install the durable OpenClaw CutCtx plugin."""
     _run_init_targets(
         targets=["openclaw"],
         global_scope=bool(_ctx_value(ctx, "global_scope")),

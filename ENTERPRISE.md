@@ -149,5 +149,5 @@ These are not code gaps, but business workstreams:
 
 ## Contact
 
-- `hello@headroomlabs.ai`
-- `security@headroom.dev`
+- `hello@cutctx.dev`
+- `security@cutctx.dev`

@@ -21,9 +21,9 @@ _UPGRADE_PRODUCTS = {
     "enterprise": "headroom-enterprise",
 }
 
-# Headroom Labs pricing page (fallback)
-_PRICING_URL = "https://headroomlabs.ai/pricing"
-_SUPPORT_EMAIL = "hello@headroomlabs.ai"
+# CutCtx pricing page (fallback)
+_PRICING_URL = "https://cutctx.dev/pricing"
+_SUPPORT_EMAIL = "hello@cutctx.dev"
 
 
 def checkout_url(tier: str, org_id: str | None = None) -> str:

@@ -9,7 +9,7 @@ This file lists the standard materials to send during procurement or security re
 ### Commercial
 - [artifacts/pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/pricing-sheet.md)
 - [artifacts/packaging-matrix.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/packaging-matrix.md)
-- [artifacts/SUPPORT_POLICY_AND_SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SUPPORT_POLICY_AND_SLA.md)
+- [SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SLA.md)
 - [artifacts/ORDER_FORM_TEMPLATE.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/ORDER_FORM_TEMPLATE.md)
 
 ### Security and architecture

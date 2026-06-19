@@ -36,7 +36,11 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CLOUD_URL = "https://api.headroomlabs.ai"
+_DEFAULT_CLOUD_URL = (
+    os.environ.get("PITCHTOSHIP_URL")
+    or os.environ.get("HEADROOM_API_URL")
+    or "https://pitchtoship.com"
+)
 
 # Paths that contain LLM messages to compress
 _LLM_PATHS = (

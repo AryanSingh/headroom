@@ -22,8 +22,8 @@ def _make_registrar(tmp_path: Path) -> CodexRegistrar:
 
 def _spec(env: dict[str, str] | None = None) -> ServerSpec:
     return ServerSpec(
-        name="headroom",
-        command="headroom",
+        name="cutctx",
+        command="cutctx",
         args=("mcp", "serve"),
         env=env or {},
     )
@@ -87,7 +87,7 @@ def test_register_uses_codex_home_env(monkeypatch: pytest.MonkeyPatch, tmp_path:
     assert _codex_home_config_path(codex_home).exists()
     assert not _config_path(tmp_path).exists()
     text = _codex_home_config_path(codex_home).read_text()
-    assert "[mcp_servers.headroom]" in text
+    assert "[mcp_servers.cutctx]" in text
 
 
 # ----------------------------------------------------------------------
@@ -96,39 +96,39 @@ def test_register_uses_codex_home_env(monkeypatch: pytest.MonkeyPatch, tmp_path:
 
 
 def test_get_server_returns_none_when_config_missing(tmp_path: Path) -> None:
-    assert _make_registrar(tmp_path).get_server("headroom") is None
+    assert _make_registrar(tmp_path).get_server("cutctx") is None
 
 
 def test_get_server_returns_none_when_no_table(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
     cfg.write_text('model = "gpt-4o"\n')
-    assert _make_registrar(tmp_path).get_server("headroom") is None
+    assert _make_registrar(tmp_path).get_server("cutctx") is None
 
 
 def test_get_server_returns_spec_when_table_present(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
     cfg.write_text(
-        "[mcp_servers.headroom]\n"
-        'command = "headroom"\n'
+        "[mcp_servers.cutctx]\n"
+        'command = "cutctx"\n'
         'args = ["mcp", "serve"]\n'
         "\n"
-        "[mcp_servers.headroom.env]\n"
-        'HEADROOM_PROXY_URL = "http://127.0.0.1:9000"\n'
+        "[mcp_servers.cutctx.env]\n"
+        'CUTCTX_PROXY_URL = "http://127.0.0.1:9000"\n'
     )
-    got = _make_registrar(tmp_path).get_server("headroom")
+    got = _make_registrar(tmp_path).get_server("cutctx")
     assert got is not None
-    assert got.command == "headroom"
+    assert got.command == "cutctx"
     assert got.args == ("mcp", "serve")
-    assert got.env == {"HEADROOM_PROXY_URL": "http://127.0.0.1:9000"}
+    assert got.env == {"CUTCTX_PROXY_URL": "http://127.0.0.1:9000"}
 
 
 def test_get_server_robust_to_unparseable_toml(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
     cfg.write_text("this = is = not = valid\n")
-    assert _make_registrar(tmp_path).get_server("headroom") is None
+    assert _make_registrar(tmp_path).get_server("cutctx") is None
 
 
 # ----------------------------------------------------------------------
@@ -143,11 +143,11 @@ def test_register_creates_config_when_missing(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     assert cfg.exists()
     text = cfg.read_text()
-    assert "# --- Headroom MCP server ---" in text
-    assert "[mcp_servers.headroom]" in text
+    assert "# --- CutCtx MCP server ---" in text
+    assert "[mcp_servers.cutctx]" in text
     parsed = tomllib.loads(text)
-    assert parsed["mcp_servers"]["headroom"]["command"] == "headroom"
-    assert parsed["mcp_servers"]["headroom"]["args"] == ["mcp", "serve"]
+    assert parsed["mcp_servers"]["cutctx"]["command"] == "cutctx"
+    assert parsed["mcp_servers"]["cutctx"]["args"] == ["mcp", "serve"]
 
 
 def test_register_appends_to_existing_config_preserves_other_keys(tmp_path: Path) -> None:
@@ -162,45 +162,45 @@ def test_register_appends_to_existing_config_preserves_other_keys(tmp_path: Path
     assert 'model = "gpt-4o"' in text
     assert "[other_section]" in text
     # Plus our block.
-    assert "[mcp_servers.headroom]" in text
+    assert "[mcp_servers.cutctx]" in text
     parsed = tomllib.loads(text)
     assert parsed["model"] == "gpt-4o"
     assert parsed["other_section"]["value"] == 42
-    assert parsed["mcp_servers"]["headroom"]["command"] == "headroom"
+    assert parsed["mcp_servers"]["cutctx"]["command"] == "cutctx"
 
 
 def test_register_includes_env_subtable(tmp_path: Path) -> None:
-    spec = _spec(env={"HEADROOM_PROXY_URL": "http://127.0.0.1:9000"})
+    spec = _spec(env={"CUTCTX_PROXY_URL": "http://127.0.0.1:9000"})
     _make_registrar(tmp_path).register_server(spec)
     text = _config_path(tmp_path).read_text()
-    assert "[mcp_servers.headroom.env]" in text
+    assert "[mcp_servers.cutctx.env]" in text
     parsed = tomllib.loads(text)
-    assert parsed["mcp_servers"]["headroom"]["env"] == {
-        "HEADROOM_PROXY_URL": "http://127.0.0.1:9000"
+    assert parsed["mcp_servers"]["cutctx"]["env"] == {
+        "CUTCTX_PROXY_URL": "http://127.0.0.1:9000"
     }
 
 
-def test_register_headroom_and_serena_coexist(tmp_path: Path) -> None:
+def test_register_cutctx_and_serena_coexist(tmp_path: Path) -> None:
     reg = _make_registrar(tmp_path)
 
     assert reg.register_server(_spec()).status == RegisterStatus.REGISTERED
     assert reg.register_server(_serena_spec()).status == RegisterStatus.REGISTERED
 
     text = _config_path(tmp_path).read_text()
-    assert "[mcp_servers.headroom]" in text
+    assert "[mcp_servers.cutctx]" in text
     assert "[mcp_servers.serena]" in text
-    assert "# --- Headroom MCP server ---" in text
-    assert "# --- Headroom MCP server: serena ---" in text
+    assert "# --- CutCtx MCP server ---" in text
+    assert "# --- CutCtx MCP server: serena ---" in text
 
     parsed = tomllib.loads(text)
-    assert parsed["mcp_servers"]["headroom"]["command"] == "headroom"
+    assert parsed["mcp_servers"]["cutctx"]["command"] == "cutctx"
     assert parsed["mcp_servers"]["serena"]["command"] == "uvx"
 
 
 def test_register_omits_env_subtable_when_env_empty(tmp_path: Path) -> None:
     _make_registrar(tmp_path).register_server(_spec())
     text = _config_path(tmp_path).read_text()
-    assert "[mcp_servers.headroom.env]" not in text
+    assert "[mcp_servers.cutctx.env]" not in text
 
 
 # ----------------------------------------------------------------------
@@ -220,7 +220,7 @@ def test_register_already_when_block_matches_spec(tmp_path: Path) -> None:
 
 def test_register_mismatch_when_block_differs_no_force(tmp_path: Path) -> None:
     reg = _make_registrar(tmp_path)
-    reg.register_server(_spec(env={"HEADROOM_PROXY_URL": "http://127.0.0.1:9999"}))
+    reg.register_server(_spec(env={"CUTCTX_PROXY_URL": "http://127.0.0.1:9999"}))
     text_before = _config_path(tmp_path).read_text()
 
     result = reg.register_server(_spec())  # no env
@@ -231,7 +231,7 @@ def test_register_mismatch_when_block_differs_no_force(tmp_path: Path) -> None:
 
 def test_register_force_overwrites_block(tmp_path: Path) -> None:
     reg = _make_registrar(tmp_path)
-    reg.register_server(_spec(env={"HEADROOM_PROXY_URL": "http://127.0.0.1:9999"}))
+    reg.register_server(_spec(env={"CUTCTX_PROXY_URL": "http://127.0.0.1:9999"}))
     result = reg.register_server(_spec(), force=True)
     assert result.status == RegisterStatus.REGISTERED
     text = _config_path(tmp_path).read_text()
@@ -242,29 +242,29 @@ def test_register_force_preserves_user_managed_entry(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
     cfg.write_text(
-        '[mcp_servers.headroom]\ncommand = "/usr/local/bin/custom-headroom"\nargs = ["serve"]\n'
+        '[mcp_servers.cutctx]\ncommand = "/usr/local/bin/custom-cutctx"\nargs = ["serve"]\n'
     )
 
     result = _make_registrar(tmp_path).register_server(_spec(), force=True)
 
     assert result.status == RegisterStatus.MISMATCH
     assert "user-managed" in (result.detail or "").lower()
-    assert "/usr/local/bin/custom-headroom" in cfg.read_text()
-    assert cfg.read_text().count("[mcp_servers.headroom]") == 1
+    assert "/usr/local/bin/custom-cutctx" in cfg.read_text()
+    assert cfg.read_text().count("[mcp_servers.cutctx]") == 1
 
 
 def test_register_mismatch_when_user_managed_outside_markers(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
-    # User has manually put [mcp_servers.headroom] with different config — no markers.
+    # User has manually put [mcp_servers.cutctx] with different config — no markers.
     cfg.write_text(
-        '[mcp_servers.headroom]\ncommand = "/usr/local/bin/custom-headroom"\nargs = ["serve"]\n'
+        '[mcp_servers.cutctx]\ncommand = "/usr/local/bin/custom-cutctx"\nargs = ["serve"]\n'
     )
     result = _make_registrar(tmp_path).register_server(_spec())
     assert result.status == RegisterStatus.MISMATCH
     assert "user-managed" in (result.detail or "").lower()
     # Don't overwrite.
-    assert "/usr/local/bin/custom-headroom" in cfg.read_text()
+    assert "/usr/local/bin/custom-cutctx" in cfg.read_text()
 
 
 # ----------------------------------------------------------------------
@@ -278,34 +278,34 @@ def test_unregister_removes_marker_block(tmp_path: Path) -> None:
     cfg.parent.mkdir()
     cfg.write_text("[other_section]\nvalue = 42\n")
     reg.register_server(_spec())
-    assert "[mcp_servers.headroom]" in cfg.read_text()
+    assert "[mcp_servers.cutctx]" in cfg.read_text()
 
-    assert reg.unregister_server("headroom") is True
+    assert reg.unregister_server("cutctx") is True
     text = cfg.read_text()
-    assert "[mcp_servers.headroom]" not in text
-    assert "# --- Headroom MCP server ---" not in text
+    assert "[mcp_servers.cutctx]" not in text
+    assert "# --- CutCtx MCP server ---" not in text
     # Surrounding content survives.
     assert "[other_section]" in text
 
 
-def test_unregister_serena_preserves_headroom_block(tmp_path: Path) -> None:
+def test_unregister_serena_preserves_cutctx_block(tmp_path: Path) -> None:
     reg = _make_registrar(tmp_path)
     reg.register_server(_spec())
     reg.register_server(_serena_spec())
 
     assert reg.unregister_server("serena") is True
     text = _config_path(tmp_path).read_text()
-    assert "[mcp_servers.headroom]" in text
+    assert "[mcp_servers.cutctx]" in text
     assert "[mcp_servers.serena]" not in text
-    assert "# --- Headroom MCP server ---" in text
-    assert "# --- Headroom MCP server: serena ---" not in text
+    assert "# --- CutCtx MCP server ---" in text
+    assert "# --- CutCtx MCP server: serena ---" not in text
 
 
 def test_unregister_returns_false_when_no_block(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
     cfg.write_text('model = "gpt-4o"\n')
-    assert _make_registrar(tmp_path).unregister_server("headroom") is False
+    assert _make_registrar(tmp_path).unregister_server("cutctx") is False
 
 
 def test_unregister_preserves_user_managed_entry(tmp_path: Path) -> None:
@@ -326,20 +326,20 @@ def test_unregister_preserves_user_managed_entry(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "spec",
     [
-        ServerSpec(name="headroom", command="headroom", args=("mcp", "serve")),
+        ServerSpec(name="cutctx", command="cutctx", args=("mcp", "serve")),
         ServerSpec(
-            name="headroom",
-            command="headroom",
+            name="cutctx",
+            command="cutctx",
             args=("mcp", "serve"),
-            env={"HEADROOM_PROXY_URL": "http://127.0.0.1:9000"},
+            env={"CUTCTX_PROXY_URL": "http://127.0.0.1:9000"},
         ),
-        ServerSpec(name="headroom", command="/usr/bin/headroom", args=()),
+        ServerSpec(name="cutctx", command="/usr/bin/cutctx", args=()),
     ],
 )
 def test_round_trip(tmp_path: Path, spec: ServerSpec) -> None:
     reg = _make_registrar(tmp_path)
     reg.register_server(spec)
-    got = reg.get_server("headroom")
+    got = reg.get_server("cutctx")
     assert got is not None
     assert got.command == spec.command
     assert got.args == spec.args

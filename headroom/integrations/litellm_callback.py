@@ -17,11 +17,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CLOUD_URL = "https://api.headroomlabs.ai"
+_DEFAULT_CLOUD_URL = (
+    os.environ.get("PITCHTOSHIP_URL")
+    or os.environ.get("HEADROOM_API_URL")
+    or "https://pitchtoship.com"
+)
 
 
 class HeadroomCallback:
@@ -63,8 +68,6 @@ class HeadroomCallback:
 
         # Cloud mode: if api_key is set, compress via Headroom Cloud API
         # Falls back to HEADROOM_API_KEY env var
-        import os
-
         self._api_key = api_key or os.environ.get("HEADROOM_API_KEY", "").strip() or None
         self._api_url = (
             api_url or os.environ.get("HEADROOM_API_URL", "").strip() or _DEFAULT_CLOUD_URL

@@ -6,16 +6,16 @@ from headroom.providers.codex.install import build_provider_section
 def test_codex_provider_section_no_requires_openai_auth() -> None:
     """Bug 3 (#406): build_provider_section must NOT include requires_openai_auth.
 
-    Setting requires_openai_auth on a custom [model_providers.headroom] block
-    forces codex to demand OpenAI OAuth login for every headroom-routed request.
-    Headroom is a local proxy — it must never carry this flag.
+    Setting requires_openai_auth on a custom [model_providers.cutctx] block
+    forces codex to demand OpenAI OAuth login for every cutctx-routed request.
+    CutCtx is a local proxy — it must never carry this flag.
     """
-    section = build_provider_section(port=8787, name="OpenAI via Headroom proxy")
+    section = build_provider_section(port=8787, name="OpenAI via CutCtx proxy")
 
-    assert 'name = "OpenAI via Headroom proxy"' in section
+    assert 'name = "OpenAI via CutCtx proxy"' in section
     assert 'base_url = "http://127.0.0.1:8787/v1"' in section
     assert "requires_openai_auth" not in section, (
-        f"requires_openai_auth must be absent from the headroom provider section; got:\n{section}"
+        f"requires_openai_auth must be absent from the cutctx provider section; got:\n{section}"
     )
     assert "supports_websockets = true" in section
     assert 'env_key = "OPENAI_API_KEY"' not in section
@@ -24,7 +24,7 @@ def test_codex_provider_section_no_requires_openai_auth() -> None:
 def test_codex_provider_section_supports_custom_markers() -> None:
     section = build_provider_section(
         port=9100,
-        name="Headroom init proxy",
+        name="CutCtx init proxy",
         marker_start="# --- start ---",
         marker_end="# --- end ---",
     )

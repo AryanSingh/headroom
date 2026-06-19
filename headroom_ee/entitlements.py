@@ -221,5 +221,5 @@ class EntitlementError(Exception):
         super().__init__(
             f"Feature '{feature}' requires {req_name} plan "
             f"(current: {cur_name}). "
-            f"Upgrade at https://headroomlabs.ai/pricing or contact hello@headroomlabs.ai"
+            f"Upgrade via the PitchToShip billing portal or contact hello@cutctx.dev"
         )

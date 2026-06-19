@@ -173,7 +173,7 @@ spec:
 ### Helm Chart (Coming Q4 2026)
 
 ```bash
-helm repo add headroom https://headroomlabs.ai/helm
+helm repo add cutctx https://cutctx.dev/helm
 helm install headroom headroom/headroom --set licenseKey=hlk_...
 ```
 

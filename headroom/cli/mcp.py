@@ -1,9 +1,4 @@
-"""MCP (Model Context Protocol) CLI commands for Claude Code integration.
-
-Provides commands to configure and run the Headroom MCP server, enabling
-Claude Code subscription users to use CCR (Compress-Cache-Retrieve) without
-needing API key access.
-"""
+"""MCP (Model Context Protocol) CLI commands for CutCtx integration."""
 
 import json
 import shutil
@@ -22,11 +17,11 @@ DEFAULT_PROXY_URL = "http://127.0.0.1:8787"
 
 
 def get_headroom_command() -> list[str]:
-    """Get the command to run headroom MCP server.
+    """Get the command used to run the CutCtx MCP server.
 
     Returns the CLI invocation used by Claude Code config.
     """
-    return ["headroom", "mcp", "serve"]
+    return ["cutctx", "mcp", "serve"]
 
 
 def load_mcp_config() -> dict[str, Any]:
@@ -54,14 +49,14 @@ def mcp() -> None:
     """MCP server for Claude Code integration.
 
     \b
-    The MCP server exposes headroom_retrieve as a tool that Claude Code
+    The MCP server exposes cutctx_retrieve as a tool that Claude Code
     can use to retrieve compressed content. This enables CCR (Compress-
     Cache-Retrieve) for subscription users who don't have API access.
 
     \b
     Quick Start:
-        headroom mcp install    # Configure Claude Code
-        headroom proxy          # Start the proxy (in another terminal)
+        cutctx mcp install      # Configure Claude Code
+        cutctx proxy            # Start the proxy (in another terminal)
         ANTHROPIC_BASE_URL=http://127.0.0.1:8787 claude
 
     \b
@@ -74,17 +69,17 @@ def mcp() -> None:
         1. ANTHROPIC_BASE_URL routes all requests through the proxy
         2. The proxy compresses large tool outputs (file listings, search results)
         3. Claude sees compressed summaries with hash markers
-        4. When Claude needs full details, it calls headroom_retrieve
+        4. When Claude needs full details, it calls cutctx_retrieve
         5. The MCP server fetches original content from the proxy
 
     \b
     Note on tool naming: MCP clients display tools as
-    `mcp__<server>__<tool>`. Our server is named "headroom" and our
-    tools are named headroom_retrieve / headroom_compress / etc., so
-    Claude Code shows them as `mcp__headroom__headroom_retrieve`. The
-    "headroom" doubling is normal MCP namespacing — not a bug. The
+    `mcp__<server>__<tool>`. Our server is named "cutctx" and our
+    tools are named cutctx_retrieve / cutctx_compress / etc., so
+    Claude Code shows them as `mcp__cutctx__cutctx_retrieve`. The
+    "cutctx" doubling is normal MCP namespacing — not a bug. The
     proxy's compression markers (and any docs/prompts) reference the
-    bare tool name `headroom_retrieve`.
+    bare tool name `cutctx_retrieve`.
     """
     pass
 
@@ -93,7 +88,7 @@ def mcp() -> None:
 @click.option(
     "--proxy-url",
     default=DEFAULT_PROXY_URL,
-    help=f"Headroom proxy URL (default: {DEFAULT_PROXY_URL})",
+    help=f"CutCtx proxy URL (default: {DEFAULT_PROXY_URL})",
 )
 @click.option(
     "--agent",
@@ -104,10 +99,10 @@ def mcp() -> None:
 @click.option(
     "--force",
     is_flag=True,
-    help="Overwrite existing headroom config in case of mismatch.",
+    help="Overwrite existing CutCtx config in case of mismatch.",
 )
 def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
-    """Install the Headroom MCP server into every detected coding agent.
+    """Install the CutCtx MCP server into every detected coding agent.
 
     \b
     By default this installs into every agent that has a registrar and is
@@ -117,15 +112,15 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
 
     \b
     Examples:
-        headroom mcp install                            # every detected agent
-        headroom mcp install --agent claude             # Claude Code only
-        headroom mcp install --proxy-url http://localhost:9000
+        cutctx mcp install                              # every detected agent
+        cutctx mcp install --agent claude               # Claude Code only
+        cutctx mcp install --proxy-url http://localhost:9000
     """
     try:
         import mcp  # noqa: F401
     except ImportError:
         click.echo("Error: MCP SDK not installed.", err=True)
-        click.echo("Install with: pip install 'headroom-ai[mcp]'", err=True)
+        click.echo("Install with: pip install 'cutctx-ai[mcp]'", err=True)
         raise SystemExit(1) from None
 
     from headroom.mcp_registry import any_succeeded, format_results, install_everywhere
@@ -140,11 +135,11 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
         click.echo("No agents matched the requested filter.")
         raise SystemExit(1)
 
-    click.echo("Installing Headroom MCP server...")
+    click.echo("Installing CutCtx MCP server...")
     for line in format_results(
         results,
         verbose=True,
-        overwrite_hint=f"headroom mcp install --proxy-url {proxy_url} --force",
+        overwrite_hint=f"cutctx mcp install --proxy-url {proxy_url} --force",
     ):
         click.echo(line)
 
@@ -153,7 +148,7 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
 
     click.echo(
         f"\nNext steps:\n"
-        f"  1. Start the Headroom proxy (if not running): headroom proxy\n"
+        f"  1. Start the CutCtx proxy (if not running): cutctx proxy\n"
         f"  2. Start your agent (e.g.) ANTHROPIC_BASE_URL={proxy_url} claude\n"
         f"  3. Restart any agent that was already running so it picks up the new MCP server.\n"
     )
@@ -161,10 +156,10 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
 
 @mcp.command("uninstall")
 def mcp_uninstall() -> None:
-    """Remove Headroom MCP server from Claude Code config.
+    """Remove CutCtx MCP server from Claude Code config.
 
     \b
-    Removes headroom from both the claude CLI registry (Claude Code CLI >=2.x)
+    Removes CutCtx from both the claude CLI registry (Claude Code CLI >=2.x)
     and ~/.claude/mcp.json if present. Other MCP servers are preserved.
     """
     removed = False
@@ -173,17 +168,17 @@ def mcp_uninstall() -> None:
     claude_cli = shutil.which("claude")
     if claude_cli:
         check = subprocess.run(
-            [claude_cli, "mcp", "get", "headroom"],
+            [claude_cli, "mcp", "get", "cutctx"],
             capture_output=True,
         )
         if check.returncode == 0:
             rm = subprocess.run(
-                [claude_cli, "mcp", "remove", "headroom", "-s", "user"],
+                [claude_cli, "mcp", "remove", "cutctx", "-s", "user"],
                 capture_output=True,
                 text=True,
             )
             if rm.returncode == 0:
-                click.echo("✓ Headroom MCP server removed (via claude mcp remove)")
+                click.echo("✓ CutCtx MCP server removed (via claude mcp remove)")
                 removed = True
             else:
                 click.echo(
@@ -211,7 +206,7 @@ def mcp_uninstall() -> None:
     if MCP_CONFIG_PATH.exists():
         config = load_mcp_config()
         changed = False
-        for server_name in ("headroom", "codebase-memory-mcp"):
+        for server_name in ("cutctx", "headroom", "codebase-memory-mcp"):
             if server_name in config.get("mcpServers", {}):
                 del config["mcpServers"][server_name]
                 changed = True
@@ -222,20 +217,20 @@ def mcp_uninstall() -> None:
 
     if not removed:
         if MCP_CONFIG_PATH.exists():
-            click.echo("Headroom MCP is not configured. Nothing to uninstall.")
+            click.echo("CutCtx MCP is not configured. Nothing to uninstall.")
         else:
             click.echo("No MCP config found. Nothing to uninstall.")
 
 
 @mcp.command("status")
 def mcp_status() -> None:
-    """Check Headroom MCP configuration status.
+    """Check CutCtx MCP configuration status.
 
     \b
-    Shows whether headroom is configured in Claude Code and if
+    Shows whether CutCtx is configured in Claude Code and if
     the proxy is reachable.
     """
-    click.echo("Headroom MCP Status")
+    click.echo("CutCtx MCP Status")
     click.echo("=" * 40)
 
     # Check MCP SDK
@@ -245,34 +240,45 @@ def mcp_status() -> None:
         click.echo("MCP SDK:        ✓ Installed")
     except ImportError:
         click.echo("MCP SDK:        ✗ Not installed")
-        click.echo("                pip install 'headroom-ai[mcp]'")
+        click.echo("                pip install 'cutctx-ai[mcp]'")
 
     # Check config
     if MCP_CONFIG_PATH.exists():
         config = load_mcp_config()
-        if "headroom" in config.get("mcpServers", {}):
-            server_config = config["mcpServers"]["headroom"]
+        server_config = config.get("mcpServers", {}).get("cutctx")
+        if server_config is None:
+            server_config = config.get("mcpServers", {}).get("headroom")
+        if server_config is not None:
             click.echo("Claude Config:  ✓ Configured")
             click.echo(f"                {MCP_CONFIG_PATH}")
 
             # Show proxy URL
             env = server_config.get("env", {})
-            proxy_url = env.get("HEADROOM_PROXY_URL", DEFAULT_PROXY_URL)
+            proxy_url = env.get("CUTCTX_PROXY_URL") or env.get(
+                "HEADROOM_PROXY_URL",
+                DEFAULT_PROXY_URL,
+            )
             click.echo(f"Proxy URL:      {proxy_url}")
         else:
             click.echo("Claude Config:  ✗ Not configured")
-            click.echo("                Run: headroom mcp install")
+            click.echo("                Run: cutctx mcp install")
     else:
         click.echo("Claude Config:  ✗ No config file")
-        click.echo("                Run: headroom mcp install")
+        click.echo("                Run: cutctx mcp install")
 
     # Check proxy connectivity
     try:
         import httpx
 
         config = load_mcp_config()
-        env = config.get("mcpServers", {}).get("headroom", {}).get("env", {})
-        proxy_url = env.get("HEADROOM_PROXY_URL", DEFAULT_PROXY_URL)
+        server_config = config.get("mcpServers", {}).get("cutctx")
+        if server_config is None:
+            server_config = config.get("mcpServers", {}).get("headroom", {})
+        env = server_config.get("env", {})
+        proxy_url = env.get("CUTCTX_PROXY_URL") or env.get(
+            "HEADROOM_PROXY_URL",
+            DEFAULT_PROXY_URL,
+        )
 
         try:
             response = httpx.get(f"{proxy_url}/health", timeout=2.0)
@@ -282,7 +288,7 @@ def mcp_status() -> None:
                 click.echo(f"Proxy Status:   ✗ Unhealthy (status {response.status_code})")
         except httpx.ConnectError:
             click.echo("Proxy Status:   ✗ Not running")
-            click.echo("                Run: headroom proxy")
+            click.echo("                Run: cutctx proxy")
         except httpx.TimeoutException:
             click.echo("Proxy Status:   ✗ Timeout")
     except ImportError:
@@ -293,8 +299,8 @@ def mcp_status() -> None:
 @click.option(
     "--proxy-url",
     default=None,
-    envvar="HEADROOM_PROXY_URL",
-    help=f"Headroom proxy URL (default: {DEFAULT_PROXY_URL})",
+    envvar="CUTCTX_PROXY_URL",
+    help=f"CutCtx proxy URL (default: {DEFAULT_PROXY_URL})",
 )
 @click.option(
     "--direct",
@@ -315,7 +321,7 @@ def mcp_serve(proxy_url: str | None, direct: bool, debug: bool) -> None:
 
     \b
     For manual testing:
-        headroom mcp serve --debug
+        cutctx mcp serve --debug
     """
     import asyncio
     import logging
@@ -325,7 +331,7 @@ def mcp_serve(proxy_url: str | None, direct: bool, debug: bool) -> None:
         from headroom.ccr.mcp_server import create_ccr_mcp_server
     except ImportError as e:
         click.echo(f"Error: MCP dependencies not installed: {e}", err=True)
-        click.echo("Install with: pip install 'headroom-ai[mcp]'", err=True)
+        click.echo("Install with: pip install 'cutctx-ai[mcp]'", err=True)
         raise SystemExit(1) from None
 
     if debug:

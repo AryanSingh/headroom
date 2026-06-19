@@ -20,13 +20,13 @@ info:
     url: https://cutctx.dev
   license:
     name: Headroom Commercial License
-    url: https://headroomlabs.ai/legal/commercial-license
+    url: https://pitchtoship.com/legal/commercial-license
 
 servers:
   - url: http://localhost:8080
     description: Local development
-  - url: https://proxy.headroomlabs.ai
-    description: Cloud proxy
+  - url: https://pitchtoship.com
+    description: PitchToShip license and billing backend
 
 security:
   - BearerAuth: []

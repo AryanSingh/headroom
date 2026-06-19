@@ -10,8 +10,8 @@ from headroom.install.paths import codex_config_path
 
 from .runtime import proxy_base_url
 
-_CODEX_MARKER_START = "# --- Headroom persistent provider ---"
-_CODEX_MARKER_END = "# --- end Headroom persistent provider ---"
+_CODEX_MARKER_START = "# --- CutCtx persistent provider ---"
+_CODEX_MARKER_END = "# --- end CutCtx persistent provider ---"
 _CODEX_PATTERN = re.compile(
     re.escape(_CODEX_MARKER_START) + r".*?" + re.escape(_CODEX_MARKER_END),
     re.DOTALL,
@@ -19,12 +19,12 @@ _CODEX_PATTERN = re.compile(
 
 # Orphan-key patterns: strip any top-level keys that a crashed or partial write
 # may have left outside the marker block.
-_ORPHAN_MODEL_PROVIDER = re.compile(r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"headroom"[ \t]*\r?\n')
+_ORPHAN_MODEL_PROVIDER = re.compile(r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"(headroom|cutctx)"[ \t]*\r?\n')
 _ORPHAN_OPENAI_BASE_URL = re.compile(
     r'(?m)^[ \t]*openai_base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[ \t]*\r?\n'
 )
 _ORPHAN_HEADROOM_TABLE = re.compile(
-    r"(?ms)^\[model_providers\.headroom\][^\[]*?"
+    r"(?ms)^\[model_providers\.(headroom|cutctx)\][^\[]*?"
     r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
     r"(?=^\[|\Z)"
 )
@@ -42,10 +42,10 @@ def build_provider_section(
 
     Bug 3 (#406): requires_openai_auth must NOT appear on custom provider
     blocks — it forces codex to demand OpenAI OAuth login for local-proxy
-    traffic.  The built-in openai provider carries this flag; headroom does not.
+    traffic. The built-in openai provider carries this flag; CutCtx does not.
     """
     body = (
-        "[model_providers.headroom]\n"
+        "[model_providers.cutctx]\n"
         f'name = "{name}"\n'
         f'base_url = "{proxy_base_url(port)}"\n'
         "supports_websockets = true\n"
@@ -70,11 +70,11 @@ def apply_provider_scope(manifest: DeploymentManifest) -> ManagedMutation | None
     path.parent.mkdir(parents=True, exist_ok=True)
     section = (
         f"{_CODEX_MARKER_START}\n"
-        'model_provider = "headroom"\n'
+        'model_provider = "cutctx"\n'
         f'openai_base_url = "{proxy_base_url(manifest.port)}"\n\n'
         + build_provider_section(
             port=manifest.port,
-            name="Headroom persistent proxy",
+            name="CutCtx persistent proxy",
             include_markers=False,
         )
         + f"{_CODEX_MARKER_END}\n"

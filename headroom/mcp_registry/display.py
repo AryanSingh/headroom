@@ -17,7 +17,7 @@ from collections.abc import Callable
 
 from .base import RegisterResult, RegisterStatus
 
-DEFAULT_OVERWRITE_HINT = "headroom mcp install --force"
+DEFAULT_OVERWRITE_HINT = "cutctx mcp install --force"
 DEFAULT_RESTART_HINT = "restart the agent if it was already running"
 
 
@@ -56,7 +56,7 @@ def format_result(
         suffix = f" To update: {overwrite_hint}" if overwrite_hint else ""
         return f"  {label}: existing config differs ({result.detail}).{suffix}"
     if status == RegisterStatus.NO_SDK:
-        return f"  {label}: MCP SDK missing — install with `pip install 'headroom-ai[mcp]'`"
+        return f"  {label}: MCP SDK missing — install with `pip install 'cutctx-ai[mcp]'`"
     # FAILED or any future unhandled status
     return f"  {label}: install failed ({status.value}): {result.detail}"
 

@@ -223,22 +223,22 @@ def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -
 @main.group()
 @click.pass_context
 def memory(ctx: click.Context) -> None:
-    """Manage memories stored in Headroom.
+    """Manage memories stored in CutCtx.
 
     \b
     Examples:
-        headroom memory list                     List all stored memories
-        headroom memory list --limit 10          List the 10 most recent memories
-        headroom memory list --scope USER        List only USER-level memories
-        headroom memory list --since 7d          List memories from the last 7 days
-        headroom memory show <id>                Show full details of a memory
-        headroom memory stats                    Show memory statistics
-        headroom memory edit <id> --content ...  Edit a memory's content
-        headroom memory delete <id>              Delete a memory
-        headroom memory prune --older-than 30d   Delete memories older than 30 days
-        headroom memory purge --confirm          Delete ALL memories
-        headroom memory export --output file.json  Export all memories to JSON
-        headroom memory import file.json         Import memories from JSON
+        cutctx memory list                     List all stored memories
+        cutctx memory list --limit 10          List the 10 most recent memories
+        cutctx memory list --scope USER        List only USER-level memories
+        cutctx memory list --since 7d          List memories from the last 7 days
+        cutctx memory show <id>                Show full details of a memory
+        cutctx memory stats                    Show memory statistics
+        cutctx memory edit <id> --content ...  Edit a memory's content
+        cutctx memory delete <id>              Delete a memory
+        cutctx memory prune --older-than 30d   Delete memories older than 30 days
+        cutctx memory purge --confirm          Delete ALL memories
+        cutctx memory export --output file.json  Export all memories to JSON
+        cutctx memory import file.json         Import memories from JSON
     """
     pass
 
@@ -273,11 +273,11 @@ def list_memories(
 
     \b
     Examples:
-        headroom memory list                  List most recent memories
-        headroom memory list --limit 10       Show only 10 memories
-        headroom memory list --scope USER     Show only USER-level memories
-        headroom memory list --since 7d       Show memories from the last 7 days
-        headroom memory list --search "api"   Search for memories containing "api"
+        cutctx memory list                  List most recent memories
+        cutctx memory list --limit 10       Show only 10 memories
+        cutctx memory list --scope USER     Show only USER-level memories
+        cutctx memory list --since 7d       Show memories from the last 7 days
+        cutctx memory list --search "api"   Search for memories containing "api"
     """
     store = get_store(db_path)
 
@@ -356,8 +356,8 @@ def show_memory(
 
     \b
     Examples:
-        headroom memory show abc123            Show memory details
-        headroom memory show abc123 --json     Output as raw JSON
+        cutctx memory show abc123            Show memory details
+        cutctx memory show abc123 --json     Output as raw JSON
     """
     store = get_store(db_path)
 
@@ -476,7 +476,7 @@ def show_stats(ctx: click.Context, db_path: str) -> None:
         if old_count > 0:
             console.print(
                 f"\n[dim]Tip: You have {old_count} memories older than 30 days. "
-                f"Consider running: headroom memory prune --older-than 30d[/dim]"
+                f"Consider running: cutctx memory prune --older-than 30d[/dim]"
             )
 
     except Exception as e:
@@ -501,9 +501,9 @@ def edit_memory(
 
     \b
     Examples:
-        headroom memory edit abc123 --content "Updated content"
-        headroom memory edit abc123 --importance 0.8
-        headroom memory edit abc123 -c "New content" -i 0.9
+        cutctx memory edit abc123 --content "Updated content"
+        cutctx memory edit abc123 --importance 0.8
+        cutctx memory edit abc123 -c "New content" -i 0.9
     """
     if content is None and importance is None:
         print_error("At least one of --content or --importance must be provided.")
@@ -563,9 +563,9 @@ def delete_memories(
 
     \b
     Examples:
-        headroom memory delete abc123           Delete one memory
-        headroom memory delete abc123 def456    Delete multiple memories
-        headroom memory delete abc123 --force   Skip confirmation
+        cutctx memory delete abc123           Delete one memory
+        cutctx memory delete abc123 def456    Delete multiple memories
+        cutctx memory delete abc123 --force   Skip confirmation
     """
     store = get_store(db_path)
 
@@ -665,11 +665,11 @@ def prune_memories(
 
     \b
     Examples:
-        headroom memory prune --older-than 30d              Delete memories older than 30 days
-        headroom memory prune --scope TURN                  Delete all TURN-level memories
-        headroom memory prune --low-importance 0.3          Delete low-importance memories
-        headroom memory prune --older-than 7d --scope TURN  Combine filters
-        headroom memory prune --older-than 30d --dry-run    Preview what would be deleted
+        cutctx memory prune --older-than 30d              Delete memories older than 30 days
+        cutctx memory prune --scope TURN                  Delete all TURN-level memories
+        cutctx memory prune --low-importance 0.3          Delete low-importance memories
+        cutctx memory prune --older-than 7d --scope TURN  Combine filters
+        cutctx memory prune --older-than 30d --dry-run    Preview what would be deleted
     """
     if older_than is None and scope is None and low_importance is None:
         print_error(
@@ -766,7 +766,7 @@ def purge_memories(ctx: click.Context, db_path: str, confirm_flag: bool) -> None
 
     \b
     Example:
-        headroom memory purge --confirm
+        cutctx memory purge --confirm
     """
     if not confirm_flag:
         print_error("This will delete ALL memories. Use --confirm to proceed.")
@@ -815,9 +815,9 @@ def export_memories(ctx: click.Context, db_path: str, output: str | None) -> Non
 
     \b
     Examples:
-        headroom memory export                       Output to stdout
-        headroom memory export --output backup.json  Save to file
-        headroom memory export -o backup.json        Save to file (short form)
+        cutctx memory export                       Output to stdout
+        cutctx memory export --output backup.json  Save to file
+        cutctx memory export -o backup.json        Save to file (short form)
     """
     store = get_store(db_path)
 
@@ -851,8 +851,8 @@ def import_memories(ctx: click.Context, db_path: str, file: str, force: bool) ->
 
     \b
     Examples:
-        headroom memory import backup.json          Import from file
-        headroom memory import backup.json --force  Skip confirmation
+        cutctx memory import backup.json          Import from file
+        cutctx memory import backup.json --force  Skip confirmation
     """
     file_path = Path(file)
 

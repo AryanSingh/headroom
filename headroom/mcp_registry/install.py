@@ -1,8 +1,12 @@
-"""Top-level orchestration: register Headroom MCP across detected agents."""
+"""Top-level orchestration: register CutCtx MCP across detected agents."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
+import os
+from pathlib import Path
+import shutil
+import sys
 
 from .base import MCPRegistrar, RegisterResult, RegisterStatus, ServerSpec
 from .claude import ClaudeRegistrar
@@ -20,21 +24,40 @@ def get_all_registrars() -> list[MCPRegistrar]:
     return [ClaudeRegistrar(), CodexRegistrar()]
 
 
+def _resolve_cutctx_command() -> str:
+    env_override = os.environ.get("CUTCTX_CLI_PATH")
+    if env_override:
+        return env_override
+    sibling = Path(sys.executable).with_name("cutctx")
+    if sibling.exists():
+        return str(sibling)
+    discovered = shutil.which("cutctx")
+    if discovered:
+        return discovered
+    return "cutctx"
+
+
 def build_headroom_spec(proxy_url: str = DEFAULT_PROXY_URL) -> ServerSpec:
-    """Construct the canonical :class:`ServerSpec` for the headroom server.
+    """Construct the canonical :class:`ServerSpec` for the CutCtx server.
 
     The spec is identical across agents — every JSON/TOML registrar
     serializes the same shape into its own format.
     """
     env: dict[str, str] = {}
     if proxy_url and proxy_url != DEFAULT_PROXY_URL:
-        env["HEADROOM_PROXY_URL"] = proxy_url
+        env["CUTCTX_PROXY_URL"] = proxy_url
     return ServerSpec(
-        name="headroom",
-        command="headroom",
+        name="cutctx",
+        command=_resolve_cutctx_command(),
         args=("mcp", "serve"),
         env=env,
     )
+
+
+def _looks_like_legacy_cutctx_server(spec: ServerSpec | None) -> bool:
+    if spec is None:
+        return False
+    return spec.command in {"headroom", "cutctx"} and tuple(spec.args) == ("mcp", "serve")
 
 
 def build_serena_spec(context: str) -> ServerSpec:
@@ -61,7 +84,7 @@ def install_everywhere(
     force: bool = False,
     registrars: Iterable[MCPRegistrar] | None = None,
 ) -> dict[str, RegisterResult]:
-    """Install the headroom MCP server into every detected agent.
+    """Install the CutCtx MCP server into every detected agent.
 
     Args:
         proxy_url: URL the MCP server should contact for retrieval.
@@ -88,6 +111,10 @@ def install_everywhere(
                 f"{registrar.display_name} not found on this system",
             )
             continue
+        if spec.name != "headroom" and _looks_like_legacy_cutctx_server(
+            registrar.get_server("headroom")
+        ):
+            registrar.unregister_server("headroom")
         results[registrar.name] = registrar.register_server(spec, force=force)
 
     return results

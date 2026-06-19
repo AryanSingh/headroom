@@ -1,6 +1,6 @@
 """Billing management CLI commands.
 
-Provides checkout and billing portal commands for managing Headroom subscriptions
+Provides checkout and billing portal commands for managing CutCtx subscriptions
 through the PitchToShip billing system.
 """
 
@@ -18,14 +18,14 @@ logger = logging.getLogger("headroom.cli.billing")
 
 @main.group()
 def billing() -> None:
-    """Manage your Headroom billing and subscriptions.
+    """Manage your CutCtx billing and subscriptions.
 
     Open checkout pages for upgrading plans or manage your billing account.
 
     \b
     Examples:
-        headroom billing checkout --tier team              Open checkout for Team plan
-        headroom billing portal --email user@example.com   Open billing portal
+        cutctx billing checkout --tier team              Open checkout for Team plan
+        cutctx billing portal --email user@example.com   Open billing portal
     """
 
 
@@ -100,7 +100,7 @@ def portal(email: str, no_browser: bool) -> None:
 
     \b
     Examples:
-        headroom billing portal --email user@example.com
+        cutctx billing portal --email user@example.com
     """
     from headroom.billing import get_portal_url
 

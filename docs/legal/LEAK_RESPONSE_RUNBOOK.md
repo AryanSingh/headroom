@@ -134,7 +134,7 @@ CutCtx Security Team
 
 ```bash
 # Via admin API
-curl -X POST https://api.cutctx.dev/v1/admin/revoke \
+curl -X POST https://pitchtoship.com/v1/admin/revoke \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -d '{"lic_id": "$LIC_ID", "reason": "unauthorized_distribution"}'
 ```

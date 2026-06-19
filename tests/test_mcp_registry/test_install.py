@@ -53,15 +53,15 @@ class _FakeRegistrar(MCPRegistrar):
 
 def test_build_spec_default_proxy_no_env() -> None:
     spec = build_headroom_spec()
-    assert spec.name == "headroom"
-    assert spec.command == "headroom"
+    assert spec.name == "cutctx"
+    assert spec.command == "cutctx"
     assert spec.args == ("mcp", "serve")
     assert spec.env == {}
 
 
 def test_build_spec_custom_proxy_sets_env() -> None:
     spec = build_headroom_spec("http://127.0.0.1:9999")
-    assert spec.env == {"HEADROOM_PROXY_URL": "http://127.0.0.1:9999"}
+    assert spec.env == {"CUTCTX_PROXY_URL": "http://127.0.0.1:9999"}
 
 
 def test_build_spec_default_url_omits_env() -> None:
@@ -131,7 +131,7 @@ def test_install_everywhere_passes_proxy_url_into_spec() -> None:
     reg = CapturingRegistrar("x")
     install_everywhere(proxy_url="http://localhost:9000", registrars=[reg])
     assert len(captured) == 1
-    assert captured[0].env == {"HEADROOM_PROXY_URL": "http://localhost:9000"}
+    assert captured[0].env == {"CUTCTX_PROXY_URL": "http://localhost:9000"}
 
 
 def test_install_everywhere_passes_force_flag() -> None:

@@ -62,10 +62,10 @@ class TestUpgradeUrl:
 class TestSupportUrl:
     def test_support_email(self):
         url = support_url()
-        assert "headroomlabs.ai" in url
+        assert url == "hello@cutctx.dev"
 
 
 class TestPricingUrl:
     def test_pricing_page(self):
         url = pricing_url()
-        assert "headroomlabs.ai/pricing" in url
+        assert url == "https://cutctx.dev/pricing"

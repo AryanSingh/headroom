@@ -17,7 +17,7 @@ This file defines the standard packet to send when a customer starts security re
 
 ### Operational policies
 - [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SECURITY.md)
-- [SUPPORT_POLICY_AND_SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SUPPORT_POLICY_AND_SLA.md)
+- [SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SLA.md)
 - [SECURITY_QUESTIONNAIRE_WORKSHEET.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SECURITY_QUESTIONNAIRE_WORKSHEET.md)
 
 ## Review Checklist

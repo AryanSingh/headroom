@@ -304,7 +304,7 @@ The `_check_rust_core()` function verifies the Rust extension loads at startup a
 super().__init__(
     f"Feature '{feature}' requires {required_tier.name} tier "
     f"(current: {current_tier.name}). "
-    f"Upgrade at https://headroomlabs.ai/pricing or contact hello@headroomlabs.ai"
+    f"Upgrade at https://pitchtoship.com/checkout?product=headroom-team or contact hello@cutctx.dev"
 )
 ```
 

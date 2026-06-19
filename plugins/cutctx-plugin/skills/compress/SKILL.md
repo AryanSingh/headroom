@@ -81,18 +81,18 @@ When you receive a large tool output:
 
 If CutCtx is not installed:
 ```bash
-pip install headroom-ai
+pip install cutctx-ai
 ```
 
 Or for all features:
 ```bash
-pip install "headroom-ai[all]"
+pip install "cutctx-ai[all]"
 ```
 
-The CLI binary is `cutctx` (installed via the `headroom-ai` package).
+The CLI binary is `cutctx` (installed via the `cutctx-ai` package).
 
 ## Learn More
 
 - **Docs**: https://cutctx.dev/docs
-- **GitHub**: https://github.com/AryanSingh/cutcxt
+- **GitHub**: https://github.com/cutctx/cutctx
 - **Proxy mode**: `cutctx proxy --port 8787` (zero code changes, automatic compression)

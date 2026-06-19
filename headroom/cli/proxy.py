@@ -333,7 +333,7 @@ def _selected_context_tool() -> str:
         "Resets at midnight UTC. Env: HEADROOM_BUDGET."
     ),
 )
-# Code-aware compression (AST-based, requires `pip install headroom-ai[code]`).
+# Code-aware compression (AST-based, requires `pip install cutctx-ai[code]`).
 # Pair of flags so users can override the env-var default in either direction.
 # We resolve HEADROOM_CODE_AWARE_ENABLED in the body (not via Click's envvar=),
 # because Click's envvar handling for paired bool flags is brittle in older
@@ -344,7 +344,7 @@ def _selected_context_tool() -> str:
     default=None,
     help=(
         "Enable/disable AST-based code compression. Requires the optional "
-        "tree-sitter dependency: pip install headroom-ai[code]. "
+        "tree-sitter dependency: pip install cutctx-ai[code]. "
         "Default: disabled. Env: HEADROOM_CODE_AWARE_ENABLED=1 to enable."
     ),
 )
@@ -658,9 +658,9 @@ def proxy(
 
     \b
     Examples:
-        headroom proxy                    Start proxy on port 8787
-        headroom proxy --port 8080        Start proxy on port 8080
-        headroom proxy --no-optimize      Passthrough mode (no optimization)
+        cutctx proxy                    Start proxy on port 8787
+        cutctx proxy --port 8080        Start proxy on port 8080
+        cutctx proxy --no-optimize      Passthrough mode (no optimization)
 
     \b
     Usage with Claude Code:
@@ -675,7 +675,7 @@ def proxy(
         from headroom.proxy.server import ProxyConfig, run_server
     except ImportError as e:
         click.secho(
-            "Error: Proxy dependencies not installed. Run: pip install headroom-ai[proxy]",
+            "Error: Proxy dependencies not installed. Run: pip install cutctx-ai[proxy]",
             fg="red",
             err=True,
         )
@@ -708,7 +708,7 @@ def proxy(
             # installed, or drop the flag if they want pass-through behavior.
             click.secho(
                 f"error: --intercept-tool-results requires tool(s) that could not "
-                f"be installed: {missing}. Run `headroom tools doctor` to diagnose, "
+                f"be installed: {missing}. Run `cutctx tools doctor` to diagnose, "
                 "or omit the flag to start the proxy without interceptors.",
                 fg="red",
                 err=True,

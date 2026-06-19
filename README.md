@@ -40,12 +40,12 @@
 ---
 <p align="center"><a href="https://trendshift.io/repositories/20881" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20881" alt="cutctx%2Fcutctx | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a></p>
 
-Headroom compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
+CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
-> Product naming: **Headroom** is the product and company-facing brand. The current CLI and package identifiers remain `cutctx` / `cutctx-ai` for compatibility with existing installs, automation, and docs.
+> Product naming: **CutCtx** is the public product brand. The historical Python module name `headroom` still exists internally for compatibility, but end-user installs and commands are `cutctx` / `cutctx-ai`.
 
 <p align="center">
-  <img src="HeadroomDemo-Fast.gif" alt="Headroom in action" width="820">
+  <img src="HeadroomDemo-Fast.gif" alt="CutCtx in action" width="820">
   <br/><sub>Live: 10,144 → 1,260 tokens — same FATAL found.</sub>
 </p>
 
@@ -119,7 +119,7 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 
 **Accuracy preserved on standard benchmarks:**
 
-| Benchmark  | Category | N   | Baseline | Headroom | Delta      |
+| Benchmark  | Category | N   | Baseline | CutCtx | Delta      |
 |------------|----------|----:|---------:|---------:|------------|
 | GSM8K      | Math     | 100 |    0.870 |    0.870 | **±0.000** |
 | TruthfulQA | Factual  | 100 |    0.530 |    0.560 | **+0.030** |
@@ -189,11 +189,11 @@ For buyers, operators, and security reviewers:
 |------------------------|------------------------------------------------------------------|
 | Any Python app         | `compress(messages, model=…)`                                    |
 | Any TypeScript app     | `await compress(messages, { model })`                            |
-| Anthropic / OpenAI SDK | `withHeadroom(new Anthropic())` · `withHeadroom(new OpenAI())`   |
+| Anthropic / OpenAI SDK | CutCtx client wrappers for existing Anthropic and OpenAI SDK clients |
 | Vercel AI SDK          | `wrapLanguageModel({ model, middleware: headroomMiddleware() })` |
-| LiteLLM                | `litellm.callbacks = [HeadroomCallback()]`                       |
-| LangChain              | `HeadroomChatModel(your_llm)`                                    |
-| Agno                   | `HeadroomAgnoModel(your_model)`                                  |
+| LiteLLM                | CutCtx callback integration for LiteLLM                          |
+| LangChain              | CutCtx LangChain chat wrapper                                    |
+| Agno                   | CutCtx Agno model wrapper                                        |
 | Strands                | [Strands guide](https://cutctx.dev/docs/strands)  |
 | ASGI apps              | `app.add_middleware(CompressionMiddleware)`                      |
 | Multi-agent            | `SharedContext().put / .get`                                     |
@@ -220,7 +220,7 @@ For buyers, operators, and security reviewers:
 <details>
 <summary><b>Pipeline internals</b></summary>
 
-Headroom exposes one stable request lifecycle across `compress()`, the SDK, and the proxy:
+CutCtx exposes one stable request lifecycle across `compress()`, the SDK, and the proxy:
 
 `Setup` → `Pre-Start` → `Post-Start` → `Input Received` → `Input Cached` → `Input Routed` → `Input Compressed` → `Input Remembered` → `Pre-Send` → `Post-Send` → `Response Received`
 

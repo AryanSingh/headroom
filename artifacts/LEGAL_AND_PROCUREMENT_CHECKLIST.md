@@ -22,7 +22,7 @@ Draft starting points:
 - [artifacts/legal/DPA_TEMPLATE.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/legal/DPA_TEMPLATE.md)
 - [artifacts/legal/PRIVACY_POLICY_DRAFT.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/legal/PRIVACY_POLICY_DRAFT.md)
 - [artifacts/legal/TERMS_OF_SERVICE_DRAFT.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/legal/TERMS_OF_SERVICE_DRAFT.md)
-- [artifacts/SUPPORT_POLICY_AND_SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SUPPORT_POLICY_AND_SLA.md)
+- [SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SLA.md)
 
 ## Procurement Packet
 

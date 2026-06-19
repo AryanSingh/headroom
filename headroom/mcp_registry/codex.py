@@ -26,20 +26,24 @@ else:  # pragma: no cover — exercised only on 3.10
 
 logger = logging.getLogger(__name__)
 
-_MARKER_START = "# --- Headroom MCP server ---"
-_MARKER_END = "# --- end Headroom MCP server ---"
+_MARKER_START = "# --- CutCtx MCP server ---"
+_MARKER_END = "# --- end CutCtx MCP server ---"
 
 
 def _marker_start(server_name: str) -> str:
     if server_name == "headroom":
+        return "# --- Headroom MCP server ---"
+    if server_name == "cutctx":
         return _MARKER_START
-    return f"# --- Headroom MCP server: {server_name} ---"
+    return f"# --- CutCtx MCP server: {server_name} ---"
 
 
 def _marker_end(server_name: str) -> str:
     if server_name == "headroom":
+        return "# --- end Headroom MCP server ---"
+    if server_name == "cutctx":
         return _MARKER_END
-    return f"# --- end Headroom MCP server: {server_name} ---"
+    return f"# --- end CutCtx MCP server: {server_name} ---"
 
 
 class CodexRegistrar(MCPRegistrar):
@@ -87,7 +91,7 @@ class CodexRegistrar(MCPRegistrar):
                 return RegisterResult(
                     RegisterStatus.MISMATCH,
                     "user-managed [mcp_servers."
-                    f"{spec.name}] entry outside Headroom markers; "
+                    f"{spec.name}] entry outside CutCtx markers; "
                     f"{_diff_specs(existing, spec)}",
                 )
             return RegisterResult(RegisterStatus.MISMATCH, _diff_specs(existing, spec))
@@ -102,7 +106,7 @@ class CodexRegistrar(MCPRegistrar):
                 return RegisterResult(
                     RegisterStatus.MISMATCH,
                     "user-managed [mcp_servers."
-                    f"{spec.name}] entry outside Headroom markers; "
+                    f"{spec.name}] entry outside CutCtx markers; "
                     f"{_diff_specs(existing, spec)}",
                 )
             # Drop any prior Headroom block before re-writing.
@@ -192,7 +196,7 @@ class CodexRegistrar(MCPRegistrar):
 
 
 def _render_block(spec: ServerSpec) -> str:
-    """Render a Headroom-marked TOML block for ``spec``."""
+    """Render a CutCtx-marked TOML block for ``spec``."""
     lines: list[str] = [
         _marker_start(spec.name),
         f"[mcp_servers.{spec.name}]",

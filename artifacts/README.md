@@ -25,7 +25,7 @@ This directory contains the commercialization, procurement, onboarding, and laun
 ## Onboarding And Support
 
 - [CUSTOMER_ONBOARDING_RUNBOOK.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/CUSTOMER_ONBOARDING_RUNBOOK.md)
-- [SUPPORT_POLICY_AND_SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SUPPORT_POLICY_AND_SLA.md)
+- [SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SLA.md)
 
 ## Procurement And Security Review
 

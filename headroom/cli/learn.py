@@ -1,4 +1,4 @@
-"""CLI commands for Headroom Learn — offline failure learning."""
+"""CLI commands for CutCtx Learn — offline failure learning."""
 
 from __future__ import annotations
 

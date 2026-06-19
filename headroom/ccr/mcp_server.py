@@ -1,19 +1,19 @@
-"""Headroom MCP Server — Context engineering toolkit for AI coding tools.
+"""CutCtx MCP Server — context compression toolkit for AI coding tools.
 
-Exposes Headroom's compression, retrieval, and observability as MCP tools
+Exposes CutCtx compression, retrieval, and observability as MCP tools
 that any MCP-compatible host (Claude Code, Cursor, Codex, etc.) can use.
 
 Tools:
-    headroom_compress   — Compress content on demand (no proxy needed)
-    headroom_retrieve   — Retrieve original uncompressed content by hash
-    headroom_stats      — Session compression statistics
+    cutctx_compress   — Compress content on demand (no proxy needed)
+    cutctx_retrieve   — Retrieve original uncompressed content by hash
+    cutctx_stats      — Session compression statistics
 
 Usage:
     # As standalone server (stdio transport, called by AI coding tools)
-    headroom mcp serve
+    cutctx mcp serve
 
     # Add to Claude Code
-    headroom mcp install
+    cutctx mcp install
 
 When running standalone (no proxy), compression and retrieval happen locally
 in this process. When a proxy is running, retrieval can also fetch from the
@@ -66,10 +66,14 @@ except ImportError:
     HTTPX_AVAILABLE = False
     httpx = None  # type: ignore[assignment]
 
-CCR_TOOL_NAME = "headroom_retrieve"
-COMPRESS_TOOL_NAME = "headroom_compress"
-STATS_TOOL_NAME = "headroom_stats"
-READ_TOOL_NAME = "headroom_read"
+CCR_TOOL_NAME = "cutctx_retrieve"
+COMPRESS_TOOL_NAME = "cutctx_compress"
+STATS_TOOL_NAME = "cutctx_stats"
+READ_TOOL_NAME = "cutctx_read"
+LEGACY_CCR_TOOL_NAME = "headroom_retrieve"
+LEGACY_COMPRESS_TOOL_NAME = "headroom_compress"
+LEGACY_STATS_TOOL_NAME = "headroom_stats"
+LEGACY_READ_TOOL_NAME = "headroom_read"
 
 logger = logging.getLogger("headroom.ccr.mcp")
 
@@ -83,13 +87,16 @@ _READ_ENABLED = os.environ.get("HEADROOM_MCP_READ", "off").lower().strip() in (
     "enabled",
 )
 
-DEFAULT_PROXY_URL = os.environ.get("HEADROOM_PROXY_URL", "http://127.0.0.1:8787")
+DEFAULT_PROXY_URL = os.environ.get("CUTCTX_PROXY_URL") or os.environ.get(
+    "HEADROOM_PROXY_URL",
+    "http://127.0.0.1:8787",
+)
 
 
 def _format_session_summary(summary: dict[str, Any], local_stats: dict[str, Any]) -> str:
     """Format the proxy summary + local MCP stats into clean readable text."""
     lines: list[str] = []
-    lines.append("Headroom Session Summary")
+    lines.append("CutCtx Session Summary")
     lines.append("=" * 40)
 
     mode = summary.get("mode", "token")
@@ -138,8 +145,8 @@ def _format_session_summary(summary: dict[str, Any], local_stats: dict[str, Any]
     pct = cost.get("savings_pct", 0)
     if without > 0:
         lines.append("Cost Impact:")
-        lines.append(f"  Without Headroom:  ${without:.2f}")
-        lines.append(f"  With Headroom:     ${with_hr:.2f}")
+        lines.append(f"  Without CutCtx:    ${without:.2f}")
+        lines.append(f"  With CutCtx:       ${with_hr:.2f}")
         lines.append(f"  You saved:         ${saved:.2f} ({pct}%)")
         breakdown = cost.get("breakdown", {})
         cache_s = breakdown.get("cache_savings_usd", 0)
@@ -306,14 +313,14 @@ class SessionStats:
 
 
 class HeadroomMCPServer:
-    """MCP Server exposing Headroom's context engineering toolkit.
+    """MCP Server exposing CutCtx context compression tools.
 
     Tools:
-        headroom_compress — Compress content on demand. Stores original for
-                           retrieval. Works without a proxy.
-        headroom_retrieve — Retrieve original uncompressed content by hash.
-                           Checks local store first, then proxy if configured.
-        headroom_stats    — Session statistics: compressions, savings, cost.
+        cutctx_compress — Compress content on demand. Stores original for
+                         retrieval. Works without a proxy.
+        cutctx_retrieve — Retrieve original uncompressed content by hash.
+                         Checks local store first, then proxy if configured.
+        cutctx_stats    — Session statistics: compressions, savings, cost.
 
     Modes:
         Standalone: Compression + retrieval happen locally. No proxy needed.
@@ -338,7 +345,7 @@ class HeadroomMCPServer:
         if not MCP_AVAILABLE or Server is None:
             raise ImportError("MCP SDK not installed. Install with: pip install mcp")
 
-        self.server: Server = Server("headroom")
+        self.server: Server = Server("cutctx")
         self._setup_handlers()
 
     def _get_local_store(self) -> Any:
@@ -356,7 +363,7 @@ class HeadroomMCPServer:
         return self._local_store
 
     def _compress_content(self, content: str) -> dict[str, Any]:
-        """Compress content using Headroom's pipeline.
+        """Compress content using CutCtx's pipeline.
 
         Returns dict with compressed text, token counts, hash, etc.
         """
@@ -402,7 +409,7 @@ class HeadroomMCPServer:
             "tokens_saved": max(0, input_tokens - output_tokens),
             "savings_percent": savings_pct,
             "transforms": result.transforms_applied,
-            "note": f"Original stored with hash={hash_key}. Use mcp__headroom__{CCR_TOOL_NAME} to get full content later.",
+            "note": f"Original stored with hash={hash_key}. Use mcp__cutctx__{CCR_TOOL_NAME} to get full content later.",
         }
 
     async def _retrieve_content(
@@ -451,7 +458,7 @@ class HeadroomMCPServer:
         return {
             "error": "Content not found. It may have expired or the hash may be incorrect.",
             "hash": hash_key,
-            "hint": "Content compressed via headroom_compress is stored for the session. "
+            "hint": "Content compressed via cutctx_compress is stored for the session. "
             "Content compressed by the proxy uses the configured CCR TTL.",
         }
 
@@ -486,11 +493,12 @@ class HeadroomMCPServer:
             tools = [
                 Tool(
                     name=COMPRESS_TOOL_NAME,
+                    aliases=[LEGACY_COMPRESS_TOOL_NAME],
                     description=(
                         "Compress content to save context window space. "
                         "Use this on large tool outputs, file contents, search results, "
                         "or any content you want to shrink before reasoning over it. "
-                        f"The original is stored and can be retrieved later via mcp__headroom__{CCR_TOOL_NAME}. "
+                        f"The original is stored and can be retrieved later via mcp__cutctx__{CCR_TOOL_NAME}. "
                         "Returns compressed text + a hash for retrieval."
                     ),
                     inputSchema={
@@ -509,10 +517,11 @@ class HeadroomMCPServer:
                 ),
                 Tool(
                     name=CCR_TOOL_NAME,
+                    aliases=[LEGACY_CCR_TOOL_NAME],
                     description=(
                         "Retrieve original uncompressed content by hash. "
                         "Use this when you need full details from previously compressed content. "
-                        "The hash comes from headroom_compress results or from compression "
+                        "The hash comes from cutctx_compress results or from compression "
                         "markers like [N items compressed... hash=abc123]."
                     ),
                     inputSchema={
@@ -535,6 +544,7 @@ class HeadroomMCPServer:
                 ),
                 Tool(
                     name=STATS_TOOL_NAME,
+                    aliases=[LEGACY_STATS_TOOL_NAME],
                     description=(
                         "Show compression statistics for this session: "
                         "total compressions, tokens saved, estimated cost savings, "
@@ -547,16 +557,17 @@ class HeadroomMCPServer:
                 ),
             ]
 
-            # Conditionally add headroom_read (behind feature flag)
+            # Conditionally add cutctx_read (behind feature flag)
             if _READ_ENABLED:
                 tools.append(
                     Tool(
                         name=READ_TOOL_NAME,
+                        aliases=[LEGACY_READ_TOOL_NAME],
                         description=(
                             "Read a file with smart caching. First read returns full content "
                             "and caches it. Subsequent reads of the same unchanged file return "
                             "a lightweight cache marker (~20 tokens instead of thousands). "
-                            f"Use mcp__headroom__{CCR_TOOL_NAME} with the hash to get full content if needed. "
+                            f"Use mcp__cutctx__{CCR_TOOL_NAME} with the hash to get full content if needed. "
                             "Use this INSTEAD of the built-in Read tool for significant token savings."
                         ),
                         inputSchema={
@@ -584,6 +595,14 @@ class HeadroomMCPServer:
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+            if name == LEGACY_COMPRESS_TOOL_NAME:
+                name = COMPRESS_TOOL_NAME
+            elif name == LEGACY_CCR_TOOL_NAME:
+                name = CCR_TOOL_NAME
+            elif name == LEGACY_STATS_TOOL_NAME:
+                name = STATS_TOOL_NAME
+            elif name == LEGACY_READ_TOOL_NAME:
+                name = READ_TOOL_NAME
             started = time.perf_counter()
             logger.info(
                 "event=mcp_tool_call_received tool=%s arguments=%s",
@@ -627,7 +646,7 @@ class HeadroomMCPServer:
                 ]
 
     async def _handle_compress(self, arguments: dict[str, Any]) -> list[TextContent]:
-        """Handle headroom_compress tool call."""
+        """Handle cutctx_compress tool call."""
         content = arguments.get("content")
         if not content:
             return [
@@ -644,7 +663,7 @@ class HeadroomMCPServer:
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     async def _handle_retrieve(self, arguments: dict[str, Any]) -> list[TextContent]:
-        """Handle headroom_retrieve tool call."""
+        """Handle cutctx_retrieve tool call."""
         hash_key = arguments.get("hash")
         if not hash_key:
             return [
@@ -671,7 +690,7 @@ class HeadroomMCPServer:
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     async def _handle_stats(self) -> list[TextContent]:
-        """Handle headroom_stats tool call."""
+        """Handle cutctx_stats tool call."""
         stats = self._stats.to_dict()
 
         # Add local store stats if available
@@ -758,7 +777,7 @@ class HeadroomMCPServer:
         return result if result else None
 
     async def _handle_read(self, arguments: dict[str, Any]) -> list[TextContent]:
-        """Handle headroom_read tool call — file read with session caching."""
+        """Handle cutctx_read tool call — file read with session caching."""
         import hashlib
 
         file_path = arguments.get("file_path", "")
@@ -831,7 +850,7 @@ class HeadroomMCPServer:
                                     "note": (
                                         f"File unchanged since first read ({cached_lines} lines, "
                                         f"~{cached_tokens} tokens). Content already in your context "
-                                        f"from the first read. Call mcp__headroom__{CCR_TOOL_NAME}(hash='{ccr_hash}') "
+                                        f"from the first read. Call mcp__cutctx__{CCR_TOOL_NAME}(hash='{ccr_hash}') "
                                         f"if you need the full content again."
                                     ),
                                 },
@@ -850,7 +869,7 @@ class HeadroomMCPServer:
             compressed=f"[File: {path.name}, {line_count} lines]",
             original_tokens=len(content.split()),
             compressed_tokens=5,
-            tool_name="headroom_read",
+            tool_name="cutctx_read",
             ttl=MCP_SESSION_TTL,
         )
 
@@ -873,7 +892,7 @@ class HeadroomMCPServer:
     async def run_stdio(self) -> None:
         """Run the server with stdio transport."""
         async with stdio_server() as (read_stream, write_stream):
-            logger.info(f"Headroom MCP Server starting (proxy: {self.proxy_url})")
+            logger.info(f"CutCtx MCP Server starting (proxy: {self.proxy_url})")
             await self.server.run(
                 read_stream,
                 write_stream,
@@ -890,10 +909,10 @@ def create_ccr_mcp_server(
     proxy_url: str = DEFAULT_PROXY_URL,
     direct_mode: bool = False,
 ) -> HeadroomMCPServer:
-    """Create a Headroom MCP server instance.
+    """Create a CutCtx MCP server instance.
 
     Args:
-        proxy_url: URL of the Headroom proxy server (for retrieval fallback).
+        proxy_url: URL of the CutCtx proxy server (for retrieval fallback).
         direct_mode: Ignored (kept for backward compatibility).
 
     Returns:
@@ -903,14 +922,14 @@ def create_ccr_mcp_server(
 
 
 async def main() -> None:
-    """Run the Headroom MCP server."""
+    """Run the CutCtx MCP server."""
     parser = argparse.ArgumentParser(
-        description="Headroom MCP Server — Context engineering toolkit"
+        description="CutCtx MCP Server — context compression toolkit"
     )
     parser.add_argument(
         "--proxy-url",
         default=DEFAULT_PROXY_URL,
-        help=f"Headroom proxy URL for retrieval fallback (default: {DEFAULT_PROXY_URL})",
+        help=f"CutCtx proxy URL for retrieval fallback (default: {DEFAULT_PROXY_URL})",
     )
     parser.add_argument(
         "--direct",

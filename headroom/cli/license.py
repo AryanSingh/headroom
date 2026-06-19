@@ -34,9 +34,9 @@ def license() -> None:
 @click.argument("license_key")
 @click.option(
     "--cloud-url",
-    envvar="HEADROOM_CLOUD_URL",
-    default="https://app.cutctx.dev",
-    help="CutCtx license server URL (env: HEADROOM_CLOUD_URL)",
+    envvar="PITCHTOSHIP_URL",
+    default="https://pitchtoship.com",
+    help="PitchToShip license server URL (env: PITCHTOSHIP_URL)",
 )
 @click.option(
     "--no-browser",
@@ -121,7 +121,10 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
     elif resp.status_code == 401 or resp.status_code == 403:
         click.echo("Error: Invalid or expired license key.", err=True)
-        click.echo("Check your key and try again, or visit https://cutctx.dev/pricing", err=True)
+        click.echo(
+            "Check your key and try again, or visit https://pitchtoship.com/checkout?product=headroom-team",
+            err=True,
+        )
         raise SystemExit(1) from None
     else:
         click.echo(f"Error: License server returned status {resp.status_code}.", err=True)

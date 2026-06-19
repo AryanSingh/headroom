@@ -9,6 +9,7 @@ What is done:
 - Commercial feature gates are implemented
 - Team, Business, and Enterprise admin capabilities exist
 - Deployment paths exist for Docker, Kubernetes, Helm, and air-gap scenarios
+- Billing and license validation are routed through PitchToShip
 
 What remains:
 - final commercial approval

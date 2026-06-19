@@ -60,11 +60,11 @@ def test_mismatch_emits_overwrite_hint() -> None:
     line = format_result(
         "claude",
         RegisterResult(RegisterStatus.MISMATCH, "env differs"),
-        overwrite_hint="headroom mcp install --force",
+        overwrite_hint="cutctx mcp install --force",
     )
     assert line is not None
     assert "differs" in line
-    assert "headroom mcp install --force" in line
+    assert "cutctx mcp install --force" in line
 
 
 def test_mismatch_omits_hint_when_empty() -> None:
@@ -84,7 +84,7 @@ def test_no_sdk_points_at_pip_extras() -> None:
     )
     assert line is not None
     assert "MCP SDK" in line
-    assert "headroom-ai[mcp]" in line
+    assert "cutctx-ai[mcp]" in line
 
 
 def test_failed_includes_detail() -> None:

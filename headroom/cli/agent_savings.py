@@ -44,7 +44,7 @@ from .main import main
     "--accuracy-report",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
-    help="Headroom eval JSON report proving accuracy preservation.",
+    help="CutCtx eval JSON report proving accuracy preservation.",
 )
 @click.option(
     "--write-smoke-fixture",
@@ -82,7 +82,7 @@ def agent_savings(
         click.echo(f"Wrote agent-90 smoke fixture to {write_smoke_fixture}")
         click.echo(
             "Verify with: HEADROOM_WORKSPACE_DIR="
-            f"{write_smoke_fixture} headroom agent-savings --check-perf "
+            f"{write_smoke_fixture} cutctx agent-savings --check-perf "
             "--hours 0 --require-agents claude,codex,cursor "
             f"--accuracy-report {eval_path}"
         )

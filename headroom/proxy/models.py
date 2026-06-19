@@ -8,10 +8,17 @@ from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime
+import os
 from typing import Any, Literal
 
 from headroom.memory import qdrant_env
 from headroom.providers.registry import ProviderApiOverrides
+
+_DEFAULT_LICENSE_API_URL = (
+    os.environ.get("PITCHTOSHIP_URL")
+    or os.environ.get("HEADROOM_LICENSE_API_URL")
+    or "https://pitchtoship.com"
+)
 
 # =============================================================================
 # Data Models
@@ -280,7 +287,7 @@ class ProxyConfig:
 
     # License / Usage Reporting
     license_key: str | None = None
-    license_cloud_url: str = "https://app.headroomlabs.ai"
+    license_cloud_url: str = field(default_factory=lambda: _DEFAULT_LICENSE_API_URL)
     license_report_interval: int = 300
 
     # Entitlement tier (auto-detected from license if set, or manual override).

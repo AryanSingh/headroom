@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - [ ] Docker image built: `docker build -t headroom-proxy .`
-- [ ] License key obtained from hello@headroomlabs.ai
+- [ ] License key obtained from the PitchToShip checkout / billing portal
 - [ ] Upstream API key (Anthropic/OpenAI) configured
 - [ ] Admin API key generated (for dashboard/stats access)
 
@@ -14,7 +14,7 @@
 |----------|---------|-------------|
 | `HEADROOM_PROXY_COMPRESSION` | `false` | Enable compression (set to `1`) |
 | `HEADROOM_PROXY_COMPRESSION_MODE` | `off` | `live-zone` for production |
-| `HEADROOM_LICENSE_KEY` | — | License key (required for commercial use) |
+| `HEADROOM_LICENSE_KEY` | — | License key issued by PitchToShip (required for commercial use) |
 | `HEADROOM_ADMIN_API_KEY` | — | Admin auth for /dashboard, /stats |
 | `HEADROOM_CORS_ORIGINS` | `""` (closed) | Comma-separated origins, or `*` |
 | `HEADROOM_MAX_BODY_MB` | `50` | Max request body size in MB |
@@ -82,7 +82,7 @@ process_resident_memory_bytes / 1024 / 1024
 | High latency | p99 > 30s for 5 min | Check upstream_timeout, compression_mode |
 | Memory pressure | > 80% of limit for 10 min | Scale up or reduce max_body_bytes |
 | CCR store full | > 10K entries | Consider Redis backend |
-| License expired | Grace period ending | Contact hello@headroomlabs.ai |
+| License expired | Grace period ending | Renew through PitchToShip checkout / billing portal |
 
 ## 3. Common Operations
 
@@ -263,7 +263,7 @@ curl -H "X-Headroom-Admin-Key: YOUR_KEY" http://localhost:8080/stats | jq .licen
 
 # Grace period: 7 days after expiry, features still work
 # After grace period: compression degrades, telemetry stops
-# Fix: renew license, update HEADROOM_LICENSE_KEY secret
+# Fix: renew license through PitchToShip, update HEADROOM_LICENSE_KEY secret
 ```
 
 ## 6. Backup & Recovery

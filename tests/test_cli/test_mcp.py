@@ -89,8 +89,8 @@ class TestMCPConfigFunctions:
         """Config can be saved and loaded back."""
         test_config = {
             "mcpServers": {
-                "headroom": {
-                    "command": "headroom",
+                "cutctx": {
+                    "command": "cutctx",
                     "args": ["mcp", "serve"],
                 }
             }
@@ -144,17 +144,17 @@ class TestMCPConfigFunctions:
 
 
 class TestMCPUninstallCommand:
-    """Test 'headroom mcp uninstall' command."""
+    """Test `cutctx mcp uninstall`."""
 
-    def test_uninstall_removes_headroom(self, mock_claude_config_path, mock_mcp_available):
-        """Uninstall removes headroom from the legacy config file."""
+    def test_uninstall_removes_cutctx(self, mock_claude_config_path, mock_mcp_available):
+        """Uninstall removes CutCtx from the config file."""
         # Pre-populate the config directly rather than depending on
         # `mcp install` plumbing — keeps the test focused on uninstall.
         mock_claude_config_path.write_text(
             json.dumps(
                 {
                     "mcpServers": {
-                        "headroom": {"command": "headroom", "args": ["mcp", "serve"]},
+                        "cutctx": {"command": "cutctx", "args": ["mcp", "serve"]},
                     }
                 }
             )
@@ -167,14 +167,14 @@ class TestMCPUninstallCommand:
         assert "removed" in result.output.lower()
 
         config = json.loads(mock_claude_config_path.read_text())
-        assert "headroom" not in config["mcpServers"]
+        assert "cutctx" not in config["mcpServers"]
 
     def test_uninstall_preserves_other_servers(self, mock_claude_config_path):
         """Uninstall preserves other MCP servers."""
-        # Create config with headroom and another server
+        # Create config with cutctx and another server
         config = {
             "mcpServers": {
-                "headroom": {"command": "headroom", "args": ["mcp", "serve"]},
+                "cutctx": {"command": "cutctx", "args": ["mcp", "serve"]},
                 "github": {"command": "github-mcp", "args": []},
             }
         }
@@ -186,7 +186,7 @@ class TestMCPUninstallCommand:
         assert result.exit_code == 0
 
         config = json.loads(mock_claude_config_path.read_text())
-        assert "headroom" not in config["mcpServers"]
+        assert "cutctx" not in config["mcpServers"]
         assert "github" in config["mcpServers"]
 
     def test_uninstall_no_config_file(self, mock_claude_config_path):
@@ -198,8 +198,8 @@ class TestMCPUninstallCommand:
         assert "nothing to uninstall" in result.output.lower()
 
     def test_uninstall_not_configured(self, mock_claude_config_path):
-        """Uninstall when headroom not in config exits cleanly."""
-        # Create config without headroom
+        """Uninstall when cutctx not in config exits cleanly."""
+        # Create config without cutctx
         config = {"mcpServers": {"other": {"command": "other"}}}
         mock_claude_config_path.write_text(json.dumps(config))
 
@@ -211,7 +211,7 @@ class TestMCPUninstallCommand:
 
 
 class TestMCPStatusCommand:
-    """Test 'headroom mcp status' command."""
+    """Test `cutctx mcp status`."""
 
     def test_status_not_configured(self, mock_claude_config_path):
         """Status shows not configured when no config."""
@@ -228,14 +228,14 @@ class TestMCPStatusCommand:
         )
 
     def test_status_configured(self, mock_claude_config_path, mock_mcp_available):
-        """Status reports configured when the legacy config has headroom."""
+        """Status reports configured when the legacy config has cutctx."""
         # Pre-populate the legacy mcp.json directly. mcp_status() reads
         # from MCP_CONFIG_PATH, which the fixture redirects here.
         mock_claude_config_path.write_text(
             json.dumps(
                 {
                     "mcpServers": {
-                        "headroom": {"command": "headroom", "args": ["mcp", "serve"]},
+                        "cutctx": {"command": "cutctx", "args": ["mcp", "serve"]},
                     }
                 }
             )
@@ -249,7 +249,7 @@ class TestMCPStatusCommand:
 
 
 class TestMCPServeCommand:
-    """Test 'headroom mcp serve' command."""
+    """Test `cutctx mcp serve`."""
 
     def test_serve_help(self):
         """Serve command shows help."""
@@ -284,17 +284,15 @@ class TestMCPServerInitialization:
         assert server.proxy_url == "http://custom:9000"
 
     def test_mcp_server_has_correct_tool_name(self):
-        """MCP server is configured for headroom_retrieve tool."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
-        from headroom.ccr.tool_injection import CCR_TOOL_NAME
+        """MCP server is configured for cutctx_retrieve."""
+        from headroom.ccr.mcp_server import CCR_TOOL_NAME, create_ccr_mcp_server
 
         server = create_ccr_mcp_server()
 
         # Verify the server was created with correct configuration
         assert server.server is not None
-        assert server.server.name == "headroom"
-        # The tool name should be headroom_retrieve
-        assert CCR_TOOL_NAME == "headroom_retrieve"
+        assert server.server.name == "cutctx"
+        assert CCR_TOOL_NAME == "cutctx_retrieve"
 
 
 #
@@ -309,7 +307,7 @@ class TestMCPUninstallWithClaudeCLI:
     """Test mcp_uninstall when the claude CLI is available."""
 
     def test_uninstall_calls_claude_mcp_remove(self):
-        """Uninstall calls claude mcp remove when headroom is registered."""
+        """Uninstall calls claude mcp remove when cutctx is registered."""
         calls = []
 
         def capturing_run(cmd, **kwargs):
@@ -327,7 +325,7 @@ class TestMCPUninstallWithClaudeCLI:
         assert "remove" in subcommands
 
     def test_uninstall_skips_remove_when_not_registered(self):
-        """Uninstall does not call remove when headroom is not registered via claude CLI."""
+        """Uninstall does not call remove when cutctx is not registered via claude CLI."""
         calls = []
 
         def capturing_run(cmd, **kwargs):

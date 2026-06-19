@@ -43,7 +43,7 @@ This is an internal commercial template and must be reviewed by counsel before u
 - Enterprise
 
 Reference support terms:
-- [SUPPORT_POLICY_AND_SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SUPPORT_POLICY_AND_SLA.md)
+- [SLA.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SLA.md)
 
 ## Pilot Conversion Terms
 

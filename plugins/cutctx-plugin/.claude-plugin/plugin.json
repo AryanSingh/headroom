@@ -4,10 +4,10 @@
   "description": "Context compression for AI agents — compress tool outputs, logs, and code to save 60-95% tokens",
   "author": {
     "name": "CutCtx Contributors",
-    "url": "https://github.com/AryanSingh/cutcxt"
+    "url": "https://github.com/cutctx/cutctx"
   },
-  "homepage": "https://github.com/AryanSingh/cutcxt",
-  "repository": "https://github.com/AryanSingh/cutcxt",
+  "homepage": "https://cutctx.dev",
+  "repository": "https://github.com/cutctx/cutctx",
   "keywords": [
     "cutctx",
     "context-compression",

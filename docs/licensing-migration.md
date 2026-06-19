@@ -6,7 +6,7 @@ With the release of Headroom Enterprise, we have introduced a robust licensing m
 
 1. Generate a new license token via the customer portal.
 2. Update your `headroom.toml` or set the `HEADROOM_LICENSE_KEY` environment variable with your new token.
-3. Ensure that your proxy can reach `https://api.cutctx.dev` to validate the license and fetch the Certificate Revocation List (CRL).
+3. Ensure that your proxy can reach `https://pitchtoship.com` to validate the license and fetch the Certificate Revocation List (CRL).
 
 ## New Features
 
