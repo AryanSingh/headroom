@@ -1,5 +1,5 @@
 services:
-  cutctx-proxy:
+  headroom-proxy:
     build: .
     command: ["--host", "0.0.0.0"]
     environment:

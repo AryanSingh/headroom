@@ -1,4 +1,4 @@
-# CutCtx Proxy — Kubernetes Deployment
+# Headroom Proxy — Kubernetes Deployment
 
 ## Quick Start
 
@@ -7,18 +7,18 @@
 kubectl apply -f k8s/
 
 # 2. Edit secret with your keys
-kubectl edit secret cutctx-proxy-secret -n cutctx
+kubectl edit secret headroom-proxy-secret -n headroom
 
 # 3. Verify deployment
-kubectl get pods -n cutctx
-kubectl logs -f deployment/cutctx-proxy -n cutctx
+kubectl get pods -n headroom
+kubectl logs -f deployment/headroom-proxy -n headroom
 ```
 
 ## Prerequisites
 
 - Kubernetes 1.25+
 - `kubectl` configured with cluster access
-- CutCtx Docker image available (build with `docker build -t cutctx-proxy .`)
+- Headroom Docker image available (build with `docker build -t headroom-proxy .`)
 - (Optional) ingress-nginx controller for external access
 - (Optional) cert-manager for TLS certificates
 
@@ -26,7 +26,7 @@ kubectl logs -f deployment/cutctx-proxy -n cutctx
 
 | File | Description |
 |------|-------------|
-| `namespace.yaml` | CutCtx namespace |
+| `namespace.yaml` | Headroom namespace |
 | `configmap.yaml` | Non-sensitive configuration |
 | `secret.yaml` | Secrets template (edit before deploying) |
 | `deployment.yaml` | 2-replica deployment with probes + resource limits |
@@ -78,10 +78,10 @@ CUTCTX_PROXY_UPSTREAM_URL: "https://your-proxy.example.com"
 
 ```bash
 # Manual scale
-kubectl scale deployment cutctx-proxy --replicas=5 -n cutctx
+kubectl scale deployment headroom-proxy --replicas=5 -n headroom
 
 # Check HMA status
-kubectl get hpa -n cutctx
+kubectl get hpa -n headroom
 ```
 
 ## Monitoring
@@ -90,34 +90,34 @@ Prometheus metrics available at `/metrics`:
 
 ```bash
 # Port-forward to check metrics
-kubectl port-forward svc/cutctx-proxy 8080:80 -n cutctx
+kubectl port-forward svc/headroom-proxy 8080:80 -n headroom
 curl http://localhost:8080/metrics
 ```
 
 Key metrics:
-- `cutctx_compression_ratio` — compression effectiveness
-- `cutctx_request_duration_seconds` — latency histogram
-- `cutctx_ccr_store_size` — CCR cache entries
-- `cutctx_tokens_saved_total` — cumulative tokens saved
+- `headroom_compression_ratio` — compression effectiveness
+- `headroom_request_duration_seconds` — latency histogram
+- `headroom_ccr_store_size` — CCR cache entries
+- `headroom_tokens_saved_total` — cumulative tokens saved
 
 ## Upgrading
 
 ```bash
 # Update image tag
-kubectl set image deployment/cutctx-proxy cutctx-proxy=cutctx-proxy:0.26.0 -n cutctx
+kubectl set image deployment/headroom-proxy headroom-proxy=headroom-proxy:0.26.0 -n headroom
 
 # Watch rollout
-kubectl rollout status deployment/cutctx-proxy -n cutctx
+kubectl rollout status deployment/headroom-proxy -n headroom
 
 # Rollback if needed
-kubectl rollout undo deployment/cutctx-proxy -n cutctx
+kubectl rollout undo deployment/headroom-proxy -n headroom
 ```
 
 ## Troubleshooting
 
 ### Pod stuck in CrashLoopBackOff
 ```bash
-kubectl logs -p deployment/cutctx-proxy -n cutctx
+kubectl logs -p deployment/headroom-proxy -n headroom
 # Check: OOM? (increase memory limit)
 # Check: License key? (check secret)
 # Check: Upstream unreachable? (check network policy)
@@ -126,13 +126,13 @@ kubectl logs -p deployment/cutctx-proxy -n cutctx
 ### Compression not working
 ```bash
 # Verify compression is enabled
-kubectl exec -it deployment/cutctx-proxy -n cutctx -- env | grep COMPRESSION
+kubectl exec -it deployment/headroom-proxy -n headroom -- env | grep COMPRESSION
 # Should show: CUTCTX_PROXY_COMPRESSION=1
 ```
 
 ### High memory usage
 ```bash
 # Check CCR store size
-curl -H "X-CutCtx-Admin-Key: YOUR_KEY" http://localhost:8080/stats
+curl -H "X-Headroom-Admin-Key: YOUR_KEY" http://localhost:8080/stats
 # Consider reducing max_body_bytes or adding Redis CCR backend
 ```

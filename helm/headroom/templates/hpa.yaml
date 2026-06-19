@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "cutctx.fullname" . }}
+  name: {{ include "headroom.fullname" . }}
   labels:
-    {{- include "cutctx.labels" . | nindent 4 }}
+    {{- include "headroom.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "cutctx.fullname" . }}
+    name: {{ include "headroom.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

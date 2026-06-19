@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: cutctx-proxy-config
-  namespace: cutctx
+  name: headroom-proxy-config
+  namespace: headroom
   labels:
-    app.kubernetes.io/name: cutctx-proxy
+    app.kubernetes.io/name: headroom-proxy
     app.kubernetes.io/component: proxy
 data:
   # Compression — enable by default in K8s

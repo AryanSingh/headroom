@@ -2,12 +2,12 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "cutctx.fullname" . }}
+  name: {{ include "headroom.fullname" . }}
   labels:
-    {{- include "cutctx.labels" . | nindent 4 }}
+    {{- include "headroom.labels" . | nindent 4 }}
 spec:
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
-      {{- include "cutctx.selectorLabels" . | nindent 6 }}
+      {{- include "headroom.selectorLabels" . | nindent 6 }}
 {{- end }}

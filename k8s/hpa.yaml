@@ -1,16 +1,16 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: cutctx-proxy
-  namespace: cutctx
+  name: headroom-proxy
+  namespace: headroom
   labels:
-    app.kubernetes.io/name: cutctx-proxy
+    app.kubernetes.io/name: headroom-proxy
     app.kubernetes.io/component: proxy
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: cutctx-proxy
+    name: headroom-proxy
   minReplicas: 2
   maxReplicas: 10
   metrics:

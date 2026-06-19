@@ -71,16 +71,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder ${PYTHON_SITE_PACKAGES} ${PYTHON_SITE_PACKAGES}
-COPY --from=builder /usr/local/bin/cutctx /usr/local/bin/cutctx
+COPY --from=builder /usr/local/bin/headroom /usr/local/bin/headroom
 
 RUN mkdir -p /home/nonroot /data && \
     if [ "$RUNTIME_USER" = "nonroot" ]; then \
       groupadd --gid 1000 nonroot && \
       useradd --uid 1000 --gid nonroot --create-home nonroot && \
-      mkdir -p /home/nonroot/.cutctx && \
+      mkdir -p /home/nonroot/.headroom && \
       chown -R nonroot:nonroot /data /home/nonroot; \
     else \
-      mkdir -p /root/.cutctx; \
+      mkdir -p /root/.headroom; \
     fi
 
 USER ${RUNTIME_USER}
@@ -95,7 +95,7 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["curl", "--fail", "--silent", "http://127.0.0.1:8787/readyz"]
 
-ENTRYPOINT ["cutctx", "proxy"]
+ENTRYPOINT ["headroom", "proxy"]
 CMD ["--host", "0.0.0.0", "--port", "8787"]
 
 FROM ${DISTROLESS_IMAGE} AS runtime-slim
