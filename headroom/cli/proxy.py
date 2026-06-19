@@ -862,7 +862,7 @@ def proxy(
         # Stateless mode: disable all filesystem writes
         stateless=is_stateless,
         # Unit 4: bounded pre-upstream concurrency on the Anthropic HTTP
-        # path. ``None`` -> HeadroomProxy computes ``max(2, min(8,
+        # path. ``None`` -> CutctxProxy computes ``max(2, min(8,
         # os.cpu_count() or 4))``; ``<= 0`` -> disabled (unbounded).
         # Precedence: CLI > env > auto-compute (click's ``envvar``
         # handles the env-var fallback).
@@ -877,6 +877,13 @@ def proxy(
             if anthropic_pre_upstream_memory_context_timeout_seconds is not None
             else 2.0
         ),
+        # LLM Firewall: env var or CLI flag (CLI flags for firewall are in the
+        # argparse path; the Click CLI reads the env var directly).
+        firewall_enabled=_get_env_bool("HEADROOM_FIREWALL_ENABLED", False),
+        firewall_block_pii=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_PII", False),
+        firewall_block_injection=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_INJECTION", False),
+        firewall_block_jailbreak=not _get_env_bool("HEADROOM_FIREWALL_NO_BLOCK_JAILBREAK", False),
+        firewall_redact_streaming=not _get_env_bool("HEADROOM_FIREWALL_NO_REDACT_STREAMING", False),
     )
 
     memory_status = "DISABLED"
@@ -915,7 +922,7 @@ def proxy(
 IMPORTANT for {provider_config.display_name} users:
   1. Set credentials: {env_vars_str}
   2. Set a dummy Anthropic key: ANTHROPIC_API_KEY="sk-ant-dummy"
-     (Headroom ignores this - it uses your {provider_config.display_name} credentials)
+     (Cutctx ignores this - it uses your {provider_config.display_name} credentials)
   3. Set base URL: ANTHROPIC_BASE_URL=http://{config.host}:{config.port}"""
         if provider_config.model_format_hint:
             backend_section += f"\n  4. Use model names: {provider_config.model_format_hint}"

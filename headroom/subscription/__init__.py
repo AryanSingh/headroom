@@ -25,7 +25,7 @@ from headroom.subscription.copilot_quota import (
 )
 from headroom.subscription.models import (
     ExtraUsage,
-    HeadroomContribution,
+    CutctxContribution,
     RateLimitWindow,
     SubscriptionSnapshot,
     SubscriptionState,
@@ -48,7 +48,7 @@ __all__ = [
     "CopilotQuotaSnapshot",
     "CopilotQuotaState",
     "ExtraUsage",
-    "HeadroomContribution",
+    "CutctxContribution",
     "QuotaTracker",
     "QuotaTrackerRegistry",
     "RateLimitWindow",

@@ -146,7 +146,7 @@ def create_admin_router(
 
     Parameters
     ----------
-    proxy : HeadroomProxy
+    proxy : CutctxProxy
         The main proxy instance holding metrics, stores, etc.
     config : ProxyConfig
         The proxy configuration.
@@ -168,7 +168,7 @@ def create_admin_router(
 
     from fastapi.responses import HTMLResponse as _HTMLResponse
 
-    _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "docs" / "admin-dashboard.html"
+    _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "dist" / "index.html"
 
     @router.get(
         "/admin",

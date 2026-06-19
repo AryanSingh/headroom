@@ -4,7 +4,7 @@ Mirrors the Anthropic OAuth usage API response exactly, including:
   - five_hour / seven_day rolling windows (utilization + reset times)
   - seven_day_opus / seven_day_sonnet per-model 7-day windows
   - extra_usage overage block (credits stored in cents by Anthropic)
-  - Headroom contribution: tokens conserved by compression, CLI filtering, cache
+  - Cutctx contribution: tokens conserved by compression, CLI filtering, cache
   - Window discrepancy detection (surge pricing, cache-miss anomalies)
 """
 
@@ -366,13 +366,13 @@ class WindowTokens:
 
 
 # ---------------------------------------------------------------------------
-# Headroom contribution estimate
+# Cutctx contribution estimate
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class HeadroomContribution:
-    """Tokens conserved within the current 5h window by Headroom's layers.
+class CutctxContribution:
+    """Tokens conserved within the current 5h window by Cutctx's layers.
 
     These are cumulative counters reset when the 5h window rolls over.
     """
@@ -496,7 +496,7 @@ class SubscriptionState:
     window_tokens: WindowTokens | None = None
     """Transcript-derived token breakdown for the current 5h window."""
 
-    contribution: HeadroomContribution = field(default_factory=HeadroomContribution)
+    contribution: CutctxContribution = field(default_factory=CutctxContribution)
     discrepancies: list[WindowDiscrepancy] = field(default_factory=list)
     history: list[SubscriptionSnapshot] = field(default_factory=list)
 
