@@ -206,10 +206,26 @@ fn init_tracing(level: &str) {
         .json()
         .with_current_span(false)
         .with_span_list(false);
-    let _ = tracing_subscriber::registry()
+
+    let registry = tracing_subscriber::registry()
         .with(filter)
-        .with(json_layer)
-        .try_init();
+        .with(json_layer);
+
+    match headroom_proxy::observability::otel::init_otel_tracer() {
+        Ok(provider) => {
+            let otel_layer = headroom_proxy::observability::otel::create_otel_layer(&provider);
+            let _ = registry.with(otel_layer).try_init();
+            tracing::info!("OpenTelemetry tracing initialized");
+        }
+        Err(e) => {
+            let _ = registry.try_init();
+            tracing::warn!(
+                event = "otel_init_failed",
+                error = %e,
+                "Failed to initialize OTel exporter; continuing without distributed tracing"
+            );
+        }
+    }
 }
 
 /// Initialize the CCR store based on configuration.

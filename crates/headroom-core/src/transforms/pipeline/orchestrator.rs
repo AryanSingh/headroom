@@ -125,7 +125,7 @@ impl CompressionPipeline {
         // the calling thread when not. The pipeline doesn't care
         // which way it falls; correctness is the same.
         let (reformat_acc, bloat_scores) = rayon::join(
-            || self.run_reformats(content, reformats),
+            || self.run_reformats(content, content_type, reformats),
             || self.estimate_bloats(content, offloads),
         );
 
@@ -140,6 +140,18 @@ impl CompressionPipeline {
         // current (post-reformat, post-prior-offload) buffer.
         let mut cache_keys: Vec<String> = Vec::new();
         for (offload, score) in offloads.iter().zip(bloat_scores.iter()) {
+            let start_time = std::time::Instant::now();
+            let span = tracing::info_span!(
+                "compression_operation",
+                operation_type = "offload",
+                transform = offload.name(),
+                content_type = ?content_type,
+                compression_ratio = tracing::field::Empty,
+                latency_ms = tracing::field::Empty,
+                token_savings = tracing::field::Empty
+            );
+            let _enter = span.enter();
+
             let above_threshold = *score >= self.config.pipeline.bloat_threshold;
             let reformat_underwhelmed =
                 reformat_ratio > self.config.pipeline.offload_fallback_ratio && *score > 0.0;
@@ -155,7 +167,12 @@ impl CompressionPipeline {
             }
             match offload.apply(&current, ctx, store) {
                 Ok(out) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
+
                     if out.bytes_saved == 0 {
+                        span.record("compression_ratio", 1.0);
+                        span.record("token_savings", 0);
                         tracing::trace!(
                             target: "headroom::pipeline",
                             offload = offload.name(),
@@ -163,12 +180,21 @@ impl CompressionPipeline {
                         );
                         continue;
                     }
+
+                    let ratio = out.output.len() as f64 / current.len().max(1) as f64;
+                    let estimated_tokens_saved = out.bytes_saved / 4;
+                    
+                    span.record("compression_ratio", ratio);
+                    span.record("token_savings", estimated_tokens_saved);
+
                     total_saved = total_saved.saturating_add(out.bytes_saved);
                     current = out.output;
                     steps.push(offload.name().to_string());
                     cache_keys.push(out.cache_key);
                 }
                 Err(TransformError::Internal { message, .. }) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
                     tracing::warn!(
                         target: "headroom::pipeline",
                         offload = offload.name(),
@@ -177,6 +203,8 @@ impl CompressionPipeline {
                     );
                 }
                 Err(e) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
                     tracing::trace!(
                         target: "headroom::pipeline",
                         offload = offload.name(),
@@ -200,6 +228,7 @@ impl CompressionPipeline {
     fn run_reformats(
         &self,
         content: &str,
+        content_type: ContentType,
         reformats: &[Arc<dyn ReformatTransform>],
     ) -> ReformatAccumulator {
         let original_len = content.len();
@@ -208,6 +237,18 @@ impl CompressionPipeline {
         let mut steps: Vec<String> = Vec::new();
 
         for transform in reformats {
+            let start_time = std::time::Instant::now();
+            let span = tracing::info_span!(
+                "compression_operation",
+                operation_type = "reformat",
+                transform = transform.name(),
+                content_type = ?content_type,
+                compression_ratio = tracing::field::Empty,
+                latency_ms = tracing::field::Empty,
+                token_savings = tracing::field::Empty
+            );
+            let _enter = span.enter();
+
             // Stop-early gate: target reached.
             let ratio = current.len() as f64 / original_len.max(1) as f64;
             if ratio <= self.config.pipeline.reformat_target_ratio {
@@ -221,14 +262,29 @@ impl CompressionPipeline {
             }
             match transform.apply(&current) {
                 Ok(out) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
+
                     if out.bytes_saved == 0 {
+                        span.record("compression_ratio", 1.0);
+                        span.record("token_savings", 0);
                         continue;
                     }
+
+                    let ratio = out.output.len() as f64 / current.len().max(1) as f64;
+                    // Token savings heuristic: roughly 4 bytes per token for plain text
+                    let estimated_tokens_saved = out.bytes_saved / 4;
+                    
+                    span.record("compression_ratio", ratio);
+                    span.record("token_savings", estimated_tokens_saved);
+
                     total_saved = total_saved.saturating_add(out.bytes_saved);
                     current = out.output;
                     steps.push(transform.name().to_string());
                 }
                 Err(TransformError::Internal { message, .. }) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
                     tracing::warn!(
                         target: "headroom::pipeline",
                         transform = transform.name(),
@@ -237,6 +293,8 @@ impl CompressionPipeline {
                     );
                 }
                 Err(e) => {
+                    let elapsed = start_time.elapsed().as_millis() as f64;
+                    span.record("latency_ms", elapsed);
                     tracing::trace!(
                         target: "headroom::pipeline",
                         transform = transform.name(),

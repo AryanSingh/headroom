@@ -160,6 +160,14 @@ impl SemanticCache {
     /// Look up a prompt in the cache. Returns `Some(response)` if a
     /// semantically similar prompt was found within the similarity threshold.
     pub fn get(&self, prompt: &str) -> Option<String> {
+        let span = tracing::info_span!(
+            "semantic_cache_lookup",
+            cache_hit = false,
+            similarity = tracing::field::Empty,
+            tokens_saved = tracing::field::Empty
+        );
+        let _enter = span.enter();
+
         let prompt_embedding = self.embed(prompt).ok()?;
 
         // Evict expired entries before scanning
@@ -183,10 +191,13 @@ impl SemanticCache {
             }
         }
 
-        if let Some((key, _similarity)) = best_match {
+        if let Some((key, similarity)) = best_match {
+            span.record("cache_hit", true);
+            span.record("similarity", similarity);
             self.hit_counter.fetch_add(1, Ordering::Relaxed);
             if let Some(mut entry) = self.entries.get_mut(&key) {
                 entry.hit_count += 1;
+                span.record("tokens_saved", entry.tokens_saved);
                 return Some(entry.response.clone());
             }
         }
