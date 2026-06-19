@@ -52,9 +52,9 @@ class TestStripCodexHeadroomBlocks:
     def test_removes_complete_headroom_block(self) -> None:
         wrapped = (
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            'model_provider = "headroom"\n'
+            'model_provider = "cutctx"\n'
             "\n"
-            "[model_providers.headroom]\n"
+            "[model_providers.cutctx]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n"
         )
@@ -65,10 +65,10 @@ class TestStripCodexHeadroomBlocks:
         user_post = '[mcp_servers.foo]\ncommand = "echo"\n'
         wrapped = (
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            'model_provider = "headroom"\n'
+            'model_provider = "cutctx"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n" + user_pre + "\n"
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            "[model_providers.headroom]\n"
+            "[model_providers.cutctx]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n" + user_post
         )
@@ -79,10 +79,10 @@ class TestStripCodexHeadroomBlocks:
         assert "[mcp_servers.foo]" in cleaned
 
     def test_removes_stray_top_level_model_provider_line(self) -> None:
-        # Old wrap versions left `model_provider = "headroom"` outside markers.
-        content = 'foo = 1\nmodel_provider = "headroom"\nbar = 2\n'
+        # Old wrap versions left `model_provider = "cutctx"` outside markers.
+        content = 'foo = 1\nmodel_provider = "cutctx"\nbar = 2\n'
         cleaned = wrap_mod._strip_codex_headroom_blocks(content, remove_mcp=True)
-        assert 'model_provider = "headroom"' not in cleaned
+        assert 'model_provider = "cutctx"' not in cleaned
         assert "foo = 1" in cleaned
         assert "bar = 2" in cleaned
 
@@ -148,7 +148,7 @@ class TestSnapshotCodexConfig:
         backup_file = tmp_path / "config.toml.headroom-backup"
         config_file.write_text(
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            'model_provider = "headroom"\n'
+            'model_provider = "cutctx"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n"
         )
 
@@ -169,7 +169,7 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         assert config_file.exists()
-        assert 'model_provider = "headroom"' in config_file.read_text()
+        assert 'model_provider = "cutctx"' in config_file.read_text()
 
         status, _ = wrap_mod._restore_codex_provider_config()
         # No prior config existed → the injected file is fully removed.
@@ -187,7 +187,7 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         assert config_file.exists()
-        assert 'model_provider = "headroom"' in config_file.read_text()
+        assert 'model_provider = "cutctx"' in config_file.read_text()
         assert not (tmp_path / ".codex" / "config.toml").exists()
 
         status, _ = wrap_mod._restore_codex_provider_config()
@@ -212,8 +212,8 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         wrapped = config_file.read_text()
-        assert 'model_provider = "headroom"' in wrapped
-        assert "[model_providers.headroom]" in wrapped
+        assert 'model_provider = "cutctx"' in wrapped
+        assert "[model_providers.cutctx]" in wrapped
 
         status, _ = wrap_mod._restore_codex_provider_config()
         assert status == "restored"
@@ -268,8 +268,8 @@ class TestInjectAndRestoreRoundTrip:
         user_content = '[profiles.default]\nmodel = "gpt-4o"\n'
         config_file.write_text(
             user_content + f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            'model_provider = "headroom"\n\n'
-            "[model_providers.headroom]\n"
+            'model_provider = "cutctx"\n\n'
+            "[model_providers.cutctx]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n"
         )
@@ -279,7 +279,7 @@ class TestInjectAndRestoreRoundTrip:
         cleaned = config_file.read_text()
         assert wrap_mod._CODEX_TOP_LEVEL_MARKER not in cleaned
         assert wrap_mod._CODEX_END_MARKER not in cleaned
-        assert 'model_provider = "headroom"' not in cleaned
+        assert 'model_provider = "cutctx"' not in cleaned
         assert 'model = "gpt-4o"' in cleaned
 
     def test_unwrap_without_backup_removes_provider_and_mcp_blocks(
@@ -292,7 +292,7 @@ class TestInjectAndRestoreRoundTrip:
         config_file.write_text(
             '[profiles.default]\nmodel = "gpt-4o"\n\n'
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
-            'model_provider = "headroom"\n'
+            'model_provider = "cutctx"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n\n"
             f"{wrap_mod._CODEX_MCP_MARKER}\n"
             "[mcp_servers.headroom]\n"
@@ -423,7 +423,7 @@ def test_wrap_codex_prepare_only_creates_backup_and_config(
         result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
 
     assert result.exit_code == 0, result.output
-    assert 'model_provider = "headroom"' in config_file.read_text()
+    assert 'model_provider = "cutctx"' in config_file.read_text()
     backup = tmp_path / ".codex" / "config.toml.headroom-backup"
     assert backup.exists()
     assert backup.read_text() == original
@@ -447,8 +447,8 @@ def test_wrap_codex_prepare_only_respects_codex_home(
     config_file = codex_home / "config.toml"
     assert config_file.exists()
     content = config_file.read_text()
-    assert 'model_provider = "headroom"' in content
-    assert "[mcp_servers.headroom]" in content
+    assert 'model_provider = "cutctx"' in content
+    assert "[mcp_servers.cutctx]" in content
     assert not (tmp_path / ".codex" / "config.toml").exists()
 
 
@@ -482,11 +482,11 @@ def test_unwrap_codex_without_codex_home_warns_on_ambiguous_noop(
     unwrap_result = runner.invoke(main, ["unwrap", "codex", "--no-stop-proxy"])
 
     assert unwrap_result.exit_code == 0, unwrap_result.output
-    assert "Warning: found no Headroom wrap markers in the default Codex config" in (
+    assert "CutCtx wrap markers" in (
         unwrap_result.output
     )
     assert "If you wrapped Codex with CODEX_HOME" in unwrap_result.output
-    assert "CODEX_HOME=/path/to/codex-home headroom unwrap codex" in unwrap_result.output
+    assert "CODEX_HOME=/path/to/codex-home cutctx unwrap codex" in unwrap_result.output
     assert "Nothing to undo" in unwrap_result.output
     assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in config_file.read_text()
 
@@ -554,14 +554,14 @@ def test_wrap_codex_prepare_only_updates_stale_mcp_proxy_url(
     config_file = tmp_path / ".codex" / "config.toml"
     config_file.parent.mkdir(parents=True)
     config_file.write_text(
-        "# --- Headroom MCP server ---\n"
-        "[mcp_servers.headroom]\n"
-        'command = "headroom"\n'
+        "# --- CutCtx MCP server ---\n"
+        "[mcp_servers.cutctx]\n"
+        'command = "cutctx"\n'
         'args = ["mcp", "serve"]\n'
         "\n"
-        "[mcp_servers.headroom.env]\n"
-        'HEADROOM_PROXY_URL = "http://127.0.0.1:9000"\n'
-        "# --- end Headroom MCP server ---\n"
+        "[mcp_servers.cutctx.env]\n"
+        'CUTCTX_PROXY_URL = "http://127.0.0.1:9000"\n'
+        "# --- end CutCtx MCP server ---\n"
     )
 
     with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
@@ -569,8 +569,8 @@ def test_wrap_codex_prepare_only_updates_stale_mcp_proxy_url(
 
     assert result.exit_code == 0, result.output
     content = config_file.read_text()
-    assert "[mcp_servers.headroom]" in content
-    assert 'command = "headroom"' in content
+    assert "[mcp_servers.cutctx]" in content
+    assert 'command = "cutctx"' in content
     assert 'args = ["mcp", "serve"]' in content
     assert "http://127.0.0.1:9000" not in content
 
@@ -631,7 +631,7 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
         wrap_result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
     assert wrap_result.exit_code == 0, wrap_result.output
-    assert 'model_provider = "headroom"' in config_file.read_text()
+    assert 'model_provider = "cutctx"' in config_file.read_text()
 
     stopped: list[int] = []
 
@@ -646,10 +646,10 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     # injected block must be gone — no more "Missing OPENAI_API_KEY" when the
     # proxy is stopped.
     assert config_file.read_text() == original
-    assert 'model_provider = "headroom"' not in config_file.read_text()
+    assert 'model_provider = "cutctx"' not in config_file.read_text()
     assert not (tmp_path / ".codex" / "config.toml.headroom-backup").exists()
     assert stopped == [9999]
-    assert "Stopped local Headroom proxy on port 9999" in unwrap_result.output
+    assert "Stopped local CutCtx proxy on port 9999" in unwrap_result.output
 
 
 def test_unwrap_codex_no_stop_proxy_leaves_proxy_alone(
@@ -769,14 +769,14 @@ class TestCodexProjectHeaderConfig:
     def test_env_http_headers_inside_provider_section(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """The mapping must live inside [model_providers.headroom], before
+        """The mapping must live inside [model_providers.cutctx], before
         the closing marker, so it applies to the Headroom provider."""
         _set_test_home(monkeypatch, tmp_path)
 
         wrap_mod._inject_codex_provider_config(8787)
 
         content = (tmp_path / ".codex" / "config.toml").read_text()
-        section_start = content.index("[model_providers.headroom]")
+        section_start = content.index("[model_providers.cutctx]")
         mapping_pos = content.index("env_http_headers")
         end_marker_pos = content.index(wrap_mod._CODEX_END_MARKER, section_start)
         assert section_start < mapping_pos < end_marker_pos
@@ -800,5 +800,5 @@ class TestCodexProjectHeaderConfig:
         cleaned = wrap_mod._strip_codex_headroom_blocks(wrapped)
         assert "env_http_headers" not in cleaned
         assert "X-Headroom-Project" not in cleaned
-        assert "[model_providers.headroom]" not in cleaned
+        assert "[model_providers.cutctx]" not in cleaned
         assert 'model = "gpt-4o"' in cleaned

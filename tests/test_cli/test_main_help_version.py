@@ -43,7 +43,7 @@ def test_wrap_subcommand_help_short_alias_beats_passthrough() -> None:
 
     assert result.exit_code == 0, result.output
     assert "Usage:" in result.output
-    assert "Launch Claude Code through Headroom proxy." in result.output
+    assert "Launch Claude Code through CutCtx proxy." in result.output
     which_mock.assert_not_called()
 
 
@@ -58,4 +58,4 @@ def test_subcommand_verbose_flag_still_works() -> None:
                     result = runner.invoke(main, ["wrap", "claude", "-v"])
 
     assert result.exit_code == 0, result.output
-    assert "HEADROOM WRAP: CLAUDE" in result.output
+    assert "CUTCTX WRAP: CLAUDE" in result.output

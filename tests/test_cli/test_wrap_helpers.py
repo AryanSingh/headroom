@@ -70,7 +70,7 @@ def test_print_wrap_banner_box_is_inner_width_chars_wide(agent: str) -> None:
     # The middle line has the centered title.
     assert title_line.startswith("  ║")
     assert title_line.endswith("║")
-    assert f"HEADROOM WRAP: {agent.upper()}" in title_line
+    assert f"CUTCTX WRAP: {agent.upper()}" in title_line
 
 
 def test_print_wrap_banner_title_is_centered_or_near_centered() -> None:
@@ -84,7 +84,7 @@ def test_print_wrap_banner_title_is_centered_or_near_centered() -> None:
     inner = title_line[3:-1]
     assert len(inner) == wrap_mod._WRAP_BANNER_INNER_WIDTH
 
-    title = "HEADROOM WRAP: CLINE"
+    title = "CUTCTX WRAP: CLINE"
     pad_left = len(inner) - len(inner.lstrip(" "))
     pad_right = len(inner) - len(inner.rstrip(" "))
     assert inner.strip() == title
@@ -300,7 +300,7 @@ def test_run_proxy_only_watcher_calls_setup_lines_callback(
     assert inv.exit_code == 1
     assert callback_calls == [None]
     # Banner is part of the helper's contract.
-    assert "HEADROOM WRAP: CLINE" in inv.output
+    assert "CUTCTX WRAP: CLINE" in inv.output
     # The "proxy exited unexpectedly" message is the documented exit branch.
     assert "Proxy process exited unexpectedly." in inv.output
 

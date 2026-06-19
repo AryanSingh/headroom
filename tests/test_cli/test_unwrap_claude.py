@@ -110,7 +110,7 @@ def test_unwrap_claude_removes_mcp_rtk_and_stops_proxy(
     assert result.exit_code == 0, result.output
     assert unregistered == ["headroom", "codebase-memory-mcp"]
     assert stopped == [9999]
-    assert "Stopped local Headroom proxy on port 9999" in result.output
+    assert "Stopped local CutCtx proxy on port 9999" in result.output
     assert "hooks" not in json.loads(settings.read_text(encoding="utf-8"))
 
 
@@ -188,7 +188,7 @@ def test_unwrap_claude_removes_headroom_installed_serena(
 
     assert result.exit_code == 0, result.output
     assert unregistered == ["headroom", "codebase-memory-mcp", "serena"]
-    assert "Removed Headroom-installed Serena MCP server" in result.output
+    assert "Removed CutCtx-installed Serena MCP server" in result.output
 
 
 def test_unwrap_claude_keep_flags_skip_cleanup(

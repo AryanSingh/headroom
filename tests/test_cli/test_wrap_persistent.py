@@ -122,7 +122,7 @@ def test_ensure_proxy_reports_unbindable_port_before_starting_subprocess(monkeyp
 
     assert "Port 8787 is unavailable" in message
     assert "Windows" in message
-    assert "headroom wrap cursor --port 8788" in message
+    assert "cutctx wrap cursor --port 8788" in message
     assert calls == []
 
 
