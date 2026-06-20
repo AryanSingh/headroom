@@ -1,8 +1,8 @@
-# Headroom SOC 2 Compliance Roadmap
+# Cutctx SOC 2 Compliance Roadmap
 
 ## Overview
 
-SOC 2 Type II compliance demonstrates that Headroom maintains appropriate security, availability, and confidentiality controls. This roadmap covers the journey from readiness assessment to audit completion.
+SOC 2 Type II compliance demonstrates that Cutctx maintains appropriate security, availability, and confidentiality controls. This roadmap covers the journey from readiness assessment to audit completion.
 
 ## Timeline
 
@@ -19,19 +19,27 @@ SOC 2 Type II compliance demonstrates that Headroom maintains appropriate securi
 
 ## Trust Service Criteria
 
-Headroom will pursue SOC 2 Type II under these criteria:
+Cutctx will pursue SOC 2 Type II under these criteria:
 
 ### Security (Common Criteria)
 - [x] Logical access controls (SSO/OIDC, RBAC)
 - [x] Network security (firewalls, encryption in transit)
-- [x] Data encryption (AES-256-GCM at rest, TLS 1.3 in transit)
+- [x] Data encryption (Fernet AES-128-CBC + HMAC-SHA256 at rest, TLS 1.3 in transit)
+- [x] Tamper-evident audit log (HMAC hash chain) — see `headroom_ee/audit/store.py`
+- [x] Admin API key handling (no plaintext log on auto-generation) — see `headroom/proxy/server.py:2252-2278`
+- [x] EE route surface behind admin auth + RBAC (Blocker-1 fix in commit `2b49ee76`)
 - [ ] Vulnerability management program
+- [ ] MFA on admin access
+- [ ] SAML SSO
 - [ ] Incident response plan
 - [ ] Security monitoring and alerting
 
 ### Availability
 - [x] Uptime monitoring (99.9% SLA target)
-- [x] Backup and recovery procedures
+- [x] Backup and recovery procedures (memory DB daily, spend ledger TODO)
+- [x] Health endpoints (`/livez`, `/readyz`, `/health`)
+- [x] Per-provider circuit breaker (`headroom/proxy/routing/failover.py`)
+- [x] Pipeline circuit breaker (`headroom/transforms/pipeline.py`)
 - [ ] Disaster recovery plan
 - [ ] Capacity planning
 - [ ] Performance monitoring
@@ -39,47 +47,48 @@ Headroom will pursue SOC 2 Type II under these criteria:
 ### Confidentiality
 - [x] Data classification
 - [x] Access controls on sensitive data
-- [ ] Data retention policies
+- [x] GDPR/CCPA DSR endpoints (Blocker-2 fix in commit `<DSR>`)
+- [ ] Data retention policies (RetentionManager exists; not yet on by default)
 - [ ] Third-party risk management
 - [ ] Confidentiality agreements
 
 ## Required Controls
 
 ### Access Controls
-| Control | Status | Owner |
-|---------|--------|-------|
-| SSO/OIDC for all employees | ✅ Implemented | Engineering |
-| RBAC for production systems | ✅ Implemented | Engineering |
-| MFA for all admin access | ✅ Implemented | Security |
-| Quarterly access reviews | 📋 To implement | Security |
-| Principle of least privilege | ✅ Implemented | Engineering |
+| Control | Status | Owner | Notes |
+|---------|--------|-------|-------|
+| SSO/OIDC for all employees | ⚠️ Partial | Engineering | Implemented but PyJWT path bypasses signature verification |
+| RBAC for production systems | ✅ Implemented | Engineering | 4 roles, 25+ permissions, ~40 admin routes enforce |
+| MFA for all admin access | 📋 To implement | Security | Not implemented |
+| Quarterly access reviews | 📋 To implement | Security | |
+| Principle of least privilege | ✅ Implemented | Engineering | All EE routes gated; `_require_rbac_permission` factory |
 
 ### Data Protection
-| Control | Status | Owner |
-|---------|--------|-------|
-| Encryption at rest (AES-256) | ✅ Implemented | Engineering |
-| Encryption in transit (TLS 1.3) | ✅ Implemented | Engineering |
-| Key management (rotation) | 📋 To implement | Security |
-| Data classification | ✅ Implemented | Security |
-| Secure deletion procedures | 📋 To implement | Engineering |
+| Control | Status | Owner | Notes |
+|---------|--------|-------|-------|
+| Encryption at rest (AES-256) | ⚠️ Partial | Engineering | **Fernet = AES-128-CBC + HMAC-SHA256** (NOT AES-256). See `headroom/security/state_crypto.py` |
+| Encryption in transit (TLS 1.3) | ✅ Implemented | Engineering | Mitigated by deployment (uTLS/ingress) |
+| Key management (rotation) | ⚠️ Partial | Security | `HEADROOM_AUDIT_SECRET_KEY` enforced (Blocker-9 fix); admin key rotation is manual |
+| Data classification | ✅ Implemented | Security | |
+| Secure deletion procedures | ⚠️ Partial | Engineering | DSR endpoints added (Blocker-2 fix); VACUUM pass is post-DSR follow-up |
 
 ### Monitoring & Logging
-| Control | Status | Owner |
-|---------|--------|-------|
-| Audit logging | ✅ Implemented | Engineering |
-| Centralized log aggregation | 📋 To implement | DevOps |
-| Security alerting | 📋 To implement | Security |
-| Incident response plan | 📋 To implement | Security |
-| Regular security scans | ✅ Implemented | Engineering |
+| Control | Status | Owner | Notes |
+|---------|--------|-------|-------|
+| Audit logging | ✅ Implemented | Engineering | Hash-chain store (Blocker-9 fix); 8+ enum events defined but not all emitted |
+| Centralized log aggregation | 📋 To implement | DevOps | No SIEM integration; logs are local files |
+| Security alerting | 📋 To implement | Security | `headroom_ee/abuse.py` generates alerts but does not deliver them |
+| Incident response plan | 📋 To implement | Security | |
+| Regular security scans | 📋 To implement | Security | |
 
 ### Business Continuity
-| Control | Status | Owner |
-|---------|--------|-------|
-| Automated backups | ✅ Implemented | DevOps |
-| Recovery procedures | 📋 To implement | DevOps |
-| DR plan documentation | 📋 To implement | DevOps |
-| Regular DR testing | 📋 To implement | DevOps |
-| Capacity planning | 📋 To implement | DevOps |
+| Control | Status | Owner | Notes |
+|---------|--------|-------|-------|
+| Automated backups | ⚠️ Partial | DevOps | `k8s/backup-cronjob.yaml` covers `headroom_memory.db` ONLY; spend ledger has no backup |
+| Recovery procedures | 📋 To implement | DevOps | |
+| DR plan documentation | 📋 To implement | DevOps | |
+| Regular DR testing | 📋 To implement | DevOps | |
+| Capacity planning | 📋 To implement | DevOps | |
 
 ## Action Items
 
@@ -151,4 +160,4 @@ Headroom will pursue SOC 2 Type II under these criteria:
 ---
 
 *Last updated: June 2026*
-*Owner: Headroom Security Team*
+*Owner: Cutctx Security Team*
