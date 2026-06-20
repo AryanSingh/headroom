@@ -2178,8 +2178,28 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return await call_next(request)
 
         client_ip = getattr(request.client, "host", "unknown") if request.client else "unknown"
+        # High-14 (production-audit-progress-2026-06-20.md): the
+        # rate limiter was previously per-IP only, which means a
+        # 500-user corporate egress behind a single NAT shared one
+        # 60-rpm bucket. The fix: when an authenticated identity
+        # is available (SSO user_id, API key fingerprint, or
+        # admin auth user_id), key the bucket on that identity
+        # instead of the IP. Falls back to IP for unauthenticated
+        # traffic.
+        # Order of preference: SSO user_id > admin user_id > client IP.
+        # Each tier gets its own bucket so a noisy corporate
+        # egress does not starve an individual authenticated
+        # user (and vice versa).
+        identity_key = None
+        sso_user = getattr(request.state, "headroom_user_id", None)
+        if sso_user:
+            identity_key = f"user:{sso_user}"
+        if identity_key is None:
+            # Use IP as fallback. Prefix 'ip:' so user-buckets and
+            # ip-buckets cannot collide.
+            identity_key = f"ip:{client_ip}"
         try:
-            allowed, wait_seconds = await proxy.rate_limiter.check_request(key=client_ip)
+            allowed, wait_seconds = await proxy.rate_limiter.check_request(key=identity_key)
             if not allowed:
                 from fastapi.responses import JSONResponse as _JSONResp
                 retry_after = max(1, int(wait_seconds))

@@ -1095,10 +1095,93 @@ class SavingsTracker:
             with open(self._path, encoding="utf-8") as f:
                 raw = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
-            logger.warning("Failed to load savings history from %s: %s", self._path, e)
+            # Medium-26 (production-audit-progress-2026-06-20.md):
+            # the previous behavior was to silently fall back to
+            # an empty state on a corrupt file. That left no
+            # forensic record for the operator to recover the
+            # historical data. The fix quarantines the corrupt
+            # file by renaming it to <file>.corrupt-<timestamp>
+            # and falls back to a fresh state. The next
+            # record_request call writes a clean file at the
+            # original path. The operator can manually inspect
+            # the quarantine file and re-import it if needed.
+            logger.warning(
+                "Failed to load savings history from %s: %s; "
+                "quarantining and starting with a fresh state",
+                self._path,
+                e,
+            )
+            try:
+                import time as _t
+
+                quarantine = self._path.with_suffix(
+                    f".corrupt-{int(_t.time())}.json"
+                )
+                self._path.rename(quarantine)
+                logger.warning(
+                    "Quarantined corrupt savings file to %s",
+                    quarantine,
+                )
+            except OSError as rename_exc:
+                logger.error(
+                    "Failed to quarantine corrupt savings file %s: %s",
+                    self._path,
+                    rename_exc,
+                )
             return self._default_state()
 
         return self._sanitize_state(raw)
+
+    def verify_integrity(self) -> dict[str, Any]:
+        """Lightweight integrity check for the savings state file.
+
+        Medium-26 (production-audit-progress-2026-06-20.md): exposes
+        a check that the file is parseable as JSON, has the
+        expected top-level keys, and that the history rows are
+        monotonically ordered by timestamp. Returns a dict with
+        ok/checks/error.
+        """
+        result: dict[str, Any] = {"ok": True, "checks": {}}
+        if not self._path.exists():
+            result["checks"]["file_exists"] = False
+            return result
+        result["checks"]["file_exists"] = True
+        try:
+            with open(self._path, encoding="utf-8") as f:
+                raw = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            result["ok"] = False
+            result["error"] = f"parse_failed: {exc}"
+            return result
+        if not isinstance(raw, dict):
+            result["ok"] = False
+            result["error"] = "top-level is not a dict"
+            return result
+        for required_key in ("lifetime", "display_session", "history"):
+            if required_key not in raw:
+                result["ok"] = False
+                result["error"] = f"missing top-level key: {required_key}"
+                return result
+        result["checks"]["top_level_keys"] = "ok"
+        history = raw.get("history")
+        if isinstance(history, list) and history:
+            prev: str | None = None
+            monotonic = True
+            for row in history:
+                ts = row.get("timestamp") if isinstance(row, dict) else None
+                if ts is None:
+                    continue
+                if prev is not None and ts < prev:
+                    monotonic = False
+                    break
+                prev = ts
+            result["checks"]["monotonic"] = "ok" if monotonic else "violated"
+            if not monotonic:
+                result["ok"] = False
+                result["error"] = "history rows are not in monotonic timestamp order"
+        else:
+            result["checks"]["monotonic"] = "empty"
+        return result
 
     def _sanitize_state(self, raw: Any) -> dict[str, Any]:
         if not isinstance(raw, dict):
