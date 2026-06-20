@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -153,6 +154,77 @@ def _print_terminal_summary(summary: dict[str, Any]) -> None:
         click.echo(f"  {click.style('Break-even tokens/mo:', bold=True):20s} {_format_tokens(int(breakeven)):>10s}")
 
     click.echo()
+
+
+def _print_savings_breakdown(
+    summary: dict[str, Any],
+    *,
+    by_source: bool = False,
+    by_provider: bool = False,
+    output_format: str = "terminal",
+) -> None:
+    """Phase 5.1: render savings by-source and by-provider breakdowns.
+
+    Always-available (even when summary is sparse) — prints zero state
+    rather than a blank line.
+    """
+    from headroom.savings import SavingsSource
+
+    by_source_data: dict[str, int] = (summary.get("savings_by_source") or {}).get("tokens", {})
+    by_provider_data: dict[str, dict[str, int]] = summary.get("savings_by_provider") or {}
+
+    if not by_source and not by_provider:
+        return
+
+    if output_format == "json":
+        payload: dict[str, Any] = {}
+        if by_source:
+            payload["by_source"] = {src.value: by_source_data.get(src.value, 0) for src in SavingsSource}
+        if by_provider:
+            payload["by_provider"] = by_provider_data
+        click.echo(json.dumps(payload, indent=2, default=str))
+        return
+
+    if output_format == "csv":
+        if by_source:
+            click.echo("source,tokens_saved")
+            for src in SavingsSource:
+                click.echo(f"{src.value},{by_source_data.get(src.value, 0)}")
+        if by_provider:
+            click.echo()
+            click.echo("provider,source,tokens_saved")
+            for provider, src_dict in by_provider_data.items():
+                for src_name, n in (src_dict.get("tokens") or {}).items():
+                    click.echo(f"{provider},{src_name},{n}")
+        return
+
+    # terminal
+    if by_source:
+        click.echo()
+        click.echo(click.style("Savings by source:", fg="cyan", bold=True))
+        click.echo(click.style("─" * 50, fg="cyan"))
+        total = sum(by_source_data.values())
+        for src in SavingsSource:
+            n = by_source_data.get(src.value, 0)
+            pct = (n / total * 100) if total else 0.0
+            click.echo(
+                f"  {src.label:30s} {_format_tokens(n):>10s}  ({pct:5.1f}%)"
+            )
+        click.echo(f"  {'Total':30s} {_format_tokens(total):>10s}")
+
+    if by_provider:
+        click.echo()
+        click.echo(click.style("Savings by provider:", fg="cyan", bold=True))
+        click.echo(click.style("─" * 50, fg="cyan"))
+        if not by_provider_data:
+            click.echo("  (no provider-tagged savings yet)")
+            return
+        for provider, src_dict in by_provider_data.items():
+            total = sum((src_dict.get("tokens") or {}).values())
+            click.echo(f"  {provider}:")
+            for src_name, n in (src_dict.get("tokens") or {}).items():
+                click.echo(f"    {src_name:28s} {_format_tokens(n):>10s}")
+            click.echo(f"    {'Total':28s} {_format_tokens(total):>10s}")
 
 
 def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
@@ -535,12 +607,36 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
     default=False,
     help="Print terminal summary only (no HTML).",
 )
+@click.option(
+    "--by-source",
+    is_flag=True,
+    default=False,
+    help="Break down savings by source (provider cache, CutCtx compression, "
+    "semantic cache, etc.).",
+)
+@click.option(
+    "--by-provider",
+    is_flag=True,
+    default=False,
+    help="Break down savings by provider.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["terminal", "json", "csv"], case_sensitive=False),
+    default="terminal",
+    show_default=True,
+    help="Output format. JSON and CSV are machine-readable.",
+)
 def savings(
     days: int,
     no_browser: bool,
     output: Path | None,
     model: str,
     stats_only: bool,
+    by_source: bool,
+    by_provider: bool,
+    output_format: str,
 ) -> None:
     """CutCtx savings reporting and analytics.
 
@@ -571,6 +667,17 @@ def savings(
 
     # Print terminal summary
     _print_terminal_summary(summary)
+
+    # Phase 5.1: by-source / by-provider / format flags
+    if by_source or by_provider or output_format != "terminal":
+        _print_savings_breakdown(
+            summary,
+            by_source=by_source,
+            by_provider=by_provider,
+            output_format=output_format,
+        )
+        if output_format != "terminal":
+            return
 
     # If stats-only, exit early
     if stats_only:

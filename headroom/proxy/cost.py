@@ -1,4 +1,4 @@
-"""Cost tracking and budget management for the Headroom proxy.
+"""Cost tracking and budget management for the Cutctx proxy.
 
 Contains the CostTracker class and cost-related helper functions
 for prefix cache statistics, cost merging, and session summaries.
@@ -160,7 +160,7 @@ def build_prefix_cache_stats(
         # Calculate savings:
         # Cache reads save (1.0 - read_mult) per token vs uncached input price.
         # Cache write premium is NOT deducted — it's baseline cost that the
-        # client (e.g. Claude Code) pays regardless of Headroom. We track it
+        # client (e.g. Claude Code) pays regardless of Cutctx. We track it
         # for observability but don't penalise our savings number.
         read_tokens: int = pc["cache_read_tokens"]  # type: ignore[assignment]
         write_tokens: int = pc["cache_write_tokens"]  # type: ignore[assignment]
@@ -306,9 +306,9 @@ def build_prefix_cache_stats(
         },
         "attribution": (
             "Prefix caching is performed by the LLM provider (Anthropic, OpenAI). "
-            "Headroom reports cache stats as observed from API responses. "
+            "Cutctx reports cache stats as observed from API responses. "
             "CacheAligner and prefix freeze improve cache hit rates by stabilizing "
-            "the message prefix, but baseline caching happens without Headroom. "
+            "the message prefix, but baseline caching happens without Cutctx. "
             "Observed TTL bucket metrics reflect provider-reported cache write usage "
             "(for example Anthropic 5m vs 1h), not configured or remaining TTL."
         ),
@@ -336,12 +336,19 @@ def merge_cost_stats(
     Prefix cache savings stay separate because they are a provider discount,
     not token removal. This avoids the non-monotonic moving-average repricing
     bug (#83).
+
+    Also surfaces ``savings_by_source`` and ``savings_by_provider`` from the
+    unified savings ledger so consumers can attribute savings correctly
+    without double-counting across provider cache and CutCtx compression.
     """
     if cost_stats is None:
         return None
 
     cache_net = cache_stats.get("totals", {}).get("net_savings_usd", 0.0)
     compression_savings = cost_stats.get("savings_usd", 0.0)
+
+    savings_by_source = cost_stats.get("savings_by_source") or {}
+    savings_by_provider = cost_stats.get("savings_by_provider") or {}
 
     return {
         **cost_stats,
@@ -352,14 +359,16 @@ def merge_cost_stats(
         "cli_filtering_tokens_avoided": cli_tokens_avoided,
         "cli_tokens_included_in_compression": True,
         "cli_filtering_tokens_included_in_compression": True,
+        "savings_by_source": savings_by_source,
+        "savings_by_provider": savings_by_provider,
     }
 
 
 def _aggregate_mcp_events() -> dict[str, int]:
-    """Aggregate compression / retrieval events written by Headroom MCP
+    """Aggregate compression / retrieval events written by Cutctx MCP
     server instances to the cross-process shared events file.
 
-    The Headroom MCP server (``headroom mcp serve``) records every
+    The Cutctx MCP server (``headroom mcp serve``) records every
     ``headroom_compress`` and ``headroom_retrieve`` invocation to a
     file-locked shared log (see :func:`headroom.ccr.mcp_server._append_shared_event`).
     This helper reads that log and aggregates within the rolling window
@@ -416,7 +425,7 @@ def build_session_summary(
     """Build a human-readable session summary from metrics and request logs.
 
     This is the headline view users see first in /stats — designed to answer
-    "is Headroom working?" at a glance.
+    "is Cutctx working?" at a glance.
     """
     # Analyze per-request compression from the logger
     compressed_requests: list[dict] = []
@@ -574,6 +583,11 @@ class CostTracker:
         # API-reported cache breakdown per model (for accurate cost calculation)
         self._api_cache_read_by_model: dict[str, int] = {}
         self._api_cache_write_by_model: dict[str, int] = {}
+
+        # Unified savings orchestrator (Phase 1.3): tracks per-source
+        # tokens and dollars across requests, never double-counts.
+        from headroom.savings import SavingsOrchestrator
+        self._savings_orchestrator = SavingsOrchestrator()
         self._api_cache_write_5m_by_model: dict[str, int] = {}
         self._api_cache_write_1h_by_model: dict[str, int] = {}
         self._api_uncached_by_model: dict[str, int] = {}
@@ -721,6 +735,23 @@ class CostTracker:
         remaining = self.budget_limit_usd - period_cost
         return remaining > 0, max(0, remaining)
 
+    def record_savings_breakdown(
+        self,
+        breakdown: "RequestSavingsBreakdown",  # noqa: F821 - forward ref
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+    ) -> None:
+        """Add a per-request savings breakdown to the orchestrator aggregate.
+
+        Phase 1.3: provider cache and CutCtx compression are tracked
+        independently in the orchestrator so the unified ledger can
+        attribute savings correctly without double-counting.
+        """
+        self._savings_orchestrator.record_request(
+            breakdown, provider=provider, model=model
+        )
+
     def _get_list_price(self, model: str) -> float | None:
         """Get list input price per 1M tokens for a model."""
         litellm = _get_litellm_module()
@@ -830,4 +861,10 @@ class CostTracker:
             "per_model": per_model,
             "cost_with_headroom_usd": round(cost_with_headroom, 4),
             "savings_usd": round(savings_usd, 4),
+            # Phase 1.3: unified savings breakdown by source.
+            "savings_by_source": self._savings_orchestrator.aggregate.by_source.to_dict(),
+            "savings_by_provider": {
+                k: v.to_dict()
+                for k, v in self._savings_orchestrator.aggregate.by_provider.items()
+            },
         }
