@@ -1,4 +1,4 @@
-# Headroom Value Proposition & Messaging
+# Cutctx Value Proposition & Messaging
 
 **Date:** June 13, 2026  
 **Positioning:** The context, cost, and governance layer for AI agents
@@ -7,7 +7,7 @@
 
 ## One-Liner
 
-**Headroom reduces agent context cost by 60–95% while giving teams governance and visibility across every provider and tool.**
+**Cutctx reduces agent context cost by 60–95% while giving teams governance and visibility across every provider and tool.**
 
 ---
 
@@ -27,23 +27,23 @@
 
 ## Core Positioning Statement
 
-> Headroom is a **local-first, cross-provider context optimization and governance layer** for AI agents. It sits between your agent workflows and model providers, compresses the right payloads safely, keeps originals retrievable when needed, and gives teams visibility and policy control — all without sending prompts to external SaaS by default.
+> Cutctx is a **local-first, cross-provider context optimization and governance layer** for AI agents. It sits between your agent workflows and model providers, compresses the right payloads safely, keeps originals retrievable when needed, and gives teams visibility and policy control — all without sending prompts to external SaaS by default.
 
 ---
 
 ## Five Messaging Pillars
 
 ### 1. Reduce Cost Without Changing Workflows
-Headroom compresses tool outputs, logs, RAG results, code search, and conversation history by 60–95% before they reach the LLM. Your agents produce the same answers at a fraction of the token cost. Zero code changes required — just point your proxy at Headroom.
+Cutctx compresses tool outputs, logs, RAG results, code search, and conversation history by 60–95% before they reach the LLM. Your agents produce the same answers at a fraction of the token cost. Zero code changes required — just point your proxy at Cutctx.
 
 ### 2. Fit More Usable Context
-Context windows are finite. Headroom makes more of your context *usable* by compressing verbose payloads while preserving the information your agent needs. This means fewer context-limit errors, fewer retries, and more reliable agent runs.
+Context windows are finite. Cutctx makes more of your context *usable* by compressing verbose payloads while preserving the information your agent needs. This means fewer context-limit errors, fewer retries, and more reliable agent runs.
 
 ### 3. Preserve Privacy With Local-First Deployment
-Your prompts never leave your infrastructure by default. Headroom runs locally, in Docker, or in your Kubernetes cluster. No SaaS hop, no external API calls for compression, no data retention on our servers.
+Your prompts never leave your infrastructure by default. Cutctx runs locally, in Docker, or in your Kubernetes cluster. No SaaS hop, no external API calls for compression, no data retention on our servers.
 
 ### 4. Reversible Retrieval, Not Blind Lossy Compression
-Unlike native provider caching or lossy compressors, Headroom stores originals locally and provides retrieval markers. When the LLM needs the full payload, it calls `headroom_retrieve` — and gets the original back. Best of both worlds: cheap context on the wire, full fidelity on demand.
+Unlike native provider caching or lossy compressors, Cutctx stores originals locally and provides retrieval markers. When the LLM needs the full payload, it calls `cutctx_retrieve` — and gets the original back. Best of both worlds: cheap context on the wire, full fidelity on demand.
 
 ### 5. Team Visibility and Policy Control
 See exactly how your team uses AI agents, where tokens go, and what's being compressed. Set policies per team, per project, or per agent class. Export reports for ROI reviews. Enterprise buyers get SSO, RBAC, and audit logs.
@@ -60,13 +60,22 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 | "Token saver" | "Cross-provider context control" |
 | "Generic proxy" | "Agent-aware compression with reversible retrieval" |
 
-**Why:** Native provider caching from OpenAI, Anthropic, and Google has made "prompt compression" a commodity claim. Headroom's defensible value is cross-provider optimization, agent-specific compatibility, reversible retrieval, and enterprise governance — not raw token savings.
+**Why:** Native provider caching from OpenAI, Anthropic, and Google has made "prompt compression" a commodity claim. Cutctx's defensible value is cross-provider optimization, agent-specific compatibility, reversible retrieval, and enterprise governance — not raw token savings.
 
 ---
 
 ## Positioning Against Native Provider Caching
 
-> "Provider-native caching helps inside a single provider. Headroom works across providers, agent tools, and payload types — and adds observability, retrieval, and team policy control that no provider offers."
+> "Provider-native caching helps inside a single provider. Cutctx works across providers, agent tools, and payload types — and adds observability, retrieval, and team policy control that no provider offers. The two are tracked independently: provider cache and CutCtx compression are separate line items in the buyer report, not netted into a single number."
+
+**Five savings sources, attributed independently:**
+1. **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`, Gemini `cachedContentTokenCount`. Observed on the upstream side.
+2. **CutCtx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
+3. **Semantic cache** — tokens avoided by serving a prior near-duplicate request from the response cache. Cross-provider.
+4. **Self-hosted prefix cache** — tokens served by vLLM Automatic Prefix Caching. Reported separately from provider cache.
+5. **Model routing** — tokens served by a cheaper model than the user originally requested, plus the resulting dollar savings.
+
+**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema. A buyer who already has Anthropic prompt cache enabled sees that cache as the first line item, and CutCtx compression as the second — they are independent, not redundant.
 
 **Key differentiators:**
 - Works across Anthropic, OpenAI, Google, Bedrock, Vertex — native caching is provider-locked
@@ -80,19 +89,19 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 ## Objection Handling
 
 ### "We already use provider-native caching"
-> "That's great — native caching works well for prefix caching within a single provider. Headroom complements it by compressing tool outputs, logs, and cross-provider payloads that native caching doesn't touch. We also add retrieval, governance, and analytics that no provider offers."
+> "That's great — native caching works well for prefix caching within a single provider. Cutctx complements it by compressing tool outputs, logs, and cross-provider payloads that native caching doesn't touch. We also add retrieval, governance, and analytics that no provider offers."
 
 ### "We don't want to send prompts to another SaaS"
-> "Headroom runs locally by default. Your prompts never leave your infrastructure. We're a local-first proxy, not a cloud service."
+> "Cutctx runs locally by default. Your prompts never leave your infrastructure. We're a local-first proxy, not a cloud service."
 
 ### "Our LLM spend isn't that high"
-> "Headroom is most valuable when your agents read large tool outputs, code search results, or logs. Even moderate spend compounds when every agent loop reads thousands of tokens of tool output. We typically see 60–92% reduction on those payloads."
+> "Cutctx is most valuable when your agents read large tool outputs, code search results, or logs. Even moderate spend compounds when every agent loop reads thousands of tokens of tool output. We typically see 60–92% reduction on those payloads."
 
 ### "We're worried about compression hurting quality"
-> "Headroom uses reversible compression (CCR). The original payloads are stored locally and retrievable on demand. We also run safety guardrails and quality benchmarks. You can start with conservative compression and increase as you validate."
+> "Cutctx uses reversible compression (CCR). The original payloads are stored locally and retrievable on demand. We also run safety guardrails and quality benchmarks. You can start with conservative compression and increase as you validate."
 
 ### "We only use one provider"
-> "Headroom still adds value on a single provider: tool output compression, reversible retrieval, team analytics, and governance. And when you inevitably add a second provider, you're already set up."
+> "Cutctx still adds value on a single provider: tool output compression, reversible retrieval, team analytics, and governance. And when you inevitably add a second provider, you're already set up."
 
 ---
 
@@ -107,7 +116,7 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 | Codebase exploration | 78,502 tokens | 41,254 tokens | **47%** |
 
 ### Accuracy (no quality loss)
-| Benchmark | Baseline | Headroom | Delta |
+| Benchmark | Baseline | Cutctx | Delta |
 |-----------|---------:|---------:|------:|
 | GSM8K (math) | 0.870 | 0.870 | **±0.000** |
 | TruthfulQA (factual) | 0.530 | 0.560 | **+0.030** |
@@ -125,13 +134,13 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 ## Pitch by Audience
 
 ### Startup Engineering Team
-> "Your AI agents are burning tokens on verbose tool outputs and logs. Headroom compresses those payloads by 60–95% with zero code changes — just point your proxy at it. Same answers, fraction of the cost. Install in 60 seconds."
+> "Your AI agents are burning tokens on verbose tool outputs and logs. Cutctx compresses those payloads by 60–95% with zero code changes — just point your proxy at it. Same answers, fraction of the cost. Install in 60 seconds."
 
 ### Platform Engineering Team
-> "You're building infrastructure for AI agents across multiple providers and teams. Headroom gives you a single context optimization layer that works across Anthropic, OpenAI, Bedrock, and Vertex — with team analytics, policy presets, and reversible retrieval. No vendor lock-in, runs in your cluster."
+> "You're building infrastructure for AI agents across multiple providers and teams. Cutctx gives you a single context optimization layer that works across Anthropic, OpenAI, Bedrock, and Vertex — with team analytics, policy presets, and reversible retrieval. No vendor lock-in, runs in your cluster."
 
 ### Enterprise Security Buyer
-> "Headroom is a self-hosted proxy that runs in your infrastructure. Prompts never leave your network. We offer SSO/SAML, RBAC, audit logs, and air-gapped deployment. Our telemetry sends only aggregate counts — never message content. We can provide a security review packet for your team."
+> "Cutctx is a self-hosted proxy that runs in your infrastructure. Prompts never leave your network. We offer SSO/SAML, RBAC, audit logs, and air-gapped deployment. Our telemetry sends only aggregate counts — never message content. We can provide a security review packet for your team."
 
 ---
 

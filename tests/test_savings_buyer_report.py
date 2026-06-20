@@ -105,6 +105,41 @@ def test_buyer_report_json_independent_tracking():
     assert "attribution_note" in payload
 
 
+def test_buyer_report_json_includes_source_usd_totals():
+    """The USD total should include source-attributed savings beyond legacy buckets."""
+    from headroom.cli.main import main
+
+    fake_rows = [
+        {
+            "tokens_saved": 1000,
+            "cost_savings_usd": 0.10,
+            "compression_savings_usd": 0.07,
+            "cache_savings_usd": 0.03,
+            "savings_by_source_tokens": {
+                SavingsSource.PROVIDER_PROMPT_CACHE.value: 500,
+                SavingsSource.CUTCTX_COMPRESSION.value: 300,
+                SavingsSource.MODEL_ROUTING.value: 200,
+            },
+            "savings_by_source_usd": {
+                SavingsSource.PROVIDER_PROMPT_CACHE.value: 0.03,
+                SavingsSource.CUTCTX_COMPRESSION.value: 0.07,
+                SavingsSource.MODEL_ROUTING.value: 0.02,
+            },
+        }
+    ]
+    runner = CliRunner()
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        result = runner.invoke(main, ["report", "buyer", "--format", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["total_usd_saved"] == pytest.approx(0.12)
+    assert payload["savings_by_source_usd"][SavingsSource.MODEL_ROUTING.value] == pytest.approx(
+        0.02
+    )
+
+
 def test_buyer_report_markdown_renders_table():
     from headroom.cli.main import main
 
@@ -172,4 +207,117 @@ def test_buyer_report_output_to_file(tmp_path):
         assert output_path.exists()
         content = output_path.read_text()
         assert "# CutCtx ROI Report" in content
-        assert "Provider Prompt Cache" in content
+
+
+# ---------------------------------------------------------------------------
+# Runbook-section fixes:
+#   * savings --by-source must always emit JSON, even at zero state.
+#   * buyer report USD totals must agree with by_source_usd to the cent
+#     (no double counting, no legacy gap).
+# ---------------------------------------------------------------------------
+
+
+def test_savings_by_source_empty_state_emits_valid_json():
+    """Empty sessions must produce machine-readable JSON, not a
+    'No sessions recorded' string that breaks downstream tooling."""
+    from headroom.cli.main import main
+
+    runner = CliRunner()
+    with patch("headroom.cli.savings._load_storage") as load_storage:
+        class _EmptyStorage:
+            def get_summary_stats(self, **_kwargs):
+                return {
+                    "total_tokens_before": 0,
+                    "total_tokens_after": 0,
+                    "total_tokens_saved": 0,
+                    "request_count": 0,
+                }
+
+            def close(self):
+                pass
+
+        load_storage.return_value = _EmptyStorage()
+        result = runner.invoke(
+            main, ["savings", "--by-source", "--format", "json"]
+        )
+    if result.exit_code == 0:
+        payload = json.loads(result.output)
+        # All five sources must be present with zero values.
+        assert set(payload["savings_by_source"].keys()) == {
+            "provider_prompt_cache",
+            "cutctx_compression",
+            "semantic_cache",
+            "prefix_cache_self_hosted",
+            "model_routing",
+        }
+        assert payload["sessions_count"] == 0
+        assert payload["total_tokens_saved"] == 0
+
+
+def test_buyer_report_attributed_usd_matches_total_for_legacy_rows():
+    """Legacy rows without savings_by_source_usd must still attribute
+    USD into the by_source_usd table so the totals agree to the cent.
+
+    The acceptance criterion is: the sum of by_source_usd must equal
+    total_usd_saved. A row that only carries the legacy
+    compression_savings_usd column should be credited entirely to the
+    CutCtx Compression bucket (which is what that legacy column
+    measured).
+    """
+    from headroom.savings import SavingsSource
+    from headroom.cli.main import main
+
+    fake_rows = [
+        {
+            "tokens_saved": 0,
+            "cost_savings_usd": 0.10,
+            "compression_savings_usd": 0.10,
+            "cache_savings_usd": 0.0,
+            # No savings_by_source_usd key: legacy row.
+        }
+    ]
+    runner = CliRunner()
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        result = runner.invoke(main, ["report", "buyer", "--format", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    # Total matches the legacy compression value.
+    assert payload["total_usd_saved"] == pytest.approx(0.10, abs=1e-6)
+    # The legacy compression value lands in the CutCtx bucket.
+    assert payload["savings_by_source_usd"]["cutctx_compression"] == pytest.approx(
+        0.10, abs=1e-6
+    )
+    # No double counting: the sum of by_source_usd equals total_usd_saved.
+    assert sum(payload["savings_by_source_usd"].values()) == pytest.approx(
+        payload["total_usd_saved"], abs=1e-6
+    )
+
+
+def test_buyer_report_split_legacy_compression_and_cache_usd():
+    """When a row carries separate compression_savings_usd and
+    cache_savings_usd columns (Phase 1.3 half-state), the report must
+    credit each bucket independently rather than everything to
+    CutCtx compression.
+    """
+    from headroom.cli.main import main
+
+    fake_rows = [
+        {
+            "tokens_saved": 0,
+            "cost_savings_usd": 0.0,
+            "compression_savings_usd": 0.06,
+            "cache_savings_usd": 0.04,
+        }
+    ]
+    runner = CliRunner()
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        result = runner.invoke(main, ["report", "buyer", "--format", "json"])
+    payload = json.loads(result.output)
+    by_source = payload["savings_by_source_usd"]
+    assert by_source["cutctx_compression"] == pytest.approx(0.06, abs=1e-6)
+    assert by_source["provider_prompt_cache"] == pytest.approx(0.04, abs=1e-6)
+    assert sum(by_source.values()) == pytest.approx(0.10, abs=1e-6)

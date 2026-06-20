@@ -42,10 +42,10 @@
 
 CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
-> Product naming: **CutCtx** is the public product brand. The historical Python module name `headroom` still exists internally for compatibility, but end-user installs and commands are `cutctx` / `cutctx-ai`.
+> Product naming: **CutCtx** is the public product brand. The historical Python module name `cutctx` still exists internally for compatibility, but end-user installs and commands are `cutctx` / `cutctx-ai`.
 
 <p align="center">
-  <img src="HeadroomDemo-Fast.gif" alt="CutCtx in action" width="820">
+  <img src="CutctxDemo-Fast.gif" alt="CutCtx in action" width="820">
   <br/><sub>Live: 10,144 → 1,260 tokens — same FATAL found.</sub>
 </p>
 
@@ -98,13 +98,13 @@ npm install cutctx-ai                 # Node / TypeScript
 # 2 — Pick your mode
 cutctx wrap claude                    # wrap a coding agent
 cutctx proxy --port 8787              # drop-in proxy, zero code changes
-# or: from headroom import compress      # inline library
+# or: from cutctx import compress      # inline library
 
 # 3 — See the savings
 cutctx perf
 ```
 
-Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
+Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
 
 ## Proof
 
@@ -126,7 +126,7 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | SQuAD v2   | QA       | 100 |        — |  **97%** | 19% compression |
 | BFCL       | Tools    | 100 |        — |  **97%** | 32% compression |
 
-Reproduce: `python -m headroom.evals suite --tier 1` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
+Reproduce: `python -m cutctx.evals suite --tier 1` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
 
 <a href="https://www.star-history.com/?repos=AryanSingh%2Fcutcxt&type=date&legend=top-left">
  <picture>
@@ -190,7 +190,7 @@ For buyers, operators, and security reviewers:
 | Any Python app         | `compress(messages, model=…)`                                    |
 | Any TypeScript app     | `await compress(messages, { model })`                            |
 | Anthropic / OpenAI SDK | CutCtx client wrappers for existing Anthropic and OpenAI SDK clients |
-| Vercel AI SDK          | `wrapLanguageModel({ model, middleware: headroomMiddleware() })` |
+| Vercel AI SDK          | `wrapLanguageModel({ model, middleware: cutctxMiddleware() })` |
 | LiteLLM                | CutCtx callback integration for LiteLLM                          |
 | LangChain              | CutCtx LangChain chat wrapper                                    |
 | Agno                   | CutCtx Agno model wrapper                                        |
@@ -232,6 +232,27 @@ For buyers, operators, and security reviewers:
 </details>
 
 <details>
+<summary><b>Savings attribution (5 sources)</b></summary>
+
+Every token saved is tagged with the source that produced it. The buyer report and the dashboard never double-count. The five sources:
+
+- **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`, Gemini `cachedContentTokenCount`. Observed on the upstream side.
+- **CutCtx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
+- **Semantic cache** — tokens avoided by serving a prior near-duplicate request from the response cache. Cross-provider.
+- **Self-hosted prefix cache** — tokens served by vLLM Automatic Prefix Caching. Reported separately from provider cache.
+- **Model routing** — tokens served by a cheaper model than the user originally requested, plus the resulting USD savings.
+
+**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema.
+
+```bash
+cutctx report buyer --format json   # full breakdown, machine-readable
+cutctx savings --by-source --format json
+cutctx integrations status         # which parsers are wired
+```
+
+</details>
+
+<details>
 <summary><b>Security & governance</b></summary>
 
 - **LLM Firewall** — 27 regex patterns (injection, PII, jailbreak, data exfiltration) + streaming redactor.
@@ -257,10 +278,10 @@ CutCtx exposes one stable request lifecycle across `compress()`, the SDK, and th
 - **Compression hooks** sit alongside the canonical lifecycle as an additional extension seam.
 - **Proxy extensions** remain the server/app integration seam for ASGI middleware, routes, and startup policy.
 
-Provider and tool-specific behavior lives under `headroom/providers/` so core orchestration stays focused on lifecycle, sequencing, and policy.
+Provider and tool-specific behavior lives under `cutctx/providers/` so core orchestration stays focused on lifecycle, sequencing, and policy.
 
-- **CLI/tool slices**: `headroom/providers/claude`, `copilot`, `codex`, `openclaw`
-- **Provider runtime slices**: `headroom/providers/claude`, `gemini`, plus shared backend/runtime dispatch in `headroom/providers/registry.py`
+- **CLI/tool slices**: `cutctx/providers/claude`, `copilot`, `codex`, `openclaw`
+- **Provider runtime slices**: `cutctx/providers/claude`, `gemini`, plus shared backend/runtime dispatch in `cutctx/providers/registry.py`
 - **Core files stay orchestration-first**: `wrap.py`, `client.py`, `cli/proxy.py`, and `proxy/server.py` delegate provider-specific env shaping, API target normalization, backend selection, and transport dispatch.
 
 </details>
@@ -273,7 +294,7 @@ npm install cutctx-ai                 # TypeScript / Node
 docker pull ghcr.io/aryansingh/cutctx:latest
 ```
 
-Granular extras: `[proxy]`, `[mcp]`, `[ml]` (Kompress-base), `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
+Granular extras: `[proxy]`, `[mcp]`, `[ml]` (Kompress-base), `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
 
 Using `pipx`? Choose a supported interpreter explicitly:
 
@@ -313,7 +334,7 @@ Running with compression disabled (pure gateway) requires neither asset.
 ## cutctx learn
 
 <p align="center">
-  <img src="headroom_learn.gif" alt="cutctx learn in action" width="720">
+  <img src="cutctx_learn.gif" alt="cutctx learn in action" width="720">
 </p>
 
 `cutctx learn` — mines failed sessions, writes corrections to `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`.
@@ -341,7 +362,7 @@ CutCtx runs **locally**, covers **every** content type, works with every major f
 | [Compresr](https://compresr.ai), [Token Co.](https://thetokencompany.ai)    | Text sent to their API                         | Hosted API call                    | No    | No         |
 | OpenAI Compaction                                                            | Conversation history                           | Provider-native                    | No    | No         |
 
-> **Attribution.** CutCtx ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and CutCtx compresses everything downstream of it. CutCtx can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `HEADROOM_CONTEXT_TOOL=lean-ctx` before running `cutctx wrap ...`.
+> **Attribution.** CutCtx ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and CutCtx compresses everything downstream of it. CutCtx can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `CUTCTX_CONTEXT_TOOL=lean-ctx` before running `cutctx wrap ...`.
 
 ## Contributing
 

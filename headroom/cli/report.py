@@ -342,10 +342,34 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             compression_usd += float(source_usd.get("cutctx_compression", 0.0) or 0.0)
             cache_usd += float(source_usd.get("provider_prompt_cache", 0.0) or 0.0)
         else:
+            # Legacy row without per-source USD attribution. Split
+            # the legacy dollar figures between CutCtx compression
+            # and provider prompt cache so the by-source USD table is
+            # consistent: ``total_usd`` and ``by_source_usd`` must
+            # agree to the cent. This is the restart-safety
+            # attribution the buyer report needs.
+            row_compression_usd = float(
+                row.get("compression_savings_usd", 0) or 0
+            )
+            row_cache_usd = float(row.get("cache_savings_usd", 0) or 0)
             row_total = float(row.get("cost_savings_usd", 0) or 0)
-            total_usd += row_total
-            compression_usd += float(row.get("compression_savings_usd", 0) or 0)
-            cache_usd += float(row.get("cache_savings_usd", 0) or 0)
+            # If only the combined total is present (no per-source
+            # split), attribute it all to CutCtx compression — that
+            # is what the legacy column actually measured.
+            if row_total and not row_compression_usd and not row_cache_usd:
+                row_compression_usd = row_total
+                row_cache_usd = 0.0
+            by_source_usd["cutctx_compression"] = (
+                by_source_usd.get("cutctx_compression", 0.0)
+                + row_compression_usd
+            )
+            by_source_usd["provider_prompt_cache"] = (
+                by_source_usd.get("provider_prompt_cache", 0.0)
+                + row_cache_usd
+            )
+            total_usd += row_compression_usd + row_cache_usd
+            compression_usd += row_compression_usd
+            cache_usd += row_cache_usd
 
     if fmt == "json":
         payload = {

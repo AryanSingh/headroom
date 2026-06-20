@@ -161,7 +161,7 @@
             <a href="#pricing">Pricing</a>
             <a href="#security">Security</a>
             <a href="https://cutctx.dev/docs">Docs</a>
-            <a href="https://github.com/AryanSingh/headroom" class="btn btn-outline">GitHub</a>
+            <a href="https://github.com/AryanSingh/cutctx" class="btn btn-outline">GitHub</a>
             <a href="mailto:hello@cutctx.dev" class="btn btn-primary">Request a Pilot</a>
         </div>
     </div>
@@ -344,6 +344,36 @@
     </table>
 </section>
 
+<!-- Savings Attribution -->
+<section class="section">
+    <div class="section-label">Savings Attribution</div>
+    <h2>Five savings sources, attributed independently</h2>
+    <p class="subtitle">Every token saved is tagged with the source that produced it, so the buyer report never double-counts. Provider cache and CutCtx compression are tracked separately, not netted.</p>
+    <div class="grid">
+        <div class="card">
+            <h3>Provider prompt cache</h3>
+            <p>Tokens served from the upstream provider's native prompt cache (Anthropic <code>cache_read_input_tokens</code>, OpenAI <code>cached_tokens</code>, Gemini <code>cachedContentTokenCount</code>). You get this for free; CutCtx only reports it.</p>
+        </div>
+        <div class="card">
+            <h3>CutCtx compression</h3>
+            <p>Tokens CutCtx itself removed via SmartCrusher, LiveZone, CodeCompressor, LogCompressor, and the other content-aware compressors. This is the value CutCtx adds on top of native caching.</p>
+        </div>
+        <div class="card">
+            <h3>Semantic cache</h3>
+            <p>Tokens avoided by serving a prior near-duplicate request from the response cache. Distinct from provider cache: semantic cache lives on the proxy and works across providers.</p>
+        </div>
+        <div class="card">
+            <h3>Self-hosted prefix cache</h3>
+            <p>Tokens served by a self-hosted prefix cache such as vLLM Automatic Prefix Caching. Reported separately from provider cache so the two are not confused.</p>
+        </div>
+        <div class="card">
+            <h3>Model routing</h3>
+            <p>Tokens served by a cheaper model than the user originally requested, plus the resulting dollar savings. Routing gains are tracked in tokens <em>and</em> USD.</p>
+        </div>
+    </div>
+    <p class="subtitle" style="margin-top: 1.5rem;"><strong>Attribution invariant:</strong> the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema.</p>
+</section>
+
 <!-- ROI -->
 <section class="section">
     <div class="section-label">ROI</div>
@@ -406,7 +436,7 @@
             <div class="icon">🔐</div>
             <div>
                 <h4>Internal header stripping</h4>
-                <p>Drops all x-headroom-* headers before forwarding to prevent proxy fingerprinting.</p>
+                <p>Drops all x-cutctx-* headers before forwarding to prevent proxy fingerprinting.</p>
             </div>
         </div>
         <div class="security-item">
@@ -478,7 +508,7 @@
                 <li>Email support (business hours)</li>
                 <li>Deployment assistance</li>
             </ul>
-            <a href="https://pitchtoship.com/checkout?product=headroom-team" class="btn btn-primary" style="width: 100%; justify-content: center;">Start Free Trial</a>
+            <a href="https://pitchtoship.com/checkout?product=cutctx-team" class="btn btn-primary" style="width: 100%; justify-content: center;">Start Free Trial</a>
         </div>
         <div class="pricing-card">
             <div class="tier">Enterprise</div>
@@ -514,7 +544,7 @@
     <div class="footer-copy">© 2026 CutCtx Labs. Apache 2.0.</div>
     <div class="footer-links">
         <a href="https://cutctx.dev/docs">Docs</a>
-        <a href="https://github.com/AryanSingh/headroom">GitHub</a>
+        <a href="https://github.com/AryanSingh/cutctx">GitHub</a>
         <a href="https://discord.gg/yRmaUNpsPJ">Discord</a>
         <a href="mailto:hello@cutctx.dev">Contact</a>
     </div>

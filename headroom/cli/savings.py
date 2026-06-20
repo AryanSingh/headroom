@@ -662,7 +662,41 @@ def savings(
 
     # Check if empty
     if summary["sessions_count"] == 0:
-        click.echo("No sessions recorded yet. Run `cutctx wrap claude` to start a session.")
+        if output_format == "json":
+            # Always emit machine-readable JSON so downstream tooling
+            # can parse the zero-state result without special-casing.
+            from headroom.savings import SavingsSource
+
+            click.echo(
+                json.dumps(
+                    {
+                        "period_days": days,
+                        "sessions_count": 0,
+                        "total_tokens_saved": 0,
+                        "total_usd_saved": 0.0,
+                        "savings_by_source": {
+                            src.value: 0 for src in SavingsSource
+                        },
+                        "savings_by_source_usd": {
+                            src.value: 0.0 for src in SavingsSource
+                        },
+                        "savings_sources": [
+                            {"id": src.value, "label": src.label}
+                            for src in SavingsSource
+                        ],
+                        "message": (
+                            "No sessions recorded yet. Run "
+                            "`cutctx wrap claude` to start a session."
+                        ),
+                    },
+                    indent=2,
+                )
+            )
+            return
+        click.echo(
+            "No sessions recorded yet. Run `cutctx wrap claude` to "
+            "start a session."
+        )
         return
 
     # Print terminal summary
