@@ -308,6 +308,49 @@ def create_admin_router(
         events = _proxy.audit_logger.query(limit=limit)
         return {"events": events, "count": len(events)}
 
+    @router.get(
+        "/audit/verify",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("audit.read")),
+            _Dep(require_entitlement("audit_logs")),
+        ],
+    )
+    async def audit_verify(tenant_id: str | None = None):
+        """Lightweight integrity check for the audit log.
+
+        Medium-32 (production-audit-progress-2026-06-20.md): the simple
+        SQLite audit log is not tamper-evident on its own. This
+        endpoint exposes a monotonicity + schema check via
+        ``AuditLogger.verify_chain`` (lightweight) and also tries
+        the hash-chain store's ``verify_chain`` for full
+        cryptographic integrity when one is configured. Returns
+        200 if the lightweight check passes; returns 503 if no
+        audit log is configured; returns 500 if the lightweight
+        check fails (so the operator's monitoring catches it).
+        """
+        if not _proxy.audit_logger:
+            raise HTTPException(status_code=503, detail="Audit logging not available")
+        light = _proxy.audit_logger.verify_chain(tenant_id=tenant_id)
+        # Best-effort: if a hash-chain store is configured, run it too.
+        chain_result: dict[str, Any] | None = None
+        try:
+            chain_store = getattr(_proxy, "audit_chain_store", None)
+            if chain_store is not None and hasattr(chain_store, "verify_chain"):
+                chain_ok = chain_store.verify_chain(tenant_id or "default")
+                chain_result = {"ok": chain_ok}
+        except Exception as exc:  # noqa: BLE001
+            chain_result = {"ok": False, "error": str(exc)}
+        if not light.get("ok", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "lightweight": light,
+                    "hash_chain": chain_result,
+                },
+            )
+        return {"ok": True, "lightweight": light, "hash_chain": chain_result}
+
     # ── Org / Workspace / Project Management ──────────────────────────
 
     @router.get(

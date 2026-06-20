@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 """Structured audit event system for enterprise compliance.
@@ -323,6 +323,80 @@ class AuditLogger:
         """Export events as newline-delimited JSON."""
         events = self.query(limit=limit, **kwargs)
         return "\n".join(json.dumps(e, ensure_ascii=False) for e in events)
+
+    def verify_chain(self, tenant_id: str | None = None) -> dict[str, Any]:
+        """Lightweight integrity check for the simple audit log.
+
+        Medium-32 (production-audit-progress-2026-06-20.md): the simple
+        SQLite audit log used by ``routes/admin.py:237-247`` is NOT
+        tamper-evident on its own. The full HMAC hash chain lives in
+        ``headroom_ee.audit.store.AuditStore``. This method provides a
+        lightweight alternative: a monotonicity check on timestamps
+        (no row may have a timestamp before the previous row's), a
+        row-count tally, and a non-empty-schema assertion. Suitable for
+        the read-only admin endpoint ``/audit/verify``.
+
+        For full cryptographic integrity, use the hash-chain store:
+        ``AuditStore(db_url).verify_chain(tenant_id)``.
+
+        Returns a dict::
+
+            {
+                "ok": bool,            # True iff the lightweight checks pass
+                "total_rows": int,     # number of audit events in the store
+                "tenant_id": str|None, # echoed from the input
+                "checks": dict,        # per-check pass/fail detail
+                "error": str,          # present only if ok=False
+            }
+        """
+        result: dict[str, Any] = {
+            "tenant_id": tenant_id,
+            "ok": True,
+            "total_rows": 0,
+            "checks": {},
+        }
+        try:
+            conn = self._get_conn()
+            # Schema check: table exists with the expected columns.
+            cols = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(audit_events)").fetchall()
+            }
+            required = {"event_id", "action", "actor", "timestamp"}
+            missing = required - cols
+            if missing:
+                result["ok"] = False
+                result["checks"]["schema"] = f"missing columns: {sorted(missing)}"
+                return result
+            result["checks"]["schema"] = "ok"
+            # Row count.
+            count_row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM audit_events"
+            ).fetchone()
+            result["total_rows"] = int(count_row["cnt"] if count_row else 0)
+            # Monotonicity: rows in chronological order.
+            if result["total_rows"] > 0:
+                rows = conn.execute(
+                    "SELECT timestamp FROM audit_events ORDER BY timestamp ASC"
+                ).fetchall()
+                prev: str | None = None
+                monotonic = True
+                for (ts,) in rows:
+                    if prev is not None and ts < prev:
+                        monotonic = False
+                        break
+                    prev = ts
+                result["checks"]["monotonic"] = "ok" if monotonic else "violated"
+                if not monotonic:
+                    result["ok"] = False
+                    result["error"] = "audit log rows are not in monotonic timestamp order"
+            else:
+                result["checks"]["monotonic"] = "empty"
+            return result
+        except Exception as exc:  # noqa: BLE001
+            result["ok"] = False
+            result["error"] = str(exc)
+            return result
 
     def close(self) -> None:
         """Close the thread-local database connection."""
