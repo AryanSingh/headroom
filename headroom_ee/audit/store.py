@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 import hashlib
@@ -14,6 +14,20 @@ from sqlalchemy.orm import sessionmaker
 from headroom_ee.audit.models import AuditEvent, Base
 
 
+# Blocker-9 (production-audit-2026-06-20.md): the previous default was
+# the literal "dev-secret-key" which makes the hash chain forgeable in
+# any deployment that forgets to set HEADROOM_AUDIT_SECRET_KEY. The
+# new behavior:
+#   1. If HEADROOM_AUDIT_SECRET_KEY is set: use it.
+#   2. If not set AND we're not in development mode: refuse to start
+#      and raise RuntimeError.
+#   3. If not set AND HEADROOM_ALLOW_DEV_AUDIT_KEY=1: log a loud
+#      warning and use a process-unique random key (so different
+#      processes can't share the chain — break-glass only).
+_HEADROOM_DEV_ALLOW_ENV = "HEADROOM_ALLOW_DEV_AUDIT_KEY"
+_HEADROOM_AUDIT_SECRET_ENV = "HEADROOM_AUDIT_SECRET_KEY"
+
+
 class AuditStore:
     """Tamper-evident append-only audit log store."""
 
@@ -21,7 +35,42 @@ class AuditStore:
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
-        self.secret_key = os.environ.get("HEADROOM_AUDIT_SECRET_KEY", "dev-secret-key").encode()
+        self.secret_key = self._resolve_secret_key()
+
+    @staticmethod
+    def _resolve_secret_key() -> bytes:
+        env_key = os.environ.get(_HEADROOM_AUDIT_SECRET_ENV, "").strip()
+        if env_key:
+            return env_key.encode()
+        if os.environ.get(_HEADROOM_DEV_ALLOW_ENV, "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            # Process-unique random key so an attacker who steals the
+            # DB still cannot forge the chain. Loud warning so this
+            # never ships to production silently.
+            import secrets as _secrets
+
+            key = _secrets.token_urlsafe(32)
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "HEADROOM_AUDIT_SECRET_KEY not set; "
+                "HEADROOM_ALLOW_DEV_AUDIT_KEY=1 is set. "
+                "Generated a process-unique random key. "
+                "Set HEADROOM_AUDIT_SECRET_KEY in production for a "
+                "stable, deployment-wide chain."
+            )
+            return key.encode()
+        raise RuntimeError(
+            "HEADROOM_AUDIT_SECRET_KEY is required for tamper-evident "
+            "audit logging. Set it in the environment to a high-entropy "
+            "random value (e.g. `python -c 'import secrets; "
+            "print(secrets.token_urlsafe(32))'`). For local dev only, "
+            "set HEADROOM_ALLOW_DEV_AUDIT_KEY=1 to opt in to a "
+            "process-unique random key."
+        )
 
     def _compute_hash(
         self,

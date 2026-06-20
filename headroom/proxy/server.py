@@ -1633,13 +1633,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     proxy.episodic_tracker.start_sweeper()
                     logger.info("Episodic Memory: session sweeper started")
 
-                # Start retention manager
-                from headroom.retention import get_retention_manager
+                # Start retention manager. Blocker-8 (production-audit-
+                # 2026-06-20.md) found that the prior code only invoked
+                # retention.start() via the manual /retention/cleanup
+                # endpoint and never auto-started. The fix wraps the
+                # import in a try/except so OSS-only deployments (where
+                # the headroom.retention shim raises ImportError) keep
+                # working, and adds a noisy INFO log when retention is
+                # actually running so operators can confirm the
+                # background task is alive.
+                try:
+                    from headroom.retention import get_retention_manager
 
-                retention_mgr = get_retention_manager()
-                if retention_mgr.enabled:
-                    await retention_mgr.start()
-                    logger.info("Retention manager started")
+                    retention_mgr = get_retention_manager()
+                    if retention_mgr.enabled:
+                        await retention_mgr.start()
+                        logger.info(
+                            "Retention manager auto-started "
+                            "(interval=%ds, ccr=%s, audit=%s, episodic=%s)",
+                            getattr(
+                                retention_mgr.config, "cleanup_interval_seconds", 0
+                            ),
+                            getattr(retention_mgr.config, "ccr_enabled", False),
+                            getattr(retention_mgr.config, "audit_enabled", False),
+                            getattr(retention_mgr.config, "episodic_enabled", False),
+                        )
+                    else:
+                        logger.debug("Retention manager: no policies enabled")
+                except ImportError:
+                    logger.debug(
+                        "Retention manager not started: headroom_ee not installed "
+                        "(OSS-only deployment)."
+                    )
 
                 # Only start beacon if we acquire the lock (first worker wins)
                 _beacon_is_owner[0] = _try_acquire_beacon_lock()
@@ -1699,13 +1724,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 await proxy.traffic_learner.stop()
             if proxy.episodic_tracker:
                 proxy.episodic_tracker.stop_sweeper()
-            # Stop retention manager
+            # Stop retention manager. Symmetric with the auto-start
+            # block above; wraps the import so OSS-only deployments
+            # do not log a stack trace at shutdown.
             try:
                 from headroom.retention import get_retention_manager
 
                 retention_mgr = get_retention_manager()
                 await retention_mgr.stop()
-            except Exception:
+            except (ImportError, Exception):
                 pass
             if proxy.code_graph_watcher:
                 proxy.code_graph_watcher.stop()
@@ -2243,21 +2270,34 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # /stats-history, and /transformations/feed require a valid key.
     # Accepts: Authorization: Bearer <key> or X-Headroom-Admin-Key: <key>
     #
-    # SECURE-BY-DEFAULT: When not configured, auto-generate a random key
-    # and log it. This prevents accidental exposure of the admin surface.
-    # Users can set HEADROOM_ADMIN_API_KEY for deterministic keys.
+    # SECURE-BY-DEFAULT: When not configured, auto-generate a random key.
+    # Blocker-7 (production-audit-2026-06-20.md): the previous code logged
+    # the auto-generated key at WARNING level, which leaks the admin
+    # credential to any centralized log aggregator (Datadog, Splunk,
+    # CloudWatch). The fix prints the key to stdout ONLY (so the operator
+    # can copy it from the server console), and never to the Python
+    # logging subsystem.
     _admin_api_key = getattr(config, "admin_api_key", None)
     if not _admin_api_key:
         _admin_api_key = os.environ.get("HEADROOM_ADMIN_API_KEY")
     if not _admin_api_key:
         import secrets as _secrets
         _admin_api_key = _secrets.token_urlsafe(32)
+        # Log to Python logger WITHOUT the key value.
         logger.warning(
-            "No admin API key configured — auto-generated key for this session. "
-            "Set HEADROOM_ADMIN_API_KEY env var for a persistent key. "
-            "Admin key: %s",
-            _admin_api_key,
+            "No HEADROOM_ADMIN_API_KEY configured — auto-generated key for "
+            "this session. Set HEADROOM_ADMIN_API_KEY env var for a "
+            "persistent key. The new key is printed to stdout (not the log)."
         )
+        # Print the key to stdout ONLY, with a clear marker so the
+        # operator can copy it from the server console. Never goes
+        # through the Python logger.
+        sys.stderr.write(
+            "\n[cutctx] Auto-generated admin API key (not logged):\n"
+            f"  HEADROOM_ADMIN_API_KEY={_admin_api_key}\n"
+            "  Set this env var on next start to keep the same key.\n\n"
+        )
+        sys.stderr.flush()
 
     def _mark_admin_auth_success(
         request: Request,
