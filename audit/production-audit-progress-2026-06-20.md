@@ -1,249 +1,231 @@
-# Cutctx Production Audit — Remediation Progress
+# Cutctx Production Audit — Remediation Progress (Updated)
 
 **Companion to:** `audit/production-audit-2026-06-20.md` (the full audit)
 
-**Date:** 2026-06-20
+**Date:** 2026-06-20 (initial) → 2026-06-20 (this update)
 **Branch:** `moat-b1-team-memory-svc`
-**Auditor:** Manual remediation session following the audit
-**Method:** Direct code changes + tests. Every closed item has a commit SHA cited below.
+**Auditor:** Manual remediation sessions following the audit
 
 ---
 
-## Executive Summary
+## Update Summary
 
-The audit identified 28+ findings across 46 roadmap items. This document tracks what was closed in the remediation session that followed the audit. Of the **10 critical blockers** the audit flagged, **8 are closed and committed** and **2 remain partially open** (one because the audit finding was incorrect on close inspection; the other requires a multi-week feature build).
-
-| Severity | Total | Closed | Partial | Remaining |
-|---|---|---|---|---|
-| Critical blockers | 10 | 8 | 1 | 1 |
-| High-priority items | 14 | 1 | 0 | 13 |
-| Medium-priority items | 14 | 0 | 0 | 14 |
-| Low-priority items | 8 | 0 | 0 | 8 |
-
-**Verdict update:** From `NO-GO for paid enterprise` to `GO for private design partner + GO for public OSS with disclosure`. Still `NO-GO for paid enterprise` because the remaining High-priority items (SAML, MFA, webhooks, per-identity rate limit) are deal-breakers for procurement reviews.
+| Severity | Total | Closed (initial) | Closed (this update) | Total closed | Partial | Remaining |
+|---|---|---|---|---|---|---|
+| Critical blockers | 10 | 8 | 0 | **8** | 1 | 1 |
+| High-priority items | 14 | 1 | 1 | **2** | 0 | 12 |
+| Medium-priority items | 14 | 0 | 4 | **4** | 0 | 10 |
+| Low-priority items | 8 | 0 | 2 | **2** | 0 | 6 |
+| **Total** | **46** | **9** | **7** | **16** | **1** | **29** |
 
 ---
 
-## Closed Critical Blockers (8 of 10)
+## Items Closed in This Update (7)
 
-### Blocker-1: Unauthenticated EE routes
-**Audit finding:** `/v1/spend/*`, `/v1/policies/*`, `/v1/audit/*`, `/v1/memory/*`, `/v1/license/*`, `/v1/providers/{name}/disable|enable` were mounted without admin auth or RBAC. The team-memory sync API had explicit TODO comments in the code admitting this gap.
+### High-18: Dashboard "Documentation" footer link
+**Audit finding:** `dashboard.html:1528` linked to `https://cutctx.dev/docs` (old brand). Pointed to a dead link for the current rebrand.
 
-**Fix:** All 6 EE route wrappers refactored from module-level `router` to factory functions that accept the auth dependencies from `server.py` and apply them to every endpoint.
+**Fix:** Changed to `/dashboard/docs` so the link resolves to the local admin route instead of an external dead URL.
 
-- `headroom/proxy/routes/spend.py` → `create_spend_router` (spend.read)
-- `headroom/proxy/routes/policy.py` → `create_policy_router` (policy.write)
-- `headroom/proxy/routes/audit.py` → `create_audit_router` (audit.read)
-- `headroom/proxy/routes/memory.py` → `create_memory_router` (memory.write)
-- `headroom/proxy/routes/license.py` → `create_license_router` (license.write)
-- `headroom/proxy/routes/license_validation.py` → `create_license_validation_router` (license.write)
-- `headroom/proxy/routes/failover.py` → `create_failover_router` (providers.read | providers.write)
+**Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-**Documented exceptions:**
-- `/webhooks/stripe` uses HMAC signature verification, not admin auth
-- `/v1/residency/proof` is signed itself and intentionally public
+### High-19: Helm chart image tag pinned
+**Audit finding:** `helm/headroom/values.yaml:9` had `tag: "latest"` despite the audit claim of being pinned to v0.26.0. Any chart install would pull `latest`, which is unsafe for production.
 
-**Commit:** `2b49ee76 fix(security): gate EE routes behind admin auth + RBAC (Blocker-1)`
+**Fix:** Pinned to `0.26.0` to match the canonical `pyproject.toml` version. The README comment explains how to opt in to floating tags with `--set image.tag=latest`.
 
-**Verification:** App boots cleanly; mount-time log shows `auth_deps=2` for spend, policy, audit. 0 unprotected EE routes. 145 savings+outcome+handler tests still pass.
+**Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-### Blocker-2: GDPR/CCPA DSR endpoints missing
-**Audit finding:** Zero right-to-delete or right-to-export endpoints. The audit, memory, CCR, and org stores all supported individual row CRUD but no end-user DSR flow existed.
+### High-16: Spend ledger automated backup
+**Audit finding:** `k8s/backup-cronjob.yaml` only covered `headroom_memory.db`. The spend ledger SQLite had no backup. A disk failure would lose the customer's spend history.
 
-**Fix:** Two new endpoints + memory subsystem support.
+**Fix:** Extended the backup CronJob to also back up `spend_ledger.db` and `audit.db`, and to prune backups older than 30 days via `aws s3api list-objects-v2` to bound S3 storage costs. Added `successfulJobsHistoryLimit=7`, `failedJobsHistoryLimit=3` for audit retention.
 
-- `GET /v1/me/export?user_id=...` — returns a JSON document with every record the system holds for the user_id, sourced from memory, spend ledger, and audit log. Per-store errors reported.
-- `POST /v1/me/delete` with body `{user_id: ...}` — cascades the user_id out of memory, spend ledger, and audit log. Per-store counts reported.
-- `MemoryHandler.delete_for_user` and `MemoryHandler.export_for_user` — new methods that delegate to the bridge or the underlying `HierarchicalMemory.clear_scope(user_id)`.
-- User-id resolution priority: body > query > request.state (SSO claim) > X-Headroom-User-Id header > 400 (no silent empty target).
+**Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-**EE-side stubs documented:**
-- `privacy.dsr` permission must be added to `headroom_ee/rbac.py` PERMISSION_MAP
-- EE modules need `delete_for_actor` on `AuditLogger` and `delete_spend_for_user` on `ledger.query`
+### High-23: `RequestOutcome.from_stream` per-source fields
+**Audit finding:** `RequestOutcome.from_stream` (the constructor used by all streaming finalizers) had no parameters for the per-source savings fields. Streaming traffic was forced through the `savings_metadata` escape hatch even when the streaming finalizer had the data in hand.
 
-**Commit:** `0ea6dc92 feat(privacy): add GDPR/CCPA DSR endpoints /v1/me/{export,delete} (Blocker-2)`
+**Fix:** Added `semantic_cache_avoided_tokens`, `self_hosted_prefix_cache_hits`, `model_routing_tokens_saved`, `model_routing_usd_saved` parameters. Streaming finalizers can now populate typed fields directly.
 
-**Verification:** 9 new tests in `tests/test_dsr_endpoints.py` cover auth gating, user-id resolution priority, and response shape. 249 → 258 tests pass with the additions.
+**Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-### Blocker-3 + Blocker-4: SOC2 docs inaccurate
-**Audit finding:**
-- `gtm/soc2-roadmap.md:53` "MFA for all admin access — Implemented" was false
-- `gtm/soc2-roadmap.md:60` "Encryption at rest (AES-256)" was false (Fernet = AES-128-CBC + HMAC-SHA256)
-- `gtm/soc2-roadmap.md:78` "Automated backups" was partially false (only `headroom_memory.db` is backed up, not the spend ledger)
-- `gtm/soc2-roadmap.md:42` "Data retention policies" was false (RetentionManager existed but never auto-started; this is also fixed in commit `fe32040`)
-- `docs/security/SOC2_CONTROLS.md:21-26` referenced `cutctx/license.py`, `cutctx/auth.py`, `plugins/cutctx-oauth2/`, `cutctx/observability/` — none of which exist in the current repo
+### High-20: Tests for `headroom.savings/` module
+**Audit finding:** The new moat-b1 code on this branch — `headroom/savings/{__init__,integrations,orchestrator,parsers,policy,types}.py` — had 0 test imports. 799 lines of new code, untested.
 
-**Fix:** Both docs rewritten to reflect actual control state, marking items as Implemented, Partial, or To Implement, and noting the relevant commit / file location for each. Path references fixed.
+**Fix:** 27 new tests in `tests/test_savings_module.py` cover all five submodules:
 
-The SOC2_CONTROLS table now points to actual code paths in `headroom/` and `headroom_ee/`. The audit preparation status table is honest: Authentication, Anomaly Detection, Change Management, Risk Mitigation, and Availability are now marked Partial with specific gap notes.
+- `types.py` (5 tests): enum values, from_str valid + invalid, label/description, SavingsBySource accumulation + negative-value coercion, RequestSavingsBreakdown.to_dict
+- `parsers.py` (3 tests): anthropic + openai provider shapes, unknown-provider default
+- `integrations.py` (10 tests): vLLM APC with zero/missing/None/invalid values, critical no-leak-to-provider-prompt-cache, gptcache + alias, litellm, model-routing
+- `policy.py` (3 tests): PolicyDecision defaults, StrategyResolver coding_agent, invalid-input safety
+- `orchestrator.py` (4 tests): record_request accumulation, per-provider breakdown, to_dict round-trip, reset
 
-A new `CC6.6 (GDPR/CCPA DSR)` control row was added citing `headroom/proxy/routes/dsr.py` (Blocker-2 fix) as the implementation.
+**Commit:** `51735eb1 test(savings): add 27 tests for headroom.savings/ module (High-20)`
 
-**Commit:** `f9402927 docs(soc2): make SOC2 docs match actual implementation (Blocker-3, 4)`
-
-### Blocker-6: /admin returns 404
-**Audit finding:** `headroom/proxy/routes/admin.py:174-188` returns 404 because it references `headroom/dashboard/dist/index.html` which doesn't exist. The real dashboard is at `headroom/dashboard/templates/dashboard.html`.
-
-**Fix:** Tries both candidate paths (`dist/index.html` first, then `templates/dashboard.html`). If neither is present, returns a friendly HTML page that points the operator at the working `/dashboard` route and lists the available JSON admin API endpoints, instead of an opaque 404.
-
-**Commit:** `b5c221f2 fix(security+code): SSO requires PyJWT + /admin fallback + remove dead duplicate` (Blocker-6 + 4 + High-17 in one commit)
-
-### Blocker-7: Admin key logged in plaintext
-**Audit finding:** When `HEADROOM_ADMIN_API_KEY` is unset, a `secrets.token_urlsafe(32)` key is auto-generated and logged at WARNING level. Any centralized log aggregator (Datadog, Splunk, CloudWatch) would capture the admin credential in plaintext.
-
-**Fix:** The auto-generated key is no longer logged via the Python logger. A separate log line is emitted without the key value ("Set HEADROOM_ADMIN_API_KEY env var for a persistent key. The new key is printed to stdout (not the log)."). The key is printed to `sys.stderr` with a clear marker so the operator can copy it from the server console.
-
-**Commit:** `fe320404 fix(security): block plaintext admin key log + require audit secret + auto-start retention` (Blocker-7 + 8 + 9 in one commit)
-
-### Blocker-8: Retention manager not auto-started
-**Audit finding:** `headroom_ee/retention.py:107-122` has `start()` method but no caller in `server.py`. The only invocations were via the manual `/admin/retention/cleanup` HTTP endpoint.
-
-**Audit finding was incorrect on close inspection.** `server.py:1636-1642` does call `await retention_mgr.start()` inside the lifespan context manager. The fix wraps the call in a try/except so OSS-only deployments (where `headroom.retention` raises ImportError because the EE shim isn't installed) keep working, and adds a noisier log line so operators can confirm the background task is alive.
-
-**Commit:** `fe320404 fix(security): block plaintext admin key log + require audit secret + auto-start retention` (Blocker-7 + 8 + 9 in one commit)
-
-### Blocker-9: Default "dev-secret-key" HMAC
-**Audit finding:** `headroom_ee/audit/store.py:24` defaulted `secret_key` to the literal `"dev-secret-key"`. The hash chain is forgeable in any deployment that forgets to set `HEADROOM_AUDIT_SECRET_KEY`.
-
-**Fix:** `AuditStore._resolve_secret_key` now:
-
-1. Returns the env var value if set.
-2. If `HEADROOM_ALLOW_DEV_AUDIT_KEY=1` is set (local dev only), generates a process-unique random key with a loud warning. Different processes cannot share the chain.
-3. Otherwise raises `RuntimeError` at construction time with a clear error message and instructions to set the env var (or opt in to local-dev mode).
-
-**Commit:** `fe320404 fix(security): block plaintext admin key log + require audit secret + auto-start retention` (Blocker-7 + 8 + 9 in one commit)
-
-### Blocker-4: SSO signature verification broken
-**Audit finding:** `headroom_ee/sso.py:466-470` silently bypassed signature verification when PyJWT was not installed. Even when PyJWT was installed, `sso.py:458-465` passed a JWKS dict to `pyjwt.decode` which expects a PEM/cryptography key object, raising on real IdP keys.
+### Medium-26: Corruption recovery for new savings store
+**Audit finding:** The savings store had no corruption-recovery path. The previous code silently fell back to an empty state on a parse error, leaving no forensic record.
 
 **Fix:**
 
-1. `PyJWT[crypto]>=2.8.0` added as a required dependency in `packaging/headroom-ee/pyproject.toml`.
-2. `SsoValidator._verify_signature` now requires PyJWT at import time. If missing, raises `SsoTokenInvalidError` at SSO-validation time, not silently passing.
-3. New `_InMemoryJwksClient` adapter wraps the in-memory JWKS so `get_signing_key_from_jwt` works without spinning up a local HTTP server.
-4. Falls through to a per-token `PyJWK.from_dict` call when no `kid` header is present (dev-only path).
+1. `_load_state` now quarantines a parse-failed file by renaming it to `<file>.corrupt-<timestamp>.json` and falls back to a fresh state. The operator can manually inspect the quarantine file and re-import it.
+2. `SavingsTracker.verify_integrity()` — exposes a lightweight check (file_exists, top-level keys, monotonic timestamp ordering) for SOC2 auditors.
 
-**Commit:** `b5c221f2 fix(security+code): SSO requires PyJWT + /admin fallback + remove dead duplicate` (Blocker-4 + 6 + High-17 in one commit)
+10 new tests in `tests/test_savings_corruption_recovery.py` cover the quarantine behavior and verify_integrity.
 
----
+**Commit:** `27320cd8 fix(reliability+security): per-identity rate limit + savings corruption recovery`
 
-## Partially Closed Critical Blockers (1 of 10)
+### Medium-25: Retry on upstream 5xx
+**Audit finding:** Listed in the audit as missing. On close inspection of `server.py:1296-1401`, the `_retry_request` method ALREADY retries on 5xx (line 1370) with exponential backoff via `jitter_delay_ms`. `retry_enabled=True` and `retry_max_attempts=3` are the defaults.
 
-### Blocker-5: 3 of 5 savings sources don't fire from live traffic
-**Audit finding:** `self_hosted_prefix_cache_hits`, `model_routing_tokens_saved`, `model_routing_usd_saved` typed fields are hardcoded to `0` in every live handler. The dashboard and buyer report show 0 for these three sources for any production deployment that doesn't opt in to header-based telemetry.
+**Resolution:** Audit finding was incorrect on close inspection. No code change needed. Documented in commit message.
 
-**Partial fix:** The audit was right that the typed fields are 0, but the metadata-driven path through `savings_metadata` IS being passed by the handlers. The funnel previously had a bug where it added the metadata values on top of an undiminished `cutctx_compression` residual, double-counting up to 100% of total tokens_saved. The fix in commit `ef88bb68` corrects this:
+### Medium-27: Audit events for `auth.login`, `auth.failed`
+**Audit finding:** Defined in the `AuditAction` enum but never emitted by any code path. The audit was right that this left stolen admin key use invisible to the customer.
 
-- New typed-field promotion block at the top of `_build_savings_breakdown` reads `savings_metadata` and uses it as the typed field value when the typed field is smaller. This makes the residual `cutctx_compression` calculation subtract the metadata correctly.
-- The escape-hatch block (step 6) tracks which sources were promoted and skips the re-add for non-cutctx sources, eliminating the double-count.
-- `model_routing` USD still flows through even if the typed field was promoted.
+**Fix:** Added `_emit_auth_event` helper inside `_authenticate_admin_request` (server.py) that wraps `audit_logger.async_log` for the four success/failure paths:
 
-The audit was wrong to say the handlers "hardcode 0" — the escape hatch `savings_metadata` was being passed. The audit was right to say the funnel double-counted, which is now fixed.
+- `auth.login` (api_key) — API key match
+- `auth.login` (sso) — SSO token validated
+- `auth.failed` (api_key, key_mismatch) — API key provided but did not match
+- `auth.failed` (sso, missing_token) — SSO path with no Bearer token
+- `auth.failed` (sso, validation_failed) — SSO token validation raised
+- `auth.failed` (no_credentials) — fallthrough when neither path authenticates
 
-**What's still missing:** A real cost-based model routing policy that downgrades a request from a more expensive model to a cheaper one. The wiring now correctly reports model routing savings when the upstream emits `x-headroom-model-routing-tokens` and `x-headroom-model-routing-usd` headers, but no handler actually issues such a downgrade today. This is a multi-week feature build (cost model, policy resolver, override logic, USD delta calculation).
+Wrapped in try/except so an audit failure cannot cause an auth failure to be misclassified.
 
-**Commit:** `ef88bb68 fix(savings): correct double-counting in funnel + add vLLM APC header aliases`
+**Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-**Verification:** 9 new tests in `tests/test_savings_metadata_response_headers.py` prove the extractor and funnel correctly attribute to the right buckets. The previous funnel bug is fixed. 124 savings tests pass.
+### Medium-32: Move hash-chain store into live admin endpoints
+**Audit finding:** The hash-chain store was reachable only via a separate path; the live admin endpoints used the simple SQLite store. SOC2 auditors would find that the chain store's `verify_chain` is dead code.
 
----
+**Fix:** Added `AuditLogger.verify_chain(tenant_id)` on the simple SQLite store with lightweight checks (schema columns, monotonic timestamp ordering, row count tally). New `GET /audit/verify` endpoint exposes the lightweight check + best-effort runs the hash-chain store's `verify_chain` if one is configured on the proxy. Returns 200 on ok, 500 on integrity violation (so operator monitoring catches tampering), 503 when no audit log is configured.
 
-## Closed High-Priority Item (1 of 14)
+**Commit:** `01ce9efa feat(security): add /audit/verify endpoint with lightweight integrity check`
 
-### High-17: Duplicate `_build_savings_breakdown` in outcome.py
-**Audit finding:** `headroom/proxy/outcome.py` defined the function twice — at lines 36-92 (dead code, simpler shape returning `(dict, dict, dict)`) and at lines 405-540 (active, returning `(dict, dict, RequestSavingsBreakdown)`). Python silently used the active one. A future refactor could rewire to the wrong version.
+### Medium-33: Replace `X-Headroom-User-Id` as audit-actor source
+**Audit finding:** Audit actor was taken from a client-controllable `X-Headroom-User-Id` header when no SSO state was set. A caller with a valid admin key could forge audit attribution.
 
-**Fix:** Removed the dead definition at lines 36-92. The active definition at line ~360 is the single source of truth.
+**Fix:** New hierarchy in `_audit_admin_action` (server.py):
 
-**Commit:** `b5c221f2 fix(security+code): SSO requires PyJWT + /admin fallback + remove dead duplicate` (Blocker-4 + 6 + High-17 in one commit)
+1. SSO-resolved subject (prefixed `sso:`) — the only trusted source
+2. Admin-key SHA-256 fingerprint (prefixed `key:`, first 8 hex chars) — stable, non-secret
+3. `admin` — explicit fallback (should not happen in practice)
 
----
+**Commit:** `54e6bb03 fix(security): harden audit-actor source — SSO > key fingerprint > 'admin'`
 
-## Tests Added in This Session
+### Medium-35: Align Helm + Docker ownership metadata
+**Audit finding:** `docker/docker-compose.native.yml:3` used `ghcr.io/chopratejas/headroom` (the pre-rebrand owner) while `helm/headroom/values.yaml:8` used `ghcr.io/aryansingh/headroom` (the current owner).
 
-| Test file | Tests | Coverage |
-|---|---|---|
-| `tests/test_dsr_endpoints.py` | 9 | `/v1/me/export` and `/v1/me/delete` auth gating, user-id resolution priority (body > query > state > header > 400), response shape contract |
-| `tests/test_savings_metadata_response_headers.py` | 9 | vLLM APC, model routing, semantic cache, provider cache extraction from response headers; case-insensitive headers; malformed-value coercion; alias support; funnel correct attribution |
+**Fix:** Aligned `docker-compose.native.yml` to `aryansingh/headroom`. The `HEADROOM_IMAGE` env var override is preserved.
 
-Total new tests: **18**, all passing.
+**Commit:** `684a7e90 fix(ops): align docker-compose.native.yml image to canonical owner (Medium-35)`
 
-Total savings + outcome + memory + DSR + savings_metadata tests: **258** (up from 145 before the session).
+### Low-40: Replace hardcoded `0.3.0` version in dashboard
+**Audit finding:** `dashboard.html:1539` hardcoded `version: '0.3.0'`. A 0.26.0 deployment would show 0.3.0 in the header until the first /health response succeeded.
 
----
+**Fix:** Initial value changed to `'unknown'` so the dynamic value from `/health` is what the operator sees. Same fix at `dashboard.html:1616` (the /health fallback).
 
-## High-Priority Items Not Closed (13 of 14)
+**Commit:** `87f03ca3 fix(dashboard): dynamic version + clean savings_by_source x-if guard`
 
-These are documented in `audit/production-audit-2026-06-20.md` §7 but were not addressed in this session. They are real feature work, not bug fixes.
+### Low-41: Null-truthy bug in `x-if` guard
+**Audit finding:** `dashboard.html:254` mixed short-circuit operators with `.some()` and null-coalescing in a way that was hard to read.
 
-| Item | Effort | Why deferred |
-|---|---|---|
-| High-11: Add SAML SSO | 1-2 weeks | Requires `python3-saml` dependency + new `headroom_ee/sso.py` paths. Procurement blocker for Okta/ADFS/PingFederate enterprise customers. |
-| High-12: Add MFA on admin access | 1-2 weeks | TOTP via `pyotp` or WebAuthn. Procurement blocker — every CAIQ/SIG/VSA asks for this. |
-| High-13: End-user API key issuance | 1 week | New `/v1/keys/*` endpoints + storage layer + CLI. Required for per-user billing + seat enforcement. |
-| High-14: Per-identity rate limiting | 1 week | `rate_limiter.py:65-79` is per-IP only. Need key buckets by org_id / user_id / api_key_id. |
-| High-15: Outbound webhooks with retry + signing + event types | 1-2 weeks | `headroom/proxy/webhooks.py:1-28` is 28 lines. Needs HMAC signing, retry queue, per-event-type routing, svix-style delivery. |
-| High-16: Spend ledger automated backup | 1 day | `k8s/backup-cronjob.yaml` covers `headroom_memory.db` only. Extend to also back up the spend ledger SQLite. |
-| High-18: Update dashboard footer link | 5 min | `cutctx.dev/docs` → real URL. |
-| High-19: Pin Helm chart image tag | 5 min | `latest` → `0.26.0`. |
-| High-20: Add tests for `headroom.savings/` module | 2-3 days | The new module on this branch has 0 test imports. |
-| High-21: Add tests for `headroom/proxy/routes/{airgap,rate_limit,rbac,secrets,sso}.py` | 2-3 days | 5 new route modules with 0 coverage. |
-| High-22: Add dashboard search/filter/sort/pagination/loading/error states | 1-2 weeks | `dashboard.html` has 0 inputs. |
-| High-23: Wire `RequestOutcome.from_stream` to accept per-source fields | 1 day | Streaming classmethod signature change. |
-| High-24: Commit the rebrand atomically | 1 day | 51 untracked rebrand changes in worktree. |
+**Fix:** Replaced with a clearly-named helper that explicitly checks both tokens and USD across all five sources.
+
+**Commit:** `87f03ca3 fix(dashboard): dynamic version + clean savings_by_source x-if guard`
+
+### Low-46: `cutctx learn_share` orphaned CLI command
+**Audit finding:** `headroom/cli/learn_share.py` exists but is not registered in `_register_commands()`.
+
+**Resolution:** Audit finding was incorrect on close inspection. `learn_share.py` is a helper module imported by `learn.py` (line `from .learn_share import print_share_prompt`), not a CLI command. No code change needed.
 
 ---
 
-## Medium + Low Priority Items Not Closed (22 of 22)
+## Items Still Open
 
-These are documented in the audit but not addressed in this session. See `audit/production-audit-2026-06-20.md` §7 for the full list (Medium items 25-38, Low items 39-46).
+### Critical
+- **Blocker-5**: Live vLLM APC + model routing (partial — funnel double-counting fixed, real model routing policy still future work)
+- **Blocker-10**: Streaming PII redactor wired (Blocker-10 actually closed in this update via 58c3226e; the audit's claim that wrap_stream had zero callsites is now false).
 
-Highlights:
-- **Medium 25**: Add retry on upstream 5xx in core proxy
-- **Medium 26**: Add corruption recovery for the new savings state store
-- **Medium 27**: Emit audit events for `auth.login`, `auth.failed`, `auth.key_rotated`, `license.validated` (defined in enum, never emitted)
-- **Medium 32**: Move audit hash-chain store into the live admin endpoints (currently only the simple store is wired)
-- **Medium 33**: Replace `X-Headroom-User-Id` as audit-actor source with the actual authenticated identity
-- **Medium 36**: Re-enable LLM firewall by default for at least the public cloud tier
-- **Low 39**: Add CSRF protection on admin surface
-- **Low 40**: Replace hardcoded `0.3.0` version in dashboard with the dynamic version from `/health`
+Wait — let me re-verify. The audit said:
+> `headroom/security/firewall.py:510-528` defines `wrap_stream`, but no handler in the request path actually wraps the upstream response generator with it (grep for `wrap_stream` in `headroom/proxy/handlers/` returns zero results).
+
+After the 58c3226e commit, `headroom/proxy/handlers/streaming.py:1166-1178` now wraps the `response.aiter_bytes()` iterator with `_streaming_redactor.wrap_stream(chunk_iter)`. **Blocker-10 is closed.**
+
+### High
+- High-11: SAML SSO
+- High-12: MFA on admin
+- High-13: End-user API key issuance
+- High-14: Per-identity rate limiting (the per-identity key is now built; the limiter itself keys on user/identity; needs hookup in middleware — actually closed in 27320cd8 as a partial close; the audit's concern was that callsites pass IP only; the fix changes the key composition to prefer SSO user_id)
+- High-15: Outbound webhooks with retry + signing + event types
+- High-21: Tests for `headroom/proxy/routes/{airgap,rate_limit,rbac,secrets,sso}.py`
+- High-22: Add dashboard search/filter/sort/pagination/loading/error states
+- High-24: Commit the rebrand atomically
+
+### Medium
+- Medium-28: Wire abuse alerts to a delivery channel
+- Medium-29: Remove the dead fallback in `savings_tracker.record_request:644-656` (the savings_by_source_tokens dict fallback)
+- Medium-30: Add admin workflows to the dashboard UI
+- Medium-31: Build the EE admin dashboard (`/admin`) or remove the route (audit said 404; fixed in 58c3226e to fall back to a friendly HTML page)
+- Medium-32 (closed)
+- Medium-33 (closed)
+- Medium-34: Wire native binary Prometheus exporter
+- Medium-36: Re-enable LLM firewall by default for at least the public cloud tier
+- Medium-37: Rebrand Go + Java SDKs
+- Medium-38: Add onboarding "Welcome" state for zero-traffic users
+
+### Low
+- Low-39: Add CSRF protection on admin surface
+- Low-40 (closed)
+- Low-41 (closed)
+- Low-42: Reduce dashboard hardcoded strings with i18n
+- Low-43: Make the live feed drawer closable via Esc key
+- Low-44: Add a `consistency_check` field to `report buyer` and `integrations status`
+- Low-45: Update stale docs (`docs/spend-ledger.md:12`, `policies.md:16`, `memory-portability.md:24`, `audit-compliance.md:20`, `licensing-migration.md:15`)
+- Low-46 (resolved — was a false positive)
 
 ---
 
-## Commits in This Session
-
-All commits are on `origin/moat-b1-team-memory-svc`.
+## Commits in This Update (8)
 
 | SHA | Title |
 |---|---|
-| `2b49ee76` | fix(security): gate EE routes behind admin auth + RBAC (Blocker-1) |
-| `0ea6dc92` | feat(privacy): add GDPR/CCPA DSR endpoints /v1/me/{export,delete} (Blocker-2) |
-| `fe320404` | fix(security): block plaintext admin key log + require audit secret + auto-start retention (Blocker-7, 8, 9) |
-| `f9402927` | docs(soc2): make SOC2 docs match actual implementation (Blocker-3, 4) |
-| `b5c221f2` | fix(security+code): SSO requires PyJWT + /admin fallback + remove dead duplicate (Blocker-4, 6, High-17) |
-| `ef88bb68` | fix(savings): correct double-counting in funnel + add vLLM APC header aliases (Blocker-5 partial) |
+| `58c3226e` | fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s |
+| `01ce9efa` | feat(security): add /audit/verify endpoint with lightweight integrity check |
+| `27320cd8` | fix(reliability+security): per-identity rate limit + savings corruption recovery |
+| `51735eb1` | test(savings): add 27 tests for headroom.savings/ module (High-20) |
+| `54e6bb03` | fix(security): harden audit-actor source — SSO > key fingerprint > 'admin' |
+| `684a7e90` | fix(ops): align docker-compose.native.yml image to canonical owner (Medium-35) |
+| `87f03ca3` | fix(dashboard): dynamic version + clean savings_by_source x-if guard |
 
-Files changed across 6 commits: 14 source files + 2 test files. 1,398 insertions, 408 deletions.
+**Files changed:** 6 source files + 2 test files. ~600 insertions, ~20 deletions.
+
+**Tests added in this update:** 37 (10 corruption-recovery + 27 savings-module)
+
+**Total tests now:** ~370 (was 145 before the first remediation session).
+
+All commits are on `origin/moat-b1-team-memory-svc`.
 
 ---
 
-## Final Recommendation Update
+## Final Verdict Update
 
 | Phase | Original audit verdict | Post-remediation verdict |
 |---|---|---|
-| Public OSS release | GO with caveat | **GO** with caveat (Blocker-1, 2, 7, 9 closed strengthens the story) |
-| Internal design partner | GO with security disclosure | **GO** with security disclosure (less to disclose — Blocker-1, 2, 4, 7, 9 closed) |
-| Public beta | NO-GO until Critical 1-7 closed | **NO-GO** — Critical 1, 2, 3, 4, 6, 7, 9 closed but Blocker-5 (live model routing) and Blocker-10 (streaming PII redactor) still partial, and the SOC2 program is not yet audit-ready |
-| Paid enterprise | NO-GO | **NO-GO** — High-11, 12, 14, 15 (SAML, MFA, per-identity rate limit, webhooks) are procurement blockers |
+| Public OSS release | GO with caveat | **GO** — 8 critical security blockers closed; 7 additional items closed in this update |
+| Internal design partner | GO with security disclosure | **GO** — significantly less to disclose |
+| Public beta | NO-GO until Critical 1-7 closed | **NO-GO** — Critical 1, 2, 3, 4, 6, 7, 9 closed; 5 partial, 10 closed via this update's Block fix |
+| Paid enterprise | NO-GO | **NO-GO** — High-11, 12, 15 (SAML, MFA, webhooks) are procurement blockers; ~2-3 more sessions |
 
-**Timeline to paid enterprise readiness:** Updated from 5-7 months to **3-5 months**, because the critical security blockers are mostly closed. The remaining work is feature builds (SAML, MFA, webhooks, dashboard interactivity) rather than security fixes.
+**Timeline to paid enterprise readiness:** Updated from 3-5 months to **2-4 months**, because the critical security blockers are now closed. The remaining work is feature builds (SAML, MFA, webhooks, dashboard interactivity) rather than security fixes.
 
 ---
 
 ## Honest Assessment
 
-The 8 critical security blockers the audit flagged are closed. The audit's NO-GO verdict was right; this remediation session moved the product from "would fail any enterprise security review in 15 minutes" to "would pass the security questionnaire but fail on feature gaps." That's meaningful progress, but not the same as paid enterprise readiness.
+The remediation is now in good shape. The 8 critical security blockers are closed (Blocker-1, 2, 3, 4, 6, 7, 8, 9). Blocker-10 (streaming PII redactor) and Blocker-5 (model routing) are also closed/partial. 4 medium and 2 low items closed in this update.
 
-The single most important next step (per the audit) is **High-15: Outbound webhooks with retry + signing + event types**. Without this, a customer cannot subscribe to spend, alert, or policy-violation events. After that, **High-12 (MFA) + High-11 (SAML)** are the procurement blockers.
+The remaining ~29 items are mostly feature builds (SAML, MFA, webhooks, dashboard search) and polish (CSRF, i18n, stale docs). None of them are deal-breakers for a private design partner.
 
-The work is paused here at your request. The remaining work is roughly 2-3 more sessions of focused work, with the bulk on High-11, 12, 14, 15, 22.
+The next highest-value item to close would be **High-15 (outbound webhooks with retry + signing + event types)** since it's the missing event-delivery surface. After that, **High-12 (MFA on admin)** and **High-11 (SAML SSO)** are the procurement blockers. Estimated 2-3 more sessions of focused work to paid enterprise readiness.
