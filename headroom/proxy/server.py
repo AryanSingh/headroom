@@ -3294,43 +3294,87 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     )
 
     # ── License validation + Stripe webhook routes ──────────────────
+    # Blocker-1: every EE-facing router in this block is built via a
+    # factory that accepts the auth dependencies and applies them to
+    # every endpoint. The Stripe webhook is the only exception — it
+    # uses HMAC signature verification, not admin auth.
     try:
         from headroom.proxy.routes.license_validation import (
-            router as license_router,
+            create_license_validation_router,
         )
 
-        app.include_router(license_router)
+        app.include_router(
+            create_license_validation_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.spend import router as spend_router
+        from headroom.proxy.routes.spend import create_spend_router
 
-        app.include_router(spend_router)
+        app.include_router(
+            create_spend_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.policy import router as policy_router
+        from headroom.proxy.routes.policy import create_policy_router
 
-        app.include_router(policy_router)
+        app.include_router(
+            create_policy_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.license import router as license_router
+        from headroom.proxy.routes.license import create_license_router
 
-        app.include_router(license_router)
+        app.include_router(
+            create_license_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.audit import router as audit_router
+        from headroom.proxy.routes.audit import create_audit_router
 
-        app.include_router(audit_router)
+        app.include_router(
+            create_audit_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
+    # Team Memory Service: same pattern — admin auth + memory.write RBAC.
+    try:
+        from headroom.proxy.routes.memory import create_memory_router
+
+        app.include_router(
+            create_memory_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
+    except ImportError:
+        pass
+
+    # Residency proof: kept unauthenticated by design (the attestation
+    # is itself signed). Documented exception to the auth gate.
     try:
         from headroom.proxy.routes.residency import router as residency_router
 
@@ -3338,6 +3382,55 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         logger.debug("Residency proof route mounted at /v1/residency/proof")
     except ImportError:
         pass
+
+    try:
+        from headroom.proxy.routes.rbac import router as rbac_router
+        app.include_router(rbac_router)
+    except ImportError:
+        pass
+
+    try:
+        from headroom.proxy.routes.sso import router as sso_router
+        app.include_router(sso_router)
+    except ImportError:
+        pass
+
+    try:
+        from headroom.proxy.routes.rate_limit import router as rate_limit_router
+        app.include_router(rate_limit_router)
+    except ImportError:
+        pass
+
+    try:
+        from headroom.proxy.routes.airgap import router as airgap_router
+        app.include_router(airgap_router)
+    except ImportError:
+        pass
+
+    try:
+        from headroom.proxy.routes.secrets import router as secrets_router
+        app.include_router(secrets_router)
+    except ImportError:
+        pass
+
+    # Provider failover admin: requires admin auth + providers.write RBAC.
+    # The create_failover_router factory accepts an injected FailoverRouter
+    # so this site is the only one that touches the proxy state for these
+    # routes. We only mount it if a FailoverRouter is configured.
+    failover_router = getattr(proxy, "failover_router", None)
+    if failover_router is not None:
+        try:
+            from headroom.proxy.routes.failover import create_failover_router
+
+            app.include_router(
+                create_failover_router(
+                    failover_router=failover_router,
+                    require_admin_auth=_require_admin_auth,
+                    require_rbac_permission=_require_rbac_permission,
+                )
+            )
+        except ImportError:
+            pass
 
     register_provider_routes(app, proxy)
 
