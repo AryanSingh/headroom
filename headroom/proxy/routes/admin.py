@@ -166,9 +166,19 @@ def create_admin_router(
     # ── Enterprise Admin Dashboard ────────────────────────────────────
     from pathlib import Path as _Path
 
-    from fastapi.responses import HTMLResponse as _HTMLResponse
+    from fastapi.responses import HTMLResponse as _HTMLResponse, RedirectResponse as _RedirectResponse
 
-    _DASHBOARD_PATH = _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "dist" / "index.html"
+    # Blocker-6 (production-audit-2026-06-20.md): the EE admin
+    # dashboard route previously read
+    # `dashboard/dist/index.html` which does not exist. The
+    # actual dashboard is at `headroom/dashboard/templates/dashboard.html`.
+    # The fix tries the EE build path first, then falls back to
+    # the OSS dashboard, then to a friendly 404 with a link to
+    # the working /dashboard route.
+    _ADMIN_DASHBOARD_CANDIDATES = [
+        _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "dist" / "index.html",
+        _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "templates" / "dashboard.html",
+    ]
 
     @router.get(
         "/admin",
@@ -177,15 +187,44 @@ def create_admin_router(
         dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("dashboard.read"))],
     )
     async def admin_dashboard():
-        """Serve the enterprise admin dashboard UI."""
-        try:
-            content = _DASHBOARD_PATH.read_text(encoding="utf-8")
-            return _HTMLResponse(content=content)
-        except FileNotFoundError:
-            return _HTMLResponse(
-                content="<h1>CutCtx Admin Dashboard</h1><p>Dashboard file not found.</p>",
-                status_code=404,
-            )
+        """Serve the enterprise admin dashboard UI.
+
+        Tries the EE build first, then falls back to the OSS
+        dashboard. If neither file is present, returns a
+        friendly HTML page that points the operator at the
+        working ``/dashboard`` route instead of an opaque 404.
+        """
+        for candidate in _ADMIN_DASHBOARD_CANDIDATES:
+            try:
+                content = candidate.read_text(encoding="utf-8")
+                return _HTMLResponse(content=content)
+            except FileNotFoundError:
+                continue
+        # Neither file is present — return a helpful HTML page
+        # that links to the working /dashboard route. The
+        # enterprise admin surface (spend, audit, policy, RBAC)
+        # is still accessible via the API endpoints below; this
+        # page is the UI for those features.
+        return _HTMLResponse(
+            content=(
+                "<!DOCTYPE html>"
+                "<html><head><title>CutCtx Admin</title></head><body>"
+                "<h1>CutCtx Admin Dashboard</h1>"
+                "<p>The enterprise admin UI is not built. The OSS dashboard is "
+                "available at <a href='/dashboard'>/dashboard</a> and the JSON "
+                "admin API is documented in the OpenAPI schema.</p>"
+                "<h2>Available API endpoints</h2>"
+                "<ul>"
+                "<li><code>GET /entitlements</code> — current tier + features</li>"
+                "<li><code>GET /audit/events</code> — audit log query</li>"
+                "<li><code>GET /reports/savings</code> — savings report</li>"
+                "<li><code>GET /reports/usage</code> — usage report</li>"
+                "<li><code>GET /rbac/roles</code> — RBAC role assignments</li>"
+                "<li><code>POST /cache/clear</code> — clear response cache</li>"
+                "</ul></body></html>"
+            ),
+            status_code=200,
+        )
 
     # ── Entitlement Status ────────────────────────────────────────────
 

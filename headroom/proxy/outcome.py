@@ -33,65 +33,6 @@ from typing import Any
 logger = logging.getLogger("headroom.proxy")
 
 
-def _build_savings_breakdown(
-    outcome: "RequestOutcome",
-) -> tuple[dict[str, int], dict[str, float], dict[str, dict[str, Any]]]:
-    """Build per-source savings buckets from a completed request.
-
-    Returns token, USD, and metadata maps keyed by canonical savings
-    source name. The caller decides how to merge those values into the
-    unified ledger.
-    """
-    tokens: dict[str, int] = {}
-    usd: dict[str, float] = {}
-    meta: dict[str, dict[str, Any]] = {}
-
-    def _add(source: str, *, token_count: int = 0, usd_value: float = 0.0) -> None:
-        token_count = max(0, int(token_count))
-        usd_value = max(0.0, float(usd_value))
-        if token_count > 0:
-            tokens[source] = tokens.get(source, 0) + token_count
-        if usd_value > 0:
-            usd[source] = round(usd.get(source, 0.0) + usd_value, 6)
-        if token_count > 0 or usd_value > 0:
-            meta[source] = {"tokens": token_count, "usd": usd_value}
-
-    _add(
-        "provider_prompt_cache",
-        token_count=outcome.cache_read_tokens,
-    )
-    _add(
-        "cutctx_compression",
-        token_count=outcome.tokens_saved,
-    )
-    _add(
-        "semantic_cache",
-        token_count=outcome.semantic_cache_avoided_tokens,
-    )
-    _add(
-        "prefix_cache_self_hosted",
-        token_count=outcome.self_hosted_prefix_cache_hits,
-    )
-    _add(
-        "model_routing",
-        token_count=outcome.model_routing_tokens_saved,
-        usd_value=outcome.model_routing_usd_saved,
-    )
-
-    extra = outcome.savings_metadata or {}
-    if isinstance(extra, dict):
-        for raw_name, payload in extra.items():
-            if not isinstance(payload, dict):
-                continue
-            source = str(raw_name).strip().lower()
-            if not source:
-                continue
-            token_count = payload.get("tokens", 0)
-            usd_value = payload.get("usd", 0.0)
-            _add(source, token_count=token_count, usd_value=usd_value)
-    return tokens, usd, meta
-
-
 @dataclass(frozen=True)
 class RequestOutcome:
     """Immutable, value-equal snapshot of a completed request.
@@ -303,6 +244,7 @@ class RequestOutcome:
         pipeline_timing: dict[str, float] | None = None,
         waste_signals: dict[str, int] | None = None,
         original_messages: list[dict] | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
     ) -> RequestOutcome:
         """Construct an outcome from the locals available at streaming
         finalize. Three streaming finalizers
@@ -394,6 +336,7 @@ class RequestOutcome:
             client=client,
             request_messages=log_request_messages,
             compressed_messages=log_compressed_messages,
+            savings_metadata=savings_metadata,
         )
 
 

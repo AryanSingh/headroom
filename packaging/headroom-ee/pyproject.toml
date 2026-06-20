@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
     "cutctx-ai",              # the open-source Apache-2.0 client (published as cutctx-ai / headroom-ai)
     "cryptography>=41.0.0",   # trial/seat state + license verification
+    "PyJWT[crypto]>=2.8.0",   # required for SSO OIDC signature verification (Blocker-4 fix in headroom_ee/sso.py)
 ]
 
 [project.urls]
