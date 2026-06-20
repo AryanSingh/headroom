@@ -1,0 +1,357 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025-2026 Cutctx Labs.
+"""Tests for the config-driven cost-based model router (Blocker-5).
+
+Production audit (production-audit-progress-2026-06-20.md)
+found that the model_routing source was structurally zero
+in live traffic. This file tests the new minimum-viable
+router that closes that gap.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from unittest.mock import patch
+
+import pytest
+
+from headroom.proxy.model_router import (
+    ModelRoute,
+    ModelRouter,
+    ModelRouterConfig,
+    RoutingDecision,
+)
+
+
+# ─- Config loading ───────────────────────────────────────────────
+
+
+def test_config_from_env_empty_when_unset() -> None:
+    """Unset env var produces an empty config (no routing)."""
+    with patch.dict(os.environ, {}, clear=True):
+        cfg = ModelRouterConfig.from_env()
+    assert cfg.enabled is False
+    assert cfg.routes == []
+
+
+def test_config_from_env_disabled_by_default() -> None:
+    """Setting the env var to an empty JSON object still leaves
+    enabled=False. The router is OFF by default.
+    """
+    with patch.dict(os.environ, {"CUTCTX_MODEL_ROUTING": "{}"}):
+        cfg = ModelRouterConfig.from_env()
+    assert cfg.enabled is False
+
+
+def test_config_from_env_parses_routes() -> None:
+    payload = json.dumps(
+        {
+            "enabled": True,
+            "downgrade_when": "always",
+            "routes": [
+                {
+                    "source": "claude-opus-4-5",
+                    "target": "claude-sonnet-4-5",
+                },
+                {
+                    "source": "gpt-4o",
+                    "target": "gpt-4o-mini",
+                },
+            ],
+        }
+    )
+    with patch.dict(os.environ, {"CUTCTX_MODEL_ROUTING": payload}):
+        cfg = ModelRouterConfig.from_env()
+    assert cfg.enabled is True
+    assert cfg.downgrade_when == "always"
+    assert len(cfg.routes) == 2
+    assert cfg.routes[0].source == "claude-opus-4-5"
+    assert cfg.routes[0].target == "claude-sonnet-4-5"
+    assert cfg.routes[1].source == "gpt-4o"
+    assert cfg.routes[1].target == "gpt-4o-mini"
+
+
+def test_config_from_env_invalid_json_falls_back_to_disabled() -> None:
+    with patch.dict(os.environ, {"CUTCTX_MODEL_ROUTING": "not json"}):
+        cfg = ModelRouterConfig.from_env()
+    assert cfg.enabled is False
+
+
+# ─- maybe_route() ───────────────────────────────────────────────
+
+
+def test_disabled_router_always_passes_through() -> None:
+    """A router with enabled=False never routes, regardless
+    of the model.
+    """
+    r = ModelRouter(ModelRouterConfig(enabled=False))
+    decision = r.maybe_route("claude-opus-4-5")
+    assert decision.routing_applied is False
+    assert decision.target_model is None
+    assert decision.reason == "router_disabled"
+
+
+def test_no_route_for_model_passes_through() -> None:
+    """A router with no matching route for the requested model
+    returns a pass-through decision.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[ModelRoute(source="gpt-4o", target="gpt-4o-mini")],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route("claude-opus-4-5")
+    assert decision.routing_applied is False
+    assert decision.reason == "no_route_for_model"
+
+
+def test_route_applied_with_known_costs() -> None:
+    """A route with known per-mtok costs applies the downgrade
+    and returns the target model.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="claude-opus-4-5",
+                target="claude-sonnet-4-5",
+                source_cost_per_mtok=15.0,  # $15 per million input tokens
+                target_cost_per_mtok=3.0,  # $3 per million
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route("claude-opus-4-5")
+    assert decision.routing_applied is True
+    assert decision.target_model == "claude-sonnet-4-5"
+    assert decision.source_model == "claude-opus-4-5"
+    # Per-mtok delta is 12.0; tokens_saved is filled in finalize.
+    assert decision.tokens_saved == 0
+    assert decision.usd_saved == 0.0
+
+
+def test_workload_not_downgradeable_blocks_route() -> None:
+    """When downgrade_when='low_cache_read' and the request
+    has a high cache_read share, the route is NOT applied.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="low_cache_read",
+        cache_read_threshold=0.5,
+        routes=[
+            ModelRoute(
+                source="claude-opus-4-5",
+                target="claude-sonnet-4-5",
+                source_cost_per_mtok=15.0,
+                target_cost_per_mtok=3.0,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route(
+        "claude-opus-4-5",
+        cache_read_tokens=800,  # 80% cache share
+        attempted_input_tokens=1000,
+    )
+    assert decision.routing_applied is False
+    assert decision.reason == "workload_not_downgradeable"
+
+
+def test_workload_downgradeable_passes_threshold() -> None:
+    """When cache_read share is below the threshold, the
+    route is applied.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="low_cache_read",
+        cache_read_threshold=0.5,
+        routes=[
+            ModelRoute(
+                source="claude-opus-4-5",
+                target="claude-sonnet-4-5",
+                source_cost_per_mtok=15.0,
+                target_cost_per_mtok=3.0,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route(
+        "claude-opus-4-5",
+        cache_read_tokens=200,  # 20% cache share
+        attempted_input_tokens=1000,
+    )
+    assert decision.routing_applied is True
+    assert decision.target_model == "claude-sonnet-4-5"
+
+
+def test_always_downgrade_bypasses_workload_classifier() -> None:
+    """When downgrade_when='always', the workload classifier
+    is bypassed and the route is always applied.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="gpt-4o",
+                target="gpt-4o-mini",
+                source_cost_per_mtok=2.5,
+                target_cost_per_mtok=0.15,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route(
+        "gpt-4o",
+        cache_read_tokens=999,
+        attempted_input_tokens=1000,
+    )
+    assert decision.routing_applied is True
+
+
+def test_cost_lookup_failure_skips_route() -> None:
+    """If both costs are None (LiteLLM doesn't know the
+    models) the route is skipped to avoid a negative-savings
+    misclassification.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="mystery-model",
+                target="another-mystery-model",
+                # no cost overrides
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    with patch.object(r, "_lookup_costs", return_value=(None, None)):
+        decision = r.maybe_route("mystery-model")
+    assert decision.routing_applied is False
+    assert decision.reason == "cost_lookup_failed"
+
+
+def test_cost_lookup_negative_delta_skips_route() -> None:
+    """If the target is more expensive than the source (e.g.
+    operator misconfigured), the route is skipped to avoid
+    the router making the request more expensive.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="cheap-model",
+                target="expensive-model",
+                source_cost_per_mtok=1.0,
+                target_cost_per_mtok=10.0,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route("cheap-model")
+    assert decision.routing_applied is False
+    assert decision.reason == "cost_lookup_failed"
+
+
+# ─- finalize_savings() ──────────────────────────────────────────
+
+
+def test_finalize_savings_computes_token_and_usd() -> None:
+    """finalize_savings applies the per-mtok delta to the
+    actual input token count.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="claude-opus-4-5",
+                target="claude-sonnet-4-5",
+                source_cost_per_mtok=15.0,
+                target_cost_per_mtok=3.0,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route("claude-opus-4-5")
+    assert decision.routing_applied is True
+    finalized = r.finalize_savings(decision, input_tokens=100_000)
+    # Delta is 12.0 USD per million tokens. 100,000 tokens =
+    # 0.1 million, so usd_saved = 12.0 * 0.1 = 1.20.
+    assert finalized.tokens_saved == 100_000
+    assert finalized.usd_saved == pytest.approx(1.20)
+
+
+def test_finalize_savings_passthrough_is_noop() -> None:
+    """If the decision was a pass-through (no routing),
+    finalize_savings returns it unchanged.
+    """
+    r = ModelRouter(ModelRouterConfig(enabled=False))
+    decision = r.maybe_route("claude-opus-4-5")
+    finalized = r.finalize_savings(decision, input_tokens=100_000)
+    assert finalized.routing_applied is False
+    assert finalized.tokens_saved == 0
+    assert finalized.usd_saved == 0.0
+
+
+# ─- Integration: litellm cost lookup ─────────────────────────────
+
+
+def test_lookup_costs_uses_litellm_when_available() -> None:
+    """The cost lookup reads LiteLLM's published rates when
+    the route has no explicit cost override.
+    """
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="gpt-4o",
+                target="gpt-4o-mini",
+                # no cost overrides — must look up LiteLLM
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    with patch.dict(
+        "sys.modules",
+        {
+            "litellm": __import__(
+                "types", fromlist=["ModuleType"]
+            ).ModuleType("litellm"),
+        },
+    ):
+        import litellm
+        litellm.model_cost = {
+            "gpt-4o": {"input_cost_per_token": 2.5e-6},  # $2.50 / 1M
+            "gpt-4o-mini": {"input_cost_per_token": 0.15e-6},  # $0.15 / 1M
+        }
+        src, tgt = r._lookup_costs("gpt-4o", "gpt-4o-mini")
+    assert src == pytest.approx(2.5)
+    assert tgt == pytest.approx(0.15)
+
+
+def test_lookup_costs_returns_none_when_litellm_missing() -> None:
+    """When litellm is not installed or the model is unknown,
+    the lookup returns (None, None) so the route is skipped.
+    """
+    import sys
+
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(source="gpt-4o", target="gpt-4o-mini"),
+        ],
+    )
+    r = ModelRouter(cfg)
+    # Force the import inside _lookup_costs to fail.
+    with patch.dict(sys.modules, {"litellm": None}):
+        src, tgt = r._lookup_costs("gpt-4o", "gpt-4o-mini")
+    assert src is None
+    assert tgt is None
