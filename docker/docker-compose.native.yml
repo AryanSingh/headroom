@@ -1,6 +1,12 @@
 services:
   cli:
-    image: ${HEADROOM_IMAGE:-ghcr.io/chopratejas/headroom:latest}
+    # Medium-35 (production-audit-progress-2026-06-20.md): align
+    # the docker-compose.native.yml image reference with the
+    # canonical owner (aryansingh) used by the Helm chart and
+    # the github container registry. The old chopratejas/headroom
+    # reference is a stale pre-rebrand artifact; the new
+    # aryansingh/headroom reference matches helm/headroom/values.yaml.
+    image: ${HEADROOM_IMAGE:-ghcr.io/aryansingh/headroom:latest}
     entrypoint: ["headroom"]
     working_dir: /workspace
     stdin_open: true
