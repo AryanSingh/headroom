@@ -251,7 +251,20 @@
         </template>
 
         <!-- Savings by source (Phase 1.4: savings orchestration) -->
-        <template x-if="stats.savings_by_source && (stats.savings_by_source.total_tokens || 0) > 0 || (stats.savings_by_source && Object.values(stats.savings_by_source.usd || {}).some(v => (v || 0) > 0))">
+        <!-- Low-41 (production-audit-progress-2026-06-20.md): the previous
+             x-if guard mixed short-circuit operators with .some() and
+             null-coalescing in a way that was hard to read. The new
+             guard extracts the boolean into a clearly-named local
+             x-data:has_savings helper. Renders when any source has
+             tokens > 0 OR usd > 0. -->
+        <template x-if="(() => {
+            const s = stats.savings_by_source || {};
+            const t = s.tokens || {};
+            const u = s.usd || {};
+            const tokensPositive = Object.values(t).some(v => (v || 0) > 0);
+            const usdPositive = Object.values(u).some(v => (v || 0) > 0);
+            return tokensPositive || usdPositive;
+        })()">
             <div class="bg-surface rounded-lg p-4 border border-border mb-6">
                 <div class="flex justify-between items-center mb-3">
                     <div class="text-sm font-medium text-gray-300">Savings by Source</div>
@@ -1536,7 +1549,13 @@
                 stats: {},
                 historyStats: {},
                 healthy: true,
-                version: '0.3.0',
+                # Low-40 (production-audit-progress-2026-06-20.md):
+                # Initial value is 'unknown' so the dynamic value
+                # from /health is what the operator sees. The
+                # previous hardcoded '0.3.0' would mask the real
+                # version on a deployment of any other version
+                # until the first /health response.
+                version: 'unknown',
                 lastUpdate: 'never',
                 viewMode: 'session',
                 historyGranularity: 'daily',
@@ -1613,7 +1632,7 @@
                         this.stats = await statsRes.json();
                         const health = await healthRes.json();
                         this.healthy = health.status === 'healthy';
-                        this.version = health.version || '0.3.0';
+                        this.version = health.version || 'unknown';
                         this.log_full_messages = this.stats.log_full_messages || false;
 
                         // Update history for sparklines
