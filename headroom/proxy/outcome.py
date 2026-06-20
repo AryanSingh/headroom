@@ -371,6 +371,39 @@ def _build_savings_breakdown(
     model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
     provider_cache_tokens = int(outcome.cache_read_tokens or 0)
 
+    # Promote savings_metadata to the typed fields BEFORE the
+    # residual calculation. The audit (production-audit-2026-06-20.md)
+    # found that handlers that only set savings_metadata (not the
+    # typed fields) led to over-attribution: prefix_cache_self_hosted
+    # and model_routing were added on top of an undiminished
+    # cutctx_compression residual, double-counting up to 100% of
+    # total tokens_saved. The fix promotes metadata values into
+    # the typed fields so the residual calculation subtracts them
+    # correctly.
+    extra_meta = outcome.savings_metadata or {}
+    if isinstance(extra_meta, dict):
+        # Self-hosted prefix cache tokens
+        sh_meta = extra_meta.get("prefix_cache_self_hosted") or extra_meta.get("vllm_apc")
+        if isinstance(sh_meta, dict):
+            sh_tokens = int(sh_meta.get("tokens", 0) or 0)
+            if sh_tokens > self_hosted_tokens:
+                self_hosted_tokens = sh_tokens
+        # Model routing tokens / USD
+        mr_meta = extra_meta.get("model_routing")
+        if isinstance(mr_meta, dict):
+            mr_tokens = int(mr_meta.get("tokens", 0) or 0)
+            if mr_tokens > model_routing_tokens:
+                model_routing_tokens = mr_tokens
+            mr_usd = float(mr_meta.get("usd", 0.0) or 0.0)
+            if mr_usd > model_routing_usd:
+                model_routing_usd = mr_usd
+        # Semantic cache tokens
+        sc_meta = extra_meta.get("semantic_cache") or extra_meta.get("gptcache")
+        if isinstance(sc_meta, dict):
+            sc_tokens = int(sc_meta.get("tokens", 0) or 0)
+            if sc_tokens > semantic_tokens:
+                semantic_tokens = sc_tokens
+
     breakdown = RequestSavingsBreakdown(
         raw_input_tokens=int(outcome.original_tokens or 0),
         post_cutctx_tokens=int(outcome.optimized_tokens or 0),
@@ -448,6 +481,33 @@ def _build_savings_breakdown(
             )
 
     # 6. Escape hatch: extra sources via savings_metadata dict.
+    # The promotion block above already merged the typed fields
+    # with the metadata values, so by the time we reach this block,
+    # any source that the metadata also named is already accounted
+    # for in the typed fields. We must NOT add the metadata again
+    # or the per-source totals would be double-counted. To avoid
+    # double-counting, we track which sources were promoted (i.e.
+    # the metadata carried a value larger than the typed field)
+    # and skip the escape-hatch add for those sources.
+    promoted_sources: set[str] = set()
+    if isinstance(extra_meta, dict):
+        for raw_name, payload in extra_meta.items():
+            if not isinstance(payload, dict):
+                continue
+            tokens = int(payload.get("tokens", 0) or 0)
+            usd = float(payload.get("usd", 0.0) or 0.0)
+            if tokens > 0 or usd > 0:
+                promoted_sources.add(str(raw_name).strip().lower())
+            if tokens > 0:
+                # Map alias → canonical.
+                canonical = str(raw_name).strip().lower()
+                if canonical == "vllm_apc":
+                    promoted_sources.add("prefix_cache_self_hosted")
+                elif canonical == "litellm":
+                    promoted_sources.add("provider_prompt_cache")
+                elif canonical == "gptcache":
+                    promoted_sources.add("semantic_cache")
+
     extra = outcome.savings_metadata or {}
     if isinstance(extra, dict):
         for raw_name, payload in extra.items():
@@ -460,6 +520,25 @@ def _build_savings_breakdown(
             tokens = int(payload.get("tokens", 0) or 0)
             usd = float(payload.get("usd", 0.0) or 0.0)
             if tokens <= 0 and usd <= 0:
+                continue
+            # If the typed-field promotion block already accounted
+            # for this source, skip the escape-hatch add to avoid
+            # double-counting. The exception is cutctx_compression
+            # which is the RESIDUAL — for that source, the escape
+            # hatch can re-attribute tokens that were already
+            # counted in the residual.
+            canonical = src.value
+            if (
+                canonical in promoted_sources
+                and canonical != SavingsSource.CUTCTX_COMPRESSION.value
+            ):
+                # Already accounted via the promotion block.
+                # Only the USD value, if not already in by_source_usd,
+                # needs adding (the typed-field promotion only
+                # captured model_routing usd).
+                if usd > 0 and canonical == SavingsSource.MODEL_ROUTING.value:
+                    if by_source_usd.get(canonical, 0.0) < usd:
+                        by_source_usd[canonical] = usd
                 continue
             # If the extra source re-attributes tokens that were
             # already counted in the CutCtx bucket, roll them back so
