@@ -1658,6 +1658,27 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                             getattr(retention_mgr.config, "audit_enabled", False),
                             getattr(retention_mgr.config, "episodic_enabled", False),
                         )
+
+                    # High-15: start the webhook dispatcher so
+                    # operator subscriptions are picked up at boot.
+                    # Idempotent: no-op if HEADROOM_WEBHOOK_URL is
+                    # unset and no subscriptions were added.
+                    try:
+                        from headroom.proxy.webhooks import (
+                            get_webhook_dispatcher,
+                        )
+
+                        webhook_d = get_webhook_dispatcher()
+                        if webhook_d.list_subscriptions():
+                            await webhook_d.start()
+                            logger.info(
+                                "WebhookDispatcher started (%d subscriptions)",
+                                len(webhook_d.list_subscriptions()),
+                            )
+                    except Exception as webhook_exc:
+                        logger.debug(
+                            "Webhook dispatcher not started: %s", webhook_exc
+                        )
                     else:
                         logger.debug("Retention manager: no policies enabled")
                 except ImportError:
@@ -1732,6 +1753,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
                 retention_mgr = get_retention_manager()
                 await retention_mgr.stop()
+            except (ImportError, Exception):
+                pass
+
+            # Stop the webhook dispatcher (High-15). Idempotent.
+            try:
+                from headroom.proxy.webhooks import (
+                    reset_webhook_dispatcher,
+                )
+
+                await reset_webhook_dispatcher()
             except (ImportError, Exception):
                 pass
             if proxy.code_graph_watcher:

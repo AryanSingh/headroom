@@ -256,10 +256,136 @@ def create_admin_router(
                 "<li><code>GET /reports/usage</code> — usage report</li>"
                 "<li><code>GET /rbac/roles</code> — RBAC role assignments</li>"
                 "<li><code>POST /cache/clear</code> — clear response cache</li>"
+                "<li><code>GET /webhooks/subscriptions</code> — list webhook subscribers</li>"
+                "<li><code>POST /webhooks/subscriptions</code> — add a subscriber</li>"
+                "<li><code>DELETE /webhooks/subscriptions</code> — remove a subscriber</li>"
+                "<li><code>POST /webhooks/test</code> — fire a synthetic test event</li>"
                 "</ul></body></html>"
             ),
             status_code=200,
         )
+
+    # ── Webhook subscription management ────────────────────────────
+    # High-15 (production-audit-progress-2026-06-20.md): expose the
+    # new production-grade webhook dispatcher behind a set of
+    # admin endpoints. Operators can list, add, remove, and
+    # test subscriptions from the same /admin surface that
+    # already serves the dashboard.
+
+    from pydantic import BaseModel, Field as _Field
+
+    class _WebhookSubIn(BaseModel):
+        url: str = _Field(..., min_length=1, max_length=2048)
+        secret: str = _Field(..., min_length=8, max_length=256)
+        event_types: list[str] | None = _Field(
+            default=None,
+            description="If null, all events. Else, only listed types.",
+        )
+        org_id: str | None = _Field(
+            default=None,
+            description="If set, only events for this org are delivered.",
+        )
+        enabled: bool = _Field(default=True)
+
+    @router.get(
+        "/webhooks/subscriptions",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("webhooks.read")),
+        ],
+    )
+    async def webhooks_list():
+        """List configured webhook subscriptions."""
+        from headroom.proxy.webhooks import get_webhook_dispatcher
+
+        d = get_webhook_dispatcher()
+        return {"subscriptions": d.list_subscriptions()}
+
+    @router.post(
+        "/webhooks/subscriptions",
+        status_code=201,
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("webhooks.write")),
+        ],
+    )
+    async def webhooks_subscribe(body: _WebhookSubIn):
+        """Register a new webhook subscription (idempotent on URL)."""
+        from headroom.proxy.webhooks import (
+            WebhookEventType,
+            WebhookSubscription,
+            get_webhook_dispatcher,
+        )
+
+        # Validate event types against the known enum.
+        et_set: set[str] | None = None
+        if body.event_types is not None:
+            unknown = set(body.event_types) - {e.value for e in WebhookEventType}
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "unknown_event_types",
+                        "unknown": sorted(unknown),
+                        "valid": sorted(e.value for e in WebhookEventType),
+                    },
+                )
+            et_set = set(body.event_types)
+        sub = WebhookSubscription(
+            url=body.url,
+            secret=body.secret,
+            event_types=et_set,
+            org_id=body.org_id,
+            enabled=body.enabled,
+        )
+        d = get_webhook_dispatcher()
+        d.subscribe(sub)
+        return {"ok": True, "subscription": d.list_subscriptions()[-1]}
+
+    @router.delete(
+        "/webhooks/subscriptions",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("webhooks.write")),
+        ],
+    )
+    async def webhooks_unsubscribe(url: str):
+        """Remove a subscription by URL."""
+        from headroom.proxy.webhooks import get_webhook_dispatcher
+
+        d = get_webhook_dispatcher()
+        removed = d.unsubscribe(url)
+        if not removed:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No subscription for url={url!r}",
+            )
+        return {"ok": True, "removed": url}
+
+    @router.post(
+        "/webhooks/test",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("webhooks.write")),
+        ],
+    )
+    async def webhooks_test(
+        event_type: str = "spend.threshold_exceeded",
+        org_id: str | None = None,
+    ):
+        """Fire a synthetic test event for end-to-end verification."""
+        from headroom.proxy.webhooks import get_webhook_dispatcher
+
+        d = get_webhook_dispatcher()
+        n = await d.fire(
+            event_type,
+            {
+                "test": True,
+                "message": "This is a synthetic test event from cutctx admin",
+            },
+            org_id=org_id,
+        )
+        return {"enqueued_for": n, "event_type": event_type}
 
     # ── Entitlement Status ────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 """Role-based access control (RBAC) for enterprise admin endpoints.
@@ -69,6 +69,8 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "compression.write": AdminRole.OPERATOR,
     "transformations.read": AdminRole.OPERATOR,
     "fleet.write": AdminRole.OPERATOR,
+    "webhooks.read": AdminRole.OPERATOR,
+    "webhooks.write": AdminRole.OPERATOR,
     # Admin-only
     "stats.reset": AdminRole.ADMIN,
     "config.reset": AdminRole.ADMIN,
