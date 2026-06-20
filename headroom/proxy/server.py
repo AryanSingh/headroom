@@ -1658,34 +1658,49 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                             getattr(retention_mgr.config, "audit_enabled", False),
                             getattr(retention_mgr.config, "episodic_enabled", False),
                         )
-
-                    # High-15: start the webhook dispatcher so
-                    # operator subscriptions are picked up at boot.
-                    # Idempotent: no-op if HEADROOM_WEBHOOK_URL is
-                    # unset and no subscriptions were added.
-                    try:
-                        from headroom.proxy.webhooks import (
-                            get_webhook_dispatcher,
-                        )
-
-                        webhook_d = get_webhook_dispatcher()
-                        if webhook_d.list_subscriptions():
-                            await webhook_d.start()
-                            logger.info(
-                                "WebhookDispatcher started (%d subscriptions)",
-                                len(webhook_d.list_subscriptions()),
-                            )
-                    except Exception as webhook_exc:
-                        logger.debug(
-                            "Webhook dispatcher not started: %s", webhook_exc
-                        )
-                    else:
-                        logger.debug("Retention manager: no policies enabled")
                 except ImportError:
                     logger.debug(
                         "Retention manager not started: headroom_ee not installed "
                         "(OSS-only deployment)."
                     )
+
+                # High-15: start the webhook dispatcher so
+                # operator subscriptions are picked up at boot.
+                # Idempotent: no-op if HEADROOM_WEBHOOK_URL is
+                # unset and no subscriptions were added.
+                try:
+                    from headroom.proxy.webhooks import (
+                        get_webhook_dispatcher,
+                    )
+
+                    webhook_d = get_webhook_dispatcher()
+                    if webhook_d.list_subscriptions():
+                        await webhook_d.start()
+                        logger.info(
+                            "WebhookDispatcher started (%d subscriptions)",
+                            len(webhook_d.list_subscriptions()),
+                        )
+                except Exception as webhook_exc:
+                    logger.debug(
+                        "Webhook dispatcher not started: %s", webhook_exc
+                    )
+
+                # Blocker-5 part 2: bind the model router to the
+                # proxy state so handlers can call it. The router
+                # is OFF by default unless the operator populates
+                # CUTCTX_MODEL_ROUTING.
+                try:
+                    from headroom.proxy.model_router import ModelRouter
+
+                    proxy._model_router = ModelRouter()
+                    if proxy._model_router.config.enabled:
+                        logger.info(
+                            "ModelRouter enabled with %d routes",
+                            len(proxy._model_router.config.routes),
+                        )
+                except Exception as mr_exc:
+                    logger.debug("ModelRouter not bound: %s", mr_exc)
+                    proxy._model_router = None
 
                 # Only start beacon if we acquire the lock (first worker wins)
                 _beacon_is_owner[0] = _try_acquire_beacon_lock()
