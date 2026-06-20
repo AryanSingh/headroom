@@ -174,12 +174,154 @@ def integrations_status(output_format: str) -> None:
             **({"error": parse_error} if parse_error else {}),
         }
 
+    # Phase 5.2 follow-up: pull ACTUAL production data from the
+    # savings_tracker so the status surface shows the live per-source
+    # counters rather than reporting "configured but inactive" for
+    # sources the proxy actually used. Today, the proxy populates
+    # semantic_cache (binary hit signal) and provider_prompt_cache
+    # (cache_read_tokens from the upstream usage). The remaining
+    # three sources (cutctx_compression, prefix_cache_self_hosted,
+    # model_routing) appear here so the buyer report and the
+    # dashboard can verify the data path end-to-end.
+    production_status: dict[str, Any] = {}
+    try:
+        from headroom.proxy.savings_tracker import (
+            SavingsTracker,
+            get_default_savings_storage_path,
+        )
+
+        tracker = SavingsTracker()
+        lifetime = tracker.snapshot().get("lifetime", {})
+        production_status = {
+            "storage_path": tracker.storage_path,
+            "lifetime": {
+                "requests": int(lifetime.get("requests", 0) or 0),
+                "tokens_saved": int(lifetime.get("tokens_saved", 0) or 0),
+                "compression_savings_usd": round(
+                    float(lifetime.get("compression_savings_usd", 0.0) or 0.0), 6
+                ),
+                "total_input_tokens": int(
+                    lifetime.get("total_input_tokens", 0) or 0
+                ),
+                "total_input_cost_usd": round(
+                    float(lifetime.get("total_input_cost_usd", 0.0) or 0.0), 6
+                ),
+                "cache_savings_usd": round(
+                    float(lifetime.get("cache_savings_usd", 0.0) or 0.0), 6
+                ),
+                "semantic_cache_savings_usd": round(
+                    float(lifetime.get("semantic_cache_savings_usd", 0.0) or 0.0),
+                    6,
+                ),
+                "self_hosted_prefix_cache_savings_usd": round(
+                    float(
+                        lifetime.get(
+                            "self_hosted_prefix_cache_savings_usd", 0.0
+                        )
+                        or 0.0
+                    ),
+                    6,
+                ),
+                "model_routing_savings_usd": round(
+                    float(lifetime.get("model_routing_savings_usd", 0.0) or 0.0),
+                    6,
+                ),
+            },
+            "by_source": {
+                "provider_prompt_cache": {
+                    "tokens": int(
+                        lifetime.get(
+                            "savings_by_source_tokens.provider_prompt_cache", 0
+                        )
+                        or 0
+                    ),
+                    "usd": round(
+                        float(
+                            lifetime.get(
+                                "savings_by_source_usd.provider_prompt_cache", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    ),
+                },
+                "cutctx_compression": {
+                    "tokens": int(
+                        lifetime.get(
+                            "savings_by_source_tokens.cutctx_compression", 0
+                        )
+                        or 0
+                    ),
+                    "usd": round(
+                        float(
+                            lifetime.get(
+                                "savings_by_source_usd.cutctx_compression", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    ),
+                },
+                "semantic_cache": {
+                    "tokens": int(
+                        lifetime.get("savings_by_source_tokens.semantic_cache", 0)
+                        or 0
+                    ),
+                    "usd": round(
+                        float(
+                            lifetime.get(
+                                "savings_by_source_usd.semantic_cache", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    ),
+                },
+                "prefix_cache_self_hosted": {
+                    "tokens": int(
+                        lifetime.get(
+                            "savings_by_source_tokens.prefix_cache_self_hosted", 0
+                        )
+                        or 0
+                    ),
+                    "usd": round(
+                        float(
+                            lifetime.get(
+                                "savings_by_source_usd.prefix_cache_self_hosted",
+                                0.0,
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    ),
+                },
+                "model_routing": {
+                    "tokens": int(
+                        lifetime.get("savings_by_source_tokens.model_routing", 0)
+                        or 0
+                    ),
+                    "usd": round(
+                        float(
+                            lifetime.get(
+                                "savings_by_source_usd.model_routing", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    ),
+                },
+            },
+        }
+    except Exception as exc:  # noqa: BLE001
+        production_status = {"error": str(exc)}
+
     if output_format == "json":
         click.echo(
             json.dumps(
                 {
                     "providers": providers_status,
                     "integrations": integration_status,
+                    "production": production_status,
                     "savings_sources": [src.value for src in SavingsSource],
                 },
                 indent=2,
@@ -219,6 +361,27 @@ def integrations_status(output_format: str) -> None:
     click.echo(click.style("Savings sources tracked:", bold=True))
     for src in SavingsSource:
         click.echo(f"  {src.value:30s} — {src.label}")
+
+    # Production data: per-source lifetime counters from the savings
+    # tracker. Buyers can run `cutctx integrations status` to confirm
+    # each source is actually recording data, not just declared.
+    click.echo()
+    click.echo(click.style("Production data (lifetime):", bold=True))
+    if "error" in production_status:
+        click.echo(f"  error: {production_status['error']}")
+    else:
+        lifetime = production_status.get("lifetime", {})
+        click.echo(
+            f"  requests={lifetime.get('requests', 0)} "
+            f"tokens_saved={lifetime.get('tokens_saved', 0)} "
+            f"compression_usd=${lifetime.get('compression_savings_usd', 0.0):.4f}"
+        )
+        for src_name, src_data in production_status.get("by_source", {}).items():
+            click.echo(
+                f"  {src_name:30s} "
+                f"tokens={src_data.get('tokens', 0):>10d} "
+                f"usd=${src_data.get('usd', 0.0):.4f}"
+            )
 
 
 @integrations.command("test")

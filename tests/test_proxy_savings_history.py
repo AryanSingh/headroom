@@ -69,8 +69,20 @@ def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatc
         "model": "unknown",
         "total_tokens_saved": 12,
         "compression_savings_usd": 0.5,
+        "cache_savings_usd": 0.0,
+        "semantic_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_usd": 0.0,
+        "model_routing_savings_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
+        "delta_tokens_saved": 0,
+        "delta_savings_usd": 0.0,
+        "delta_cache_savings_usd": 0.0,
+        "delta_semantic_cache_usd": 0.0,
+        "delta_self_hosted_prefix_cache_usd": 0.0,
+        "delta_model_routing_usd": 0.0,
+        "savings_by_source_tokens": {},
+        "savings_by_source_usd": {},
     }
     assert savings_tracker_module._normalize_history_entry({"timestamp": "bad"}) is None
     assert savings_tracker_module._normalize_history_entry(object()) is None
@@ -128,8 +140,20 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "model": "unknown",
             "total_tokens_saved": 30,
             "compression_savings_usd": 0.03,
+            "cache_savings_usd": 0.0,
+            "semantic_cache_savings_usd": 0.0,
+            "self_hosted_prefix_cache_savings_usd": 0.0,
+            "model_routing_savings_usd": 0.0,
             "total_input_tokens": 0,
             "total_input_cost_usd": 0.0,
+            "delta_tokens_saved": 0,
+            "delta_savings_usd": 0.0,
+            "delta_cache_savings_usd": 0.0,
+            "delta_semantic_cache_usd": 0.0,
+            "delta_self_hosted_prefix_cache_usd": 0.0,
+            "delta_model_routing_usd": 0.0,
+            "savings_by_source_tokens": {},
+            "savings_by_source_usd": {},
         }
     ]
     assert snapshot["retention"] == {
@@ -347,6 +371,10 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "requests": 2,
         "tokens_saved": 20,
         "compression_savings_usd": pytest.approx(0.02),
+        "cache_savings_usd": 0.0,
+        "semantic_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_usd": 0.0,
+        "model_routing_savings_usd": 0.0,
         "total_input_tokens": 200,
         "total_input_cost_usd": pytest.approx(0.2),
         "savings_percent": pytest.approx(9.09),
@@ -379,6 +407,10 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "requests": 1,
         "tokens_saved": 5,
         "compression_savings_usd": pytest.approx(0.005),
+        "cache_savings_usd": 0.0,
+        "semantic_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_usd": 0.0,
+        "model_routing_savings_usd": 0.0,
         "total_input_tokens": 50,
         "total_input_cost_usd": pytest.approx(0.05),
         "savings_percent": pytest.approx(9.09),
@@ -945,7 +977,7 @@ def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):
         assert "Monthly Savings" in html
         assert "Per-Model Breakdown" in html
         assert "historyChartModeOptions" in html
-        assert "Expected cost (without Headroom)" in html
+        assert "Expected cost (without Cutctx)" in html
         assert "toggleHistoryModel" in html
         # Checkpoint view plots no per-model lines, so an active model
         # filter must not suppress the aggregate line there.

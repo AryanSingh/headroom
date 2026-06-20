@@ -251,7 +251,7 @@
         </template>
 
         <!-- Savings by source (Phase 1.4: savings orchestration) -->
-        <template x-if="stats.savings_by_source && (stats.savings_by_source.total_tokens || 0) > 0">
+        <template x-if="stats.savings_by_source && (stats.savings_by_source.total_tokens || 0) > 0 || (stats.savings_by_source && Object.values(stats.savings_by_source.usd || {}).some(v => (v || 0) > 0))">
             <div class="bg-surface rounded-lg p-4 border border-border mb-6">
                 <div class="flex justify-between items-center mb-3">
                     <div class="text-sm font-medium text-gray-300">Savings by Source</div>
@@ -265,6 +265,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-gray-500">Provider Prompt Cache</div>
                             <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).provider_prompt_cache || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-cyan-300" x-text="'$' + (((stats.savings_by_source.usd || {}).provider_prompt_cache || 0)).toFixed(4)"></div>
                             <div class="text-xs text-gray-600">Anthropic / OpenAI / Gemini cache</div>
                         </div>
                     </div>
@@ -273,6 +274,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-gray-500">CutCtx Compression</div>
                             <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).cutctx_compression || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-emerald-300" x-text="'$' + (((stats.savings_by_source.usd || {}).cutctx_compression || 0)).toFixed(4)"></div>
                             <div class="text-xs text-gray-600">SmartCrusher / LiveZone / etc.</div>
                         </div>
                     </div>
@@ -281,6 +283,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-gray-500">Semantic Cache</div>
                             <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).semantic_cache || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-violet-300" x-text="'$' + (((stats.savings_by_source.usd || {}).semantic_cache || 0)).toFixed(4)"></div>
                             <div class="text-xs text-gray-600">Repeated-query short-circuits</div>
                         </div>
                     </div>
@@ -289,6 +292,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-gray-500">Self-Hosted Prefix Cache</div>
                             <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).prefix_cache_self_hosted || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-amber-300" x-text="'$' + (((stats.savings_by_source.usd || {}).prefix_cache_self_hosted || 0)).toFixed(4)"></div>
                             <div class="text-xs text-gray-600">vLLM APC and similar</div>
                         </div>
                     </div>
@@ -297,6 +301,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-gray-500">Model Routing</div>
                             <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).model_routing || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-pink-300" x-text="'$' + (((stats.savings_by_source.usd || {}).model_routing || 0)).toFixed(4)"></div>
                             <div class="text-xs text-gray-600">Routed to a cheaper model</div>
                         </div>
                     </div>

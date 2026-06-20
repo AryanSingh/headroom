@@ -824,6 +824,15 @@ class AnthropicHandlerMixin:
                             # counter at 0 and let the parser treat
                             # ``semantic_cache_hit`` as a binary signal.
                             semantic_cache_hit=True,
+                            # Self-hosted prefix cache and model
+                            # routing do not apply to a response-cache
+                            # hit: the proxy never reached the
+                            # upstream. Set the fields explicitly so
+                            # the funnel's per-source merge sees them
+                            # rather than skipping the source.
+                            self_hosted_prefix_cache_hits=0,
+                            model_routing_tokens_saved=0,
+                            model_routing_usd_saved=0.0,
                             total_latency_ms=optimization_latency,
                             overhead_ms=optimization_latency,
                             num_messages=len(messages),
@@ -1958,6 +1967,18 @@ class AnthropicHandlerMixin:
                                 output_tokens=output_tokens,
                                 tokens_saved=tokens_saved,
                                 attempted_input_tokens=attempted_input_tokens,
+                                # Phase 1.4: explicit per-source
+                                # attribution. Cutctx does not route
+                                # Bedrock/Vertex requests to a
+                                # different model or serve them from a
+                                # self-hosted prefix cache, so the
+                                # routing and prefix-cache sources are
+                                # structurally zero. Setting them
+                                # explicitly keeps the funnel's
+                                # per-source merge honest.
+                                self_hosted_prefix_cache_hits=0,
+                                model_routing_tokens_saved=0,
+                                model_routing_usd_saved=0.0,
                                 total_latency_ms=total_latency,
                                 overhead_ms=optimization_latency,
                                 pipeline_timing=pipeline_timing,
@@ -2486,6 +2507,20 @@ class AnthropicHandlerMixin:
                             cache_write_5m_tokens=cw_5m_tokens,
                             cache_write_1h_tokens=cw_1h_tokens,
                             uncached_input_tokens=uncached_input_tokens,
+                            # Phase 1.4: explicit per-source attribution.
+                            # Cutctx does not currently route
+                            # Anthropic requests to a different model
+                            # or serve them from a self-hosted prefix
+                            # cache, so the routing and prefix-cache
+                            # sources are structurally zero. Setting
+                            # them explicitly keeps the funnel's
+                            # per-source merge honest: a future
+                            # change that introduces routing or
+                            # self-hosted caching can populate these
+                            # without touching this call site.
+                            self_hosted_prefix_cache_hits=0,
+                            model_routing_tokens_saved=0,
+                            model_routing_usd_saved=0.0,
                             total_latency_ms=total_latency,
                             overhead_ms=optimization_latency,
                             pipeline_timing=pipeline_timing,
@@ -2893,6 +2928,12 @@ class AnthropicHandlerMixin:
                     output_tokens=0,
                     tokens_saved=total_tokens_saved,
                     attempted_input_tokens=total_optimized_tokens + total_tokens_saved,
+                    # Phase 1.4: explicit per-source attribution.
+                    # Batch traffic does not currently exercise
+                    # self-hosted prefix cache or model routing.
+                    self_hosted_prefix_cache_hits=0,
+                    model_routing_tokens_saved=0,
+                    model_routing_usd_saved=0.0,
                     total_latency_ms=optimization_latency,
                     overhead_ms=optimization_latency,
                     pipeline_timing=pipeline_timing,
@@ -3016,6 +3057,14 @@ class AnthropicHandlerMixin:
                 output_tokens=0,
                 tokens_saved=0,
                 attempted_input_tokens=0,
+                # Phase 1.4: explicit per-source attribution.
+                # Batch passthrough traffic does not currently
+                # exercise self-hosted prefix cache or model
+                # routing. Set the fields explicitly so the funnel
+                # sees them.
+                self_hosted_prefix_cache_hits=0,
+                model_routing_tokens_saved=0,
+                model_routing_usd_saved=0.0,
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
@@ -3195,6 +3244,12 @@ class AnthropicHandlerMixin:
                 output_tokens=0,
                 tokens_saved=0,
                 attempted_input_tokens=0,
+                # Phase 1.4: explicit per-source attribution. Batch
+                # CCR processing does not currently exercise
+                # self-hosted prefix cache or model routing.
+                self_hosted_prefix_cache_hits=0,
+                model_routing_tokens_saved=0,
+                model_routing_usd_saved=0.0,
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,

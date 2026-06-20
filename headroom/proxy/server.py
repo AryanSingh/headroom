@@ -295,14 +295,14 @@ from headroom.proxy.handlers import (  # noqa: E402
 )
 
 
-class HeadroomProxy(
+class CutctxProxy(
     StreamingMixin,
     AnthropicHandlerMixin,
     OpenAIHandlerMixin,
     GeminiHandlerMixin,
     BatchHandlerMixin,
 ):
-    """Production-ready Headroom optimization proxy."""
+    """Production-ready Cutctx optimization proxy."""
 
     ANTHROPIC_API_URL = DEFAULT_ANTHROPIC_API_URL
     OPENAI_API_URL = DEFAULT_OPENAI_API_URL
@@ -328,11 +328,11 @@ class HeadroomProxy(
 
         # Preserve the long-standing proxy compatibility surface while keeping
         # provider_runtime as the source of truth for resolved upstream targets.
-        HeadroomProxy.ANTHROPIC_API_URL = api_targets.anthropic
-        HeadroomProxy.OPENAI_API_URL = api_targets.openai
-        HeadroomProxy.GEMINI_API_URL = api_targets.gemini
-        HeadroomProxy.CLOUDCODE_API_URL = api_targets.cloudcode
-        HeadroomProxy.VERTEX_API_URL = api_targets.vertex
+        CutctxProxy.ANTHROPIC_API_URL = api_targets.anthropic
+        CutctxProxy.OPENAI_API_URL = api_targets.openai
+        CutctxProxy.GEMINI_API_URL = api_targets.gemini
+        CutctxProxy.CLOUDCODE_API_URL = api_targets.cloudcode
+        CutctxProxy.VERTEX_API_URL = api_targets.vertex
         self.anthropic_provider = self.provider_runtime.pipeline_provider("anthropic")
         self.openai_provider = self.provider_runtime.pipeline_provider("openai")
 
@@ -981,7 +981,7 @@ class HeadroomProxy(
             http2=self.config.http2,
             verify=_ca_bundle if _ca_bundle is not None else True,
         )
-        logger.info("Headroom Proxy started")
+        logger.info("Cutctx Proxy started")
         logger.info(f"Optimization: {'ENABLED' if self.config.optimize else 'DISABLED'}")
         self.config.mode = normalize_proxy_mode(self.config.mode)
         logger.info(f"Mode: {self.config.mode}")
@@ -1428,13 +1428,13 @@ async def _log_toin_stats_periodically(interval_seconds: int = 300) -> None:
             logger.debug("Failed to log TOIN stats: %s", e)
 
 
-def _register_memory_components(proxy: HeadroomProxy, tracker: MemoryTracker) -> None:
+def _register_memory_components(proxy: CutctxProxy, tracker: MemoryTracker) -> None:
     """Register all memory-tracked components with the tracker.
 
     This function is idempotent - it checks if components are already registered.
 
     Args:
-        proxy: The HeadroomProxy instance.
+        proxy: The CutctxProxy instance.
         tracker: The MemoryTracker instance.
     """
     # Register compression store (global singleton)
@@ -1480,7 +1480,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     _setup_file_logging()
 
     config = config or ProxyConfig()
-    proxy = HeadroomProxy(config)
+    proxy = CutctxProxy(config)
 
     # Telemetry beacon (anonymous aggregate stats).
     # With uvicorn workers > 1, each worker runs the lifespan independently.
@@ -1714,7 +1714,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             shutdown_otel_metrics()
 
     app = FastAPI(
-        title="Headroom Proxy",
+        title="Cutctx Proxy",
         description="Production-ready LLM optimization proxy",
         version=__version__,
         lifespan=lifespan,
@@ -2677,7 +2677,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
     async def dashboard():
-        """Serve the Headroom dashboard UI."""
+        """Serve the Cutctx dashboard UI."""
         return get_dashboard_html()
 
     DASHBOARD_STATS_CACHE_TTL_SECONDS = 5.0
@@ -2707,7 +2707,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         max_latency_ms = round(m.latency_max_ms, 2) if m.latency_count > 0 else 0
 
-        # Calculate Headroom overhead (optimization time only, excludes pass-through requests)
+        # Calculate Cutctx overhead (optimization time only, excludes pass-through requests)
         avg_overhead_ms = (
             round(m.overhead_sum_ms / m.overhead_count, 2) if m.overhead_count > 0 else 0
         )
@@ -2764,7 +2764,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         rtk_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "rtk" else 0
         lean_ctx_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "lean-ctx" else 0
 
-        # Calculate total tokens before Headroom-side reduction. Proxy
+        # Calculate total tokens before Cutctx-side reduction. Proxy
         # compression and the configured context tool both remove tokens before
         # they reach model context, so dashboard-facing savings combines them.
         proxy_compression_tokens = m.tokens_saved_total
@@ -2834,6 +2834,65 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return {
             "summary": summary,
+            # Phase 1.4: per-source attribution for the dashboard's
+            # "Savings by Source" panel. The five canonical sources
+            # are: provider_prompt_cache, cutctx_compression,
+            # semantic_cache, prefix_cache_self_hosted,
+            # model_routing. The dashboard reads this object at
+            # ``stats.savings_by_source.{tokens,usd,total_tokens}``
+            # so the keys must match exactly. Tokens and USD come
+            # from the durable savings_tracker lifetime map so
+            # values survive a proxy restart.
+            "savings_by_source": {
+                "total_tokens": sum(
+                    int(
+                        persistent_savings.get("lifetime", {}).get(
+                            f"savings_by_source_tokens.{src}", 0
+                        )
+                        or 0
+                    )
+                    for src in (
+                        "provider_prompt_cache",
+                        "cutctx_compression",
+                        "semantic_cache",
+                        "prefix_cache_self_hosted",
+                        "model_routing",
+                    )
+                ),
+                "tokens": {
+                    src: int(
+                        persistent_savings.get("lifetime", {}).get(
+                            f"savings_by_source_tokens.{src}", 0
+                        )
+                        or 0
+                    )
+                    for src in (
+                        "provider_prompt_cache",
+                        "cutctx_compression",
+                        "semantic_cache",
+                        "prefix_cache_self_hosted",
+                        "model_routing",
+                    )
+                },
+                "usd": {
+                    src: round(
+                        float(
+                            persistent_savings.get("lifetime", {}).get(
+                                f"savings_by_source_usd.{src}", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    )
+                    for src in (
+                        "provider_prompt_cache",
+                        "cutctx_compression",
+                        "semantic_cache",
+                        "prefix_cache_self_hosted",
+                        "model_routing",
+                    )
+                },
+            },
             "savings": {
                 "total_tokens": total_tokens_all_layers,
                 "per_project": persistent_savings.get("projects", {}),
@@ -2875,7 +2934,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "lean_ctx_tokens": lean_ctx_tokens_avoided,
                         "all_layers_tokens": all_layers_tokens_saved,
                         "description": (
-                            "Tokens removed by Headroom proxy compression. "
+                            "Tokens removed by Cutctx proxy compression. "
                             "Dashboard token savings also includes CLI context-tool filtering."
                         ),
                     },
@@ -3452,7 +3511,7 @@ def run_server(
         # See RUST_DEV.md -> "Multi-worker deployment -- CCR fragmentation".
         if os.environ.get("HEADROOM_CCR_BACKEND", "").strip():
             logger.warning(
-                "Headroom is running with workers=%d. Compression cache, "
+                "Cutctx is running with workers=%d. Compression cache, "
                 "prefix tracker, TOIN state, and CostTracker are all per-process; "
                 "multi-worker deployments produce avoidable cache busts and an "
                 "unstable dashboard 'Proxy $ Saved' hero tile (each /stats poll "
@@ -3464,7 +3523,7 @@ def run_server(
             )
         else:
             logger.warning(
-                "Headroom is running with workers=%d. The in-memory CCR store, "
+                "Cutctx is running with workers=%d. The in-memory CCR store, "
                 "compression cache, prefix tracker, TOIN state, and CostTracker are all "
                 "per-process; multi-worker deployments produce silent CCR retrieval "
                 "failures, avoidable cache busts, and an unstable dashboard 'Proxy $ Saved' "
@@ -3609,7 +3668,7 @@ def _parse_sso_role_mapping(raw: str | None) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Headroom Proxy Server")
+    parser = argparse.ArgumentParser(description="Cutctx Proxy Server")
 
     # Server
     parser.add_argument("--host", default="127.0.0.1")

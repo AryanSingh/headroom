@@ -299,6 +299,14 @@ class OpenAIChatMixin:
                         # 0 conservatively until the cache learns to
                         # record the upstream call size.
                         semantic_cache_hit=True,
+                        # Self-hosted prefix cache and model routing do
+                        # not apply to a response-cache hit: the proxy
+                        # never reached the upstream. Set the fields
+                        # explicitly so the funnel's per-source merge
+                        # sees them rather than skipping the source.
+                        self_hosted_prefix_cache_hits=0,
+                        model_routing_tokens_saved=0,
+                        model_routing_usd_saved=0.0,
                         total_latency_ms=_cache_hit_latency,
                         num_messages=len(messages),
                         tags=tags,
@@ -996,6 +1004,16 @@ class OpenAIChatMixin:
                             output_tokens=output_tokens,
                             tokens_saved=tokens_saved,
                             attempted_input_tokens=total_input_tokens + tokens_saved,
+                            # Phase 1.4: explicit per-source attribution.
+                            # Cutctx does not currently route OpenAI
+                            # requests to a different model or serve
+                            # them from a self-hosted prefix cache, so
+                            # the routing and prefix-cache sources are
+                            # structurally zero here. Setting them
+                            # explicitly keeps the funnel honest.
+                            self_hosted_prefix_cache_hits=0,
+                            model_routing_tokens_saved=0,
+                            model_routing_usd_saved=0.0,
                             total_latency_ms=total_latency,
                             overhead_ms=optimization_latency,
                             pipeline_timing=pipeline_timing,
@@ -1312,6 +1330,19 @@ class OpenAIChatMixin:
                         cache_read_tokens=cache_read_tokens,
                         cache_write_tokens=cache_write_tokens,
                         uncached_input_tokens=uncached_input_tokens,
+                        # Phase 1.4: explicit per-source attribution.
+                        # Cutctx does not currently route OpenAI
+                        # requests to a different model or serve them
+                        # from a self-hosted prefix cache, so the
+                        # routing and prefix-cache sources are
+                        # structurally zero. Setting them explicitly
+                        # here keeps the funnel's per-source merge
+                        # honest: a future change that introduces
+                        # routing or self-hosted caching can populate
+                        # these without touching this call site.
+                        self_hosted_prefix_cache_hits=0,
+                        model_routing_tokens_saved=0,
+                        model_routing_usd_saved=0.0,
                         total_latency_ms=total_latency,
                         overhead_ms=optimization_latency,
                         pipeline_timing=pipeline_timing,
