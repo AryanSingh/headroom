@@ -71,6 +71,12 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "fleet.write": AdminRole.OPERATOR,
     "webhooks.read": AdminRole.OPERATOR,
     "webhooks.write": AdminRole.OPERATOR,
+    "airgap.read": AdminRole.OPERATOR,
+    "rate_limit.read": AdminRole.OPERATOR,
+    "secrets.read": AdminRole.OPERATOR,
+    "secrets.write": AdminRole.OPERATOR,
+    "sso.read": AdminRole.OPERATOR,
+    "sso.write": AdminRole.OPERATOR,
     # Admin-only
     "stats.reset": AdminRole.ADMIN,
     "config.reset": AdminRole.ADMIN,

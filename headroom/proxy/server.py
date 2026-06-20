@@ -3565,32 +3565,62 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         pass
 
     try:
-        from headroom.proxy.routes.rbac import router as rbac_router
-        app.include_router(rbac_router)
+        from headroom.proxy.routes.rbac import create_rbac_router
+
+        app.include_router(
+            create_rbac_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.sso import router as sso_router
-        app.include_router(sso_router)
+        from headroom.proxy.routes.sso import create_sso_router
+
+        app.include_router(
+            create_sso_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.rate_limit import router as rate_limit_router
-        app.include_router(rate_limit_router)
+        from headroom.proxy.routes.rate_limit import create_rate_limit_router
+
+        app.include_router(
+            create_rate_limit_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.airgap import router as airgap_router
-        app.include_router(airgap_router)
+        from headroom.proxy.routes.airgap import create_airgap_router
+
+        app.include_router(
+            create_airgap_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
     try:
-        from headroom.proxy.routes.secrets import router as secrets_router
-        app.include_router(secrets_router)
+        from headroom.proxy.routes.secrets import create_secrets_router
+
+        app.include_router(
+            create_secrets_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
     except ImportError:
         pass
 
