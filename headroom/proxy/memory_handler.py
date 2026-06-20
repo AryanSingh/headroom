@@ -1,6 +1,6 @@
 """Memory integration handler for the proxy server.
 
-This module provides memory capabilities for the Headroom proxy:
+This module provides memory capabilities for the Cutctx proxy:
 1. MemoryHandler - Unified handler for memory operations
    - inject_tools() - Add memory tools to requests
    - search_and_format_context() - Search memories, format for injection
@@ -155,7 +155,7 @@ class MemoryConfig:
     neo4j_uri: str = "neo4j://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password"
-    # Memory Bridge (bidirectional markdown <-> Headroom sync)
+    # Memory Bridge (bidirectional markdown <-> Cutctx sync)
     bridge_enabled: bool = False
     bridge_md_paths: list[str] = field(default_factory=list)
     bridge_md_format: str = "auto"
@@ -173,7 +173,7 @@ class MemoryHandler:
     4. Handle memory tool calls in responses
 
     Supports two modes:
-    - Custom tools: Headroom's memory_save, memory_search, etc. (default)
+    - Custom tools: Cutctx's memory_save, memory_search, etc. (default)
     - Native tool: Anthropic's memory_20250818 built-in tool (experimental)
     """
 
@@ -2360,3 +2360,98 @@ To SAVE: create /memories/<topic>.txt "content"
         self._backend = None
         self._initialized = False
         logger.info("Memory: Handler closed")
+
+    # =========================================================================
+    # DSR (Data Subject Request) surface — GDPR/CCPA right-to-delete + export
+    # =========================================================================
+    #
+    # These methods are invoked by the /v1/me/{export,delete} routes in
+    # ``headroom/proxy/routes/dsr.py``. They are best-effort: each
+    # memory backend (sqlite, mem0, vector) is asked to delete / export
+    # the user_id and the response reports per-backend counts.
+
+    async def delete_for_user(self, user_id: str) -> dict[str, int]:
+        """GDPR/CCPA right-to-delete for a single user_id.
+
+        Returns a dict ``{backend_name: deleted_count}`` so the
+        caller can report per-store results. The bridge is invoked
+        first; if it supports ``delete_for_user`` that path is taken
+        and is preferred because it handles both the store and the
+        vector index. Otherwise the bridge's underlying memory
+        system is asked to ``clear_scope(user_id)``.
+
+        Backends that raise are reported as ``{"error": <str>}``
+        rather than ``{"deleted": 0}`` so a DSR audit can tell a
+        zero-count backend from a failing one.
+        """
+        await self._ensure_initialized()
+        results: dict[str, int] = {}
+        bridge = getattr(self, "_bridge", None) or getattr(self, "bridge", None)
+        if bridge is not None and hasattr(bridge, "delete_for_user"):
+            try:
+                n = await bridge.delete_for_user(user_id)
+                results["bridge"] = int(n) if n is not None else 0
+                return results
+            except Exception as exc:  # noqa: BLE001
+                results["bridge_error"] = -1
+                logger.exception(
+                    "event=dsr_memory_bridge_delete_error user_id=%s error=%r",
+                    user_id,
+                    exc,
+                )
+        # Fallback: ask the underlying memory system directly.
+        if self._backend is not None and hasattr(self._backend, "clear_scope"):
+            try:
+                n = await self._backend.clear_scope(user_id=user_id)
+                results["backend"] = int(n) if n is not None else 0
+            except Exception as exc:  # noqa: BLE001
+                results["backend_error"] = -1
+                logger.exception(
+                    "event=dsr_memory_backend_delete_error user_id=%s error=%r",
+                    user_id,
+                    exc,
+                )
+        else:
+            results["backend"] = 0
+        return results
+
+    async def export_for_user(self, user_id: str, limit: int = 1000) -> dict[str, Any]:
+        """GDPR/CCPA right-to-export for a single user_id.
+
+        Returns a JSON-serialisable dict ``{"count": N, "records": [...]}``
+        with all memories the system holds for the user. The
+        ``records`` list is bounded by ``limit`` (default 1000) to
+        prevent runaway responses; a follow-up ticket should add
+        pagination for the long-tail.
+        """
+        await self._ensure_initialized()
+        bridge = getattr(self, "_bridge", None) or getattr(self, "bridge", None)
+        if bridge is not None and hasattr(bridge, "search"):
+            try:
+                records = await bridge.search(query="*", user_id=user_id, top_k=limit)
+                return {
+                    "count": len(records) if records else 0,
+                    "records": records if records else [],
+                }
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "event=dsr_memory_bridge_export_error user_id=%s error=%r",
+                    user_id,
+                    exc,
+                )
+                return {"count": 0, "records": [], "error": str(exc)}
+        if self._backend is not None and hasattr(self._backend, "get_user_memories"):
+            try:
+                records = await self._backend.get_user_memories(user_id, limit=limit)
+                return {
+                    "count": len(records) if records else 0,
+                    "records": records if records else [],
+                }
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "event=dsr_memory_backend_export_error user_id=%s error=%r",
+                    user_id,
+                    exc,
+                )
+                return {"count": 0, "records": [], "error": str(exc)}
+        return {"count": 0, "records": []}

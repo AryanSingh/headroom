@@ -3373,6 +3373,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except ImportError:
         pass
 
+    # GDPR/CCPA DSR (Data Subject Request) endpoints — admin auth +
+    # privacy.dsr RBAC. The router takes the proxy reference so it
+    # can reach the memory subsystem for export / delete.
+    try:
+        from headroom.proxy.routes.dsr import create_dsr_router
+
+        app.include_router(
+            create_dsr_router(
+                proxy=proxy,
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
+    except ImportError:
+        pass
+
     # Residency proof: kept unauthenticated by design (the attestation
     # is itself signed). Documented exception to the auth gate.
     try:
