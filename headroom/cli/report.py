@@ -71,6 +71,89 @@ def _collect_data(days: int) -> list[dict[str, Any]]:
     ]
 
 
+def _collect_savings_history(days: int) -> list[dict[str, Any]]:
+    """Collect per-request savings history from the durable savings tracker.
+
+    Each row carries provider/model, dollar deltas, and the
+    ``savings_by_source_tokens`` breakdown written by
+    ``savings_tracker.record_request``. Returns an empty list if the
+    tracker file does not exist.
+    """
+    from datetime import timedelta
+
+    from headroom.proxy.savings_tracker import (
+        SCHEMA_VERSION,
+        get_default_savings_storage_path,
+    )
+
+    path = get_default_savings_storage_path()
+    if not Path(path).exists():
+        return []
+
+    try:
+        payload = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return []
+
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        return []
+
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days) if days > 0 else None
+    rows: list[dict[str, Any]] = []
+    history = payload.get("history") or []
+    for raw in history:
+        ts_str = raw.get("timestamp")
+        ts = _parse_iso(ts_str) if isinstance(ts_str, str) else None
+        if start is not None and ts is not None and ts < start:
+            continue
+        rows.append(
+            {
+                "timestamp": ts_str,
+                "provider": raw.get("provider"),
+                "model": raw.get("model"),
+                # Use per-request deltas when present (Phase 1.3+);
+                # fall back to lifetime counters for older rows.
+                "tokens_saved": int(
+                    raw.get("delta_tokens_saved")
+                    or raw.get("total_tokens_saved", 0)
+                    or 0
+                ),
+                "compression_savings_usd": float(
+                    raw.get("delta_savings_usd")
+                    or raw.get("compression_savings_usd", 0.0)
+                    or 0.0
+                ),
+                "cache_savings_usd": float(
+                    raw.get("delta_cache_savings_usd")
+                    or raw.get("cache_savings_usd", 0.0)
+                    or 0.0
+                ),
+                "cost_savings_usd": float(
+                    (raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0)
+                    + (raw.get("delta_cache_savings_usd") or raw.get("cache_savings_usd", 0.0) or 0.0)
+                ),
+                "savings_by_source_tokens": dict(
+                    raw.get("savings_by_source_tokens") or {}
+                ),
+            }
+        )
+    return rows
+
+
+def _parse_iso(value: str):
+    """Parse an ISO-8601 timestamp string. Returns None on failure."""
+    try:
+        # Accept trailing Z and other forms.
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        from datetime import datetime as _dt
+
+        return _dt.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+
+
 @main.group("report")
 def report_group() -> None:
     """Generate and schedule reports."""
@@ -211,7 +294,14 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
     """
     from headroom.savings import SavingsSource
 
-    data = _collect_data(days)
+    # Phase 5.3: read per-request rows from the durable savings tracker
+    # so the buyer report shows actual persisted attribution, not just
+    # whatever the legacy storage layer happened to know about.
+    data = _collect_savings_history(days)
+    if not data:
+        # Fall back to the legacy storage aggregator so the report
+        # still renders (with zero by_source) instead of failing.
+        data = _collect_data(days)
     # Aggregate by source across the collected savings rows.
     by_source: dict[str, int] = {src.value: 0 for src in SavingsSource}
     for row in data:

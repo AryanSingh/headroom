@@ -12,7 +12,8 @@ from headroom.savings import SavingsSource
 
 
 def _fake_collect_data(rows):
-    """Patch _collect_data to return the rows we want."""
+    """Patch _collect_savings_history (the primary source) and the
+    legacy fallback to return the rows we want."""
     return rows
 
 
@@ -34,7 +35,9 @@ def test_buyer_report_text_renders_all_sources():
         }
     ]
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=fake_rows):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer"])
     assert result.exit_code == 0
     out = result.output
@@ -62,7 +65,9 @@ def test_buyer_report_json_no_double_counting():
         }
     ]
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=fake_rows):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -88,7 +93,9 @@ def test_buyer_report_json_independent_tracking():
         }
     ]
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=fake_rows):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     payload = json.loads(result.output)
     assert payload["savings_by_source"][SavingsSource.PROVIDER_PROMPT_CACHE.value] == 600
@@ -113,7 +120,9 @@ def test_buyer_report_markdown_renders_table():
         }
     ]
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=fake_rows):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "markdown"])
     assert result.exit_code == 0
     out = result.output
@@ -128,10 +137,10 @@ def test_buyer_report_handles_empty_storage():
     from headroom.cli.main import main
 
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=[]):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=[]
+    ), patch("headroom.cli.report._collect_data", return_value=[]):
         result = runner.invoke(main, ["report", "buyer"])
-    # Either runs cleanly with zero state or returns empty/zeroed JSON
-    # (the storage load may fail in test env, which is acceptable).
     if result.exit_code == 0:
         assert "Total tokens saved" in result.output or result.output == ""
 
@@ -153,7 +162,9 @@ def test_buyer_report_output_to_file(tmp_path):
     ]
     output_path = tmp_path / "roi.md"
     runner = CliRunner()
-    with patch("headroom.cli.report._collect_data", return_value=fake_rows):
+    with patch(
+        "headroom.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(
             main, ["report", "buyer", "--format", "markdown", "-o", str(output_path)]
         )

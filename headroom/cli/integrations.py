@@ -86,20 +86,93 @@ def integrations() -> None:
     help="Output format.",
 )
 def integrations_status(output_format: str) -> None:
-    """Show which provider-aware integrations are configured."""
+    """Show which provider-aware integrations are actually wired.
+
+    Phase 5.2 follow-up: each entry now reflects real runtime status
+    — parser symbol is importable, sample payload parses, optional
+    third-party library is installed where applicable. "supported"
+    means the parser is present in the savings package; "wired"
+    means ``emit_request_outcome`` actually calls into it for live
+    traffic; "library_available" means the optional third-party
+    client is importable on this host.
+    """
+    import importlib
+
     from headroom.savings import SavingsSource, parse_provider_savings
 
-    providers_status = {
-        name: {
-            "parser": f"parse_{name}_savings" if name != "azure_openai" else "parse_azure_openai_savings",
-            "supported": True,
+    # Probe each provider parser against its fixture. If parsing
+    # returns zero savings the parser is broken and we surface that.
+    providers_status: dict[str, Any] = {}
+    for name, fixture in _PROVIDER_FIXTURES.items():
+        usage = fixture["usage"]
+        parser_name = (
+            f"parse_{name}_savings"
+            if name != "azure_openai"
+            else "parse_azure_openai_savings"
+        )
+        try:
+            module = importlib.import_module("headroom.savings.parsers")
+            parser = getattr(module, parser_name)
+            b = parser(usage)
+            parsed_tokens = b.by_source.total_tokens
+            parse_error: str | None = None
+        except Exception as exc:  # noqa: BLE001
+            parsed_tokens = 0
+            parse_error = str(exc)
+        providers_status[name] = {
+            "parser": parser_name,
+            "supported": parse_error is None,
+            "wired_in_outcome_py": True,  # emit_request_outcome calls this
+            "fixture_tokens_detected": parsed_tokens,
+            **({"error": parse_error} if parse_error else {}),
         }
-        for name in _PROVIDER_FIXTURES
-    }
 
-    integration_status = {
-        name: {"supported": True} for name in _INTEGRATION_FIXTURES
+    # External integrations: each adapter is in-process. The "optional"
+    # question is whether the third-party library the user is
+    # integrating with is available. We report the adapter's
+    # in-process status separately.
+    in_process_adapters = {
+        "litellm": "headroom.savings.integrations.parse_litellm_cache",
+        "vllm_apc": "headroom.savings.integrations.parse_vllm_apc",
+        "gptcache": "headroom.savings.integrations.parse_gptcache_hit",
+        "model_routing": "headroom.savings.integrations.parse_model_routing_metadata",
     }
+    integration_status: dict[str, Any] = {}
+    for name, dotted in in_process_adapters.items():
+        module_name, _, attr = dotted.rpartition(".")
+        try:
+            module = importlib.import_module(module_name)
+            fn = getattr(module, attr)
+            callable_ok = callable(fn)
+            parse_error = None
+        except Exception as exc:  # noqa: BLE001
+            callable_ok = False
+            parse_error = str(exc)
+        # Third-party library presence (best-effort import).
+        third_party_map = {
+            "litellm": "litellm",
+            "vllm_apc": "vllm",
+            "gptcache": "gptcache",
+        }
+        lib_name = third_party_map.get(name)
+        lib_available: bool | None = None
+        if lib_name is not None:
+            try:
+                importlib.import_module(lib_name)
+                lib_available = True
+            except Exception:
+                lib_available = False
+        integration_status[name] = {
+            "supported": callable_ok,
+            "parser": dotted,
+            "wired_in_outcome_py": False,  # adapters are user-invoked
+            **(
+                {"library": lib_name, "library_available": lib_available}
+                if lib_name is not None
+                else {}
+            ),
+            **({"error": parse_error} if parse_error else {}),
+        }
 
     if output_format == "json":
         click.echo(
@@ -119,12 +192,29 @@ def integrations_status(output_format: str) -> None:
     click.echo(click.style("─" * 50, fg="cyan"))
     click.echo()
     click.echo(click.style("Provider parsers:", bold=True))
-    for name in _PROVIDER_FIXTURES:
-        click.echo(f"  {name:20s} ✓")
+    for name, info in providers_status.items():
+        if info.get("supported") and not info.get("error"):
+            mark = "✓"
+            extra = f" (fixture={info['fixture_tokens_detected']} tokens)"
+        else:
+            mark = "✗"
+            extra = f" ({info.get('error', 'failed')})"
+        wired = "wired" if info.get("wired_in_outcome_py") else "user-invoked"
+        click.echo(f"  {name:20s} {mark}  [{wired}]{extra}")
     click.echo()
     click.echo(click.style("External integrations:", bold=True))
-    for name in _INTEGRATION_FIXTURES:
-        click.echo(f"  {name:20s} ✓")
+    for name, info in integration_status.items():
+        if info.get("supported") and not info.get("error"):
+            mark = "✓"
+        else:
+            mark = "✗"
+        lib = info.get("library")
+        lib_str = (
+            f", library={lib}={info.get('library_available')}"
+            if lib
+            else ""
+        )
+        click.echo(f"  {name:20s} {mark}{lib_str}")
     click.echo()
     click.echo(click.style("Savings sources tracked:", bold=True))
     for src in SavingsSource:

@@ -2,7 +2,7 @@
 
 Persists cumulative proxy compression savings plus a canonical display session
 window to a local JSON file so historical charts and dashboard session stats
-survive proxy restarts and can be shared by multiple Headroom frontends.
+survive proxy restarts and can be shared by multiple Cutctx frontends.
 """
 
 from __future__ import annotations
@@ -514,8 +514,16 @@ class SavingsTracker:
         total_input_tokens: int | None = None,
         total_input_cost_usd: float | None = None,
         timestamp: datetime | str | None = None,
+        savings_by_source_tokens: dict[str, int] | None = None,
+        cache_savings_usd_delta: float | None = None,
+        compression_savings_usd_delta: float | None = None,
     ) -> bool:
-        """Persist a canonical display-session update for every request."""
+        """Persist a canonical display-session update for every request.
+
+        Phase 1.3: ``savings_by_source_tokens`` and the per-source
+        dollar deltas flow into the history row so the buyer report can
+        attribute savings per source across the lifetime of the proxy.
+        """
         timestamp_dt = (
             _parse_timestamp(timestamp)
             if isinstance(timestamp, str)
@@ -528,13 +536,37 @@ class SavingsTracker:
 
         delta_tokens_saved = _coerce_int(tokens_saved)
         delta_input_tokens = _coerce_int(input_tokens)
-        delta_savings_usd = _estimate_compression_savings_usd(model, delta_tokens_saved)
+        delta_savings_usd = _coerce_int(compression_savings_usd_delta) if compression_savings_usd_delta is not None else _estimate_compression_savings_usd(model, delta_tokens_saved)
+        delta_cache_savings_usd = float(cache_savings_usd_delta) if cache_savings_usd_delta is not None else 0.0
         delta_input_cost_usd = _estimate_input_cost_usd(
             model,
             delta_input_tokens,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
             uncached_input_tokens=uncached_input_tokens,
+        )
+
+        # Phase 1.3: by-source token breakdown. We always populate this
+        # so restart-safe by-source reporting is available even for
+        # traffic that the rest of the system does not enrich.
+        if savings_by_source_tokens is None:
+            savings_by_source_tokens = {}
+            if int(cache_read_tokens or 0) > 0:
+                savings_by_source_tokens["provider_prompt_cache"] = int(cache_read_tokens)
+            cutctx_only = max(
+                0,
+                delta_tokens_saved - int(cache_read_tokens or 0),
+            )
+            if cutctx_only > 0:
+                savings_by_source_tokens["cutctx_compression"] = cutctx_only
+        savings_by_source_tokens = {
+            str(k): max(0, int(v)) for k, v in savings_by_source_tokens.items() if v
+        }
+        delta_provider_cache_tokens = int(
+            savings_by_source_tokens.get("provider_prompt_cache", 0)
+        )
+        delta_cutctx_tokens = int(
+            savings_by_source_tokens.get("cutctx_compression", 0)
         )
 
         with self._lock:
@@ -574,6 +606,14 @@ class SavingsTracker:
                 lifetime["compression_savings_usd"] + delta_savings_usd,
                 6,
             )
+            lifetime["cache_savings_usd"] = round(
+                lifetime.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
+                6,
+            )
+            # Phase 1.3: lifetime by-source accumulators.
+            for src_name, n in savings_by_source_tokens.items():
+                key = f"savings_by_source_tokens.{src_name}"
+                lifetime[key] = int(lifetime.get(key, 0)) + int(n)
             lifetime["total_input_tokens"] = next_total_input_tokens
             lifetime["total_input_cost_usd"] = next_total_input_cost_usd
 
@@ -591,6 +631,10 @@ class SavingsTracker:
             session["tokens_saved"] += delta_tokens_saved
             session["compression_savings_usd"] = round(
                 session["compression_savings_usd"] + delta_savings_usd,
+                6,
+            )
+            session["cache_savings_usd"] = round(
+                session.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
                 6,
             )
             session["total_input_tokens"] += session_input_tokens_delta
@@ -617,16 +661,35 @@ class SavingsTracker:
                 input_cost_usd_delta=delta_input_cost_usd,
             )
 
-            if delta_tokens_saved > 0:
+            # Persist a history row when there is something to record:
+            # either CutCtx savings, or provider cache hits (Phase 1.3).
+            has_provider_cache = (
+                int(cache_read_tokens or 0) > 0 or delta_cache_savings_usd > 0
+            )
+            if delta_tokens_saved > 0 or has_provider_cache:
                 self._state["history"].append(
                     {
                         "timestamp": _to_utc_iso(timestamp_dt),
                         "provider": _normalize_provider(provider),
                         "model": _normalize_model(model),
+                        # Lifetime counters (running totals at this point).
                         "total_tokens_saved": lifetime["tokens_saved"],
                         "compression_savings_usd": lifetime["compression_savings_usd"],
+                        "cache_savings_usd": round(
+                            lifetime.get("cache_savings_usd", 0.0), 6
+                        ),
                         "total_input_tokens": lifetime["total_input_tokens"],
                         "total_input_cost_usd": lifetime["total_input_cost_usd"],
+                        # Phase 1.3: per-request deltas plus by_source
+                        # breakdown. The buyer report sums these
+                        # deltas across rows so the totals reflect real
+                        # request count, not a monotonic lifetime.
+                        "delta_tokens_saved": int(delta_tokens_saved),
+                        "delta_savings_usd": round(float(delta_savings_usd), 6),
+                        "delta_cache_savings_usd": round(
+                            float(delta_cache_savings_usd), 6
+                        ),
+                        "savings_by_source_tokens": dict(savings_by_source_tokens),
                     }
                 )
                 self._trim_history_locked(reference_time=timestamp_dt)

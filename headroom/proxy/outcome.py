@@ -142,7 +142,7 @@ class RequestOutcome:
     @property
     def cache_hit(self) -> bool:
         """True iff EITHER upstream reported a cache read OR the response
-        was served from Headroom's own response cache.
+        was served from Cutctx's own response cache.
 
         Two distinct concepts collapsed into one observable boolean for
         downstream consumers (Prometheus ``cached`` counter, RequestLog
@@ -372,6 +372,53 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             cache_write_1h_tokens=outcome.cache_write_1h_tokens,
             uncached_tokens=outcome.uncached_input_tokens,
         )
+
+        # 2a. Phase 1.3: per-request savings breakdown into the unified
+        # ledger. Provider cache and CutCtx compression are tracked
+        # independently so /stats, the dashboard, and the buyer report
+        # can attribute savings without double counting. cache_read_tokens
+        # is the API-reported cache-hit count (provider-prompt-cache
+        # savings). tokens_saved is the CutCtx-side reduction. The total
+        # in stats() is the SUM of per-source values.
+        try:
+            from headroom.savings import (
+                RequestSavingsBreakdown,
+                SavingsSource,
+            )
+
+            breakdown = RequestSavingsBreakdown(
+                raw_input_tokens=int(outcome.original_tokens or 0),
+                post_cutctx_tokens=int(outcome.optimized_tokens or 0),
+                provider_cached_tokens=int(outcome.cache_read_tokens or 0),
+                total_tokens_saved=int(outcome.tokens_saved or 0),
+            )
+            if breakdown.provider_cached_tokens > 0:
+                breakdown.by_source.add(
+                    SavingsSource.PROVIDER_PROMPT_CACHE,
+                    breakdown.provider_cached_tokens,
+                )
+            if breakdown.total_tokens_saved > 0:
+                # Only attribute tokens_saved to CutCtx compression if it
+                # is not already explained by the provider cache. Without
+                # this guard the two sources would double-count.
+                cutctx_tokens = max(
+                    0,
+                    breakdown.total_tokens_saved
+                    - breakdown.provider_cached_tokens,
+                )
+                if cutctx_tokens > 0:
+                    breakdown.by_source.add(
+                        SavingsSource.CUTCTX_COMPRESSION,
+                        cutctx_tokens,
+                    )
+            if breakdown.has_any_savings or breakdown.raw_input_tokens > 0:
+                cost_tracker.record_savings_breakdown(
+                    breakdown,
+                    provider=outcome.provider,
+                    model=outcome.model,
+                )
+        except Exception as exc:  # never let the funnel blow up
+            logger.debug("Savings breakdown failed: %s", exc)
 
     # 3. Per-request log (optional). The ``client`` outcome field is
     #    copied into ``tags["client"]`` so the dashboard's existing
