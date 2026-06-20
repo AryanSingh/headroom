@@ -6,7 +6,9 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/aryansingh/headroom
-  tag: "latest"
+  # Pinned to the current release. Override with --set image.tag=X.Y.Z
+  # for rollouts, or --set image.tag=latest to opt in to floating tags.
+  tag: "0.26.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

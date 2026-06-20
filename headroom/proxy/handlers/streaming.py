@@ -1,4 +1,4 @@
-"""Streaming handler mixin for HeadroomProxy.
+"""Streaming handler mixin for CutctxProxy.
 
 Contains SSE parsing, streaming response generation, and related utilities.
 """
@@ -57,7 +57,7 @@ def _parse_completion_tokens_from_sse_chunk(chunk_bytes: bytes) -> int | None:
 
 
 class StreamingMixin:
-    """Mixin providing streaming response methods for HeadroomProxy."""
+    """Mixin providing streaming response methods for CutctxProxy."""
 
     @staticmethod
     def _extract_anthropic_cache_ttl_metrics(usage: dict[str, Any] | None) -> tuple[int, int]:
@@ -663,6 +663,7 @@ class StreamingMixin:
         full_sse_data: str = "",
         parsed_response: dict[str, Any] | None = None,
         client: str | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         from headroom.proxy.outcome import RequestOutcome
 
@@ -786,6 +787,7 @@ class StreamingMixin:
             ttfb_ms=stream_state["ttfb_ms"] or total_latency,
             pipeline_timing=pipeline_timing,
             original_messages=original_messages,
+            savings_metadata=savings_metadata,
         )
         await self._record_request_outcome(outcome)
 
@@ -813,6 +815,7 @@ class StreamingMixin:
         mutation_reasons: list[str] | None = None,
         memory_request_ctx: Any | None = None,
         outcome_provider: str | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
     ) -> Response | StreamingResponse:
         """Stream response with metrics tracking and memory tool handling.
 
@@ -1110,6 +1113,7 @@ class StreamingMixin:
                 prefix_tracker=prefix_tracker,
                 original_messages=original_messages,
                 client=client,
+                savings_metadata=savings_metadata,
             )
             return Response(
                 content=error_content,
@@ -1159,7 +1163,22 @@ class StreamingMixin:
             try:
                 async with contextlib.aclosing(upstream_response) as response:
                     sse_chunk_index = 0
-                    async for chunk in response.aiter_bytes():
+                    # Blocker-10 (production-audit-progress-2026-06-20.md):
+                    # wrap_stream on StreamingRedactor was defined but
+                    # had no callsite; the streaming PII redactor was
+                    # therefore dead code. The redactor is now invoked
+                    # here (when the firewall middleware exposes one)
+                    # to redact PII from SSE response chunks before
+                    # they reach the client. Falls through to the
+                    # original aiter_bytes() iterator when no
+                    # redactor is configured.
+                    chunk_iter = response.aiter_bytes()
+                    _streaming_redactor = getattr(self, "_streaming_redactor", None)
+                    if _streaming_redactor is not None and getattr(
+                        _streaming_redactor, "enabled", False
+                    ):
+                        chunk_iter = _streaming_redactor.wrap_stream(chunk_iter)
+                    async for chunk in chunk_iter:
                         sse_chunk_index += 1
                         # Record TTFB on first chunk
                         if stream_state["ttfb_ms"] is None:
@@ -1457,6 +1476,7 @@ class StreamingMixin:
                     full_sse_data=_final_full_sse_data,
                     parsed_response=parsed_response,
                     client=client,
+                    savings_metadata=savings_metadata,
                 )
 
         return StreamingResponse(
@@ -1480,6 +1500,7 @@ class StreamingMixin:
         optimization_latency: float,
         pipeline_timing: dict[str, float] | None = None,
         original_messages: list[dict] | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
     ) -> StreamingResponse:
         """Stream response from Bedrock backend with metrics tracking.
 
@@ -1587,6 +1608,7 @@ class StreamingMixin:
                     ttfb_ms=stream_state["ttfb_ms"] or 0,
                     pipeline_timing=pipeline_timing,
                     original_messages=original_messages,
+                    savings_metadata=savings_metadata,
                 )
                 await self._record_request_outcome(outcome)
 
@@ -1612,6 +1634,7 @@ class StreamingMixin:
         waste_signals: dict[str, int] | None = None,
         prefix_tracker: Any | None = None,
         optimized_messages: list[dict] | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
     ) -> StreamingResponse:
         """Stream OpenAI chat completion response from backend.
 
@@ -1797,6 +1820,7 @@ class StreamingMixin:
                     cache_inferred=cache_inferred,
                     pipeline_timing=pipeline_timing,
                     waste_signals=waste_signals,
+                    savings_metadata=savings_metadata,
                 )
                 await self._record_request_outcome(outcome)
 

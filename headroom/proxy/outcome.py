@@ -245,6 +245,21 @@ class RequestOutcome:
         waste_signals: dict[str, int] | None = None,
         original_messages: list[dict] | None = None,
         savings_metadata: dict[str, dict[str, Any]] | None = None,
+        # High-23 (production-audit-progress-2026-06-20.md): the
+        # per-source savings fields (semantic_cache_avoided_tokens,
+        # self_hosted_prefix_cache_hits, model_routing_tokens_saved,
+        # model_routing_usd_saved) used to be settable only via the
+        # savings_metadata escape hatch. Streaming traffic is the
+        # dominant shape for Anthropic SSE and OpenAI Chat
+        # Completions, so without typed-field params here, the
+        # funnel's per-source merge was forced through the
+        # metadata path even when the streaming finalizer had the
+        # data in hand. The new params let streaming finalizers
+        # populate the typed fields directly.
+        semantic_cache_avoided_tokens: int = 0,
+        self_hosted_prefix_cache_hits: int = 0,
+        model_routing_tokens_saved: int = 0,
+        model_routing_usd_saved: float = 0.0,
     ) -> RequestOutcome:
         """Construct an outcome from the locals available at streaming
         finalize. Three streaming finalizers
@@ -337,6 +352,11 @@ class RequestOutcome:
             request_messages=log_request_messages,
             compressed_messages=log_compressed_messages,
             savings_metadata=savings_metadata,
+            # Per-source savings typed fields (High-23 fix).
+            semantic_cache_avoided_tokens=semantic_cache_avoided_tokens,
+            self_hosted_prefix_cache_hits=self_hosted_prefix_cache_hits,
+            model_routing_tokens_saved=model_routing_tokens_saved,
+            model_routing_usd_saved=model_routing_usd_saved,
         )
 
 

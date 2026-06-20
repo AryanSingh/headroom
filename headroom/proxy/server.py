@@ -2094,6 +2094,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             _streaming_redactor = StreamingRedactor(
                 enabled=_fw_config.redact_streaming,
             )
+            # Blocker-10 (production-audit-progress-2026-06-20.md):
+            # expose the redactor on the proxy state so the streaming
+            # mixin can pick it up and wrap the SSE chunk iterator.
+            proxy._streaming_redactor = _streaming_redactor
             logger.info("LLM Firewall enabled (injection=%s, pii=%s, jailbreak=%s)",
                         _fw_config.block_injection, _fw_config.block_pii, _fw_config.block_jailbreak)
     except Exception:
@@ -2334,11 +2338,52 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
         admin_header = request.headers.get("x-headroom-admin-key", "")
 
+        # Medium-27 (production-audit-progress-2026-06-20.md):
+        # helper to emit an audit event for the auth attempt. Wraps
+        # the audit_logger.async_log call so we never block the
+        # request on a slow audit sink.
+        async def _emit_auth_event(action: str, success: bool, detail: dict[str, Any]) -> None:
+            try:
+                if proxy.audit_logger is None:
+                    return
+                from headroom.audit import AuditEvent
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action=action,
+                        actor=(
+                            bearer_token[:16] if success else "anonymous"
+                        ),
+                        success=success,
+                        detail=detail,
+                        ip_address=getattr(request.client, "host", None) if request.client else None,
+                        user_agent=request.headers.get("user-agent", ""),
+                    )
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug("audit log emit failed", exc_info=True)
+
         if _admin_api_key:
             import hmac as _hmac
             if _hmac.compare_digest(bearer_token, _admin_api_key) or _hmac.compare_digest(admin_header, _admin_api_key):
                 _mark_admin_auth_success(request, method="api_key")
+                await _emit_auth_event(
+                    "auth.login",
+                    True,
+                    {"method": "api_key", "path": request.url.path},
+                )
                 return
+            # API key was provided but did not match — emit a failure event.
+            if bearer_token or admin_header:
+                await _emit_auth_event(
+                    "auth.failed",
+                    False,
+                    {
+                        "method": "api_key",
+                        "path": request.url.path,
+                        "reason": "key_mismatch",
+                    },
+                )
 
         if _sso_validator_ref is not None:
             if not bearer_token:
@@ -2348,6 +2393,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 )
                 request.state._headroom_admin_checked = True
                 request.state._headroom_admin_error = error
+                await _emit_auth_event(
+                    "auth.failed",
+                    False,
+                    {"method": "sso", "path": request.url.path, "reason": "missing_token"},
+                )
                 raise error
             try:
                 from headroom.sso import SsoError
@@ -2360,6 +2410,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     user_id=claims.subject,
                     claims=claims.to_dict(),
                 )
+                await _emit_auth_event(
+                    "auth.login",
+                    True,
+                    {
+                        "method": "sso",
+                        "path": request.url.path,
+                        "subject": getattr(claims, "subject", None),
+                        "role": getattr(claims, "role", None),
+                    },
+                )
                 return
             except SsoError as exc:
                 logger.debug("SSO token validation failed: %s", exc)
@@ -2369,6 +2429,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 )
                 request.state._headroom_admin_checked = True
                 request.state._headroom_admin_error = error
+                await _emit_auth_event(
+                    "auth.failed",
+                    False,
+                    {
+                        "method": "sso",
+                        "path": request.url.path,
+                        "reason": "validation_failed",
+                    },
+                )
                 raise error
 
         # SECURE-BY-DEFAULT: Admin key is always required.
@@ -2380,6 +2449,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         request.state._headroom_admin_checked = True
         request.state._headroom_admin_error = error
+        await _emit_auth_event(
+            "auth.failed",
+            False,
+            {"method": "none", "path": request.url.path, "reason": "no_credentials"},
+        )
         raise error
 
     async def _require_admin_auth(request: Request):

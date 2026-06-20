@@ -4,11 +4,19 @@ metadata:
   name: headroom-backup
   namespace: headroom
 spec:
+  # Daily at 00:00 UTC. Override with --schedule if needed.
   schedule: "0 0 * * *"
+  # Keep the last 7 successful + 3 failed jobs for audit.
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
       template:
         spec:
+          # High-16 (production-audit-progress-2026-06-20.md):
+          # Backup both the memory database AND the spend ledger
+          # SQLite. The previous version covered only memory, so a
+          # disk failure would lose the customer's spend history.
           containers:
           - name: backup
             image: alpine:latest
@@ -16,9 +24,37 @@ spec:
             - /bin/sh
             - -c
             - |
+              set -e
               apk add --no-cache sqlite aws-cli
-              sqlite3 /data/headroom_memory.db ".backup /tmp/backup.db"
-              aws s3 cp /tmp/backup.db s3://headroom-backups/memory-$(date +%s).db
+              TS=$(date +%s)
+              # Memory database.
+              if [ -f /data/headroom_memory.db ]; then
+                sqlite3 /data/headroom_memory.db ".backup /tmp/memory-$$TS.db"
+                aws s3 cp /tmp/memory-$$TS.db s3://headroom-backups/memory-$$TS.db
+                echo "memory backup ok: memory-$$TS.db"
+              else
+                echo "memory db not found, skipping"
+              fi
+              # Spend ledger. Filename varies by install; the
+              # wildcard catches all *.db files in /data that are
+              # not the memory db.
+              for db in /data/spend_ledger.db /data/audit.db; do
+                if [ -f "$$db" ]; then
+                  base=$$(basename $$db .db)
+                  sqlite3 $$db ".backup /tmp/$$base-$$TS.db"
+                  aws s3 cp /tmp/$$base-$$TS.db s3://headroom-backups/$$base-$$TS.db
+                  echo "$$base backup ok: $$base-$$TS.db"
+                fi
+              done
+              # Retention: prune backups older than 30 days to
+              # bound S3 storage costs. Runs in the same job so
+              # there's no second CronJob to manage.
+              CUTOFF=$(date -d "30 days ago" +%s)
+              aws s3api list-objects-v2 --bucket headroom-backups \
+                --query "Contents[?LastModified<='$$CUTOFF'].Key" \
+                --output text | while read key; do
+                  [ -n "$$key" ] && aws s3 rm "s3://headroom-backups/$$key"
+                done
             resources:
               requests:
                 cpu: 100m
