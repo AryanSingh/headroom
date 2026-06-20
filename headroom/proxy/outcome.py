@@ -33,6 +33,65 @@ from typing import Any
 logger = logging.getLogger("headroom.proxy")
 
 
+def _build_savings_breakdown(
+    outcome: "RequestOutcome",
+) -> tuple[dict[str, int], dict[str, float], dict[str, dict[str, Any]]]:
+    """Build per-source savings buckets from a completed request.
+
+    Returns token, USD, and metadata maps keyed by canonical savings
+    source name. The caller decides how to merge those values into the
+    unified ledger.
+    """
+    tokens: dict[str, int] = {}
+    usd: dict[str, float] = {}
+    meta: dict[str, dict[str, Any]] = {}
+
+    def _add(source: str, *, token_count: int = 0, usd_value: float = 0.0) -> None:
+        token_count = max(0, int(token_count))
+        usd_value = max(0.0, float(usd_value))
+        if token_count > 0:
+            tokens[source] = tokens.get(source, 0) + token_count
+        if usd_value > 0:
+            usd[source] = round(usd.get(source, 0.0) + usd_value, 6)
+        if token_count > 0 or usd_value > 0:
+            meta[source] = {"tokens": token_count, "usd": usd_value}
+
+    _add(
+        "provider_prompt_cache",
+        token_count=outcome.cache_read_tokens,
+    )
+    _add(
+        "cutctx_compression",
+        token_count=outcome.tokens_saved,
+    )
+    _add(
+        "semantic_cache",
+        token_count=outcome.semantic_cache_avoided_tokens,
+    )
+    _add(
+        "prefix_cache_self_hosted",
+        token_count=outcome.self_hosted_prefix_cache_hits,
+    )
+    _add(
+        "model_routing",
+        token_count=outcome.model_routing_tokens_saved,
+        usd_value=outcome.model_routing_usd_saved,
+    )
+
+    extra = outcome.savings_metadata or {}
+    if isinstance(extra, dict):
+        for raw_name, payload in extra.items():
+            if not isinstance(payload, dict):
+                continue
+            source = str(raw_name).strip().lower()
+            if not source:
+                continue
+            token_count = payload.get("tokens", 0)
+            usd_value = payload.get("usd", 0.0)
+            _add(source, token_count=token_count, usd_value=usd_value)
+    return tokens, usd, meta
+
+
 @dataclass(frozen=True)
 class RequestOutcome:
     """Immutable, value-equal snapshot of a completed request.
@@ -86,6 +145,42 @@ class RequestOutcome:
     # never reached the provider at all. Used to drive the
     # Prometheus ``cached`` counter and dashboard "response cache" row.
     from_response_cache: bool = False
+
+    # ── Savings sources beyond provider cache (Phase 1.4) ────────────────
+    # Each field carries the raw counter / dollar value as known at the
+    # source of truth. The funnel (emit_request_outcome) is the single
+    # place that converts these into a unified ``RequestSavingsBreakdown``
+    # so handlers do not duplicate the merge logic. Every field defaults
+    # to 0 / None so old call sites that do not set them keep working.
+    #
+    # semantic_cache_avoided_tokens: tokens that did not need to be
+    #   re-processed because the response was served from a prior
+    #   near-duplicate request. Set by the handler when it returns a
+    #   cached response. Independent of ``from_response_cache`` because
+    #   semantic hits can also be reported when the proxy did forward
+    #   the request (e.g. a partial reuse).
+    # semantic_cache_hit: True when the proxy served the response from
+    #   a prior similar request. Distinct from ``from_response_cache``
+    #   so dashboards can render "hit" vs "saved tokens" separately.
+    semantic_cache_avoided_tokens: int = 0
+    semantic_cache_hit: bool = False
+    # self_hosted_prefix_cache_hits: tokens served from a self-hosted
+    #   prefix cache such as vLLM APC. Independent of
+    #   ``cache_read_tokens`` (which is provider-prompt-cache only).
+    self_hosted_prefix_cache_hits: int = 0
+    # model_routing_tokens_saved: input tokens that were served by a
+    #   cheaper model than the user requested. model_routing_usd_saved:
+    #   the dollar delta computed at routing time. Independent of
+    #   ``tokens_saved`` (CutCtx compression) and of
+    #   ``cache_read_tokens`` (provider cache).
+    model_routing_tokens_saved: int = 0
+    model_routing_usd_saved: float = 0.0
+    # Optional escape hatch for sources that do not yet have a
+    # dedicated field. Keys are stable lowercase source ids, values
+    # are dicts with at least ``tokens`` and optionally ``usd``. The
+    # funnel merges these into the breakdown after the typed fields
+    # have been applied.
+    savings_metadata: dict[str, dict[str, Any]] | None = None
 
     # ── Timing ────────────────────────────────────────────────────────
     # total_latency_ms: wall-clock end-to-end for this request
@@ -305,6 +400,144 @@ class RequestOutcome:
 # ── The funnel ───────────────────────────────────────────────────────
 
 
+def _build_savings_breakdown(
+    outcome: "RequestOutcome",
+) -> tuple[
+    dict[str, int],
+    dict[str, float],
+    "RequestSavingsBreakdown | None",
+]:
+    """Merge the five savings sources on a ``RequestOutcome`` into a
+    by-source dict, a by-source USD dict, and the breakdown object.
+
+    The funnel calls this once so the Prometheus / SavingsTracker
+    persistence path and the cost_tracker orchestrator see the same
+    numbers. Handlers do not call this directly — they set the typed
+    fields on the outcome (``cache_read_tokens``,
+    ``semantic_cache_avoided_tokens``, etc.) and let the funnel do the
+    merge.
+    """
+    from headroom.savings import (
+        RequestSavingsBreakdown,
+        SavingsSource,
+    )
+
+    semantic_tokens = int(outcome.semantic_cache_avoided_tokens or 0)
+    self_hosted_tokens = int(outcome.self_hosted_prefix_cache_hits or 0)
+    model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
+    model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
+    provider_cache_tokens = int(outcome.cache_read_tokens or 0)
+
+    breakdown = RequestSavingsBreakdown(
+        raw_input_tokens=int(outcome.original_tokens or 0),
+        post_cutctx_tokens=int(outcome.optimized_tokens or 0),
+        provider_cached_tokens=provider_cache_tokens,
+        semantic_cache_avoided_tokens=semantic_tokens,
+        total_tokens_saved=int(outcome.tokens_saved or 0),
+    )
+
+    by_source_tokens: dict[str, int] = {}
+    by_source_usd: dict[str, float] = {}
+
+    # 1. Provider prompt cache.
+    if provider_cache_tokens > 0:
+        breakdown.by_source.add(
+            SavingsSource.PROVIDER_PROMPT_CACHE, provider_cache_tokens
+        )
+        by_source_tokens[SavingsSource.PROVIDER_PROMPT_CACHE.value] = (
+            provider_cache_tokens
+        )
+
+    # Track already-attributed tokens so the CutCtx bucket does not
+    # double-count when the same tokens are also a cache hit, a
+    # semantic hit, a self-hosted hit, or a routed model hit.
+    already_accounted = (
+        provider_cache_tokens
+        + semantic_tokens
+        + self_hosted_tokens
+        + model_routing_tokens
+    )
+
+    # 2. CutCtx compression.
+    if breakdown.total_tokens_saved > 0:
+        cutctx_tokens = max(
+            0, breakdown.total_tokens_saved - already_accounted
+        )
+        if cutctx_tokens > 0:
+            breakdown.by_source.add(
+                SavingsSource.CUTCTX_COMPRESSION, cutctx_tokens
+            )
+            by_source_tokens[
+                SavingsSource.CUTCTX_COMPRESSION.value
+            ] = cutctx_tokens
+
+    # 3. Semantic cache.
+    if semantic_tokens > 0:
+        breakdown.by_source.add(
+            SavingsSource.SEMANTIC_CACHE, semantic_tokens
+        )
+        by_source_tokens[SavingsSource.SEMANTIC_CACHE.value] = (
+            semantic_tokens
+        )
+
+    # 4. Self-hosted prefix cache (vLLM APC, etc.).
+    if self_hosted_tokens > 0:
+        breakdown.by_source.add(
+            SavingsSource.PREFIX_CACHE_SELF_HOSTED, self_hosted_tokens
+        )
+        by_source_tokens[
+            SavingsSource.PREFIX_CACHE_SELF_HOSTED.value
+        ] = self_hosted_tokens
+
+    # 5. Model routing (tokens + USD).
+    if model_routing_tokens > 0 or model_routing_usd > 0:
+        breakdown.by_source.add(
+            SavingsSource.MODEL_ROUTING,
+            model_routing_tokens,
+            model_routing_usd,
+        )
+        by_source_tokens[SavingsSource.MODEL_ROUTING.value] = (
+            model_routing_tokens
+        )
+        if model_routing_usd > 0:
+            by_source_usd[SavingsSource.MODEL_ROUTING.value] = (
+                model_routing_usd
+            )
+
+    # 6. Escape hatch: extra sources via savings_metadata dict.
+    extra = outcome.savings_metadata or {}
+    if isinstance(extra, dict):
+        for raw_name, payload in extra.items():
+            if not isinstance(payload, dict):
+                continue
+            try:
+                src = SavingsSource.from_str(str(raw_name))
+            except Exception:
+                src = SavingsSource.CUTCTX_COMPRESSION
+            tokens = int(payload.get("tokens", 0) or 0)
+            usd = float(payload.get("usd", 0.0) or 0.0)
+            if tokens <= 0 and usd <= 0:
+                continue
+            # If the extra source re-attributes tokens that were
+            # already counted in the CutCtx bucket, roll them back so
+            # the extra source is the only place that gets credit.
+            if tokens > 0 and src == SavingsSource.CUTCTX_COMPRESSION:
+                cutctx_bucket = breakdown.by_source.get_tokens(src)
+                if cutctx_bucket >= tokens:
+                    breakdown.by_source.add(src, -tokens)
+                    by_source_tokens[src.value] = (
+                        by_source_tokens.get(src.value, 0) - tokens
+                    )
+            breakdown.by_source.add(src, tokens, usd)
+            by_source_tokens[src.value] = (
+                by_source_tokens.get(src.value, 0) + tokens
+            )
+            if usd > 0:
+                by_source_usd[src.value] = by_source_usd.get(src.value, 0.0) + usd
+
+    return by_source_tokens, by_source_usd, breakdown
+
+
 async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     """Single funnel for per-request bookkeeping. The contract.
 
@@ -337,6 +570,15 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # HTTP middleware / WS accept captured from ``X-Headroom-Project``.
     project = outcome.project or get_current_project()
 
+    # Phase 1.3 + 1.4: build the unified savings breakdown once so
+    # both step 1 (Prometheus / SavingsTracker persistence) and
+    # step 2a (cost_tracker orchestrator) see the same numbers. This
+    # is the only place in the code path that knows how to merge the
+    # five savings sources; handlers just set the typed fields.
+    _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = (
+        _build_savings_breakdown(outcome)
+    )
+
     # 1. Prometheus / SavingsTracker.
     await handler.metrics.record_request(
         provider=outcome.provider,
@@ -357,6 +599,35 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         uncached_input_tokens=outcome.uncached_input_tokens,
         attempted_input_tokens=outcome.attempted_input_tokens,
         project=project,
+        # Phase 1.4: extra savings sources.
+        semantic_cache_avoided_tokens=int(
+            outcome.semantic_cache_avoided_tokens or 0
+        ),
+        self_hosted_prefix_cache_hits=int(
+            outcome.self_hosted_prefix_cache_hits or 0
+        ),
+        model_routing_tokens_saved=int(
+            outcome.model_routing_tokens_saved or 0
+        ),
+        model_routing_usd_saved=float(
+            outcome.model_routing_usd_saved or 0.0
+        ),
+        savings_by_source_tokens=_savings_by_source_tokens,
+        cache_savings_usd_delta=_savings_by_source_usd.get(
+            "provider_prompt_cache"
+        ),
+        compression_savings_usd_delta=_savings_by_source_usd.get(
+            "cutctx_compression"
+        ),
+        semantic_cache_usd_delta=_savings_by_source_usd.get(
+            "semantic_cache"
+        ),
+        self_hosted_prefix_cache_usd_delta=_savings_by_source_usd.get(
+            "prefix_cache_self_hosted"
+        ),
+        model_routing_usd_delta=_savings_by_source_usd.get(
+            "model_routing"
+        ),
     )
 
     # 2. Cost tracker (optional).
@@ -373,52 +644,21 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             uncached_tokens=outcome.uncached_input_tokens,
         )
 
-        # 2a. Phase 1.3: per-request savings breakdown into the unified
-        # ledger. Provider cache and CutCtx compression are tracked
-        # independently so /stats, the dashboard, and the buyer report
-        # can attribute savings without double counting. cache_read_tokens
-        # is the API-reported cache-hit count (provider-prompt-cache
-        # savings). tokens_saved is the CutCtx-side reduction. The total
-        # in stats() is the SUM of per-source values.
-        try:
-            from headroom.savings import (
-                RequestSavingsBreakdown,
-                SavingsSource,
+        # 2a. Phase 1.3 + 1.4: per-request savings breakdown into the
+        # unified ledger. The breakdown was already built by
+        # ``_build_savings_breakdown`` at the top of the funnel; we just
+        # hand it to the cost_tracker orchestrator here. Both this
+        # step and step 1 (Prometheus / SavingsTracker persistence)
+        # see the same numbers because they share the dict.
+        if _savings_meta is not None and (
+            _savings_meta.has_any_savings
+            or _savings_meta.raw_input_tokens > 0
+        ):
+            cost_tracker.record_savings_breakdown(
+                _savings_meta,
+                provider=outcome.provider,
+                model=outcome.model,
             )
-
-            breakdown = RequestSavingsBreakdown(
-                raw_input_tokens=int(outcome.original_tokens or 0),
-                post_cutctx_tokens=int(outcome.optimized_tokens or 0),
-                provider_cached_tokens=int(outcome.cache_read_tokens or 0),
-                total_tokens_saved=int(outcome.tokens_saved or 0),
-            )
-            if breakdown.provider_cached_tokens > 0:
-                breakdown.by_source.add(
-                    SavingsSource.PROVIDER_PROMPT_CACHE,
-                    breakdown.provider_cached_tokens,
-                )
-            if breakdown.total_tokens_saved > 0:
-                # Only attribute tokens_saved to CutCtx compression if it
-                # is not already explained by the provider cache. Without
-                # this guard the two sources would double-count.
-                cutctx_tokens = max(
-                    0,
-                    breakdown.total_tokens_saved
-                    - breakdown.provider_cached_tokens,
-                )
-                if cutctx_tokens > 0:
-                    breakdown.by_source.add(
-                        SavingsSource.CUTCTX_COMPRESSION,
-                        cutctx_tokens,
-                    )
-            if breakdown.has_any_savings or breakdown.raw_input_tokens > 0:
-                cost_tracker.record_savings_breakdown(
-                    breakdown,
-                    provider=outcome.provider,
-                    model=outcome.model,
-                )
-        except Exception as exc:  # never let the funnel blow up
-            logger.debug("Savings breakdown failed: %s", exc)
 
     # 3. Per-request log (optional). The ``client`` outcome field is
     #    copied into ``tags["client"]`` so the dashboard's existing

@@ -294,6 +294,11 @@ class OpenAIChatMixin:
                         tokens_saved=0,
                         attempted_input_tokens=0,
                         from_response_cache=True,
+                        # Phase 1.4: semantic-cache hit signal.
+                        # ``semantic_cache_avoided_tokens`` is left at
+                        # 0 conservatively until the cache learns to
+                        # record the upstream call size.
+                        semantic_cache_hit=True,
                         total_latency_ms=_cache_hit_latency,
                         num_messages=len(messages),
                         tags=tags,

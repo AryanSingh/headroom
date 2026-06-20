@@ -130,12 +130,27 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
                     or 0.0
                 ),
                 "cost_savings_usd": float(
-                    (raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0)
-                    + (raw.get("delta_cache_savings_usd") or raw.get("cache_savings_usd", 0.0) or 0.0)
+                    (
+                        raw.get("delta_savings_usd")
+                        or raw.get("compression_savings_usd", 0.0)
+                        or 0.0
+                    )
+                    + (
+                        raw.get("delta_cache_savings_usd")
+                        or raw.get("cache_savings_usd", 0.0)
+                        or 0.0
+                    )
+                    + float(
+                        sum(
+                            float(v)
+                            for v in (raw.get("savings_by_source_usd") or {}).values()
+                        )
+                    )
                 ),
                 "savings_by_source_tokens": dict(
                     raw.get("savings_by_source_tokens") or {}
                 ),
+                "savings_by_source_usd": dict(raw.get("savings_by_source_usd") or {}),
             }
         )
     return rows
@@ -311,13 +326,26 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
                 by_source[src] = by_source.get(src, 0) + int(n)
     total_tokens = sum(by_source.values())
 
-    total_usd = sum(float(row.get("cost_savings_usd", 0) or 0) for row in data)
-    compression_usd = sum(
-        float(row.get("compression_savings_usd", 0) or 0) for row in data
-    )
-    cache_usd = sum(
-        float(row.get("cache_savings_usd", 0) or 0) for row in data
-    )
+    total_usd = 0.0
+    compression_usd = 0.0
+    cache_usd = 0.0
+    by_source_usd: dict[str, float] = {src.value: 0.0 for src in SavingsSource}
+    for row in data:
+        source_usd = row.get("savings_by_source_usd") or {}
+        if isinstance(source_usd, dict) and source_usd:
+            row_total = 0.0
+            for src, usd in source_usd.items():
+                value = float(usd or 0.0)
+                by_source_usd[src] = by_source_usd.get(src, 0.0) + value
+                row_total += value
+            total_usd += row_total
+            compression_usd += float(source_usd.get("cutctx_compression", 0.0) or 0.0)
+            cache_usd += float(source_usd.get("provider_prompt_cache", 0.0) or 0.0)
+        else:
+            row_total = float(row.get("cost_savings_usd", 0) or 0)
+            total_usd += row_total
+            compression_usd += float(row.get("compression_savings_usd", 0) or 0)
+            cache_usd += float(row.get("cache_savings_usd", 0) or 0)
 
     if fmt == "json":
         payload = {
@@ -328,10 +356,26 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             "cache_savings_usd": round(cache_usd, 4),
             "savings_by_source": by_source,
             "savings_by_source_total": total_tokens,
+            "savings_by_source_usd": {
+                src.value: round(by_source_usd.get(src.value, 0.0), 4)
+                for src in SavingsSource
+            },
+            "savings_sources": [
+                {
+                    "id": src.value,
+                    "label": src.label,
+                    "tokens": by_source.get(src.value, 0),
+                    "usd": round(by_source_usd.get(src.value, 0.0), 4),
+                }
+                for src in SavingsSource
+            ],
             "attribution_note": (
-                "Provider cache and CutCtx compression are tracked "
-                "independently. The total is the sum of per-source values, "
-                "not a difference, so there is no double counting."
+                "All five savings sources are tracked independently. "
+                "The total is the sum of per-source values, not a "
+                "difference, so there is no double counting. Provider "
+                "cache and semantic cache discounts are observed on the "
+                "upstream side; CutCtx compression, self-hosted prefix "
+                "cache, and model routing are observed on the proxy side."
             ),
         }
         content = json.dumps(payload, indent=2)
@@ -355,14 +399,27 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             lines.append(f"| {src.label} | {n:,} |")
         lines.append(f"| **Total** | **{total_tokens:,}** |")
         lines.append("")
+        lines.append("## By source USD")
+        lines.append("")
+        lines.append("| Source | USD |")
+        lines.append("|---|---:|")
+        for src in SavingsSource:
+            usd = by_source_usd.get(src.value, 0.0)
+            if usd == 0:
+                continue
+            lines.append(f"| {src.label} | ${usd:,.2f} |")
+        lines.append(f"| **Total** | **${total_usd:,.2f}** |")
+        lines.append("")
         lines.append("## Attribution")
         lines.append("")
         lines.append(
-            "Provider prompt cache and CutCtx compression are tracked "
-            "independently. The total is the sum of per-source values, "
-            "not the difference, so there is no double counting. The "
-            "marginal value of CutCtx above native caching is visible as "
-            "the CutCtx Compression row."
+            "All five savings sources are tracked independently. "
+            "The total is the sum of per-source values, not a "
+            "difference, so there is no double counting. Provider "
+            "prompt cache and semantic cache discounts are observed "
+            "on the upstream side; CutCtx compression, self-hosted "
+            "prefix cache, and model routing are observed on the "
+            "proxy side."
         )
         content = "\n".join(lines) + "\n"
     else:  # text
@@ -381,20 +438,22 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             lines.append(f"  {src.label:30s} {n:>12,}")
         lines.append(f"  {'Total':30s} {total_tokens:>12,}")
         lines.append("")
+        lines.append("By source USD:")
+        for src in SavingsSource:
+            usd = by_source_usd.get(src.value, 0.0)
+            if usd == 0:
+                continue
+            lines.append(f"  {src.label:30s} ${usd:>11,.2f}")
+        lines.append(f"  {'Total':30s} ${total_usd:>11,.2f}")
+        lines.append("")
         lines.append("Attribution:")
         lines.append(
-            "  Provider cache and CutCtx compression are tracked independently."
+            "  All five sources are tracked independently. The total is"
         )
         lines.append(
-            "  The total is the sum of per-source values, not a difference,"
+            "  the sum of per-source values, not a difference, so there"
         )
-        lines.append(
-            "  so there is no double counting. The marginal value of"
-        )
-        lines.append(
-            "  CutCtx above native caching is visible as the CutCtx"
-        )
-        lines.append("  Compression row above.")
+        lines.append("  is no double counting.")
         content = "\n".join(lines) + "\n"
 
     if output:

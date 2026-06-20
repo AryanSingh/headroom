@@ -1,4 +1,4 @@
-"""Prometheus-compatible metrics for the Headroom proxy.
+"""Prometheus-compatible metrics for the Cutctx proxy.
 
 Tracks request counts, token usage, latency, overhead, TTFB,
 per-transform timing, waste signals, prefix cache stats, and
@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from headroom.observability import HeadroomOtelMetrics
+    from headroom.observability import CutctxOtelMetrics
     from headroom.proxy.cost import CostTracker
 
 from headroom.observability import get_otel_metrics
@@ -66,7 +66,7 @@ class PrometheusMetrics:
         self,
         savings_tracker: SavingsTracker | None = None,
         cost_tracker: CostTracker | None = None,
-        otel_metrics: HeadroomOtelMetrics | None = None,
+        otel_metrics: CutctxOtelMetrics | None = None,
     ):
         self.requests_total = 0
         self.requests_by_provider: dict[str, int] = defaultdict(int)
@@ -141,7 +141,7 @@ class PrometheusMetrics:
         self.latency_max_ms = 0.0
         self.latency_count = 0
 
-        # Headroom overhead (optimization time only, excludes LLM)
+        # Cutctx overhead (optimization time only, excludes LLM)
         self.overhead_sum_ms = 0.0
         self.overhead_min_ms = float("inf")
         self.overhead_max_ms = 0.0
@@ -337,7 +337,7 @@ class PrometheusMetrics:
             self.ws_session_duration_count.clear()
             self.ws_session_duration_max_ms.clear()
 
-    def _get_otel_metrics(self) -> HeadroomOtelMetrics:
+    def _get_otel_metrics(self) -> CutctxOtelMetrics:
         return self._otel_metrics or get_otel_metrics()
 
     def _current_savings_tracker_totals(self) -> tuple[int, float]:
@@ -563,6 +563,18 @@ class PrometheusMetrics:
         uncached_input_tokens: int = 0,
         attempted_input_tokens: int = 0,
         project: str | None = None,
+        # Phase 1.4: extra savings sources. Defaults to 0/None so old
+        # callers keep working.
+        semantic_cache_avoided_tokens: int = 0,
+        self_hosted_prefix_cache_hits: int = 0,
+        model_routing_tokens_saved: int = 0,
+        model_routing_usd_saved: float = 0.0,
+        savings_by_source_tokens: dict[str, int] | None = None,
+        cache_savings_usd_delta: float | None = None,
+        compression_savings_usd_delta: float | None = None,
+        semantic_cache_usd_delta: float | None = None,
+        self_hosted_prefix_cache_usd_delta: float | None = None,
+        model_routing_usd_delta: float | None = None,
     ):
         """Record metrics for a request."""
         async with self._lock:
@@ -612,7 +624,7 @@ class PrometheusMetrics:
             self.latency_max_ms = max(self.latency_max_ms, latency_ms)
             self.latency_count += 1
 
-            # Track Headroom overhead separately
+            # Track Cutctx overhead separately
             if overhead_ms > 0:
                 self.overhead_sum_ms += overhead_ms
                 self.overhead_min_ms = min(self.overhead_min_ms, overhead_ms)
@@ -656,6 +668,19 @@ class PrometheusMetrics:
                 uncached_input_tokens=uncached_input_tokens,
                 total_input_tokens=total_input_tokens,
                 total_input_cost_usd=total_input_cost_usd,
+                # Phase 1.4: extra savings sources so the durable
+                # history row and the buyer report can attribute all
+                # five sources. When ``savings_by_source_tokens`` is
+                # provided by the funnel it wins; otherwise we fall
+                # back to deriving from the typed fields.
+                savings_by_source_tokens=savings_by_source_tokens,
+                cache_savings_usd_delta=cache_savings_usd_delta,
+                compression_savings_usd_delta=compression_savings_usd_delta,
+                semantic_cache_usd_delta=semantic_cache_usd_delta,
+                self_hosted_prefix_cache_usd_delta=(
+                    self_hosted_prefix_cache_usd_delta
+                ),
+                model_routing_usd_delta=model_routing_usd_delta,
             )
 
         self._get_otel_metrics().record_proxy_request(
@@ -893,28 +918,28 @@ class PrometheusMetrics:
                 lines,
                 name="headroom_overhead_ms_sum",
                 metric_type="counter",
-                help_text="Sum of Headroom processing overhead in milliseconds",
+                help_text="Sum of Cutctx processing overhead in milliseconds",
                 value=round(self.overhead_sum_ms, 2),
             )
             _append_metric(
                 lines,
                 name="headroom_overhead_ms_count",
                 metric_type="counter",
-                help_text="Count of observed Headroom overhead samples",
+                help_text="Count of observed Cutctx overhead samples",
                 value=self.overhead_count,
             )
             _append_metric(
                 lines,
                 name="headroom_overhead_ms_min",
                 metric_type="gauge",
-                help_text="Minimum observed Headroom overhead in milliseconds",
+                help_text="Minimum observed Cutctx overhead in milliseconds",
                 value=0 if self.overhead_count == 0 else round(self.overhead_min_ms, 2),
             )
             _append_metric(
                 lines,
                 name="headroom_overhead_ms_max",
                 metric_type="gauge",
-                help_text="Maximum observed Headroom overhead in milliseconds",
+                help_text="Maximum observed Cutctx overhead in milliseconds",
                 value=round(self.overhead_max_ms, 2),
             )
             _append_metric(

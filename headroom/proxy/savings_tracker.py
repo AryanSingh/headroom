@@ -252,23 +252,76 @@ def _estimate_input_cost_usd(
 
 
 def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
-    """Normalize persisted history entries across schema shapes."""
+    """Normalize persisted history entries across schema shapes.
+
+    Phase 1.4: preserves the new savings sources (semantic_cache,
+    self_hosted_prefix_cache, model_routing) on reload so the buyer
+    report and the dashboard see restart-safe by-source attribution
+    for all five sources.
+    """
     timestamp: datetime | None = None
     total_tokens_saved = 0
     compression_savings_usd = 0.0
+    cache_savings_usd = 0.0
+    semantic_cache_savings_usd = 0.0
+    self_hosted_prefix_cache_savings_usd = 0.0
+    model_routing_savings_usd = 0.0
     total_input_tokens = 0
     total_input_cost_usd = 0.0
     provider = PROVIDER_UNKNOWN
     model = MODEL_UNKNOWN
+    delta_tokens_saved = 0
+    delta_savings_usd = 0.0
+    delta_cache_savings_usd = 0.0
+    delta_semantic_cache_usd = 0.0
+    delta_self_hosted_prefix_cache_usd = 0.0
+    delta_model_routing_usd = 0.0
+    savings_by_source_tokens: dict[str, int] = {}
+    savings_by_source_usd: dict[str, float] = {}
 
     if isinstance(entry, dict):
         timestamp = _parse_timestamp(entry.get("timestamp"))
         total_tokens_saved = _coerce_int(entry.get("total_tokens_saved"))
         compression_savings_usd = _coerce_float(entry.get("compression_savings_usd"))
+        cache_savings_usd = _coerce_float(entry.get("cache_savings_usd"))
+        semantic_cache_savings_usd = _coerce_float(
+            entry.get("semantic_cache_savings_usd")
+        )
+        self_hosted_prefix_cache_savings_usd = _coerce_float(
+            entry.get("self_hosted_prefix_cache_savings_usd")
+        )
+        model_routing_savings_usd = _coerce_float(
+            entry.get("model_routing_savings_usd")
+        )
         total_input_tokens = _coerce_int(entry.get("total_input_tokens"))
         total_input_cost_usd = _coerce_float(entry.get("total_input_cost_usd"))
         provider = _normalize_provider(entry.get("provider"))
         model = _normalize_model(entry.get("model"))
+        delta_tokens_saved = _coerce_int(entry.get("delta_tokens_saved"))
+        delta_savings_usd = _coerce_float(entry.get("delta_savings_usd"))
+        delta_cache_savings_usd = _coerce_float(entry.get("delta_cache_savings_usd"))
+        delta_semantic_cache_usd = _coerce_float(
+            entry.get("delta_semantic_cache_usd")
+        )
+        delta_self_hosted_prefix_cache_usd = _coerce_float(
+            entry.get("delta_self_hosted_prefix_cache_usd")
+        )
+        delta_model_routing_usd = _coerce_float(
+            entry.get("delta_model_routing_usd")
+        )
+        raw_by_source = entry.get("savings_by_source_tokens") or {}
+        if isinstance(raw_by_source, dict):
+            savings_by_source_tokens = {
+                str(k): _coerce_int(v)
+                for k, v in raw_by_source.items()
+                if _coerce_int(v) > 0
+            }
+        raw_by_source_usd = entry.get("savings_by_source_usd") or {}
+        if isinstance(raw_by_source_usd, dict):
+            savings_by_source_usd = {
+                str(k): _coerce_float(v)
+                for k, v in raw_by_source_usd.items()
+            }
     elif isinstance(entry, list | tuple) and len(entry) >= 2:
         timestamp = _parse_timestamp(entry[0])
         total_tokens_saved = _coerce_int(entry[1])
@@ -290,8 +343,24 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         "model": model,
         "total_tokens_saved": total_tokens_saved,
         "compression_savings_usd": round(compression_savings_usd, 6),
+        "cache_savings_usd": round(cache_savings_usd, 6),
+        "semantic_cache_savings_usd": round(semantic_cache_savings_usd, 6),
+        "self_hosted_prefix_cache_savings_usd": round(
+            self_hosted_prefix_cache_savings_usd, 6
+        ),
+        "model_routing_savings_usd": round(model_routing_savings_usd, 6),
         "total_input_tokens": total_input_tokens,
         "total_input_cost_usd": round(total_input_cost_usd, 6),
+        "delta_tokens_saved": delta_tokens_saved,
+        "delta_savings_usd": round(delta_savings_usd, 6),
+        "delta_cache_savings_usd": round(delta_cache_savings_usd, 6),
+        "delta_semantic_cache_usd": round(delta_semantic_cache_usd, 6),
+        "delta_self_hosted_prefix_cache_usd": round(
+            delta_self_hosted_prefix_cache_usd, 6
+        ),
+        "delta_model_routing_usd": round(delta_model_routing_usd, 6),
+        "savings_by_source_tokens": savings_by_source_tokens,
+        "savings_by_source_usd": savings_by_source_usd,
     }
 
 
@@ -517,6 +586,12 @@ class SavingsTracker:
         savings_by_source_tokens: dict[str, int] | None = None,
         cache_savings_usd_delta: float | None = None,
         compression_savings_usd_delta: float | None = None,
+        # Phase 1.4: per-source dollar deltas for the new savings
+        # sources. Defaults to None so older callers keep working.
+        semantic_cache_usd_delta: float | None = None,
+        self_hosted_prefix_cache_usd_delta: float | None = None,
+        model_routing_usd_delta: float | None = None,
+        savings_by_source_usd: dict[str, float] | None = None,
     ) -> bool:
         """Persist a canonical display-session update for every request.
 
@@ -536,8 +611,25 @@ class SavingsTracker:
 
         delta_tokens_saved = _coerce_int(tokens_saved)
         delta_input_tokens = _coerce_int(input_tokens)
-        delta_savings_usd = _coerce_int(compression_savings_usd_delta) if compression_savings_usd_delta is not None else _estimate_compression_savings_usd(model, delta_tokens_saved)
-        delta_cache_savings_usd = float(cache_savings_usd_delta) if cache_savings_usd_delta is not None else 0.0
+        delta_savings_usd = (
+            _coerce_float(compression_savings_usd_delta)
+            if compression_savings_usd_delta is not None
+            else _estimate_compression_savings_usd(model, delta_tokens_saved)
+        )
+        delta_cache_savings_usd = (
+            _coerce_float(cache_savings_usd_delta)
+            if cache_savings_usd_delta is not None
+            else 0.0
+        )
+        delta_semantic_cache_usd = _coerce_float(
+            semantic_cache_usd_delta
+        ) if semantic_cache_usd_delta is not None else 0.0
+        delta_self_hosted_usd = _coerce_float(
+            self_hosted_prefix_cache_usd_delta
+        ) if self_hosted_prefix_cache_usd_delta is not None else 0.0
+        delta_model_routing_usd = _coerce_float(
+            model_routing_usd_delta
+        ) if model_routing_usd_delta is not None else 0.0
         delta_input_cost_usd = _estimate_input_cost_usd(
             model,
             delta_input_tokens,
@@ -562,11 +654,47 @@ class SavingsTracker:
         savings_by_source_tokens = {
             str(k): max(0, int(v)) for k, v in savings_by_source_tokens.items() if v
         }
+        # Per-source USD: explicit dict wins; otherwise the explicit
+        # per-source deltas.
+        if savings_by_source_usd is None:
+            savings_by_source_usd = {}
+            if delta_cache_savings_usd:
+                savings_by_source_usd["provider_prompt_cache"] = (
+                    delta_cache_savings_usd
+                )
+            if delta_savings_usd:
+                savings_by_source_usd["cutctx_compression"] = (
+                    delta_savings_usd
+                )
+            if delta_semantic_cache_usd:
+                savings_by_source_usd["semantic_cache"] = (
+                    delta_semantic_cache_usd
+                )
+            if delta_self_hosted_usd:
+                savings_by_source_usd["prefix_cache_self_hosted"] = (
+                    delta_self_hosted_usd
+                )
+            if delta_model_routing_usd:
+                savings_by_source_usd["model_routing"] = (
+                    delta_model_routing_usd
+                )
+        savings_by_source_usd = {
+            str(k): float(v) for k, v in savings_by_source_usd.items()
+        }
         delta_provider_cache_tokens = int(
             savings_by_source_tokens.get("provider_prompt_cache", 0)
         )
         delta_cutctx_tokens = int(
             savings_by_source_tokens.get("cutctx_compression", 0)
+        )
+        delta_semantic_cache_tokens = int(
+            savings_by_source_tokens.get("semantic_cache", 0)
+        )
+        delta_self_hosted_tokens = int(
+            savings_by_source_tokens.get("prefix_cache_self_hosted", 0)
+        )
+        delta_model_routing_tokens = int(
+            savings_by_source_tokens.get("model_routing", 0)
         )
 
         with self._lock:
@@ -610,10 +738,31 @@ class SavingsTracker:
                 lifetime.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
                 6,
             )
+            lifetime["semantic_cache_savings_usd"] = round(
+                lifetime.get("semantic_cache_savings_usd", 0.0)
+                + delta_semantic_cache_usd,
+                6,
+            )
+            lifetime["self_hosted_prefix_cache_savings_usd"] = round(
+                lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0)
+                + delta_self_hosted_usd,
+                6,
+            )
+            lifetime["model_routing_savings_usd"] = round(
+                lifetime.get("model_routing_savings_usd", 0.0)
+                + delta_model_routing_usd,
+                6,
+            )
             # Phase 1.3: lifetime by-source accumulators.
             for src_name, n in savings_by_source_tokens.items():
                 key = f"savings_by_source_tokens.{src_name}"
                 lifetime[key] = int(lifetime.get(key, 0)) + int(n)
+            # Phase 1.4: per-source USD lifetime accumulators.
+            for src_name, usd in savings_by_source_usd.items():
+                key = f"savings_by_source_usd.{src_name}"
+                lifetime[key] = round(
+                    float(lifetime.get(key, 0.0)) + float(usd), 6
+                )
             lifetime["total_input_tokens"] = next_total_input_tokens
             lifetime["total_input_cost_usd"] = next_total_input_cost_usd
 
@@ -635,6 +784,21 @@ class SavingsTracker:
             )
             session["cache_savings_usd"] = round(
                 session.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
+                6,
+            )
+            session["semantic_cache_savings_usd"] = round(
+                session.get("semantic_cache_savings_usd", 0.0)
+                + delta_semantic_cache_usd,
+                6,
+            )
+            session["self_hosted_prefix_cache_savings_usd"] = round(
+                session.get("self_hosted_prefix_cache_savings_usd", 0.0)
+                + delta_self_hosted_usd,
+                6,
+            )
+            session["model_routing_savings_usd"] = round(
+                session.get("model_routing_savings_usd", 0.0)
+                + delta_model_routing_usd,
                 6,
             )
             session["total_input_tokens"] += session_input_tokens_delta
@@ -662,11 +826,29 @@ class SavingsTracker:
             )
 
             # Persist a history row when there is something to record:
-            # either CutCtx savings, or provider cache hits (Phase 1.3).
+            # either CutCtx savings, or any of the five savings sources
+            # fired (Phase 1.4). The thresholds mirror the source
+            # defaults so a request with provider cache + semantic
+            # cache + model routing all leaves a row.
             has_provider_cache = (
                 int(cache_read_tokens or 0) > 0 or delta_cache_savings_usd > 0
             )
-            if delta_tokens_saved > 0 or has_provider_cache:
+            has_semantic = (
+                delta_semantic_cache_tokens > 0 or delta_semantic_cache_usd > 0
+            )
+            has_self_hosted = (
+                delta_self_hosted_tokens > 0 or delta_self_hosted_usd > 0
+            )
+            has_model_routing = (
+                delta_model_routing_tokens > 0 or delta_model_routing_usd > 0
+            )
+            if (
+                delta_tokens_saved > 0
+                or has_provider_cache
+                or has_semantic
+                or has_self_hosted
+                or has_model_routing
+            ):
                 self._state["history"].append(
                     {
                         "timestamp": _to_utc_iso(timestamp_dt),
@@ -678,18 +860,41 @@ class SavingsTracker:
                         "cache_savings_usd": round(
                             lifetime.get("cache_savings_usd", 0.0), 6
                         ),
+                        "semantic_cache_savings_usd": round(
+                            lifetime.get("semantic_cache_savings_usd", 0.0), 6
+                        ),
+                        "self_hosted_prefix_cache_savings_usd": round(
+                            lifetime.get(
+                                "self_hosted_prefix_cache_savings_usd", 0.0
+                            ),
+                            6,
+                        ),
+                        "model_routing_savings_usd": round(
+                            lifetime.get("model_routing_savings_usd", 0.0), 6
+                        ),
                         "total_input_tokens": lifetime["total_input_tokens"],
                         "total_input_cost_usd": lifetime["total_input_cost_usd"],
-                        # Phase 1.3: per-request deltas plus by_source
-                        # breakdown. The buyer report sums these
-                        # deltas across rows so the totals reflect real
-                        # request count, not a monotonic lifetime.
+                        # Phase 1.3 + 1.4: per-request deltas plus
+                        # by_source breakdown. The buyer report sums
+                        # these deltas across rows so the totals
+                        # reflect real request count, not a monotonic
+                        # lifetime.
                         "delta_tokens_saved": int(delta_tokens_saved),
                         "delta_savings_usd": round(float(delta_savings_usd), 6),
                         "delta_cache_savings_usd": round(
                             float(delta_cache_savings_usd), 6
                         ),
+                        "delta_semantic_cache_usd": round(
+                            float(delta_semantic_cache_usd), 6
+                        ),
+                        "delta_self_hosted_prefix_cache_usd": round(
+                            float(delta_self_hosted_usd), 6
+                        ),
+                        "delta_model_routing_usd": round(
+                            float(delta_model_routing_usd), 6
+                        ),
                         "savings_by_source_tokens": dict(savings_by_source_tokens),
+                        "savings_by_source_usd": dict(savings_by_source_usd),
                     }
                 )
                 self._trim_history_locked(reference_time=timestamp_dt)

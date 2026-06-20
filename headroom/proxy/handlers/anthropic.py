@@ -814,6 +814,16 @@ class AnthropicHandlerMixin:
                             tokens_saved=0,
                             attempted_input_tokens=0,
                             from_response_cache=True,
+                            # Phase 1.4: this is a semantic-cache hit.
+                            # The proxy served the response from a
+                            # prior similar request. The avoided
+                            # tokens count is the upstream call that
+                            # did not happen. We do not currently
+                            # know the exact count without instrumenting
+                            # the cache, so we conservatively leave the
+                            # counter at 0 and let the parser treat
+                            # ``semantic_cache_hit`` as a binary signal.
+                            semantic_cache_hit=True,
                             total_latency_ms=optimization_latency,
                             overhead_ms=optimization_latency,
                             num_messages=len(messages),
