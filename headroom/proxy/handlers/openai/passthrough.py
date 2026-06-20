@@ -1,4 +1,4 @@
-"""OpenAI handler mixin for HeadroomProxy.
+"""OpenAI handler mixin for CutctxProxy.
 
 Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 """
@@ -30,6 +30,7 @@ import httpx
 from headroom.copilot_auth import apply_copilot_api_auth, build_copilot_upstream_url
 from headroom.proxy.auth_mode import classify_client
 from headroom.proxy.outcome import RequestOutcome
+from headroom.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -84,6 +85,7 @@ class OpenAIPassthroughMixin:
         headers.pop("accept-encoding", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -166,6 +168,10 @@ class OpenAIPassthroughMixin:
                     total_latency_ms=latency_ms,
                     tags=tags,
                     client=client,
+                    savings_metadata=merge_savings_metadata(
+                        request_savings_metadata,
+                        extract_savings_metadata(response_headers=response.headers),
+                    ),
                 )
             )
 
@@ -199,6 +205,7 @@ class OpenAIPassthroughMixin:
         headers.pop("accept-encoding", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
 
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -346,6 +353,7 @@ class OpenAIPassthroughMixin:
                         ttfb_ms=stream_state["ttfb_ms"] or 0,
                         tags=tags,
                         client=client,
+                        savings_metadata=request_savings_metadata,
                     )
                 )
 
@@ -356,5 +364,3 @@ class OpenAIPassthroughMixin:
             headers=response_headers,
             media_type=media_type,
         )
-
-

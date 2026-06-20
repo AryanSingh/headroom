@@ -32,6 +32,7 @@ from headroom.proxy.helpers import extract_tags
 from headroom.proxy.memory_decision import MemoryDecision
 from headroom.proxy.memory_query import MemoryQuery
 from headroom.proxy.outcome import RequestOutcome
+from headroom.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -597,6 +598,10 @@ class AnthropicHandlerMixin:
                 )
             model = body.get("model") or model_override or "unknown"
             messages = body.get("messages", [])
+            request_savings_metadata = extract_savings_metadata(
+                request_headers=request.headers,
+                body=body,
+            )
             pipeline_provider = provider_name
             pipeline_path = request.url.path if upstream_base_url else "/v1/messages"
             pipeline_stream = bool(body.get("stream", False) or force_stream)
@@ -814,16 +819,8 @@ class AnthropicHandlerMixin:
                             tokens_saved=0,
                             attempted_input_tokens=0,
                             from_response_cache=True,
-                            # Phase 1.4: this is a semantic-cache hit.
-                            # The proxy served the response from a
-                            # prior similar request. The avoided
-                            # tokens count is the upstream call that
-                            # did not happen. We do not currently
-                            # know the exact count without instrumenting
-                            # the cache, so we conservatively leave the
-                            # counter at 0 and let the parser treat
-                            # ``semantic_cache_hit`` as a binary signal.
                             semantic_cache_hit=True,
+                            semantic_cache_avoided_tokens=cached.tokens_saved_per_hit,
                             # Self-hosted prefix cache and model
                             # routing do not apply to a response-cache
                             # hit: the proxy never reached the
@@ -838,6 +835,7 @@ class AnthropicHandlerMixin:
                             num_messages=len(messages),
                             tags=tags,
                             client=client,
+                            savings_metadata=request_savings_metadata,
                         )
                     )
 
@@ -1876,6 +1874,7 @@ class AnthropicHandlerMixin:
                             optimization_latency,
                             pipeline_timing=pipeline_timing,
                             original_messages=original_client_messages,
+                            savings_metadata=request_savings_metadata,
                         )
                     else:
                         async with stage_timer.measure("upstream_connect"):
@@ -1957,6 +1956,11 @@ class AnthropicHandlerMixin:
                         # funnel passes 0s for the cache fields, which
                         # is the same observable behaviour as the
                         # pre-refactor code (which also omitted them).
+                        outcome_savings_metadata = extract_savings_metadata(
+                            request_headers=request.headers,
+                            response_headers=backend_response.headers,
+                            body=body,
+                        )
                         await self._record_request_outcome(
                             RequestOutcome(
                                 request_id=request_id,
@@ -1986,6 +1990,7 @@ class AnthropicHandlerMixin:
                                 num_messages=len(body.get("messages", [])),
                                 tags=tags,
                                 client=client,
+                                savings_metadata=outcome_savings_metadata,
                                 turn_id=compute_turn_id(
                                     model, body.get("system"), body.get("messages")
                                 ),
@@ -2064,6 +2069,7 @@ class AnthropicHandlerMixin:
                         mutation_reasons=body_mutation_tracker.reasons,
                         memory_request_ctx=memory_request_ctx,
                         outcome_provider=provider_name,
+                        savings_metadata=request_savings_metadata,
                     )
                 else:
                     async with stage_timer.measure("upstream_connect"):
@@ -2450,7 +2456,7 @@ class AnthropicHandlerMixin:
                             model,
                             response.content,
                             dict(response.headers),
-                            tokens_saved=tokens_saved,
+                            tokens_saved=max(optimized_tokens, cr_tokens),
                         )
 
                     # Subscription tracker: update headroom contribution
@@ -2492,6 +2498,11 @@ class AnthropicHandlerMixin:
                     # that were showing 0% active-savings on non-
                     # streaming Anthropic traffic will now show the
                     # correct ratio.
+                    outcome_savings_metadata = extract_savings_metadata(
+                        request_headers=request.headers,
+                        response_headers=response.headers,
+                        body=body,
+                    )
                     await self._record_request_outcome(
                         RequestOutcome(
                             request_id=request_id,
@@ -2529,6 +2540,7 @@ class AnthropicHandlerMixin:
                             num_messages=len(messages),
                             tags=tags,
                             client=client,
+                            savings_metadata=outcome_savings_metadata,
                             turn_id=compute_turn_id(
                                 model, body.get("system"), body.get("messages")
                             ),
@@ -2759,6 +2771,10 @@ class AnthropicHandlerMixin:
         headers.pop("content-length", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -2940,6 +2956,10 @@ class AnthropicHandlerMixin:
                     num_messages=len(compressed_requests),
                     tags=tags,
                     client=client,
+                    savings_metadata=merge_savings_metadata(
+                        request_savings_metadata,
+                        extract_savings_metadata(response_headers=response.headers),
+                    ),
                 )
             )
 
@@ -3023,6 +3043,7 @@ class AnthropicHandlerMixin:
         headers.pop("host", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -3068,6 +3089,10 @@ class AnthropicHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
+                savings_metadata=merge_savings_metadata(
+                    request_savings_metadata,
+                    extract_savings_metadata(response_headers=response.headers),
+                ),
             )
         )
 
@@ -3154,6 +3179,7 @@ class AnthropicHandlerMixin:
         headers.pop("host", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -3253,6 +3279,7 @@ class AnthropicHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
+                savings_metadata=request_savings_metadata,
             )
         )
 

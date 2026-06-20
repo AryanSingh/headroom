@@ -1,4 +1,4 @@
-"""Gemini handler mixin for HeadroomProxy.
+"""Gemini handler mixin for CutctxProxy.
 
 Contains all Google Gemini API handlers including format conversion utilities.
 """
@@ -21,6 +21,7 @@ from headroom.proxy.auth_mode import classify_client
 from headroom.proxy.compression_decision import CompressionDecision
 from headroom.proxy.helpers import extract_tags
 from headroom.proxy.outcome import RequestOutcome
+from headroom.proxy.savings_metadata import extract_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -29,7 +30,7 @@ ANTIGRAVITY_DAILY_API_URL = "https://daily-cloudcode-pa.sandbox.googleapis.com"
 
 
 class GeminiHandlerMixin:
-    """Mixin providing Gemini API handler methods for HeadroomProxy."""
+    """Mixin providing Gemini API handler methods for CutctxProxy."""
 
     def _is_cloudcode_antigravity_request(
         self, body: dict[str, Any], headers: dict[str, str]
@@ -229,6 +230,10 @@ class GeminiHandlerMixin:
             )
 
         contents = body.get("contents", [])
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=request.headers,
+            body=body,
+        )
 
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -372,6 +377,7 @@ class GeminiHandlerMixin:
                     tags,
                     0,
                     outcome_provider=provider_name,
+                    savings_metadata=request_savings_metadata,
                 )
             else:
                 response = await self._retry_request("POST", url, headers, body)
@@ -403,6 +409,11 @@ class GeminiHandlerMixin:
                         num_messages=len(contents),
                         tags=tags or {},
                         client=client,
+                        savings_metadata=extract_savings_metadata(
+                            request_headers=request.headers,
+                            response_headers=response.headers,
+                            body=body,
+                        ),
                     )
                 )
                 response_headers = dict(response.headers)
@@ -595,6 +606,7 @@ class GeminiHandlerMixin:
                     tags,
                     optimization_latency,
                     outcome_provider=provider_name,
+                    savings_metadata=request_savings_metadata,
                 )
             else:
                 response = await self._retry_request("POST", url, headers, body)
@@ -650,6 +662,11 @@ class GeminiHandlerMixin:
                     num_messages=len(body.get("contents", [])),
                     tags=tags or {},
                     client=client,
+                    savings_metadata=extract_savings_metadata(
+                        request_headers=request.headers,
+                        response_headers=response.headers,
+                        body=body,
+                    ),
                 )
                 await self._record_request_outcome(outcome)
 
@@ -666,7 +683,7 @@ class GeminiHandlerMixin:
                 response_headers.pop("content-encoding", None)
                 response_headers.pop("content-length", None)
 
-                # Inject Headroom compression metrics (for SaaS metering)
+                # Inject Cutctx compression metrics (for SaaS metering)
                 response_headers["x-headroom-tokens-before"] = str(original_tokens)
                 response_headers["x-headroom-tokens-after"] = str(optimized_tokens)
                 response_headers["x-headroom-tokens-saved"] = str(tokens_saved)
@@ -746,6 +763,10 @@ class GeminiHandlerMixin:
         headers.pop("content-length", None)
         headers.pop("accept-encoding", None)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # Note: streaming handlers delegate to _stream_response, which
         # does its own classify_client. No need to compute here.
         is_antigravity = self._is_cloudcode_antigravity_request(body, headers)
@@ -852,6 +873,7 @@ class GeminiHandlerMixin:
             transforms_applied,
             tags,
             optimization_latency,
+            savings_metadata=request_savings_metadata,
         )
 
     async def handle_gemini_stream_generate_content(
@@ -888,6 +910,10 @@ class GeminiHandlerMixin:
         headers.pop("host", None)
         headers.pop("content-length", None)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # Streaming variant — delegates to _stream_response which
         # classifies the client itself from headers.
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
@@ -931,6 +957,7 @@ class GeminiHandlerMixin:
             [],  # transforms_applied
             tags,
             optimization_latency,
+            savings_metadata=request_savings_metadata,
         )
 
     async def handle_gemini_count_tokens(
@@ -978,6 +1005,10 @@ class GeminiHandlerMixin:
         headers.pop("content-length", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -1124,6 +1155,12 @@ class GeminiHandlerMixin:
                     transforms_applied=tuple(transforms_applied),
                     tags=tags,
                     client=client,
+                    savings_metadata=extract_savings_metadata(
+                        request_headers=request.headers,
+                        response_headers=response.headers,
+                        body=body,
+                    )
+                    or request_savings_metadata,
                 )
             )
 

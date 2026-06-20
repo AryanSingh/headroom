@@ -1,4 +1,4 @@
-"""OpenAI handler mixin for HeadroomProxy.
+"""OpenAI handler mixin for CutctxProxy.
 
 Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 """
@@ -43,6 +43,7 @@ from headroom.proxy.auth_mode import classify_auth_mode, classify_client
 from headroom.proxy.cost import _summarize_transforms
 from headroom.proxy.outcome import RequestOutcome
 from headroom.proxy.project_context import classify_project, set_current_project
+from headroom.proxy.savings_metadata import extract_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -966,6 +967,10 @@ class OpenAIResponsesMixin:
         # extraction helpers.
         input_data = body.get("input", "")
         instructions = body.get("instructions")
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=request.headers,
+            body=body,
+        )
 
         messages: list[dict[str, Any]] = []
         if instructions:
@@ -1397,6 +1402,7 @@ class OpenAIResponsesMixin:
                     optimization_latency,
                     memory_user_id=memory_user_id,
                     memory_request_ctx=memory_request_ctx,
+                    savings_metadata=request_savings_metadata,
                 )
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
@@ -1591,6 +1597,11 @@ class OpenAIResponsesMixin:
                         if getattr(self.config, "log_full_messages", False)
                         else None,
                         client=client,
+                        savings_metadata=extract_savings_metadata(
+                            request_headers=request.headers,
+                            response_headers=response.headers,
+                            body=body,
+                        ),
                     )
                 )
 
@@ -2074,6 +2085,10 @@ class OpenAIResponsesMixin:
             except json.JSONDecodeError:
                 # Not JSON — pass through as-is
                 pass
+            ws_savings_metadata = extract_savings_metadata(
+                request_headers=ws_headers,
+                body=body,
+            )
             ws_input_tokens_total = 0
             ws_output_tokens_total = 0
             ws_cache_read_tokens_total = 0
@@ -2413,7 +2428,7 @@ class OpenAIResponsesMixin:
             # subscription users default to WebSocket transport for
             # /v1/responses (proxy-confirmed via #409 reviewer testing),
             # so without this call subscription traffic flows through
-            # Headroom uncompressed.
+            # Cutctx uncompressed.
             #
             # The first frame may be either:
             #   • {"type": "response.create", "response": {...payload...}}
@@ -2569,7 +2584,7 @@ class OpenAIResponsesMixin:
                     # oversized frames after a compression failure. Forwarding
                     # the original to the upstream would cause a
                     # context-window-exceeded response that the client
-                    # (e.g. Codex) cannot recover from, because Headroom's
+                    # (e.g. Codex) cannot recover from, because Cutctx's
                     # earlier successful compressions hid the cumulative
                     # context pressure from the client's auto-compaction
                     # heuristic. Close the client WS with 1009 instead so the
@@ -3123,6 +3138,7 @@ class OpenAIResponsesMixin:
                                     if isinstance(body, dict)
                                     else 0,
                                     tags=ws_tags,
+                                    savings_metadata=ws_savings_metadata,
                                     client=client,
                                 )
                             )
@@ -3662,6 +3678,7 @@ class OpenAIResponsesMixin:
                         transforms_applied=tuple(transforms_applied),
                         tags=ws_session_tags,
                         client=client,
+                        savings_metadata=ws_savings_metadata,
                     )
                 )
                 ws_recorded_overhead_ms_total = _current_ws_overhead_ms()
@@ -3998,4 +4015,3 @@ class OpenAIResponsesMixin:
         finally:
             with contextlib.suppress(Exception):
                 await websocket.close()
-

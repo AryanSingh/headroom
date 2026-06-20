@@ -1,4 +1,4 @@
-"""Batch handler mixin for HeadroomProxy.
+"""Batch handler mixin for CutctxProxy.
 
 Contains all batch API handlers for Google and OpenAI batch operations.
 """
@@ -17,12 +17,13 @@ if TYPE_CHECKING:
 from headroom.proxy.auth_mode import classify_client
 from headroom.proxy.helpers import extract_tags
 from headroom.proxy.outcome import RequestOutcome
+from headroom.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
 
 class BatchHandlerMixin:
-    """Mixin providing batch API handler methods for HeadroomProxy."""
+    """Mixin providing batch API handler methods for CutctxProxy."""
 
     async def handle_google_batch_create(
         self,
@@ -105,6 +106,10 @@ class BatchHandlerMixin:
         headers.pop("content-length", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -286,6 +291,10 @@ class BatchHandlerMixin:
                     pipeline_timing=pipeline_timing,
                     tags=tags,
                     client=client,
+                    savings_metadata=merge_savings_metadata(
+                        request_savings_metadata,
+                        extract_savings_metadata(response_headers=response.headers),
+                    ),
                 )
             )
 
@@ -357,6 +366,10 @@ class BatchHandlerMixin:
         headers.pop("content-length", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -377,7 +390,7 @@ class BatchHandlerMixin:
 
         # Byte-faithful body bytes (PR-A3, fixes P0-2). When ``body`` is
         # None we forward the original bytes verbatim; otherwise the dict
-        # has been synthesized by Headroom and is canonically serialized.
+        # has been synthesized by Cutctx and is canonically serialized.
         from headroom.proxy.helpers import (
             log_outbound_request,
             prepare_outbound_body_bytes,
@@ -438,6 +451,10 @@ class BatchHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
+                savings_metadata=merge_savings_metadata(
+                    request_savings_metadata,
+                    extract_savings_metadata(response_headers=response.headers),
+                ),
             )
         )
 
@@ -477,6 +494,7 @@ class BatchHandlerMixin:
         headers.pop("host", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -523,6 +541,10 @@ class BatchHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
+                savings_metadata=merge_savings_metadata(
+                    request_savings_metadata,
+                    extract_savings_metadata(response_headers=response.headers),
+                ),
             )
         )
 
@@ -743,6 +765,7 @@ class BatchHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
+                savings_metadata=request_savings_metadata,
             )
         )
 
@@ -821,6 +844,10 @@ class BatchHandlerMixin:
         headers.pop("content-length", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=headers,
+            body=body,
+        )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
@@ -911,7 +938,7 @@ class BatchHandlerMixin:
             url = f"{self.OPENAI_API_URL}/v1/batches"
 
             # Byte-faithful re-serialization (PR-A3, fixes P0-2).
-            # batch_body is synthesized by Headroom (compressed file_id +
+            # batch_body is synthesized by Cutctx (compressed file_id +
             # metadata), so it is treated as mutated and goes through the
             # canonical serializer.
             from headroom.proxy.helpers import (
@@ -966,6 +993,10 @@ class BatchHandlerMixin:
                     total_latency_ms=total_latency,
                     tags=tags,
                     client=client,
+                    savings_metadata=merge_savings_metadata(
+                        request_savings_metadata,
+                        extract_savings_metadata(response_headers=response.headers),
+                    ),
                 )
             )
 

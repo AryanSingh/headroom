@@ -32,6 +32,7 @@ from headroom.proxy.auth_mode import classify_auth_mode, classify_client
 from headroom.proxy.compression_decision import CompressionDecision
 from headroom.proxy.cost import header_safe_transforms
 from headroom.proxy.outcome import RequestOutcome
+from headroom.proxy.savings_metadata import extract_savings_metadata
 
 logger = logging.getLogger("headroom.proxy")
 
@@ -113,6 +114,10 @@ class OpenAIChatMixin:
             )
         model = body.get("model", "unknown")
         messages = body.get("messages", [])
+        request_savings_metadata = extract_savings_metadata(
+            request_headers=request.headers,
+            body=body,
+        )
         original_client_messages = copy.deepcopy(messages)
         input_event = self.pipeline_extensions.emit(
             PipelineStage.INPUT_RECEIVED,
@@ -294,11 +299,8 @@ class OpenAIChatMixin:
                         tokens_saved=0,
                         attempted_input_tokens=0,
                         from_response_cache=True,
-                        # Phase 1.4: semantic-cache hit signal.
-                        # ``semantic_cache_avoided_tokens`` is left at
-                        # 0 conservatively until the cache learns to
-                        # record the upstream call size.
                         semantic_cache_hit=True,
+                        semantic_cache_avoided_tokens=cached.tokens_saved_per_hit,
                         # Self-hosted prefix cache and model routing do
                         # not apply to a response-cache hit: the proxy
                         # never reached the upstream. Set the fields
@@ -311,6 +313,7 @@ class OpenAIChatMixin:
                         num_messages=len(messages),
                         tags=tags,
                         client=client,
+                        savings_metadata=request_savings_metadata,
                     )
                 )
 
@@ -833,6 +836,7 @@ class OpenAIChatMixin:
                         waste_signals=waste_signals_dict,
                         prefix_tracker=openai_prefix_tracker,
                         optimized_messages=optimized_messages,
+                        savings_metadata=request_savings_metadata,
                     )
                 else:
                     # Non-streaming: use send_openai_message() → JSON
@@ -994,6 +998,11 @@ class OpenAIChatMixin:
                         messages=optimized_messages,
                     )
 
+                    outcome_savings_metadata = extract_savings_metadata(
+                        request_headers=request.headers,
+                        response_headers=backend_response.headers,
+                        body=body,
+                    )
                     await self._record_request_outcome(
                         RequestOutcome(
                             request_id=request_id,
@@ -1025,6 +1034,7 @@ class OpenAIChatMixin:
                             if getattr(self.config, "log_full_messages", False)
                             else None,
                             client=client,
+                            savings_metadata=outcome_savings_metadata,
                         )
                     )
 
@@ -1088,6 +1098,7 @@ class OpenAIChatMixin:
                     optimization_latency,
                     pipeline_timing=pipeline_timing,
                     prefix_tracker=openai_prefix_tracker,
+                    savings_metadata=request_savings_metadata,
                 )
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
@@ -1287,13 +1298,13 @@ class OpenAIChatMixin:
 
                 # Cache
                 if self.cache and response.status_code == 200:
-                    await self.cache.set(
-                        messages,
-                        model,
-                        response.content,
-                        dict(response.headers),
-                        tokens_saved,
-                    )
+                        await self.cache.set(
+                            messages,
+                            model,
+                            response.content,
+                            dict(response.headers),
+                            total_input_tokens,
+                        )
 
                 # Capture Codex rate-limit window data from response headers
                 from headroom.subscription.codex_rate_limits import (
@@ -1317,6 +1328,11 @@ class OpenAIChatMixin:
                 # equivalent note at the backend-routed sibling.
                 from headroom.proxy.helpers import compute_turn_id
 
+                outcome_savings_metadata = extract_savings_metadata(
+                    request_headers=request.headers,
+                    response_headers=response.headers,
+                    body=body,
+                )
                 await self._record_request_outcome(
                     RequestOutcome(
                         request_id=request_id,
@@ -1355,6 +1371,7 @@ class OpenAIChatMixin:
                         if getattr(self.config, "log_full_messages", False)
                         else None,
                         client=client,
+                        savings_metadata=outcome_savings_metadata,
                     )
                 )
 
@@ -1403,4 +1420,3 @@ class OpenAIChatMixin:
                     }
                 },
             )
-

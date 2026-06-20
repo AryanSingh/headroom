@@ -60,7 +60,7 @@ class _ListHandler(logging.Handler):
     """Tiny direct handler that survives the proxy disabling propagation.
 
     ``caplog`` attaches to root; ``headroom.proxy.helpers._setup_file_logging``
-    flips ``logging.getLogger("headroom").propagate = False`` once a proxy
+    flips ``logging.getLogger("cutctx").propagate = False`` once a proxy
     instance is constructed in the test, after which root-attached handlers
     stop receiving headroom-namespaced records. Attaching directly to
     ``headroom.proxy`` sidesteps that.
@@ -347,7 +347,13 @@ def test_streaming_perf_log_has_no_hardcoded_cache_zeros() -> None:
     """Catch any future re-introduction of ``cache_read=0 cache_write=0`` literal."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[1] / "headroom" / "proxy" / "handlers" / "streaming.py"
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "headroom"
+        / "proxy"
+        / "handlers"
+        / "streaming.py"
+    )
     text = src.read_text()
     assert "cache_read=0 cache_write=0" not in text, (
         "streaming.py contains a hardcoded `cache_read=0 cache_write=0` PERF log fragment. "
