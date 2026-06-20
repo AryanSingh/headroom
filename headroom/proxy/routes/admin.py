@@ -42,9 +42,44 @@ async def _audit_admin_action(
     try:
         from headroom.audit import AuditEvent
 
-        actor = getattr(request.state, "headroom_user_id", None) or request.headers.get(
-            "x-headroom-user-id", "admin"
-        )
+        # Medium-33 (production-audit-progress-2026-06-20.md):
+        # The previous code took the actor from a client-controllable
+        # X-Headroom-User-Id header when no SSO state was set,
+        # which let a caller with a valid admin key forge audit
+        # attribution. The new hierarchy is:
+        #   1. SSO-resolved subject (request.state.headroom_user_id,
+        #      set by the SSO validator). This is the only trusted
+        #      source.
+        #   2. Admin-key fingerprint (the first 8 chars of the API
+        #      key SHA-256, prefixed "key:"). This is a stable,
+        #      non-secret identifier for the key holder.
+        #   3. "admin" — only when neither is available (which
+        #      should never happen since both auth methods gate
+        #      this path).
+        sso_user = getattr(request.state, "headroom_user_id", None)
+        if sso_user:
+            actor = f"sso:{sso_user}"
+        else:
+            # Hash the admin key to produce a stable, non-secret
+            # fingerprint. The fingerprint changes when the key
+            # rotates, which is the desired audit behavior.
+            auth_header = request.headers.get("authorization", "")
+            admin_header = request.headers.get("x-headroom-admin-key", "")
+            token = ""
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+            elif admin_header:
+                token = admin_header
+            if token:
+                import hashlib as _h
+
+                fp = _h.sha256(token.encode("utf-8")).hexdigest()[:8]
+                actor = f"key:{fp}"
+            else:
+                # Fallback: this should not happen since the
+                # admin auth dependency runs first, but be
+                # explicit rather than silent.
+                actor = "admin"
         await proxy.audit_logger.async_log(
             AuditEvent(
                 action=action,
