@@ -1,4 +1,4 @@
-"""OpenAI handler mixin for HeadroomProxy.
+"""OpenAI handler mixin for CutctxProxy.
 
 Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 """
@@ -343,6 +343,38 @@ class OpenAIChatMixin:
         except Exception as e:
             logger.debug(f"[{request_id}] Intelligence pre-compression failed: {e}")
 
+        # Phase 3.3: provider-aware policy resolver (observation only
+        # for now — the existing prefix tracker already protects the
+        # cache-friendly prefix; the decision is recorded in /stats).
+        try:
+            from headroom.savings import StrategyResolver, WorkloadClass
+
+            _resolver = StrategyResolver(
+                user_overrides=getattr(self.config, "policy_overrides", None) or None,
+            )
+            _policy_decision = _resolver.resolve(
+                provider="openai",
+                model=model,
+                workload=(
+                    WorkloadClass.CODING_AGENT
+                    if getattr(self.config, "workload_class", "coding_agent") == "coding_agent"
+                    else WorkloadClass.UNKNOWN
+                ),
+                request_shape={
+                    "tool_result_count": sum(
+                        1
+                        for m in messages
+                        if isinstance(m, dict) and (
+                            m.get("role") == "tool"
+                            or m.get("role") == "function"
+                        )
+                    ),
+                    "user_turn_count": sum(1 for m in messages if m.get("role") == "user"),
+                },
+            )
+        except Exception as e:
+            logger.debug(f"[{request_id}] Policy resolver failed: {e}")
+
         # Get prefix cache tracker for this session
         openai_session_id = self.session_tracker_store.compute_session_id(request, model, messages)
         openai_prefix_tracker = self.session_tracker_store.get_or_create(
@@ -353,7 +385,7 @@ class OpenAIChatMixin:
         # Same pattern as anthropic.py — read client value, union with
         # session-seen tokens, update tracker. WS auto-injection of
         # `responses_websockets=2026-02-06` lives on the WS handler;
-        # chat-completions has no Headroom-required tokens today, so the
+        # chat-completions has no Cutctx-required tokens today, so the
         # merge effectively just makes the client value byte-stable
         # across turns.
         from headroom.proxy.helpers import (
@@ -1301,7 +1333,7 @@ class OpenAIChatMixin:
                 response_headers.pop("content-encoding", None)
                 response_headers.pop("content-length", None)  # Length changed after decompression
 
-                # Inject Headroom compression metrics (for SaaS metering)
+                # Inject Cutctx compression metrics (for SaaS metering)
                 response_headers["x-headroom-tokens-before"] = str(original_tokens)
                 response_headers["x-headroom-tokens-after"] = str(optimized_tokens)
                 response_headers["x-headroom-tokens-saved"] = str(tokens_saved)

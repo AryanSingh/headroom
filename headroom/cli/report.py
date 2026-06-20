@@ -177,6 +177,149 @@ def report_schedule_cancel() -> None:
     schedule_path = _get_schedule_path()
     if schedule_path.exists():
         schedule_path.unlink()
+
+
+@report_group.command("buyer")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file path. Stdout if omitted.",
+)
+@click.option("--days", "-d", default=30, help="Number of days to include.")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json", "markdown"]),
+    default="text",
+    help="Buyer-readable report format.",
+)
+def report_buyer(output: str | None, days: int, fmt: str) -> None:
+    """Phase 5.3: buyer-grade ROI report with defensible savings attribution.
+
+    Breaks savings into provider cache (discount you get for free with
+    native caching) and CutCtx compression (the value CutCtx adds on
+    top). The two are tracked independently so a buyer can see the
+    marginal value of CutCtx above and beyond their existing provider
+    prompt cache.
+
+    \b
+    Examples:
+        cutctx report buyer                Text summary to stdout
+        cutctx report buyer --format markdown -o roi.md
+        cutctx report buyer --format json -o roi.json
+    """
+    from headroom.savings import SavingsSource
+
+    data = _collect_data(days)
+    # Aggregate by source across the collected savings rows.
+    by_source: dict[str, int] = {src.value: 0 for src in SavingsSource}
+    for row in data:
+        sources = row.get("savings_by_source_tokens") or {}
+        if isinstance(sources, dict):
+            for src, n in sources.items():
+                by_source[src] = by_source.get(src, 0) + int(n)
+    total_tokens = sum(by_source.values())
+
+    total_usd = sum(float(row.get("cost_savings_usd", 0) or 0) for row in data)
+    compression_usd = sum(
+        float(row.get("compression_savings_usd", 0) or 0) for row in data
+    )
+    cache_usd = sum(
+        float(row.get("cache_savings_usd", 0) or 0) for row in data
+    )
+
+    if fmt == "json":
+        payload = {
+            "period_days": days,
+            "total_tokens_saved": total_tokens,
+            "total_usd_saved": round(total_usd, 4),
+            "compression_savings_usd": round(compression_usd, 4),
+            "cache_savings_usd": round(cache_usd, 4),
+            "savings_by_source": by_source,
+            "savings_by_source_total": total_tokens,
+            "attribution_note": (
+                "Provider cache and CutCtx compression are tracked "
+                "independently. The total is the sum of per-source values, "
+                "not a difference, so there is no double counting."
+            ),
+        }
+        content = json.dumps(payload, indent=2)
+    elif fmt == "markdown":
+        lines: list[str] = []
+        lines.append(f"# CutCtx ROI Report — last {days} days")
+        lines.append("")
+        lines.append("## Combined savings")
+        lines.append("")
+        lines.append(f"- **Total tokens saved:** {total_tokens:,}")
+        lines.append(f"- **Total USD saved:** ${total_usd:,.2f}")
+        lines.append("")
+        lines.append("## By source")
+        lines.append("")
+        lines.append("| Source | Tokens |")
+        lines.append("|---|---:|")
+        for src in SavingsSource:
+            n = by_source.get(src.value, 0)
+            if n == 0:
+                continue
+            lines.append(f"| {src.label} | {n:,} |")
+        lines.append(f"| **Total** | **{total_tokens:,}** |")
+        lines.append("")
+        lines.append("## Attribution")
+        lines.append("")
+        lines.append(
+            "Provider prompt cache and CutCtx compression are tracked "
+            "independently. The total is the sum of per-source values, "
+            "not the difference, so there is no double counting. The "
+            "marginal value of CutCtx above native caching is visible as "
+            "the CutCtx Compression row."
+        )
+        content = "\n".join(lines) + "\n"
+    else:  # text
+        lines = []
+        lines.append(f"CutCtx ROI Report — last {days} days")
+        lines.append("=" * 50)
+        lines.append("")
+        lines.append(f"Total tokens saved:        {total_tokens:>12,}")
+        lines.append(f"Total USD saved:            ${total_usd:>11,.2f}")
+        lines.append("")
+        lines.append("By source:")
+        for src in SavingsSource:
+            n = by_source.get(src.value, 0)
+            if n == 0:
+                continue
+            lines.append(f"  {src.label:30s} {n:>12,}")
+        lines.append(f"  {'Total':30s} {total_tokens:>12,}")
+        lines.append("")
+        lines.append("Attribution:")
+        lines.append(
+            "  Provider cache and CutCtx compression are tracked independently."
+        )
+        lines.append(
+            "  The total is the sum of per-source values, not a difference,"
+        )
+        lines.append(
+            "  so there is no double counting. The marginal value of"
+        )
+        lines.append(
+            "  CutCtx above native caching is visible as the CutCtx"
+        )
+        lines.append("  Compression row above.")
+        content = "\n".join(lines) + "\n"
+
+    if output:
+        Path(output).write_text(content)
+        click.echo(f"Buyer report written to {output}")
+    else:
+        click.echo(content)
+
+
+@report_group.command("schedule-cancel")
+def report_schedule_cancel() -> None:
+    """Cancel all report schedules."""
+    schedule_path = _get_schedule_path()
+    if schedule_path.exists():
+        schedule_path.unlink()
         click.echo("Report schedule cancelled.")
     else:
         click.echo("No schedule to cancel.")

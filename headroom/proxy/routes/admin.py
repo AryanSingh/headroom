@@ -1293,6 +1293,47 @@ def create_admin_router(
         except Exception as exc:
             return {"enabled": False, "error": str(exc)}
 
+    @router.get(
+        "/policy/status",
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+    )
+    async def policy_status():
+        """Get the active provider-aware savings policy decision (Phase 3.3)."""
+        try:
+            from headroom.savings import StrategyResolver, WorkloadClass
+
+            workload = getattr(_config, "workload_class", "unknown")
+            try:
+                workload_cls = WorkloadClass.from_str(workload)
+            except Exception:
+                workload_cls = WorkloadClass.UNKNOWN
+
+            resolver = StrategyResolver()
+            # Show one example decision for each major provider so the
+            # operator can see what the policy engine produces.
+            examples = {}
+            for provider in ("anthropic", "openai", "gemini"):
+                d = resolver.resolve(
+                    provider=provider,
+                    model=None,
+                    workload=workload_cls,
+                )
+                examples[provider] = d.to_dict()
+            return {
+                "workload_class": workload,
+                "resolver_disabled": False,
+                "provider_decisions": examples,
+                "description": (
+                    "Provider-aware policy engine. When "
+                    "preserve_prefix_for_provider_cache is true the "
+                    "compression path leaves the cache-friendly prefix "
+                    "intact. When semantic_cache_enabled is true the "
+                    "system tries to short-circuit repeated queries."
+                ),
+            }
+        except Exception as exc:
+            return {"resolver_disabled": True, "error": str(exc)}
+
     # ── Subscription / Quota / Metrics ────────────────────────────────
 
     @router.get(

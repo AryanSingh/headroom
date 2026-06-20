@@ -1,4 +1,4 @@
-"""Data models for the Headroom proxy.
+"""Data models for the Cutctx proxy.
 
 Contains configuration and data classes used across the proxy modules.
 Extracted from server.py to keep the codebase maintainable.
@@ -284,6 +284,14 @@ class ProxyConfig:
     episodic_memory_enabled: bool = False
     episodic_idle_timeout_seconds: int = 300  # 5 min idle before extraction
     episodic_extraction_model: str = "claude-3-haiku-20240307"
+
+    # Phase 3.3: provider-aware savings policy.
+    # Coarse workload class used by the strategy resolver. Values:
+    # "coding_agent", "support_search", "long_doc_qa",
+    # "repetitive_workflow", "unknown".
+    workload_class: str = "coding_agent"
+    # Optional user overrides for the policy resolver, as a JSON string.
+    policy_overrides_json: str | None = None
 
     # License / Usage Reporting
     license_key: str | None = None

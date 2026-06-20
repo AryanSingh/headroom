@@ -1,4 +1,4 @@
-"""Anthropic handler mixin for HeadroomProxy.
+"""Anthropic handler mixin for CutctxProxy.
 
 Contains all Anthropic Messages API handlers including batch operations.
 """
@@ -37,7 +37,7 @@ logger = logging.getLogger("headroom.proxy")
 
 
 class AnthropicHandlerMixin:
-    """Mixin providing Anthropic API handler methods for HeadroomProxy."""
+    """Mixin providing Anthropic API handler methods for CutctxProxy."""
 
     @staticmethod
     def _resolve_ccr_workspace(
@@ -115,7 +115,7 @@ class AnthropicHandlerMixin:
     def _extract_anthropic_cache_ttl_metrics(usage: dict[str, Any] | None) -> tuple[int, int]:
         """Extract observed Anthropic cache-write TTL bucket usage.
 
-        HeadroomProxy also inherits StreamingMixin, which exposes the same
+        CutctxProxy also inherits StreamingMixin, which exposes the same
         helper for SSE usage parsing. Keep this local copy so the Anthropic
         handler remains safe when tested or embedded without StreamingMixin.
         """
@@ -638,7 +638,7 @@ class AnthropicHandlerMixin:
 
             # Bypass: skip ALL compression, TOIN learning, and CCR injection
             # when the caller explicitly opts out via header.
-            # Prevents Headroom from corrupting sub-agent API calls
+            # Prevents Cutctx from corrupting sub-agent API calls
             # (e.g., Claude Code sub-agents that inherit ANTHROPIC_BASE_URL).
             _bypass = (
                 request.headers.get("x-headroom-bypass", "").lower() == "true"
@@ -797,7 +797,7 @@ class AnthropicHandlerMixin:
                     optimization_latency = (time.time() - start_time) * 1000
 
                     # Response-cache hit: response body came from
-                    # Headroom's semantic cache, not the upstream
+                    # Cutctx's semantic cache, not the upstream
                     # provider. ``from_response_cache=True`` is a
                     # distinct signal from `cache_read_tokens > 0`
                     # (which means upstream-prompt-cache hit). Dashboards
@@ -908,6 +908,49 @@ class AnthropicHandlerMixin:
             except Exception as e:
                 logger.debug(f"[{request_id}] Intelligence pre-compression failed: {e}")
 
+            # Phase 3.3: provider-aware policy resolver. Resolves a
+            # compression strategy for this request. Today this is
+            # observation only — the existing compression path already
+            # preserves the cache-friendly prefix via the prefix
+            # tracker. The decision is exposed on the response headers
+            # and counted in /stats so we can verify the resolver is
+            # producing sensible outputs.
+            _policy_decision = None
+            try:
+                from headroom.savings import StrategyResolver, WorkloadClass
+
+                _resolver = StrategyResolver(
+                    user_overrides=getattr(self.config, "policy_overrides", None) or None,
+                )
+                _policy_decision = _resolver.resolve(
+                    provider="anthropic",
+                    model=model,
+                    workload=(
+                        WorkloadClass.CODING_AGENT
+                        if getattr(self.config, "workload_class", "coding_agent") == "coding_agent"
+                        else WorkloadClass.UNKNOWN
+                    ),
+                    request_shape={
+                        "tool_result_count": sum(
+                            1
+                            for m in messages
+                            if isinstance(m, dict) and (
+                                m.get("role") == "tool"
+                                or (
+                                    isinstance(m.get("content"), list)
+                                    and any(
+                                        isinstance(b, dict) and b.get("type") == "tool_result"
+                                        for b in m["content"]
+                                    )
+                                )
+                            )
+                        ),
+                        "user_turn_count": sum(1 for m in messages if m.get("role") == "user"),
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"[{request_id}] Policy resolver failed: {e}")
+
             # Get prefix cache tracker for this session
             session_id = self.session_tracker_store.compute_session_id(request, model, messages)
             prefix_tracker = self.session_tracker_store.get_or_create(session_id, "anthropic")
@@ -926,7 +969,7 @@ class AnthropicHandlerMixin:
             # `merge_anthropic_beta` to add `context-management-2025-06-27`
             # on top of the sticky baseline. Order matters: session-sticky
             # FIRST so we have the canonical baseline; memory injection
-            # adds Headroom-required tokens AFTER.
+            # adds Cutctx-required tokens AFTER.
             from headroom.proxy.helpers import (
                 get_session_beta_tracker,
                 log_beta_header_merge,
@@ -1602,9 +1645,9 @@ class AnthropicHandlerMixin:
                     # (P5-50): use the deterministic `merge_anthropic_beta`
                     # helper instead of ad-hoc string concat. Order:
                     # client tokens first (preserved from session-sticky
-                    # baseline above), then Headroom-required tokens.
+                    # baseline above), then Cutctx-required tokens.
                     # The session tracker already recorded the client
-                    # value; we append Headroom-required tokens here so
+                    # value; we append Cutctx-required tokens here so
                     # the next turn re-applies them deterministically.
                     beta_headers = self.memory_handler.get_beta_headers()
                     if beta_headers:
@@ -2174,7 +2217,7 @@ class AnthropicHandlerMixin:
                             )
                             assert self.http_client is not None, "HTTP client not initialized"
                             # Byte-faithful (PR-A3, fixes P0-2). The CCR
-                            # continuation body is synthesized by Headroom
+                            # continuation body is synthesized by Cutctx
                             # so it is treated as mutated and goes through
                             # the canonical serializer.
                             from headroom.proxy.helpers import (
@@ -2464,7 +2507,7 @@ class AnthropicHandlerMixin:
                         "content-length", None
                     )  # Length changed after decompression
 
-                    # Inject Headroom compression metrics (for SaaS metering)
+                    # Inject Cutctx compression metrics (for SaaS metering)
                     response_headers["x-headroom-tokens-before"] = str(original_tokens)
                     response_headers["x-headroom-tokens-after"] = str(optimized_tokens)
                     response_headers["x-headroom-tokens-saved"] = str(tokens_saved)
