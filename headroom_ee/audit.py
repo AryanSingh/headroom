@@ -44,7 +44,14 @@ AUDIT_DB_ENV = "HEADROOM_AUDIT_DB_PATH"
 
 
 class AuditAction(str, Enum):
-    """Standard audit action categories."""
+    """Standard audit action categories.
+
+    Audit-Deep-2026-06-21: this enum was extended to cover
+    every event actually emitted in the codebase, so the
+    ``AuditAction`` contract no longer drifts from the
+    string literals callers pass. The audit ledger and the
+    export tooling can now categorize events with confidence.
+    """
 
     # Authentication
     AUTH_LOGIN = "auth.login"
@@ -56,6 +63,8 @@ class AuditAction(str, Enum):
     LICENSE_VALIDATED = "license.validated"
     LICENSE_CHANGED = "license.changed"
     LICENSE_EXPIRED = "license.expired"
+    LICENSE_CHECKOUT_SEAT = "license.checkout_seat"
+    LICENSE_RELEASE_SEAT = "license.release_seat"
 
     # Configuration
     CONFIG_CHANGED = "config.changed"
@@ -73,16 +82,60 @@ class AuditAction(str, Enum):
 
     # Policy
     POLICY_CHANGED = "policy.changed"
+    POLICY_UPSERT = "policy.upsert"
     POLICY_VIEWED = "policy.viewed"
 
     # Retention
     RETENTION_CHANGED = "retention.changed"
+    RETENTION_CLEANUP = "retention.cleanup"
     DATA_DELETED = "data.deleted"
+    DATA_EXPORTED = "data.exported"
+
+    # RBAC
+    RBAC_ROLE_ASSIGNED = "rbac.role_assigned"
+    RBAC_ROLE_REVOKED = "rbac.role_revoked"
+    RBAC_VIEWED = "rbac.viewed"
+
+    # SCIM
+    SCIM_USER_CREATED = "scim.user_created"
+    SCIM_USER_UPDATED = "scim.user_updated"
+    SCIM_USER_DELETED = "scim.user_deleted"
+    SCIM_GROUP_CREATED = "scim.group_created"
+    SCIM_GROUP_UPDATED = "scim.group_updated"
+    SCIM_GROUP_DELETED = "scim.group_deleted"
+
+    # Memory
+    MEMORY_APPROVE = "memory.approve"
+    MEMORY_DEPRECATE = "memory.deprecate"
+    MEMORY_PROPOSE = "memory.propose"
+
+    # Fleet
+    FLEET_REGISTERED = "fleet.registered"
+    FLEET_DEREGISTERED = "fleet.deregistered"
+    FLEET_HEARTBEAT = "fleet.heartbeat"
+
+    # Spend
+    SPEND_INGESTED = "spend.ingested"
+    SPEND_QUERIED = "spend.queried"
+    SPEND_EXPORTED = "spend.exported"
+
+    # Webhooks
+    WEBHOOK_DELIVERED = "webhook.delivered"
+    WEBHOOK_FAILED = "webhook.failed"
+    WEBHOOK_SUBSCRIPTION_CREATED = "webhook.subscription_created"
+    WEBHOOK_SUBSCRIPTION_DELETED = "webhook.subscription_deleted"
+
+    # Secrets
+    SECRET_CREATED = "secret.created"
+    SECRET_UPDATED = "secret.updated"
+    SECRET_DELETED = "secret.deleted"
+    SECRET_ACCESSED = "secret.accessed"
 
     # System
     SYSTEM_START = "system.start"
     SYSTEM_STOP = "system.stop"
     SYSTEM_ERROR = "system.error"
+    SYSTEM_BACKUP_COMPLETED = "system.backup_completed"
 
 
 @dataclass(frozen=True)

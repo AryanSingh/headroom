@@ -764,6 +764,35 @@ class StreamingMixin:
         # live-zone tracking is a follow-up. Without this fallback the
         # dashboard headline collapses to 0% even when compression is
         # happening (issue #455).
+        # Audit-Deep-2026-06-21: extract per-source savings from
+        # the metadata dict so the typed per-source fields on
+        # RequestOutcome are populated. The funnel (in
+        # emit_request_outcome) merges typed + escape-hatch
+        # values, so passing the typed values from here is
+        # the safe move. If the field is not in metadata,
+        # default to 0 (the funnel's escape-hatch path will
+        # still pick it up from savings_metadata).
+        _sc_avoided = 0
+        _self_hosted_hits = 0
+        _routing_tokens = 0
+        _routing_usd = 0.0
+        if savings_metadata:
+            _sc_avoided = int(
+                (savings_metadata.get("semantic_cache") or {}).get(
+                    "tokens", 0
+                )
+                or 0
+            )
+            _self_hosted_hits = int(
+                (savings_metadata.get("prefix_cache_self_hosted") or {}).get(
+                    "tokens", 0
+                )
+                or 0
+            )
+            _routing_meta = savings_metadata.get("model_routing") or {}
+            _routing_tokens = int(_routing_meta.get("tokens_saved", 0) or 0)
+            _routing_usd = float(_routing_meta.get("usd_saved", 0.0) or 0.0)
+
         outcome = RequestOutcome.from_stream(
             body=body,
             provider=outcome_provider,
@@ -781,13 +810,18 @@ class StreamingMixin:
             log_full_messages=getattr(self.config, "log_full_messages", False),
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
-            cache_write_5m_tokens=cache_write_5m_tokens,
-            cache_write_1h_tokens=cache_write_1h_tokens,
+            cache_write_5m_tokens=cw_5m_tokens,
+            cache_write_1h_tokens=cw_1h_tokens,
             uncached_input_tokens=uncached_input_tokens,
             ttfb_ms=stream_state["ttfb_ms"] or total_latency,
             pipeline_timing=pipeline_timing,
             original_messages=original_messages,
             savings_metadata=savings_metadata,
+            # Audit-Deep-2026-06-21: per-source fields (was: 0).
+            semantic_cache_avoided_tokens=_sc_avoided,
+            self_hosted_prefix_cache_hits=_self_hosted_hits,
+            model_routing_tokens_saved=_routing_tokens,
+            model_routing_usd_saved=_routing_usd,
         )
         await self._record_request_outcome(outcome)
 
@@ -1586,6 +1620,35 @@ class StreamingMixin:
                 # ``from_stream`` as ``optimized + saved``. Bedrock
                 # doesn't propagate frozen_message_count either — same
                 # fallback as the SSE finalizer (#455).
+                # Audit-Deep-2026-06-21: extract per-source
+                # fields from savings_metadata so the typed
+                # RequestOutcome fields are populated, not 0.
+                _sc_avoided = 0
+                _self_hosted_hits = 0
+                _routing_tokens = 0
+                _routing_usd = 0.0
+                if savings_metadata:
+                    _sc_avoided = int(
+                        (savings_metadata.get("semantic_cache") or {}).get(
+                            "tokens", 0
+                        )
+                        or 0
+                    )
+                    _self_hosted_hits = int(
+                        (
+                            savings_metadata.get("prefix_cache_self_hosted")
+                            or {}
+                        ).get("tokens", 0)
+                        or 0
+                    )
+                    _routing_meta = savings_metadata.get("model_routing") or {}
+                    _routing_tokens = int(
+                        _routing_meta.get("tokens_saved", 0) or 0
+                    )
+                    _routing_usd = float(
+                        _routing_meta.get("usd_saved", 0.0) or 0.0
+                    )
+
                 outcome = RequestOutcome.from_stream(
                     body=body,
                     provider=_backend_name,
@@ -1609,6 +1672,11 @@ class StreamingMixin:
                     pipeline_timing=pipeline_timing,
                     original_messages=original_messages,
                     savings_metadata=savings_metadata,
+                    # Audit-Deep-2026-06-21: per-source fields.
+                    semantic_cache_avoided_tokens=_sc_avoided,
+                    self_hosted_prefix_cache_hits=_self_hosted_hits,
+                    model_routing_tokens_saved=_routing_tokens,
+                    model_routing_usd_saved=_routing_usd,
                 )
                 await self._record_request_outcome(outcome)
 
@@ -1799,6 +1867,35 @@ class StreamingMixin:
                 # comp request size. This keeps active_savings_percent
                 # in sync with proxy_savings_percent for this provider
                 # instead of collapsing the dashboard headline to 0%.
+                # Audit-Deep-2026-06-21: extract per-source
+                # fields from savings_metadata so the typed
+                # RequestOutcome fields are populated, not 0.
+                _sc_avoided = 0
+                _self_hosted_hits = 0
+                _routing_tokens = 0
+                _routing_usd = 0.0
+                if savings_metadata:
+                    _sc_avoided = int(
+                        (savings_metadata.get("semantic_cache") or {}).get(
+                            "tokens", 0
+                        )
+                        or 0
+                    )
+                    _self_hosted_hits = int(
+                        (
+                            savings_metadata.get("prefix_cache_self_hosted")
+                            or {}
+                        ).get("tokens", 0)
+                        or 0
+                    )
+                    _routing_meta = savings_metadata.get("model_routing") or {}
+                    _routing_tokens = int(
+                        _routing_meta.get("tokens_saved", 0) or 0
+                    )
+                    _routing_usd = float(
+                        _routing_meta.get("usd_saved", 0.0) or 0.0
+                    )
+
                 outcome = RequestOutcome.from_stream(
                     body=body,
                     provider=self.anthropic_backend.name,
@@ -1821,6 +1918,11 @@ class StreamingMixin:
                     pipeline_timing=pipeline_timing,
                     waste_signals=waste_signals,
                     savings_metadata=savings_metadata,
+                    # Audit-Deep-2026-06-21: per-source fields.
+                    semantic_cache_avoided_tokens=_sc_avoided,
+                    self_hosted_prefix_cache_hits=_self_hosted_hits,
+                    model_routing_tokens_saved=_routing_tokens,
+                    model_routing_usd_saved=_routing_usd,
                 )
                 await self._record_request_outcome(outcome)
 
