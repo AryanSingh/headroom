@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -225,6 +226,32 @@ def _print_savings_breakdown(
             for src_name, n in (src_dict.get("tokens") or {}).items():
                 click.echo(f"    {src_name:28s} {_format_tokens(n):>10s}")
             click.echo(f"    {'Total':28s} {_format_tokens(total):>10s}")
+
+
+def _format_integrity_result(result: dict[str, Any]) -> str:
+    """Format a verify_integrity() result for the terminal.
+
+    Audit-Deep-2026-06-21: the CLI --verify-integrity flag
+    surfaces the result of SavingsTracker.verify_integrity()
+    in a human-readable form. The output mirrors the HTTP
+    /audit/verify JSON shape so the two surfaces are
+    consistent.
+    """
+    ok = bool(result.get("ok"))
+    lines = []
+    lines.append(
+        click.style(
+            "✓ Integrity OK" if ok else "✗ Integrity VIOLATION",
+            fg="green" if ok else "red",
+        )
+    )
+    checks = result.get("checks", {})
+    for name, value in checks.items():
+        lines.append(f"  {name}: {value}")
+    error = result.get("error")
+    if error:
+        lines.append(f"  error: {error}")
+    return "\n".join(lines)
 
 
 def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
