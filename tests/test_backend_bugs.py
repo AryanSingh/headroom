@@ -709,7 +709,7 @@ class TestOpenAIURLNormalization:
     """Test that OPENAI_TARGET_API_URL with /v1 suffix is normalized."""
 
     def test_v1_suffix_stripped(self):
-        from headroom.proxy.server import CutctxProxy, ProxyConfig
+        from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
         original = CutctxProxy.OPENAI_API_URL
         try:
@@ -725,7 +725,7 @@ class TestOpenAIURLNormalization:
             CutctxProxy.OPENAI_API_URL = original
 
     def test_v1_slash_suffix_stripped(self):
-        from headroom.proxy.server import CutctxProxy, ProxyConfig
+        from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
         original = CutctxProxy.OPENAI_API_URL
         try:
@@ -741,7 +741,7 @@ class TestOpenAIURLNormalization:
             CutctxProxy.OPENAI_API_URL = original
 
     def test_no_v1_unchanged(self):
-        from headroom.proxy.server import CutctxProxy, ProxyConfig
+        from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
         original = CutctxProxy.OPENAI_API_URL
         try:

@@ -13,7 +13,7 @@ import pytest
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 
-from headroom.proxy.server import CutctxProxy, ProxyConfig
+from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
 
 @pytest.fixture

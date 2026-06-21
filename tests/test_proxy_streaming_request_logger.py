@@ -14,7 +14,7 @@ import httpx
 import pytest
 
 from headroom.proxy.request_logger import RequestLogger
-from headroom.proxy.server import CutctxProxy
+from headroom.proxy.server import HeadroomProxy, CutctxProxy
 
 
 def _build_proxy_with_real_logger(*, log_full_messages: bool) -> CutctxProxy:

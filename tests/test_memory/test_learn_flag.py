@@ -11,7 +11,7 @@ Verifies that:
 
 from __future__ import annotations
 
-from headroom.proxy.server import CutctxProxy, ProxyConfig
+from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
 # =============================================================================
 # ProxyConfig Flag Resolution Tests

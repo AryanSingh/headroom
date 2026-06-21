@@ -325,7 +325,7 @@ class TestStreamingErrorHandling:
 
     def _create_mock_proxy(self):
         """Create a CutctxProxy-like object with mocked internals for testing generate()."""
-        from headroom.proxy.server import CutctxProxy
+        from headroom.proxy.server import HeadroomProxy, CutctxProxy
 
         proxy = object.__new__(HeadroomProxy)
         proxy.http_client = MagicMock(spec=httpx.AsyncClient)

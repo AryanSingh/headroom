@@ -3894,6 +3894,15 @@ def _proxy_config_from_env() -> ProxyConfig:
     )
 
 
+# Backward-compat alias (pre-db7f7a4 rebrand).
+# Audit-Deep-2026-06-21: the CutctxProxy class was renamed
+# from HeadroomProxy but ~8 test files still reference the
+# old name. The alias below keeps the rename and the test
+# suite green at the same time. Will be removed in the next
+# minor release.
+HeadroomProxy = CutctxProxy
+
+
 def create_app_from_env() -> FastAPI:
     return create_app(_proxy_config_from_env())
 

@@ -205,7 +205,7 @@ class _FunnelHarness:
     """
 
     def __init__(self, *, with_cost_tracker: bool = True, with_logger: bool = True) -> None:
-        from headroom.proxy.server import CutctxProxy
+        from headroom.proxy.server import HeadroomProxy, CutctxProxy
 
         self.metrics = MagicMock()
         self.metrics.record_request = AsyncMock()

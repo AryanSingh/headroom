@@ -7,7 +7,7 @@ from fastapi import WebSocket
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import CutctxProxy, ProxyConfig, create_app
+from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig, create_app
 
 
 def _jwt(payload: dict) -> str:

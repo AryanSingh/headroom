@@ -165,8 +165,18 @@ def test_release_version_script_runs_directly_without_importing_headroom_package
     env["LEVEL"] = "patch"
     env["MANUAL_VER"] = "0.6.0"
 
+    # Audit-Deep-2026-06-21: the cutctx/ directory was created
+    # during the rebrand but no release_version.py was migrated
+    # into it. The implementation lives at headroom/release_version.py
+    # (the canonical location for the build script that
+    # release-please invokes). Update the path accordingly.
+    release_version_py = (
+        ROOT / "cutctx" / "release_version.py"
+        if (ROOT / "cutctx" / "release_version.py").exists()
+        else ROOT / "headroom" / "release_version.py"
+    )
     result = subprocess.run(
-        [sys.executable, str(ROOT / "cutctx" / "release_version.py")],
+        [sys.executable, str(release_version_py)],
         cwd=ROOT,
         capture_output=True,
         text=True,

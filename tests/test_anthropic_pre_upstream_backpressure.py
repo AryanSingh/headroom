@@ -37,7 +37,7 @@ from fastapi.testclient import TestClient
 from headroom.cli.proxy import proxy as proxy_cli
 from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
 from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import CutctxProxy, create_app
+from headroom.proxy.server import HeadroomProxy, CutctxProxy, create_app
 
 # --------------------------------------------------------------------------- #
 # Dummy handler that gives tests control over the ``_retry_request`` duration #

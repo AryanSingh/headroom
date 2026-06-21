@@ -15,7 +15,7 @@ import httpx
 import pytest
 
 import headroom.proxy.handlers.streaming as streaming_module
-from headroom.proxy.server import CutctxProxy
+from headroom.proxy.server import HeadroomProxy, CutctxProxy
 
 
 @pytest.fixture(autouse=True)

@@ -114,7 +114,7 @@ def test_prometheus_metrics_export_includes_extended_fields() -> None:
 
 
 def test_streaming_parser_extracts_anthropic_ttl_bucket_usage() -> None:
-    from headroom.proxy.server import CutctxProxy, ProxyConfig
+    from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
 
     proxy = CutctxProxy(
         ProxyConfig(
