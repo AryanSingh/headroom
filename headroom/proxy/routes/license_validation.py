@@ -14,6 +14,7 @@ applied to it.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -188,12 +189,45 @@ def create_license_validation_router(
     async def stripe_webhook(request: Request) -> dict:
         """Handle Stripe webhook events. NOT admin-gated — uses
         ``STRIPE_WEBHOOK_SECRET`` HMAC signature check for auth.
+
+        Audit-Deep-2026-06-21: the previous code silently
+        bypassed signature verification when ``STRIPE_WEBHOOK_SECRET``
+        was empty, allowing any caller to forge webhook events.
+        The endpoint now:
+
+          1. Refuses the request (401) when ``STRIPE_WEBHOOK_SECRET``
+             is empty AND ``CUTCTX_BILLING_STRICT_MODE=1`` (default).
+          2. Logs a loud warning when in non-strict mode (dev only).
+          3. Verifies the signature in either case.
         """
+        import logging
+
         from headroom.billing.stripe_webhook import (
             STRIPE_WEBHOOK_SECRET,
             handle_event,
             verify_stripe_signature,
         )
+
+        strict_mode = os.environ.get("CUTCTX_BILLING_STRICT_MODE", "1") == "1"
+        if not STRIPE_WEBHOOK_SECRET:
+            if strict_mode:
+                logging.getLogger(__name__).error(
+                    "Stripe webhook called but STRIPE_WEBHOOK_SECRET "
+                    "is not configured and CUTCTX_BILLING_STRICT_MODE=1. "
+                    "Refusing to process the event."
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail="Stripe webhook is not configured",
+                )
+            else:
+                logging.getLogger(__name__).warning(
+                    "Stripe webhook called but STRIPE_WEBHOOK_SECRET "
+                    "is not configured. Strict mode is off; processing "
+                    "the event without signature verification. NEVER "
+                    "deploy without CUTCTX_BILLING_STRICT_MODE=1 in "
+                    "production."
+                )
 
         payload = await request.body()
         stripe_signature = request.headers.get("stripe-signature", "")

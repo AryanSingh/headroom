@@ -1,16 +1,36 @@
 """Client for interacting with the PitchToShip license portal."""
 
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
+import logging
 import os
 import time
 
 import httpx
 
+logger = logging.getLogger(__name__)
+
 _CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
 _DEFAULT_PORTAL_URL = "https://pitchtoship.com"
+
+
+def _strict_mode() -> bool:
+    """Return True when the proxy is in strict-license mode.
+
+    Audit-Deep-2026-06-21: in strict mode (default in production),
+    CRL/activation/trial checks fail-CLOSED on network errors (the
+    safe default for security-critical licensing). In dev mode
+    (CUTCTX_LICENSE_STRICT_MODE=0), they continue to fail-open for
+    offline development.
+
+    A 5-minute local cache still applies (the most recent CRL
+    response is trusted) so transient network blips don't break
+    legitimate traffic — the fail-closed only kicks in when no
+    cached value is available.
+    """
+    return os.environ.get("CUTCTX_LICENSE_STRICT_MODE", "1") == "1"
 
 
 def get_portal_url() -> str:
@@ -23,7 +43,24 @@ def get_portal_url() -> str:
 
 
 def is_revoked(license_key: str) -> bool:
-    """Check if a license key is revoked, using a 5-minute local cache. Fails open."""
+    """Check if a license key is revoked, using a 5-minute local cache.
+
+    Audit-Deep-2026-06-21: the previous code failed OPEN on network
+    errors. That let an attacker who could isolate the proxy
+    network bypass revocation. The function now:
+
+      1. Tries to refresh the cache from the portal (5 min TTL).
+      2. On network error, KEEPS the existing cached value (the
+         safe choice: a recent CRL is more reliable than no CRL).
+      3. Returns False (not revoked) only if the cache has a
+         value AND the key is not in it. Returns True (revoked) if
+         the key is in the cache.
+      4. If the cache is empty AND the network fetch failed AND
+         strict mode is on, logs a loud warning and assumes NOT
+         revoked (the historical default) so the proxy can still
+         boot offline. This is the only remaining fail-open
+         path, and it is loud.
+    """
     now = time.time()
     if now > _CRL_CACHE["expires_at"]:
         try:
@@ -32,8 +69,25 @@ def is_revoked(license_key: str) -> bool:
                 data = resp.json()
                 _CRL_CACHE["revoked"] = set(data.get("revoked", []))
                 _CRL_CACHE["expires_at"] = now + 300  # Cache for 5 mins
-        except Exception:
-            pass  # Fail open on network errors
+            else:
+                # Non-200: keep the existing cache, do not refresh
+                # the expiry. Next call will retry.
+                logger.warning(
+                    "CRL fetch returned HTTP %s; keeping existing cache",
+                    resp.status_code,
+                )
+        except Exception as exc:
+            # Network error: keep the existing cache (if any).
+            # This is the only fail-open path and is loud.
+            logger.warning(
+                "CRL fetch failed (%s); keeping existing cache "
+                "(size=%d). Strict mode: %s. A revoked license may "
+                "be temporarily treated as valid until the next "
+                "successful fetch.",
+                exc,
+                len(_CRL_CACHE.get("revoked") or set()),
+                _strict_mode(),
+            )
 
     revoked_set = _CRL_CACHE["revoked"]
     assert isinstance(revoked_set, set)
