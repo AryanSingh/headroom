@@ -511,23 +511,43 @@ def has_permission(actor: str, permission: str) -> bool:
 
     Looks up the role for the actor via the global RBAC
     checker and checks the permission. Returns False (fail-
-    closed) when the actor is unknown.
+    closed) when the actor is unknown OR when the actor
+    resolves to a non-ADMIN role for an unknown-SSO
+    subject. The only exception is admin-key holders
+    (actor starts with "key:") who map to ADMIN by
+    convention since the key fingerprint IS the auth
+    factor.
+
+    Audit-Deep-2026-06-21: the previous code defaulted to
+    ADMIN for any unknown SSO user. That meant an unknown
+    user (e.g. a stale token, a typo in a test) gained
+    ADMIN privileges — the opposite of fail-closed. This
+    fix: unknown SSO users default to VIEWER (the lowest
+    privilege role), so they get no access to any
+    permission in the map.
     """
     checker = get_rbac_checker()
     # Map the actor to a role. Actors are typically
     # "sso:<user>", "key:<fp>", or "admin".
     user_id: str | None = None
+    is_admin_key = False
     if isinstance(actor, str) and actor.startswith("sso:"):
         user_id = actor[len("sso:") :]
     elif isinstance(actor, str) and actor.startswith("key:"):
         # Admin-key holders map to ADMIN by convention (they
         # authenticated with a valid admin key).
-        user_id = None
+        is_admin_key = True
     # For "admin" or empty, default to ADMIN.
     role: AdminRole
-    if user_id is None:
+    if user_id is None and not is_admin_key:
+        # Fall-through case: bare "admin" or empty actor.
+        # Could be a system action; allow ADMIN.
+        role = AdminRole.ADMIN
+    elif is_admin_key:
         role = AdminRole.ADMIN
     else:
+        # SSO user: look up in the store. Unknown SSO user
+        # defaults to VIEWER (fail-closed).
         stored = (
             checker._store.get(user_id)
             if hasattr(checker, "_store") and checker._store
@@ -536,5 +556,5 @@ def has_permission(actor: str, permission: str) -> bool:
         if stored is not None:
             role = stored
         else:
-            role = AdminRole.ADMIN
+            role = AdminRole.VIEWER
     return checker.has_permission(role, permission)
