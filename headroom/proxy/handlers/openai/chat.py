@@ -118,6 +118,16 @@ class OpenAIChatMixin:
             request_headers=request.headers,
             body=body,
         )
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            tool_calls=len(body.get("tools") or []),
+            num_messages=len(messages),
+        )
+        body["model"] = model
         original_client_messages = copy.deepcopy(messages)
         input_event = self.pipeline_extensions.emit(
             PipelineStage.INPUT_RECEIVED,

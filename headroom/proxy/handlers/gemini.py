@@ -234,6 +234,14 @@ class GeminiHandlerMixin:
             request_headers=request.headers,
             body=body,
         )
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            num_messages=len(contents),
+        )
 
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -767,6 +775,14 @@ class GeminiHandlerMixin:
             request_headers=headers,
             body=body,
         )
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            num_messages=len(contents),
+        )
         # Note: streaming handlers delegate to _stream_response, which
         # does its own classify_client. No need to compute here.
         is_antigravity = self._is_cloudcode_antigravity_request(body, headers)
@@ -914,6 +930,14 @@ class GeminiHandlerMixin:
             request_headers=headers,
             body=body,
         )
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            num_messages=len(contents),
+        )
         # Streaming variant — delegates to _stream_response which
         # classifies the client itself from headers.
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
@@ -1008,6 +1032,14 @@ class GeminiHandlerMixin:
         request_savings_metadata = extract_savings_metadata(
             request_headers=headers,
             body=body,
+        )
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            num_messages=len(contents),
         )
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers

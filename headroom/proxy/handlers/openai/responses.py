@@ -977,6 +977,16 @@ class OpenAIResponsesMixin:
             messages.append({"role": "system", "content": instructions})
         if isinstance(input_data, str):
             messages.append({"role": "user", "content": input_data})
+        from headroom.proxy.model_router import prepare_model_routing
+
+        model, request_savings_metadata = prepare_model_routing(
+            self,
+            model,
+            request_savings_metadata=request_savings_metadata,
+            tool_calls=len(body.get("tools") or []),
+            num_messages=len(messages),
+        )
+        body["model"] = model
 
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -2089,6 +2099,32 @@ class OpenAIResponsesMixin:
                 request_headers=ws_headers,
                 body=body,
             )
+            from headroom.proxy.model_router import prepare_model_routing
+
+            ws_routing_body = body.get("response", body) if isinstance(body, dict) else {}
+            if not isinstance(ws_routing_body, dict):
+                ws_routing_body = {}
+            ws_model = str(
+                ws_routing_body.get("model")
+                or (body.get("model") if isinstance(body, dict) else None)
+                or "unknown"
+            )
+            ws_num_messages = 0
+            if isinstance(ws_routing_body, dict):
+                if isinstance(ws_routing_body.get("messages"), list):
+                    ws_num_messages = len(ws_routing_body.get("messages") or [])
+                elif isinstance(ws_routing_body.get("input"), list):
+                    ws_num_messages = len(ws_routing_body.get("input") or [])
+            ws_model, ws_savings_metadata = prepare_model_routing(
+                self,
+                ws_model,
+                request_savings_metadata=ws_savings_metadata,
+                num_messages=ws_num_messages,
+            )
+            if isinstance(body, dict):
+                body["model"] = ws_model
+                if isinstance(body.get("response"), dict):
+                    body["response"]["model"] = ws_model
             ws_input_tokens_total = 0
             ws_output_tokens_total = 0
             ws_cache_read_tokens_total = 0

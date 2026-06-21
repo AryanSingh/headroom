@@ -81,7 +81,7 @@ class ModelRouterConfig:
     tool_complexity_threshold: float = 2.0
 
     @classmethod
-    def from_env(cls) -> "ModelRouterConfig":
+    def from_env(cls) -> ModelRouterConfig:
         """Build a config from the CUTCTX_MODEL_ROUTING env
         var. The env var is a JSON string. Empty / unset =>
         empty config.
@@ -201,11 +201,8 @@ class ModelRouter:
                 source_model=requested_model,
                 reason="cost_lookup_failed",
             )
-        per_mtok_delta = src_cost - tgt_cost
-        # The caller is expected to pass the actual token count
-        # in a follow-up method. For now, we report the per-mtok
-        # delta so the funnel can attribute it when the tokens
-        # are known.
+        # The caller computes the actual token savings in a follow-up
+        # step once the request has completed.
         return RoutingDecision(
             target_model=route.target,
             source_model=route.source,
@@ -305,9 +302,51 @@ class ModelRouter:
             return (None, None)
 
 
+def prepare_model_routing(
+    handler: Any,
+    requested_model: str,
+    *,
+    request_savings_metadata: dict[str, dict[str, Any]] | None = None,
+    cache_read_tokens: int = 0,
+    attempted_input_tokens: int = 0,
+    tool_calls: int = 0,
+    num_messages: int = 0,
+) -> tuple[str, dict[str, dict[str, Any]] | None]:
+    """Apply an enabled router and attach placeholder routing metadata."""
+
+    router = getattr(handler, "_model_router", None)
+    if router is None:
+        return requested_model, request_savings_metadata
+
+    try:
+        decision = router.maybe_route(
+            requested_model,
+            cache_read_tokens=cache_read_tokens,
+            attempted_input_tokens=attempted_input_tokens,
+            tool_calls=tool_calls,
+            num_messages=num_messages,
+        )
+    except Exception:  # noqa: BLE001
+        return requested_model, request_savings_metadata
+
+    if not decision.routing_applied or not decision.target_model:
+        return requested_model, request_savings_metadata
+
+    updated_metadata = dict(request_savings_metadata or {})
+    updated_metadata["model_routing"] = {
+        "source_model": decision.source_model or requested_model,
+        "target_model": decision.target_model,
+        "reason": decision.reason,
+        "tokens_saved": 0,
+        "usd_saved": 0.0,
+    }
+    return decision.target_model, updated_metadata
+
+
 __all__ = [
     "ModelRouter",
     "ModelRouterConfig",
     "ModelRoute",
     "RoutingDecision",
+    "prepare_model_routing",
 ]

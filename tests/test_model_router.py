@@ -20,9 +20,8 @@ from headroom.proxy.model_router import (
     ModelRoute,
     ModelRouter,
     ModelRouterConfig,
-    RoutingDecision,
+    prepare_model_routing,
 )
-
 
 # ─- Config loading ───────────────────────────────────────────────
 
@@ -256,6 +255,40 @@ def test_cost_lookup_negative_delta_skips_route() -> None:
     decision = r.maybe_route("cheap-model")
     assert decision.routing_applied is False
     assert decision.reason == "cost_lookup_failed"
+
+
+def test_prepare_model_routing_attaches_placeholder_metadata() -> None:
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="claude-opus-4-5",
+                target="claude-sonnet-4-5",
+                source_cost_per_mtok=15.0,
+                target_cost_per_mtok=3.0,
+            )
+        ],
+    )
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "claude-opus-4-5",
+        request_savings_metadata={"semantic_cache": {"tokens": 12, "usd": 0.03}},
+        num_messages=3,
+    )
+
+    assert model == "claude-sonnet-4-5"
+    assert metadata is not None
+    assert metadata["semantic_cache"]["tokens"] == 12
+    assert metadata["model_routing"]["source_model"] == "claude-opus-4-5"
+    assert metadata["model_routing"]["target_model"] == "claude-sonnet-4-5"
+    assert metadata["model_routing"]["tokens_saved"] == 0
+    assert metadata["model_routing"]["usd_saved"] == 0.0
 
 
 # ─- finalize_savings() ──────────────────────────────────────────
