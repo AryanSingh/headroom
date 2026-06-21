@@ -2149,6 +2149,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except Exception:
         logger.debug("LLM Firewall not available", exc_info=True)
 
+    # Audit-Deep-2026-06-21: warn loudly when the firewall is
+    # disabled in a non-dev / non-test deployment. The
+    # production recommendation is to enable at least
+    # prompt-injection + PII scanning for any deployment that
+    # serves untrusted input. The warning is one-time at
+    # boot, not per-request, so it does not pollute logs.
+    if _firewall_scanner is None:
+        import os as _os
+        if not _os.environ.get("CUTCTX_FIREWALL_OPT_OUT_WARNING") and not _os.environ.get("PYTEST_CURRENT_TEST"):
+            tier = _os.environ.get("CUTCTX_TIER", "self-hosted")
+            if tier in ("public-cloud", "business", "enterprise"):
+                logger.warning(
+                    "LLM Firewall is DISABLED on a %s deployment. "
+                    "Recommended: set HEADROOM_FIREWALL_ENABLED=1 to "
+                    "enable prompt-injection + PII scanning. "
+                    "Set CUTCTX_FIREWALL_OPT_OUT_WARNING=1 to suppress.",
+                    tier,
+                )
+
     @app.middleware("http")
     async def _firewall_scan_middleware(request, call_next):
         """Scan incoming proxy requests for prompt injections and PII.

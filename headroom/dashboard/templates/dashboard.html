@@ -1571,6 +1571,9 @@
          x-transition:leave-start="translate-x-0"
          x-transition:leave-end="translate-x-full"
          @click.away="feedOpen = false"
+         @keydown.escape.window="feedOpen = false"
+         role="dialog"
+         aria-label="Live message transformations feed"
          class="fixed top-0 right-0 h-full w-[520px] bg-surface border-l border-border z-50 flex flex-col"
          style="display: none;">
 
