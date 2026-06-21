@@ -36,7 +36,7 @@ GITHUB_SEARCH_RESPONSE = json.dumps(
             {
                 "id": 12345678,
                 "node_id": "MDEwOlJlcG9zaXRvcnkxMjM0NTY3OA==",
-                "name": "headroom",
+                "name": "cutctx",
                 "full_name": "anthropic/headroom",
                 "private": False,
                 "owner": {
@@ -1111,7 +1111,7 @@ class TestMultiToolAgentScenario:
 
         # Verify key information is still accessible
         # JSON: Can see repository names and keys
-        assert "headroom" in results[0].compressed
+        assert "cutctx" in results[0].compressed
         assert "stargazers_count" in results[0].compressed
 
         # Code: Can see function signatures

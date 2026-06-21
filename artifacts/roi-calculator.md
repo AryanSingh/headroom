@@ -1,4 +1,4 @@
-# Headroom ROI Calculator & Buyer Business Case
+# Cutctx ROI Calculator & Buyer Business Case
 
 **Date:** June 13, 2026  
 **Audience:** Engineering leaders, platform teams, CFOs
@@ -7,7 +7,7 @@
 
 ## ROI Framework
 
-Headroom creates value in four dimensions:
+Cutctx creates value in four dimensions:
 
 1. **Direct cost savings** — Fewer tokens sent to LLM providers
 2. **Context efficiency** — More usable context fits in finite windows
@@ -81,7 +81,7 @@ Engineering time savings: $4,250/month
 Total monthly savings:    $4,932/month
 Annual savings:           $59,184/year
 
-Headroom Team cost:       $1,500/month ($18,000/year)
+Cutctx Team cost:       $1,500/month ($18,000/year)
 Net annual benefit:       $41,184/year
 ROI:                      229%
 Payback period:           4.4 months
@@ -99,7 +99,7 @@ Payback period:           4.4 months
 - Tool outputs: code search results, file diffs, test output
 - Monthly LLM spend: $12,000
 
-**With Headroom:**
+**With Cutctx:**
 - Tool output compression: 85% average (code is highly compressible)
 - Monthly token savings: $5,400
 - Context-limit retries reduced by 60%
@@ -115,7 +115,7 @@ Payback period:           4.4 months
 - 100 incidents/day
 - Monthly LLM spend: $25,000
 
-**With Headroom:**
+**With Cutctx:**
 - Log compression: 90% (logs are extremely compressible)
 - Monthly token savings: $11,250
 - Fewer context-limit failures during complex incidents
@@ -131,7 +131,7 @@ Payback period:           4.4 months
 - Platform team manages shared agent infrastructure
 - Monthly LLM spend: $40,000
 
-**With Headroom:**
+**With Cutctx:**
 - Cross-provider optimization (single layer for all providers)
 - Tool output compression: 75% average
 - Monthly token savings: $15,000
@@ -164,11 +164,11 @@ Payback period:           4.4 months
 
 > **Problem:** Our AI agents are spending $X/month on tokens, and a significant portion goes to verbose tool outputs, logs, and code search results that could be compressed without losing information.
 >
-> **Solution:** Headroom compresses these payloads by 60–95% with zero code changes. It runs locally, preserves originals for retrieval, and gives us visibility into where our AI spend goes.
+> **Solution:** Cutctx compresses these payloads by 60–95% with zero code changes. It runs locally, preserves originals for retrieval, and gives us visibility into where our AI spend goes.
 >
 > **ROI:** Based on our current spend of $X/month, we estimate $Y/month in direct savings plus reduced engineering time from fewer context-limit errors. Payback period is under 6 months.
 >
-> **Risk mitigation:** Headroom is local-first (no data leaves our infrastructure), uses reversible compression (no quality loss), and has a free tier we can evaluate before committing.
+> **Risk mitigation:** Cutctx is local-first (no data leaves our infrastructure), uses reversible compression (no quality loss), and has a free tier we can evaluate before committing.
 
 ### For the CFO
 
@@ -180,11 +180,11 @@ Payback period:           4.4 months
 >
 > **Risk:** Low — local deployment, no vendor lock-in, free tier available for evaluation
 >
-> **Strategic value:** As our AI usage grows, Headroom's savings scale proportionally. A 2x increase in AI spend doubles the savings while the Headroom cost stays flat.
+> **Strategic value:** As our AI usage grows, Cutctx's savings scale proportionally. A 2x increase in AI spend doubles the savings while the Cutctx cost stays flat.
 
 ### For the Security Buyer
 
-> **Data residency:** All prompts and tool outputs stay on our infrastructure. Headroom never sees our data.
+> **Data residency:** All prompts and tool outputs stay on our infrastructure. Cutctx never sees our data.
 >
 > **Compliance:** Self-hosted deployment, no external API calls for compression, aggregate-only telemetry (opt-in).
 >
@@ -202,7 +202,7 @@ Payback period:           4.4 months
 | Business ($42k/yr) | $42,000 | >$126k value (3x) | $3,500/month savings |
 | Enterprise ($60k–$150k) | $60,000–$150,000 | >$180k value (3x) | $5,000–$12,500/month savings |
 
-**Pricing rule:** Capture 10–20% of measurable customer value. If Headroom saves a customer $60k/year, pricing at $18k/year (30%) is aggressive but justified for early lighthouse accounts. Standard pricing should target 15–20% of value.
+**Pricing rule:** Capture 10–20% of measurable customer value. If Cutctx saves a customer $60k/year, pricing at $18k/year (30%) is aggressive but justified for early lighthouse accounts. Standard pricing should target 15–20% of value.
 
 ---
 
@@ -210,8 +210,8 @@ Payback period:           4.4 months
 
 | Solution | Annual Cost | What You Get | ROI Comparison |
 |----------|------------|--------------|----------------|
-| Headroom Team | $18k | 60–95% compression, reversible, cross-provider, local | Best value for teams |
-| Headroom Business | $42k | + analytics, workspace, policy | Best value for orgs |
+| Cutctx Team | $18k | 60–95% compression, reversible, cross-provider, local | Best value for teams |
+| Cutctx Business | $42k | + analytics, workspace, policy | Best value for orgs |
 | Token Company (hosted) | $30k–$100k | Lossy compression, cloud-only | Higher cost, less control |
 | Morph Compact (hosted) | $24k+ | Verbatim deletion, cloud-only | Higher cost, no reversibility |
 | Native caching (free) | $0 | Provider-locked, no governance | No cross-provider, no analytics |

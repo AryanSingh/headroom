@@ -42,7 +42,7 @@
 
 CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
-> Product naming: **CutCtx** is the public product brand. The historical Python module name `cutctx` still exists internally for compatibility, but end-user installs and commands are `cutctx` / `cutctx-ai`.
+> Product naming: **CutCtx** is the public product brand. The historical Python module name `headroom` still exists for compatibility behind the `cutctx` alias, but end-user installs and commands are `cutctx` / `cutctx-ai`.
 
 <p align="center">
   <img src="CutctxDemo-Fast.gif" alt="CutCtx in action" width="820">

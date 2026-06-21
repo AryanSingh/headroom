@@ -102,7 +102,7 @@ def _linux_service_unit(manifest: DeploymentManifest, run_script: Path) -> tuple
             Path.home() / ".config" / "systemd" / "user" / f"{manifest.service_name}.service"
         )
     content = f"""[Unit]
-Description=Headroom ({manifest.profile})
+Description=Cutctx ({manifest.profile})
 After=network-online.target
 
 [Service]

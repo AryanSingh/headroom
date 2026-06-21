@@ -64,9 +64,9 @@ users:[{id:1,name:Alice,role:admin},{id:2,name:Bob,role:user}]
 
 **Token reduction: 78%** (26 tokens → 6 tokens)
 
-## How Headroom Does It
+## How Cutctx Does It
 
-Headroom applies 6 specialized compression algorithms:
+Cutctx applies 6 specialized compression algorithms:
 
 1. **SmartCrusher** (JSON): Removes redundant fields, abbreviates keys
 2. **CodeCompressor** (AST-based): Strips comments, minifies code
@@ -77,7 +77,7 @@ Headroom applies 6 specialized compression algorithms:
 
 ## The Economics
 
-| Scenario | Tokens | Cost (GPT-4o) | With Headroom | Savings |
+| Scenario | Tokens | Cost (GPT-4o) | With Cutctx | Savings |
 |----------|--------|---------------|---------------|---------|
 | Single session | 50K | $0.125 | $0.031 | 75% |
 | 100 sessions/day | 5M | $12.50 | $3.13 | 75% |
@@ -86,13 +86,13 @@ Headroom applies 6 specialized compression algorithms:
 
 ## Getting Started
 
-1. **Install**: `npm install @headroom/sdk` or `pip install headroom`
-2. **Configure**: Point your LLM calls through the Headroom proxy
+1. **Install**: `npm install @cutctx/sdk` or `pip install cutctx`
+2. **Configure**: Point your LLM calls through the Cutctx proxy
 3. **Measure**: Use the built-in dashboard to track compression ratios
-4. **Optimize**: Use `headroom learn` to auto-tune compression for your data
+4. **Optimize**: Use `cutctx learn` to auto-tune compression for your data
 
 ## Conclusion
 
 Context compression isn't just about saving money — it's about enabling AI agents to process more information in less time. As agents become more capable, the ability to efficiently manage context will be a competitive advantage.
 
-*Ready to try it? [Start your free trial](https://headroom.sh) or [calculate your ROI](https://headroom.sh/roi).*
+*Ready to try it? [Start your free trial](https://cutctx.sh) or [calculate your ROI](https://cutctx.sh/roi).*

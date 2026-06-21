@@ -38,7 +38,7 @@ Naive truncation breaks code. Cutting a function in half leaves invalid syntax t
 ## Example
 
 ```python
-from headroom.transforms import CodeAwareCompressor
+from cutctx.transforms import CodeAwareCompressor
 
 compressor = CodeAwareCompressor()
 
@@ -76,7 +76,7 @@ print(f"Syntax valid: {result.syntax_valid}")  # True
 ## Configuration
 
 ```python
-from headroom.transforms import CodeAwareCompressor, CodeCompressorConfig, DocstringMode
+from cutctx.transforms import CodeAwareCompressor, CodeCompressorConfig, DocstringMode
 
 config = CodeCompressorConfig(
     preserve_imports=True,              # Always keep imports
@@ -150,7 +150,7 @@ pip install "cutctx-ai[code]"
 Tree-sitter parsers are lazy-loaded and cached. You can free memory when done:
 
 ```python
-from headroom.transforms import is_tree_sitter_available, unload_tree_sitter
+from cutctx.transforms import is_tree_sitter_available, unload_tree_sitter
 
 # Check if tree-sitter is installed
 print(is_tree_sitter_available())  # True

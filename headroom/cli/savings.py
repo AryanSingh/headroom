@@ -628,6 +628,15 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
     show_default=True,
     help="Output format. JSON and CSV are machine-readable.",
 )
+@click.option(
+    "--verify-integrity",
+    is_flag=True,
+    help=(
+        "Run SavingsTracker.verify_integrity() and exit with "
+        "code 0 on ok, 1 on integrity violation. Useful for "
+        "SOC2 audits and CI gates."
+    ),
+)
 def savings(
     days: int,
     no_browser: bool,
@@ -637,6 +646,7 @@ def savings(
     by_source: bool,
     by_provider: bool,
     output_format: str,
+    verify_integrity: bool,
 ) -> None:
     """CutCtx savings reporting and analytics.
 
@@ -732,3 +742,21 @@ def savings(
             webbrowser.open(f"file://{output.resolve()}")
         except Exception:
             click.echo(f"Could not open browser (try opening {output} manually)", err=True)
+
+    # Audit-Deep-2026-06-21: --verify-integrity exits with code 0
+    # on ok / 1 on integrity violation. Useful for SOC2 audits
+    # and CI gates. The integrity check uses the same
+    # verify_integrity() method the HTTP /audit/verify endpoint
+    # exposes; the CLI just surfaces the result.
+    if verify_integrity:
+        storage_path = _get_storage_path()
+        from headroom.proxy.savings_tracker import SavingsTracker
+
+        tracker = SavingsTracker(path=storage_path)
+        result = tracker.verify_integrity()
+        ok = bool(result.get("ok"))
+        if output_format == "json":
+            click.echo(json.dumps(result, indent=2, default=str))
+        else:
+            click.echo(_format_integrity_result(result))
+        sys.exit(0 if ok else 1)

@@ -1,7 +1,7 @@
 # Savings Telemetry
 
 Partner caches, routers, and inference gateways can attribute savings without
-calling a separate Headroom API. Send one `x-headroom-savings-metadata` header
+calling a separate CutCtx API. Send one `x-headroom-savings-metadata` header
 on the request into the local proxy. The proxy strips this internal header
 before forwarding upstream and persists the normalized savings into dashboard
 history, buyer reports, and `cutctx integrations status`.

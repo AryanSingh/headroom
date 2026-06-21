@@ -1,4 +1,4 @@
-# Headroom Benchmarks
+# Cutctx Benchmarks
 
 This directory contains reproducible benchmark runners for the compression results reported in `/docs/benchmarks.md`.
 
@@ -7,7 +7,7 @@ This directory contains reproducible benchmark runners for the compression resul
 ### Install Dependencies
 
 ```bash
-pip install "headroom-ai" tiktoken
+pip install "cutctx-ai" tiktoken
 ```
 
 Optional: For comparisons with other tools:
@@ -30,14 +30,14 @@ python run_all.py --output results.json
 
 #### Compare specific tools on a corpus:
 ```bash
-python compare.py --tool headroom --tool llmlingua2 --corpus toolbench --dry-run
+python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench --dry-run
 ```
 
 ## Setup
 
 ### CPU vs GPU Configuration
 
-**Headroom** runs primarily on CPU (SmartCrusher is pure Rust, CodeCompressor uses AST). The ONNX int8 model is optimized for CPU inference and uses ~280 MB RAM.
+**Cutctx** runs primarily on CPU (SmartCrusher is pure Rust, CodeCompressor uses AST). The ONNX int8 model is optimized for CPU inference and uses ~280 MB RAM.
 
 **LLMLingua2** requires GPU for best performance. Set:
 ```bash
@@ -68,7 +68,7 @@ benchmarks/
 
 ### Environment Variables
 
-- `HEADROOM_MODEL_PATH`: Override default Kompress model path (if using custom quantization)
+- `CUTCTX_MODEL_PATH`: Override default Kompress model path (if using custom quantization)
 - `TIKTOKEN_CACHE_DIR`: Override tiktoken model cache location
 
 ## Results
@@ -86,7 +86,7 @@ Results are saved as JSON with this structure:
   },
   "benchmarks": [
     {
-      "tool": "headroom",
+      "tool": "cutctx",
       "corpus": "toolbench",
       "metrics": {
         "input_tokens": 45000,
@@ -108,12 +108,12 @@ Results are saved as JSON with this structure:
 - **0.50** = 50% reduction (2x efficiency)
 
 ### Quality Retention (CCR)
-- Headroom+CCR allows on-demand retrieval of original content
+- Cutctx+CCR allows on-demand retrieval of original content
 - Downstream task accuracy stays within 1% of uncompressed
 
 ### Throughput
-- Headroom SmartCrusher: ~45,000 tok/s (pure Rust)
-- Headroom Kompress: ~2,400 tok/s (ONNX int8)
+- Cutctx SmartCrusher: ~45,000 tok/s (pure Rust)
+- Cutctx Kompress: ~2,400 tok/s (ONNX int8)
 - LLMLingua2: ~800 tok/s (PyTorch GPU)
 
 ## Hardware Used in Documentation
@@ -145,8 +145,8 @@ To match these results, use similar hardware or adjust expectations for your pla
 ### "llmlingua2 not installed"
 Install: `pip install llmlingua2`
 
-### "Headroom model not found"
-Run: `python -c "from headroom import compress; compress('test')"` to download models
+### "Cutctx model not found"
+Run: `python -c "from cutctx import compress; compress('test')"` to download models
 
 ### Inconsistent timing results
 - Warm up with a few iterations before measuring
@@ -160,6 +160,6 @@ Run: `python -c "from headroom import compress; compress('test')"` to download m
 
 ## References
 
-- [Headroom Documentation](https://github.com/headroom-sdk/headroom)
+- [Cutctx Documentation](https://github.com/cutctx-sdk/cutctx)
 - [LLMLingua2 Paper](https://arxiv.org/abs/2403.12968)
 - [ToolBench Dataset](https://github.com/run-llama/llama-index-tools)

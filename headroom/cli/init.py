@@ -293,7 +293,7 @@ def _strip_codex_init_block(content: str) -> str:
     import re
 
     for marker_start, marker_end in (
-        ("# --- Headroom init provider ---", "# --- end Headroom init provider ---"),
+        ("# --- Cutctx init provider ---", "# --- end Cutctx init provider ---"),
         (_CODEX_PROVIDER_MARKER_START, _CODEX_PROVIDER_MARKER_END),
     ):
         while marker_start in content and marker_end in content:
@@ -319,7 +319,7 @@ def _strip_codex_init_block(content: str) -> str:
         content,
     )
 
-    for provider_name in ("headroom", "cutctx"):
+    for provider_name in ("cutctx", "cutctx"):
         orphan_provider_table = re.compile(
             rf"(?ms)^\[model_providers\.{provider_name}\][^\[]*?"
             r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'

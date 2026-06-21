@@ -128,7 +128,7 @@ def _build_cache_prefix() -> str:
     so the prefix hashes identically across turns.
     """
     seed = (
-        "Headroom is a context-engineering layer for LLM applications. "
+        "Cutctx is a context-engineering layer for LLM applications. "
         "It compresses tool outputs, aligns prefix caches, and routes content "
         "to specialized compressors. The realignment branch (Phase A+B) hardens "
         "cache stability and constrains compression to the live zone — the "

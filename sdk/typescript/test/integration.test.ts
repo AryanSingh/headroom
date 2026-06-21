@@ -1,7 +1,7 @@
 /**
- * Integration tests for the Headroom TypeScript SDK.
+ * Integration tests for the CutCtx TypeScript SDK.
  *
- * These tests run against a real Headroom proxy server.
+ * These tests run against a real CutCtx proxy server.
  * They require:
  *   - The proxy running on http://localhost:8787
  *   - OPENAI_API_KEY and ANTHROPIC_API_KEY in .env
@@ -145,10 +145,10 @@ describe.skipIf(!RUN_INTEGRATION)("Integration: compress() with real proxy", () 
     );
   });
 
-  it("HeadroomClient can be reused across calls", async () => {
-    const { HeadroomClient } = await import("../src/client.js");
+  it("CutCtxClient can be reused across calls", async () => {
+    const { CutCtxClient } = await import("../src/client.js");
 
-    const client = new HeadroomClient({ baseUrl: PROXY_URL });
+    const client = new CutCtxClient({ baseUrl: PROXY_URL });
 
     const result1 = await client.compress(
       [

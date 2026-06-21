@@ -53,7 +53,7 @@ console.log(`Tokens saved: ${result.tokensSaved}`);
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import SmartCrusher
+from cutctx import SmartCrusher
 
 crusher = SmartCrusher()
 
@@ -73,7 +73,7 @@ compressed = crusher.crush(tool_output, query="user's question")
 ```ts twoslash
 import { compress } from "cutctx-ai";
 
-// Configure via the CutCtx proxy or HeadroomClient
+// Configure via the CutCtx proxy or CutCtxClient
 const result = await compress(messages, {
   model: "gpt-4o",
   tokenBudget: 10000, // SmartCrusher will reduce JSON to fit
@@ -85,7 +85,7 @@ console.log(`Transforms: ${result.transformsApplied}`);
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import SmartCrusher, SmartCrusherConfig
+from cutctx import SmartCrusher, SmartCrusherConfig
 
 config = SmartCrusherConfig(
     min_tokens_to_crush=200,      # Only compress if > 200 tokens

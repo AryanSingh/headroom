@@ -1,11 +1,11 @@
-# Headroom Security One-Pager
+# Cutctx Security One-Pager
 
 **Audience:** Security reviewers, procurement teams, platform teams  
 **Status:** Implementation-aligned
 
 ## Product Posture
 
-Headroom is a self-hosted control layer for AI agent traffic. It optimizes context locally, forwards requests to the customer-selected model provider, and keeps operational data in customer-managed local stores.
+Cutctx is a self-hosted control layer for AI agent traffic. It optimizes context locally, forwards requests to the customer-selected model provider, and keeps operational data in customer-managed local stores.
 
 ## Security Claims We Can Support Today
 
@@ -59,7 +59,7 @@ Headroom is a self-hosted control layer for AI agent traffic. It optimizes conte
 
 ## Recommended Attachments
 
-- [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SECURITY.md)
-- [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/security-and-privacy.md)
-- [docs/deployment-architecture.md](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/deployment-architecture.md)
-- [k8s/README.md](/Users/aryansingh/Documents/Claude/Projects/headroom/k8s/README.md)
+- [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/SECURITY.md)
+- [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/security-and-privacy.md)
+- [docs/deployment-architecture.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/deployment-architecture.md)
+- [k8s/README.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/k8s/README.md)

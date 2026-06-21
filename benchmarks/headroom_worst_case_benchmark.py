@@ -1,10 +1,10 @@
 """
-Headroom Worst-Case Benchmark: Where Compression Hurts
+Cutctx Worst-Case Benchmark: Where Compression Hurts
 
-This benchmark tests scenarios where Headroom's statistical compression
+This benchmark tests scenarios where Cutctx's statistical compression
 may NOT be beneficial - to understand the limits of the approach.
 
-Worst cases for Headroom:
+Worst cases for Cutctx:
 1. Highly unique data (no patterns to compress)
 2. Data where every item is equally important
 3. Data where subtle differences matter
@@ -28,7 +28,7 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
-    from headroom import HeadroomClient, OpenAIProvider
+    from headroom import CutctxClient, OpenAIProvider
 
     HEADROOM_AVAILABLE = True
 except ImportError:
@@ -45,7 +45,7 @@ def generate_unique_support_tickets(num_tickets: int = 50) -> dict:
     Customer support tickets where EVERY ticket is unique and important.
     No redundancy - each customer has a different problem.
 
-    This is hard for Headroom because:
+    This is hard for Cutctx because:
     - No repeated patterns to compress
     - Every ticket needs attention
     - Can't safely remove any ticket
@@ -137,7 +137,7 @@ def generate_unique_error_traces(num_traces: int = 30) -> dict:
     """
     Unique stack traces where each error is different.
 
-    This is hard for Headroom because:
+    This is hard for Cutctx because:
     - Each stack trace has different functions, line numbers
     - Each error message is unique
     - All errors need investigation
@@ -301,7 +301,7 @@ def generate_medical_records(num_patients: int = 25) -> dict:
     """
     Medical records where EVERY detail matters.
 
-    This is hard for Headroom because:
+    This is hard for Cutctx because:
     - Similar symptoms can have different diagnoses
     - Missing any detail could be dangerous
     - "Repetitive" info (vitals) is actually critical data
@@ -394,7 +394,7 @@ def generate_legal_discovery_docs(num_docs: int = 40) -> dict:
     """
     Legal discovery documents where EVERY document must be reviewed.
 
-    This is hard for Headroom because:
+    This is hard for Cutctx because:
     - Can't skip any document - legal requirement
     - "Similar" emails might have crucial differences
     - Need exact quotes, not summaries
@@ -462,7 +462,7 @@ def generate_legal_discovery_docs(num_docs: int = 40) -> dict:
 
 @dataclass
 class WorstCaseScenario:
-    """A scenario where Headroom might struggle."""
+    """A scenario where Cutctx might struggle."""
 
     name: str
     description: str
@@ -721,14 +721,14 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
 
     if HEADROOM_AVAILABLE:
         db_path = os.path.join(tempfile.gettempdir(), "headroom_worst_case.db")
-        headroom_client = HeadroomClient(
+        headroom_client = CutctxClient(
             original_client=OpenAI(api_key=api_key),
             provider=OpenAIProvider(),
             store_url=f"sqlite:///{db_path}",
             default_mode="optimize",
         )
     else:
-        print("WARNING: Headroom not available, running baseline only")
+        print("WARNING: Cutctx not available, running baseline only")
         headroom_client = None
 
     scenarios = [
@@ -768,10 +768,10 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
 
         results.append(baseline_result)
 
-        # Run Headroom
+        # Run Cutctx
         if headroom_client:
             print("\n[2/2] Running HEADROOM...")
-            headroom_result = run_scenario(headroom_client, scenario, "headroom")
+            headroom_result = run_scenario(headroom_client, scenario, "cutctx")
             print(f"   Input tokens: {headroom_result.input_tokens:,}")
             print(f"   Output tokens: {headroom_result.output_tokens:,}")
             print(f"   Cost: ${headroom_result.cost_usd:.4f}")
@@ -810,9 +810,9 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
     print("=" * 70)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "headroom"]
+    headroom_results = [r for r in results if r.mode == "cutctx"]
 
-    print(f"\n{'Scenario':<30} {'Baseline Tokens':>15} {'Headroom Tokens':>15} {'Quality Δ':>12}")
+    print(f"\n{'Scenario':<30} {'Baseline Tokens':>15} {'Cutctx Tokens':>15} {'Quality Δ':>12}")
     print("-" * 72)
 
     for br in baseline_results:
@@ -843,7 +843,7 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
             }
             for r in baseline_results
         ],
-        "headroom": [
+        "cutctx": [
             {
                 "scenario": r.scenario_name,
                 "tokens": r.input_tokens,

@@ -115,14 +115,14 @@ def test_apply_codex_provider_scope_replaces_existing_managed_block(
     config_path = tmp_path / "config.toml"
     config_path.write_text(
         'model = "gpt-4o"\n\n'
-        "# --- Headroom persistent provider ---\n"
-        'model_provider = "headroom"\n\n'
+        "# --- Cutctx persistent provider ---\n"
+        'model_provider = "cutctx"\n\n'
         "[model_providers.headroom]\n"
-        'name = "Headroom persistent proxy"\n'
+        'name = "Cutctx persistent proxy"\n'
         'base_url = "http://127.0.0.1:1111/v1"\n'
         "requires_openai_auth = true\n"
         "supports_websockets = true\n"
-        "# --- end Headroom persistent provider ---\n"
+        "# --- end Cutctx persistent provider ---\n"
     )
     monkeypatch.setattr("headroom.providers.codex.install.codex_config_path", lambda: config_path)
     manifest = _manifest(tmp_path)
@@ -187,7 +187,7 @@ def test_apply_openclaw_provider_scope_uses_manifest_port(monkeypatch, tmp_path:
     monkeypatch.setattr("headroom.providers.openclaw.install.shutil_which", lambda name: "openclaw")
     monkeypatch.setattr(
         "headroom.providers.openclaw.install.resolve_headroom_command",
-        lambda: ["headroom"],
+        lambda: ["cutctx"],
     )
     monkeypatch.setattr(
         "headroom.providers.openclaw.install._invoke_openclaw",
@@ -206,7 +206,7 @@ def test_apply_openclaw_provider_scope_uses_manifest_port(monkeypatch, tmp_path:
 
     apply_openclaw_provider_scope(manifest)
 
-    assert recorded == [["headroom", "wrap", "openclaw", "--no-auto-start", "--proxy-port", "9999"]]
+    assert recorded == [["cutctx", "wrap", "openclaw", "--no-auto-start", "--proxy-port", "9999"]]
 
 
 def test_openclaw_apply_provider_scope_requires_installed_binary(
@@ -234,9 +234,9 @@ def test_openclaw_helper_wrappers_delegate_to_stdlib(monkeypatch) -> None:
     from headroom.providers.openclaw.install import _invoke_openclaw, shutil_which
 
     assert shutil_which("openclaw") == "/fake/openclaw"
-    _invoke_openclaw(["headroom", "wrap", "openclaw"])
+    _invoke_openclaw(["cutctx", "wrap", "openclaw"])
 
-    assert recorded == [(["headroom", "wrap", "openclaw"], True)]
+    assert recorded == [(["cutctx", "wrap", "openclaw"], True)]
 
 
 def test_openclaw_revert_provider_scope_skips_without_binary(monkeypatch, tmp_path: Path) -> None:
@@ -266,7 +266,7 @@ def test_openclaw_revert_provider_scope_invokes_unwrap(monkeypatch, tmp_path: Pa
     monkeypatch.setattr("headroom.providers.openclaw.install.shutil_which", lambda name: "openclaw")
     monkeypatch.setattr(
         "headroom.providers.openclaw.install.resolve_headroom_command",
-        lambda: ["headroom"],
+        lambda: ["cutctx"],
     )
     monkeypatch.setattr(
         "headroom.providers.openclaw.install._invoke_openclaw",
@@ -282,7 +282,7 @@ def test_openclaw_revert_provider_scope_invokes_unwrap(monkeypatch, tmp_path: Pa
         _manifest(tmp_path),
     )
 
-    assert recorded == [["headroom", "unwrap", "openclaw"]]
+    assert recorded == [["cutctx", "unwrap", "openclaw"]]
 
 
 def test_windows_env_scope_restores_previous_values(monkeypatch, tmp_path: Path) -> None:
@@ -495,7 +495,7 @@ def test_headroom_provider_block_never_sets_requires_openai_auth(
 
     Bug 3 (#406): requires_openai_auth = true on a custom [model_providers.headroom]
     block forces codex to demand OpenAI OAuth login for headroom-routed traffic.
-    Headroom is a local proxy — it must not require OpenAI auth.
+    Cutctx is a local proxy — it must not require OpenAI auth.
     """
     for port in (8787, 9999):
         config_path = tmp_path / f"config_{port}.toml"
@@ -608,7 +608,7 @@ def test_unwrap_removes_top_level_openai_base_url(
     orphan_content = (
         'model = "gpt-4o"\n'
         'openai_base_url = "http://127.0.0.1:8787/v1"\n'
-        'model_provider = "headroom"\n'
+        'model_provider = "cutctx"\n'
     )
     stripped = wrap_mod._strip_codex_headroom_blocks(orphan_content)
     assert "openai_base_url" not in stripped, (
@@ -683,7 +683,7 @@ def test_persistent_install_strip_removes_openai_base_url(monkeypatch, tmp_path:
     config_path.write_text(
         'model = "gpt-4o"\n'
         'openai_base_url = "http://127.0.0.1:8787/v1"\n'
-        'model_provider = "headroom"\n'
+        'model_provider = "cutctx"\n'
     )
     revert_codex_provider_scope(
         ManagedMutation(target="codex", kind="toml-block", path=str(config_path)),

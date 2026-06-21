@@ -412,7 +412,7 @@ class TOINConfig:
 
 
 class ToolIntelligenceNetwork:
-    """Aggregates tool patterns across all Headroom users (observation-only).
+    """Aggregates tool patterns across all Cutctx users (observation-only).
 
     This is the offline brain of TOIN. It maintains a database of learned
     patterns for different `(auth_mode, model_family, tool_signature)`
@@ -1197,7 +1197,7 @@ class ToolIntelligenceNetwork:
         """Import patterns from another source.
 
         Used for federated learning: aggregate patterns from multiple
-        Headroom instances without sharing actual data.
+        Cutctx instances without sharing actual data.
 
         Backward-compatible with v1.0 dumps that keyed patterns by bare
         structure_hash: those are promoted to the

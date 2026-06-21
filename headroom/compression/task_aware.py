@@ -1,4 +1,4 @@
-"""Task-aware compression module for Headroom SDK.
+"""Task-aware compression module for Cutctx SDK.
 
 This module provides task-aware compression that uses the current working task
 (extracted from user messages) to modulate compression rate per content segment.

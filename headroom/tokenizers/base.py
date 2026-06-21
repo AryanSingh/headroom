@@ -15,7 +15,7 @@ from typing import Any, Protocol, runtime_checkable
 class TokenCounter(Protocol):
     """Protocol for token counting implementations.
 
-    Any class implementing this protocol can be used with Headroom
+    Any class implementing this protocol can be used with Cutctx
     for token counting. This allows integration with various
     tokenizer backends (tiktoken, HuggingFace, custom, etc.).
     """

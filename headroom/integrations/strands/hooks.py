@@ -1,14 +1,14 @@
-"""Strands SDK hook provider for Headroom tool output compression.
+"""Strands SDK hook provider for Cutctx tool output compression.
 
-This module provides HeadroomHookProvider, which implements Strands' HookProvider
-interface to intercept tool outputs and compress them using Headroom's SmartCrusher.
+This module provides CutctxHookProvider, which implements Strands' HookProvider
+interface to intercept tool outputs and compress them using Cutctx's SmartCrusher.
 
 Example:
     from strands import Agent
-    from headroom.integrations.strands import HeadroomHookProvider
+    from headroom.integrations.strands import CutctxHookProvider
 
     # Create the hook provider
-    hook_provider = HeadroomHookProvider(
+    hook_provider = CutctxHookProvider(
         compress_tool_outputs=True,
         min_tokens_to_compress=100,
     )
@@ -47,7 +47,7 @@ except ImportError:
     BeforeToolCallEvent = object  # type: ignore[misc,assignment]
     ToolResult = dict  # type: ignore[misc,assignment]
 
-from headroom import HeadroomConfig
+from headroom import CutctxConfig
 from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
 logger = logging.getLogger(__name__)
@@ -87,11 +87,11 @@ class CompressionMetrics:
 
 
 @dataclass
-class HeadroomHookProvider(HookProvider):  # type: ignore[misc]
-    """Strands HookProvider that compresses tool outputs using Headroom.
+class CutctxHookProvider(HookProvider):  # type: ignore[misc]
+    """Strands HookProvider that compresses tool outputs using Cutctx.
 
     This hook provider intercepts tool call results via AfterToolCallEvent
-    and applies Headroom's SmartCrusher to compress large outputs, reducing
+    and applies Cutctx's SmartCrusher to compress large outputs, reducing
     token usage while preserving important information.
 
     The compression is intelligent and preserves:
@@ -104,16 +104,16 @@ class HeadroomHookProvider(HookProvider):  # type: ignore[misc]
     Attributes:
         compress_tool_outputs: Whether to compress tool outputs.
         min_tokens_to_compress: Minimum token count before compression is applied.
-        config: Headroom configuration.
+        config: Cutctx configuration.
         preserve_errors: If True, never compress results with error status.
         total_tokens_saved: Running total of tokens saved across all compressions.
         metrics_history: List of CompressionMetrics from recent compressions.
 
     Example:
         from strands import Agent
-        from headroom.integrations.strands import HeadroomHookProvider
+        from headroom.integrations.strands import CutctxHookProvider
 
-        hook = HeadroomHookProvider(min_tokens_to_compress=50)
+        hook = CutctxHookProvider(min_tokens_to_compress=50)
         agent = Agent(hooks=[hook])
 
         # After running agent tasks...
@@ -123,7 +123,7 @@ class HeadroomHookProvider(HookProvider):  # type: ignore[misc]
 
     compress_tool_outputs: bool = True
     min_tokens_to_compress: int = 100
-    config: HeadroomConfig | None = field(default=None)
+    config: CutctxConfig | None = field(default=None)
     preserve_errors: bool = True
 
     # Internal state (not part of dataclass comparison)
@@ -140,7 +140,7 @@ class HeadroomHookProvider(HookProvider):  # type: ignore[misc]
         _check_strands_available()
 
         if self.config is None:
-            self.config = HeadroomConfig()
+            self.config = CutctxConfig()
 
         self._initialized = True
         logger.debug(
@@ -161,7 +161,7 @@ class HeadroomHookProvider(HookProvider):  # type: ignore[misc]
             with self._lock:
                 # Double-check after acquiring lock
                 if self._crusher is None:
-                    # Use config from HeadroomConfig if available
+                    # Use config from CutctxConfig if available
                     if self.config and self.config.smart_crusher:
                         crusher_config = SmartCrusherConfig(
                             min_tokens_to_crush=self.min_tokens_to_compress,

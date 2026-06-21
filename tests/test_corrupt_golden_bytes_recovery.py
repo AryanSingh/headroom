@@ -54,7 +54,7 @@ def _enable_headroom_log_propagation() -> Iterator[None]:
     sees records that propagate all the way up. This fixture re-enables propagation
     for the duration of each test so caplog captures headroom log records correctly.
     """
-    logger_names = ("headroom", "headroom.proxy")
+    logger_names = ("cutctx", "headroom.proxy")
     originals = {
         name: logging.getLogger(name).propagate
         for name in logger_names

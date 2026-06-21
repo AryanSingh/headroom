@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/04-tool-calling-agent.ts
  */
-import { withHeadroom } from "cutctx-ai/vercel-ai";
+import { withCutCtx } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
@@ -32,7 +32,7 @@ const mockDB: Record<string, any[]> = {
 };
 
 async function main() {
-  const model = withHeadroom(openai("gpt-4o"));
+  const model = withCutCtx(openai("gpt-4o"));
 
   const { text, steps } = await generateText({
     model,

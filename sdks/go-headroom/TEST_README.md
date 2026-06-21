@@ -1,9 +1,9 @@
-# Headroom Go SDK Tests
+# Cutctx Go SDK Tests
 
 ## Running Tests
 
 ```bash
-cd sdks/go-headroom
+cd sdks/go-cutctx
 go test -v ./...
 ```
 
@@ -23,9 +23,9 @@ go test -v ./...
 ## Architecture
 
 ```
-Client → proxyRewrite() → Headroom Proxy → Target API
+Client → proxyRewrite() → Cutctx Proxy → Target API
          (adds _target)    (compresses)     (receives original)
 ```
 
-The client rewrites all request URLs to route through the Headroom proxy.
+The client rewrites all request URLs to route through the Cutctx proxy.
 The proxy intercepts the request, compresses the context, and forwards to the target.

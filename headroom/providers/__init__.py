@@ -1,4 +1,4 @@
-"""Provider abstractions for Headroom SDK.
+"""Provider abstractions for Cutctx SDK.
 
 Providers encapsulate model-specific behavior like tokenization,
 context limits, and cost estimation.

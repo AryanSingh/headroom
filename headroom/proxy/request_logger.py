@@ -1,4 +1,4 @@
-"""Request logger for the Headroom proxy.
+"""Request logger for the Cutctx proxy.
 
 Logs requests to an in-memory deque and optionally to a JSONL file.
 

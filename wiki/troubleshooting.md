@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Solutions for common Headroom issues.
+Solutions for common Cutctx issues.
 
 ---
 
@@ -8,7 +8,7 @@ Solutions for common Headroom issues.
 
 ### "Proxy won't start"
 
-**Symptom**: `headroom proxy` fails or hangs.
+**Symptom**: `cutctx proxy` fails or hangs.
 
 **Solutions**:
 
@@ -18,13 +18,13 @@ lsof -i :8787
 # If something is using the port, either kill it or use a different port
 
 # 2. Try a different port
-headroom proxy --port 8788
+cutctx proxy --port 8788
 
 # 3. Check for missing dependencies
-pip install "headroom-ai[proxy]"
+pip install "cutctx-ai[proxy]"
 
 # 4. Run with debug logging
-headroom proxy --log-level debug
+cutctx proxy --log-level debug
 ```
 
 ### "Connection refused" when calling proxy
@@ -38,7 +38,7 @@ headroom proxy --log-level debug
 curl http://localhost:8787/health
 
 # 2. Check if proxy started on a different port
-ps aux | grep headroom
+ps aux | grep cutctx
 
 # 3. Check firewall settings (macOS)
 sudo pfctl -s rules | grep 8787
@@ -52,7 +52,7 @@ sudo pfctl -s rules | grep 8787
 
 ```bash
 # 1. Check proxy logs for the actual error
-headroom proxy --log-level debug
+cutctx proxy --log-level debug
 
 # 2. Verify API key is set
 echo $OPENAI_API_KEY  # or ANTHROPIC_API_KEY
@@ -87,7 +87,7 @@ print(f"SmartCrusher: {stats['transforms']['smart_crusher_enabled']}")
 
 ```python
 # 1. Ensure mode is "optimize"
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",  # NOT "audit"
@@ -97,11 +97,11 @@ client = HeadroomClient(
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    headroom_mode="optimize",
+    cutctx_mode="optimize",
 )
 
 # 3. Lower the compression threshold
-config = HeadroomConfig()
+config = CutctxConfig()
 config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 ```
 
@@ -119,14 +119,14 @@ config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 
 ```python
 # 1. Keep more items
-config = HeadroomConfig()
+config = CutctxConfig()
 config.smart_crusher.max_items_after_crush = 50  # Default: 15
 
 # 2. Skip compression for specific tools
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    headroom_tool_profiles={
+    cutctx_tool_profiles={
         "important_tool": {"skip_compression": True},
     },
 )
@@ -160,7 +160,7 @@ print(f"Total time: {time.time() - start:.2f}s")
 
 ```python
 # 1. Use BM25 instead of embeddings (faster)
-config = HeadroomConfig()
+config = CutctxConfig()
 config.smart_crusher.relevance.tier = "bm25"  # Default may use embeddings
 
 # 2. Increase threshold to skip small payloads
@@ -198,7 +198,7 @@ print(result)
 
 ```python
 # 1. For testing, use in-memory storage
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     store_url="sqlite:///:memory:",  # No file created
@@ -207,8 +207,8 @@ client = HeadroomClient(
 # 2. For temp directory storage
 import tempfile
 import os
-db_path = os.path.join(tempfile.gettempdir(), "headroom.db")
-client = HeadroomClient(
+db_path = os.path.join(tempfile.gettempdir(), "cutctx.db")
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     store_url=f"sqlite:///{db_path}",
@@ -228,16 +228,16 @@ RuntimeError: Unsupported compiler -- at least C++11 support is needed!
 ERROR: Failed building wheel for hnswlib
 ```
 
-**Cause**: `headroom-ai` depends on `hnswlib`, a C++ extension that must be compiled from source. Slim environments (Docker slim images, minimal CI runners) lack the required build tools.
+**Cause**: `cutctx-ai` depends on `hnswlib`, a C++ extension that must be compiled from source. Slim environments (Docker slim images, minimal CI runners) lack the required build tools.
 
 **Solutions**:
 
 ```bash
 # Linux / Debian-based (including Docker)
-apt-get install -y build-essential && pip install headroom-ai
+apt-get install -y build-essential && pip install cutctx-ai
 
 # macOS (Xcode command line tools)
-xcode-select --install && pip install headroom-ai
+xcode-select --install && pip install cutctx-ai
 ```
 
 In a Dockerfile, install and remove build tools in one layer to keep the image slim:
@@ -245,41 +245,41 @@ In a Dockerfile, install and remove build tools in one layer to keep the image s
 ```dockerfile
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
-    && pip install "headroom-ai[proxy]" \
+    && pip install "cutctx-ai[proxy]" \
     && apt-get purge -y build-essential && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 ```
 
 ---
 
-### "ModuleNotFoundError: No module named 'headroom'"
+### "ModuleNotFoundError: No module named 'cutctx'"
 
 ```bash
 # 1. Check it's installed in the right environment
-pip show headroom-ai
+pip show cutctx-ai
 
 # 2. If using virtual environment, ensure it's activated
 source venv/bin/activate  # or equivalent
 
 # 3. Reinstall
-pip install --upgrade headroom-ai
+pip install --upgrade cutctx-ai
 ```
 
-### "ImportError: cannot import name 'X' from 'headroom'"
+### "ImportError: cannot import name 'X' from 'cutctx'"
 
 ```python
 # Check available imports
-import headroom
-print(dir(headroom))
+import cutctx
+print(dir(cutctx))
 
 # Common imports:
-from headroom import (
-    HeadroomClient,
+from cutctx import (
+    CutctxClient,
     OpenAIProvider,
     AnthropicProvider,
-    HeadroomConfig,
+    CutctxConfig,
     # Exceptions
-    HeadroomError,
+    CutctxError,
     ConfigurationError,
     ProviderError,
 )
@@ -289,13 +289,13 @@ from headroom import (
 
 ```bash
 # For proxy server
-pip install "headroom-ai[proxy]"
+pip install "cutctx-ai[proxy]"
 
 # For embedding-based relevance scoring
-pip install "headroom-ai[relevance]"
+pip install "cutctx-ai[relevance]"
 
 # For everything
-pip install "headroom-ai[all]"
+pip install "cutctx-ai[all]"
 ```
 
 ---
@@ -313,7 +313,7 @@ api_key = os.environ.get("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY not set")
 
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(api_key=api_key),
     provider=OpenAIProvider(),
 )
@@ -326,7 +326,7 @@ from anthropic import Anthropic
 import os
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
-client = HeadroomClient(
+client = CutctxClient(
     original_client=Anthropic(api_key=api_key),
     provider=AnthropicProvider(),
 )
@@ -336,7 +336,7 @@ client = HeadroomClient(
 
 ```python
 # For custom/fine-tuned models, specify context limit
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     model_context_limits={
@@ -361,8 +361,8 @@ logging.basicConfig(
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
 )
 
-# Or just Headroom logs
-logging.getLogger("headroom").setLevel(logging.DEBUG)
+# Or just Cutctx logs
+logging.getLogger("cutctx").setLevel(logging.DEBUG)
 ```
 
 ### Inspect Transform Results
@@ -404,8 +404,8 @@ for m in metrics:
 ### Manual Transform Testing
 
 ```python
-from headroom import SmartCrusher, Tokenizer
-from headroom.config import SmartCrusherConfig
+from cutctx import SmartCrusher, Tokenizer
+from cutctx.config import SmartCrusherConfig
 import json
 
 # Test compression directly
@@ -438,24 +438,24 @@ print(f"Compressed content: {result.messages[0]['content'][:200]}...")
 ### Handling Errors
 
 ```python
-from headroom import (
-    HeadroomClient,
-    HeadroomError,
+from cutctx import (
+    CutctxClient,
+    CutctxError,
     ConfigurationError,
     StorageError,
 )
 
 try:
-    client = HeadroomClient(...)
+    client = CutctxClient(...)
     response = client.chat.completions.create(...)
 except ConfigurationError as e:
     print(f"Config issue: {e}")
     print(f"Details: {e.details}")
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # Headroom continues to work, just without metrics persistence
-except HeadroomError as e:
-    print(f"Headroom error: {e}")
+    # Cutctx continues to work, just without metrics persistence
+except CutctxError as e:
+    print(f"Cutctx error: {e}")
 ```
 
 ---
@@ -465,10 +465,10 @@ except HeadroomError as e:
 1. **Enable debug logging** and check the output
 2. **Use simulate()** to see what transforms would apply
 3. **Check validate_setup()** for configuration issues
-4. **File an issue** at https://github.com/headroom-sdk/headroom/issues
+4. **File an issue** at https://github.com/cutctx-sdk/cutctx/issues
 
 When filing an issue, include:
-- Headroom version (`pip show headroom`)
+- Cutctx version (`pip show cutctx`)
 - Python version
 - Provider (OpenAI/Anthropic)
 - Debug log output

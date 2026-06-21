@@ -37,7 +37,7 @@ CutCtx can be used in three ways, all feeding into the same pipeline:
 
 | Entry Point | How It Works | Code Changes |
 |-------------|-------------|--------------|
-| **SDK Mode** | Wrap your LLM client with `HeadroomClient` | Minimal -- swap client constructor |
+| **SDK Mode** | Wrap your LLM client with `CutCtxClient` | Minimal -- swap client constructor |
 | **Proxy Mode** | Run `cutctx proxy` and point your client at it | Zero -- just change the base URL |
 | **Integrations** | LangChain, Vercel AI SDK, Agno adapters | Framework-specific setup |
 

@@ -1,4 +1,4 @@
-"""Integration tests for Headroom Memory System.
+"""Integration tests for Cutctx Memory System.
 
 These tests use REAL API calls - no mocks.
 Tests verify the full flow from LLM tool calls to memory storage.

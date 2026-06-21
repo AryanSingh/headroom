@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs contributors.
+# Copyright (c) 2025-2026 Cutctx Labs contributors.
 # Licensed under the Apache License, Version 2.0 — see LICENSE for details.
 """FastAPI router for the data-residency proof endpoint.
 

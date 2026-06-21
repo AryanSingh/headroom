@@ -279,7 +279,7 @@ def test_bash_native_installer_supports_persistent_docker_lifecycle(tmp_path: Pa
     try:
         _run(["bash", str(REPO_ROOT / "scripts" / "install.sh")], env=env, cwd=REPO_ROOT)
 
-        wrapper = home / ".local" / "bin" / "headroom"
+        wrapper = home / ".local" / "bin" / "cutctx"
         assert wrapper.exists()
         assert "HEADROOM_IMAGE_DEFAULT=headroom:test-image" in wrapper.read_text(encoding="utf-8")
 

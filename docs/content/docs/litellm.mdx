@@ -15,9 +15,9 @@ pip install cutctx-ai litellm
 
 ```python
 import litellm
-from headroom.integrations.litellm_callback import HeadroomCallback
+from cutctx.integrations.litellm_callback import CutCtxCallback
 
-litellm.callbacks = [HeadroomCallback()]
+litellm.callbacks = [CutCtxCallback()]
 
 # All calls now compressed automatically
 response = litellm.completion(model="gpt-4o", messages=[...])
@@ -30,7 +30,7 @@ The callback compresses messages in LiteLLM's `pre_call_hook` before they reach 
 ## How it works
 
 1. You call `litellm.completion()` with your messages
-2. `HeadroomCallback.pre_call_hook` compresses the messages
+2. `CutCtxCallback.pre_call_hook` compresses the messages
 3. LiteLLM sends the compressed messages to the provider
 4. The response comes back unchanged
 
@@ -42,7 +42,7 @@ If you run LiteLLM as a proxy server, use the ASGI middleware:
 
 ```python
 from litellm.proxy.proxy_server import app
-from headroom.integrations.asgi import CompressionMiddleware
+from cutctx.integrations.asgi import CompressionMiddleware
 
 app.add_middleware(CompressionMiddleware)
 ```
@@ -52,7 +52,7 @@ Or configure via YAML:
 ```yaml
 # litellm_config.yaml
 litellm_settings:
-  callbacks: ["headroom.integrations.litellm_callback.HeadroomCallback"]
+  callbacks: ["headroom.integrations.litellm_callback.CutCtxCallback"]
 ```
 
 ## Direct compress() with LiteLLM
@@ -61,7 +61,7 @@ You can also use `compress()` directly instead of the callback:
 
 ```python
 import litellm
-from headroom import compress
+from cutctx import compress
 
 messages = [{"role": "user", "content": large_content}]
 compressed = compress(messages, model="bedrock/claude-sonnet")
@@ -80,7 +80,7 @@ Drop-in middleware for any ASGI application. Intercepts `/v1/messages`, `/v1/cha
 
 ```python
 from fastapi import FastAPI
-from headroom.integrations.asgi import CompressionMiddleware
+from cutctx.integrations.asgi import CompressionMiddleware
 
 app = FastAPI()
 app.add_middleware(CompressionMiddleware)

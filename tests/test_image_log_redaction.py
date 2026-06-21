@@ -1,6 +1,6 @@
 """Phase G PR-G3 (P4-45) — request-logger image base64 redaction.
 
-The Headroom proxy logs LLM request/response payloads to a JSONL feed
+The Cutctx proxy logs LLM request/response payloads to a JSONL feed
 when ``log_full_messages=True``. Vision-shape requests (Anthropic
 ``image`` blocks; OpenAI ``image_url`` data URLs) carry base64-encoded
 binary payloads that can be multiple megabytes each. Phase G PR-G3

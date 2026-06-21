@@ -315,7 +315,7 @@ def create_shims(shim_dir: Path) -> None:
                     "messages": [
                         {
                             "role": "user",
-                            "content": "Confirm Headroom received this wrapped Codex message.",
+                            "content": "Confirm Cutctx received this wrapped Codex message.",
                         }
                     ],
                 },
@@ -378,7 +378,7 @@ def start_mock_server(port: int) -> tuple[MockOpenAIServer, threading.Thread]:
 def start_proxy(port: int, env: dict[str, str]) -> subprocess.Popen[str]:
     log(f"Starting headroom proxy on port {port}")
     proc = subprocess.Popen(
-        ["headroom", "proxy", "--host", "127.0.0.1", "--port", str(port)],
+        ["cutctx", "proxy", "--host", "127.0.0.1", "--port", str(port)],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -464,9 +464,9 @@ def stop_openclaw_gateway(env: dict[str, str], cwd: Path) -> None:
 
 def verify_installs() -> None:
     log("Verifying installed packages and binaries")
-    for tool in ("headroom", "codex", "aider", "openclaw"):
+    for tool in ("cutctx", "codex", "aider", "openclaw"):
         assert_true(shutil.which(tool) is not None, f"Expected '{tool}' on PATH")
-    run(["headroom", "--help"], timeout=30)
+    run(["cutctx", "--help"], timeout=30)
     run(["npm", "list", "-g", "--depth=0", "@openai/codex", "openclaw"], timeout=60)
     run(["/opt/aider-venv/bin/python", "-m", "pip", "show", "aider-chat"], timeout=60)
 
@@ -543,7 +543,7 @@ def verify_codex_wrap(
 ) -> None:
     port = CODEX_PORT
     run(
-        ["headroom", "wrap", "codex", "--port", str(port), "--", "--help"],
+        ["cutctx", "wrap", "codex", "--port", str(port), "--", "--help"],
         env=base_env,
         cwd=project_dir,
         timeout=120,
@@ -595,15 +595,15 @@ def verify_codex_wrap(
             {"url": f"http://127.0.0.1:{port}/v1/chat/completions", "status": 200},
             {"url": f"http://127.0.0.1:{port}/stats", "status": 200},
         ],
-        "Codex shim should prove OPENAI_BASE_URL points at a live proxy and that Headroom logged the wrapped message",
+        "Codex shim should prove OPENAI_BASE_URL points at a live proxy and that Cutctx logged the wrapped message",
     )
     assert_true(
         entries[-1].get("chat_completion") == "mock completion from upstream",
-        "Codex wrap should receive the mock upstream completion through Headroom",
+        "Codex wrap should receive the mock upstream completion through Cutctx",
     )
     assert_true(
         entries[-1].get("headroom_model_count", 0) >= 1,
-        "Codex wrap should appear in Headroom request stats",
+        "Codex wrap should appear in Cutctx request stats",
     )
     assert_true(
         any(
@@ -612,14 +612,14 @@ def verify_codex_wrap(
             and item["body"].get("model") == "headroom-wrap-e2e"
             for item in mock_server.requests
         ),
-        "Codex wrap should forward the wrapped message upstream through Headroom",
+        "Codex wrap should forward the wrapped message upstream through Cutctx",
     )
 
 
 def verify_claude_wrap(base_env: dict[str, str], project_dir: Path, log_dir: Path) -> None:
     port = PROXY_PORT + 10
     run(
-        ["headroom", "wrap", "claude", "--port", str(port), "--", "--help"],
+        ["cutctx", "wrap", "claude", "--port", str(port), "--", "--help"],
         env=base_env,
         cwd=project_dir,
         timeout=120,
@@ -640,7 +640,7 @@ def verify_claude_wrap(base_env: dict[str, str], project_dir: Path, log_dir: Pat
 def verify_aider_wrap(base_env: dict[str, str], project_dir: Path, log_dir: Path) -> None:
     port = AIDER_PORT
     run(
-        ["headroom", "wrap", "aider", "--port", str(port), "--", "--help"],
+        ["cutctx", "wrap", "aider", "--port", str(port), "--", "--help"],
         env=base_env,
         cwd=project_dir,
         timeout=120,
@@ -680,7 +680,7 @@ def verify_aider_wrap(base_env: dict[str, str], project_dir: Path, log_dir: Path
 def verify_cursor_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     port = CURSOR_PORT
     proc = subprocess.Popen(
-        ["headroom", "wrap", "cursor", "--port", str(port)],
+        ["cutctx", "wrap", "cursor", "--port", str(port)],
         env=base_env,
         cwd=str(project_dir),
         stdout=subprocess.PIPE,
@@ -715,7 +715,7 @@ def verify_cursor_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 def verify_cline_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     """Smoke test: `wrap cline --prepare-only` writes RTK guidance to .clinerules."""
     run(
-        ["headroom", "wrap", "cline", "--prepare-only", "--port", str(CLINE_PORT)],
+        ["cutctx", "wrap", "cline", "--prepare-only", "--port", str(CLINE_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
@@ -731,7 +731,7 @@ def verify_cline_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 def verify_continue_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     """Smoke test: `wrap continue --prepare-only` injects RTK into .continue/config.json."""
     run(
-        ["headroom", "wrap", "continue", "--prepare-only", "--port", str(CONTINUE_PORT)],
+        ["cutctx", "wrap", "continue", "--prepare-only", "--port", str(CONTINUE_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
@@ -749,7 +749,7 @@ def verify_continue_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 def verify_goose_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     """Smoke test: `wrap goose --prepare-only` writes RTK guidance to .goosehints."""
     run(
-        ["headroom", "wrap", "goose", "--prepare-only", "--port", str(GOOSE_PORT)],
+        ["cutctx", "wrap", "goose", "--prepare-only", "--port", str(GOOSE_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
@@ -770,7 +770,7 @@ def verify_openhands_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     setup path. The env-var wiring is covered by the unit tests.
     """
     run(
-        ["headroom", "wrap", "openhands", "--prepare-only", "--port", str(OPENHANDS_PORT)],
+        ["cutctx", "wrap", "openhands", "--prepare-only", "--port", str(OPENHANDS_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
@@ -786,7 +786,7 @@ def verify_openclaw_wrap(
     gateway_proc: subprocess.Popen[str] | None = None
     run(
         [
-            "headroom",
+            "cutctx",
             "wrap",
             "openclaw",
             "--plugin-path",
@@ -847,7 +847,7 @@ def verify_openclaw_wrap(
                     gateway_output = gateway_proc.stdout.read()
                 raise RuntimeError(f"{exc}\nGateway output:\n{gateway_output}") from exc
 
-        entry = state["plugins"]["entries"]["headroom"]
+        entry = state["plugins"]["entries"]["cutctx"]
         assert_true(entry["enabled"] is True, "OpenClaw wrap should enable the plugin")
         assert_true(entry["config"]["proxyPort"] == port, "OpenClaw wrap should set proxy port")
         assert_true(
@@ -859,7 +859,7 @@ def verify_openclaw_wrap(
             "OpenClaw e2e bootstrap should set gateway.mode=local",
         )
         assert_true(
-            state["plugins"]["slots"]["contextEngine"] == "headroom",
+            state["plugins"]["slots"]["contextEngine"] == "cutctx",
             "OpenClaw wrap should set the context engine slot",
         )
     finally:
@@ -867,7 +867,7 @@ def verify_openclaw_wrap(
             stop_process(gateway_proc)
         stop_openclaw_gateway(base_env, project_dir)
 
-    run(["headroom", "unwrap", "openclaw"], env=base_env, cwd=project_dir, timeout=120)
+    run(["cutctx", "unwrap", "openclaw"], env=base_env, cwd=project_dir, timeout=120)
     state = json.loads(config_path.read_text(encoding="utf-8"))
     assert_true(
         state["plugins"]["slots"]["contextEngine"] == "legacy",

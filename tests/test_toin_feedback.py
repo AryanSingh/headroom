@@ -74,7 +74,7 @@ def test_kompress_ccr_retrieval_updates_toin():
     assert entry is not None
     assert entry.tool_signature_hash is not None
 
-    results = store.search(hash_key, "HEADROOM", score_threshold=0.0)
+    results = store.search(hash_key, "CUTCTX", score_threshold=0.0)
     assert results
 
     stats = get_toin().get_stats()
@@ -315,7 +315,7 @@ class TestStreamingFeedbackIntegration:
 
     def test_record_ccr_feedback_calls_store_search(self):
         """_record_ccr_feedback_from_response should call store.search for queries."""
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
         response = {
             "content": [
@@ -334,7 +334,7 @@ class TestStreamingFeedbackIntegration:
             return_value=mock_store,
         ):
             # Create a minimal proxy to test the method
-            proxy = HeadroomProxy.__new__(HeadroomProxy)
+            proxy = CutctxProxy.__new__(HeadroomProxy)
             proxy.config = MagicMock()
             proxy.config.ccr_inject_tool = True
 
@@ -344,7 +344,7 @@ class TestStreamingFeedbackIntegration:
 
     def test_record_ccr_feedback_calls_store_retrieve_no_query(self):
         """_record_ccr_feedback_from_response should call store.retrieve when no query."""
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
         response = {
             "content": [
@@ -362,7 +362,7 @@ class TestStreamingFeedbackIntegration:
             "headroom.cache.compression_store.get_compression_store",
             return_value=mock_store,
         ):
-            proxy = HeadroomProxy.__new__(HeadroomProxy)
+            proxy = CutctxProxy.__new__(HeadroomProxy)
             proxy.config = MagicMock()
             proxy.config.ccr_inject_tool = True
 
@@ -372,7 +372,7 @@ class TestStreamingFeedbackIntegration:
 
     def test_record_ccr_feedback_handles_store_exception(self):
         """_record_ccr_feedback_from_response should not raise on store errors."""
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
         response = {
             "content": [
@@ -391,7 +391,7 @@ class TestStreamingFeedbackIntegration:
             "headroom.cache.compression_store.get_compression_store",
             return_value=mock_store,
         ):
-            proxy = HeadroomProxy.__new__(HeadroomProxy)
+            proxy = CutctxProxy.__new__(HeadroomProxy)
             proxy.config = MagicMock()
             proxy.config.ccr_inject_tool = True
 
@@ -404,7 +404,7 @@ class TestParseSSEToolUse:
 
     def test_parse_sse_extracts_tool_use(self):
         """SSE with tool_use content_block should be parsed correctly."""
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
         sse_data = (
             'data: {"type":"message_start","message":{"id":"msg_01","model":"claude-3-5-sonnet-20241022","role":"assistant","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":0}}}\n'
@@ -424,7 +424,7 @@ class TestParseSSEToolUse:
             'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":50}}\n'
         )
 
-        proxy = HeadroomProxy.__new__(HeadroomProxy)
+        proxy = CutctxProxy.__new__(HeadroomProxy)
         result = proxy._parse_sse_to_response(sse_data, "anthropic")
 
         assert result is not None
@@ -443,8 +443,8 @@ class TestParseSSEToolUse:
 
     def test_parse_sse_non_anthropic_returns_none(self):
         """Non-anthropic provider should return None."""
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
-        proxy = HeadroomProxy.__new__(HeadroomProxy)
+        proxy = CutctxProxy.__new__(HeadroomProxy)
         result = proxy._parse_sse_to_response("data: {}", "openai")
         assert result is None

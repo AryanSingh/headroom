@@ -9,7 +9,7 @@ Codex has key memories even without explicit tool calls.
 
 Format in AGENTS.md:
     <!-- headroom:memory:start -->
-    ## Headroom Shared Memory
+    ## Cutctx Shared Memory
     - fact 1
     - fact 2
     <!-- headroom:memory:end -->
@@ -73,7 +73,7 @@ class CodexAdapter(AgentMemoryAdapter):
             return 0
 
         # Build section content
-        lines = ["## Headroom Shared Memory", ""]
+        lines = ["## Cutctx Shared Memory", ""]
         for mem in memories:
             content = mem["content"].split("\n")[0].strip()  # First line only
             lines.append(f"- {content}")

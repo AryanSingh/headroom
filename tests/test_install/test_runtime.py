@@ -54,7 +54,7 @@ def test_build_runtime_command_for_docker_includes_deployment_env(
     assert "HEADROOM_DEPLOYMENT_PRESET=persistent-docker" in joined
     assert "127.0.0.1:8787:8787" in joined
     assert "ghcr.io/chopratejas/headroom:latest" in command
-    # Canonical Headroom filesystem contract (issue #175) forwarded into
+    # Canonical Cutctx filesystem contract (issue #175) forwarded into
     # the container.
     assert "HEADROOM_WORKSPACE_DIR=/tmp/headroom-home/.headroom" in command
     assert "HEADROOM_CONFIG_DIR=/tmp/headroom-home/.headroom/config" in command
@@ -96,7 +96,7 @@ def test_build_runtime_command_for_docker_matches_wrapper_parity(
 
 def test_resolve_headroom_command_prefers_headroom_binary(monkeypatch) -> None:
     monkeypatch.setattr(
-        "shutil.which", lambda name: "/usr/bin/headroom" if name == "headroom" else None
+        "shutil.which", lambda name: "/usr/bin/headroom" if name == "cutctx" else None
     )
 
     assert resolve_headroom_command() == ["/usr/bin/headroom"]
@@ -247,7 +247,7 @@ def test_runtime_start_lock_blocks_another_process(monkeypatch, tmp_path: Path) 
 def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(
-        "headroom.install.runtime.build_runtime_command", lambda manifest: ["headroom", "proxy"]
+        "headroom.install.runtime.build_runtime_command", lambda manifest: ["cutctx", "proxy"]
     )
     monkeypatch.setattr("headroom.install.runtime._runtime_env", lambda manifest: {"ENV": "1"})
     signal_calls: list[int] = []
@@ -295,12 +295,12 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
         backend="anthropic",
     )
     assert run_foreground(manifest) == 7
-    assert popen_calls[0][0] == ["headroom", "proxy"]
+    assert popen_calls[0][0] == ["cutctx", "proxy"]
     assert signal.SIGINT in signal_calls
     assert signal.SIGTERM in signal_calls
     assert _read_pid("default") is None
 
-    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["headroom"])
+    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["cutctx"])
     monkeypatch.setattr("headroom.install.runtime.sys.platform", "win32")
     monkeypatch.setattr("headroom.install.runtime.subprocess.DETACHED_PROCESS", 1, raising=False)
     monkeypatch.setattr(

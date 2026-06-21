@@ -1,4 +1,4 @@
-"""Thread-safe LRU cache for hot memories in Headroom Memory.
+"""Thread-safe LRU cache for hot memories in Cutctx Memory.
 
 Provides O(1) get/set operations with configurable size limits
 and automatic eviction of least-recently-used entries.

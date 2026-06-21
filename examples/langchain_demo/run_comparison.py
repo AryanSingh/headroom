@@ -1,6 +1,6 @@
-"""Real-world LangChain Agent: Before/After Headroom Comparison.
+"""Real-world LangChain Agent: Before/After Cutctx Comparison.
 
-This script demonstrates the impact of Headroom optimization on a realistic
+This script demonstrates the impact of Cutctx optimization on a realistic
 LangChain agent that uses tools returning large outputs.
 
 Scenario: A support agent that:
@@ -76,7 +76,7 @@ class AgentRun:
     """Results from a single agent run."""
 
     scenario: str
-    mode: str  # "baseline" or "headroom"
+    mode: str  # "baseline" or "cutctx"
     total_input_tokens: int
     total_output_tokens: int
     tool_calls: int
@@ -152,7 +152,7 @@ SCENARIOS = [
 
 
 def run_agent_baseline(scenario: dict, api_key: str) -> AgentRun:
-    """Run agent WITHOUT Headroom (baseline)."""
+    """Run agent WITHOUT Cutctx (baseline)."""
 
     tools = create_langchain_tools()
 
@@ -239,11 +239,11 @@ def run_agent_baseline(scenario: dict, api_key: str) -> AgentRun:
 
 
 def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
-    """Run agent WITH Headroom optimization."""
+    """Run agent WITH Cutctx optimization."""
 
-    # Import Headroom integration
-    from headroom import HeadroomConfig
-    from headroom.integrations import HeadroomChatModel
+    # Import Cutctx integration
+    from cutctx import CutctxConfig
+    from cutctx.integrations import CutctxChatModel
 
     tools = create_langchain_tools()
 
@@ -254,15 +254,15 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
         temperature=0,
     )
 
-    # Wrap with Headroom
-    config = HeadroomConfig(
+    # Wrap with Cutctx
+    config = CutctxConfig(
         smart_crusher_threshold=500,  # Compress tool outputs > 500 tokens
         smart_crusher_max_items=20,  # Keep max 20 items
         cache_alignment=True,
         rolling_window=True,
     )
 
-    headroom_model = HeadroomChatModel(
+    headroom_model = CutctxChatModel(
         wrapped_model=base_model,
         headroom_config=config,
     ).bind_tools(tools)
@@ -286,7 +286,7 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
         input_tokens = count_message_tokens([{"content": m.content} for m in messages])
         total_input_tokens += input_tokens
 
-        # Call model (Headroom optimizes internally)
+        # Call model (Cutctx optimizes internally)
         response = headroom_model.invoke(messages)
         messages.append(response)
 
@@ -326,12 +326,12 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
 
     duration_ms = (time.time() - start_time) * 1000
 
-    # Get Headroom metrics
+    # Get Cutctx metrics
     tokens_saved = headroom_model.get_total_tokens_saved()
 
     return AgentRun(
         scenario=scenario["name"],
-        mode="headroom",
+        mode="cutctx",
         total_input_tokens=total_input_tokens - tokens_saved,  # Actual tokens sent
         total_output_tokens=total_output_tokens,
         tool_calls=tool_calls_count,
@@ -355,7 +355,7 @@ def print_comparison(baseline: AgentRun, headroom: AgentRun):
         (input_saved / baseline.total_input_tokens * 100) if baseline.total_input_tokens > 0 else 0
     )
 
-    print(f"\n{'METRIC':<30} {'BASELINE':>15} {'HEADROOM':>15} {'SAVINGS':>15}")
+    print(f"\n{'METRIC':<30} {'BASELINE':>15} {'CUTCTX':>15} {'SAVINGS':>15}")
     print("-" * 75)
     print(
         f"{'Input Tokens':<30} {baseline.total_input_tokens:>15,} {headroom.total_input_tokens:>15,} {input_saved:>14,} ({input_pct:.1f}%)"
@@ -422,8 +422,8 @@ def main():
         baseline = run_agent_baseline(scenario, api_key)
         all_baseline.append(baseline)
 
-        # Run with Headroom
-        print("  - Running with Headroom optimization...")
+        # Run with Cutctx
+        print("  - Running with Cutctx optimization...")
         headroom = run_agent_headroom(scenario, api_key)
         all_headroom.append(headroom)
 
@@ -456,7 +456,7 @@ def run_simulation():
 
         print(f"\n  Total tool output: {total_tool_tokens:,} tokens")
         print(f"  With 3 iterations, baseline input would be: ~{total_tool_tokens * 2:,} tokens")
-        print(f"  With Headroom (20 items max), estimated: ~{total_tool_tokens // 5:,} tokens")
+        print(f"  With Cutctx (20 items max), estimated: ~{total_tool_tokens // 5:,} tokens")
         print(
             f"  Estimated savings: ~{total_tool_tokens * 2 - total_tool_tokens // 5:,} tokens (~80%)"
         )
@@ -474,7 +474,7 @@ def print_summary(baseline_runs: list[AgentRun], headroom_runs: list[AgentRun]):
     total_saved = total_baseline_input - total_headroom_input
     pct_saved = (total_saved / total_baseline_input * 100) if total_baseline_input > 0 else 0
 
-    print(f"\n{'Metric':<30} {'Baseline':>15} {'Headroom':>15} {'Savings':>15}")
+    print(f"\n{'Metric':<30} {'Baseline':>15} {'Cutctx':>15} {'Savings':>15}")
     print("-" * 75)
     print(
         f"{'Total Input Tokens':<30} {total_baseline_input:>15,} {total_headroom_input:>15,} {total_saved:>14,}"
@@ -495,7 +495,7 @@ def print_summary(baseline_runs: list[AgentRun], headroom_runs: list[AgentRun]):
     print("CONCLUSION")
     print("=" * 70)
     print(f"""
-Headroom reduced input tokens by {pct_saved:.1f}% across all scenarios.
+Cutctx reduced input tokens by {pct_saved:.1f}% across all scenarios.
 
 Key optimizations applied:
 - SmartCrusher: Compressed tool outputs from 50-200 items to ~20 relevant items

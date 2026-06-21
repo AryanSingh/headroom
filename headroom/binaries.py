@@ -149,12 +149,12 @@ def cache_dir() -> Path:
         return Path(override).expanduser().resolve()
     if sys.platform.startswith("win"):
         base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "headroom" / "bin"
+        return Path(base) / "cutctx" / "bin"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / "headroom" / "bin"
+        return Path.home() / "Library" / "Caches" / "cutctx" / "bin"
     xdg = os.environ.get("XDG_CACHE_HOME")
     base = Path(xdg) if xdg else Path.home() / ".cache"
-    return base / "headroom" / "bin"
+    return base / "cutctx" / "bin"
 
 
 # ---------- Registry ------------------------------------------------------ #

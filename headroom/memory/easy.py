@@ -1,6 +1,6 @@
 """Simple, zero-config memory API for developers.
 
-This module provides the easiest way to use Headroom's memory system.
+This module provides the easiest way to use Cutctx's memory system.
 No Docker required - works out of the box with embedded databases.
 
 Usage:

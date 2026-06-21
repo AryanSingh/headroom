@@ -17,7 +17,7 @@ class InstallPreset(str, Enum):
 
 
 class RuntimeKind(str, Enum):
-    """Runtime used to execute Headroom."""
+    """Runtime used to execute Cutctx."""
 
     PYTHON = "python"
     DOCKER = "docker"
@@ -105,7 +105,7 @@ class DeploymentManifest:
     memory_db_path: str = ""
     telemetry_enabled: bool = True
     image: str = "ghcr.io/chopratejas/headroom:latest"
-    service_name: str = "headroom"
+    service_name: str = "cutctx"
     container_name: str = "headroom-persistent"
     health_url: str = "http://127.0.0.1:8787/readyz"
     base_env: dict[str, str] = field(default_factory=dict)

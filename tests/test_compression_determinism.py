@@ -70,7 +70,7 @@ _FIXTURES: dict[str, str] = {
     "search_results_grep": "\n".join(
         f"src/foo/bar/{n:03d}.py:{n * 7}:    def function_{n}(self, arg):" for n in range(40)
     ),
-    "plain_long_text": " ".join(["headroom"] * 400),
+    "plain_long_text": " ".join(["cutctx"] * 400),
 }
 
 

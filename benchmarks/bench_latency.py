@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Latency benchmark for Headroom compression pipeline.
+"""Latency benchmark for Cutctx compression pipeline.
 
 Measures compression overhead across content types and input sizes,
 profiles individual transform stages, and computes cost-benefit analysis
@@ -628,10 +628,10 @@ class ProfilingPipeline:
     """Wraps TransformPipeline to record per-transform timing."""
 
     def __init__(self) -> None:
-        from headroom.config import HeadroomConfig
+        from headroom.config import CutctxConfig
         from headroom.transforms.pipeline import TransformPipeline
 
-        self.config = HeadroomConfig()
+        self.config = CutctxConfig()
         self.pipeline = TransformPipeline(config=self.config)
         self.last_transform_timings: dict[str, float] = {}
 
@@ -947,7 +947,7 @@ def format_markdown_report(results: list[LatencyResult]) -> str:
     """Format results as a publishable markdown report."""
     lines: list[str] = []
 
-    lines.append("# Headroom Latency Benchmarks")
+    lines.append("# Cutctx Latency Benchmarks")
     lines.append("")
     lines.append(
         "Measured compression overhead across content types and sizes to answer: "
@@ -1181,7 +1181,7 @@ def format_markdown_report(results: list[LatencyResult]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Headroom latency benchmark",
+        description="Cutctx latency benchmark",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -1225,7 +1225,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    print("Headroom Latency Benchmark")
+    print("Cutctx Latency Benchmark")
     print("=" * 40)
     print()
 

@@ -724,7 +724,7 @@ class GoogleCacheOptimizer(BaseCacheOptimizer):
             "_headroom_metadata": {
                 "content_hash": analysis.content_hash,
                 "token_count": analysis.cacheable_tokens,
-                "created_by": "headroom",
+                "created_by": "cutctx",
             },
         }
 

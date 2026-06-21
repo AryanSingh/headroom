@@ -1,4 +1,4 @@
-"""Base storage interface for Headroom SDK."""
+"""Base storage interface for Cutctx SDK."""
 
 from __future__ import annotations
 

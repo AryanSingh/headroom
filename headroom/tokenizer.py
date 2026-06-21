@@ -1,4 +1,4 @@
-"""Token counting wrapper for Headroom SDK.
+"""Token counting wrapper for Cutctx SDK.
 
 This module provides a unified interface for token counting that
 delegates to provider-specific implementations.
@@ -16,7 +16,7 @@ class Tokenizer:
     Token counting wrapper with model awareness.
 
     This class wraps a provider-specific TokenCounter to provide
-    a consistent interface throughout the Headroom SDK.
+    a consistent interface throughout the Cutctx SDK.
     """
 
     def __init__(self, token_counter: TokenCounter, model: str = ""):

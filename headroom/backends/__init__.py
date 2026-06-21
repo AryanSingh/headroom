@@ -1,4 +1,4 @@
-"""Headroom Backends - API translation layers for different LLM providers.
+"""Cutctx Backends - API translation layers for different LLM providers.
 
 Backends handle the translation between the proxy's canonical format
 (Anthropic Messages API) and provider-specific APIs.

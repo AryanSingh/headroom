@@ -28,8 +28,8 @@
 
 **Configuration:**
 ```bash
-headroom proxy          # cache enabled by default
-headroom proxy --no-cache
+cutctx proxy          # cache enabled by default
+cutctx proxy --no-cache
 ```
 
 **Behavior:**
@@ -58,7 +58,7 @@ class CCRConfig:
 
 **Configuration:**
 ```bash
-# Note: HEADROOM_SUMMARY_* env vars are not yet implemented.
+# Note: CUTCTX_SUMMARY_* env vars are not yet implemented.
 # Summary compression is currently configured programmatically only.
 ```
 
@@ -216,7 +216,7 @@ class AnchorConfig:
 ### Claude
 
 - Session branch comparison
-- Token headroom mode
+- Token cutctx mode
 - Tool use tracking
 - Multi-modal support (images)
 

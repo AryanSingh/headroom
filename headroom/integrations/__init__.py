@@ -1,34 +1,34 @@
-"""Headroom integrations with popular LLM frameworks.
+"""Cutctx integrations with popular LLM frameworks.
 
 Available integrations:
 
 LangChain (pip install headroom[langchain]):
-    - HeadroomChatModel: Drop-in wrapper for any LangChain chat model
-    - HeadroomChatMessageHistory: Automatic conversation compression
-    - HeadroomDocumentCompressor: Relevance-based document filtering
-    - HeadroomToolWrapper: Tool output compression for agents
+    - CutctxChatModel: Drop-in wrapper for any LangChain chat model
+    - CutctxChatMessageHistory: Automatic conversation compression
+    - CutctxDocumentCompressor: Relevance-based document filtering
+    - CutctxToolWrapper: Tool output compression for agents
     - StreamingMetricsTracker: Token counting during streaming
-    - HeadroomLangSmithCallbackHandler: LangSmith trace enrichment
+    - CutctxLangSmithCallbackHandler: LangSmith trace enrichment
 
 Agno (pip install agno):
-    - HeadroomAgnoModel: Drop-in wrapper for any Agno model
-    - HeadroomPreHook/HeadroomPostHook: Agent-level hooks for tracking
+    - CutctxAgnoModel: Drop-in wrapper for any Agno model
+    - CutctxPreHook/HeadroomPostHook: Agent-level hooks for tracking
     - create_headroom_hooks: Convenience function to create hook pairs
 
 MCP (Model Context Protocol):
-    - HeadroomMCPCompressor: Compress MCP tool results
+    - CutctxMCPCompressor: Compress MCP tool results
     - compress_tool_result: Simple function for tool compression
 
 Example:
     # LangChain integration
-    from headroom.integrations import HeadroomChatModel
+    from headroom.integrations import CutctxChatModel
     # or explicitly:
-    from headroom.integrations.langchain import HeadroomChatModel
+    from headroom.integrations.langchain import CutctxChatModel
 
     # Agno integration
-    from headroom.integrations.agno import HeadroomAgnoModel
+    from headroom.integrations.agno import CutctxAgnoModel
     # or explicitly:
-    from headroom.integrations.agno import HeadroomAgnoModel
+    from headroom.integrations.agno import CutctxAgnoModel
 
     # MCP integration
     from headroom.integrations import compress_tool_result
@@ -41,16 +41,16 @@ from .langchain import (
     # Retrievers
     CompressionMetrics,
     # Core
-    HeadroomCallbackHandler,
+    CutctxCallbackHandler,
     # Memory
-    HeadroomChatMessageHistory,
-    HeadroomChatModel,
-    HeadroomDocumentCompressor,
+    CutctxChatMessageHistory,
+    CutctxChatModel,
+    CutctxDocumentCompressor,
     # LangSmith
-    HeadroomLangSmithCallbackHandler,
-    HeadroomRunnable,
+    CutctxLangSmithCallbackHandler,
+    CutctxRunnable,
     # Agents
-    HeadroomToolWrapper,
+    CutctxToolWrapper,
     OptimizationMetrics,
     # Streaming
     StreamingMetrics,
@@ -76,8 +76,8 @@ from .langchain import (
 # Re-export from mcp subpackage for backwards compatibility
 from .mcp import (
     DEFAULT_MCP_PROFILES,
-    HeadroomMCPClientWrapper,
-    HeadroomMCPCompressor,
+    CutctxMCPClientWrapper,
+    CutctxMCPCompressor,
     MCPCompressionResult,
     MCPToolProfile,
     compress_tool_result,
@@ -88,9 +88,9 @@ from .mcp import (
 # Re-export from agno subpackage (optional dependency)
 try:
     from .agno import (
-        HeadroomAgnoModel,
-        HeadroomPostHook,
-        HeadroomPreHook,
+        CutctxAgnoModel,
+        CutctxPostHook,
+        CutctxPreHook,
         agno_available,
         create_headroom_hooks,
         get_model_name_from_agno,

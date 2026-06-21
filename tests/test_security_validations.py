@@ -1,4 +1,4 @@
-"""Security validation tests for Headroom.
+"""Security validation tests for Cutctx.
 
 These tests verify security measures against common attack vectors:
 - SQL injection via metadata keys

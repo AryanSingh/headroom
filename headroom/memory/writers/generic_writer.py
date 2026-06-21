@@ -32,8 +32,8 @@ class GenericMemoryWriter(AgentWriter):
     def format_memories(self, memories: list[MemoryEntry]) -> str:
         """Format as clean markdown."""
         lines = [
-            "## Headroom Learned Context",
-            "*Auto-maintained by Headroom proxy — do not edit manually*",
+            "## Cutctx Learned Context",
+            "*Auto-maintained by Cutctx proxy — do not edit manually*",
             "",
         ]
 

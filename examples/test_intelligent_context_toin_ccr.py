@@ -15,12 +15,12 @@ import os
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
 
-from headroom.cache.compression_store import get_compression_store
-from headroom.config import IntelligentContextConfig
-from headroom.telemetry import get_toin
-from headroom.tokenizer import Tokenizer
-from headroom.tokenizers import EstimatingTokenCounter
-from headroom.transforms.intelligent_context import IntelligentContextManager
+from cutctx.cache.compression_store import get_compression_store
+from cutctx.config import IntelligentContextConfig
+from cutctx.telemetry import get_toin
+from cutctx.tokenizer import Tokenizer
+from cutctx.tokenizers import EstimatingTokenCounter
+from cutctx.transforms.intelligent_context import IntelligentContextManager
 
 
 def create_large_conversation(num_turns: int = 50) -> list[dict]:

@@ -1,4 +1,4 @@
-"""Hierarchical memory data models for Headroom."""
+"""Hierarchical memory data models for Cutctx."""
 
 from __future__ import annotations
 

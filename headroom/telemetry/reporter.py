@@ -1,7 +1,7 @@
 """License validation and usage reporting for managed/enterprise deployments.
 
 Phone-home module that validates license keys and reports aggregate usage
-statistics to the Headroom cloud for billing. Designed to be non-intrusive:
+statistics to the Cutctx cloud for billing. Designed to be non-intrusive:
 the proxy works normally even if the cloud API is completely unreachable.
 
 Privacy guarantees:
@@ -32,7 +32,7 @@ import httpx
 from headroom import paths as _paths
 
 if TYPE_CHECKING:
-    from headroom.proxy.server import HeadroomProxy
+    from headroom.proxy.server import CutctxProxy
 
 logger = logging.getLogger("headroom.telemetry.reporter")
 
@@ -94,7 +94,7 @@ class UsageReporter:
     """Background license validator and aggregate usage reporter.
 
     Validates the license key on startup, then periodically sends aggregate
-    usage stats to the Headroom cloud. If the cloud is unreachable, the proxy
+    usage stats to the Cutctx cloud. If the cloud is unreachable, the proxy
     continues to operate using cached license info (grace period: 7 days).
 
     Never sends: message content, API keys, prompts, tool results, user data.
@@ -112,7 +112,7 @@ class UsageReporter:
         self._report_interval = report_interval
         self._cache_path = cache_path or LICENSE_CACHE_PATH
         self._license_info: LicenseInfo | None = None
-        self._proxy: HeadroomProxy | None = None
+        self._proxy: CutctxProxy | None = None
         self._task: asyncio.Task[None] | None = None
         self._http_client: httpx.AsyncClient | None = None
         self._stopped = False
@@ -173,7 +173,7 @@ class UsageReporter:
         # Fallback to cache
         return self._load_cache_or_default()
 
-    async def start(self, proxy: HeadroomProxy) -> None:
+    async def start(self, proxy: CutctxProxy) -> None:
         """Start the background reporting loop. Called during proxy startup."""
         self._proxy = proxy
         self._stopped = False

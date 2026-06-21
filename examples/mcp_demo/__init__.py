@@ -1,1 +1,1 @@
-"""MCP Integration Demo - Headroom compression for MCP tool outputs."""
+"""MCP Integration Demo - Cutctx compression for MCP tool outputs."""

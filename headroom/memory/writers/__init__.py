@@ -1,4 +1,4 @@
-"""Agent-native memory writers — export Headroom memories to each agent's format.
+"""Agent-native memory writers — export Cutctx memories to each agent's format.
 
 Each writer knows how to produce memory files in the format that a specific
 coding agent reads on startup. Writers handle:

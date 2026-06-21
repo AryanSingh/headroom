@@ -77,7 +77,7 @@ _PATTERNS: dict[str, list[str]] = {
     "cpp": ["$RET $NAME($$$ARGS) { $$$BODY }"],
 }
 
-OUTLINE_MARKER = "    # ... (body elided by Headroom; Read a specific line range to see it)\n"
+OUTLINE_MARKER = "    # ... (body elided by Cutctx; Read a specific line range to see it)\n"
 
 
 class AstGrepReadOutline:

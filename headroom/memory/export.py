@@ -1,6 +1,6 @@
 """Memory export policy and format.
 
-Implements the B5 memory portability policy. Headroom guarantees that
+Implements the B5 memory portability policy. Cutctx guarantees that
 raw memory content and its source provenance are always portable and
 can be exported without friction.
 

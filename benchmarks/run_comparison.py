@@ -32,7 +32,7 @@ class Compressor(Protocol):
     def compress(self, text: str) -> tuple[str, float]: ...
 
 
-class HeadroomCompressor:
+class CutctxCompressor:
     name = "cutctx"
 
     def compress(self, text: str) -> tuple[str, float]:

@@ -415,7 +415,7 @@ def main() -> None:
     """CLI entry point for running sync from a subprocess."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Headroom memory sync")
+    parser = argparse.ArgumentParser(description="Cutctx memory sync")
     parser.add_argument("--db", required=True, help="Path to memory DB")
     parser.add_argument("--user", required=True, help="User ID")
     parser.add_argument("--agent", required=True, choices=["claude", "codex"], help="Agent to sync")

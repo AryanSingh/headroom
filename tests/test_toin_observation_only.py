@@ -265,7 +265,7 @@ def test_smart_crusher_determinism_property():
     """Property: any input → byte-stable SmartCrusher output across two calls.
 
     Skipped if `hypothesis` is not installed (it is not a hard dep of
-    Headroom). The parametrized test above covers the deterministic
+    Cutctx). The parametrized test above covers the deterministic
     surface unconditionally.
     """
     pytest.importorskip("hypothesis")

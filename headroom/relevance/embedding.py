@@ -1,4 +1,4 @@
-"""Embedding-based relevance scorer for Headroom SDK.
+"""Embedding-based relevance scorer for Cutctx SDK.
 
 This module provides semantic relevance scoring using `fastembed`
 (BAAI/bge-small-en-v1.5 by default — 33M params, 384 dims, ~30 MB

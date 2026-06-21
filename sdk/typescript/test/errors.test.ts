@@ -3,10 +3,10 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  HeadroomError,
-  HeadroomConnectionError,
-  HeadroomAuthError,
-  HeadroomCompressError,
+  CutCtxError,
+  CutCtxConnectionError,
+  CutCtxAuthError,
+  CutCtxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,
@@ -17,47 +17,47 @@ import {
   mapProxyError,
 } from "../src/errors.js";
 
-describe("HeadroomError", () => {
+describe("CutCtxError", () => {
   it("has correct name and message", () => {
-    const err = new HeadroomError("test error");
-    expect(err.name).toBe("HeadroomError");
+    const err = new CutCtxError("test error");
+    expect(err.name).toBe("CutCtxError");
     expect(err.message).toBe("test error");
     expect(err).toBeInstanceOf(Error);
   });
 
   it("supports details", () => {
-    const err = new HeadroomError("test", { key: "value" });
+    const err = new CutCtxError("test", { key: "value" });
     expect(err.details).toEqual({ key: "value" });
   });
 
   it("details are optional", () => {
-    const err = new HeadroomError("test");
+    const err = new CutCtxError("test");
     expect(err.details).toBeUndefined();
   });
 });
 
-describe("HeadroomConnectionError", () => {
-  it("inherits from HeadroomError", () => {
-    const err = new HeadroomConnectionError("connection failed");
-    expect(err).toBeInstanceOf(HeadroomError);
+describe("CutCtxConnectionError", () => {
+  it("inherits from CutCtxError", () => {
+    const err = new CutCtxConnectionError("connection failed");
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err).toBeInstanceOf(Error);
-    expect(err.name).toBe("HeadroomConnectionError");
+    expect(err.name).toBe("CutCtxConnectionError");
   });
 });
 
-describe("HeadroomAuthError", () => {
-  it("inherits from HeadroomError", () => {
-    const err = new HeadroomAuthError("unauthorized");
-    expect(err).toBeInstanceOf(HeadroomError);
-    expect(err.name).toBe("HeadroomAuthError");
+describe("CutCtxAuthError", () => {
+  it("inherits from CutCtxError", () => {
+    const err = new CutCtxAuthError("unauthorized");
+    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err.name).toBe("CutCtxAuthError");
   });
 });
 
-describe("HeadroomCompressError", () => {
+describe("CutCtxCompressError", () => {
   it("includes statusCode and errorType", () => {
-    const err = new HeadroomCompressError(500, "compression_error", "failed");
-    expect(err).toBeInstanceOf(HeadroomError);
-    expect(err.name).toBe("HeadroomCompressError");
+    const err = new CutCtxCompressError(500, "compression_error", "failed");
+    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err.name).toBe("CutCtxCompressError");
     expect(err.statusCode).toBe(500);
     expect(err.errorType).toBe("compression_error");
     expect(err.message).toBe("failed");
@@ -65,65 +65,65 @@ describe("HeadroomCompressError", () => {
 });
 
 describe("ConfigurationError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new ConfigurationError("bad config");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("ConfigurationError");
   });
 });
 
 describe("ProviderError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new ProviderError("provider failed");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("ProviderError");
   });
 });
 
 describe("StorageError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new StorageError("db error");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("StorageError");
   });
 });
 
 describe("TokenizationError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new TokenizationError("token count failed");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("TokenizationError");
   });
 });
 
 describe("CacheError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new CacheError("cache miss");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("CacheError");
   });
 });
 
 describe("ValidationError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new ValidationError("invalid setup");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("ValidationError");
   });
 });
 
 describe("TransformError", () => {
-  it("inherits from HeadroomError", () => {
+  it("inherits from CutCtxError", () => {
     const err = new TransformError("transform failed");
-    expect(err).toBeInstanceOf(HeadroomError);
+    expect(err).toBeInstanceOf(CutCtxError);
     expect(err.name).toBe("TransformError");
   });
 });
 
 describe("mapProxyError", () => {
-  it("maps 401 to HeadroomAuthError", () => {
+  it("maps 401 to CutCtxAuthError", () => {
     const err = mapProxyError(401, "auth_error", "unauthorized");
-    expect(err).toBeInstanceOf(HeadroomAuthError);
+    expect(err).toBeInstanceOf(CutCtxAuthError);
     expect(err.message).toBe("unauthorized");
   });
 
@@ -162,8 +162,8 @@ describe("mapProxyError", () => {
     expect(err).toBeInstanceOf(TransformError);
   });
 
-  it("falls back to HeadroomCompressError for unknown types", () => {
+  it("falls back to CutCtxCompressError for unknown types", () => {
     const err = mapProxyError(500, "unknown_error", "something broke");
-    expect(err).toBeInstanceOf(HeadroomCompressError);
+    expect(err).toBeInstanceOf(CutCtxCompressError);
   });
 });

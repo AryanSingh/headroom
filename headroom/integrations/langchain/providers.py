@@ -2,7 +2,7 @@
 
 This module provides automatic provider detection from LangChain chat models
 without requiring explicit provider imports. It uses duck-typing based on
-class paths to identify the appropriate Headroom provider.
+class paths to identify the appropriate Cutctx provider.
 
 Example:
     from langchain_anthropic import ChatAnthropic
@@ -133,17 +133,17 @@ def _get_model_name(model: Any) -> str | None:
 
 
 def get_headroom_provider(model: Any) -> Provider:
-    """Get appropriate Headroom Provider instance for a LangChain model.
+    """Get appropriate Cutctx Provider instance for a LangChain model.
 
     This function automatically detects the provider from the model type
-    and returns a configured Headroom provider for accurate token counting
+    and returns a configured Cutctx provider for accurate token counting
     and context limit detection.
 
     Args:
         model: Any LangChain chat model instance
 
     Returns:
-        Configured Headroom Provider instance
+        Configured Cutctx Provider instance
 
     Example:
         >>> from langchain_anthropic import ChatAnthropic

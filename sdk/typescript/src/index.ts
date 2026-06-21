@@ -1,7 +1,7 @@
 // --- Core ---
 export { compress } from "./compress.js";
-export { HeadroomClient } from "./client.js";
-export type { ExtendedClientOptions, HeadroomParams } from "./client.js";
+export { CutCtxClient } from "./client.js";
+export type { ExtendedClientOptions, CutCtxParams } from "./client.js";
 export { simulate } from "./simulate.js";
 export type { SimulateOptions } from "./simulate.js";
 
@@ -28,16 +28,16 @@ export type {
   OpenAIMessage,
   CompressOptions,
   CompressResult,
-  HeadroomClientOptions,
-  HeadroomClientInterface,
+  CutCtxClientOptions,
+  CutCtxClientInterface,
 } from "./types.js";
 
 // --- Errors (full hierarchy) ---
 export {
-  HeadroomError,
-  HeadroomConnectionError,
-  HeadroomAuthError,
-  HeadroomCompressError,
+  CutCtxError,
+  CutCtxConnectionError,
+  CutCtxAuthError,
+  CutCtxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,
@@ -50,7 +50,7 @@ export {
 
 // --- Config types ---
 export type {
-  HeadroomMode,
+  CutCtxMode,
   RelevanceTier,
   ContentType,
   BlockKind,
@@ -67,7 +67,7 @@ export type {
   PrefixFreezeConfig,
   ReadLifecycleConfig,
   CompressionProfile,
-  HeadroomConfig,
+  CutCtxConfig,
 } from "./types/config.js";
 
 // --- Data models ---

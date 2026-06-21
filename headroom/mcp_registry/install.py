@@ -48,7 +48,7 @@ def build_headroom_spec(proxy_url: str = DEFAULT_PROXY_URL) -> ServerSpec:
 def _looks_like_legacy_cutctx_server(spec: ServerSpec | None) -> bool:
     if spec is None:
         return False
-    return spec.command in {"headroom", "cutctx"} and tuple(spec.args) == ("mcp", "serve")
+    return spec.command in {"cutctx", "cutctx"} and tuple(spec.args) == ("mcp", "serve")
 
 
 def build_serena_spec(context: str) -> ServerSpec:
@@ -102,10 +102,10 @@ def install_everywhere(
                 f"{registrar.display_name} not found on this system",
             )
             continue
-        if spec.name != "headroom" and _looks_like_legacy_cutctx_server(
-            registrar.get_server("headroom")
+        if spec.name != "cutctx" and _looks_like_legacy_cutctx_server(
+            registrar.get_server("cutctx")
         ):
-            registrar.unregister_server("headroom")
+            registrar.unregister_server("cutctx")
         results[registrar.name] = registrar.register_server(spec, force=force)
 
     return results

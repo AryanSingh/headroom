@@ -1,4 +1,4 @@
-"""Headroom Learn — offline session learning for coding agents.
+"""Cutctx Learn — offline session learning for coding agents.
 
 Analyzes conversation logs using an LLM to extract actionable patterns
 and generates context (CLAUDE.md, AGENTS.md, GEMINI.md, etc.) that

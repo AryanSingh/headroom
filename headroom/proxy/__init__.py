@@ -1,7 +1,7 @@
-"""Headroom Proxy Server.
+"""Cutctx Proxy Server.
 
 A transparent proxy that sits between LLM clients (Claude Code, Cursor, etc.)
-and LLM APIs (Anthropic, OpenAI), applying Headroom optimizations.
+and LLM APIs (Anthropic, OpenAI), applying Cutctx optimizations.
 
 Usage:
     # Start the proxy

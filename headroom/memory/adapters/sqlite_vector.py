@@ -1,4 +1,4 @@
-"""SQLite vector index for Headroom Memory using sqlite-vec.
+"""SQLite vector index for Cutctx Memory using sqlite-vec.
 
 Provides vector similarity search backed by SQLite, offering:
 - True CRUD operations (real deletes, not marks)

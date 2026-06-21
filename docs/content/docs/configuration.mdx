@@ -33,13 +33,13 @@ Supported values are `rtk` and `lean-ctx`; unset defaults to `rtk`.
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { HeadroomClient } from 'cutctx-ai';
+import { CutCtxClient } from 'cutctx-ai';
 
 // Reads from HEADROOM_BASE_URL and HEADROOM_API_KEY automatically
-const client = new HeadroomClient();
+const client = new CutCtxClient();
 
 // Or configure explicitly
-const explicit = new HeadroomClient({
+const explicit = new CutCtxClient({
   baseUrl: 'http://localhost:8787',
   apiKey: 'your-api-key',
   timeout: 30_000,
@@ -50,10 +50,10 @@ const explicit = new HeadroomClient({
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from cutctx import CutCtxClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
 
@@ -124,7 +124,7 @@ response = client.chat.completions.create(
 Fine-tune JSON compression behavior:
 
 ```python
-from headroom.transforms import SmartCrusherConfig
+from cutctx.transforms import SmartCrusherConfig
 
 config = SmartCrusherConfig(
     # Maximum items to keep after compression
@@ -147,7 +147,7 @@ config = SmartCrusherConfig(
 Control prefix stabilization for provider cache hit rates:
 
 ```python
-from headroom.transforms import CacheAlignerConfig
+from cutctx.transforms import CacheAlignerConfig
 
 config = CacheAlignerConfig(
     # Enable/disable cache alignment
@@ -234,7 +234,7 @@ cutctx proxy --learn --min-evidence 3
 | `HEADROOM_MEMORY_INJECTION_MODE` | Memory-context routing mode: `live_zone_tail` (default) or `disabled`. The legacy `system_prompt` mode was retired by PR-A2; supplying it raises. | `live_zone_tail` |
 | `HEADROOM_PROXY_PYTHON_FORWARDER_MODE` | Python forwarder serialization mode. `byte_faithful` (default) forwards original request bytes verbatim when no transform mutated the body and re-serializes canonically only when needed — keeps Anthropic prompt-cache hit-rate intact. `legacy_json_kwarg` is an explicit operator opt-in for emergency rollback to the historical `httpx ... json=body` behavior. NOT a fallback — only flip on explicit operator decision. | `byte_faithful` |
 | `HEADROOM_STRIP_INTERNAL_HEADERS` | Python proxy: whether to strip internal `x-headroom-*` request headers (e.g. `x-headroom-bypass`, `x-headroom-mode`, `x-headroom-user-id`, `x-headroom-stack`, `x-headroom-base-url`) before every upstream forwarder call (PR-A5, fixes P5-49). `enabled` (default) stops fingerprinting / leakage. `disabled` is an explicit operator opt-in for diagnostic shadow tracing — NOT a fallback. Inbound reads of these headers (bypass gating, memory user-id resolution) are unaffected because they read `request.headers` directly. | `enabled` |
-| `HEADROOM_PROXY_STRIP_INTERNAL_HEADERS` | Rust proxy: same policy as `HEADROOM_STRIP_INTERNAL_HEADERS` but for the Rust transparent proxy. Stripping happens inside `build_forward_request_headers` so both HTTP and WebSocket upstream calls are gated by one flag. `enabled` default; `disabled` operator opt-in for diagnostic shadow tracing. Response-side `X-Headroom-*` injection (e.g. `x-headroom-tokens-saved`) is unrelated and stays. | `enabled` |
+| `HEADROOM_PROXY_STRIP_INTERNAL_HEADERS` | Rust proxy: same policy as `HEADROOM_STRIP_INTERNAL_HEADERS` but for the Rust transparent proxy. Stripping happens inside `build_forward_request_headers` so both HTTP and WebSocket upstream calls are gated by one flag. `enabled` default; `disabled` operator opt-in for diagnostic shadow tracing. Response-side `X-CutCtx-*` injection (e.g. `x-headroom-tokens-saved`) is unrelated and stays. | `enabled` |
 | `HEADROOM_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](/docs/memory#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
 
 ### Filesystem Contract
@@ -309,7 +309,7 @@ Unknown models are automatically inferred from naming patterns:
 <Tabs groupId="lang" items={['OpenAI', 'Anthropic', 'Google']}>
 <Tab value="OpenAI">
 ```python
-from headroom import OpenAIProvider
+from cutctx import OpenAIProvider
 
 provider = OpenAIProvider(
     enable_prefix_caching=True,
@@ -318,7 +318,7 @@ provider = OpenAIProvider(
 </Tab>
 <Tab value="Anthropic">
 ```python
-from headroom import AnthropicProvider
+from cutctx import AnthropicProvider
 
 provider = AnthropicProvider(
     enable_cache_control=True,
@@ -327,7 +327,7 @@ provider = AnthropicProvider(
 </Tab>
 <Tab value="Google">
 ```python
-from headroom import GoogleProvider
+from cutctx import GoogleProvider
 
 provider = GoogleProvider(
     enable_context_caching=True,

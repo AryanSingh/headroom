@@ -162,7 +162,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         return _ResponseStub()
 
     async def _run_compression_in_executor(self, fn, *, timeout: float):
-        # Test stub for HeadroomProxy._run_compression_in_executor.
+        # Test stub for CutctxProxy._run_compression_in_executor.
         # The real implementation runs `fn` on a bounded thread pool with
         # a wall-clock timeout; tests just need the callable invoked
         # synchronously so MagicMock call_count assertions fire.
@@ -170,7 +170,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
 
     async def _record_request_outcome(self, outcome) -> None:
         # Test stub: delegates to the production funnel so wire shape
-        # matches HeadroomProxy._record_request_outcome.
+        # matches CutctxProxy._record_request_outcome.
         from headroom.proxy.outcome import emit_request_outcome
 
         await emit_request_outcome(self, outcome)

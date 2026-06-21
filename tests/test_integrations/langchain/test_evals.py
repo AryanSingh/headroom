@@ -1,4 +1,4 @@
-"""LangChain Integration Evals: Comprehensive evaluation of Headroom with LangChain agents.
+"""LangChain Integration Evals: Comprehensive evaluation of Cutctx with LangChain agents.
 
 These evals test real-world scenarios to ensure:
 1. 100% preservation of critical items (errors, anomalies)

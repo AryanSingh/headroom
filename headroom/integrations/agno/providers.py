@@ -1,6 +1,6 @@
 """Provider detection for Agno models.
 
-Automatically detects the correct Headroom provider based on the Agno model type.
+Automatically detects the correct Cutctx provider based on the Agno model type.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from headroom.providers.base import Provider
 
 logger = logging.getLogger(__name__)
 
-# Mapping from Agno model class names to Headroom providers
+# Mapping from Agno model class names to Cutctx providers
 _AGNO_MODEL_PROVIDERS: dict[str, type[Provider]] = {
     # OpenAI models
     "OpenAIChat": OpenAIProvider,
@@ -62,7 +62,7 @@ _AGNO_MODEL_PROVIDERS: dict[str, type[Provider]] = {
 
 
 def get_headroom_provider(agno_model: Any) -> Provider:
-    """Get the appropriate Headroom provider for an Agno model.
+    """Get the appropriate Cutctx provider for an Agno model.
 
     Detection strategy:
     1. Check model class name against known Agno model types
@@ -73,7 +73,7 @@ def get_headroom_provider(agno_model: Any) -> Provider:
         agno_model: An Agno model instance (OpenAIChat, Claude, etc.)
 
     Returns:
-        Appropriate Headroom Provider instance.
+        Appropriate Cutctx Provider instance.
 
     Example:
         from agno.models.openai import OpenAIChat

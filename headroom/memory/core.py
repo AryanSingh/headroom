@@ -1,4 +1,4 @@
-"""Core HierarchicalMemory orchestrator for Headroom.
+"""Core HierarchicalMemory orchestrator for Cutctx.
 
 This module provides the main HierarchicalMemory class that coordinates
 all memory system components: store, vector index, text index, embedder,

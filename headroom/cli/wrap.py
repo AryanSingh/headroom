@@ -870,11 +870,11 @@ def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> s
     content = _remove_marker_span(content, _CODEX_TOP_LEVEL_MARKER, _CODEX_END_MARKER)
 
     if remove_mcp:
-        # Remove Headroom-managed MCP blocks written by `wrap codex`.
+        # Remove Cutctx-managed MCP blocks written by `wrap codex`.
         content = _remove_marker_span(content, _CODEX_MCP_MARKER, _CODEX_MCP_END)
         content = re.sub(
-            r"(?ms)^# --- Headroom MCP server: [^\n]+ ---\n.*?"
-            r"^# --- end Headroom MCP server: [^\n]+ ---\n?",
+            r"(?ms)^# --- Cutctx MCP server: [^\n]+ ---\n.*?"
+            r"^# --- end Cutctx MCP server: [^\n]+ ---\n?",
             "",
             content,
         )
@@ -895,9 +895,9 @@ def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> s
 
     # Strip any orphaned `[model_providers.headroom]` table with the fields we
     # write.  We only remove it if the table is recognisably ours (base_url
-    # mentions localhost and a Headroom proxy port).  This protects users who
+    # mentions localhost and a Cutctx proxy port).  This protects users who
     # happen to have a differently configured `headroom` provider.
-    for provider_name in ("headroom", "cutctx"):
+    for provider_name in ("cutctx", "cutctx"):
         orphan_provider_table = re.compile(
             rf"(?ms)^\[model_providers\.{provider_name}\][^\[]*?"
             r'base_url[ \t]*=[ \t]*"http://127\.0\.0\.1:\d+/v1"[^\[]*?'
@@ -911,7 +911,7 @@ def _strip_codex_headroom_blocks(content: str, *, remove_mcp: bool = False) -> s
 def _snapshot_codex_config_if_unwrapped(config_file: Path, backup_file: Path) -> None:
     """Snapshot ``config.toml`` to ``backup_file`` before the first injection.
 
-    Called as the first step of every Headroom injection into Codex's
+    Called as the first step of every Cutctx injection into Codex's
     ``config.toml``.  Guarantees that ``headroom unwrap codex`` can restore the
     user's original file byte-for-byte.
 
@@ -921,7 +921,7 @@ def _snapshot_codex_config_if_unwrapped(config_file: Path, backup_file: Path) ->
       *pre-wrap* state, so running wrap repeatedly must not clobber it.
     * If the config file doesn't exist yet, there's nothing to back up; unwrap
       will remove the file entirely instead of restoring a snapshot.
-    * If the config already contains a Headroom marker, a wrap run is already
+    * If the config already contains a Cutctx marker, a wrap run is already
       active: do not snapshot the injected state.
     """
     if backup_file.exists():
@@ -988,7 +988,7 @@ def _apply_project_header_env(env: dict[str, str]) -> None:
 
     Claude Code reads ``ANTHROPIC_CUSTOM_HEADERS`` as newline-separated
     ``Name: value`` lines and attaches them to every API request; the
-    Headroom proxy uses the X-Headroom-Project header for per-project
+    Cutctx proxy uses the X-Headroom-Project header for per-project
     savings attribution.  An existing user-supplied x-headroom-project
     header (any casing) always wins — we never duplicate or overwrite it,
     and any other user headers are preserved by appending.
@@ -1066,7 +1066,7 @@ def _inject_codex_provider_config(port: int) -> None:
 
         if config_file.exists():
             content = config_file.read_text()
-            # Remove any prior Headroom-managed blocks before re-injecting so
+            # Remove any prior Cutctx-managed blocks before re-injecting so
             # the operation is idempotent and supports port changes.
             content = _strip_codex_headroom_blocks(content)
 
@@ -1094,11 +1094,11 @@ def _restore_codex_provider_config() -> tuple[str, Path]:
 
     * ``"restored"`` — a pre-wrap backup existed and was restored; backup
       file has been removed.
-    * ``"cleaned"``  — no backup existed, but the Headroom-managed block was
+    * ``"cleaned"``  — no backup existed, but the Cutctx-managed block was
       found and stripped out (preserving surrounding user content).
-    * ``"removed"``  — the config file only contained Headroom-managed
+    * ``"removed"``  — the config file only contained Cutctx-managed
       content (created by wrap) and has been deleted.
-    * ``"noop"``     — nothing to undo; no Headroom marker and no backup.
+    * ``"noop"``     — nothing to undo; no Cutctx marker and no backup.
     """
     config_file, backup_file = _codex_config_paths()
 
@@ -1114,7 +1114,7 @@ def _restore_codex_provider_config() -> tuple[str, Path]:
         if _CODEX_TOP_LEVEL_MARKER in original or _CODEX_END_MARKER in original:
             cleaned = _strip_codex_headroom_blocks(original, remove_mcp=True)
             if not cleaned.strip():
-                # Nothing left but Headroom content — remove the file entirely
+                # Nothing left but Cutctx content — remove the file entirely
                 # so Codex falls back to its default config.
                 config_file.unlink()
                 return "removed", config_file
@@ -2443,7 +2443,7 @@ def _copy_openclaw_plugin_into_extensions(
         )
 
     extensions_dir = _resolve_openclaw_extensions_dir(openclaw_bin)
-    target_dir = extensions_dir / "headroom"
+    target_dir = extensions_dir / "cutctx"
     target_dist = target_dir / "dist"
     target_hook_shim = target_dir / "hook-shim"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -2776,7 +2776,7 @@ def unwrap_claude(
 
         registrar = ClaudeRegistrar()
         if registrar.detect():
-            removed_headroom = registrar.unregister_server("headroom")
+            removed_headroom = registrar.unregister_server("cutctx")
             removed_code_graph = registrar.unregister_server(_CBM_MCP_SERVER_NAME)
             serena_status = _remove_headroom_installed_serena_mcp(registrar)
             if removed_headroom:
@@ -3144,7 +3144,7 @@ def codex(
     # Snapshot Codex config.toml BEFORE any wrap-time mutation so
     # `headroom unwrap codex` can restore the user's pre-wrap state
     # byte-for-byte. The snapshot is a no-op if the backup already exists
-    # or if the file already has Headroom markers, so this is safe to
+    # or if the file already has Cutctx markers, so this is safe to
     # call repeatedly. Crucially this must run before MCP install, which
     # writes its marker block to the same file.
     _codex_config_file, _codex_backup_file = _codex_config_paths()
@@ -3248,7 +3248,7 @@ def codex(
     if _codex_project and "HEADROOM_PROJECT" not in env:
         env["HEADROOM_PROJECT"] = _codex_project
 
-    # Inject Headroom provider into Codex config so WebSocket traffic also
+    # Inject Cutctx provider into Codex config so WebSocket traffic also
     # routes through the proxy.  Codex ignores OPENAI_BASE_URL for its WS
     # transport unless a custom provider declares supports_websockets = true.
     # NOTE: this must run BEFORE _inject_memory_mcp_config because it rewrites
@@ -4261,7 +4261,7 @@ def openclaw(
     elif verbose and install_result.stdout.strip():
         click.echo(install_result.stdout.strip())
 
-    _set_openclaw_context_engine_slot(openclaw_bin, "headroom")
+    _set_openclaw_context_engine_slot(openclaw_bin, "cutctx")
     _run_checked(
         [openclaw_bin, "config", "validate"],
         action="openclaw config validate",
@@ -4280,7 +4280,7 @@ def openclaw(
             click.echo(gateway_output)
 
     inspect_result = _run_checked(
-        [openclaw_bin, "plugins", "inspect", "headroom"],
+        [openclaw_bin, "plugins", "inspect", "cutctx"],
         action="openclaw plugins inspect headroom",
     )
     if verbose and inspect_result.stdout.strip():
@@ -4351,7 +4351,7 @@ def unwrap_openclaw(
 
     if verbose:
         inspect_result = _run_checked(
-            [openclaw_bin, "plugins", "inspect", "headroom"],
+            [openclaw_bin, "plugins", "inspect", "cutctx"],
             action="openclaw plugins inspect headroom",
         )
         if inspect_result.stdout.strip():

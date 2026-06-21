@@ -1,7 +1,7 @@
 """Real-World MCP Agent Evaluation.
 
 This eval simulates an agent with multiple MCP tools and tests whether
-Headroom compression preserves the information needed to answer correctly.
+Cutctx compression preserves the information needed to answer correctly.
 
 Run with:
     PYTHONPATH=. python -m examples.mcp_demo.run_agent_eval
@@ -17,8 +17,8 @@ from datetime import datetime, timedelta
 
 from openai import OpenAI
 
-from headroom.integrations.mcp import compress_tool_result_with_metrics
-from headroom.providers import OpenAIProvider
+from cutctx.integrations.mcp import compress_tool_result_with_metrics
+from cutctx.providers import OpenAIProvider
 
 # ============================================================================
 # Test Data Generators (Deterministic for eval reproducibility)
@@ -371,7 +371,7 @@ def main():
     print("MCP AGENT EVALUATION: BEFORE vs AFTER HEADROOM COMPRESSION")
     print("=" * 70)
     print("\nThis eval tests whether an agent can still find critical information")
-    print("after Headroom compresses large MCP tool outputs.")
+    print("after Cutctx compresses large MCP tool outputs.")
     print("\nModel: gpt-4o-mini")
 
     eval_cases = create_eval_cases()
@@ -387,7 +387,7 @@ def main():
         # Measure original tokens
         original_tokens = tokenizer.count_text(case.tool_output)
 
-        # Compress with Headroom
+        # Compress with Cutctx
         compression = compress_tool_result_with_metrics(
             content=case.tool_output,
             tool_name=case.tool_name,
@@ -511,7 +511,7 @@ def main():
     print("\n" + "=" * 70)
 
     if passed == total_cases:
-        print("SUCCESS: All tests passed - Headroom compression preserves critical info!")
+        print("SUCCESS: All tests passed - Cutctx compression preserves critical info!")
     else:
         print(f"WARNING: {total_cases - passed} tests failed - some information was lost")
 

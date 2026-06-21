@@ -103,9 +103,9 @@ helm install cutctx ./helm/cutctx
 - Aggregate telemetry is optional and license-gated
 
 ### Review materials
-- [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/headroom/SECURITY.md)
-- [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/security-and-privacy.md)
-- [artifacts/security-one-pager.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/security-one-pager.md)
+- [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/SECURITY.md)
+- [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/security-and-privacy.md)
+- [artifacts/security-one-pager.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/security-one-pager.md)
 
 ## Pricing
 
@@ -116,7 +116,7 @@ helm install cutctx ./helm/cutctx
 | Business | $42,000/year |
 | Enterprise | $60,000-$150,000+/year |
 
-Detailed pricing: [artifacts/pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/pricing-sheet.md)
+Detailed pricing: [artifacts/pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/pricing-sheet.md)
 
 ## What Still Requires External Work
 
@@ -153,7 +153,7 @@ These are not code gaps, but business workstreams:
 | Claude Code | `plugins/claude-code/` | `cutctx setup` or `bash plugins/claude-code/install.sh` |
 | Codex | `plugins/codex/` | `cutctx setup` or `bash plugins/codex/install.sh` |
 | Claude.ai (web) | `plugins/cutctx-plugin/` | Upload ZIP to Plugins → Personal → Local uploads |
-| Hermes | `plugins/hermes/` | `pip install headroom-hermes` |
+| Hermes | `plugins/hermes/` | `pip install cutctx-hermes` |
 | OpenClaw | `plugins/openclaw/` | `npm install @cutctx/openclaw` |
 
 ## Contact

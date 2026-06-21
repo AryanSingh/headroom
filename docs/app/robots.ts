@@ -4,7 +4,7 @@
 // PerplexityBot, Google-Extended, etc.) see a clear green light, and
 // so the sitemap is discoverable.
 //
-// Headroom docs are open-source documentation we WANT indexed. If a
+// CutCtx docs are open-source documentation we WANT indexed. If a
 // future page should be excluded, add it to the ``disallow`` list of
 // the relevant rule.
 

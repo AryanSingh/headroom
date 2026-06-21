@@ -1,7 +1,7 @@
-"""Handler mixins for HeadroomProxy.
+"""Handler mixins for CutctxProxy.
 
-Each mixin class contains methods extracted from HeadroomProxy that handle
-requests for a specific provider or concern. The mixins rely on HeadroomProxy's
+Each mixin class contains methods extracted from CutctxProxy that handle
+requests for a specific provider or concern. The mixins rely on CutctxProxy's
 __init__ for all self.* attributes (duck typing).
 """
 

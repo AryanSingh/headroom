@@ -1,4 +1,4 @@
-"""Local backend adapter for Headroom's hierarchical memory system.
+"""Local backend adapter for Cutctx's hierarchical memory system.
 
 Provides a fully local memory backend using embedded databases:
 - SQLite for memory storage

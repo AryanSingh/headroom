@@ -1,7 +1,7 @@
 """Tests for `headroom wrap codex` and `headroom unwrap codex`.
 
 These exercise the Codex-specific ``config.toml`` injection and restoration
-helpers that route Codex through the Headroom proxy.  They are deliberately
+helpers that route Codex through the Cutctx proxy.  They are deliberately
 end-to-end-ish: the unit tests call the helpers directly against a temp
 ``$HOME``, and the integration tests invoke the real Click commands the same
 way a user would from the shell.
@@ -91,12 +91,12 @@ class TestStripCodexHeadroomBlocks:
             '[profiles.default]\nmodel = "gpt-4o"\n\n'
             f"{wrap_mod._CODEX_MCP_MARKER}\n"
             "[mcp_servers.headroom]\n"
-            'command = "headroom"\n'
+            'command = "cutctx"\n'
             f"{wrap_mod._CODEX_MCP_END}\n\n"
-            "# --- Headroom MCP server: serena ---\n"
+            "# --- Cutctx MCP server: serena ---\n"
             "[mcp_servers.serena]\n"
             'command = "uvx"\n'
-            "# --- end Headroom MCP server: serena ---\n\n"
+            "# --- end Cutctx MCP server: serena ---\n\n"
             f"{wrap_mod._MEMORY_MCP_MARKER}\n"
             "[mcp_servers.headroom_memory]\n"
             'command = "python"\n'
@@ -233,7 +233,7 @@ class TestInjectAndRestoreRoundTrip:
         wrap_mod._inject_codex_provider_config(9999)  # port change
 
         content = config_file.read_text()
-        # Exactly two Headroom blocks — a top-level-key block and the
+        # Exactly two Cutctx blocks — a top-level-key block and the
         # provider-table block.  Re-wrapping must not duplicate them.
         assert content.count(wrap_mod._CODEX_TOP_LEVEL_MARKER) == 2
         assert content.count(wrap_mod._CODEX_END_MARKER) == 2
@@ -296,7 +296,7 @@ class TestInjectAndRestoreRoundTrip:
             f"{wrap_mod._CODEX_END_MARKER}\n\n"
             f"{wrap_mod._CODEX_MCP_MARKER}\n"
             "[mcp_servers.headroom]\n"
-            'command = "headroom"\n'
+            'command = "cutctx"\n'
             f"{wrap_mod._CODEX_MCP_END}\n\n"
             f"{wrap_mod._MEMORY_MCP_MARKER}\n"
             "[mcp_servers.headroom_memory]\n"
@@ -309,7 +309,7 @@ class TestInjectAndRestoreRoundTrip:
         assert status == "cleaned"
         cleaned = config_file.read_text()
         assert 'model = "gpt-4o"' in cleaned
-        assert "headroom" not in cleaned
+        assert "cutctx" not in cleaned
 
     def test_unwrap_handles_malformed_prior_config(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -770,7 +770,7 @@ class TestCodexProjectHeaderConfig:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """The mapping must live inside [model_providers.cutctx], before
-        the closing marker, so it applies to the Headroom provider."""
+        the closing marker, so it applies to the Cutctx provider."""
         _set_test_home(monkeypatch, tmp_path)
 
         wrap_mod._inject_codex_provider_config(8787)

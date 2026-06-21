@@ -24,7 +24,7 @@ def plugin_dir(tmp_path: Path) -> Path:
     plugin = tmp_path / "plugins" / "openclaw"
     plugin.mkdir(parents=True)
     (plugin / "package.json").write_text('{"name":"cutctx-openclaw"}\n')
-    (plugin / "openclaw.plugin.json").write_text('{"id":"headroom"}\n')
+    (plugin / "openclaw.plugin.json").write_text('{"id":"cutctx"}\n')
     hook_shim = plugin / "hook-shim"
     hook_shim.mkdir()
     (hook_shim / "index.js").write_text("export default {};\n")
@@ -65,7 +65,7 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
     ] in cmds
     assert ["openclaw", "config", "validate"] in cmds
     assert ["openclaw", "gateway", "restart"] in cmds
-    assert ["openclaw", "plugins", "inspect", "headroom"] in cmds
+    assert ["openclaw", "plugins", "inspect", "cutctx"] in cmds
 
     config_set_index = next(
         i
@@ -254,7 +254,7 @@ def test_wrap_openclaw_continues_when_plugin_already_exists(
     assert result.exit_code == 0, result.output
     cmds = [c["cmd"] for c in calls]
     assert ["openclaw", "config", "validate"] in cmds
-    assert ["openclaw", "plugins", "inspect", "headroom"] in cmds
+    assert ["openclaw", "plugins", "inspect", "cutctx"] in cmds
 
 
 def test_wrap_openclaw_verbose_prints_install_restart_and_inspect_output(
@@ -621,7 +621,7 @@ def test_copy_openclaw_plugin_into_extensions_handles_missing_and_existing_dist(
     (hook_shim / "index.js").write_text("shim\n")
 
     ext_root = tmp_path / ".openclaw" / "extensions"
-    target_headroom = ext_root / "headroom"
+    target_headroom = ext_root / "cutctx"
     target_dist = target_headroom / "dist"
     target_hook_shim = target_headroom / "hook-shim"
     target_dist.mkdir(parents=True)

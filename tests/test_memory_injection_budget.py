@@ -1,6 +1,6 @@
 """Tests for :class:`headroom.proxy.memory_injection.MemoryInjectionBudget`.
 
-Pre-PR Headroom had **no token cap on injected memory**: top_k=10
+Pre-PR Cutctx had **no token cap on injected memory**: top_k=10
 candidates × ~400 tokens each = up to ~4000 tokens injected per
 request. None of Letta/Mem0/Cognee/Supermemory ship a token-uncapped
 injection path on the hot wire.

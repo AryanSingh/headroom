@@ -89,7 +89,7 @@ console.log(`Compressed: ${result.compressed}`);
 <Tab value="Python">
 ```python
 # 1. Ensure mode is "optimize"
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",  # NOT "audit"
@@ -103,7 +103,7 @@ response = client.chat.completions.create(
 )
 
 # 3. Lower the compression threshold
-config = HeadroomConfig()
+config = CutCtxConfig()
 config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 ```
 </Tab>
@@ -156,7 +156,7 @@ See [issue #746](https://github.com/chopratejas/headroom/issues/746) for the ful
 
 ```python
 # 1. Keep more items
-config = HeadroomConfig()
+config = CutCtxConfig()
 config.smart_crusher.max_items_after_crush = 50  # Default: 15
 
 # 2. Skip compression for specific tools
@@ -193,7 +193,7 @@ print(f"Total time: {time.time() - start:.2f}s")
 
 ```python
 # 1. Use BM25 instead of embeddings (faster)
-config = HeadroomConfig()
+config = CutCtxConfig()
 config.smart_crusher.relevance.tier = "bm25"
 
 # 2. Increase threshold to skip small payloads
@@ -300,7 +300,7 @@ api_key = os.environ.get("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY not set")
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(api_key=api_key),
     provider=OpenAIProvider(),
 )
@@ -313,7 +313,7 @@ import os
 from anthropic import Anthropic
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=Anthropic(api_key=api_key),
     provider=AnthropicProvider(),
 )
@@ -323,7 +323,7 @@ client = HeadroomClient(
 
 ```python
 # For custom/fine-tuned models, specify context limit
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     model_context_limits={
@@ -353,7 +353,7 @@ print(result)
 For testing, use in-memory storage:
 
 ```python
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     store_url="sqlite:///:memory:",
@@ -396,8 +396,8 @@ print(json.dumps(plan.messages_optimized, indent=2))
 ### Test Transforms Directly
 
 ```python
-from headroom import SmartCrusher, Tokenizer
-from headroom.config import SmartCrusherConfig
+from cutctx import SmartCrusher, Tokenizer
+from cutctx.config import SmartCrusherConfig
 import json
 
 config = SmartCrusherConfig()

@@ -184,7 +184,7 @@ def test_perf_text_default_unchanged(runner, monkeypatch):
     _patch_report(monkeypatch, _sample_report())
     result = runner.invoke(main, ["perf"])
     assert result.exit_code == 0, result.output
-    assert "Headroom Performance Report" in result.output
+    assert "Cutctx Performance Report" in result.output
 
 
 def test_perf_rejects_unknown_format(runner, monkeypatch):

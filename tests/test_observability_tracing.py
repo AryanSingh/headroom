@@ -9,7 +9,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from headroom.observability import (
-    HeadroomTracer,
+    CutctxTracer,
     LangfuseTracingConfig,
     get_langfuse_tracing_status,
     reset_headroom_tracing,

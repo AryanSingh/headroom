@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Headroom starts cold every session. After 10 sessions in the same codebase, it has learned:
+Cutctx starts cold every session. After 10 sessions in the same codebase, it has learned:
 - Which file types compress safely without losing critical information
 - Which content always gets retrieved via CCR (Compress-Cache-Retrieve) — a signal that it was over-compressed
 - Which tool outputs are almost always irrelevant to the task
@@ -23,10 +23,10 @@ A compression profile stores observed patterns and applies them automatically to
 ## User Stories
 
 **Story 1: Automatic Profile Loading**
-As a user working in a large monorepo, I want Headroom to automatically load my codebase's compression profile from the previous 10 sessions so that compression is better-tuned from the start, without any manual configuration.
+As a user working in a large monorepo, I want Cutctx to automatically load my codebase's compression profile from the previous 10 sessions so that compression is better-tuned from the start, without any manual configuration.
 
 **Story 2: Profile Learning from CCR Signals**
-As a developer, I want Headroom to track when I retrieve compressed content via CCR (indicating over-compression) and use that signal to adjust future compression targets, so that fewer retrievals are needed in future sessions.
+As a developer, I want Cutctx to track when I retrieve compressed content via CCR (indicating over-compression) and use that signal to adjust future compression targets, so that fewer retrievals are needed in future sessions.
 
 **Story 3: Performance Monitoring**
 As an ops engineer, I want to see a summary of my codebase's compression profile to understand: "Which file types are most likely to be over-compressed? What is the typical retrieval rate?" This helps me understand where compression is struggling.
@@ -81,7 +81,7 @@ After each session, the profile updates with:
 
 ### Profile Storage
 
-Profiles are stored locally in `~/.headroom/profiles/{workspace_hash}.json`, where `workspace_hash` is derived from:
+Profiles are stored locally in `~/.cutctx/profiles/{workspace_hash}.json`, where `workspace_hash` is derived from:
 
 ```
 SHA-256(git_remote_url + ":" + repo_root_path)[:16]
@@ -89,7 +89,7 @@ SHA-256(git_remote_url + ":" + repo_root_path)[:16]
 
 Example path:
 ```
-~/.headroom/profiles/a1b2c3d4e5f6g7h8.json
+~/.cutctx/profiles/a1b2c3d4e5f6g7h8.json
 ```
 
 **Privacy**: Profiles are local-only. Workspace hashes are salted and truncated. No data leaves the machine.
@@ -148,7 +148,7 @@ class CompressionProfile:
         """
     
     def save() -> None:
-        """Save profile to disk at ~/.headroom/profiles/{workspace_hash}.json"""
+        """Save profile to disk at ~/.cutctx/profiles/{workspace_hash}.json"""
     
     def record_session(session_id: str, stats: list[dict]) -> None:
         """Update profile from session statistics.
@@ -211,7 +211,7 @@ class ProfileManager:
 - **Local-only**: Profiles never leave the machine. No network communication.
 - **Salted hashes**: Workspace hashes use SHA-256 truncated to 16 hex chars, salted by git remote URL or repo path.
 - **No PII**: Profiles contain only compression statistics, no file contents or names.
-- **User control**: Profiles stored in `~/.headroom/profiles/` (user's home directory).
+- **User control**: Profiles stored in `~/.cutctx/profiles/` (user's home directory).
 
 ## Future Enhancements
 

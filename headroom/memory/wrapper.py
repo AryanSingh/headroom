@@ -1,4 +1,4 @@
-"""Memory wrapper - the main API for Headroom Memory.
+"""Memory wrapper - the main API for Cutctx Memory.
 
 One-line integration with zero-latency inline extraction:
     from headroom import with_memory

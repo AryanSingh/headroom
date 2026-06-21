@@ -300,7 +300,7 @@ GET /v1/compressed/:hash?workspace_key=proj-abc
 ### Import
 
 ```python
-from headroom import MultiAgentCoordinator, SharedCompressionResult
+from cutctx import MultiAgentCoordinator, SharedCompressionResult
 
 coordinator = MultiAgentCoordinator.get_instance()
 ```
@@ -389,6 +389,6 @@ print(context["total_tokens_saved"])  # 2500
 
 ## References
 
-- `headroom/shared_context.py` — Existing SharedContext implementation
-- `headroom/ccr/context_tracker.py` — CCR tracking (see lines 40-48 for cross-project leak incident)
-- `headroom/cache/compression_store.py` — Compression cache implementation
+- `cutctx/shared_context.py` — Existing SharedContext implementation
+- `cutctx/ccr/context_tracker.py` — CCR tracking (see lines 40-48 for cross-project leak incident)
+- `cutctx/cache/compression_store.py` — Compression cache implementation

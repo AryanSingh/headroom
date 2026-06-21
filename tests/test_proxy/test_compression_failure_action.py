@@ -6,7 +6,7 @@ the WS /v1/responses handler forwarded the *original* uncompressed
 frame on compression timeout (fail-open). The upstream then rejected
 the oversized frame, and Codex's auto-compaction never fired because
 its ``total_usage_tokens`` heuristic had been hidden from cumulative
-context pressure by Headroom's earlier successful compressions.
+context pressure by Cutctx's earlier successful compressions.
 
 These tests pin :func:`headroom.proxy.helpers.decide_compression_failure_action`
 so the matrix is reviewable in one place and regressions are loud.

@@ -53,7 +53,7 @@ export function headroomMiddleware(options: CompressOptions = {}) {
       // Convert Vercel format → OpenAI format
       const openaiMessages = vercelToOpenAI(prompt);
 
-      // Compress via Headroom
+      // Compress via CutCtx
       const result = await compress(openaiMessages, {
         stack: "adapter_ts_vercel_ai",
         ...options,
@@ -92,20 +92,20 @@ export async function compressVercelMessages(
 }
 
 /**
- * Wrap a Vercel AI SDK language model with Headroom compression.
+ * Wrap a Vercel AI SDK language model with CutCtx compression.
  * Convenience wrapper around `wrapLanguageModel` + `headroomMiddleware`.
  *
  * @example
  * ```typescript
- * import { withHeadroom } from 'cutctx-ai/vercel-ai';
+ * import { withCutCtx } from 'cutctx-ai/vercel-ai';
  * import { openai } from '@ai-sdk/openai';
  * import { generateText } from 'ai';
  *
- * const model = withHeadroom(openai('gpt-4o'));
+ * const model = withCutCtx(openai('gpt-4o'));
  * const { text } = await generateText({ model, messages });
  * ```
  */
-export function withHeadroom<T extends LanguageModel>(
+export function withCutCtx<T extends LanguageModel>(
   model: T,
   options: CompressOptions = {},
 ): T {
@@ -120,7 +120,7 @@ export function withHeadroom<T extends LanguageModel>(
     wrapLanguageModel = ai.wrapLanguageModel;
   } catch {
     throw new Error(
-      'withHeadroom() requires the "ai" package. Install it with: npm install ai',
+      'withCutCtx() requires the "ai" package. Install it with: npm install ai',
     );
   }
 

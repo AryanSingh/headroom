@@ -78,7 +78,7 @@ Codex CLI → CutCtx Proxy (port 8787) → OpenAI API
 |---------------------|---------|-------------|
 | `CUTCTX_PROXY_URL` | `http://127.0.0.1:8787` | Proxy URL |
 | `OPENAI_BASE_URL` | `http://127.0.0.1:8787/v1` | OpenAI-compatible base URL |
-| `HEADROOM_ADMIN_API_KEY` | auto-generated | Admin API key for dashboard |
+| `CUTCTX_ADMIN_API_KEY` | auto-generated | Admin API key for dashboard |
 
 ## Uninstall
 

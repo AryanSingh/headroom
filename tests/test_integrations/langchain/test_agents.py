@@ -3,7 +3,7 @@
 Tests cover:
 1. ToolCompressionMetrics - Dataclass for tool compression metrics
 2. ToolMetricsCollector - Collector for compression metrics
-3. HeadroomToolWrapper - Wrapper for LangChain tools with compression
+3. CutctxToolWrapper - Wrapper for LangChain tools with compression
 4. wrap_tools_with_headroom - Convenience function for wrapping multiple tools
 5. get_tool_metrics / reset_tool_metrics - Global metrics access
 """
@@ -241,13 +241,13 @@ class TestToolMetricsCollector:
 
 
 class TestHeadroomToolWrapper:
-    """Tests for HeadroomToolWrapper."""
+    """Tests for CutctxToolWrapper."""
 
     def test_init_defaults(self, mock_tool):
         """Initialize with default settings."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from headroom.integrations.langchain.agents import CutctxToolWrapper
 
-        wrapper = HeadroomToolWrapper(mock_tool)
+        wrapper = CutctxToolWrapper(mock_tool)
 
         assert wrapper.tool is mock_tool
         assert wrapper.name == "test_tool"
@@ -257,12 +257,12 @@ class TestHeadroomToolWrapper:
     def test_init_custom_threshold(self, mock_tool):
         """Initialize with custom compression threshold."""
         from headroom.integrations.langchain.agents import (
-            HeadroomToolWrapper,
+            CutctxToolWrapper,
             ToolMetricsCollector,
         )
 
         collector = ToolMetricsCollector()
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             mock_tool,
             min_chars_to_compress=500,
             metrics_collector=collector,
@@ -274,12 +274,12 @@ class TestHeadroomToolWrapper:
     def test_call_small_output_no_compression(self, mock_tool):
         """Small outputs are not compressed."""
         from headroom.integrations.langchain.agents import (
-            HeadroomToolWrapper,
+            CutctxToolWrapper,
             ToolMetricsCollector,
         )
 
         collector = ToolMetricsCollector()
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             mock_tool,
             min_chars_to_compress=1000,
             metrics_collector=collector,
@@ -294,12 +294,12 @@ class TestHeadroomToolWrapper:
     def test_call_large_output_triggers_compression(self, mock_tool_with_large_output):
         """Large outputs trigger compression."""
         from headroom.integrations.langchain.agents import (
-            HeadroomToolWrapper,
+            CutctxToolWrapper,
             ToolMetricsCollector,
         )
 
         collector = ToolMetricsCollector()
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             mock_tool_with_large_output,
             min_chars_to_compress=100,
             metrics_collector=collector,
@@ -316,11 +316,11 @@ class TestHeadroomToolWrapper:
 
     def test_call_converts_non_string_result(self, mock_tool):
         """Non-string results are converted to strings."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from headroom.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool.invoke.return_value = {"key": "value"}
 
-        wrapper = HeadroomToolWrapper(mock_tool)
+        wrapper = CutctxToolWrapper(mock_tool)
         result = wrapper("input")
 
         assert isinstance(result, str)
@@ -328,9 +328,9 @@ class TestHeadroomToolWrapper:
 
     def test_invoke_alias(self, mock_tool):
         """invoke() is an alias for __call__()."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from headroom.integrations.langchain.agents import CutctxToolWrapper
 
-        wrapper = HeadroomToolWrapper(mock_tool)
+        wrapper = CutctxToolWrapper(mock_tool)
 
         result1 = wrapper("input")
         mock_tool.invoke.reset_mock()
@@ -340,9 +340,9 @@ class TestHeadroomToolWrapper:
 
     def test_compression_failure_returns_original(self, mock_tool_with_large_output):
         """Compression failure returns original output."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from headroom.integrations.langchain.agents import CutctxToolWrapper
 
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             mock_tool_with_large_output,
             min_chars_to_compress=100,
         )
@@ -357,9 +357,9 @@ class TestHeadroomToolWrapper:
 
     def test_as_langchain_tool(self, mock_tool):
         """Convert wrapper to LangChain StructuredTool."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from headroom.integrations.langchain.agents import CutctxToolWrapper
 
-        wrapper = HeadroomToolWrapper(mock_tool)
+        wrapper = CutctxToolWrapper(mock_tool)
         lc_tool = wrapper.as_langchain_tool()
 
         assert isinstance(lc_tool, StructuredTool)
@@ -369,12 +369,12 @@ class TestHeadroomToolWrapper:
     def test_metrics_recorded_correctly(self, mock_tool_with_large_output):
         """Verify metrics are recorded correctly."""
         from headroom.integrations.langchain.agents import (
-            HeadroomToolWrapper,
+            CutctxToolWrapper,
             ToolMetricsCollector,
         )
 
         collector = ToolMetricsCollector()
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             mock_tool_with_large_output,
             min_chars_to_compress=100,
             metrics_collector=collector,
@@ -514,7 +514,7 @@ class TestGlobalMetrics:
     def test_wrapper_uses_global_metrics_by_default(self, mock_tool):
         """HeadroomToolWrapper uses global metrics by default."""
         from headroom.integrations.langchain.agents import (
-            HeadroomToolWrapper,
+            CutctxToolWrapper,
             get_tool_metrics,
             reset_tool_metrics,
         )
@@ -522,7 +522,7 @@ class TestGlobalMetrics:
         # Reset to start fresh
         reset_tool_metrics()
 
-        wrapper = HeadroomToolWrapper(mock_tool)
+        wrapper = CutctxToolWrapper(mock_tool)
         wrapper("input")
 
         global_collector = get_tool_metrics()

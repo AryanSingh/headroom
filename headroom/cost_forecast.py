@@ -1,4 +1,4 @@
-"""Cost Forecasting + Policy Engine for Headroom.
+"""Cost Forecasting + Policy Engine for Cutctx.
 
 Pre-task cost estimation and policy-driven compression decisions.
 Combines model pricing data with context size to predict costs before

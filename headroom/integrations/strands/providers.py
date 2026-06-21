@@ -1,6 +1,6 @@
 """Provider detection for Strands models.
 
-Automatically detects the correct Headroom provider based on the Strands model type.
+Automatically detects the correct Cutctx provider based on the Strands model type.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from headroom.providers.openai import OpenAIProvider
 
 logger = logging.getLogger(__name__)
 
-# Mapping from Strands model class names to Headroom providers
+# Mapping from Strands model class names to Cutctx providers
 _STRANDS_MODEL_PROVIDERS: dict[str, type[Provider]] = {
     # Bedrock models (primarily Claude via Bedrock)
     "BedrockModel": AnthropicProvider,
@@ -35,7 +35,7 @@ _STRANDS_MODEL_PROVIDERS: dict[str, type[Provider]] = {
 
 
 def get_headroom_provider(model: Any) -> Provider:
-    """Get the appropriate Headroom provider for a Strands model.
+    """Get the appropriate Cutctx provider for a Strands model.
 
     Detection strategy:
     1. Check model class name against known Strands model types
@@ -46,7 +46,7 @@ def get_headroom_provider(model: Any) -> Provider:
         model: A Strands model instance (BedrockModel, AnthropicModel, etc.)
 
     Returns:
-        Appropriate Headroom Provider instance.
+        Appropriate Cutctx Provider instance.
 
     Example:
         from strands.models import BedrockModel

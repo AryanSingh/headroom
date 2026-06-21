@@ -6,7 +6,7 @@ Manages the token budget for agent memory files:
 - Detects stale memories referencing deleted/renamed entities
 - Merges similar memories to save tokens
 
-This is Headroom's superpower applied to itself — the proxy that optimizes
+This is Cutctx's superpower applied to itself — the proxy that optimizes
 LLM context also optimizes its own memory files for minimum token consumption.
 """
 

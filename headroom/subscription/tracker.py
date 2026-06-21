@@ -13,7 +13,7 @@ Architecture:
 
 Also reads Claude transcript JSONL files (via session_tracking module) to provide
 token breakdowns per window that enable:
-  - Headroom efficiency metrics (tokens saved = raw - what proxy sent)
+  - Cutctx efficiency metrics (tokens saved = raw - what proxy sent)
   - Surge pricing detection (API utilization vs expected from weighted tokens)
   - Cache miss detection (low cache_reads despite high input tokens)
 """
@@ -35,7 +35,7 @@ from headroom import paths as _paths
 from headroom.subscription.base import QuotaTracker
 from headroom.subscription.client import SubscriptionClient
 from headroom.subscription.models import (
-    HeadroomContribution,
+    CutctxContribution,
     RateLimitWindow,
     SubscriptionSnapshot,
     SubscriptionState,
@@ -187,7 +187,7 @@ class SubscriptionTracker(QuotaTracker):
         # PR-G2 remediation (C1): previously we read
         # ``lifetime_tokens_saved`` (the raw monotonic counter from
         # ``rtk gain --project``), which on the very first poll emitted the
-        # entire pre-Headroom RTK history as one fake delta. Switching to
+        # entire pre-Cutctx RTK history as one fake delta. Switching to
         # the session-incremental field dissolves both the first-poll
         # phantom and the post-restart phantom (the helper rebaselines
         # session counters at every proxy startup, so a fresh process sees
@@ -302,7 +302,7 @@ class SubscriptionTracker(QuotaTracker):
         ``session.tokens_saved`` field of the helper payload, NOT the raw
         ``lifetime_tokens_saved`` counter. The helper de-baselines per
         proxy session, so the first poll after process startup correctly
-        reads 0 instead of the entire pre-Headroom RTK history.
+        reads 0 instead of the entire pre-Cutctx RTK history.
 
         Args:
             tokens_saved_cli_filtering: Explicit per-call CLI-filtering
@@ -417,7 +417,7 @@ class SubscriptionTracker(QuotaTracker):
         # PR-G2 remediation (C1): read the SESSION-incremental field, not
         # the raw lifetime counter. The helper de-baselines per proxy
         # session at startup, so ``session.tokens_saved`` already excludes
-        # the pre-Headroom RTK history. Falls back to the top-level
+        # the pre-Cutctx RTK history. Falls back to the top-level
         # ``tokens_saved`` (which is also session-scoped in the canonical
         # payload; see ``_get_context_tool_stats``) and finally to 0 for
         # synthetic-zero payloads.
@@ -770,7 +770,7 @@ class SubscriptionTracker(QuotaTracker):
             and curr_resets_at != prev_resets_at
         ):
             logger.info("5h window rolled over; resetting headroom contribution counters")
-            self._state.contribution = HeadroomContribution()
+            self._state.contribution = CutctxContribution()
 
     # ------------------------------------------------------------------
     # Persistence

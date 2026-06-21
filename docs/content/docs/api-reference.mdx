@@ -7,7 +7,7 @@ Complete API reference for the CutCtx Python and TypeScript SDKs.
 
 ## Core
 
-### HeadroomClient
+### CutCtxClient
 
 The main entry point for the CutCtx SDK.
 
@@ -23,9 +23,9 @@ The main entry point for the CutCtx SDK.
 }} />
 
 ```ts twoslash
-import { HeadroomClient } from 'cutctx-ai';
+import { CutCtxClient } from 'cutctx-ai';
 
-const client = new HeadroomClient({
+const client = new CutCtxClient({
   baseUrl: 'http://localhost:8787',
   apiKey: 'your-api-key',
   timeout: 30_000,
@@ -52,10 +52,10 @@ const client = new HeadroomClient({
 }} />
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from cutctx import CutCtxClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",
@@ -141,7 +141,7 @@ Top-level function to compress messages via the CutCtx proxy.
   timeout: { type: 'number', description: 'Request timeout in milliseconds' },
   fallback: { type: 'boolean', description: 'Return original messages on failure instead of throwing' },
   retries: { type: 'number', description: 'Number of retry attempts on failure' },
-  client: { type: 'HeadroomClientInterface', description: 'Pre-configured client instance to use' },
+  client: { type: 'CutCtxClientInterface', description: 'Pre-configured client instance to use' },
   tokenBudget: { type: 'number', description: 'Token budget — compress to fit within this limit' },
   hooks: { type: 'CompressionHooks', description: 'Compression hooks for pre/post processing' },
 }} />
@@ -247,7 +247,7 @@ if not result["valid"]:
 }} />
 
 ```python
-from headroom import SmartCrusherConfig
+from cutctx import SmartCrusherConfig
 
 config = SmartCrusherConfig(
     min_tokens_to_crush=200,
@@ -289,7 +289,7 @@ config = SmartCrusherConfig(
 }} />
 
 ```python
-from headroom import CacheAlignerConfig
+from cutctx import CacheAlignerConfig
 
 config = CacheAlignerConfig(
     enabled=True,
@@ -322,14 +322,14 @@ Context management is now automatic. CutCtx handles rolling window behavior inte
 </Tab>
 </Tabs>
 
-### HeadroomConfig
+### CutCtxConfig
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 
 <TypeTable type={{
   storeUrl: { type: 'string', description: 'Storage URL for metrics database' },
-  defaultMode: { type: 'HeadroomMode', description: 'Default compression mode' },
+  defaultMode: { type: 'CutCtxMode', description: 'Default compression mode' },
   modelContextLimits: { type: 'Record<string, number>', description: 'Override context limits per model' },
   toolCrusher: { type: 'ToolCrusherConfig', description: 'Tool crusher configuration' },
   smartCrusher: { type: 'SmartCrusherConfig', description: 'Smart crusher configuration' },
@@ -348,9 +348,9 @@ Context management is now automatic. CutCtx handles rolling window behavior inte
 The top-level config object that contains all sub-configurations:
 
 ```python
-from headroom import HeadroomConfig
+from cutctx import CutCtxConfig
 
-config = HeadroomConfig()
+config = CutCtxConfig()
 config.smart_crusher.min_tokens_to_crush = 100
 config.cache_aligner.enabled = True
 # Note: rolling_window was removed in 0.9.x — use headroom_keep_turns per-request instead
@@ -445,7 +445,7 @@ config.cache_aligner.enabled = True
 ### OpenAIProvider
 
 ```python
-from headroom import OpenAIProvider
+from cutctx import OpenAIProvider
 
 provider = OpenAIProvider(
     enable_prefix_caching=True,
@@ -460,7 +460,7 @@ cost = provider.estimate_cost(input_tokens=1000, output_tokens=500, model="gpt-4
 ### AnthropicProvider
 
 ```python
-from headroom import AnthropicProvider
+from cutctx import AnthropicProvider
 from anthropic import Anthropic
 
 provider = AnthropicProvider(
@@ -475,7 +475,7 @@ tokens = counter.count_messages(messages)  # Accurate count via API
 ### GoogleProvider
 
 ```python
-from headroom import GoogleProvider
+from cutctx import GoogleProvider
 
 provider = GoogleProvider(
     enable_context_caching=True,
@@ -491,7 +491,7 @@ provider = GoogleProvider(
 Factory function to create scorers:
 
 ```python
-from headroom import create_scorer
+from cutctx import create_scorer
 
 # Auto-select best available scorer
 scorer = create_scorer()
@@ -505,7 +505,7 @@ scorer = create_scorer(scorer_type="hybrid", alpha=0.7)
 Fast keyword-based scoring (zero dependencies):
 
 ```python
-from headroom import BM25Scorer
+from cutctx import BM25Scorer
 
 scorer = BM25Scorer()
 scores = scorer.score_items(items=["item 1", "item 2"], query="search query")
@@ -516,7 +516,7 @@ scores = scorer.score_items(items=["item 1", "item 2"], query="search query")
 Semantic similarity scoring (requires `cutctx-ai[relevance]`):
 
 ```python
-from headroom import EmbeddingScorer, embedding_available
+from cutctx import EmbeddingScorer, embedding_available
 
 if embedding_available():
     scorer = EmbeddingScorer(model_name="BAAI/bge-small-en-v1.5")
@@ -528,7 +528,7 @@ if embedding_available():
 Combines BM25 and embeddings:
 
 ```python
-from headroom import HybridScorer
+from cutctx import HybridScorer
 
 scorer = HybridScorer(alpha=0.5)  # 50% BM25, 50% embedding
 scores = scorer.score_items(items, query)
@@ -541,7 +541,7 @@ scores = scorer.score_items(items, query)
 ### SmartCrusher
 
 ```python
-from headroom import SmartCrusher
+from cutctx import SmartCrusher
 
 crusher = SmartCrusher()
 result = crusher.crush(data={"results": [...]}, query="user query")
@@ -550,7 +550,7 @@ result = crusher.crush(data={"results": [...]}, query="user query")
 ### CacheAligner
 
 ```python
-from headroom import CacheAligner
+from cutctx import CacheAligner
 
 aligner = CacheAligner()
 result = aligner.align(messages)
@@ -559,7 +559,7 @@ result = aligner.align(messages)
 ### RollingWindow
 
 ```python
-from headroom import RollingWindow
+from cutctx import RollingWindow
 
 window = RollingWindow(config)
 result = window.apply(messages, max_tokens=100000)
@@ -568,7 +568,7 @@ result = window.apply(messages, max_tokens=100000)
 ### TransformPipeline
 
 ```python
-from headroom import TransformPipeline
+from cutctx import TransformPipeline
 
 pipeline = TransformPipeline([
     SmartCrusher(),
@@ -588,10 +588,10 @@ result = pipeline.transform(messages)
 
 | Exception | Meaning |
 |-----------|---------|
-| `HeadroomError` | Base class for all errors |
-| `HeadroomConnectionError` | Cannot reach proxy |
-| `HeadroomAuthError` | 401 from proxy |
-| `HeadroomCompressError` | Compression failed (includes `statusCode`, `errorType`) |
+| `CutCtxError` | Base class for all errors |
+| `CutCtxConnectionError` | Cannot reach proxy |
+| `CutCtxAuthError` | 401 from proxy |
+| `CutCtxCompressError` | Compression failed (includes `statusCode`, `errorType`) |
 | `ConfigurationError` | Invalid configuration |
 | `ProviderError` | Provider issues |
 | `StorageError` | Storage failures |
@@ -607,7 +607,7 @@ Use `mapProxyError(status, type, message)` to convert proxy error responses to t
 
 | Exception | Meaning |
 |-----------|---------|
-| `HeadroomError` | Base class for all CutCtx errors |
+| `CutCtxError` | Base class for all CutCtx errors |
 | `ConfigurationError` | Invalid config values |
 | `ProviderError` | Provider issue (unknown model, etc.) |
 | `StorageError` | Database issue |
@@ -626,7 +626,7 @@ All exceptions include a `details` dict with additional context.
 ### Tokenizer
 
 ```python
-from headroom import Tokenizer, count_tokens_text, count_tokens_messages
+from cutctx import Tokenizer, count_tokens_text, count_tokens_messages
 
 # Quick counting
 tokens = count_tokens_text("Hello, world!", model="gpt-4o")
@@ -642,7 +642,7 @@ tokens = tokenizer.count_messages(messages)
 Generate HTML/Markdown reports from stored metrics:
 
 ```python
-from headroom import generate_report
+from cutctx import generate_report
 
 report = generate_report(
     store_url="sqlite:///headroom.db",

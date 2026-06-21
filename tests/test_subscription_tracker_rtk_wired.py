@@ -1,6 +1,6 @@
 """Tests for PR-G2 — RTK ``tokens_saved`` data-plane wiring.
 
-Phase G of the Headroom realignment retires the dead ``tokens_saved_rtk``
+Phase G of the Cutctx realignment retires the dead ``tokens_saved_rtk``
 field by sourcing it from RTK's own stats endpoint (``rtk gain --format
 json`` via :func:`headroom.proxy.helpers._get_rtk_stats`) and writing the
 per-call delta into ``HeadroomContribution.tokens_saved_rtk``.
@@ -9,7 +9,7 @@ PR-G2 remediation (C1): the tracker reads the SESSION-incremental
 ``session.tokens_saved`` field of the helper payload, NOT the raw
 ``lifetime_tokens_saved`` counter. The helper de-baselines per proxy
 session at startup, so the first poll after process startup correctly
-reads 0 instead of the entire pre-Headroom RTK history.
+reads 0 instead of the entire pre-Cutctx RTK history.
 
 These tests pin the wiring:
 
@@ -65,7 +65,7 @@ def _session_payload(tokens_saved: int, *, lifetime: int | None = None) -> dict[
     """
 
     if lifetime is None:
-        lifetime = tokens_saved + 50_000  # arbitrary pre-Headroom history
+        lifetime = tokens_saved + 50_000  # arbitrary pre-Cutctx history
     return {
         "tokens_saved": tokens_saved,  # session-incremental (canonical)
         "lifetime_tokens_saved": lifetime,
@@ -110,7 +110,7 @@ def test_tokens_saved_rtk_populated_from_session_field(
     """First call seeds the baseline at the session counter, not lifetime.
 
     PR-G2 remediation (C1): previously the tracker read
-    ``lifetime_tokens_saved`` and emitted the entire pre-Headroom RTK
+    ``lifetime_tokens_saved`` and emitted the entire pre-Cutctx RTK
     history as a phantom delta on the first poll. After the C1 fix the
     tracker reads ``session.tokens_saved`` which the helper has already
     de-baselined per proxy session.
@@ -156,7 +156,7 @@ def test_first_poll_zero_when_session_baseline_fresh(
     _stub_rtk_stats(
         monkeypatch,
         [
-            # Pre-Headroom lifetime = 50 000 tokens. Helper rebaselines at
+            # Pre-Cutctx lifetime = 50 000 tokens. Helper rebaselines at
             # startup so session = 0.
             _session_payload(tokens_saved=0, lifetime=50_000),
         ],
@@ -165,7 +165,7 @@ def test_first_poll_zero_when_session_baseline_fresh(
     tracker.update_contribution()
 
     assert tracker._state.contribution.tokens_saved_rtk == 0, (
-        "first poll must NOT emit pre-Headroom RTK history as a phantom delta"
+        "first poll must NOT emit pre-Cutctx RTK history as a phantom delta"
     )
     assert tracker._last_rtk_tokens_saved == 0
 

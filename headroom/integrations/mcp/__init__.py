@@ -1,4 +1,4 @@
-"""MCP (Model Context Protocol) integration for Headroom.
+"""MCP (Model Context Protocol) integration for Cutctx.
 
 This package provides compression utilities for MCP tool results,
 helping reduce context usage when tools return large outputs.
@@ -16,8 +16,8 @@ Example:
 
 from .server import (
     DEFAULT_MCP_PROFILES,
-    HeadroomMCPClientWrapper,
-    HeadroomMCPCompressor,
+    CutctxMCPClientWrapper,
+    CutctxMCPCompressor,
     MCPCompressionResult,
     MCPToolProfile,
     compress_tool_result,

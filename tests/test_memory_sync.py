@@ -237,7 +237,7 @@ class TestSyncExport:
         await sync_export(backend, adapter, "tcms")
 
         memory_md = (claude_dir / "MEMORY.md").read_text()
-        assert "Headroom Shared Memory" in memory_md
+        assert "Cutctx Shared Memory" in memory_md
         assert "New fact from codex" in memory_md
         assert "Some existing entry" in memory_md  # Preserved
 
@@ -502,7 +502,7 @@ class TestCodexAdapter:
         agents_md.write_text(
             "# Instructions\n\n"
             "<!-- headroom:memory:start -->\n"
-            "## Headroom Shared Memory\n\n"
+            "## Cutctx Shared Memory\n\n"
             "- Secret name is TC\n"
             "- Uses Python 3.12\n"
             "<!-- headroom:memory:end -->\n"

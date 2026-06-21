@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   headroomMiddleware,
   compressVercelMessages,
-  withHeadroom,
+  withCutCtx,
 } from "../../src/adapters/vercel-ai.js";
 
 const mockFetch = vi.fn();
@@ -173,7 +173,7 @@ describe("compressVercelMessages", () => {
   });
 });
 
-describe("withHeadroom", () => {
+describe("withCutCtx", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -188,7 +188,7 @@ describe("withHeadroom", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withHeadroom(fakeModel as any, {
+    const wrapped = withCutCtx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -216,7 +216,7 @@ describe("withHeadroom", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withHeadroom(fakeModel as any, {
+    const wrapped = withCutCtx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -253,7 +253,7 @@ describe("withHeadroom", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withHeadroom(fakeModel as any, {
+    const wrapped = withCutCtx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
       model: "claude-sonnet-4-5-20250929",
     });
@@ -287,7 +287,7 @@ describe("withHeadroom", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withHeadroom(fakeModel as any, {
+    const wrapped = withCutCtx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
       fallback: true,
     });

@@ -1,13 +1,13 @@
 # Strands Integration
 
-Headroom integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) to provide automatic context optimization. Two integration patterns: wrap the model, or hook into tool calls.
+Cutctx integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) to provide automatic context optimization. Two integration patterns: wrap the model, or hook into tool calls.
 
 ---
 
 ## Installation
 
 ```bash
-pip install headroom-ai strands-agents
+pip install cutctx-ai strands-agents
 ```
 
 ---
@@ -17,11 +17,11 @@ pip install headroom-ai strands-agents
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from headroom.integrations.strands import HeadroomStrandsModel
+from cutctx.integrations.strands import CutctxStrandsModel
 
 # Wrap your model
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-optimized = HeadroomStrandsModel(wrapped_model=model)
+optimized = CutctxStrandsModel(wrapped_model=model)
 
 # Create agent as usual
 agent = Agent(model=optimized)
@@ -43,10 +43,10 @@ Wraps the Strands `Model` interface. Every call to `stream()` compresses the mes
 
 ```python
 from strands.models.bedrock import BedrockModel
-from headroom.integrations.strands import HeadroomStrandsModel
+from cutctx.integrations.strands import CutctxStrandsModel
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-optimized = HeadroomStrandsModel(wrapped_model=model)
+optimized = CutctxStrandsModel(wrapped_model=model)
 
 # Streaming works identically
 agent = Agent(model=optimized)
@@ -56,10 +56,10 @@ response = agent("Analyze these logs")
 With custom config:
 
 ```python
-from headroom import HeadroomConfig
+from cutctx import CutctxConfig
 
-config = HeadroomConfig()
-optimized = HeadroomStrandsModel(wrapped_model=model, config=config)
+config = CutctxConfig()
+optimized = CutctxStrandsModel(wrapped_model=model, config=config)
 ```
 
 ### 2. Hook Provider (Tool Output Compression)
@@ -69,10 +69,10 @@ Compresses tool call results via Strands' hook system. Uses SmartCrusher on JSON
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from headroom.integrations.strands import HeadroomHookProvider
+from cutctx.integrations.strands import CutctxHookProvider
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-hooks = HeadroomHookProvider(
+hooks = CutctxHookProvider(
     compress_tool_outputs=True,
     min_tokens_to_compress=200,
     preserve_errors=True,
@@ -97,10 +97,10 @@ The hook preserves:
 Model wrapping compresses conversation history. Hooks compress individual tool results. Use both for maximum savings.
 
 ```python
-from headroom.integrations.strands import HeadroomStrandsModel, HeadroomHookProvider
+from cutctx.integrations.strands import CutctxStrandsModel, CutctxHookProvider
 
-optimized = HeadroomStrandsModel(wrapped_model=model)
-hooks = HeadroomHookProvider(compress_tool_outputs=True)
+optimized = CutctxStrandsModel(wrapped_model=model)
+hooks = CutctxHookProvider(compress_tool_outputs=True)
 
 agent = Agent(model=optimized, hooks=[hooks])
 ```
@@ -109,7 +109,7 @@ agent = Agent(model=optimized, hooks=[hooks])
 
 ## Structured Output
 
-HeadroomStrandsModel supports Strands' structured output feature:
+CutctxStrandsModel supports Strands' structured output feature:
 
 ```python
 from pydantic import BaseModel
@@ -146,27 +146,27 @@ Agent decides to call tool
 Tool executes, returns result
     │
     ▼
-HeadroomHookProvider (optional)
+CutctxHookProvider (optional)
     compresses tool result JSON
     │
     ▼
 Agent builds next API request
     │
     ▼
-HeadroomStrandsModel.stream()
+CutctxStrandsModel.stream()
     compresses full message list
     │
     ▼
 Provider API (Bedrock, etc.)
 ```
 
-The model wrapper uses Headroom's full pipeline (CacheAligner → ContentRouter → IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression of individual tool results.
+The model wrapper uses Cutctx's full pipeline (CacheAligner → ContentRouter → IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression of individual tool results.
 
 ---
 
 ## Supported Providers
 
-HeadroomStrandsModel auto-detects the provider from the wrapped model:
+CutctxStrandsModel auto-detects the provider from the wrapped model:
 
 | Strands Model | Provider Detected |
 |--------------|-------------------|

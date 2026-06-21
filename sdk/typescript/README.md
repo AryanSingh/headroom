@@ -30,11 +30,11 @@ Requires a running CutCtx proxy (`cutctx proxy`) or CutCtx Cloud API key.
 ### Vercel AI SDK
 
 ```typescript
-import { withHeadroom } from 'cutctx-ai/vercel-ai';
+import { withCutctx } from 'cutctx-ai/vercel-ai';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 
-const model = withHeadroom(openai('gpt-4o'));
+const model = withCutctx(openai('gpt-4o'));
 const { text } = await generateText({ model, messages });
 ```
 
@@ -42,12 +42,12 @@ const { text } = await generateText({ model, messages });
 <summary>Advanced: using middleware directly</summary>
 
 ```typescript
-import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
+import { cutctxMiddleware } from 'cutctx-ai/vercel-ai';
 import { wrapLanguageModel } from 'ai';
 
 const model = wrapLanguageModel({
   model: openai('gpt-4o'),
-  middleware: headroomMiddleware({ baseUrl: 'http://localhost:8787' }),
+  middleware: cutctxMiddleware({ baseUrl: 'http://localhost:8787' }),
 });
 ```
 
@@ -56,10 +56,10 @@ const model = wrapLanguageModel({
 ### OpenAI SDK
 
 ```typescript
-import { withHeadroom } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withHeadroom(new OpenAI());
+const client = withCutctx(new OpenAI());
 const response = await client.chat.completions.create({
   model: 'gpt-4o',
   messages: longConversation,
@@ -69,10 +69,10 @@ const response = await client.chat.completions.create({
 ### Anthropic SDK
 
 ```typescript
-import { withHeadroom } from 'cutctx-ai/anthropic';
+import { withCutctx } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = withHeadroom(new Anthropic());
+const client = withCutctx(new Anthropic());
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
   messages: longConversation,
@@ -83,25 +83,25 @@ const response = await client.messages.create({
 ### Google Gemini
 
 ```typescript
-import { withHeadroom } from 'cutctx-ai/gemini';
+import { withCutctx } from 'cutctx-ai/gemini';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = withHeadroom(genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }));
+const model = withCutctx(genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }));
 
 const result = await model.generateContent({
   contents: longConversation,
 });
 ```
 
-## HeadroomClient
+## CutctxClient
 
 The full client provides direct access to the proxy's OpenAI and Anthropic passthrough endpoints, plus metrics, CCR, and observability.
 
 ```typescript
-import { HeadroomClient } from 'cutctx-ai';
+import { CutctxClient } from 'cutctx-ai';
 
-const client = new HeadroomClient({
+const client = new CutctxClient({
   baseUrl: 'http://localhost:8787',
   providerApiKey: process.env.OPENAI_API_KEY,
   config: {
@@ -117,7 +117,7 @@ const client = new HeadroomClient({
 const response = await client.chat.completions.create({
   model: 'gpt-4o',
   messages: longConversation,
-  headroomMode: 'optimize',
+  cutctxMode: 'optimize',
 });
 ```
 
@@ -128,7 +128,7 @@ const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
   messages: longConversation,
   max_tokens: 1024,
-  headroomMode: 'optimize',
+  cutctxMode: 'optimize',
 });
 ```
 
@@ -220,7 +220,7 @@ Retrieve original content when the LLM needs full details.
 ```typescript
 const result = await client.compress(messages, { model: 'gpt-4o' });
 
-// Later, when the LLM calls headroom_retrieve:
+// Later, when the LLM calls cutctx_retrieve:
 for (const hash of result.ccrHashes) {
   const original = await client.retrieve(hash);
   console.log(`${original.originalTokens} original tokens for ${original.toolName}`);
@@ -286,9 +286,9 @@ const patterns = await client.toin.getPatterns(20);
 Full TypeScript interfaces for every Python config dataclass.
 
 ```typescript
-import type { HeadroomConfig, SmartCrusherConfig, CCRConfig } from 'cutctx-ai';
+import type { CutctxConfig, SmartCrusherConfig, CCRConfig } from 'cutctx-ai';
 
-const config: HeadroomConfig = {
+const config: CutctxConfig = {
   defaultMode: 'optimize',
   smartCrusher: {
     enabled: true,
@@ -303,7 +303,7 @@ const config: HeadroomConfig = {
   intelligentContext: { enabled: true, useImportanceScoring: true },
 };
 
-const client = new HeadroomClient({ config });
+const client = new CutctxClient({ config });
 ```
 
 ## Error Handling
@@ -312,10 +312,10 @@ Full error hierarchy matching the Python SDK.
 
 ```typescript
 import {
-  HeadroomError,
-  HeadroomConnectionError,
-  HeadroomAuthError,
-  HeadroomCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,
@@ -328,9 +328,9 @@ import {
 try {
   await client.compress(messages);
 } catch (err) {
-  if (err instanceof HeadroomAuthError) {
-    console.error('Auth failed — check HEADROOM_API_KEY');
-  } else if (err instanceof HeadroomCompressError) {
+  if (err instanceof CutctxAuthError) {
+    console.error('Auth failed — check CUTCTX_API_KEY');
+  } else if (err instanceof CutctxCompressError) {
     console.error(`Compression error ${err.statusCode}: ${err.errorType}`);
   } else if (err instanceof ConfigurationError) {
     console.error('Bad config:', err.details);
@@ -359,8 +359,8 @@ import { compress } from 'cutctx-ai';
 
 const result = await compress(messages, {
   model: 'gpt-4o',
-  baseUrl: 'http://localhost:8787',  // or https://api.headroom.ai
-  apiKey: 'hr_...',                   // for Headroom Cloud
+  baseUrl: 'http://localhost:8787',  // or https://api.cutctx.ai
+  apiKey: 'hr_...',                   // for Cutctx Cloud
   timeout: 30000,                     // ms
   fallback: true,                     // return uncompressed if proxy is down (default)
   retries: 1,                         // retry on transient failures (default)
@@ -370,8 +370,8 @@ const result = await compress(messages, {
 ```
 
 Or use environment variables:
-- `HEADROOM_BASE_URL` — proxy/cloud URL
-- `HEADROOM_API_KEY` — Cloud API key
+- `CUTCTX_BASE_URL` — proxy/cloud URL
+- `CUTCTX_API_KEY` — Cloud API key
 
 ## Utilities
 

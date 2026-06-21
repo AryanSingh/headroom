@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 """Import-path shim (Apache-2.0).
 
 The billing package implementation moved to the proprietary ``headroom_ee`` package
-under the Headroom Commercial License (see LICENSING.md). This shim re-exports it at
+under the Cutctx Commercial License (see LICENSING.md). This shim re-exports it at
 the historical ``headroom.billing`` import path — including submodules such as
 ``headroom.billing.license_db`` and ``headroom.billing.stripe_webhook`` — so existing
 call sites keep working when the commercial ``headroom_ee`` distribution is installed.
@@ -23,7 +23,7 @@ try:
 except ImportError as _e:  # commercial component not installed (community edition)
     raise ImportError(
         "headroom.billing requires the proprietary 'headroom_ee' distribution "
-        "(Headroom Commercial License -- see LICENSING.md)."
+        "(Cutctx Commercial License -- see LICENSING.md)."
     ) from _e
 
 _sys.modules[__name__] = _impl  # type: ignore[assignment]

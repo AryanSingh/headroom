@@ -1,4 +1,4 @@
-"""SQLite memory store for Headroom's hierarchical memory system.
+"""SQLite memory store for Cutctx's hierarchical memory system.
 
 Provides persistent storage for Memory objects with full support for:
 - Hierarchical scope filtering (user/session/agent/turn)

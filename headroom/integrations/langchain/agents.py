@@ -1,6 +1,6 @@
 """Agent tool integration for LangChain with output compression.
 
-This module provides HeadroomToolWrapper and wrap_tools_with_headroom
+This module provides CutctxToolWrapper and wrap_tools_with_headroom
 for wrapping LangChain tools to automatically compress their outputs
 and track per-tool compression metrics.
 
@@ -15,7 +15,7 @@ Example:
         Tool(name="database", func=db_func, description="Query DB"),
     ]
 
-    # Wrap with Headroom compression
+    # Wrap with Cutctx compression
     wrapped_tools = wrap_tools_with_headroom(tools)
 
     # Use in agent - outputs are automatically compressed
@@ -135,7 +135,7 @@ def reset_tool_metrics() -> None:
     _global_metrics = ToolMetricsCollector()
 
 
-class HeadroomToolWrapper:
+class CutctxToolWrapper:
     """Wraps a LangChain tool to compress its output.
 
     Applies SmartCrusher compression to tool outputs, particularly
@@ -144,14 +144,14 @@ class HeadroomToolWrapper:
 
     Example:
         from langchain.tools import Tool
-        from headroom.integrations import HeadroomToolWrapper
+        from headroom.integrations import CutctxToolWrapper
 
         def search(query: str) -> str:
             # Returns large JSON with 1000 results
             return json.dumps({"results": [...1000 items...]})
 
         search_tool = Tool(name="search", func=search, description="Search")
-        wrapped = HeadroomToolWrapper(search_tool)
+        wrapped = CutctxToolWrapper(search_tool)
 
         # Use wrapped tool - output automatically compressed
         result = wrapped("python tutorials")
@@ -168,7 +168,7 @@ class HeadroomToolWrapper:
         min_chars_to_compress: int = 1000,
         metrics_collector: ToolMetricsCollector | None = None,
     ):
-        """Initialize HeadroomToolWrapper.
+        """Initialize CutctxToolWrapper.
 
         Args:
             tool: The LangChain BaseTool to wrap.
@@ -288,7 +288,7 @@ def wrap_tools_with_headroom(
     min_chars_to_compress: int = 1000,
     metrics_collector: ToolMetricsCollector | None = None,
 ) -> list[StructuredTool]:
-    """Wrap multiple LangChain tools with Headroom compression.
+    """Wrap multiple LangChain tools with Cutctx compression.
 
     Convenience function to wrap all tools in a list at once.
 
@@ -316,7 +316,7 @@ def wrap_tools_with_headroom(
 
     wrapped = []
     for tool in tools:
-        wrapper = HeadroomToolWrapper(
+        wrapper = CutctxToolWrapper(
             tool=tool,
             min_chars_to_compress=min_chars_to_compress,
             metrics_collector=collector,

@@ -80,7 +80,7 @@ def test_resolver_tier4_env_block_primary_working_directory() -> None:
     out = r.resolve(_ctx(system_prompt=prompt))
     assert out is not None
     _, display = out
-    assert display == "headroom"
+    assert display == "cutctx"
 
 
 def test_resolver_tier4_env_block_older_working_directory_format() -> None:

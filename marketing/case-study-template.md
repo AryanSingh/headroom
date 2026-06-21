@@ -36,8 +36,8 @@
 
 ```python
 # 3-line integration
-from headroom import HeadroomClient
-client = HeadroomClient(api_key="hrk_...")
+from cutctx import CutctxClient
+client = CutctxClient(api_key="hrk_...")
 compressed = client.compress(context)
 response = llm.complete(compressed)
 ```

@@ -1,8 +1,8 @@
-# Headroom
+# Cutctx
 
 > Context optimization layer for LLM applications. Compress tool outputs, logs, files, and RAG chunks before they reach the model. Same answers, 60–95% fewer tokens. Library, proxy, and MCP server. Open-core (Apache-2.0 client + proprietary commercial core), local-first.
 
-Headroom is shipped as a Python package (`headroom-ai`), a TypeScript package (`headroom-ai`), an OpenAI + Anthropic-compatible HTTP proxy (`headroom proxy`), and an MCP server (`headroom_compress`, `headroom_retrieve`, `headroom_stats` tools). All four modes use the same compression pipeline: per-content-type compressors (JSON, code, logs, diffs, text) feed into a Compress-Cache-Retrieve (CCR) store so compression stays reversible — the LLM can ask for the original whenever it wants.
+Cutctx is shipped as a Python package (`cutctx-ai`), a TypeScript package (`cutctx-ai`), an OpenAI + Anthropic-compatible HTTP proxy (`cutctx proxy`), and an MCP server (`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` tools). All four modes use the same compression pipeline: per-content-type compressors (JSON, code, logs, diffs, text) feed into a Compress-Cache-Retrieve (CCR) store so compression stays reversible — the LLM can ask for the original whenever it wants.
 
 The canonical, always-current documentation index lives at the docs site below. If you can fetch one URL, fetch that one; the entries here are a hand-curated subset.
 
@@ -11,24 +11,24 @@ The canonical, always-current documentation index lives at the docs site below. 
 - [Live llms.txt (full doc index)](https://cutctx.dev/llms.txt): Auto-generated index of every doc page with descriptions.
 - [Live llms-full.txt (every doc page concatenated)](https://cutctx.dev/llms-full.txt): One Markdown blob containing every doc page. Use when you can spend the tokens for full context.
 - [Docs site](https://cutctx.dev/docs): Human-browsable docs with search.
-- [GitHub repo](https://github.com/chopratejas/headroom): Source, issues, releases.
-- [PyPI package](https://pypi.org/project/headroom-ai/): Python install.
-- [npm package](https://www.npmjs.com/package/headroom-ai): TypeScript install.
+- [GitHub repo](https://github.com/chopratejas/cutctx): Source, issues, releases.
+- [PyPI package](https://pypi.org/project/cutctx-ai/): Python install.
+- [npm package](https://www.npmjs.com/package/cutctx-ai): TypeScript install.
 
 ## Install (copy-paste-runnable)
 
-- Python: `pip install headroom-ai` (add `[all]` for every optional extra)
-- TypeScript / Node: `npm install headroom-ai` (or `pnpm add headroom-ai`, `bun add headroom-ai`)
-- Docker: `docker run -p 8787:8787 ghcr.io/chopratejas/headroom:latest`
-- Run the proxy: `headroom proxy --port 8787` then point any client at `http://127.0.0.1:8787`
-- Wrap an agent in one command: `headroom wrap claude` (also: `codex`, `cursor`, `aider`, `copilot`, `gemini`)
+- Python: `pip install cutctx-ai` (add `[all]` for every optional extra)
+- TypeScript / Node: `npm install cutctx-ai` (or `pnpm add cutctx-ai`, `bun add cutctx-ai`)
+- Docker: `docker run -p 8787:8787 ghcr.io/chopratejas/cutctx:latest`
+- Run the proxy: `cutctx proxy --port 8787` then point any client at `http://127.0.0.1:8787`
+- Wrap an agent in one command: `cutctx wrap claude` (also: `codex`, `cursor`, `aider`, `copilot`, `gemini`)
 
 ## Entry points
 
 - [Quickstart](https://cutctx.dev/docs/quickstart): 5-minute end-to-end (install → compress → call the model).
 - [Installation](https://cutctx.dev/docs/installation): All install paths, extras, Docker tags, env vars.
 - [Proxy server](https://cutctx.dev/docs/proxy): Run as a local HTTP proxy in front of OpenAI / Anthropic / Gemini.
-- [MCP server](https://cutctx.dev/docs/mcp): `headroom_compress`, `headroom_retrieve`, `headroom_stats` for Claude Code / Cursor / any MCP host.
+- [MCP server](https://cutctx.dev/docs/mcp): `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` for Claude Code / Cursor / any MCP host.
 - [API reference](https://cutctx.dev/docs/api-reference): Python + TypeScript `compress()` API.
 
 ## How it works
@@ -41,9 +41,9 @@ The canonical, always-current documentation index lives at the docs site below. 
 
 ## SDK / framework integrations
 
-- [Anthropic SDK](https://cutctx.dev/docs/anthropic-sdk): `withHeadroom(anthropic)` wrapper.
-- [OpenAI SDK](https://cutctx.dev/docs/openai-sdk): `withHeadroom(openai)` wrapper.
-- [Vercel AI SDK](https://cutctx.dev/docs/vercel-ai-sdk): Middleware + `withHeadroom()`.
+- [Anthropic SDK](https://cutctx.dev/docs/anthropic-sdk): `withCutctx(anthropic)` wrapper.
+- [OpenAI SDK](https://cutctx.dev/docs/openai-sdk): `withCutctx(openai)` wrapper.
+- [Vercel AI SDK](https://cutctx.dev/docs/vercel-ai-sdk): Middleware + `withCutctx()`.
 - [LangChain](https://cutctx.dev/docs/langchain): Chat models, memory, retrievers, agents.
 - [Agno](https://cutctx.dev/docs/agno): Model wrapping + observability hooks.
 - [Strands](https://cutctx.dev/docs/strands): Model wrapping + hook-based tool output compression.
@@ -60,8 +60,8 @@ The canonical, always-current documentation index lives at the docs site below. 
 - [Configuration](https://cutctx.dev/docs/configuration): Env vars, config file, per-call overrides.
 - [Benchmarks](https://cutctx.dev/docs/benchmarks): Token-savings numbers across content types.
 - [Troubleshooting](https://cutctx.dev/docs/troubleshooting): Common failure modes and fixes.
-- [Limitations](https://cutctx.dev/docs/limitations): What Headroom won't do well today.
+- [Limitations](https://cutctx.dev/docs/limitations): What Cutctx won't do well today.
 
 ## Licensing
 
-Open-core licensing. The client (library, proxy, CLI, MCP server, SDKs, base model) is Apache 2.0 — use commercially, modify, redistribute. The commercial core (control plane, enterprise admin, agent-tuned models) is proprietary; see LICENSING.md. Data stays on the user's machine when running the library, proxy, or MCP server locally. Anonymous telemetry enabled by default; set `HEADROOM_TELEMETRY=off` to disable.
+Open-core licensing. The client (library, proxy, CLI, MCP server, SDKs, base model) is Apache 2.0 — use commercially, modify, redistribute. The commercial core (control plane, enterprise admin, agent-tuned models) is proprietary; see LICENSING.md. Data stays on the user's machine when running the library, proxy, or MCP server locally. Anonymous telemetry enabled by default; set `CUTCTX_TELEMETRY=off` to disable.

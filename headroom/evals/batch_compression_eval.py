@@ -1,7 +1,7 @@
 """Batch API Compression Accuracy Evaluation.
 
 This module evaluates whether compression preserves LLM accuracy when processing
-batch API requests through the Headroom proxy.
+batch API requests through the Cutctx proxy.
 
 Evaluation Strategy:
 1. Create batch requests with questions that have known/verifiable answers
@@ -351,7 +351,7 @@ def generate_factual_test_cases() -> list[BatchTestCase]:
                         "content": """Based on this context, answer the question.
 
 Context:
-The Headroom SDK is a context optimization layer for LLM applications. It was created
+The Cutctx SDK is a context optimization layer for LLM applications. It was created
 by Anthropic in 2024. The main features include SmartCrusher for JSON compression,
 Kompress for text compression, and CCR (Compress-Cache-Retrieve) for reversible
 compression. The SDK supports Python 3.9+ and can save up to 70% of tokens on
@@ -482,7 +482,7 @@ API Response:
                                     "data": {
                                         "repositories": [
                                             {
-                                                "name": "headroom",
+                                                "name": "cutctx",
                                                 "stars": 1250,
                                                 "language": "Python",
                                             },
@@ -510,7 +510,7 @@ Question: Which repository has the most stars? Answer with just the repository n
             ),
             ground_truth="prompt-optimizer",
             ground_truth_keywords=["prompt-optimizer", "prompt optimizer"],
-            context_facts=["headroom", "1250", "llm-cache", "890", "prompt-optimizer", "2100"],
+            context_facts=["cutctx", "1250", "llm-cache", "890", "prompt-optimizer", "2100"],
         ),
         BatchTestCase(
             id="json_003",
@@ -1303,7 +1303,7 @@ def evaluate_token_counting_accuracy(
 ) -> TokenCountAccuracyResult:
     """Evaluate token counting accuracy against provider's official count.
 
-    This verifies that Headroom's token counting matches the provider's
+    This verifies that Cutctx's token counting matches the provider's
     actual token usage as reported in API responses.
 
     Args:

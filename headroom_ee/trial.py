@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
-"""Trial enforcement for Headroom licenses.
+"""Trial enforcement for Cutctx licenses.
 
 Manages 14-day Builder-tier trials. When a trial expires, the user is
 restricted to basic compression only (core compressors, no CCR, no memory,

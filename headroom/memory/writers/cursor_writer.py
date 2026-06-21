@@ -112,11 +112,11 @@ class CursorMemoryWriter(AgentWriter):
             # Create new .mdc file with frontmatter
             full_content = (
                 "---\n"
-                "description: Headroom-learned patterns from proxy traffic\n"
+                "description: Cutctx-learned patterns from proxy traffic\n"
                 "alwaysApply: true\n"
                 "---\n"
                 "\n"
-                "# Headroom Learned Context\n"
+                "# Cutctx Learned Context\n"
                 "\n"
                 f"{MARKER_START}\n{body}\n{MARKER_END}\n"
             )

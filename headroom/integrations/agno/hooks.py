@@ -1,7 +1,7 @@
-"""Agno hooks for Headroom integration.
+"""Agno hooks for Cutctx integration.
 
 This module provides pre_hooks and post_hooks that can be used with
-Agno agents to apply Headroom optimization at the agent level.
+Agno agents to apply Cutctx optimization at the agent level.
 """
 
 from __future__ import annotations
@@ -13,24 +13,24 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from headroom import HeadroomConfig, HeadroomMode
+from headroom import CutctxConfig, CutctxMode
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class HookMetrics:
-    """Metrics collected by Headroom pre-hooks.
+    """Metrics collected by Cutctx pre-hooks.
 
     Note: These metrics track request counts and timing, not token savings.
-    For actual token optimization metrics, use HeadroomAgnoModel which
+    For actual token optimization metrics, use CutctxAgnoModel which
     wraps the model and provides detailed compression statistics.
     """
 
     request_id: str
     timestamp: datetime
     # These fields are kept for API compatibility but are always 0
-    # Use HeadroomAgnoModel for actual token optimization
+    # Use CutctxAgnoModel for actual token optimization
     tokens_before: int = 0
     tokens_after: int = 0
     tokens_saved: int = 0
@@ -38,27 +38,27 @@ class HookMetrics:
     transforms_applied: list[str] = field(default_factory=list)
 
 
-class HeadroomPreHook:
+class CutctxPreHook:
     """Pre-hook for Agno agents that tracks request metrics.
 
     This hook runs before the agent sends messages to the LLM,
     providing observability into request patterns. For actual token
-    optimization, use HeadroomAgnoModel to wrap your model.
+    optimization, use CutctxAgnoModel to wrap your model.
 
     Note: Agno pre_hooks receive the user input string, not the full
     message history, so optimization is best done at the model level
-    using HeadroomAgnoModel.
+    using CutctxAgnoModel.
 
     Example:
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
-        from headroom.integrations.agno import HeadroomPreHook, HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxPreHook, CutctxAgnoModel
 
         # For request tracking only
-        pre_hook = HeadroomPreHook()
+        pre_hook = CutctxPreHook()
 
         # For actual optimization, wrap the model
-        model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+        model = CutctxAgnoModel(OpenAIChat(id="gpt-4o"))
 
         agent = Agent(
             model=model,
@@ -72,18 +72,18 @@ class HeadroomPreHook:
 
     def __init__(
         self,
-        config: HeadroomConfig | None = None,
-        mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+        config: CutctxConfig | None = None,
+        mode: CutctxMode = CutctxMode.OPTIMIZE,
         model: str = "gpt-4o",
     ) -> None:
-        """Initialize HeadroomPreHook.
+        """Initialize CutctxPreHook.
 
         Args:
-            config: HeadroomConfig for optimization settings (stored for future use)
-            mode: HeadroomMode (stored for future use)
+            config: CutctxConfig for optimization settings (stored for future use)
+            mode: CutctxMode (stored for future use)
             model: Default model name for token estimation (stored for future use)
         """
-        self.config = config or HeadroomConfig()
+        self.config = config or CutctxConfig()
         self.mode = mode
         self.model = model
 
@@ -133,7 +133,7 @@ class HeadroomPreHook:
             if len(self._metrics_history) > 100:
                 self._metrics_history = self._metrics_history[-100:]
 
-        # Return input unchanged (use HeadroomAgnoModel for actual optimization)
+        # Return input unchanged (use CutctxAgnoModel for actual optimization)
         return run_input
 
     def get_savings_summary(self) -> dict[str, Any]:
@@ -158,7 +158,7 @@ class HeadroomPreHook:
             }
 
 
-class HeadroomPostHook:
+class CutctxPostHook:
     """Post-hook for Agno agents that tracks optimization results.
 
     This hook runs after the agent generates a response,
@@ -167,9 +167,9 @@ class HeadroomPostHook:
     Example:
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
-        from headroom.integrations.agno import HeadroomPostHook
+        from headroom.integrations.agno import CutctxPostHook
 
-        post_hook = HeadroomPostHook()
+        post_hook = CutctxPostHook()
 
         agent = Agent(
             model=OpenAIChat(id="gpt-4o"),
@@ -185,7 +185,7 @@ class HeadroomPostHook:
         log_level: str = "INFO",
         token_alert_threshold: int | None = None,
     ) -> None:
-        """Initialize HeadroomPostHook.
+        """Initialize CutctxPostHook.
 
         Args:
             log_level: Logging level ("DEBUG", "INFO", "WARNING")
@@ -301,20 +301,20 @@ class HeadroomPostHook:
 
 
 def create_headroom_hooks(
-    config: HeadroomConfig | None = None,
-    mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+    config: CutctxConfig | None = None,
+    mode: CutctxMode = CutctxMode.OPTIMIZE,
     model: str = "gpt-4o",
     log_level: str = "INFO",
     token_alert_threshold: int | None = None,
-) -> tuple[HeadroomPreHook, HeadroomPostHook]:
-    """Create a pair of Headroom hooks for Agno agents.
+) -> tuple[HeadroomPreHook, CutctxPostHook]:
+    """Create a pair of Cutctx hooks for Agno agents.
 
     This is a convenience function to create both pre and post hooks
     with consistent configuration.
 
     Args:
-        config: HeadroomConfig for optimization settings
-        mode: HeadroomMode (AUDIT, OPTIMIZE, or SIMULATE)
+        config: CutctxConfig for optimization settings
+        mode: CutctxMode (AUDIT, OPTIMIZE, or SIMULATE)
         model: Default model name for token estimation
         log_level: Logging level for post-hook
         token_alert_threshold: Alert threshold for post-hook
@@ -337,8 +337,8 @@ def create_headroom_hooks(
             post_hooks=[post_hook],
         )
     """
-    pre_hook = HeadroomPreHook(config=config, mode=mode, model=model)
-    post_hook = HeadroomPostHook(
+    pre_hook = CutctxPreHook(config=config, mode=mode, model=model)
+    post_hook = CutctxPostHook(
         log_level=log_level,
         token_alert_threshold=token_alert_threshold,
     )

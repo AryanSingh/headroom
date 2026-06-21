@@ -1,14 +1,14 @@
 # Configuration
 
-Headroom can be configured via the SDK, proxy command line, or per-request overrides.
+Cutctx can be configured via the SDK, proxy command line, or per-request overrides.
 
 ## SDK Configuration
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from cutctx import CutctxClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
 
@@ -28,7 +28,7 @@ client = HeadroomClient(
     },
 
     # Database location (defaults to temp directory)
-    # store_url="sqlite:////absolute/path/to/headroom.db",
+    # store_url="sqlite:////absolute/path/to/cutctx.db",
 )
 ```
 
@@ -37,27 +37,27 @@ client = HeadroomClient(
 ### Command Line Options
 
 ```bash
-headroom proxy \
+cutctx proxy \
   --port 8787 \              # Port to listen on
   --host 0.0.0.0 \           # Host to bind to
   --budget 10.00 \           # Daily budget limit in USD
-  --log-file headroom.jsonl  # Log file path
+  --log-file cutctx.jsonl  # Log file path
 ```
 
 ### Feature Flags
 
 ```bash
 # Disable optimization (passthrough mode)
-headroom proxy --no-optimize
+cutctx proxy --no-optimize
 
 # Disable semantic caching
-headroom proxy --no-cache
+cutctx proxy --no-cache
 
 # Disable CCR response handling
-headroom proxy --no-ccr-responses
+cutctx proxy --no-ccr-responses
 
 # Disable proactive expansion
-headroom proxy --no-ccr-expansion
+cutctx proxy --no-ccr-expansion
 
 # (The earlier --llmlingua flag was retired in 0.9.x and replaced by
 # Kompress (ModernBERT). See `wiki/transforms.md` for the current
@@ -67,7 +67,7 @@ headroom proxy --no-ccr-expansion
 ### All Options
 
 ```bash
-headroom proxy --help
+cutctx proxy --help
 ```
 
 ### Kompress backend selection
@@ -75,13 +75,13 @@ headroom proxy --help
 Kompress (the model-based compressor) can run on two engines:
 
 - **ONNX Runtime** — lightweight, CPU-first. Installed with
-  `pip install headroom-ai[proxy]`. Optionally uses the CoreML execution
+  `pip install cutctx-ai[proxy]`. Optionally uses the CoreML execution
   provider on macOS.
 - **PyTorch** — heavier, supports CUDA and Apple-Silicon MPS
-  acceleration. Installed with `pip install headroom-ai[ml]`. With
+  acceleration. Installed with `pip install cutctx-ai[ml]`. With
   `device=auto` it selects `cuda`, then `mps`, then `cpu`.
 
-Select the backend via the `HEADROOM_KOMPRESS_BACKEND` environment
+Select the backend via the `CUTCTX_KOMPRESS_BACKEND` environment
 variable:
 
 | Value               | Behavior                                                               |
@@ -100,8 +100,8 @@ Values are case-insensitive and hyphens are accepted (`onnx-cpu` ==
 Example — opt in to MPS on an Apple-Silicon machine:
 
 ```bash
-export HEADROOM_KOMPRESS_BACKEND=mps
-headroom proxy ...
+export CUTCTX_KOMPRESS_BACKEND=mps
+cutctx proxy ...
 ```
 
 The default deliberately stays on ONNX CPU so existing installs keep
@@ -118,16 +118,16 @@ response = client.chat.completions.create(
     messages=[...],
 
     # Override mode for this request
-    headroom_mode="audit",
+    cutctx_mode="audit",
 
     # Reserve more tokens for output
-    headroom_output_buffer_tokens=8000,
+    cutctx_output_buffer_tokens=8000,
 
     # Keep last N turns (don't compress)
-    headroom_keep_turns=5,
+    cutctx_keep_turns=5,
 
     # Skip compression for specific tools
-    headroom_tool_profiles={
+    cutctx_tool_profiles={
         "important_tool": {"skip_compression": True}
     }
 )
@@ -161,7 +161,7 @@ print(f"Estimated savings: {plan.estimated_savings}")
 Fine-tune JSON compression behavior:
 
 ```python
-from headroom.transforms import SmartCrusherConfig
+from cutctx.transforms import SmartCrusherConfig
 
 config = SmartCrusherConfig(
     # Maximum items to keep after compression
@@ -183,7 +183,7 @@ config = SmartCrusherConfig(
 Control prefix stabilization:
 
 ```python
-from headroom.transforms import CacheAlignerConfig
+from cutctx.transforms import CacheAlignerConfig
 
 config = CacheAlignerConfig(
     # Enable/disable cache alignment
@@ -202,7 +202,7 @@ config = CacheAlignerConfig(
 Control context window management:
 
 ```python
-from headroom.transforms import RollingWindowConfig
+from cutctx.transforms import RollingWindowConfig
 
 config = RollingWindowConfig(
     # Minimum turns to always keep
@@ -221,7 +221,7 @@ config = RollingWindowConfig(
 For semantic-aware context management with importance scoring:
 
 ```python
-from headroom.config import IntelligentContextConfig, ScoringWeights
+from cutctx.config import IntelligentContextConfig, ScoringWeights
 
 # Customize scoring weights (must sum to 1.0, or will be normalized)
 weights = ScoringWeights(
@@ -260,7 +260,7 @@ config = IntelligentContextConfig(
 When IntelligentContext drops messages, they're stored in CCR for potential retrieval:
 
 ```python
-from headroom.telemetry import get_toin
+from cutctx.telemetry import get_toin
 
 # Pass TOIN for bidirectional integration
 toin = get_toin()
@@ -305,21 +305,21 @@ Some settings can be configured via environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HEADROOM_MODEL_LIMITS` | Custom model config (JSON string or file path) | - |
-| `HEADROOM_CONFIG_DIR` | Canonical config (read-mostly) root. Derives `models.json` and per-plugin config paths when set. | `~/.headroom/config` |
-| `HEADROOM_WORKSPACE_DIR` | Canonical workspace (read-write state) root. Derives savings ledger, memory DB, logs, TOIN, subscription state, and more when set. | `~/.headroom` |
-| `HEADROOM_SAVINGS_PATH` | Full path to the proxy savings JSON ledger. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_TOIN_PATH` | Full path to the TOIN telemetry JSON file. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_SUBSCRIPTION_STATE_PATH` | Full path to the subscription tracker state. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](memory.md#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
+| `CUTCTX_MODEL_LIMITS` | Custom model config (JSON string or file path) | - |
+| `CUTCTX_CONFIG_DIR` | Canonical config (read-mostly) root. Derives `models.json` and per-plugin config paths when set. | `~/.cutctx/config` |
+| `CUTCTX_WORKSPACE_DIR` | Canonical workspace (read-write state) root. Derives savings ledger, memory DB, logs, TOIN, subscription state, and more when set. | `~/.cutctx` |
+| `CUTCTX_SAVINGS_PATH` | Full path to the proxy savings JSON ledger. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_TOIN_PATH` | Full path to the TOIN telemetry JSON file. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_SUBSCRIPTION_STATE_PATH` | Full path to the subscription tracker state. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](memory.md#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
 
 ## Filesystem Contract
 
-Headroom resolves every on-disk resource through a two-root model:
+Cutctx resolves every on-disk resource through a two-root model:
 
-- `HEADROOM_CONFIG_DIR` (default `~/.headroom/config`) — read-mostly
+- `CUTCTX_CONFIG_DIR` (default `~/.cutctx/config`) — read-mostly
   configuration
-- `HEADROOM_WORKSPACE_DIR` (default `~/.headroom`) — read-write state
+- `CUTCTX_WORKSPACE_DIR` (default `~/.cutctx`) — read-write state
 
 Precedence for each resource is: explicit argument > per-resource env
 var > derived from canonical root > default. Every legacy env var
@@ -327,14 +327,14 @@ continues to work unchanged.
 
 See **[Filesystem Contract](filesystem-contract.md)** for the full
 bucket table, plugin-author guidance, and the Docker naming overlap
-note (`HEADROOM_WORKSPACE` is *not* the same as `HEADROOM_WORKSPACE_DIR`).
+note (`CUTCTX_WORKSPACE` is *not* the same as `CUTCTX_WORKSPACE_DIR`).
 
 ---
 
 ## Custom Model Configuration
 
 Configure context limits and pricing for new or custom models. Useful when:
-- A new model is released before Headroom is updated
+- A new model is released before Cutctx is updated
 - You're using fine-tuned or custom models
 - You want to override built-in limits
 
@@ -342,15 +342,15 @@ Configure context limits and pricing for new or custom models. Useful when:
 
 Settings are resolved in this order (later overrides earlier):
 1. Built-in defaults
-2. `${HEADROOM_CONFIG_DIR}/models.json` (defaults to
-   `~/.headroom/config/models.json`); falls back to the legacy location
-   `~/.headroom/models.json` when the canonical file is absent
-3. `HEADROOM_MODEL_LIMITS` environment variable
+2. `${CUTCTX_CONFIG_DIR}/models.json` (defaults to
+   `~/.cutctx/config/models.json`); falls back to the legacy location
+   `~/.cutctx/models.json` when the canonical file is absent
+3. `CUTCTX_MODEL_LIMITS` environment variable
 4. SDK constructor arguments
 
 ### Config File Format
 
-Create `~/.headroom/models.json`:
+Create `~/.cutctx/models.json`:
 
 ```json
 {
@@ -381,14 +381,14 @@ Create `~/.headroom/models.json`:
 
 ### Environment Variable
 
-Set `HEADROOM_MODEL_LIMITS` as a JSON string or file path:
+Set `CUTCTX_MODEL_LIMITS` as a JSON string or file path:
 
 ```bash
 # JSON string
-export HEADROOM_MODEL_LIMITS='{"anthropic":{"context_limits":{"claude-new":200000}}}'
+export CUTCTX_MODEL_LIMITS='{"anthropic":{"context_limits":{"claude-new":200000}}}'
 
 # File path
-export HEADROOM_MODEL_LIMITS=/path/to/models.json
+export CUTCTX_MODEL_LIMITS=/path/to/models.json
 ```
 
 ### Pattern-Based Inference
@@ -410,9 +410,9 @@ This means new models like `claude-4-sonnet-20251201` will work automatically wi
 Override in code for specific models:
 
 ```python
-from headroom import HeadroomClient, AnthropicProvider
+from cutctx import CutctxClient, AnthropicProvider
 
-client = HeadroomClient(
+client = CutctxClient(
     original_client=Anthropic(),
     provider=AnthropicProvider(
         context_limits={
@@ -427,7 +427,7 @@ client = HeadroomClient(
 ### OpenAI
 
 ```python
-from headroom import OpenAIProvider
+from cutctx import OpenAIProvider
 
 provider = OpenAIProvider(
     # Enable automatic prefix caching
@@ -438,7 +438,7 @@ provider = OpenAIProvider(
 ### Anthropic
 
 ```python
-from headroom import AnthropicProvider
+from cutctx import AnthropicProvider
 
 provider = AnthropicProvider(
     # Enable cache_control blocks
@@ -449,7 +449,7 @@ provider = AnthropicProvider(
 ### Google
 
 ```python
-from headroom import GoogleProvider
+from cutctx import GoogleProvider
 
 provider = GoogleProvider(
     # Enable context caching
@@ -489,24 +489,24 @@ The TypeScript SDK is configured via environment variables or constructor option
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HEADROOM_BASE_URL` | Base URL of the Headroom proxy or cloud API | `http://localhost:8787` |
-| `HEADROOM_API_KEY` | API key for Headroom Cloud authentication | - |
+| `CUTCTX_BASE_URL` | Base URL of the Cutctx proxy or cloud API | `http://localhost:8787` |
+| `CUTCTX_API_KEY` | API key for Cutctx Cloud authentication | - |
 
 ### Usage
 
 ```bash
-export HEADROOM_BASE_URL=http://localhost:8787
-export HEADROOM_API_KEY=your-api-key
+export CUTCTX_BASE_URL=http://localhost:8787
+export CUTCTX_API_KEY=your-api-key
 ```
 
 ```typescript
-import { HeadroomClient } from 'headroom-ai';
+import { CutctxClient } from 'cutctx-ai';
 
-// Reads from HEADROOM_BASE_URL and HEADROOM_API_KEY automatically
-const client = new HeadroomClient();
+// Reads from CUTCTX_BASE_URL and CUTCTX_API_KEY automatically
+const client = new CutctxClient();
 
 // Or configure explicitly
-const client = new HeadroomClient({
+const client = new CutctxClient({
   baseUrl: 'http://localhost:8787',
   apiKey: 'your-api-key',
 });

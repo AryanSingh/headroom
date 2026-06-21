@@ -1,11 +1,11 @@
-# go-headroom
+# go-cutctx
 
-Go client for [Headroom](https://headroom.sh) — route LLM API calls through the Headroom proxy for automatic context compression.
+Go client for [Cutctx](https://cutctx.sh) — route LLM API calls through the Cutctx proxy for automatic context compression.
 
 ## Installation
 
 ```bash
-go get github.com/headroom-labs/go-headroom
+go get github.com/cutctx-labs/go-cutctx
 ```
 
 ## Usage
@@ -18,12 +18,12 @@ import (
 	"net/http"
 	"strings"
 
-	headroom "github.com/headroom-labs/go-headroom"
+	cutctx "github.com/cutctx-labs/go-cutctx"
 )
 
 func main() {
-	// Create a Headroom client proxying through localhost:8080
-	client := headroom.NewClient("http://localhost:8080")
+	// Create a Cutctx client proxying through localhost:8080
+	client := cutctx.NewClient("http://localhost:8080")
 
 	// Build your LLM API request as usual
 	body := strings.NewReader(`{
@@ -41,7 +41,7 @@ func main() {
 	req.Header.Set("x-api-key", "your-anthropic-api-key")
 	req.Header.Set("anthropic-version", "2023-06-01")
 
-	// Execute through Headroom — context is automatically compressed
+	// Execute through Cutctx — context is automatically compressed
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
@@ -55,11 +55,11 @@ func main() {
 
 ## Using as an HTTP Transport
 
-You can also use the Headroom client as an `http.RoundTripper`:
+You can also use the Cutctx client as an `http.RoundTripper`:
 
 ```go
 client := &http.Client{
-	Transport: headroom.NewClient("http://localhost:8080"),
+	Transport: cutctx.NewClient("http://localhost:8080"),
 }
 
 resp, err := client.Post("https://api.anthropic.com/v1/messages", "application/json", body)
@@ -67,13 +67,13 @@ resp, err := client.Post("https://api.anthropic.com/v1/messages", "application/j
 
 ## How It Works
 
-1. **Headroom proxy** runs locally on port 8080 (or any port)
+1. **Cutctx proxy** runs locally on port 8080 (or any port)
 2. The Go client **rewrites requests** to route through the proxy
-3. Headroom **compresses prompt context** before forwarding to the model provider
+3. Cutctx **compresses prompt context** before forwarding to the model provider
 4. You get **60-95% fewer tokens** with minimal quality loss
 
 ```
-Your Go App → Headroom Proxy (localhost:8080) → LLM Provider (Anthropic/OpenAI/etc.)
+Your Go App → Cutctx Proxy (localhost:8080) → LLM Provider (Anthropic/OpenAI/etc.)
                    ↓
             Context compression
             Token count reduction
@@ -84,11 +84,11 @@ Your Go App → Headroom Proxy (localhost:8080) → LLM Provider (Anthropic/Open
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `HEADROOM_PROXY_URL` | Proxy URL | `http://localhost:8080` |
+| `CUTCTX_PROXY_URL` | Proxy URL | `http://localhost:8080` |
 
 ## Agent Compatibility
 
-Headroom works with any HTTP client that supports proxy configuration:
+Cutctx works with any HTTP client that supports proxy configuration:
 
 - Claude Code
 - OpenAI Codex

@@ -709,9 +709,9 @@ class TestOpenAIURLNormalization:
     """Test that OPENAI_TARGET_API_URL with /v1 suffix is normalized."""
 
     def test_v1_suffix_stripped(self):
-        from headroom.proxy.server import HeadroomProxy, ProxyConfig
+        from headroom.proxy.server import CutctxProxy, ProxyConfig
 
-        original = HeadroomProxy.OPENAI_API_URL
+        original = CutctxProxy.OPENAI_API_URL
         try:
             config = ProxyConfig(
                 openai_api_url="http://localhost:4000/v1",
@@ -719,15 +719,15 @@ class TestOpenAIURLNormalization:
                 cache_enabled=False,
                 rate_limit_enabled=False,
             )
-            proxy = HeadroomProxy(config)
+            proxy = CutctxProxy(config)
             assert proxy.OPENAI_API_URL == "http://localhost:4000"
         finally:
-            HeadroomProxy.OPENAI_API_URL = original
+            CutctxProxy.OPENAI_API_URL = original
 
     def test_v1_slash_suffix_stripped(self):
-        from headroom.proxy.server import HeadroomProxy, ProxyConfig
+        from headroom.proxy.server import CutctxProxy, ProxyConfig
 
-        original = HeadroomProxy.OPENAI_API_URL
+        original = CutctxProxy.OPENAI_API_URL
         try:
             config = ProxyConfig(
                 openai_api_url="http://localhost:4000/v1/",
@@ -735,15 +735,15 @@ class TestOpenAIURLNormalization:
                 cache_enabled=False,
                 rate_limit_enabled=False,
             )
-            proxy = HeadroomProxy(config)
+            proxy = CutctxProxy(config)
             assert proxy.OPENAI_API_URL == "http://localhost:4000"
         finally:
-            HeadroomProxy.OPENAI_API_URL = original
+            CutctxProxy.OPENAI_API_URL = original
 
     def test_no_v1_unchanged(self):
-        from headroom.proxy.server import HeadroomProxy, ProxyConfig
+        from headroom.proxy.server import CutctxProxy, ProxyConfig
 
-        original = HeadroomProxy.OPENAI_API_URL
+        original = CutctxProxy.OPENAI_API_URL
         try:
             config = ProxyConfig(
                 openai_api_url="http://localhost:4000",
@@ -751,10 +751,10 @@ class TestOpenAIURLNormalization:
                 cache_enabled=False,
                 rate_limit_enabled=False,
             )
-            proxy = HeadroomProxy(config)
+            proxy = CutctxProxy(config)
             assert proxy.OPENAI_API_URL == "http://localhost:4000"
         finally:
-            HeadroomProxy.OPENAI_API_URL = original
+            CutctxProxy.OPENAI_API_URL = original
 
 
 # =============================================================================

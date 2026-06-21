@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Comprehensive Strands + Bedrock Demo for Headroom SDK.
+"""Comprehensive Strands + Bedrock Demo for Cutctx SDK.
 
-This demo showcases two Headroom integration patterns for AWS Strands Agents:
+This demo showcases two Cutctx integration patterns for AWS Strands Agents:
 
-1. **HeadroomHookProvider** - Compresses tool outputs as they happen
+1. **CutctxHookProvider** - Compresses tool outputs as they happen
    - Intercepts tool results via Strands hooks
    - Applies SmartCrusher compression to large JSON outputs
    - Shows per-tool compression metrics
 
-2. **HeadroomStrandsModel** - Optimizes entire conversation context
+2. **CutctxStrandsModel** - Optimizes entire conversation context
    - Wraps BedrockModel for automatic context optimization
    - Applies message-level transforms before API calls
    - Tracks cumulative savings across the session
@@ -20,7 +20,7 @@ Run with:
 
 Requirements:
     - AWS credentials configured (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY or AWS_PROFILE)
-    - pip install strands-agents headroom-ai[strands]
+    - pip install strands-agents cutctx-ai[strands]
 """
 
 from __future__ import annotations
@@ -49,14 +49,14 @@ def check_dependencies() -> bool:
     except ImportError:
         missing.append("strands-agents")
 
-    # Check headroom
+    # Check cutctx
     try:
-        from headroom.integrations.strands import (  # noqa: F401
-            HeadroomHookProvider,
-            HeadroomStrandsModel,
+        from cutctx.integrations.strands import (  # noqa: F401
+            CutctxHookProvider,
+            CutctxStrandsModel,
         )
     except ImportError:
-        missing.append("headroom-ai[strands]")
+        missing.append("cutctx-ai[strands]")
 
     if missing:
         print_box(
@@ -507,24 +507,23 @@ def get_system_metrics(timerange: str = "1h", service: str = "all") -> str:
 
 
 # ============================================================================
-# Demo 1: HeadroomHookProvider
+# Demo 1: CutctxHookProvider
 # ============================================================================
 
 
 def run_hook_provider_demo(region: str = "us-west-2") -> dict[str, Any]:
-    """Demonstrate HeadroomHookProvider for tool output compression.
+    """Demonstrate CutctxHookProvider for tool output compression.
 
     Returns metrics from the demo run.
     """
+    from cutctx.integrations.strands import CutctxHookProvider
     from strands import Agent, tool
     from strands.models import BedrockModel
 
-    from headroom.integrations.strands import HeadroomHookProvider
-
     print_box(
-        "Demo 1: HeadroomHookProvider",
+        "Demo 1: CutctxHookProvider",
         [
-            "The HeadroomHookProvider intercepts tool outputs and compresses",
+            "The CutctxHookProvider intercepts tool outputs and compresses",
             "them BEFORE they're added to the conversation context.",
             "",
             "This reduces token usage for subsequent LLM calls by eliminating",
@@ -591,8 +590,8 @@ def run_hook_provider_demo(region: str = "us-west-2") -> dict[str, Any]:
         temperature=0.1,
     )
 
-    # Create HeadroomHookProvider
-    hook_provider = HeadroomHookProvider(
+    # Create CutctxHookProvider
+    hook_provider = CutctxHookProvider(
         compress_tool_outputs=True,
         min_tokens_to_compress=100,  # Compress outputs with 100+ tokens
         preserve_errors=True,
@@ -645,7 +644,7 @@ def run_hook_provider_demo(region: str = "us-west-2") -> dict[str, Any]:
 
     # Display results
     print_box(
-        "HeadroomHookProvider Results",
+        "CutctxHookProvider Results",
         [
             f"Tool calls processed:    {metrics['total_requests']}",
             f"Compressions applied:    {metrics['compressed_requests']}",
@@ -690,31 +689,31 @@ def run_hook_provider_demo(region: str = "us-west-2") -> dict[str, Any]:
 
 
 # ============================================================================
-# Demo 2: HeadroomStrandsModel
+# Demo 2: CutctxStrandsModel
 # ============================================================================
 
 
 def run_model_wrapper_demo(region: str = "us-west-2") -> dict[str, Any]:
-    """Demonstrate HeadroomStrandsModel for conversation optimization.
+    """Demonstrate CutctxStrandsModel for conversation optimization.
 
     Returns metrics from the demo run.
     """
+    from cutctx.integrations.strands import CutctxStrandsModel
     from strands import Agent, tool
     from strands.models import BedrockModel
 
-    from headroom import HeadroomConfig
-    from headroom.integrations.strands import HeadroomStrandsModel
+    from cutctx import CutctxConfig
 
     print_box(
-        "Demo 2: HeadroomStrandsModel",
+        "Demo 2: CutctxStrandsModel",
         [
-            "HeadroomStrandsModel wraps the Bedrock model to optimize the",
+            "CutctxStrandsModel wraps the Bedrock model to optimize the",
             "ENTIRE conversation context before each API call.",
             "",
             "As conversations grow with tool outputs and history, the",
             "model wrapper applies transforms to reduce context size.",
             "",
-            "Using: Claude 3 Haiku wrapped with HeadroomStrandsModel",
+            "Using: Claude 3 Haiku wrapped with CutctxStrandsModel",
         ],
     )
 
@@ -774,14 +773,14 @@ def run_model_wrapper_demo(region: str = "us-west-2") -> dict[str, Any]:
         temperature=0.1,
     )
 
-    # Configure Headroom
-    config = HeadroomConfig()
+    # Configure Cutctx
+    config = CutctxConfig()
     config.smart_crusher.enabled = True
     config.smart_crusher.min_tokens_to_crush = 100
     config.smart_crusher.max_items_after_crush = 20
 
-    # Wrap with HeadroomStrandsModel
-    optimized_model = HeadroomStrandsModel(
+    # Wrap with CutctxStrandsModel
+    optimized_model = CutctxStrandsModel(
         wrapped_model=base_model,
         config=config,
         auto_detect_provider=True,
@@ -815,7 +814,7 @@ def run_model_wrapper_demo(region: str = "us-west-2") -> dict[str, Any]:
 
     # Display results
     print_box(
-        "HeadroomStrandsModel Results",
+        "CutctxStrandsModel Results",
         [
             f"API calls made:            {metrics['total_requests']}",
             "",
@@ -866,7 +865,7 @@ def run_model_wrapper_demo(region: str = "us-west-2") -> dict[str, Any]:
 def main() -> int:
     """Run the Strands Bedrock demo."""
     parser = argparse.ArgumentParser(
-        description="Headroom + Strands Bedrock Demo",
+        description="Cutctx + Strands Bedrock Demo",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -884,12 +883,12 @@ Environment Variables:
     parser.add_argument(
         "--hook",
         action="store_true",
-        help="Run only the HeadroomHookProvider demo",
+        help="Run only the CutctxHookProvider demo",
     )
     parser.add_argument(
         "--model",
         action="store_true",
-        help="Run only the HeadroomStrandsModel demo",
+        help="Run only the CutctxStrandsModel demo",
     )
     parser.add_argument(
         "--region",
@@ -905,13 +904,13 @@ Environment Variables:
 
     # Print header
     print_box(
-        "Headroom + Strands Bedrock Demo",
+        "Cutctx + Strands Bedrock Demo",
         [
-            "This demo showcases Headroom's integration with AWS Strands Agents.",
+            "This demo showcases Cutctx's integration with AWS Strands Agents.",
             "",
-            "Headroom provides two integration patterns:",
-            "  1. HeadroomHookProvider - Compress tool outputs in real-time",
-            "  2. HeadroomStrandsModel - Optimize entire conversation context",
+            "Cutctx provides two integration patterns:",
+            "  1. CutctxHookProvider - Compress tool outputs in real-time",
+            "  2. CutctxStrandsModel - Optimize entire conversation context",
             "",
             f"Region: {args.region}",
             "Model:  Claude 3 Haiku (fast and cost-effective for demos)",
@@ -970,8 +969,8 @@ Environment Variables:
                     "(At scale, these savings compound significantly!)",
                     "",
                     "Integration patterns demonstrated:",
-                    "  [x] HeadroomHookProvider - Real-time tool output compression",
-                    "  [x] HeadroomStrandsModel - Full context optimization",
+                    "  [x] CutctxHookProvider - Real-time tool output compression",
+                    "  [x] CutctxStrandsModel - Full context optimization",
                 ],
                 style="success",
             )

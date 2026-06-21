@@ -346,7 +346,7 @@ class TestSetupFileLogging:
         import logging
         from logging.handlers import RotatingFileHandler
 
-        headroom_logger = logging.getLogger("headroom")
+        headroom_logger = logging.getLogger("cutctx")
         headroom_logger.handlers = [
             h for h in headroom_logger.handlers if not isinstance(h, RotatingFileHandler)
         ]
@@ -386,7 +386,7 @@ class TestSetupFileLogging:
             import logging
             from logging.handlers import RotatingFileHandler
             import headroom.proxy.server  # noqa: F401
-            hr = logging.getLogger("headroom")
+            hr = logging.getLogger("cutctx")
             installed = any(isinstance(h, RotatingFileHandler) for h in hr.handlers)
             print("INSTALLED" if installed else "CLEAN")
             """

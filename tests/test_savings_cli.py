@@ -8,6 +8,7 @@ from click.testing import CliRunner
 import pytest
 
 from headroom.cli.integrations import integrations
+from headroom.proxy.savings_tracker import HEADROOM_SAVINGS_PATH_ENV_VAR, SavingsTracker
 
 
 class TestIntegrationsStatus:
@@ -33,6 +34,69 @@ class TestIntegrationsStatus:
             assert "savings_sources" in payload
             assert "provider_prompt_cache" in payload["savings_sources"]
             assert "cutctx_compression" in payload["savings_sources"]
+
+    def test_status_json_reports_production_by_source(self, tmp_path, monkeypatch):
+        state_path = tmp_path / "proxy_savings.json"
+        tracker = SavingsTracker(path=str(state_path))
+        tracker.record_request(
+            model="gpt-4o",
+            input_tokens=1000,
+            tokens_saved=1200,
+            provider="openai",
+            total_input_tokens=1000,
+            total_input_cost_usd=1.23,
+            savings_by_source_tokens={
+                "provider_prompt_cache": 500,
+                "cutctx_compression": 700,
+            },
+            savings_by_source_usd={
+                "provider_prompt_cache": 0.12,
+                "cutctx_compression": 0.27,
+            },
+        )
+        monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(state_path))
+
+        from headroom.cli.main import main as root
+        runner = CliRunner()
+        result = runner.invoke(root, ["integrations", "status", "--format", "json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        production = payload["production"]
+        assert production["by_source"]["provider_prompt_cache"]["tokens"] == 500
+        assert production["by_source"]["cutctx_compression"]["tokens"] == 700
+        assert production["by_source"]["provider_prompt_cache"]["usd"] == 0.12
+        assert production["by_source"]["cutctx_compression"]["usd"] == 0.27
+
+    def test_status_json_uses_legacy_usd_fallback(self, tmp_path, monkeypatch):
+        state_path = tmp_path / "proxy_savings.json"
+        tracker = SavingsTracker(path=str(state_path))
+        tracker.record_request(
+            model="gpt-4o",
+            input_tokens=1000,
+            tokens_saved=1200,
+            provider="openai",
+            total_input_tokens=1000,
+            total_input_cost_usd=1.23,
+            savings_by_source_tokens={
+                "provider_prompt_cache": 500,
+                "cutctx_compression": 700,
+            },
+            compression_savings_usd_delta=0.27,
+            cache_savings_usd_delta=0.12,
+        )
+        payload = json.loads(state_path.read_text())
+        payload["history"][-1].pop("savings_by_source_usd", None)
+        state_path.write_text(json.dumps(payload))
+        monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(state_path))
+
+        from headroom.cli.main import main as root
+        runner = CliRunner()
+        result = runner.invoke(root, ["integrations", "status", "--format", "json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        production = payload["production"]
+        assert production["by_source"]["provider_prompt_cache"]["usd"] == 0.12
+        assert production["by_source"]["cutctx_compression"]["usd"] == 0.27
 
 
 class TestIntegrationsTest:

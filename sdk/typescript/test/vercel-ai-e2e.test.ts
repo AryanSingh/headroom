@@ -1,7 +1,7 @@
 /**
- * End-to-end test: Vercel AI SDK + Headroom compress()
+ * End-to-end test: Vercel AI SDK + CutCtx compress()
  *
- * Tests REAL calls through the Vercel AI SDK with Headroom compression.
+ * Tests REAL calls through the Vercel AI SDK with CutCtx compression.
  * Uses actual OpenAI and Anthropic API keys.
  *
  * Requires:
@@ -20,7 +20,7 @@ config({ path: resolve(__dirname, "../../../.env") });
 const PROXY_URL = "http://localhost:8787";
 const RUN = process.env.HEADROOM_INTEGRATION === "1";
 
-describe.skipIf(!RUN)("E2E: Vercel AI SDK + Headroom", () => {
+describe.skipIf(!RUN)("E2E: Vercel AI SDK + CutCtx", () => {
   beforeAll(async () => {
     const res = await fetch(`${PROXY_URL}/health`);
     if (!res.ok) throw new Error("Proxy not running");
@@ -91,7 +91,7 @@ describe.skipIf(!RUN)("E2E: Vercel AI SDK + Headroom", () => {
 
     const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // Wrap model with Headroom middleware
+    // Wrap model with CutCtx middleware
     const model = wrapLanguageModel({
       model: openai("gpt-4o-mini"),
       middleware: headroomMiddleware({ baseUrl: PROXY_URL }),

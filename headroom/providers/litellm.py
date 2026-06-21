@@ -13,7 +13,7 @@ LiteLLM provides a unified interface to 100+ LLM providers:
 - Groq
 - And many more...
 
-This integration allows Headroom to work with any LiteLLM-supported
+This integration allows Cutctx to work with any LiteLLM-supported
 model without needing provider-specific implementations.
 
 Requires: pip install litellm

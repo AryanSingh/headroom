@@ -48,7 +48,7 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
         headroom_path,
         [
             {
-                "lane": "headroom",
+                "lane": "cutctx",
                 "method": "POST",
                 "url": "https://api.anthropic.com/v1/messages?api_key=secret",
                 "request_headers": {
@@ -70,7 +70,7 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
     )
 
     direct = load_capture_file(direct_path, fallback_lane="direct")
-    headroom = load_capture_file(headroom_path, fallback_lane="headroom")
+    headroom = load_capture_file(headroom_path, fallback_lane="cutctx")
 
     assert direct[0].url == "https://api.anthropic.com/v1/messages?api_key=%3Credacted%3E"
     assert direct[0].request_headers["authorization"] == "<redacted>"
@@ -83,7 +83,7 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
     assert "$.metadata" in paired["json"]["only_headroom"]
     assert "$.messages[0].content" in paired["json"]["changed"]
     assert paired["anthropic"]["direct"]["tools_count"] == 0
-    assert paired["anthropic"]["headroom"]["tools_count"] == 1
+    assert paired["anthropic"]["cutctx"]["tools_count"] == 1
 
     markdown = render_markdown_report(diff)
     assert "Differential Network Capture Report" in markdown

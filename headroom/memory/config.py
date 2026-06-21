@@ -1,4 +1,4 @@
-"""Configuration dataclasses for Headroom's hierarchical memory system.
+"""Configuration dataclasses for Cutctx's hierarchical memory system.
 
 Provides configuration options for all pluggable components:
 - Storage backends (SQLite, future: PostgreSQL, DynamoDB)

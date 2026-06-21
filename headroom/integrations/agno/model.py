@@ -1,7 +1,7 @@
-"""Agno model wrapper for Headroom optimization.
+"""Agno model wrapper for Cutctx optimization.
 
-This module provides HeadroomAgnoModel, which wraps any Agno model
-to apply Headroom context optimization before API calls.
+This module provides CutctxAgnoModel, which wraps any Agno model
+to apply Cutctx context optimization before API calls.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ except ImportError:
     Message = dict  # type: ignore[misc,assignment]
     ModelResponse = dict  # type: ignore[misc,assignment]
 
-from headroom import HeadroomConfig, HeadroomMode
+from headroom import CutctxConfig, CutctxMode
 from headroom.providers import OpenAIProvider
 from headroom.transforms import TransformPipeline
 
@@ -64,8 +64,8 @@ class OptimizationMetrics:
 
 
 @dataclass
-class HeadroomAgnoModel(Model):  # type: ignore[misc]
-    """Agno model wrapper that applies Headroom optimizations.
+class CutctxAgnoModel(Model):  # type: ignore[misc]
+    """Agno model wrapper that applies Cutctx optimizations.
 
     Extends agno.models.base.Model to be fully compatible with Agno Agent.
     Wraps any Agno Model and automatically optimizes the context
@@ -90,11 +90,11 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
     Example:
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Basic usage
         model = OpenAIChat(id="gpt-4o")
-        optimized = HeadroomAgnoModel(wrapped_model=model)
+        optimized = CutctxAgnoModel(wrapped_model=model)
 
         # Use with agent
         agent = Agent(model=optimized)
@@ -104,13 +104,13 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         print(f"Saved {optimized.total_tokens_saved} tokens")
 
         # With custom config
-        from headroom import HeadroomConfig, HeadroomMode
-        config = HeadroomConfig(default_mode=HeadroomMode.OPTIMIZE)
-        optimized = HeadroomAgnoModel(wrapped_model=model, headroom_config=config)
+        from headroom import CutctxConfig, CutctxMode
+        config = CutctxConfig(default_mode=HeadroomMode.OPTIMIZE)
+        optimized = CutctxAgnoModel(wrapped_model=model, headroom_config=config)
 
-        # Agno reasoning with HeadroomAgnoModel
+        # Agno reasoning with CutctxAgnoModel
         model = OpenAIChat(id="gpt-4o")
-        wrapped = HeadroomAgnoModel(wrapped_model=model)
+        wrapped = CutctxAgnoModel(wrapped_model=model)
         agent = Agent(
             model=wrapped,
             reasoning=True,
@@ -129,10 +129,10 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
     name: str | None = field(default=None)
     provider: str | None = field(default=None)
 
-    # HeadroomAgnoModel specific fields
+    # CutctxAgnoModel specific fields
     wrapped_model: Any = field(default=None)
-    headroom_config: HeadroomConfig | None = field(default=None)
-    headroom_mode: HeadroomMode | None = field(default=None)
+    headroom_config: CutctxConfig | None = field(default=None)
+    headroom_mode: CutctxMode | None = field(default=None)
     auto_detect_provider: bool = field(default=True)
 
     # Internal state (not part of dataclass comparison)
@@ -146,7 +146,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
     _initialized: bool = field(default=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        """Initialize HeadroomAgnoModel after dataclass construction."""
+        """Initialize CutctxAgnoModel after dataclass construction."""
         _check_agno_available()
 
         if self.wrapped_model is None:
@@ -168,12 +168,12 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
 
         # Initialize config
         if self.headroom_config is None:
-            self.headroom_config = HeadroomConfig()
+            self.headroom_config = CutctxConfig()
 
         # Handle deprecated mode parameter
         if self.headroom_mode is not None:
             warnings.warn(
-                "The 'headroom_mode' parameter is deprecated. Use HeadroomConfig(default_mode=...) instead.",
+                "The 'headroom_mode' parameter is deprecated. Use CutctxConfig(default_mode=...) instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -256,7 +256,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         this to access the actual model class.
 
         Example:
-            wrapped = HeadroomAgnoModel(wrapped_model=Claude(...))
+            wrapped = CutctxAgnoModel(wrapped_model=Claude(...))
             actual_class = wrapped.underlying_model.__class__.__name__  # "Claude"
         """
         return self.wrapped_model
@@ -296,7 +296,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         return self._metrics_history.copy()
 
     def _convert_messages_to_openai(self, messages: list[Any]) -> list[dict[str, Any]]:
-        """Convert Agno messages to OpenAI format for Headroom.
+        """Convert Agno messages to OpenAI format for Cutctx.
 
         Preserves extended thinking content blocks (thinking, redacted_thinking)
         which must be passed through unchanged for Claude's extended thinking API.
@@ -433,7 +433,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         return False
 
     def _optimize_messages(self, messages: list[Any]) -> tuple[list[Any], OptimizationMetrics]:
-        """Apply Headroom optimization to messages.
+        """Apply Cutctx optimization to messages.
 
         Thread-safe with fallback on pipeline errors.
         Skips optimization for messages with extended thinking blocks to preserve
@@ -464,7 +464,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         # Skip optimization for messages with extended thinking blocks
         # Thinking blocks must be passed through unchanged for Claude's API
         if self._has_thinking_blocks(openai_messages):
-            logger.info("Skipping Headroom optimization: messages contain extended thinking blocks")
+            logger.info("Skipping Cutctx optimization: messages contain extended thinking blocks")
             # Estimate token count (rough approximation)
             tokens_estimate = sum(len(str(m.get("content", ""))) // 4 for m in openai_messages)
             metrics = OptimizationMetrics(
@@ -490,7 +490,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         )
 
         try:
-            # Apply Headroom transforms via pipeline
+            # Apply Cutctx transforms via pipeline
             result = self.pipeline.apply(
                 messages=openai_messages,
                 model=model,
@@ -513,7 +513,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
             # Fallback to original messages on pipeline error
             # Log at warning level (degraded behavior, not critical failure)
             logger.warning(
-                f"Headroom optimization failed, using original messages: {type(e).__name__}: {e}"
+                f"Cutctx optimization failed, using original messages: {type(e).__name__}: {e}"
             )
             optimized = openai_messages
             # Estimate token count for unoptimized messages (rough approximation)
@@ -550,11 +550,11 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         return optimized_messages, metrics
 
     def response(self, messages: list[Any], **kwargs: Any) -> Any:  # type: ignore[override]
-        """Generate response with Headroom optimization.
+        """Generate response with Cutctx optimization.
 
         This method lets the inherited Model.response() handle the tool loop,
         which will call self.invoke() for each API call. Our invoke() override
-        applies Headroom optimization before delegating to wrapped_model.invoke().
+        applies Cutctx optimization before delegating to wrapped_model.invoke().
 
         This ensures tool outputs are compressed on subsequent API calls.
         """
@@ -565,7 +565,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         return super().response(messages, **kwargs)
 
     def response_stream(self, messages: list[Any], **kwargs: Any) -> Iterator[Any]:  # type: ignore[override]
-        """Stream response with Headroom optimization.
+        """Stream response with Cutctx optimization.
 
         Like response(), delegates to inherited Model.response_stream() which
         calls self.invoke_stream() for each API call.
@@ -576,7 +576,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         yield from super().response_stream(messages, **kwargs)
 
     async def aresponse(self, messages: list[Any], **kwargs: Any) -> Any:  # type: ignore[override]
-        """Async generate response with Headroom optimization.
+        """Async generate response with Cutctx optimization.
 
         Delegates to inherited Model.aresponse() which calls self.ainvoke()
         for each API call, ensuring tool outputs are optimized.
@@ -587,7 +587,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         return await super().aresponse(messages, **kwargs)
 
     async def aresponse_stream(self, messages: list[Any], **kwargs: Any) -> AsyncIterator[Any]:  # type: ignore[override]
-        """Async stream response with Headroom optimization.
+        """Async stream response with Cutctx optimization.
 
         Delegates to inherited Model.aresponse_stream() which calls self.ainvoke_stream()
         for each API call, ensuring tool outputs are optimized.
@@ -628,7 +628,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
 
     # =========================================================================
     # Abstract method implementations required by agno.models.base.Model
-    # These delegate to the wrapped model after applying Headroom optimization
+    # These delegate to the wrapped model after applying Cutctx optimization
     # =========================================================================
 
     def invoke(self, messages: list[Any], **kwargs: Any) -> Any:
@@ -640,7 +640,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         optimized_messages, metrics = self._optimize_messages(messages)
 
         logger.info(
-            f"Headroom optimized (invoke): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized (invoke): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -659,7 +659,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         )
 
         logger.info(
-            f"Headroom optimized (ainvoke): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized (ainvoke): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -681,7 +681,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         optimized_messages, metrics = self._optimize_messages(messages)
 
         logger.info(
-            f"Headroom optimized (invoke_stream): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized (invoke_stream): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -700,7 +700,7 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
         )
 
         logger.info(
-            f"Headroom optimized (ainvoke_stream): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized (ainvoke_stream): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -734,8 +734,8 @@ class HeadroomAgnoModel(Model):  # type: ignore[misc]
 
 def optimize_messages(
     messages: list[Any],
-    config: HeadroomConfig | None = None,
-    mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+    config: CutctxConfig | None = None,
+    mode: CutctxMode = CutctxMode.OPTIMIZE,
     model: str = "gpt-4o",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Standalone function to optimize Agno messages.
@@ -744,8 +744,8 @@ def optimize_messages(
 
     Args:
         messages: List of Agno Message objects or dicts
-        config: HeadroomConfig for optimization settings
-        mode: HeadroomMode (AUDIT, OPTIMIZE, or SIMULATE)
+        config: CutctxConfig for optimization settings
+        mode: CutctxMode (AUDIT, OPTIMIZE, or SIMULATE)
         model: Model name for token estimation
 
     Returns:
@@ -764,7 +764,7 @@ def optimize_messages(
     """
     _check_agno_available()
 
-    config = config or HeadroomConfig()
+    config = config or CutctxConfig()
     provider = OpenAIProvider()
     pipeline = TransformPipeline(config=config, provider=provider)
 

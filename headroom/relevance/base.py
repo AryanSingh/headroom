@@ -1,4 +1,4 @@
-"""Base protocol for relevance scoring in Headroom SDK.
+"""Base protocol for relevance scoring in Cutctx SDK.
 
 This module defines the RelevanceScorer protocol - a unified interface for
 computing item relevance against a query context. All transforms that make

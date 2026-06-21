@@ -4,7 +4,7 @@ Tracks provider prefix cache state between turns so the transform pipeline
 can freeze already-cached messages and only compress new content.
 
 Problem: Clients like Claude Code already manage prefix caching (up to 4
-cache_control breakpoints, growing-prefix strategy). If Headroom compresses
+cache_control breakpoints, growing-prefix strategy). If Cutctx compresses
 or modifies messages in the cached prefix, it invalidates the cache —
 replacing a 90% read discount (Anthropic) or 50% (OpenAI) with a 25%
 write penalty.

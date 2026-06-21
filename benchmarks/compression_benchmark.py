@@ -1,10 +1,10 @@
 """
-Truncation vs Summarization vs Headroom: A Fair Benchmark
+Truncation vs Summarization vs Cutctx: A Fair Benchmark
 
 This benchmark compares three approaches to context compression:
 1. Truncation - Keep first N items (industry standard)
 2. Summarization - Use LLM to summarize (common alternative)
-3. Headroom - Statistical compression with retrieval
+3. Cutctx - Statistical compression with retrieval
 
 FAIRNESS PRINCIPLES:
 - Include scenarios where each approach could win
@@ -34,7 +34,7 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-# Headroom imports
+# Cutctx imports
 try:
     from headroom.config import SmartCrusherConfig
     from headroom.tokenizers import TiktokenCounter
@@ -306,7 +306,7 @@ def generate_metrics_data(n_points: int = 500) -> tuple[list[dict], list[Questio
     Generate realistic time series metrics.
 
     Baseline values with anomalies (spikes) at specific positions.
-    This is where Headroom should excel - detecting statistical outliers.
+    This is where Cutctx should excel - detecting statistical outliers.
     """
 
     base_cpu = 45.0
@@ -456,11 +456,11 @@ def kompress_compress(data: list[dict]) -> tuple[str, dict]:
 
 def headroom_compress(data: list[dict], query_context: str = "") -> tuple[list[dict], dict]:
     """
-    Use Headroom's SmartCrusher for statistical compression.
+    Use Cutctx's SmartCrusher for statistical compression.
     Returns (compressed_data, metadata).
     """
     if not HEADROOM_AVAILABLE:
-        raise RuntimeError("Headroom not available")
+        raise RuntimeError("Cutctx not available")
 
     config = SmartCrusherConfig(
         enabled=True,
@@ -746,7 +746,7 @@ def run_scenario_benchmark(
             print("   Kompress not available. Install with: pip install headroom-ai[ml]")
 
     # --- HEADROOM ---
-    print("\n[4/4] Running Headroom...")
+    print("\n[4/4] Running Cutctx...")
     if HEADROOM_AVAILABLE:
         try:
             # Use first question as query context (realistic usage)
@@ -780,7 +780,7 @@ def run_scenario_benchmark(
 
             results.append(
                 ApproachResult(
-                    approach="headroom",
+                    approach="cutctx",
                     scenario=scenario.name,
                     tokens_original=original_tokens,
                     tokens_after=hr_tokens,
@@ -798,12 +798,12 @@ def run_scenario_benchmark(
             print(f"   Accuracy: {hr_accuracy:.1%}")
             print(f"   Compression latency: {metadata['latency_ms']:.1f}ms")
         except Exception as e:
-            print(f"   Headroom failed: {e}")
+            print(f"   Cutctx failed: {e}")
             import traceback
 
             traceback.print_exc()
     else:
-        print("   Headroom not available")
+        print("   Cutctx not available")
 
     return results
 
@@ -821,7 +821,7 @@ def run_full_benchmark(client: "OpenAI", config: BenchmarkConfig = None) -> dict
     # Generate scenarios
     scenarios = []
 
-    # Scenario 1: Logs (Headroom should win - needs anomaly detection)
+    # Scenario 1: Logs (Cutctx should win - needs anomaly detection)
     logs, log_questions = generate_log_data(500, error_positions=[3, 250, 495])
     scenarios.append(
         Scenario(
@@ -829,7 +829,7 @@ def run_full_benchmark(client: "OpenAI", config: BenchmarkConfig = None) -> dict
             description="Find errors buried in routine logs",
             data=logs,
             questions=log_questions,
-            expected_winner="headroom",
+            expected_winner="cutctx",
         )
     )
 
@@ -845,7 +845,7 @@ def run_full_benchmark(client: "OpenAI", config: BenchmarkConfig = None) -> dict
         )
     )
 
-    # Scenario 3: Metrics (Headroom should win - statistical outliers)
+    # Scenario 3: Metrics (Cutctx should win - statistical outliers)
     metrics, metric_questions = generate_metrics_data(500)
     scenarios.append(
         Scenario(
@@ -853,7 +853,7 @@ def run_full_benchmark(client: "OpenAI", config: BenchmarkConfig = None) -> dict
             description="Find anomalies in metrics data",
             data=metrics,
             questions=metric_questions,
-            expected_winner="headroom",
+            expected_winner="cutctx",
         )
     )
 
@@ -903,7 +903,7 @@ def generate_summary(results: list[ApproachResult], scenarios: list[Scenario]) -
     # Overall stats
     lines.append("\n### Overall Statistics")
 
-    for approach in ["truncation", "summarization", "llmlingua-2", "headroom"]:
+    for approach in ["truncation", "summarization", "llmlingua-2", "cutctx"]:
         approach_results = [r for r in results if r.approach == approach]
         if approach_results:
             avg_compression = sum(r.compression_ratio for r in approach_results) / len(
@@ -923,7 +923,7 @@ def generate_summary(results: list[ApproachResult], scenarios: list[Scenario]) -
 
     for location in ["early", "middle", "late", "scattered"]:
         lines.append(f"\n**{location.title()} position:**")
-        for approach in ["truncation", "summarization", "llmlingua-2", "headroom"]:
+        for approach in ["truncation", "summarization", "llmlingua-2", "cutctx"]:
             approach_results = [r for r in results if r.approach == approach]
             location_answers = []
             for r in approach_results:

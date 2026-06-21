@@ -6,10 +6,10 @@ Sends a 25-turn conversation through 4 different caching strategies and measures
 actual cache_read_input_tokens vs cache_creation_input_tokens from the Anthropic API.
 
 Strategies:
-  1. Baseline — no Headroom, no markers
-  2. Headroom compression — full pipeline, CompressionCache keeps bytes stable
-  3. Headroom + prefix freeze — pipeline skips frozen (already-cached) messages
-  4. Headroom + explicit markers — pipeline + 4 cache_control breakpoints
+  1. Baseline — no Cutctx, no markers
+  2. Cutctx compression — full pipeline, CompressionCache keeps bytes stable
+  3. Cutctx + prefix freeze — pipeline skips frozen (already-cached) messages
+  4. Cutctx + explicit markers — pipeline + 4 cache_control breakpoints
 
 Usage:
     # Load API key from .env and run
@@ -517,7 +517,7 @@ def inject_cc_style_markers(
 # ---------------------------------------------------------------------------
 CACHE_MODE_NONE = "none"
 CACHE_MODE_CC_STYLE = "cc_style"  # Claude Code's strategy
-CACHE_MODE_EXPLICIT = "explicit_4"  # Headroom's 4 strategic breakpoints
+CACHE_MODE_EXPLICIT = "explicit_4"  # Cutctx's 4 strategic breakpoints
 
 
 def run_strategy(
@@ -749,12 +749,12 @@ def main():
         results.append(r)
         print()
 
-    # Strategy 3: Headroom explicit markers (4 strategic breakpoints)
+    # Strategy 3: Cutctx explicit markers (4 strategic breakpoints)
     if "markers" in strategies_to_run:
         step += 1
-        print(f"[{step}/{num_strategies}] Headroom explicit (4 strategic breakpoints)...")
+        print(f"[{step}/{num_strategies}] Cutctx explicit (4 strategic breakpoints)...")
         r = run_strategy(
-            "Headroom 4x",
+            "Cutctx 4x",
             api_key,
             model,
             args.turns,

@@ -1,8 +1,8 @@
 """Headroom-owned MCP install ledger.
 
-The ledger tracks MCP servers that Headroom registered on the user's behalf
-when the target agent config cannot carry Headroom-specific ownership markers.
-It lets unwrap remove only entries still matching the spec Headroom installed,
+The ledger tracks MCP servers that Cutctx registered on the user's behalf
+when the target agent config cannot carry Cutctx-specific ownership markers.
+It lets unwrap remove only entries still matching the spec Cutctx installed,
 preserving user-managed MCP servers with the same name.
 """
 
@@ -22,7 +22,7 @@ _LEDGER_FILE = "mcp_installs.json"
 
 
 def ledger_path() -> Path:
-    """Return the Headroom MCP install ledger path."""
+    """Return the Cutctx MCP install ledger path."""
     return paths.workspace_dir() / _LEDGER_FILE
 
 
@@ -39,7 +39,7 @@ def spec_fingerprint(spec: ServerSpec) -> str:
 
 
 def record_install(agent: str, spec: ServerSpec, *, path: Path | None = None) -> None:
-    """Record that Headroom installed ``spec`` for ``agent``."""
+    """Record that Cutctx installed ``spec`` for ``agent``."""
     ledger_file = path or ledger_path()
     data = _read_ledger(ledger_file)
     agents = data.setdefault("agents", {})
@@ -75,7 +75,7 @@ def headroom_installed_matching(
     *,
     path: Path | None = None,
 ) -> bool:
-    """Return True when the ledger says Headroom installed ``current_spec``."""
+    """Return True when the ledger says Cutctx installed ``current_spec``."""
     if current_spec is None:
         return False
     ledger_file = path or ledger_path()

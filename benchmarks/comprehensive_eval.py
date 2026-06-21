@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive Headroom Evaluation: Real Data, Real Accuracy
+Comprehensive Cutctx Evaluation: Real Data, Real Accuracy
 
 This benchmark uses REAL data from established sources:
 1. Berkeley Function Calling Leaderboard (BFCL) - Real API schemas and ground truth
@@ -604,7 +604,7 @@ class EvalResult:
     """Result from a single evaluation run."""
 
     scenario_name: str
-    mode: str  # "baseline" or "headroom"
+    mode: str  # "baseline" or "cutctx"
     tokens_before: int
     tokens_after: int
     compression_ratio: float
@@ -618,12 +618,12 @@ def run_scenario_with_headroom(
     scenario: Scenario,
     model_id: str = "claude-sonnet-4-20250514",
 ) -> tuple[EvalResult, EvalResult]:
-    """Run a scenario with and without Headroom, measure accuracy."""
+    """Run a scenario with and without Cutctx, measure accuracy."""
     from agno.agent import Agent
     from agno.models.anthropic import Claude
     from agno.tools import tool
 
-    from headroom.integrations.agno import HeadroomAgnoModel
+    from headroom.integrations.agno import CutctxAgnoModel
 
     # Create tools that return our scenario data
     tool_data = {t["tool"]: t["result"] for t in scenario.tool_outputs}
@@ -640,9 +640,9 @@ def run_scenario_with_headroom(
     # Estimate tokens (rough)
     baseline_tokens = len(full_context) // 4
 
-    # Run with Headroom
+    # Run with Cutctx
     base_model = Claude(id=model_id)
-    headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+    headroom_model = CutctxAgnoModel(wrapped_model=base_model)
     agent = Agent(model=headroom_model, tools=[search_tool], markdown=True)
 
     prompt = f"""Based on the following information from various tools:
@@ -658,7 +658,7 @@ Provide a clear, specific answer."""
     response_text = response.content if hasattr(response, "content") else str(response)
     latency = (time.time() - start) * 1000
 
-    # Get Headroom stats
+    # Get Cutctx stats
     stats = headroom_model.get_savings_summary()
     tokens_after = stats.get("total_tokens_after", baseline_tokens)
     tokens_before = stats.get("total_tokens_before", baseline_tokens)
@@ -691,7 +691,7 @@ Provide a clear, specific answer."""
 
     headroom_result = EvalResult(
         scenario_name=scenario.name,
-        mode="headroom",
+        mode="cutctx",
         tokens_before=tokens_before,
         tokens_after=tokens_after,
         compression_ratio=compression_ratio,

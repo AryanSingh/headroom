@@ -34,7 +34,7 @@ pytestmark = pytest.mark.skipif(
 HEADROOM_RETRIEVE_TOOL = {
     "name": "headroom_retrieve",
     "description": (
-        "Retrieve original uncompressed content from Headroom's compression cache. "
+        "Retrieve original uncompressed content from Cutctx's compression cache. "
         "Use this when you need more details from compressed data. "
         "You can pass a query to search within the compressed content."
     ),

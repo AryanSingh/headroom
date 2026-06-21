@@ -1,11 +1,11 @@
 """Issue #327 — live API smoke test.
 
 Drives a 10-turn multi-turn conversation against `api.anthropic.com` directly
-(NO proxy in the loop) and against the local Headroom proxy, and asserts:
+(NO proxy in the loop) and against the local Cutctx proxy, and asserts:
 
   1. Both shapes of `tool_result` content (string and list-of-blocks) are
      accepted by the upstream API for both streaming and non-streaming.
-  2. When proxied through Headroom in token mode, at least one post-warmup
+  2. When proxied through Cutctx in token mode, at least one post-warmup
      turn has `transforms_applied != []` AND `cache_read_input_tokens > 0`
      on turns 2+ (proves prefix cache is intact AND compression resumed).
   3. No cache busts (bust_count stays at 0 across the session).

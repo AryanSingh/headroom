@@ -6,7 +6,7 @@ Long-running agent sessions hit context limits unexpectedly, causing crashes or 
 
 Instead, we need **progressive compression**: as the session fills up, older context gets compressed more aggressively to make room for new context. The agent never hits the wall; it degrades gracefully.
 
-Additionally, agents need **cost forecasting** to understand their spending trajectory: "based on current token velocity, this task will cost ~$0.85 with Headroom."
+Additionally, agents need **cost forecasting** to understand their spending trajectory: "based on current token velocity, this task will cost ~$0.85 with Cutctx."
 
 ## User Stories
 
@@ -31,7 +31,7 @@ As an agent operator, I want to forecast the total cost of a task before it runs
 As an operator, I want to choose compression aggressiveness (conservative, balanced, aggressive) via environment variables, so different workloads get tailored strategies.
 
 **Acceptance Criteria:**
-- HEADROOM_BUDGET_POLICY env var controls zone thresholds and compression window sizes
+- CUTCTX_BUDGET_POLICY env var controls zone thresholds and compression window sizes
 - conservative = wider zones, later compression (keep more context)
 - balanced = default, proven good for most agents (default)
 - aggressive = tight zones, early compression (maximize budget longevity)
@@ -90,7 +90,7 @@ def apply(messages: list[dict]) -> list[dict]:
         to_summarize = messages[:cutoff_index]
         keep = messages[cutoff_index:]
         
-        # Call headroom.compress with aggressive settings
+        # Call cutctx.compress with aggressive settings
         summary = self._summarize(to_summarize)
         return [summary] + keep
 ```
@@ -101,28 +101,28 @@ Zone thresholds and compression windows are configurable:
 
 ```bash
 # Conservative (keep more context, compress later)
-HEADROOM_BUDGET_POLICY=conservative
-HEADROOM_BUDGET_GREEN=0.70      # 0-70%
-HEADROOM_BUDGET_YELLOW=0.85     # 70-85%
-HEADROOM_BUDGET_RED=0.95        # 85-95%
-HEADROOM_BUDGET_WINDOW_YELLOW=15  # Protect last 15 messages
-HEADROOM_BUDGET_WINDOW_RED=8       # Protect last 8 messages
+CUTCTX_BUDGET_POLICY=conservative
+CUTCTX_BUDGET_GREEN=0.70      # 0-70%
+CUTCTX_BUDGET_YELLOW=0.85     # 70-85%
+CUTCTX_BUDGET_RED=0.95        # 85-95%
+CUTCTX_BUDGET_WINDOW_YELLOW=15  # Protect last 15 messages
+CUTCTX_BUDGET_WINDOW_RED=8       # Protect last 8 messages
 
 # Balanced (default)
-HEADROOM_BUDGET_POLICY=balanced
-HEADROOM_BUDGET_GREEN=0.60
-HEADROOM_BUDGET_YELLOW=0.80
-HEADROOM_BUDGET_RED=0.95
-HEADROOM_BUDGET_WINDOW_YELLOW=10
-HEADROOM_BUDGET_WINDOW_RED=5
+CUTCTX_BUDGET_POLICY=balanced
+CUTCTX_BUDGET_GREEN=0.60
+CUTCTX_BUDGET_YELLOW=0.80
+CUTCTX_BUDGET_RED=0.95
+CUTCTX_BUDGET_WINDOW_YELLOW=10
+CUTCTX_BUDGET_WINDOW_RED=5
 
 # Aggressive (maximize budget life, compress early)
-HEADROOM_BUDGET_POLICY=aggressive
-HEADROOM_BUDGET_GREEN=0.50
-HEADROOM_BUDGET_YELLOW=0.75
-HEADROOM_BUDGET_RED=0.90
-HEADROOM_BUDGET_WINDOW_YELLOW=5
-HEADROOM_BUDGET_WINDOW_RED=3
+CUTCTX_BUDGET_POLICY=aggressive
+CUTCTX_BUDGET_GREEN=0.50
+CUTCTX_BUDGET_YELLOW=0.75
+CUTCTX_BUDGET_RED=0.90
+CUTCTX_BUDGET_WINDOW_YELLOW=5
+CUTCTX_BUDGET_WINDOW_RED=3
 ```
 
 ### Cost Forecasting
@@ -197,14 +197,14 @@ class ContextBudgetController:
         """Forecast total cost based on current velocity."""
     
     def _count_tokens(self, messages: list[dict]) -> int:
-        """Use tiktoken or headroom's token counter."""
+        """Use tiktoken or cutctx's token counter."""
     
     def _compress_old_messages(
         self,
         messages: list[dict],
         aggressiveness: float = 0.5
     ) -> list[dict]:
-        """Apply headroom compress to messages, scaling aggressiveness."""
+        """Apply cutctx compress to messages, scaling aggressiveness."""
     
     def _get_zone(self, tokens_used: int) -> BudgetZone:
         """Determine current zone from token usage."""
@@ -243,11 +243,11 @@ class BudgetPolicy:
         """Load policy from environment, falling back to named preset."""
         import os
         return cls(
-            green_threshold=float(os.getenv("HEADROOM_BUDGET_GREEN", "0.60")),
-            yellow_threshold=float(os.getenv("HEADROOM_BUDGET_YELLOW", "0.80")),
-            red_threshold=float(os.getenv("HEADROOM_BUDGET_RED", "0.95")),
-            compression_window_yellow=int(os.getenv("HEADROOM_BUDGET_WINDOW_YELLOW", "10")),
-            compression_window_red=int(os.getenv("HEADROOM_BUDGET_WINDOW_RED", "5")),
+            green_threshold=float(os.getenv("CUTCTX_BUDGET_GREEN", "0.60")),
+            yellow_threshold=float(os.getenv("CUTCTX_BUDGET_YELLOW", "0.80")),
+            red_threshold=float(os.getenv("CUTCTX_BUDGET_RED", "0.95")),
+            compression_window_yellow=int(os.getenv("CUTCTX_BUDGET_WINDOW_YELLOW", "10")),
+            compression_window_red=int(os.getenv("CUTCTX_BUDGET_WINDOW_RED", "5")),
         )
 ```
 

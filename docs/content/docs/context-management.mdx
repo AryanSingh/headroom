@@ -91,10 +91,10 @@ console.log(`Compressed: ${result.tokensBefore} -> ${result.tokensAfter}`);
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from cutctx import CutCtxClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",

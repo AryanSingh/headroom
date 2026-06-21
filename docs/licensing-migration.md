@@ -5,7 +5,7 @@ With the release of CutCtx Enterprise, we have introduced a robust licensing mec
 ## Migration Steps for Existing Users
 
 1. Generate a new license token via the customer portal.
-2. Update your `headroom.toml` or set the `HEADROOM_LICENSE_KEY` environment variable with your new token.
+2. Update your `cutctx.toml` or set the `CUTCTX_LICENSE_KEY` environment variable with your new token.
 3. Ensure that your proxy can reach `https://pitchtoship.com` to validate the license and fetch the Certificate Revocation List (CRL).
 
 ## New Features

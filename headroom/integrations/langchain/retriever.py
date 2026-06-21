@@ -1,20 +1,20 @@
 """Retriever integration for LangChain with intelligent document compression.
 
-This module provides HeadroomDocumentCompressor, a LangChain BaseDocumentCompressor
+This module provides CutctxDocumentCompressor, a LangChain BaseDocumentCompressor
 that reduces retrieved documents based on relevance scoring while preserving
 the most important information.
 
 Example:
     from langchain.retrievers import ContextualCompressionRetriever
     from langchain_community.vectorstores import Chroma
-    from headroom.integrations import HeadroomDocumentCompressor
+    from headroom.integrations import CutctxDocumentCompressor
 
     # Create vector store retriever
     vectorstore = Chroma.from_documents(documents, embeddings)
     base_retriever = vectorstore.as_retriever(search_kwargs={"k": 50})
 
-    # Wrap with Headroom compression
-    compressor = HeadroomDocumentCompressor(max_documents=10)
+    # Wrap with Cutctx compression
+    compressor = CutctxDocumentCompressor(max_documents=10)
     retriever = ContextualCompressionRetriever(
         base_compressor=compressor,
         base_retriever=base_retriever,
@@ -98,7 +98,7 @@ class CompressionMetrics:
     relevance_scores: list[float]
 
 
-class HeadroomDocumentCompressor(BaseDocumentCompressor):
+class CutctxDocumentCompressor(BaseDocumentCompressor):
     """Compresses retrieved documents based on relevance to query.
 
     Uses BM25-style relevance scoring to keep only the most relevant
@@ -110,9 +110,9 @@ class HeadroomDocumentCompressor(BaseDocumentCompressor):
 
     Example:
         from langchain.retrievers import ContextualCompressionRetriever
-        from headroom.integrations import HeadroomDocumentCompressor
+        from headroom.integrations import CutctxDocumentCompressor
 
-        compressor = HeadroomDocumentCompressor(
+        compressor = CutctxDocumentCompressor(
             max_documents=10,
             min_relevance=0.3,
         )
@@ -142,7 +142,7 @@ class HeadroomDocumentCompressor(BaseDocumentCompressor):
         prefer_diverse: bool = False,
         **kwargs: Any,
     ):
-        """Initialize HeadroomDocumentCompressor.
+        """Initialize CutctxDocumentCompressor.
 
         Args:
             max_documents: Maximum number of documents to return. Default 10.

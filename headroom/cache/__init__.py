@@ -1,4 +1,4 @@
-"""Headroom Cache Optimization Module.
+"""Cutctx Cache Optimization Module.
 
 This module provides a plugin-based architecture for cache optimization
 across different LLM providers. Each provider has different caching

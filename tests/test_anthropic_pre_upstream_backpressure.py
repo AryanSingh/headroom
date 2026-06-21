@@ -37,7 +37,7 @@ from fastapi.testclient import TestClient
 from headroom.cli.proxy import proxy as proxy_cli
 from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
 from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import HeadroomProxy, create_app
+from headroom.proxy.server import CutctxProxy, create_app
 
 # --------------------------------------------------------------------------- #
 # Dummy handler that gives tests control over the ``_retry_request`` duration #
@@ -459,7 +459,7 @@ def test_concurrency_one_serializes_requests():
 
 def test_unbounded_mode_no_semaphore_instance():
     config = ProxyConfig(anthropic_pre_upstream_concurrency=0)
-    proxy = HeadroomProxy(config)
+    proxy = CutctxProxy(config)
     assert proxy.anthropic_pre_upstream_sem is None
     assert proxy.anthropic_pre_upstream_concurrency == 0
 
@@ -794,13 +794,13 @@ def test_cli_flags_override_pre_upstream_timeout_env_vars():
 
 
 # --------------------------------------------------------------------------- #
-# Sanity: HeadroomProxy auto-computes default when config value is None.       #
+# Sanity: CutctxProxy auto-computes default when config value is None.       #
 # --------------------------------------------------------------------------- #
 
 
 def test_auto_computed_default_on_this_machine():
     config = ProxyConfig()  # field left at None -> auto-compute.
-    proxy = HeadroomProxy(config)
+    proxy = CutctxProxy(config)
     expected = max(2, min(8, os.cpu_count() or 4))
     assert proxy.anthropic_pre_upstream_concurrency == expected
     assert proxy.anthropic_pre_upstream_sem is not None

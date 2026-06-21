@@ -206,7 +206,7 @@ def mcp_uninstall() -> None:
     if MCP_CONFIG_PATH.exists():
         config = load_mcp_config()
         changed = False
-        for server_name in ("cutctx", "headroom", "codebase-memory-mcp"):
+        for server_name in ("cutctx", "cutctx", "codebase-memory-mcp"):
             if server_name in config.get("mcpServers", {}):
                 del config["mcpServers"][server_name]
                 changed = True
@@ -247,7 +247,7 @@ def mcp_status() -> None:
         config = load_mcp_config()
         server_config = config.get("mcpServers", {}).get("cutctx")
         if server_config is None:
-            server_config = config.get("mcpServers", {}).get("headroom")
+            server_config = config.get("mcpServers", {}).get("cutctx")
         if server_config is not None:
             click.echo("Claude Config:  ✓ Configured")
             click.echo(f"                {MCP_CONFIG_PATH}")
@@ -273,7 +273,7 @@ def mcp_status() -> None:
         config = load_mcp_config()
         server_config = config.get("mcpServers", {}).get("cutctx")
         if server_config is None:
-            server_config = config.get("mcpServers", {}).get("headroom", {})
+            server_config = config.get("mcpServers", {}).get("cutctx", {})
         env = server_config.get("env", {})
         proxy_url = env.get("CUTCTX_PROXY_URL") or env.get(
             "HEADROOM_PROXY_URL",

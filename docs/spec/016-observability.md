@@ -6,25 +6,25 @@
 
 ### Metrics
 
-Headroom exposes Prometheus metrics at `/metrics`.
+Cutctx exposes Prometheus metrics at `/metrics`.
 
 **Key Metrics:**
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `headroom_requests_total` | Counter | Total requests |
-| `headroom_tokens_original` | Counter | Original token count |
-| `headroom_tokens_compressed` | Counter | Compressed token count |
-| `headroom_savings_percent` | Histogram | Savings distribution |
-| `headroom_cache_hits_total` | Counter | Cache hits |
-| `headroom_cache_misses_total` | Counter | Cache misses |
-| `headroom_compression_duration_seconds` | Histogram | Compression latency |
-| `headroom_request_duration_seconds` | Histogram | Total request latency |
+| `cutctx_requests_total` | Counter | Total requests |
+| `cutctx_tokens_original` | Counter | Original token count |
+| `cutctx_tokens_compressed` | Counter | Compressed token count |
+| `cutctx_savings_percent` | Histogram | Savings distribution |
+| `cutctx_cache_hits_total` | Counter | Cache hits |
+| `cutctx_cache_misses_total` | Counter | Cache misses |
+| `cutctx_compression_duration_seconds` | Histogram | Compression latency |
+| `cutctx_request_duration_seconds` | Histogram | Total request latency |
 
 **Prometheus scrape config:**
 ```yaml
 scrape_configs:
-  - job_name: 'headroom'
+  - job_name: 'cutctx'
     static_configs:
       - targets: ['localhost:8787']
     metrics_path: '/metrics'
@@ -40,19 +40,19 @@ OpenTelemetry tracing support.
 ```bash
 LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
-HEADROOM_LANGFUSE_ENABLED=1
+CUTCTX_LANGFUSE_ENABLED=1
 # Optional: override endpoint and service name
 # LANGFUSE_BASE_URL=https://cloud.langfuse.com
-# HEADROOM_LANGFUSE_SERVICE_NAME=headroom
+# CUTCTX_LANGFUSE_SERVICE_NAME=cutctx
 ```
 
 **Spans:**
 | Span | Description |
 |------|-------------|
-| `headroom.proxy.request` | Full request lifecycle |
-| `headroom.compression` | Compression operation |
-| `headroom.cache.lookup` | Cache check |
-| `headroom.provider.call` | Provider API call |
+| `cutctx.proxy.request` | Full request lifecycle |
+| `cutctx.compression` | Compression operation |
+| `cutctx.cache.lookup` | Cache check |
+| `cutctx.provider.call` | Provider API call |
 
 ---
 
@@ -81,8 +81,8 @@ HEADROOM_LANGFUSE_ENABLED=1
 
 **Configuration:**
 ```bash
-# Logging level is controlled via the --log-level CLI flag (headroom proxy --log-level debug)
-# or RUST_LOG env var for the Rust proxy. No HEADROOM_LOG_LEVEL env var exists.
+# Logging level is controlled via the --log-level CLI flag (cutctx proxy --log-level debug)
+# or RUST_LOG env var for the Rust proxy. No CUTCTX_LOG_LEVEL env var exists.
 ```
 
 Or in config:
@@ -123,15 +123,15 @@ logging:
 **Alert rule example (Prometheus):**
 ```yaml
 groups:
-  - name: headroom
+  - name: cutctx
     rules:
       - alert: HighErrorRate
-        expr: rate(headroom_errors_total[5m]) / rate(headroom_requests_total[5m]) > 0.05
+        expr: rate(cutctx_errors_total[5m]) / rate(cutctx_requests_total[5m]) > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate in Headroom"
+          summary: "High error rate in Cutctx"
 ```
 
 ---

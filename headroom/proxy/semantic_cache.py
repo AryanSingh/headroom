@@ -1,4 +1,4 @@
-"""Semantic cache for the Headroom proxy.
+"""Semantic cache for the Cutctx proxy.
 
 Simple semantic cache based on message content hash with LRU eviction.
 

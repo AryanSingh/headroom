@@ -99,7 +99,7 @@ def test_merge_helper_skips_empty_tokens() -> None:
 
 
 def test_merge_helper_no_double_inject_when_already_present() -> None:
-    # Headroom token already in client value → not re-appended.
+    # Cutctx token already in client value → not re-appended.
     assert (
         merge_anthropic_beta("context-management-2025-06-27", ["context-management-2025-06-27"])
         == "context-management-2025-06-27"

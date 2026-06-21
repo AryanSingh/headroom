@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for Headroom tests."""
+"""Shared pytest fixtures for Cutctx tests."""
 
 # CRITICAL: Must be set before ANY imports that could trigger sentence_transformers
 # The Rust tokenizers use parallelism that deadlocks with pytest-asyncio
@@ -119,7 +119,7 @@ def _reset_headroom_logger_propagation():
     """Keep `headroom.*` log records flowing to pytest's caplog handler.
 
     `headroom.proxy.helpers._setup_file_logging` sets
-    ``logging.getLogger("headroom").propagate = False`` once any test
+    ``logging.getLogger("cutctx").propagate = False`` once any test
     triggers a proxy startup with `--log-file`. After that, every
     subsequent test's `caplog` fixture stops capturing `headroom.*`
     log records (caplog attaches to root, propagation is now blocked
@@ -128,7 +128,7 @@ def _reset_headroom_logger_propagation():
     """
     import logging as _logging
 
-    _logging.getLogger("headroom").propagate = True
+    _logging.getLogger("cutctx").propagate = True
     yield
 
 
@@ -296,10 +296,10 @@ def openai_tokenizer():
 # Config fixtures
 @pytest.fixture
 def default_config():
-    """Default HeadroomConfig."""
-    from headroom.config import HeadroomConfig
+    """Default CutctxConfig."""
+    from headroom.config import CutctxConfig
 
-    return HeadroomConfig()
+    return CutctxConfig()
 
 
 @pytest.fixture

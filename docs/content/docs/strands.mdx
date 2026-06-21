@@ -16,10 +16,10 @@ pip install cutctx-ai strands-agents
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from headroom.integrations.strands import HeadroomStrandsModel
+from cutctx.integrations.strands import CutCtxStrandsModel
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-optimized = HeadroomStrandsModel(wrapped_model=model)
+optimized = CutCtxStrandsModel(wrapped_model=model)
 
 agent = Agent(model=optimized)
 response = agent("Investigate the production incident")
@@ -32,12 +32,12 @@ print(f"Tokens saved: {optimized.total_tokens_saved}")
 Wraps the Strands `Model` interface. Every call to `stream()` compresses messages before they reach the provider:
 
 ```python
-from headroom import HeadroomConfig
-from headroom.integrations.strands import HeadroomStrandsModel
+from cutctx import CutCtxConfig
+from cutctx.integrations.strands import CutCtxStrandsModel
 
-optimized = HeadroomStrandsModel(
+optimized = CutCtxStrandsModel(
     wrapped_model=model,
-    config=HeadroomConfig(),
+    config=CutCtxConfig(),
 )
 
 agent = Agent(model=optimized)
@@ -51,10 +51,10 @@ Compresses tool call results via Strands' hook system. Uses SmartCrusher on JSON
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from headroom.integrations.strands import HeadroomHookProvider
+from cutctx.integrations.strands import CutCtxHookProvider
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-hooks = HeadroomHookProvider(
+hooks = CutCtxHookProvider(
     compress_tool_outputs=True,
     min_tokens_to_compress=200,
     preserve_errors=True,
@@ -73,10 +73,10 @@ The hook preserves error items, anomalous values (statistical outliers), items m
 Model wrapping compresses conversation history. Hooks compress individual tool results. Use both for maximum savings:
 
 ```python
-from headroom.integrations.strands import HeadroomStrandsModel, HeadroomHookProvider
+from cutctx.integrations.strands import CutCtxStrandsModel, CutCtxHookProvider
 
-optimized = HeadroomStrandsModel(wrapped_model=model)
-hooks = HeadroomHookProvider(compress_tool_outputs=True)
+optimized = CutCtxStrandsModel(wrapped_model=model)
+hooks = CutCtxHookProvider(compress_tool_outputs=True)
 
 agent = Agent(model=optimized, hooks=[hooks])
 ```
@@ -90,14 +90,14 @@ Agent decides to call tool
 Tool executes, returns result
     |
     v
-HeadroomHookProvider (optional)
+CutCtxHookProvider (optional)
     compresses tool result JSON
     |
     v
 Agent builds next API request
     |
     v
-HeadroomStrandsModel.stream()
+CutCtxStrandsModel.stream()
     compresses full message list
     |
     v

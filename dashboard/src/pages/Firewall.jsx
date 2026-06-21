@@ -30,36 +30,38 @@ export default function Firewall() {
           <h3 style={{ color: '#fff' }}>Recent Interceptions</h3>
           <button className="btn btn-primary">Add Custom Rule</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Rule Triggered</th>
-              <th>Action</th>
-              <th>Project</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>10:41 AM</td>
-              <td>JAILBREAK_IGNORE_PREVIOUS</td>
-              <td><span className="badge badge-danger">Blocked</span></td>
-              <td>prod-api-svc</td>
-            </tr>
-            <tr>
-              <td>10:12 AM</td>
-              <td>PII_CREDIT_CARD</td>
-              <td><span className="badge badge-success">Redacted</span></td>
-              <td>customer-portal</td>
-            </tr>
-            <tr>
-              <td>09:05 AM</td>
-              <td>EXFILTRATION_BASE64</td>
-              <td><span className="badge badge-danger">Blocked</span></td>
-              <td>internal-tools</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Rule Triggered</th>
+                <th>Action</th>
+                <th>Project</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>10:41 AM</td>
+                <td>JAILBREAK_IGNORE_PREVIOUS</td>
+                <td><span className="badge badge-danger">Blocked</span></td>
+                <td>prod-api-svc</td>
+              </tr>
+              <tr>
+                <td>10:12 AM</td>
+                <td>PII_CREDIT_CARD</td>
+                <td><span className="badge badge-success">Redacted</span></td>
+                <td>customer-portal</td>
+              </tr>
+              <tr>
+                <td>09:05 AM</td>
+                <td>EXFILTRATION_BASE64</td>
+                <td><span className="badge badge-danger">Blocked</span></td>
+                <td>internal-tools</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -712,7 +712,7 @@ def _extract_json_block(lines: list[str], start: int) -> tuple[str | None, int]:
 class ContentRouter(Transform):
     """Intelligent router that selects optimal compression strategy.
 
-    ContentRouter is the recommended entry point for Headroom's compression.
+    ContentRouter is the recommended entry point for Cutctx's compression.
     It analyzes content and routes it to the most appropriate compressor,
     handling mixed content by splitting and reassembling.
 

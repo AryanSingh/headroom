@@ -267,6 +267,7 @@ class FirewallScanner:
                 "Firewall: %d violation(s) found in %d messages (%.1fms)",
                 len(violations), len(messages), elapsed_ms,
             )
+            self._trigger_webhooks(violations)
 
         return violations
 
@@ -283,7 +284,26 @@ class FirewallScanner:
         if self.config.block_pii:
             violations.extend(self._scan_pii(text))
         violations.extend(self._scan_exfiltration(text))
+        
+        if violations:
+            self._trigger_webhooks(violations)
+            
         return violations
+
+    def _trigger_webhooks(self, violations: list[Violation]) -> None:
+        """Fire a webhook for specific violation types."""
+        alert_kinds = {ViolationKind.PII, ViolationKind.INJECTION}
+        trigger_violations = [v for v in violations if v.kind in alert_kinds]
+        if trigger_violations:
+            try:
+                import asyncio
+                from headroom.proxy.webhooks import dispatcher
+                for v in trigger_violations:
+                    title = f"Firewall Alert: {v.kind.value.upper()}"
+                    message = f"Detected {v.kind.value}: {v.description}"
+                    asyncio.create_task(dispatcher.fire_webhook(title, message))
+            except Exception as e:
+                logger.error(f"Error triggering firewall webhooks: {e}")
 
     def should_block(self, violations: list[Violation]) -> bool:
         """Return True if any violation should block the request."""

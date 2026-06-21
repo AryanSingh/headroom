@@ -1,4 +1,4 @@
-# Headroom Pricing Sheet
+# Cutctx Pricing Sheet
 
 **Date:** June 13, 2026  
 **Version:** v2.0  
@@ -180,7 +180,7 @@ Use four value buckets in every commercial conversation:
 ## Quote Skeleton
 
 ```text
-HEADROOM COMMERCIAL QUOTE
+CUTCTX COMMERCIAL QUOTE
 
 Customer:
 Primary contact:

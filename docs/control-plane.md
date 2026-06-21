@@ -29,8 +29,8 @@ The CutCtx proxy includes a hosted control plane for managing Enterprise feature
 ## Architecture
 
 1. **Rust Proxy**: High-performance reverse proxy that fetches cached policies and asynchronously emits spend events.
-2. **Python Control Plane**: FastAPI service embedded in the `headroom/proxy` that exposes management endpoints.
-3. **Enterprise Extensions**: The `headroom_ee` package contains proprietary logic for license, spend, policy, and audit storage and cryptography.
+2. **Python Control Plane**: FastAPI service embedded in the `cutctx/proxy` that exposes management endpoints.
+3. **Enterprise Extensions**: The `cutctx_ee` package contains proprietary logic for license, spend, policy, and audit storage and cryptography.
 
 ## Self-Hosting
 To self-host the control plane, configure your load balancer to route `/v1/*` paths to a dedicated CutCtx proxy instance running with the `--management-only` flag (if available) or simply behind firewall rules restricting access to admin operators.

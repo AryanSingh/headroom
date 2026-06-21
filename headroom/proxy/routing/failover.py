@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 """Provider failover manager with circuit-breaker semantics.
 
 Thread-safe provider selection with:

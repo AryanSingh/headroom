@@ -825,7 +825,7 @@ def load_tool_output_samples() -> EvalSuite:
                     "items": [
                         {
                             "id": 12345,
-                            "name": "headroom",
+                            "name": "cutctx",
                             "full_name": "anthropic/headroom",
                             "description": "Context optimization for LLM applications",
                             "stargazers_count": 1250,

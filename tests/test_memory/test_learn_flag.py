@@ -11,7 +11,7 @@ Verifies that:
 
 from __future__ import annotations
 
-from headroom.proxy.server import HeadroomProxy, ProxyConfig
+from headroom.proxy.server import CutctxProxy, ProxyConfig
 
 # =============================================================================
 # ProxyConfig Flag Resolution Tests
@@ -69,18 +69,18 @@ class TestProxyConfigFlags:
 
 
 class TestHeadroomProxyTrafficLearner:
-    """Test that HeadroomProxy correctly initializes (or doesn't) the traffic learner."""
+    """Test that CutctxProxy correctly initializes (or doesn't) the traffic learner."""
 
     def test_no_traffic_learner_by_default(self):
         """Default proxy has no traffic learner."""
         config = ProxyConfig()
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is None
 
     def test_no_traffic_learner_with_memory_only(self):
         """--memory alone does NOT create traffic learner."""
         config = ProxyConfig(memory_enabled=True)
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is None
 
     def test_traffic_learner_created_with_learn(self):
@@ -89,7 +89,7 @@ class TestHeadroomProxyTrafficLearner:
             memory_enabled=True,
             traffic_learning_enabled=True,
         )
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is not None
 
     def test_traffic_learner_starts_without_backend(self):
@@ -98,7 +98,7 @@ class TestHeadroomProxyTrafficLearner:
             memory_enabled=True,
             traffic_learning_enabled=True,
         )
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is not None
         assert proxy.traffic_learner._backend is None
 
@@ -109,7 +109,7 @@ class TestHeadroomProxyTrafficLearner:
             traffic_learning_enabled=True,
         )
         assert config.traffic_learning_min_evidence == 5
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is not None
         assert proxy.traffic_learner._min_evidence == 5
 
@@ -120,7 +120,7 @@ class TestHeadroomProxyTrafficLearner:
             traffic_learning_enabled=True,
             traffic_learning_min_evidence=10,
         )
-        proxy = HeadroomProxy(config)
+        proxy = CutctxProxy(config)
         assert proxy.traffic_learner is not None
         assert proxy.traffic_learner._min_evidence == 10
 

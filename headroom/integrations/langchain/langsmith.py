@@ -1,9 +1,9 @@
-"""LangSmith integration for Headroom compression metrics.
+"""LangSmith integration for Cutctx compression metrics.
 
-This module provides HeadroomLangSmithCallbackHandler, a LangChain callback
-handler that adds Headroom compression metrics to LangSmith traces.
+This module provides CutctxLangSmithCallbackHandler, a LangChain callback
+handler that adds Cutctx compression metrics to LangSmith traces.
 
-When used with HeadroomChatModel, it automatically captures:
+When used with CutctxChatModel, it automatically captures:
 - Tokens before/after optimization
 - Savings percentage
 - Transforms applied
@@ -13,8 +13,8 @@ Example:
     import os
     from langchain_openai import ChatOpenAI
     from headroom.integrations import (
-        HeadroomChatModel,
-        HeadroomLangSmithCallbackHandler,
+        CutctxChatModel,
+        CutctxLangSmithCallbackHandler,
     )
 
     # Enable LangSmith tracing
@@ -22,10 +22,10 @@ Example:
     os.environ["LANGCHAIN_API_KEY"] = "..."
 
     # Create handler
-    handler = HeadroomLangSmithCallbackHandler()
+    handler = CutctxLangSmithCallbackHandler()
 
-    # Use with HeadroomChatModel
-    llm = HeadroomChatModel(
+    # Use with CutctxChatModel
+    llm = CutctxChatModel(
         ChatOpenAI(model="gpt-4o"),
         callbacks=[handler],
     )
@@ -89,8 +89,8 @@ class PendingMetrics:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
-class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
-    """Callback handler that adds Headroom metrics to LangSmith traces.
+class CutctxLangSmithCallbackHandler(BaseCallbackHandler):
+    """Callback handler that adds Cutctx metrics to LangSmith traces.
 
     Integrates with LangSmith to provide visibility into context
     optimization within traces. Metrics appear as metadata with
@@ -98,17 +98,17 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
 
     Works automatically when:
     1. LANGCHAIN_TRACING_V2=true is set
-    2. Used as a callback with HeadroomChatModel
+    2. Used as a callback with CutctxChatModel
     3. LangSmith API key is configured
 
     Example:
         from headroom.integrations import (
-            HeadroomChatModel,
-            HeadroomLangSmithCallbackHandler,
+            CutctxChatModel,
+            CutctxLangSmithCallbackHandler,
         )
 
-        handler = HeadroomLangSmithCallbackHandler()
-        llm = HeadroomChatModel(
+        handler = CutctxLangSmithCallbackHandler()
+        llm = CutctxChatModel(
             ChatOpenAI(model="gpt-4o"),
             callbacks=[handler],
         )
@@ -131,13 +131,13 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
         langsmith_client: Any = None,
         auto_update_runs: bool = True,
     ):
-        """Initialize HeadroomLangSmithCallbackHandler.
+        """Initialize CutctxLangSmithCallbackHandler.
 
         Args:
             langsmith_client: LangSmith client instance. Auto-creates
                 one if not provided and LangSmith is available.
             auto_update_runs: If True, automatically updates LangSmith
-                runs with Headroom metadata. Default True.
+                runs with Cutctx metadata. Default True.
         """
         _check_langchain_available()
 
@@ -161,9 +161,9 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
         tokens_after: int,
         transforms_applied: list[str] | None = None,
     ) -> None:
-        """Set Headroom metrics for a run.
+        """Set Cutctx metrics for a run.
 
-        Call this from HeadroomChatModel after optimization to attach
+        Call this from CutctxChatModel after optimization to attach
         metrics to the current run.
 
         Args:
@@ -187,7 +187,7 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
         self._pending_metrics[run_id_str] = metrics
 
         logger.debug(
-            f"Headroom metrics set for run {run_id_str}: "
+            f"Cutctx metrics set for run {run_id_str}: "
             f"{tokens_before} -> {tokens_after} tokens ({savings_percent:.1f}% saved)"
         )
 
@@ -216,7 +216,7 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
     ) -> None:
         """Called when LLM completes.
 
-        Attaches pending Headroom metrics to the LangSmith run.
+        Attaches pending Cutctx metrics to the LangSmith run.
         """
         run_id_str = str(run_id)
 
@@ -226,7 +226,7 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
             self._attach_metrics_to_run(run_id_str, metrics)
 
     def _attach_metrics_to_run(self, run_id: str, metrics: PendingMetrics) -> None:
-        """Attach Headroom metrics to a LangSmith run.
+        """Attach Cutctx metrics to a LangSmith run.
 
         Args:
             run_id: The run ID.
@@ -251,12 +251,12 @@ class HeadroomLangSmithCallbackHandler(BaseCallbackHandler):
                     run_id=run_id,
                     extra={"metadata": metadata},
                 )
-                logger.debug(f"Updated LangSmith run {run_id} with Headroom metrics")
+                logger.debug(f"Updated LangSmith run {run_id} with Cutctx metrics")
             except Exception as e:
                 logger.debug(f"Could not update LangSmith run: {e}")
 
     def get_run_metrics(self, run_id: str | UUID) -> dict[str, Any]:
-        """Get Headroom metrics for a specific run.
+        """Get Cutctx metrics for a specific run.
 
         Args:
             run_id: The run ID.

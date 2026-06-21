@@ -11,7 +11,7 @@ That gives extensions one stable contract across SDK, ``compress()``, and proxy
 request flow without replacing the existing compression hooks.
 
 Default implementation is no-op — OSS behavior unchanged. Override these
-in a subclass to customize (e.g., Headroom SaaS implements position-aware
+in a subclass to customize (e.g., Cutctx SaaS implements position-aware
 compression and cross-turn deduplication via these hooks).
 
 Usage:

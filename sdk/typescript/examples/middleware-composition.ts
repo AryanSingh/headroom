@@ -2,7 +2,7 @@
  * Example 10: Middleware Composition
  *
  * Combine headroomMiddleware with other Vercel AI SDK middlewares.
- * Headroom compresses first, then other middlewares process the result.
+ * CutCtx compresses first, then other middlewares process the result.
  *
  * Run: npx tsx examples/10-middleware-composition.ts
  */

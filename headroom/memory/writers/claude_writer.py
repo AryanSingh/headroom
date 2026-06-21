@@ -34,8 +34,8 @@ class ClaudeCodeMemoryWriter(AgentWriter):
     def format_memories(self, memories: list[MemoryEntry]) -> str:
         """Format as Claude Code MEMORY.md section."""
         lines = [
-            "## Headroom Learned Context",
-            "*Auto-maintained by Headroom — do not edit manually*",
+            "## Cutctx Learned Context",
+            "*Auto-maintained by Cutctx — do not edit manually*",
             "",
         ]
 
@@ -100,7 +100,7 @@ class ClaudeCodeMemoryWriter(AgentWriter):
             lines = [
                 "---",
                 f"name: headroom-{category}",
-                f"description: Headroom-learned {category.replace('_', ' ')} patterns",
+                f"description: Cutctx-learned {category.replace('_', ' ')} patterns",
                 "type: reference",
                 "---",
                 "",

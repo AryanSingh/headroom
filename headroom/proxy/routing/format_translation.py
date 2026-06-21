@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 """Format translation between Anthropic and OpenAI message/response schemas.
 
 Provides:

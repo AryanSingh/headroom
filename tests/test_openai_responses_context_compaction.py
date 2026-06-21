@@ -217,7 +217,7 @@ class _StubPipeline:
 
 class _HandlerHarness(OpenAIHandlerMixin):
     """Minimal subclass exposing just the deps the unit-extraction path
-    actually reads. The full HeadroomProxy ctor wires dozens of unrelated
+    actually reads. The full CutctxProxy ctor wires dozens of unrelated
     services; this keeps the test focused on the gate behavior."""
 
     def __init__(self, router: ContentRouter):

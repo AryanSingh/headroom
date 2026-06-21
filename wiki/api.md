@@ -1,14 +1,14 @@
 # API Reference
 
-## HeadroomClient
+## CutctxClient
 
-The main entry point for Headroom SDK.
+The main entry point for Cutctx SDK.
 
 ```python
-from headroom import HeadroomClient
+from cutctx import CutctxClient
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     default_mode="optimize",
 )
@@ -36,7 +36,7 @@ Create a chat completion with optional optimization.
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[...],
-    headroom_mode="optimize",  # Override default mode
+    cutctx_mode="optimize",  # Override default mode
 )
 ```
 
@@ -44,8 +44,8 @@ response = client.chat.completions.create(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `headroom_mode` | `str` | Override mode for this request |
-| `headroom_query` | `str` | Query for relevance scoring |
+| `cutctx_mode` | `str` | Override mode for this request |
+| `cutctx_query` | `str` | Query for relevance scoring |
 
 #### `chat.completions.simulate(**kwargs)`
 
@@ -71,7 +71,7 @@ print(f"Savings: {plan.savings_percent:.1f}%")
 ### SmartCrusherConfig
 
 ```python
-from headroom import SmartCrusherConfig
+from cutctx import SmartCrusherConfig
 
 config = SmartCrusherConfig(
     min_tokens_to_crush=200,
@@ -87,7 +87,7 @@ config = SmartCrusherConfig(
 ### CacheAlignerConfig
 
 ```python
-from headroom import CacheAlignerConfig
+from cutctx import CacheAlignerConfig
 
 config = CacheAlignerConfig(
     extract_dates=True,
@@ -99,7 +99,7 @@ config = CacheAlignerConfig(
 ### RollingWindowConfig
 
 ```python
-from headroom import RollingWindowConfig
+from cutctx import RollingWindowConfig
 
 config = RollingWindowConfig(
     max_tokens=100000,
@@ -112,7 +112,7 @@ config = RollingWindowConfig(
 ### IntelligentContextConfig
 
 ```python
-from headroom.config import IntelligentContextConfig, ScoringWeights
+from cutctx.config import IntelligentContextConfig, ScoringWeights
 
 weights = ScoringWeights(
     recency=0.20,
@@ -139,7 +139,7 @@ config = IntelligentContextConfig(
 ### ScoringWeights
 
 ```python
-from headroom.config import ScoringWeights
+from cutctx.config import ScoringWeights
 
 weights = ScoringWeights(
     recency=0.20,              # Exponential decay from end
@@ -157,7 +157,7 @@ normalized = weights.normalized()
 ### RelevanceScorerConfig
 
 ```python
-from headroom import RelevanceScorerConfig
+from cutctx import RelevanceScorerConfig
 
 config = RelevanceScorerConfig(
     scorer_type="bm25",      # "bm25", "embedding", or "hybrid"
@@ -224,7 +224,7 @@ class WasteSignals:
 ### OpenAIProvider
 
 ```python
-from headroom import OpenAIProvider
+from cutctx import OpenAIProvider
 
 provider = OpenAIProvider()
 
@@ -246,7 +246,7 @@ cost = provider.estimate_cost(
 ### AnthropicProvider
 
 ```python
-from headroom import AnthropicProvider
+from cutctx import AnthropicProvider
 from anthropic import Anthropic
 
 provider = AnthropicProvider(client=Anthropic())
@@ -264,7 +264,7 @@ tokens = counter.count_messages(messages)  # Accurate count via API
 Fast keyword-based scoring (zero dependencies).
 
 ```python
-from headroom import BM25Scorer
+from cutctx import BM25Scorer
 
 scorer = BM25Scorer()
 scores = scorer.score_items(
@@ -278,7 +278,7 @@ scores = scorer.score_items(
 Semantic similarity scoring (requires `sentence-transformers`).
 
 ```python
-from headroom import EmbeddingScorer, embedding_available
+from cutctx import EmbeddingScorer, embedding_available
 
 if embedding_available():
     scorer = EmbeddingScorer(model="all-MiniLM-L6-v2")
@@ -290,7 +290,7 @@ if embedding_available():
 Combines BM25 and embeddings.
 
 ```python
-from headroom import HybridScorer
+from cutctx import HybridScorer
 
 scorer = HybridScorer(alpha=0.5)  # 50% BM25, 50% embedding
 scores = scorer.score_items(items, query)
@@ -301,7 +301,7 @@ scores = scorer.score_items(items, query)
 Factory function to create scorers.
 
 ```python
-from headroom import create_scorer
+from cutctx import create_scorer
 
 # Auto-select best available scorer
 scorer = create_scorer()
@@ -317,7 +317,7 @@ scorer = create_scorer(scorer_type="hybrid", alpha=0.7)
 ### SmartCrusher
 
 ```python
-from headroom import SmartCrusher
+from cutctx import SmartCrusher
 
 crusher = SmartCrusher()
 result = crusher.crush(
@@ -329,7 +329,7 @@ result = crusher.crush(
 ### CacheAligner
 
 ```python
-from headroom import CacheAligner
+from cutctx import CacheAligner
 
 aligner = CacheAligner()
 result = aligner.align(messages)
@@ -338,7 +338,7 @@ result = aligner.align(messages)
 ### RollingWindow
 
 ```python
-from headroom import RollingWindow
+from cutctx import RollingWindow
 
 window = RollingWindow(config)
 result = window.apply(messages, max_tokens=100000)
@@ -347,9 +347,9 @@ result = window.apply(messages, max_tokens=100000)
 ### IntelligentContextManager
 
 ```python
-from headroom.transforms import IntelligentContextManager
-from headroom.config import IntelligentContextConfig
-from headroom.telemetry import get_toin
+from cutctx.transforms import IntelligentContextManager
+from cutctx.config import IntelligentContextConfig
+from cutctx.telemetry import get_toin
 
 # With TOIN integration for learned patterns
 toin = get_toin()
@@ -370,8 +370,8 @@ print(result.tokens_before, result.tokens_after)
 ### MessageScorer
 
 ```python
-from headroom.transforms import MessageScorer, MessageScore
-from headroom.config import ScoringWeights
+from cutctx.transforms import MessageScorer, MessageScore
+from cutctx.config import ScoringWeights
 
 scorer = MessageScorer(
     weights=ScoringWeights(),
@@ -397,7 +397,7 @@ for score in scores:
 ### TransformPipeline
 
 ```python
-from headroom import TransformPipeline
+from cutctx import TransformPipeline
 
 pipeline = TransformPipeline([
     SmartCrusher(),
@@ -415,7 +415,7 @@ result = pipeline.transform(messages)
 ### Tokenizer
 
 ```python
-from headroom import Tokenizer, count_tokens_text, count_tokens_messages
+from cutctx import Tokenizer, count_tokens_text, count_tokens_messages
 
 # Quick counting
 tokens = count_tokens_text("Hello, world!", model="gpt-4o")
@@ -431,10 +431,10 @@ tokens = tokenizer.count_messages(messages)
 Generate HTML/Markdown reports from stored metrics.
 
 ```python
-from headroom import generate_report
+from cutctx import generate_report
 
 report = generate_report(
-    store_url="sqlite:///headroom.db",
+    store_url="sqlite:///cutctx.db",
     format="html",
     period="day",
 )
@@ -446,4 +446,4 @@ report = generate_report(
 
 For the TypeScript SDK API reference, see [TypeScript SDK](typescript-sdk.md).
 
-The TypeScript SDK provides `compress()`, `HeadroomClient`, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.
+The TypeScript SDK provides `compress()`, `CutctxClient`, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.

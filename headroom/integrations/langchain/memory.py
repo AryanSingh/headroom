@@ -1,17 +1,17 @@
 """Memory integration for LangChain with automatic compression.
 
-This module provides HeadroomChatMessageHistory, a wrapper for any LangChain
+This module provides CutctxChatMessageHistory, a wrapper for any LangChain
 chat message history that automatically compresses conversation history
 when it exceeds a token threshold.
 
 Example:
     from langchain.memory import ConversationBufferMemory
     from langchain_community.chat_message_histories import ChatMessageHistory
-    from headroom.integrations import HeadroomChatMessageHistory
+    from headroom.integrations import CutctxChatMessageHistory
 
     # Wrap any chat message history
     base_history = ChatMessageHistory()
-    compressed_history = HeadroomChatMessageHistory(base_history)
+    compressed_history = CutctxChatMessageHistory(base_history)
 
     # Use with ConversationBufferMemory (zero code changes to chain)
     memory = ConversationBufferMemory(chat_memory=compressed_history)
@@ -41,7 +41,7 @@ except ImportError:
     LANGCHAIN_AVAILABLE = False
     BaseChatMessageHistory = object  # type: ignore[misc,assignment]
 
-from headroom import HeadroomConfig
+from headroom import CutctxConfig
 from headroom.providers import OpenAIProvider
 from headroom.transforms import TransformPipeline
 
@@ -58,7 +58,7 @@ def _check_langchain_available() -> None:
         )
 
 
-class HeadroomChatMessageHistory(BaseChatMessageHistory):
+class CutctxChatMessageHistory(BaseChatMessageHistory):
     """Wraps any LangChain chat message history with automatic compression.
 
     When conversation history exceeds the token threshold, automatically
@@ -75,11 +75,11 @@ class HeadroomChatMessageHistory(BaseChatMessageHistory):
     Example:
         from langchain.memory import ConversationBufferMemory
         from langchain_community.chat_message_histories import ChatMessageHistory
-        from headroom.integrations import HeadroomChatMessageHistory
+        from headroom.integrations import CutctxChatMessageHistory
 
         # Wrap base history
         base = ChatMessageHistory()
-        compressed = HeadroomChatMessageHistory(
+        compressed = CutctxChatMessageHistory(
             base,
             compress_threshold_tokens=4000,
             keep_recent_turns=5,
@@ -107,7 +107,7 @@ class HeadroomChatMessageHistory(BaseChatMessageHistory):
         model: str = "gpt-4o",
         provider: Provider | None = None,
     ):
-        """Initialize HeadroomChatMessageHistory.
+        """Initialize CutctxChatMessageHistory.
 
         Args:
             base_history: Any LangChain BaseChatMessageHistory to wrap
@@ -116,7 +116,7 @@ class HeadroomChatMessageHistory(BaseChatMessageHistory):
             keep_recent_turns: Minimum number of recent user/assistant turns
                 to always preserve during compression. Default 5.
             model: Model name for token counting. Default "gpt-4o".
-            provider: Headroom provider for token counting. Auto-uses
+            provider: Cutctx provider for token counting. Auto-uses
                 OpenAIProvider if not specified.
         """
         _check_langchain_available()
@@ -221,11 +221,11 @@ class HeadroomChatMessageHistory(BaseChatMessageHistory):
             Messages with their live-zone content compressed where
             applicable.
         """
-        # Convert to OpenAI format for Headroom transforms
+        # Convert to OpenAI format for Cutctx transforms
         openai_messages = self._convert_to_openai(messages)
 
         # Use TransformPipeline which handles tokenizer setup
-        config = HeadroomConfig()
+        config = CutctxConfig()
         pipeline = TransformPipeline(config=config, provider=self._provider)
 
         # Apply compression via pipeline

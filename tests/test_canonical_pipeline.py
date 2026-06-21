@@ -4,9 +4,9 @@ import importlib
 from types import SimpleNamespace
 from typing import Any
 
-from headroom.client import HeadroomClient
+from headroom.client import CutctxClient
 from headroom.compress import compress
-from headroom.config import HeadroomConfig, HeadroomMode, TransformResult
+from headroom.config import CutctxConfig, CutctxMode, TransformResult
 from headroom.hooks import CompressionHooks
 from headroom.pipeline import (
     CANONICAL_PIPELINE_STAGES,
@@ -149,7 +149,7 @@ def test_pipeline_extension_manager_uses_canonical_stage_contract():
 
 
 def test_default_transform_pipeline_always_uses_content_router() -> None:
-    config = HeadroomConfig()
+    config = CutctxConfig()
 
     pipeline = TransformPipeline(config)
 
@@ -290,13 +290,13 @@ def test_compress_emits_canonical_pipeline_events(monkeypatch):
 def test_headroom_client_emits_canonical_pipeline_events(tmp_path):
     recorder = RecordingExtension()
     original = DummyOriginalClient()
-    config = HeadroomConfig(
+    config = CutctxConfig(
         store_url=f"jsonl://{tmp_path / 'headroom.jsonl'}",
         default_mode=HeadroomMode.OPTIMIZE,
         pipeline_extensions=[recorder],
         discover_pipeline_extensions=False,
     )
-    client = HeadroomClient(
+    client = CutctxClient(
         original_client=original,
         provider=StubProvider(),
         store_url=f"jsonl://{tmp_path / 'headroom-client.jsonl'}",

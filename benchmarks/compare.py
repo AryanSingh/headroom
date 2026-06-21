@@ -2,7 +2,7 @@
 """
 Tool comparison benchmark.
 
-Compare compression quality and performance across Headroom, LLMLingua2, Morph, and others.
+Compare compression quality and performance across Cutctx, LLMLingua2, Morph, and others.
 
 Usage:
     # Compare headroom and llmlingua2 on ToolBench
@@ -44,7 +44,7 @@ from typing import Any
 
 import tiktoken
 
-# Headroom
+# Cutctx
 try:
     from headroom import compress
     HEADROOM_AVAILABLE = True
@@ -212,8 +212,8 @@ class CompressionTool:
         return {}
 
 
-class HeadroomTool(CompressionTool):
-    """Wrapper for Headroom compression."""
+class CutctxTool(CompressionTool):
+    """Wrapper for Cutctx compression."""
 
     def __init__(self):
         if not HEADROOM_AVAILABLE:
@@ -266,7 +266,7 @@ class MorphTool(CompressionTool):
 
 
 TOOLS: dict[str, Callable[[], CompressionTool]] = {
-    "headroom": HeadroomTool,
+    "cutctx": CutctxTool,
     "llmlingua2": LLMLingua2Tool,
     "morph": MorphTool,
 }
@@ -431,7 +431,7 @@ def main() -> int:
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Defaults
-    tools = args.tool or ["headroom"]
+    tools = args.tool or ["cutctx"]
     corpora = args.corpus or ["synthetic"]
 
     logger.info("=" * 70)

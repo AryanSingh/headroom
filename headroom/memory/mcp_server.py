@@ -1,4 +1,4 @@
-"""Headroom Memory MCP Server.
+"""Cutctx Memory MCP Server.
 
 A stdio MCP server that exposes headroom's memory backend as tools
 that Codex (or any MCP-compatible client) can call natively.
@@ -345,7 +345,7 @@ async def _run(db_path: str, user_id: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Headroom Memory MCP Server")
+    parser = argparse.ArgumentParser(description="Cutctx Memory MCP Server")
     parser.add_argument(
         "--db",
         default=str(Path.cwd() / ".headroom" / "memory.db"),

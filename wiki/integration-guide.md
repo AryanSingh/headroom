@@ -1,6 +1,6 @@
 # Integration Guide
 
-You don't need to run the Headroom proxy. Headroom is a compression library that works with **any** LLM client, proxy, or framework.
+You don't need to run the Cutctx proxy. Cutctx is a compression library that works with **any** LLM client, proxy, or framework.
 
 ## Pick Your Path
 
@@ -9,14 +9,14 @@ You don't need to run the Headroom proxy. Headroom is a compression library that
 | Any Python app | [`compress()`](#compress-function) | 2 lines |
 | LiteLLM | [LiteLLM callback](#litellm) | 1 line |
 | A Python proxy (FastAPI, custom) | [ASGI middleware](#asgi-middleware) | 1 line |
-| Claude Code / Cursor / Copilot CLI | [Headroom proxy](#proxy) | 1 command or env var |
+| Claude Code / Cursor / Copilot CLI | [Cutctx proxy](#proxy) | 1 command or env var |
 | Agno agents | [Agno integration](#agno) | Wrap model |
 | LangChain | [LangChain integration](#langchain) | Wrap model |
-| Non-Python app | [Headroom proxy](#proxy) | HTTP |
-| TypeScript SDK | [`compress()`](#typescript-sdk) | `npm install headroom-ai` |
-| Vercel AI SDK | [`headroomMiddleware()`](#typescript-sdk) | Middleware adapter |
-| OpenAI Node SDK | [`withHeadroom()`](#typescript-sdk) | Client wrapper |
-| Anthropic TS SDK | [`withHeadroom()`](#typescript-sdk) | Client wrapper |
+| Non-Python app | [Cutctx proxy](#proxy) | HTTP |
+| TypeScript SDK | [`compress()`](#typescript-sdk) | `npm install cutctx-ai` |
+| Vercel AI SDK | [`cutctxMiddleware()`](#typescript-sdk) | Middleware adapter |
+| OpenAI Node SDK | [`withCutctx()`](#typescript-sdk) | Client wrapper |
+| Anthropic TS SDK | [`withCutctx()`](#typescript-sdk) | Client wrapper |
 
 ---
 
@@ -25,7 +25,7 @@ You don't need to run the Headroom proxy. Headroom is a compression library that
 The simplest integration. Works with any LLM client.
 
 ```python
-from headroom import compress
+from cutctx import compress
 
 # Before sending to your LLM:
 result = compress(messages, model="claude-sonnet-4-5-20250929")
@@ -38,7 +38,7 @@ print(f"Saved {result.tokens_saved} tokens ({result.compression_ratio:.0%})")
 
 ```python
 from anthropic import Anthropic
-from headroom import compress
+from cutctx import compress
 
 client = Anthropic()
 messages = [
@@ -59,7 +59,7 @@ response = client.messages.create(
 
 ```python
 from openai import OpenAI
-from headroom import compress
+from cutctx import compress
 
 client = OpenAI()
 messages = [
@@ -78,7 +78,7 @@ response = client.chat.completions.create(
 
 ```python
 import litellm
-from headroom import compress
+from cutctx import compress
 
 messages = [...]
 compressed = compress(messages, model="bedrock/claude-sonnet")
@@ -89,7 +89,7 @@ response = litellm.completion(model="bedrock/claude-sonnet", messages=compressed
 
 ```python
 import httpx
-from headroom import compress
+from cutctx import compress
 
 compressed = compress(messages, model="claude-sonnet-4-5-20250929")
 httpx.post("https://api.anthropic.com/v1/messages", json={
@@ -114,13 +114,13 @@ result.transforms_applied # list[str] — what ran (e.g., ["router:smart_crusher
 
 ## LiteLLM
 
-If you're already using LiteLLM as your LLM gateway, add Headroom as a callback:
+If you're already using LiteLLM as your LLM gateway, add Cutctx as a callback:
 
 ```python
 import litellm
-from headroom.integrations.litellm_callback import HeadroomCallback
+from cutctx.integrations.litellm_callback import CutctxCallback
 
-litellm.callbacks = [HeadroomCallback()]
+litellm.callbacks = [CutctxCallback()]
 
 # All calls now compressed automatically
 response = litellm.completion(model="gpt-4o", messages=[...])
@@ -137,7 +137,7 @@ If you run LiteLLM as a proxy server, use the ASGI middleware instead:
 ```python
 # In your LiteLLM proxy startup
 from litellm.proxy.proxy_server import app
-from headroom.integrations.asgi import CompressionMiddleware
+from cutctx.integrations.asgi import CompressionMiddleware
 
 app.add_middleware(CompressionMiddleware)
 ```
@@ -147,7 +147,7 @@ Or use the callback in your LiteLLM config:
 ```yaml
 # litellm_config.yaml
 litellm_settings:
-  callbacks: ["headroom.integrations.litellm_callback.HeadroomCallback"]
+  callbacks: ["cutctx.integrations.litellm_callback.CutctxCallback"]
 ```
 
 ---
@@ -157,7 +157,7 @@ litellm_settings:
 Drop-in middleware for any ASGI application (FastAPI, Starlette, LiteLLM proxy, custom proxies).
 
 ```python
-from headroom.integrations.asgi import CompressionMiddleware
+from cutctx.integrations.asgi import CompressionMiddleware
 
 # FastAPI
 app = FastAPI()
@@ -175,18 +175,18 @@ app.add_middleware(CompressionMiddleware)
 The middleware intercepts POST requests to `/v1/messages`, `/v1/chat/completions`, `/v1/responses`, and `/chat/completions`. All other requests pass through untouched.
 
 Response headers include:
-- `x-headroom-compressed: true` — compression was applied
-- `x-headroom-tokens-saved: 1234` — tokens removed
+- `x-cutctx-compressed: true` — compression was applied
+- `x-cutctx-tokens-saved: 1234` — tokens removed
 
 ---
 
 ## Proxy
 
-The Headroom proxy is a standalone HTTP server. Best for non-Python apps or tools that only support base URL configuration (Claude Code, Cursor, GitHub Copilot CLI).
+The Cutctx proxy is a standalone HTTP server. Best for non-Python apps or tools that only support base URL configuration (Claude Code, Cursor, GitHub Copilot CLI).
 
 ```bash
-pip install "headroom-ai[all]"
-headroom proxy --port 8787
+pip install "cutctx-ai[all]"
+cutctx proxy --port 8787
 ```
 
 ```bash
@@ -194,36 +194,36 @@ headroom proxy --port 8787
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 
 # GitHub Copilot CLI
-headroom wrap copilot -- --model claude-sonnet-4-20250514
+cutctx wrap copilot -- --model claude-sonnet-4-20250514
 
 # Cursor / Any OpenAI client
 OPENAI_BASE_URL=http://localhost:8787/v1 cursor
 ```
 
-For translated backends, the Copilot wrapper can switch to Headroom's OpenAI-compatible route:
+For translated backends, the Copilot wrapper can switch to Cutctx's OpenAI-compatible route:
 
 ```bash
-headroom wrap copilot --backend anyllm --anyllm-provider groq -- --model gpt-4o
+cutctx wrap copilot --backend anyllm --anyllm-provider groq -- --model gpt-4o
 ```
 
-By default, `headroom wrap copilot` installs `rtk` and appends token-optimized shell guidance to `.github/copilot-instructions.md` so Copilot sessions reuse the same command-saving conventions as other wrapped agent CLIs. Use `--no-rtk` to skip that step.
+By default, `cutctx wrap copilot` installs `rtk` and appends token-optimized shell guidance to `.github/copilot-instructions.md` so Copilot sessions reuse the same command-saving conventions as other wrapped agent CLIs. Use `--no-rtk` to skip that step.
 
-For Copilot's **hosted** API (`--subscription` and the implicit OAuth path), Headroom routes to the generic host `https://api.githubcopilot.com`, which serves the full model set. **Enterprise / data-residency** tenants on a dedicated Copilot host pin it with `GITHUB_COPILOT_API_URL` (e.g. `export GITHUB_COPILOT_API_URL=https://api.<your-host>.githubcopilot.com`); the override flows through to the upstream request. See [`TESTING-copilot-subscription.md`](https://github.com/chopratejas/headroom/blob/main/TESTING-copilot-subscription.md).
+For Copilot's **hosted** API (`--subscription` and the implicit OAuth path), Cutctx routes to the generic host `https://api.githubcopilot.com`, which serves the full model set. **Enterprise / data-residency** tenants on a dedicated Copilot host pin it with `GITHUB_COPILOT_API_URL` (e.g. `export GITHUB_COPILOT_API_URL=https://api.<your-host>.githubcopilot.com`); the override flows through to the upstream request. See [`TESTING-copilot-subscription.md`](https://github.com/chopratejas/cutctx/blob/main/TESTING-copilot-subscription.md).
 
 ### With Cloud Providers
 
 ```bash
 # AWS Bedrock
-headroom proxy --backend bedrock --region us-east-1
+cutctx proxy --backend bedrock --region us-east-1
 
 # Google Vertex AI
-headroom proxy --backend vertex_ai --region us-central1
+cutctx proxy --backend vertex_ai --region us-central1
 
 # Azure OpenAI
-headroom proxy --backend azure
+cutctx proxy --backend azure
 
 # OpenRouter (400+ models)
-OPENROUTER_API_KEY=sk-or-... headroom proxy --backend openrouter
+OPENROUTER_API_KEY=sk-or-... cutctx proxy --backend openrouter
 ```
 
 See [Proxy Documentation](proxy.md) for all options.
@@ -237,9 +237,9 @@ Full integration with the Agno agent framework.
 ```python
 from agno.agent import Agent
 from agno.models.anthropic import Claude
-from headroom.integrations.agno import HeadroomAgnoModel
+from cutctx.integrations.agno import CutctxAgnoModel
 
-model = HeadroomAgnoModel(Claude(id="claude-sonnet-4-20250514"))
+model = CutctxAgnoModel(Claude(id="claude-sonnet-4-20250514"))
 agent = Agent(model=model, tools=[your_tools])
 response = agent.run("Investigate the issue")
 
@@ -256,9 +256,9 @@ Full integration with LangChain — chat models, memory, retrievers, tool wrappe
 
 ```python
 from langchain_openai import ChatOpenAI
-from headroom.integrations import HeadroomChatModel
+from cutctx.integrations import CutctxChatModel
 
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+llm = CutctxChatModel(ChatOpenAI(model="gpt-4o"))
 response = llm.invoke("Hello!")
 ```
 
@@ -271,7 +271,7 @@ See [LangChain Guide](langchain.md) for details and known limitations.
 For Node.js, Next.js, and any TypeScript/JavaScript application.
 
 ```bash
-npm install headroom-ai
+npm install cutctx-ai
 ```
 
 See the [TypeScript SDK Guide](typescript-sdk.md) for full documentation including Vercel AI SDK middleware, OpenAI SDK wrapper, and Anthropic SDK wrapper.
@@ -283,33 +283,33 @@ See the [TypeScript SDK Guide](typescript-sdk.md) for full documentation includi
 Context compression plugin for [OpenClaw](https://github.com/openclaw/openclaw) agents.
 
 ```bash
-headroom wrap openclaw
+cutctx wrap openclaw
 ```
 
 Configure as context engine:
 ```json
-{ "plugins": { "slots": { "contextEngine": "headroom" } } }
+{ "plugins": { "slots": { "contextEngine": "cutctx" } } }
 ```
 
 Manual install remains available when you are not using the CLI wrapper:
 
 ```bash
-pip install "headroom-ai[proxy]"
-openclaw plugins install --dangerously-force-unsafe-install headroom-ai/openclaw
+pip install "cutctx-ai[proxy]"
+openclaw plugins install --dangerously-force-unsafe-install cutctx-ai/openclaw
 ```
 
-The plugin auto-detects a running Headroom proxy or starts one. Compression happens in `assemble()` — zero changes to the agent's behavior.
+The plugin auto-detects a running Cutctx proxy or starts one. Compression happens in `assemble()` — zero changes to the agent's behavior.
 
-See the [OpenClaw plugin documentation](https://github.com/chopratejas/headroom/tree/main/plugins/openclaw) for full setup.
+See the [OpenClaw plugin documentation](https://github.com/chopratejas/cutctx/tree/main/plugins/openclaw) for full setup.
 
 ---
 
 ## Compression Hooks (Advanced)
 
-Customize compression behavior without modifying Headroom's code:
+Customize compression behavior without modifying Cutctx's code:
 
 ```python
-from headroom import compress, CompressionHooks, CompressContext
+from cutctx import compress, CompressionHooks, CompressContext
 
 class MyHooks(CompressionHooks):
     def pre_compress(self, messages, ctx):
@@ -334,11 +334,11 @@ See [Architecture](ARCHITECTURE.md) for how hooks integrate with the pipeline.
 
 ## FAQ
 
-**Q: Does Headroom change the response format?**
-No. Your LLM returns the same response format. Headroom only modifies the input messages.
+**Q: Does Cutctx change the response format?**
+No. Your LLM returns the same response format. Cutctx only modifies the input messages.
 
 **Q: What if compression removes something the LLM needs?**
-Headroom stores originals in CCR (Compress-Cache-Retrieve). The LLM can call `headroom_retrieve` to get full uncompressed content. Compression summaries tell the LLM what's available.
+Cutctx stores originals in CCR (Compress-Cache-Retrieve). The LLM can call `cutctx_retrieve` to get full uncompressed content. Compression summaries tell the LLM what's available.
 
 **Q: Does it work with streaming?**
 Yes. Compression happens before the request is sent. Streaming responses are unaffected.

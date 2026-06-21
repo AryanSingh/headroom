@@ -1,4 +1,4 @@
-"""Pytest fixtures for Headroom benchmarks.
+"""Pytest fixtures for Cutctx benchmarks.
 
 This module provides shared fixtures for benchmark tests including:
 - Generated data arrays of various sizes

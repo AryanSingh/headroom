@@ -1,9 +1,9 @@
 {
   "name": "headroom",
   "version": "0.26.0",
-  "description": "Headroom startup hooks for Claude Code and GitHub Copilot CLI.",
+  "description": "CutCtx startup hooks for Claude Code and GitHub Copilot CLI.",
   "author": {
-    "name": "Headroom Contributors",
+    "name": "CutCtx Contributors",
     "url": "https://github.com/chopratejas/headroom"
   },
   "homepage": "https://github.com/chopratejas/headroom",

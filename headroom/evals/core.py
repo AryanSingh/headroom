@@ -1,4 +1,4 @@
-"""Core evaluation infrastructure for Headroom.
+"""Core evaluation infrastructure for Cutctx.
 
 This module provides the foundation for proving that compression
 preserves LLM accuracy through rigorous A/B testing.

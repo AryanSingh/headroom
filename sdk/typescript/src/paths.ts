@@ -1,5 +1,5 @@
 /**
- * Canonical filesystem contract for Headroom — parity shell for the npm SDK.
+ * Canonical filesystem contract for CutCtx — parity shell for the npm SDK.
  *
  * The TypeScript SDK is an HTTP client today and does not touch the
  * filesystem directly. This module mirrors `headroom/paths.py` so that

@@ -1,4 +1,4 @@
-"""Top-level helper functions and constants for the Headroom proxy.
+"""Top-level helper functions and constants for the Cutctx proxy.
 
 Contains lazy loaders, file logging setup, request body decompression,
 and safety-limit constants.
@@ -315,7 +315,7 @@ def extract_tags(headers: Any) -> dict[str, str]:
 
 
 def _headroom_bypass_enabled(headers: Any) -> bool:
-    """Return True when inbound headers request full Headroom passthrough.
+    """Return True when inbound headers request full Cutctx passthrough.
 
     This is transport-neutral policy: HTTP and WebSocket handlers both call
     it on original inbound headers before request-body mutation.
@@ -778,11 +778,11 @@ MAX_COMPRESSION_CACHE_SESSIONS = 500
 # Compression-failure escape hatch
 # ---------------------------------------------------------------------------
 # When the proxy's compression stage fails (timeout, exception) on a frame
-# Headroom thought was large enough to compress, the legacy behaviour was to
+# Cutctx thought was large enough to compress, the legacy behaviour was to
 # fall through and forward the *original* uncompressed frame to the upstream.
 # That fail-open turned a recoverable timeout into a context-window overflow
 # downstream: Codex's auto-compaction reads ``total_usage_tokens`` from
-# upstream (which Headroom's earlier successful compressions shrunk), then
+# upstream (which Cutctx's earlier successful compressions shrunk), then
 # the un-compressed retry overflows the model context and the client
 # locks up.
 #
@@ -835,7 +835,7 @@ def decide_compression_failure_action(
       fail-open is safer for Codex sessions even when the proxy is run
       standalone rather than through ``headroom wrap codex``.
     * exception is :class:`asyncio.TimeoutError` → refuse (the compression
-      stage hit its own timeout, which only fires on frames Headroom
+      stage hit its own timeout, which only fires on frames Cutctx
       thought were big enough to need compression in the first place).
     * ``frame_bytes`` > :data:`WS_COMPRESSION_OVERSIZE_BYTES_ENV`
       (default 256 KiB) → refuse (large + any compression failure is a
@@ -965,7 +965,7 @@ def _setup_file_logging() -> None:
         # Attach to the headroom root logger so all sub-loggers are captured.
         # Disable propagation to root to avoid duplicate writes when
         # wrap.py redirects stderr to the same log file.
-        headroom_logger = logging.getLogger("headroom")
+        headroom_logger = logging.getLogger("cutctx")
         headroom_logger.setLevel(logging.INFO)
         if not any(isinstance(h, RotatingFileHandler) for h in headroom_logger.handlers):
             headroom_logger.addHandler(handler)
@@ -1019,7 +1019,7 @@ def _context_tool_summary_payload(
     """Normalize RTK/lean-ctx lifetime gain output into one schema.
 
     Both tools expose cumulative counters, but field names vary slightly.
-    Headroom computes session values by subtracting a startup baseline, so
+    Cutctx computes session values by subtracting a startup baseline, so
     keeping raw input/output counters is necessary for a truthful session
     savings percentage.
     """
@@ -1297,7 +1297,7 @@ async def initialize_rtk_session_baseline() -> None:
 
 
 def _get_context_tool_stats() -> dict[str, Any] | None:
-    """Get context-tool savings for the current Headroom proxy session.
+    """Get context-tool savings for the current Cutctx proxy session.
 
     RTK and lean-ctx persist project-level lifetime counters. Dashboard stats
     should be session-local, so we subtract the counter snapshot captured at
@@ -1577,7 +1577,7 @@ def log_outbound_headers(
 #      did an ad-hoc concat of `context-management-2025-06-27` onto the
 #      client value (anthropic.py:1244-1248) — every variant produced a
 #      different byte sequence and the order was undefined when the same
-#      client value already contained a Headroom-required token.
+#      client value already contained a Cutctx-required token.
 #
 #   2. Token drop-out across turns: clients (Claude Code, Codex CLI) MAY
 #      drop a beta token between turn N and turn N+1 even when the proxy
@@ -1588,7 +1588,7 @@ def log_outbound_headers(
 # PR-A6 introduces:
 #   * `merge_anthropic_beta` / `merge_openai_beta`: deterministic, pure,
 #     order-preserving merge. Client tokens first (in their original order),
-#     then Headroom-required tokens (in the order passed). Dedupe is
+#     then Cutctx-required tokens (in the order passed). Dedupe is
 #     case-insensitive but preserves original casing of first occurrence.
 #     Per Anthropic guide §6.3 #6: sticky-on means we add but never reorder.
 #
@@ -1664,7 +1664,7 @@ def _merge_beta_tokens(client_value: str | None, headroom_required: list[str]) -
     Rules (per Anthropic guide §6.3 #6 "sticky-on; add but never reorder"):
 
     * Client tokens come first, in their original order.
-    * Headroom-required tokens append in the order given, skipping any
+    * Cutctx-required tokens append in the order given, skipping any
       token already present (case-insensitive).
     * Dedupe is case-insensitive but the FIRST occurrence's casing wins
       (prevents drift when client uses one casing across turns).
@@ -1695,7 +1695,7 @@ def _merge_beta_tokens(client_value: str | None, headroom_required: list[str]) -
 
 
 def merge_anthropic_beta(client_value: str | None, headroom_required: list[str]) -> str:
-    """Merge client `anthropic-beta` value with Headroom-required tokens.
+    """Merge client `anthropic-beta` value with Cutctx-required tokens.
 
     See `_merge_beta_tokens` for full semantics. Order is deterministic:
     client tokens first (in their original order), then headroom tokens
@@ -1709,7 +1709,7 @@ def merge_anthropic_beta(client_value: str | None, headroom_required: list[str])
 
 
 def merge_openai_beta(client_value: str | None, headroom_required: list[str]) -> str:
-    """Merge client `OpenAI-Beta` value with Headroom-required tokens.
+    """Merge client `OpenAI-Beta` value with Cutctx-required tokens.
 
     Mirror of `merge_anthropic_beta`. Same semantics — the OpenAI header
     follows the same comma-separated convention and the same cache-stable
@@ -1870,7 +1870,7 @@ def log_beta_header_merge(
     ``responses_websockets=2026-02-06``) — safe to log. We intentionally
     do NOT log the raw client value because beta tokens, while public,
     can carry experiment IDs the user has not opted to share with
-    Headroom logs. Emitting counts only makes the decision auditable.
+    Cutctx logs. Emitting counts only makes the decision auditable.
     """
     logger.info(
         "event=beta_header_merge provider=%s session_id=%s "

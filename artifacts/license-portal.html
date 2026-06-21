@@ -234,7 +234,7 @@
             color: #d1fae5;
         }
 
-        .headroom-logo {
+        .cutctx-logo {
             font-size: 24px;
             font-weight: 700;
             letter-spacing: -1px;
@@ -254,7 +254,7 @@
                     <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
                         <span class="text-white font-bold text-lg">H</span>
                     </div>
-                    <div class="headroom-logo">Headroom</div>
+                    <div class="cutctx-logo">Cutctx</div>
                 </div>
                 <h1 class="text-3xl font-bold text-white mb-2">License Portal</h1>
                 <p class="text-gray-400">Manage your license key, explore plans, and get started</p>
@@ -310,13 +310,13 @@
                             <div class="bg-gray-950 rounded p-4 mb-6">
                                 <p class="text-xs text-gray-500 mb-2">Export Command</p>
                                 <div class="code-block">
-                                    <code id="exportCommand">export HEADROOM_LICENSE_KEY=</code>
+                                    <code id="exportCommand">export CUTCTX_LICENSE_KEY=</code>
                                     <button class="copy-btn" onclick="copyCode('exportCommand')">Copy</button>
                                 </div>
                             </div>
 
                             <div class="info-box">
-                        Also set <code class="bg-gray-900 px-1 rounded text-indigo-300">HEADROOM_LICENSE_HMAC_SECRET</code> — contact <a href="mailto:hello@cutctx.dev" class="text-indigo-400 hover:underline">hello@cutctx.dev</a> for your secret
+                        Also set <code class="bg-gray-900 px-1 rounded text-indigo-300">CUTCTX_LICENSE_HMAC_SECRET</code> — contact <a href="mailto:hello@cutctx.dev" class="text-indigo-400 hover:underline">hello@cutctx.dev</a> for your secret
                             </div>
                         </div>
                     </div>
@@ -532,10 +532,10 @@
 
                     <!-- pip -->
                     <div id="pip" class="sub-tab-content active">
-                        <p class="text-gray-400 mb-4">Install Headroom via pip and run locally</p>
+                        <p class="text-gray-400 mb-4">Install Cutctx via pip and run locally</p>
                         <div class="code-block mb-4">
-                            <code>pip install "headroom-ai[all]"
-headroom proxy --port 8787</code>
+                            <code>pip install "cutctx-ai[all]"
+cutctx proxy --port 8787</code>
                             <button class="copy-btn" onclick="copyCode('pip-code')">Copy</button>
                         </div>
                         <div class="info-box">
@@ -545,21 +545,21 @@ headroom proxy --port 8787</code>
 
                     <!-- Proxy -->
                     <div id="proxy" class="sub-tab-content">
-                        <p class="text-gray-400 mb-4">Configure a client to route traffic through Headroom</p>
+                        <p class="text-gray-400 mb-4">Configure a client to route traffic through Cutctx</p>
                         <div class="code-block mb-4">
                             <code>export OPENAI_API_BASE=http://localhost:8787/v1
 export ANTHROPIC_API_KEY=sk-ant-...
-export HEADROOM_LICENSE_KEY=team-...</code>
+export CUTCTX_LICENSE_KEY=team-...</code>
                             <button class="copy-btn" onclick="copyCode('proxy-code')">Copy</button>
                         </div>
                         <div class="info-box">
-                            Your client will automatically compress requests before forwarding to upstream providers. Headroom supports Anthropic, OpenAI, Google, Bedrock, and Vertex.
+                            Your client will automatically compress requests before forwarding to upstream providers. Cutctx supports Anthropic, OpenAI, Google, Bedrock, and Vertex.
                         </div>
                     </div>
 
                     <!-- Docker -->
                     <div id="docker" class="sub-tab-content">
-                        <p class="text-gray-400 mb-4">Deploy Headroom in Docker</p>
+                        <p class="text-gray-400 mb-4">Deploy Cutctx in Docker</p>
                         <div class="code-block mb-4">
                             <code>docker compose up -d</code>
                             <button class="copy-btn" onclick="copyCode('docker-code')">Copy</button>
@@ -571,11 +571,11 @@ export HEADROOM_LICENSE_KEY=team-...</code>
 
                     <!-- Kubernetes -->
                     <div id="kubernetes" class="sub-tab-content">
-                        <p class="text-gray-400 mb-4">Deploy Headroom on Kubernetes</p>
+                        <p class="text-gray-400 mb-4">Deploy Cutctx on Kubernetes</p>
                         <div class="code-block mb-4">
                             <code>kubectl apply -f k8s/
 # or use Helm
-helm install headroom ./helm/headroom \
+helm install cutctx ./helm/cutctx \
   --set licenseKey=team-... \
   --set hmacSecret=...</code>
                             <button class="copy-btn" onclick="copyCode('kubernetes-code')">Copy</button>
@@ -854,7 +854,7 @@ helm install headroom ./helm/headroom \
                 .map(f => `<div class="flex items-start gap-2"><span class="text-indigo-400 mt-0.5">✓</span><span>${f}</span></div>`)
                 .join('');
 
-            document.getElementById('exportCommand').textContent = `export HEADROOM_LICENSE_KEY=${key}`;
+            document.getElementById('exportCommand').textContent = `export CUTCTX_LICENSE_KEY=${key}`;
 
             noLicenseMsg.classList.add('hidden');
             tierDisplay.classList.remove('hidden');

@@ -4,13 +4,13 @@ const mocked = vi.hoisted(() => ({
   ensureProxyUrl: vi.fn(async () => "http://127.0.0.1:8787"),
   ensureProxyStarted: vi.fn(),
   getProxyUrl: vi.fn(() => null as string | null),
-  createHeadroomRetrieveTool: vi.fn(({ proxyUrl }: { proxyUrl: string }) => ({ proxyUrl })),
+  createCutCtxRetrieveTool: vi.fn(({ proxyUrl }: { proxyUrl: string }) => ({ proxyUrl })),
 }));
 
 const proxyReadyListeners: Array<(proxyUrl: string) => void | Promise<void>> = [];
 
 vi.mock("../src/engine.js", () => ({
-  HeadroomContextEngine: class {
+  CutCtxContextEngine: class {
     ensureProxyUrl = mocked.ensureProxyUrl;
     ensureProxyStarted = mocked.ensureProxyStarted;
     getProxyUrl = mocked.getProxyUrl;
@@ -22,7 +22,7 @@ vi.mock("../src/engine.js", () => ({
 }));
 
 vi.mock("../src/tools/headroom-retrieve.js", () => ({
-  createHeadroomRetrieveTool: mocked.createHeadroomRetrieveTool,
+  createCutCtxRetrieveTool: mocked.createCutCtxRetrieveTool,
 }));
 
 import headroomPlugin from "../src/plugin/index.js";
@@ -31,7 +31,7 @@ afterEach(() => {
   mocked.ensureProxyUrl.mockClear();
   mocked.ensureProxyStarted.mockClear();
   mocked.getProxyUrl.mockClear();
-  mocked.createHeadroomRetrieveTool.mockClear();
+  mocked.createCutCtxRetrieveTool.mockClear();
   proxyReadyListeners.length = 0;
 });
 

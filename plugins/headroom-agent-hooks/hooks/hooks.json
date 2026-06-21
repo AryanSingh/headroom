@@ -1,5 +1,5 @@
 {
-  "description": "Headroom plugin hooks — ensure the local Headroom runtime is available for initialized agents.",
+  "description": "CutCtx plugin hooks — ensure the local CutCtx runtime is available for initialized agents.",
   "hooks": {
     "SessionStart": [
       {

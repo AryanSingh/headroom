@@ -20,7 +20,7 @@ from headroom.cache.prefix_tracker import PrefixCacheTracker
 from headroom.pricing.litellm_pricing import get_model_pricing
 from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
 from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import HeadroomProxy
+from headroom.proxy.server import CutctxProxy
 from headroom.tokenizers import get_tokenizer
 from headroom.utils import extract_user_query
 
@@ -783,7 +783,7 @@ def _merge_appended_message_delta(
     return None
 
 
-def _make_proxy(mode: str) -> HeadroomProxy:
+def _make_proxy(mode: str) -> CutctxProxy:
     cfg = ProxyConfig(
         mode=mode,
         optimize=True,
@@ -799,11 +799,11 @@ def _make_proxy(mode: str) -> HeadroomProxy:
         ccr_handle_responses=False,
         ccr_context_tracking=False,
     )
-    return HeadroomProxy(cfg)
+    return CutctxProxy(cfg)
 
 
 def _apply_mode_to_messages(
-    proxy: HeadroomProxy | None,
+    proxy: CutctxProxy | None,
     mode: str,
     messages: list[dict[str, Any]],
     *,
@@ -1041,7 +1041,7 @@ def _merge_mode_summary(target: ModeSummary, source: ModeSummary) -> None:
 def _disable_headroom_benchmark_logging() -> None:
     logging.raiseExceptions = False
     for logger_name in (
-        "headroom",
+        "cutctx",
         "headroom.cache",
         "headroom.cache.compression_cache",
         "headroom.proxy",
@@ -1887,7 +1887,7 @@ def build_report_html(
     <section class="hero">
       <div class="eyebrow">Local Claude Cache Analysis</div>
       <h1>Claude Session Mode Simulation</h1>
-      <p>Observed usage is read directly from <code>~/.claude/projects</code>. Baseline, token, and cache are replayed locally through Headroom without making API calls.</p>
+      <p>Observed usage is read directly from <code>~/.claude/projects</code>. Baseline, token, and cache are replayed locally through Cutctx without making API calls.</p>
       <div class="grid cards">
         <div class="card"><div class="eyebrow">Projects</div><div class="value">{dataset.projects:,}</div><div class="subtle">{dataset.sessions:,} sessions / {dataset.requests:,} requests</div></div>
         <div class="card"><div class="eyebrow">Observed Cache Ratio</div><div class="value">{observed.cache_ratio_pct:.1f}%</div><div class="subtle">read / (read + write + input)</div></div>

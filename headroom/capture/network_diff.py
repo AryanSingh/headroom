@@ -1,8 +1,8 @@
-"""Differential network capture reporting for Claude Code vs Headroom.
+"""Differential network capture reporting for Claude Code vs Cutctx.
 
 The capture format is intentionally JSONL so mitmproxy addons, tests, and
 future packet capture tools can all produce the same records without a heavy
-dependency in the Headroom package.
+dependency in the Cutctx package.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class CapturedExchange:
 
 @dataclass(frozen=True)
 class CaptureDiff:
-    """Comparison result between a direct lane and a Headroom lane."""
+    """Comparison result between a direct lane and a Cutctx lane."""
 
     direct_count: int
     headroom_count: int
@@ -289,21 +289,21 @@ def compare_captures(
                 "headroom_sequence": headroom_item.sequence,
                 "status": {
                     "direct": direct_item.response_status,
-                    "headroom": headroom_item.response_status,
+                    "cutctx": headroom_item.response_status,
                 },
                 "request_body_size": {
                     "direct": direct_item.request_body_size,
-                    "headroom": headroom_item.request_body_size,
+                    "cutctx": headroom_item.request_body_size,
                     "delta": headroom_item.request_body_size - direct_item.request_body_size,
                 },
                 "request_body_sha256": {
                     "direct": direct_item.request_body_sha256,
-                    "headroom": headroom_item.request_body_sha256,
+                    "cutctx": headroom_item.request_body_sha256,
                     "same": direct_item.request_body_sha256 == headroom_item.request_body_sha256,
                 },
                 "anthropic": {
                     "direct": _anthropic_request_summary(direct_item),
-                    "headroom": _anthropic_request_summary(headroom_item),
+                    "cutctx": _anthropic_request_summary(headroom_item),
                 },
                 "headers": {
                     "only_direct": headers_only_direct,
@@ -340,17 +340,17 @@ def render_markdown_report(diff: CaptureDiff) -> str:
         "## Summary",
         "",
         f"- Direct exchanges: `{diff.direct_count}`",
-        f"- Headroom exchanges: `{diff.headroom_count}`",
+        f"- Cutctx exchanges: `{diff.headroom_count}`",
         f"- Paired exchanges: `{len(diff.paired)}`",
         f"- Only direct: `{len(diff.only_direct)}`",
-        f"- Only Headroom: `{len(diff.only_headroom)}`",
+        f"- Only Cutctx: `{len(diff.only_headroom)}`",
         "",
     ]
     if diff.only_direct:
         lines.extend(["## Only Direct", "", *[f"- `{route}`" for route in diff.only_direct], ""])
     if diff.only_headroom:
         lines.extend(
-            ["## Only Headroom", "", *[f"- `{route}`" for route in diff.only_headroom], ""]
+            ["## Only Cutctx", "", *[f"- `{route}`" for route in diff.only_headroom], ""]
         )
 
     lines.extend(
@@ -365,9 +365,9 @@ def render_markdown_report(diff: CaptureDiff) -> str:
         route = item["route"]
         if item.get("headroom_route") and item["headroom_route"] != route:
             route = f"{route} -> {item['headroom_route']}"
-        status = f"{item['status']['direct']} -> {item['status']['headroom']}"
+        status = f"{item['status']['direct']} -> {item['status']['cutctx']}"
         sizes = item["request_body_size"]
-        body = f"{sizes['direct']} -> {sizes['headroom']} ({sizes['delta']:+})"
+        body = f"{sizes['direct']} -> {sizes['cutctx']} ({sizes['delta']:+})"
         sha = "same" if item["request_body_sha256"]["same"] else "changed"
         headers = item["headers"]
         header_delta = (
@@ -383,7 +383,7 @@ def render_markdown_report(diff: CaptureDiff) -> str:
         )
         anthropic = item.get("anthropic", {})
         direct_anthropic = anthropic.get("direct", {})
-        headroom_anthropic = anthropic.get("headroom", {})
+        headroom_anthropic = anthropic.get("cutctx", {})
         tool_delta = headroom_anthropic.get("tools_bytes", 0) - direct_anthropic.get(
             "tools_bytes", 0
         )

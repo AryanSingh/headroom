@@ -1,12 +1,12 @@
-"""LiteLLM callback — add Headroom compression to LiteLLM with one line.
+"""LiteLLM callback — add Cutctx compression to LiteLLM with one line.
 
     # Local mode (compression runs in-process):
     import litellm
-    from headroom.integrations.litellm_callback import HeadroomCallback
+    from headroom.integrations.litellm_callback import CutctxCallback
 
     litellm.callbacks = [HeadroomCallback()]
 
-    # Cloud mode (managed CCR, TOIN, analytics via Headroom Cloud):
+    # Cloud mode (managed CCR, TOIN, analytics via Cutctx Cloud):
     litellm.callbacks = [HeadroomCallback(api_key="hdr_xxx")]
 
 Works with LiteLLM's completion(), acompletion(), and proxy modes.
@@ -29,14 +29,14 @@ _DEFAULT_CLOUD_URL = (
 )
 
 
-class HeadroomCallback:
+class CutctxCallback:
     """LiteLLM callback that compresses messages before each API call.
 
     Implements LiteLLM's CustomLogger interface (async_pre_call_hook).
 
     Two modes:
     - Local (default): Compresses in-process using headroom.compress().
-    - Cloud (api_key set): Calls Headroom Cloud API for managed compression
+    - Cloud (api_key set): Calls Cutctx Cloud API for managed compression
       with org-scoped CCR, TOIN learning, and analytics dashboards.
 
     Usage (local):
@@ -66,7 +66,7 @@ class HeadroomCallback:
         self._hooks = hooks
         self._total_saved = 0
 
-        # Cloud mode: if api_key is set, compress via Headroom Cloud API
+        # Cloud mode: if api_key is set, compress via Cutctx Cloud API
         # Falls back to HEADROOM_API_KEY env var
         self._api_key = api_key or os.environ.get("HEADROOM_API_KEY", "").strip() or None
         self._api_url = (
@@ -120,7 +120,7 @@ class HeadroomCallback:
                 )
 
         except Exception as e:
-            logger.warning("Headroom compression failed, using original messages: %s", e)
+            logger.warning("Cutctx compression failed, using original messages: %s", e)
 
         return data
 
@@ -143,13 +143,13 @@ class HeadroomCallback:
         }
 
     async def _cloud_compress(self, messages: list[dict], model: str) -> dict[str, Any] | None:
-        """Compress via Headroom Cloud API (managed CCR, TOIN, analytics)."""
+        """Compress via Cutctx Cloud API (managed CCR, TOIN, analytics)."""
         if self._client is None:
             try:
                 import httpx
             except ImportError as e:
                 raise ImportError(
-                    "httpx is required for Headroom Cloud mode: pip install httpx"
+                    "httpx is required for Cutctx Cloud mode: pip install httpx"
                 ) from e
             self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -171,7 +171,7 @@ class HeadroomCallback:
         )
 
         if resp.status_code != 200:
-            logger.warning("Headroom Cloud API error: %d %s", resp.status_code, resp.text[:200])
+            logger.warning("Cutctx Cloud API error: %d %s", resp.status_code, resp.text[:200])
             return None
 
         result: dict[str, Any] = resp.json()

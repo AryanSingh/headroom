@@ -1,4 +1,4 @@
-"""Relevance scoring module for Headroom SDK.
+"""Relevance scoring module for Cutctx SDK.
 
 This module provides a unified interface for computing item relevance against
 query contexts. All scorers implement the RelevanceScorer protocol:

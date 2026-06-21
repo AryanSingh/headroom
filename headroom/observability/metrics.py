@@ -1,4 +1,4 @@
-"""OpenTelemetry-backed operational metrics for Headroom."""
+"""OpenTelemetry-backed operational metrics for Cutctx."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 MetricExporter = Literal["console", "otlp_http"]
 
-_SCOPE_NAME = "headroom"
+_SCOPE_NAME = "cutctx"
 _DEFAULT_EXPORT_INTERVAL_MS = 10000
 _MILLISECONDS_TO_SECONDS = 1000.0
 
 _metrics_lock = Lock()
-_global_metrics: HeadroomOtelMetrics | None = None
+_global_metrics: CutctxOtelMetrics | None = None
 _owned_meter_provider: Any | None = None
 _owned_metrics_config: OTelMetricsConfig | None = None
 
@@ -74,10 +74,10 @@ def _parse_key_value_pairs(raw: str | None) -> dict[str, str]:
 
 @dataclass(slots=True)
 class OTelMetricsConfig:
-    """Configuration for Headroom-managed OTEL metric export."""
+    """Configuration for Cutctx-managed OTEL metric export."""
 
     enabled: bool = False
-    service_name: str = "headroom"
+    service_name: str = "cutctx"
     exporter: MetricExporter = "otlp_http"
     endpoint: str | None = None
     headers: dict[str, str] = field(default_factory=dict)
@@ -85,7 +85,7 @@ class OTelMetricsConfig:
     resource_attributes: dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_env(cls, *, default_service_name: str = "headroom") -> OTelMetricsConfig:
+    def from_env(cls, *, default_service_name: str = "cutctx") -> OTelMetricsConfig:
         exporter_raw = (
             os.environ.get("HEADROOM_OTEL_METRICS_EXPORTER", "otlp_http")
             .strip()
@@ -126,8 +126,8 @@ class OTelMetricsConfig:
         }
 
 
-class HeadroomOtelMetrics:
-    """Shared OTEL metrics facade for Headroom operations."""
+class CutctxOtelMetrics:
+    """Shared OTEL metrics facade for Cutctx operations."""
 
     def __init__(self, meter_provider: Any | None = None):
         if meter_provider is None:
@@ -137,7 +137,7 @@ class HeadroomOtelMetrics:
 
         self._proxy_requests = self._meter.create_counter(
             "headroom.proxy.requests",
-            description="Proxy requests handled by Headroom.",
+            description="Proxy requests handled by Cutctx.",
             unit="1",
         )
         self._proxy_cached_requests = self._meter.create_counter(
@@ -167,7 +167,7 @@ class HeadroomOtelMetrics:
         )
         self._proxy_saved_tokens = self._meter.create_counter(
             "headroom.proxy.tokens.saved",
-            description="Input tokens saved by Headroom compression.",
+            description="Input tokens saved by Cutctx compression.",
             unit="1",
         )
         self._proxy_cache_read_tokens = self._meter.create_counter(
@@ -207,17 +207,17 @@ class HeadroomOtelMetrics:
         )
         self._proxy_overhead = self._meter.create_histogram(
             "headroom.proxy.overhead.duration",
-            description="Time spent inside Headroom optimization logic.",
+            description="Time spent inside Cutctx optimization logic.",
             unit="s",
         )
         self._proxy_ttfb = self._meter.create_histogram(
             "headroom.proxy.ttfb.duration",
-            description="Upstream time to first byte observed by Headroom.",
+            description="Upstream time to first byte observed by Cutctx.",
             unit="s",
         )
         self._compression_runs = self._meter.create_counter(
             "headroom.compression.runs",
-            description="Compression pipeline runs executed by Headroom.",
+            description="Compression pipeline runs executed by Cutctx.",
             unit="1",
         )
         self._compression_failures = self._meter.create_counter(
@@ -227,17 +227,17 @@ class HeadroomOtelMetrics:
         )
         self._compression_input_tokens = self._meter.create_counter(
             "headroom.compression.tokens.input",
-            description="Input tokens analyzed by Headroom compression.",
+            description="Input tokens analyzed by Cutctx compression.",
             unit="1",
         )
         self._compression_output_tokens = self._meter.create_counter(
             "headroom.compression.tokens.output",
-            description="Output tokens produced by Headroom compression.",
+            description="Output tokens produced by Cutctx compression.",
             unit="1",
         )
         self._compression_saved_tokens = self._meter.create_counter(
             "headroom.compression.tokens.saved",
-            description="Tokens removed by Headroom compression.",
+            description="Tokens removed by Cutctx compression.",
             unit="1",
         )
         self._compression_duration = self._meter.create_histogram(
@@ -464,25 +464,25 @@ class HeadroomOtelMetrics:
             self._sub_overage_val = float(extra.get("used_credits_usd") or 0.0)
 
 
-def get_otel_metrics() -> HeadroomOtelMetrics:
+def get_otel_metrics() -> CutctxOtelMetrics:
     global _global_metrics
 
     if _global_metrics is None:
         with _metrics_lock:
             if _global_metrics is None:
-                _global_metrics = HeadroomOtelMetrics()
+                _global_metrics = CutctxOtelMetrics()
 
     return _global_metrics
 
 
-def set_otel_metrics(otel_metrics: HeadroomOtelMetrics) -> HeadroomOtelMetrics:
+def set_otel_metrics(otel_metrics: CutctxOtelMetrics) -> CutctxOtelMetrics:
     global _global_metrics
     with _metrics_lock:
         _global_metrics = otel_metrics
     return otel_metrics
 
 
-def configure_otel_metrics(config: OTelMetricsConfig | None = None) -> HeadroomOtelMetrics:
+def configure_otel_metrics(config: OTelMetricsConfig | None = None) -> CutctxOtelMetrics:
     global _global_metrics
     global _owned_meter_provider
     global _owned_metrics_config
@@ -529,7 +529,7 @@ def configure_otel_metrics(config: OTelMetricsConfig | None = None) -> HeadroomO
         }
     )
     meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=meter_provider)
+    otel_metrics = CutctxOtelMetrics(meter_provider=meter_provider)
 
     previous_provider = None
     with _metrics_lock:

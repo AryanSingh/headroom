@@ -29,10 +29,10 @@ cutctx proxy --port 8787
 ## Docker
 
 ```bash
-docker pull ghcr.io/chopratejas/headroom:latest
+docker pull ghcr.io/chopratejas/cutctx:latest
 docker run -p 8787:8787 \
   -e ANTHROPIC_API_KEY=$KEY \
-  ghcr.io/chopratejas/headroom:latest
+  ghcr.io/chopratejas/cutctx:latest
 ```
 
 **Image size:** ~50MB (minimal Python + Rust binary)
@@ -48,16 +48,16 @@ docker run -p 8787:8787 \
 ```yaml
 version: '3.8'
 services:
-  headroom:
-    image: ghcr.io/chopratejas/headroom:latest
+  cutctx:
+    image: ghcr.io/chopratejas/cutctx:latest
     ports:
       - "8787:8787"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - HEADROOM_CACHE_ENABLED=true
-      - HEADROOM_LOG_REQUESTS=true
+      - CUTCTX_CACHE_ENABLED=true
+      - CUTCTX_LOG_REQUESTS=true
     volumes:
-      - headroom-data:/root/.headroom
+      - cutctx-data:/root/.cutctx
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
       interval: 30s
@@ -65,7 +65,7 @@ services:
       retries: 3
 
 volumes:
-  headroom-data:
+  cutctx-data:
 ```
 
 **Features:**
@@ -83,34 +83,34 @@ volumes:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: headroom-proxy
+  name: cutctx-proxy
   labels:
-    app: headroom
+    app: cutctx
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: headroom
+      app: cutctx
   template:
     metadata:
       labels:
-        app: headroom
+        app: cutctx
     spec:
       containers:
-      - name: headroom
-        image: ghcr.io/chopratejas/headroom:latest
+      - name: cutctx
+        image: ghcr.io/chopratejas/cutctx:latest
         ports:
         - containerPort: 8787
         env:
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
-              name: headroom-secrets
+              name: cutctx-secrets
               key: anthropic-api-key
-        - name: HEADROOM_LICENSE_KEY
+        - name: CUTCTX_LICENSE_KEY
           valueFrom:
             secretKeyRef:
-              name: headroom-secrets
+              name: cutctx-secrets
               key: license-key
         resources:
           requests:
@@ -138,10 +138,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: headroom-proxy
+  name: cutctx-proxy
 spec:
   selector:
-    app: headroom
+    app: cutctx
   ports:
   - port: 8787
     targetPort: 8787
@@ -153,19 +153,19 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: headroom-proxy
+  name: cutctx-proxy
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   rules:
-  - host: headroom.example.com
+  - host: cutctx.example.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: headroom-proxy
+            name: cutctx-proxy
             port:
               number: 8787
 ```
@@ -174,7 +174,7 @@ spec:
 
 ```bash
 helm repo add cutctx https://cutctx.dev/helm
-helm install headroom headroom/headroom --set licenseKey=hlk_...
+helm install cutctx cutctx/cutctx --set licenseKey=hlk_...
 ```
 
 ## Air-Gapped Deployment
@@ -189,7 +189,7 @@ wget https://cdn.pyke.io/onnxruntime/linux-x64/onnxruntime-1.17.0.tgz
 wget https://huggingface.co/pykeio/kompress-base/resolve/main/model.onnx
 
 # Copy to air-gapped machine
-scp onnxruntime-*.tgz model.onnx airgap-host:/opt/headroom/
+scp onnxruntime-*.tgz model.onnx airgap-host:/opt/cutctx/
 ```
 
 ### Run Offline

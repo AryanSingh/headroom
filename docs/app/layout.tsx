@@ -17,8 +17,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.dev';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Headroom — Context Optimization Layer for AI Agents',
-    template: '%s | Headroom',
+    default: 'CutCtx — Context Optimization Layer for AI Agents',
+    template: '%s | CutCtx',
   },
   description:
     'Compress everything your AI agent reads — tool outputs, logs, files, RAG chunks. Same answers, fraction of the tokens. Library, proxy, MCP server. Local-first. Apache 2.0.',
@@ -28,15 +28,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: 'Headroom',
-    title: 'Headroom — Context Optimization Layer for AI Agents',
+    siteName: 'CutCtx',
+    title: 'CutCtx — Context Optimization Layer for AI Agents',
     description:
       'Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60–95% fewer tokens, same answers.',
     url: '/',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Headroom — Context Optimization Layer for AI Agents',
+    title: 'CutCtx — Context Optimization Layer for AI Agents',
     description:
       'Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60–95% fewer tokens, same answers.',
   },

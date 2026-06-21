@@ -1,12 +1,12 @@
 # Error Handling
 
-Headroom provides explicit exceptions for debugging, with a safety guarantee that compression failures never break your LLM calls.
+Cutctx provides explicit exceptions for debugging, with a safety guarantee that compression failures never break your LLM calls.
 
 ## Exception Hierarchy
 
 ```python
-from headroom import (
-    HeadroomError,        # Base class - catch all Headroom errors
+from cutctx import (
+    CutctxError,        # Base class - catch all Cutctx errors
     ConfigurationError,   # Invalid configuration
     ProviderError,        # Provider issues (unknown model, etc.)
     StorageError,         # Database/storage failures
@@ -18,15 +18,15 @@ from headroom import (
 ## Usage
 
 ```python
-from headroom import (
-    HeadroomClient,
-    HeadroomError,
+from cutctx import (
+    CutctxClient,
+    CutctxError,
     ConfigurationError,
     StorageError,
 )
 
 try:
-    client = HeadroomClient(...)
+    client = CutctxClient(...)
     response = client.chat.completions.create(...)
 
 except ConfigurationError as e:
@@ -35,10 +35,10 @@ except ConfigurationError as e:
 
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # Headroom continues to work, just without metrics persistence
+    # Cutctx continues to work, just without metrics persistence
 
-except HeadroomError as e:
-    print(f"Headroom error: {e}")
+except CutctxError as e:
+    print(f"Cutctx error: {e}")
 ```
 
 ## Exception Types
@@ -54,7 +54,7 @@ Raised when configuration is invalid.
 # - Invalid model context limit
 
 try:
-    client = HeadroomClient(
+    client = CutctxClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         default_mode="invalid_mode",  # Will raise ConfigurationError
@@ -132,7 +132,7 @@ if not result["valid"]:
 
 **If compression fails, the original content passes through unchanged.**
 
-This is a core design principle. Your LLM calls never fail due to Headroom:
+This is a core design principle. Your LLM calls never fail due to Cutctx:
 
 ```python
 # Even if SmartCrusher encounters unexpected data:
@@ -157,17 +157,17 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 
 # Now you'll see warnings when compression is skipped:
-# WARNING:headroom.transforms.smart_crusher:Skipping compression: invalid JSON
+# WARNING:cutctx.transforms.smart_crusher:Skipping compression: invalid JSON
 ```
 
 ## Error Details
 
-All Headroom exceptions include a `details` dict with context:
+All Cutctx exceptions include a `details` dict with context:
 
 ```python
 try:
-    client = HeadroomClient(...)
-except HeadroomError as e:
+    client = CutctxClient(...)
+except CutctxError as e:
     print(f"Error: {e}")
     print(f"Type: {type(e).__name__}")
     print(f"Details: {e.details}")
@@ -215,12 +215,12 @@ except StorageError:
 ### 3. Validate on Startup
 
 ```python
-client = HeadroomClient(...)
+client = CutctxClient(...)
 
 # Validate once at startup
 result = client.validate_setup()
 if not result["valid"]:
-    raise SystemExit(f"Headroom setup invalid: {result['issues']}")
+    raise SystemExit(f"Cutctx setup invalid: {result['issues']}")
 
 # Then use client normally
 response = client.chat.completions.create(...)
@@ -235,8 +235,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Shows detailed transform decisions
-# DEBUG:headroom.transforms.smart_crusher:Analyzing 1000 items...
-# DEBUG:headroom.transforms.smart_crusher:Kept 15 items (errors: 2, anomalies: 3)
+# DEBUG:cutctx.transforms.smart_crusher:Analyzing 1000 items...
+# DEBUG:cutctx.transforms.smart_crusher:Kept 15 items (errors: 2, anomalies: 3)
 ```
 
 ### Check Stats After Error
@@ -244,7 +244,7 @@ logging.basicConfig(level=logging.DEBUG)
 ```python
 try:
     response = client.chat.completions.create(...)
-except HeadroomError:
+except CutctxError:
     # Check what happened
     stats = client.get_stats()
     print(f"Last request stats: {stats}")

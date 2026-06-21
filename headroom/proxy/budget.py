@@ -86,7 +86,21 @@ class BudgetTracker:
         """Return True if budget is exceeded and hard_limit is enabled."""
         if not self.config.enabled or not self.config.hard_limit:
             return False
-        return self._tokens_used >= self.budget_tokens
+        
+        exceeded = self._tokens_used >= self.budget_tokens
+        if exceeded and not getattr(self, "_webhook_fired", False):
+            self._webhook_fired = True
+            try:
+                import asyncio
+                from headroom.proxy.webhooks import dispatcher
+                title = "Budget Exceeded"
+                message = f"Budget exceeded! {self._tokens_used}/{self.budget_tokens} tokens used."
+                asyncio.create_task(dispatcher.fire_webhook(title, message))
+            except Exception as e:
+                import logging
+                logging.getLogger("headroom.proxy.budget").error(f"Error triggering budget webhook: {e}")
+                
+        return exceeded
 
     def should_warn(self) -> bool:
         """Return True if we should emit a warning (once)."""

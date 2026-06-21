@@ -38,7 +38,7 @@ from headroom.proxy.server import ProxyConfig, create_app
 
 
 def _make_proxy(compression_max_workers: int | None = None):
-    """Construct a HeadroomProxy with a no-op pipeline. Returns the proxy."""
+    """Construct a CutctxProxy with a no-op pipeline. Returns the proxy."""
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,

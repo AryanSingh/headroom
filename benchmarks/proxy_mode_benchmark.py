@@ -24,7 +24,7 @@ from headroom.cache.prefix_tracker import PrefixCacheTracker
 from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
 from headroom.proxy.models import ProxyConfig
 from headroom.proxy.modes import PROXY_MODE_CACHE, PROXY_MODE_TOKEN
-from headroom.proxy.server import HeadroomProxy
+from headroom.proxy.server import CutctxProxy
 from headroom.tokenizers import get_tokenizer
 from headroom.utils import extract_user_query
 
@@ -132,7 +132,7 @@ def _common_prefix_tokens(
     return common, counts
 
 
-def _make_proxy(mode: str) -> HeadroomProxy:
+def _make_proxy(mode: str) -> CutctxProxy:
     cfg = ProxyConfig(
         mode=mode,
         optimize=True,
@@ -148,7 +148,7 @@ def _make_proxy(mode: str) -> HeadroomProxy:
         ccr_handle_responses=False,
         ccr_context_tracking=False,
     )
-    return HeadroomProxy(cfg)
+    return CutctxProxy(cfg)
 
 
 def _simulate_mode(turns: int, mode: str) -> ModeBenchmarkResult:
@@ -267,7 +267,7 @@ def _print_real_harness() -> None:
 
 
 def main() -> None:
-    logging.getLogger("headroom").setLevel(logging.WARNING)
+    logging.getLogger("cutctx").setLevel(logging.WARNING)
     logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
     logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
 

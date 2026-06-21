@@ -1,21 +1,21 @@
-"""Agno integration for Headroom SDK.
+"""Agno integration for Cutctx SDK.
 
 This module provides seamless integration with Agno (formerly Phidata),
 enabling automatic context optimization for Agno agents.
 
 Components:
-1. HeadroomAgnoModel - Wraps any Agno model to apply Headroom transforms
+1. CutctxAgnoModel - Wraps any Agno model to apply Cutctx transforms
 2. create_headroom_hooks - Creates pre/post hooks for Agno agents
 3. optimize_messages - Standalone function for manual optimization
 
 Example:
     from agno.agent import Agent
     from agno.models.openai import OpenAIChat
-    from headroom.integrations.agno import HeadroomAgnoModel
+    from headroom.integrations.agno import CutctxAgnoModel
 
     # Wrap any Agno model
     model = OpenAIChat(id="gpt-4o")
-    optimized_model = HeadroomAgnoModel(model)
+    optimized_model = CutctxAgnoModel(model)
 
     # Use with agent
     agent = Agent(model=optimized_model)
@@ -23,13 +23,13 @@ Example:
 """
 
 from .hooks import (
-    HeadroomPostHook,
-    HeadroomPreHook,
+    CutctxPostHook,
+    CutctxPreHook,
     HookMetrics,
     create_headroom_hooks,
 )
 from .model import (
-    HeadroomAgnoModel,
+    CutctxAgnoModel,
     OptimizationMetrics,
     agno_available,
     optimize_messages,

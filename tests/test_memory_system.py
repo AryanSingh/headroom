@@ -1,4 +1,4 @@
-"""Comprehensive tests for Headroom's memory system.
+"""Comprehensive tests for Cutctx's memory system.
 
 Tests cover:
 - Entity and Relationship graph models

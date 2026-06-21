@@ -1,7 +1,7 @@
-"""Memory Bridge: bidirectional bridge between markdown files and Headroom memory.
+"""Memory Bridge: bidirectional bridge between markdown files and Cutctx memory.
 
 Imports markdown memory files (Claude Code MEMORY.md, ChatGPT facts, etc.)
-into Headroom's semantic memory system, and exports Headroom memories back
+into Cutctx's semantic memory system, and exports Cutctx memories back
 to organized markdown files. Supports bidirectional sync with hash-based
 change detection.
 
@@ -16,10 +16,10 @@ Usage:
     )
     bridge = MemoryBridge(config, backend)
 
-    # Import markdown -> Headroom
+    # Import markdown -> Cutctx
     stats = await bridge.import_from_markdown()
 
-    # Export Headroom -> markdown
+    # Export Cutctx -> markdown
     markdown = await bridge.export_to_markdown()
 
     # Bidirectional sync
@@ -85,10 +85,10 @@ class SyncStats:
 
 
 class MemoryBridge:
-    """Bidirectional bridge between markdown memory files and Headroom's
+    """Bidirectional bridge between markdown memory files and Cutctx's
     semantic memory system.
 
-    Supports import (md -> Headroom), export (Headroom -> md), and
+    Supports import (md -> Cutctx), export (Cutctx -> md), and
     bidirectional sync with hash-based change detection.
     """
 
@@ -161,7 +161,7 @@ class MemoryBridge:
         self._sync_state["last_sync"] = datetime.now(timezone.utc).isoformat()
 
     # =========================================================================
-    # Import: Markdown -> Headroom
+    # Import: Markdown -> Cutctx
     # =========================================================================
 
     async def import_from_markdown(
@@ -170,7 +170,7 @@ class MemoryBridge:
         user_id: str | None = None,
         force: bool = False,
     ) -> ImportStats:
-        """Import markdown memory files into Headroom's vector store.
+        """Import markdown memory files into Cutctx's vector store.
 
         Args:
             paths: Files to import (uses config.md_paths if None).
@@ -271,7 +271,7 @@ class MemoryBridge:
         user_id: str,
         file_path: str,
     ) -> str | None:
-        """Import a single parsed section into Headroom.
+        """Import a single parsed section into Cutctx.
 
         Returns the memory ID if imported, None if skipped as duplicate.
         """
@@ -350,7 +350,7 @@ class MemoryBridge:
             return False
 
     # =========================================================================
-    # Export: Headroom -> Markdown
+    # Export: Cutctx -> Markdown
     # =========================================================================
 
     async def export_to_markdown(
@@ -360,7 +360,7 @@ class MemoryBridge:
         format: MarkdownFormat | None = None,
         top_k: int = 200,
     ) -> str:
-        """Export Headroom memories to a markdown file.
+        """Export Cutctx memories to a markdown file.
 
         Args:
             path: Output file path (uses config.export_path if None).
@@ -519,10 +519,10 @@ class MemoryBridge:
         paths: list[Path] | None = None,
         user_id: str | None = None,
     ) -> SyncStats:
-        """Bidirectional sync between markdown files and Headroom.
+        """Bidirectional sync between markdown files and Cutctx.
 
         1. Import new/changed sections from md files.
-        2. Export new organic Headroom memories back to md files.
+        2. Export new organic Cutctx memories back to md files.
         """
         paths = paths or self._config.md_paths
         user_id = user_id or self._config.user_id

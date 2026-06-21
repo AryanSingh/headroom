@@ -108,7 +108,7 @@ pytest tests/test_learn/
 ### With Coverage
 
 ```bash
-pytest --cov=headroom --cov-report=html
+pytest --cov=cutctx --cov-report=html
 ```
 
 ### E2E Tests

@@ -10,7 +10,7 @@ info:
     **Authentication:** When `HEADROOM_ADMIN_API_KEY` is set, all management
     endpoints require either:
     - `Authorization: Bearer <admin-api-key>` header
-    - `X-Headroom-Admin-Key: <admin-api-key>` header
+    - `X-CutCtx-Admin-Key: <admin-api-key>` header
     
     When no admin API key is configured, endpoints are open (backward-compatible).
   version: "0.26.0"
@@ -19,7 +19,7 @@ info:
     email: hello@cutctx.dev
     url: https://cutctx.dev
   license:
-    name: Headroom Commercial License
+    name: CutCtx Commercial License
     url: https://pitchtoship.com/legal/commercial-license
 
 servers:
@@ -422,7 +422,7 @@ components:
     AdminKeyHeader:
       type: apiKey
       in: header
-      name: X-Headroom-Admin-Key
+      name: X-CutCtx-Admin-Key
       description: Admin API key in custom header
 
   schemas:

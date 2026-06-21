@@ -1,4 +1,4 @@
-"""Message parsing utilities for Headroom SDK."""
+"""Message parsing utilities for Cutctx SDK."""
 
 from __future__ import annotations
 

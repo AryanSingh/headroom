@@ -74,7 +74,7 @@ Claude Code → CutCtx Plugin → Proxy (port 8787) → LLM Provider
 |---------------------|---------|-------------|
 | `CUTCTX_PROXY_URL` | `http://127.0.0.1:8787` | Proxy URL |
 | `CUTCTX_AUTO_START` | `1` | Auto-start proxy on session start |
-| `HEADROOM_ADMIN_API_KEY` | auto-generated | Admin API key for dashboard |
+| `CUTCTX_ADMIN_API_KEY` | auto-generated | Admin API key for dashboard |
 
 ## Uninstall
 

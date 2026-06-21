@@ -64,7 +64,7 @@ def network_diff(
     )
 
     direct = load_capture_file(direct_path, fallback_lane="direct")
-    headroom = load_capture_file(headroom_path, fallback_lane="headroom")
+    headroom = load_capture_file(headroom_path, fallback_lane="cutctx")
     diff = compare_captures(direct, headroom, pair_by=pair_by)
     markdown = render_markdown_report(diff)
 

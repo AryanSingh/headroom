@@ -71,7 +71,7 @@ import { compress } from "cutctx-ai";
 import type {
   CacheAlignerConfig,
   CacheOptimizerConfig,
-  HeadroomConfig,
+  CutCtxConfig,
 } from "cutctx-ai";
 
 // CacheAligner: stabilize prefixes for cache hits
@@ -93,7 +93,7 @@ const cacheOptimizer: CacheOptimizerConfig = {
 };
 
 // Full configuration
-const config: HeadroomConfig = {
+const config: CutCtxConfig = {
   cacheAligner,
   cacheOptimizer,
 };
@@ -107,8 +107,8 @@ const result = await compress(messages, {
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import HeadroomClient, OpenAIProvider, AnthropicProvider, GoogleProvider
-from headroom.transforms import CacheAlignerConfig
+from cutctx import CutCtxClient, OpenAIProvider, AnthropicProvider, GoogleProvider
+from cutctx.transforms import CacheAlignerConfig
 from openai import OpenAI
 
 # CacheAligner configuration
@@ -123,7 +123,7 @@ aligner_config = CacheAlignerConfig(
 
 # Provider-specific cache settings
 # OpenAI: prefix caching (automatic, just keep prefixes stable)
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(enable_prefix_caching=True),
     enable_cache_optimizer=True,
@@ -132,14 +132,14 @@ client = HeadroomClient(
 # Anthropic: cache_control blocks (90% read discount)
 from anthropic import Anthropic
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=Anthropic(),
     provider=AnthropicProvider(enable_cache_control=True),
     enable_cache_optimizer=True,
 )
 
 # Google: CachedContent API (75% read discount)
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=google_client,
     provider=GoogleProvider(enable_context_caching=True),
     enable_cache_optimizer=True,

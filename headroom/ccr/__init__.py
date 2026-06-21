@@ -60,11 +60,11 @@ from .tool_injection import (
 
 # MCP server is optional (requires mcp package)
 try:
-    from .mcp_server import HeadroomMCPServer, create_ccr_mcp_server
+    from .mcp_server import CutctxMCPServer, create_ccr_mcp_server
 
     MCP_SERVER_AVAILABLE = True
 except ImportError:
-    HeadroomMCPServer = None  # type: ignore
+    CutctxMCPServer = None  # type: ignore
     create_ccr_mcp_server = None  # type: ignore
     MCP_SERVER_AVAILABLE = False
 

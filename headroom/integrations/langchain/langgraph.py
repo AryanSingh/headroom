@@ -1,4 +1,4 @@
-"""LangGraph integration for Headroom tool message compression.
+"""LangGraph integration for Cutctx tool message compression.
 
 This module provides a compress_tool_messages utility and a LangGraph-compatible
 node factory for compressing ToolMessage content before it reaches the LLM,

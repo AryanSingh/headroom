@@ -1,4 +1,4 @@
-"""Shared utilities for Headroom SDK."""
+"""Shared utilities for Cutctx SDK."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-# Marker format for Headroom modifications
+# Marker format for Cutctx modifications
 MARKER_PREFIX = "<headroom:"
 MARKER_SUFFIX = ">"
 
@@ -137,7 +137,7 @@ def parse_timestamp(ts: str) -> datetime:
 
 def create_marker(marker_type: str, **kwargs: Any) -> str:
     """
-    Create a Headroom marker string.
+    Create a Cutctx marker string.
 
     Args:
         marker_type: Type of marker (e.g., "tool_digest", "dropped_context").
@@ -175,7 +175,7 @@ def create_truncated_marker(original_length: int, truncated_to: int) -> str:
 
 def extract_markers(text: str) -> list[dict[str, Any]]:
     """
-    Extract Headroom markers from text.
+    Extract Cutctx markers from text.
 
     Returns:
         List of dicts with marker_type and attributes.

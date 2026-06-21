@@ -2,85 +2,85 @@
  * Error hierarchy matching Python headroom.exceptions.
  */
 
-export class HeadroomError extends Error {
+export class CutCtxError extends Error {
   details?: Record<string, any>;
 
   constructor(message: string, details?: Record<string, any>) {
     super(message);
-    this.name = "HeadroomError";
+    this.name = "CutCtxError";
     this.details = details;
   }
 }
 
-export class HeadroomConnectionError extends HeadroomError {
+export class CutCtxConnectionError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
-    this.name = "HeadroomConnectionError";
+    this.name = "CutCtxConnectionError";
   }
 }
 
-export class HeadroomAuthError extends HeadroomError {
+export class CutCtxAuthError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
-    this.name = "HeadroomAuthError";
+    this.name = "CutCtxAuthError";
   }
 }
 
-export class HeadroomCompressError extends HeadroomError {
+export class CutCtxCompressError extends CutCtxError {
   statusCode: number;
   errorType: string;
 
   constructor(statusCode: number, errorType: string, message: string, details?: Record<string, any>) {
     super(message, details);
-    this.name = "HeadroomCompressError";
+    this.name = "CutCtxCompressError";
     this.statusCode = statusCode;
     this.errorType = errorType;
   }
 }
 
-export class ConfigurationError extends HeadroomError {
+export class ConfigurationError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "ConfigurationError";
   }
 }
 
-export class ProviderError extends HeadroomError {
+export class ProviderError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "ProviderError";
   }
 }
 
-export class StorageError extends HeadroomError {
+export class StorageError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "StorageError";
   }
 }
 
-export class TokenizationError extends HeadroomError {
+export class TokenizationError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "TokenizationError";
   }
 }
 
-export class CacheError extends HeadroomError {
+export class CacheError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "CacheError";
   }
 }
 
-export class ValidationError extends HeadroomError {
+export class ValidationError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "ValidationError";
   }
 }
 
-export class TransformError extends HeadroomError {
+export class TransformError extends CutCtxError {
   constructor(message: string, details?: Record<string, any>) {
     super(message, details);
     this.name = "TransformError";
@@ -89,7 +89,7 @@ export class TransformError extends HeadroomError {
 
 // --- Proxy error mapping ---
 
-const ERROR_TYPE_MAP: Record<string, new (message: string, details?: Record<string, any>) => HeadroomError> = {
+const ERROR_TYPE_MAP: Record<string, new (message: string, details?: Record<string, any>) => CutCtxError> = {
   configuration_error: ConfigurationError,
   provider_error: ProviderError,
   storage_error: StorageError,
@@ -100,15 +100,15 @@ const ERROR_TYPE_MAP: Record<string, new (message: string, details?: Record<stri
 };
 
 /**
- * Map a proxy error response to the correct HeadroomError subclass.
+ * Map a proxy error response to the correct CutCtxError subclass.
  */
 export function mapProxyError(
   status: number,
   type: string,
   message: string,
-): HeadroomError {
-  if (status === 401) return new HeadroomAuthError(message);
+): CutCtxError {
+  if (status === 401) return new CutCtxAuthError(message);
   const ErrorClass = ERROR_TYPE_MAP[type];
   if (ErrorClass) return new ErrorClass(message, { statusCode: status, errorType: type });
-  return new HeadroomCompressError(status, type, message);
+  return new CutCtxCompressError(status, type, message);
 }

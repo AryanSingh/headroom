@@ -165,7 +165,8 @@ def integrations_status(output_format: str) -> None:
         integration_status[name] = {
             "supported": callable_ok,
             "parser": dotted,
-            "wired_in_outcome_py": False,  # adapters are user-invoked
+            "wired_in_outcome_py": True,
+            "wiring": "x-headroom-savings-metadata",
             **(
                 {"library": lib_name, "library_available": lib_available}
                 if lib_name is not None
@@ -191,7 +192,57 @@ def integrations_status(output_format: str) -> None:
         )
 
         tracker = SavingsTracker()
-        lifetime = tracker.snapshot().get("lifetime", {})
+        snapshot = tracker.snapshot()
+        lifetime = snapshot.get("lifetime", {})
+        history = snapshot.get("history", []) or []
+        by_source_tokens = {src.value: 0 for src in SavingsSource}
+        by_source_usd = {src.value: 0.0 for src in SavingsSource}
+        for row in history:
+            if not isinstance(row, dict):
+                continue
+            source_tokens = row.get("savings_by_source_tokens") or {}
+            if isinstance(source_tokens, dict) and source_tokens:
+                for src_name, value in source_tokens.items():
+                    by_source_tokens[src_name] = by_source_tokens.get(src_name, 0) + int(
+                        value or 0
+                    )
+            else:
+                delta_tokens = int(row.get("delta_tokens_saved") or 0)
+                if delta_tokens > 0:
+                    by_source_tokens["cutctx_compression"] = (
+                        by_source_tokens.get("cutctx_compression", 0) + delta_tokens
+                    )
+
+            source_usd = row.get("savings_by_source_usd") or {}
+            if isinstance(source_usd, dict) and source_usd:
+                for src_name, value in source_usd.items():
+                    by_source_usd[src_name] = by_source_usd.get(src_name, 0.0) + float(
+                        value or 0.0
+                    )
+            else:
+                # Legacy row without per-source USD attribution. Mirror
+                # the buyer report fallback so production status still
+                # reflects the current savings story.
+                compression_usd = float(row.get("compression_savings_usd", 0) or 0)
+                cache_usd = float(row.get("cache_savings_usd", 0) or 0)
+                row_total = float(row.get("cost_savings_usd", 0) or 0)
+                if row_total and not compression_usd and not cache_usd:
+                    compression_usd = row_total
+                    cache_usd = 0.0
+                by_source_usd["cutctx_compression"] = (
+                    by_source_usd.get("cutctx_compression", 0.0) + compression_usd
+                )
+                by_source_usd["provider_prompt_cache"] = (
+                    by_source_usd.get("provider_prompt_cache", 0.0) + cache_usd
+                )
+
+        by_source = {
+            src.value: {
+                "tokens": int(by_source_tokens.get(src.value, 0) or 0),
+                "usd": round(float(by_source_usd.get(src.value, 0.0) or 0.0), 6),
+            }
+            for src in SavingsSource
+        }
         production_status = {
             "storage_path": tracker.storage_path,
             "lifetime": {
@@ -227,90 +278,7 @@ def integrations_status(output_format: str) -> None:
                     6,
                 ),
             },
-            "by_source": {
-                "provider_prompt_cache": {
-                    "tokens": int(
-                        lifetime.get(
-                            "savings_by_source_tokens.provider_prompt_cache", 0
-                        )
-                        or 0
-                    ),
-                    "usd": round(
-                        float(
-                            lifetime.get(
-                                "savings_by_source_usd.provider_prompt_cache", 0.0
-                            )
-                            or 0.0
-                        ),
-                        6,
-                    ),
-                },
-                "cutctx_compression": {
-                    "tokens": int(
-                        lifetime.get(
-                            "savings_by_source_tokens.cutctx_compression", 0
-                        )
-                        or 0
-                    ),
-                    "usd": round(
-                        float(
-                            lifetime.get(
-                                "savings_by_source_usd.cutctx_compression", 0.0
-                            )
-                            or 0.0
-                        ),
-                        6,
-                    ),
-                },
-                "semantic_cache": {
-                    "tokens": int(
-                        lifetime.get("savings_by_source_tokens.semantic_cache", 0)
-                        or 0
-                    ),
-                    "usd": round(
-                        float(
-                            lifetime.get(
-                                "savings_by_source_usd.semantic_cache", 0.0
-                            )
-                            or 0.0
-                        ),
-                        6,
-                    ),
-                },
-                "prefix_cache_self_hosted": {
-                    "tokens": int(
-                        lifetime.get(
-                            "savings_by_source_tokens.prefix_cache_self_hosted", 0
-                        )
-                        or 0
-                    ),
-                    "usd": round(
-                        float(
-                            lifetime.get(
-                                "savings_by_source_usd.prefix_cache_self_hosted",
-                                0.0,
-                            )
-                            or 0.0
-                        ),
-                        6,
-                    ),
-                },
-                "model_routing": {
-                    "tokens": int(
-                        lifetime.get("savings_by_source_tokens.model_routing", 0)
-                        or 0
-                    ),
-                    "usd": round(
-                        float(
-                            lifetime.get(
-                                "savings_by_source_usd.model_routing", 0.0
-                            )
-                            or 0.0
-                        ),
-                        6,
-                    ),
-                },
-            },
+            "by_source": by_source,
         }
     except Exception as exc:  # noqa: BLE001
         production_status = {"error": str(exc)}
@@ -341,7 +309,8 @@ def integrations_status(output_format: str) -> None:
         else:
             mark = "✗"
             extra = f" ({info.get('error', 'failed')})"
-        wired = "wired" if info.get("wired_in_outcome_py") else "user-invoked"
+        wiring = info.get("wiring")
+        wired = wiring or ("wired" if info.get("wired_in_outcome_py") else "user-invoked")
         click.echo(f"  {name:20s} {mark}  [{wired}]{extra}")
     click.echo()
     click.echo(click.style("External integrations:", bold=True))
@@ -356,7 +325,8 @@ def integrations_status(output_format: str) -> None:
             if lib
             else ""
         )
-        click.echo(f"  {name:20s} {mark}{lib_str}")
+        wiring = info.get("wiring", "user-invoked")
+        click.echo(f"  {name:20s} {mark}  [{wiring}]{lib_str}")
     click.echo()
     click.echo(click.style("Savings sources tracked:", bold=True))
     for src in SavingsSource:

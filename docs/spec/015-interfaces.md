@@ -4,12 +4,12 @@
 
 ## CLI Surface
 
-### `headroom proxy`
+### `cutctx proxy`
 
-Start the Headroom proxy server.
+Start the Cutctx proxy server.
 
 ```bash
-headroom proxy [OPTIONS]
+cutctx proxy [OPTIONS]
 ```
 
 **Options:**
@@ -31,12 +31,12 @@ headroom proxy [OPTIONS]
 
 ---
 
-### `headroom evals`
+### `cutctx evals`
 
 Run evaluation suite.
 
 ```bash
-headroom evals [OPTIONS]
+cutctx evals [OPTIONS]
 ```
 
 **Options:**
@@ -47,12 +47,12 @@ headroom evals [OPTIONS]
 
 ---
 
-### `headroom install`
+### `cutctx install`
 
 Install agent integrations.
 
 ```bash
-headroom install [OPTIONS]
+cutctx install [OPTIONS]
 ```
 
 **Options:**
@@ -62,38 +62,38 @@ headroom install [OPTIONS]
 
 ---
 
-### `headroom mcp`
+### `cutctx mcp`
 
-Manage the Headroom MCP server.
+Manage the Cutctx MCP server.
 
 ```bash
-headroom mcp [OPTIONS] COMMAND [ARGS]...
+cutctx mcp [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Commands:**
 - `install` — Install the MCP server into detected coding agents
 - `serve` — Start the stdio MCP server
 - `status` — Check configuration status
-- `uninstall` — Remove Headroom MCP config
+- `uninstall` — Remove Cutctx MCP config
 
 ---
 
-### `headroom perf`
+### `cutctx perf`
 
 Run performance tests.
 
 ```bash
-headroom perf [OPTIONS]
+cutctx perf [OPTIONS]
 ```
 
 ---
 
-### `headroom wrap`
+### `cutctx wrap`
 
-Wrap a command with Headroom proxy.
+Wrap a command with Cutctx proxy.
 
 ```bash
-headroom wrap [OPTIONS] -- <command> [args...]
+cutctx wrap [OPTIONS] -- <command> [args...]
 ```
 
 **Options:**
@@ -112,12 +112,12 @@ headroom wrap [OPTIONS] -- <command> [args...]
 
 ---
 
-### `headroom memory`
+### `cutctx memory`
 
 Memory system management (requires numpy/hnswlib).
 
 ```bash
-headroom memory [OPTIONS]
+cutctx memory [OPTIONS]
 ```
 
 **Commands:**
@@ -127,12 +127,12 @@ headroom memory [OPTIONS]
 
 ---
 
-### `headroom learn`
+### `cutctx learn`
 
 Run learn mode analysis.
 
 ```bash
-headroom learn [OPTIONS]
+cutctx learn [OPTIONS]
 ```
 
 **Options:**
@@ -147,12 +147,12 @@ headroom learn [OPTIONS]
 
 ---
 
-### `headroom stats`
+### `cutctx stats`
 
 Show savings statistics.
 
 ```bash
-headroom stats [OPTIONS]
+cutctx stats [OPTIONS]
 ```
 
 **Options:**
@@ -163,12 +163,12 @@ headroom stats [OPTIONS]
 
 ---
 
-### `headroom config`
+### `cutctx config`
 
 Manage configuration.
 
 ```bash
-headroom config [COMMAND] [OPTIONS]
+cutctx config [COMMAND] [OPTIONS]
 ```
 
 **Commands:**
@@ -210,9 +210,9 @@ curl -X POST http://localhost:8787/v1/messages \
 
 **Response headers:**
 ```
-X-Headroom-Savings: 0.35
-X-Headroom-Original-Tokens: 8192
-X-Headroom-Compressed-Tokens: 5325
+X-Cutctx-Savings: 0.35
+X-Cutctx-Original-Tokens: 8192
+X-Cutctx-Compressed-Tokens: 5325
 ```
 
 ---
@@ -223,16 +223,16 @@ X-Headroom-Compressed-Tokens: 5325
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HEADROOM_MODE` | `token` | Proxy optimization mode (`token` or `cache`) |
-| `HEADROOM_PORT` | `8787` | Proxy port |
-| `HEADROOM_HOST` | `127.0.0.1` | Proxy host |
-| `HEADROOM_WORKERS` | `1` | Uvicorn worker count |
-| `HEADROOM_LIMIT_CONCURRENCY` | `1000` | Maximum concurrent connections before 503 |
-| `HEADROOM_MAX_CONNECTIONS` | `500` | Maximum upstream HTTP connections |
-| `HEADROOM_MAX_KEEPALIVE` | `100` | Maximum upstream keep-alive connections |
-| `HEADROOM_BUDGET` | - | Daily budget limit in USD |
-| `HEADROOM_TELEMETRY` | enabled | Set to `off` to disable anonymous telemetry |
-| `HEADROOM_STATELESS` | `false` | Disable filesystem writes |
+| `CUTCTX_MODE` | `token` | Proxy optimization mode (`token` or `cache`) |
+| `CUTCTX_PORT` | `8787` | Proxy port |
+| `CUTCTX_HOST` | `127.0.0.1` | Proxy host |
+| `CUTCTX_WORKERS` | `1` | Uvicorn worker count |
+| `CUTCTX_LIMIT_CONCURRENCY` | `1000` | Maximum concurrent connections before 503 |
+| `CUTCTX_MAX_CONNECTIONS` | `500` | Maximum upstream HTTP connections |
+| `CUTCTX_MAX_KEEPALIVE` | `100` | Maximum upstream keep-alive connections |
+| `CUTCTX_BUDGET` | - | Daily budget limit in USD |
+| `CUTCTX_TELEMETRY` | enabled | Set to `off` to disable anonymous telemetry |
+| `CUTCTX_STATELESS` | `false` | Disable filesystem writes |
 
 ### Provider
 
@@ -247,21 +247,21 @@ X-Headroom-Compressed-Tokens: 5325
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HEADROOM_TELEMETRY` | enabled | Set to `off` to disable telemetry |
-| `HEADROOM_MIN_EVIDENCE` | `5` | Minimum observations before live learning persists a pattern |
-| `HEADROOM_PROXY_EXTENSIONS` | - | Comma-separated proxy extensions to enable |
-| `HEADROOM_STATELESS` | `false` | Disable filesystem writes |
-| `HEADROOM_MODEL_LIMITS` | - | Model limits override as JSON or file path |
+| `CUTCTX_TELEMETRY` | enabled | Set to `off` to disable telemetry |
+| `CUTCTX_MIN_EVIDENCE` | `5` | Minimum observations before live learning persists a pattern |
+| `CUTCTX_PROXY_EXTENSIONS` | - | Comma-separated proxy extensions to enable |
+| `CUTCTX_STATELESS` | `false` | Disable filesystem writes |
+| `CUTCTX_MODEL_LIMITS` | - | Model limits override as JSON or file path |
 
 ### Compression
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HEADROOM_MAX_TOKENS` | `4096` | Max tokens per request |
-| `HEADROOM_TARGET_TOKENS` | - | Target tokens after compression |
-| `HEADROOM_OVERLAP_TOKENS` | `512` | Overlap tokens for chunking |
-| `HEADROOM_CONTENT_SENSITIVITY` | `0.5` | Content sensitivity (0-1) |
-| `HEADROOM_PRESERVE_SYSTEM` | `true` | Preserve system messages |
+| `CUTCTX_MAX_TOKENS` | `4096` | Max tokens per request |
+| `CUTCTX_TARGET_TOKENS` | - | Target tokens after compression |
+| `CUTCTX_OVERLAP_TOKENS` | `512` | Overlap tokens for chunking |
+| `CUTCTX_CONTENT_SENSITIVITY` | `0.5` | Content sensitivity (0-1) |
+| `CUTCTX_PRESERVE_SYSTEM` | `true` | Preserve system messages |
 
 ---
 
@@ -271,8 +271,8 @@ X-Headroom-Compressed-Tokens: 5325
 
 ```python
 from abc import ABC, abstractmethod
-from headroom.learn.base import ConversationScanner, ContextWriter
-from headroom.learn.models import ProjectInfo, SessionData
+from cutctx.learn.base import ConversationScanner, ContextWriter
+from cutctx.learn.models import ProjectInfo, SessionData
 
 class LearnPlugin(ConversationScanner):
     """A self-contained learn plugin for a single coding agent."""
@@ -312,11 +312,11 @@ class LearnPlugin(ConversationScanner):
 
 ### Plugin Registration
 
-Plugins are auto-discovered from `headroom/learn/plugins/` directory.
+Plugins are auto-discovered from `cutctx/learn/plugins/` directory.
 
 **Manual registration:**
 ```python
-from headroom.learn import plugin_registry
+from cutctx.learn import plugin_registry
 
 plugin_registry.register(MyPlugin())
 ```
@@ -324,7 +324,7 @@ plugin_registry.register(MyPlugin())
 ### Plugin Config
 
 ```yaml
-# ~/.headroom/config.yaml
+# ~/.cutctx/config.yaml
 learn:
   enabled: true
   plugins:

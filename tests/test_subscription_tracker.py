@@ -9,7 +9,7 @@ import pytest
 
 import headroom.subscription.tracker as tracker_module
 from headroom.subscription.models import (
-    HeadroomContribution,
+    CutctxContribution,
     RateLimitWindow,
     SubscriptionSnapshot,
     WindowDiscrepancy,
@@ -105,7 +105,7 @@ async def test_tracker_start_stop_and_rollover_reset(
         _make_snapshot(reset_offset_hours=5),
         _make_snapshot(reset_offset_hours=6),
     ]
-    tracker._state.contribution = HeadroomContribution(tokens_submitted=99)
+    tracker._state.contribution = CutctxContribution(tokens_submitted=99)
     tracker._maybe_reset_contribution(tracker._state.history[-1])
     assert tracker._state.contribution.tokens_submitted == 0
 

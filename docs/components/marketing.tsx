@@ -141,7 +141,7 @@ const integrations: {
     title: 'LangChain',
     description:
       'Wrap any chat model. Supports memory, retrievers, tools, streaming, async.',
-    code: 'from headroom.integrations.langchain import HeadroomChatModel\nllm = HeadroomChatModel(ChatOpenAI())',
+    code: 'from headroom.integrations.langchain import CutCtxChatModel\nllm = CutCtxChatModel(ChatOpenAI())',
     lang: 'python',
     href: '/docs/langchain',
   },
@@ -149,7 +149,7 @@ const integrations: {
     title: 'Agno',
     description:
       'Full agent framework integration with observability hooks.',
-    code: 'from headroom.integrations.agno import HeadroomAgnoModel\nmodel = HeadroomAgnoModel(Claude())\nagent = Agent(model=model)',
+    code: 'from headroom.integrations.agno import CutCtxAgnoModel\nmodel = CutCtxAgnoModel(Claude())\nagent = Agent(model=model)',
     lang: 'python',
     href: '/docs/agno',
   },
@@ -157,7 +157,7 @@ const integrations: {
     title: 'Strands',
     description:
       'Model wrapping + tool output hook provider for Strands Agents.',
-    code: 'from headroom.integrations.strands import HeadroomStrandsModel\nmodel = HeadroomStrandsModel(...)\nagent = Agent(model=model)',
+    code: 'from headroom.integrations.strands import CutCtxStrandsModel\nmodel = CutCtxStrandsModel(...)\nagent = Agent(model=model)',
     lang: 'python',
     href: '/docs/strands',
   },
@@ -180,8 +180,8 @@ const integrations: {
   {
     title: 'Vercel AI SDK',
     description:
-      'One-liner withHeadroom() or headroomMiddleware() for any Vercel AI SDK model.',
-    code: "import { withHeadroom } from 'cutctx-ai/vercel-ai'\nconst model = withHeadroom(openai('gpt-4o'))",
+      'One-liner withCutCtx() or headroomMiddleware() for any Vercel AI SDK model.',
+    code: "import { withCutCtx } from 'cutctx-ai/vercel-ai'\nconst model = withCutCtx(openai('gpt-4o'))",
     lang: 'typescript',
     href: '/docs/vercel-ai-sdk',
   },

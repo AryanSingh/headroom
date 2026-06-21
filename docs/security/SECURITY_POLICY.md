@@ -13,16 +13,16 @@ CutCtx is a local-first LLM context compression proxy. All compression, tokeniza
 
 This policy governs:
 
-- The CutCtx proxy binary and Python package (`headroom`)
+- The CutCtx proxy binary and Python package (`cutctx`)
 - License key issuance, validation, and revocation infrastructure
 - Encrypted state files written to disk by the proxy
 - CI/CD pipelines and release signing
-- The headroom-oauth2 SSO plugin (Enterprise tier)
+- The cutctx-oauth2 SSO plugin (Enterprise tier)
 - Kubernetes deployment manifests in `k8s/`
 
 **Out of scope:** Third-party LLM provider security (OpenAI, Anthropic, etc.), customer network infrastructure, and customer-managed secrets such as LLM API keys.
 
-**Security Owner:** security@headroom.dev
+**Security Owner:** security@cutctx.dev
 For vulnerability reports, see Section 7 and `SECURITY.md` at the repository root.
 
 ---
@@ -69,7 +69,7 @@ Feature gates are enforced by the `EntitlementTier` hierarchy at runtime:
 BUILDER < TEAM < BUSINESS < ENTERPRISE
 ```
 
-A request presenting a TEAM key cannot access BUSINESS or ENTERPRISE features regardless of client-side configuration. Enforcement occurs in `headroom/license.py` and the Rust `from_license_key_hmac` validator in `src/lib.rs`.
+A request presenting a TEAM key cannot access BUSINESS or ENTERPRISE features regardless of client-side configuration. Enforcement occurs in `cutctx/license.py` and the Rust `from_license_key_hmac` validator in `src/lib.rs`.
 
 ### 3.3 License Revocation
 
@@ -89,7 +89,7 @@ For individual key revocation (targeted compromise), the same rotation procedure
 
 ### 4.1 State Files at Rest
 
-Proxy state files are encrypted using **Fernet** (AES-128-CBC with PKCS7 padding + HMAC-SHA256 authentication) as implemented in `headroom/security/state_crypto.py`. Fernet provides authenticated encryption: any tampering with ciphertext is detected before decryption.
+Proxy state files are encrypted using **Fernet** (AES-128-CBC with PKCS7 padding + HMAC-SHA256 authentication) as implemented in `cutctx/security/state_crypto.py`. Fernet provides authenticated encryption: any tampering with ciphertext is detected before decryption.
 
 - Keys are derived per-deployment and must not be hardcoded or committed to source control.
 - State file keys are rotated on license key rotation.
@@ -108,7 +108,7 @@ License key signatures use **HMAC-SHA256**. The signing secret (`HMAC_SECRET`) m
 - All proxy HTTPS mode connections require **TLS 1.2 minimum**; TLS 1.3 is preferred.
 - TLS 1.0 and 1.1 are explicitly disabled in proxy configuration.
 - Certificates must be issued by a trusted CA; self-signed certificates are permitted only in development/test environments with explicit opt-in.
-- SSO/OIDC flows in the Enterprise tier use TLS for all token exchanges (see `plugins/headroom-oauth2/`).
+- SSO/OIDC flows in the Enterprise tier use TLS for all token exchanges (see `plugins/cutctx-oauth2/`).
 
 ### 4.4 Prohibited Algorithms
 
@@ -163,7 +163,7 @@ CutCtx follows a five-phase incident response process:
 ### Phase 1: Detect
 
 - Automated alerting via Prometheus metrics and structured audit log anomaly detection.
-- Manual reports via security@headroom.dev or internal escalation.
+- Manual reports via security@cutctx.dev or internal escalation.
 - All potential incidents are assigned a severity (P1-P4) within **24 hours** of detection.
 
 ### Phase 2: Contain
@@ -205,7 +205,7 @@ CutCtx follows a five-phase incident response process:
 
 CutCtx operates a responsible disclosure program.
 
-**To report a vulnerability:** Email security@headroom.dev with the information described in `SECURITY.md`. Do not open a public GitHub issue for unpatched vulnerabilities.
+**To report a vulnerability:** Email security@cutctx.dev with the information described in `SECURITY.md`. Do not open a public GitHub issue for unpatched vulnerabilities.
 
 **Process:**
 

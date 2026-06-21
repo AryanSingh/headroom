@@ -402,7 +402,7 @@ def format_report(report: PerfReport) -> str:
         return "\n".join(lines)
 
     # Header
-    lines.append("Headroom Performance Report")
+    lines.append("Cutctx Performance Report")
     lines.append("=" * 60)
     if report.requested_hours is not None:
         if report.oldest_kept_ts and report.newest_kept_ts:

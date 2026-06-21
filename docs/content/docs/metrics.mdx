@@ -72,10 +72,10 @@ headroom_requests_total{mode="optimize"} 1234
 # HELP headroom_tokens_saved_total Total tokens saved
 headroom_tokens_saved_total 5678900
 
-# HELP headroom_compression_ratio Compression ratio histogram
-headroom_compression_ratio_bucket{le="0.5"} 890
-headroom_compression_ratio_bucket{le="0.7"} 1100
-headroom_compression_ratio_bucket{le="0.9"} 1200
+# HELP cutctx_compression_ratio Compression ratio histogram
+cutctx_compression_ratio_bucket{le="0.5"} 890
+cutctx_compression_ratio_bucket{le="0.7"} 1100
+cutctx_compression_ratio_bucket{le="0.9"} 1200
 
 # HELP headroom_latency_seconds Request latency histogram
 headroom_latency_seconds_bucket{le="0.01"} 800
@@ -109,9 +109,9 @@ curl http://localhost:8787/health
 The TypeScript SDK queries the proxy for stats:
 
 ```ts twoslash
-import { HeadroomClient } from 'cutctx-ai';
+import { CutCtxClient } from 'cutctx-ai';
 
-const client = new HeadroomClient();
+const client = new CutCtxClient();
 
 // Get proxy stats
 const stats = await client.proxyStats();
@@ -266,6 +266,6 @@ Example Prometheus queries for a Grafana dashboard:
 | Panel | PromQL |
 |-------|--------|
 | Tokens Saved | `headroom_tokens_saved_total` |
-| Compression Ratio (median) | `histogram_quantile(0.5, headroom_compression_ratio_bucket)` |
+| Compression Ratio (median) | `histogram_quantile(0.5, cutctx_compression_ratio_bucket)` |
 | Request Latency (p99) | `histogram_quantile(0.99, headroom_latency_seconds_bucket)` |
 | Cache Hit Rate | `headroom_cache_hits_total / (headroom_cache_hits_total + headroom_cache_misses_total)` |

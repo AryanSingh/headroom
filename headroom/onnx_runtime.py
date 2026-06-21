@@ -1,4 +1,4 @@
-"""ONNX Runtime helpers for long-running Headroom processes."""
+"""ONNX Runtime helpers for long-running Cutctx processes."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def create_cpu_session_options(
 ) -> Any:
     """Create CPU-oriented ONNX Runtime session options.
 
-    Headroom runs as a long-lived proxy process, so we bias toward predictable
+    Cutctx runs as a long-lived proxy process, so we bias toward predictable
     memory usage over peak ONNX throughput. Disabling ORT's CPU arena and memory
     pattern caches reduces retained anonymous RSS after variable-size inference
     workloads, which is especially important on small VMs.

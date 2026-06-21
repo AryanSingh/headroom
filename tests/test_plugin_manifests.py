@@ -33,7 +33,7 @@ def test_marketplace_entry_points_to_plugin_root() -> None:
     plugins = marketplace["plugins"]
     assert isinstance(plugins, list)
     plugin = plugins[0]
-    assert plugin["name"] == "headroom"
+    assert plugin["name"] == "cutctx"
     plugin_root = (REPO_ROOT / plugin["source"]).resolve()
     assert plugin_root.is_dir()
     assert (plugin_root / ".claude-plugin" / "plugin.json").is_file()

@@ -166,7 +166,7 @@ def test_release_version_script_runs_directly_without_importing_headroom_package
     env["MANUAL_VER"] = "0.6.0"
 
     result = subprocess.run(
-        [sys.executable, str(ROOT / "headroom" / "release_version.py")],
+        [sys.executable, str(ROOT / "cutctx" / "release_version.py")],
         cwd=ROOT,
         capture_output=True,
         text=True,

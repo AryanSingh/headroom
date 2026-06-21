@@ -1,4 +1,4 @@
-"""SSL context builder for the Headroom upstream httpx client.
+"""SSL context builder for the Cutctx upstream httpx client.
 
 Respects the standard CA-bundle environment variables used by Python
 (``SSL_CERT_FILE``), requests (``REQUESTS_CA_BUNDLE``), and Node.js /

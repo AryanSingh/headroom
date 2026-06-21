@@ -236,18 +236,18 @@ class TestASGIMiddleware:
 class TestLiteLLMCallback:
     def test_callback_imports(self):
         """Verify the callback can be imported."""
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from headroom.integrations.litellm_callback import CutctxCallback
 
-        callback = HeadroomCallback()
+        callback = CutctxCallback()
         assert callback.total_tokens_saved == 0
 
     def test_callback_compresses_messages(self):
         """Callback compresses messages in pre_call_hook."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from headroom.integrations.litellm_callback import CutctxCallback
 
-        callback = HeadroomCallback()
+        callback = CutctxCallback()
 
         big_data = json.dumps([{"id": i, "status": "active"} for i in range(200)])
         data = {
@@ -265,9 +265,9 @@ class TestLiteLLMCallback:
         """Non-completion calls are passed through."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from headroom.integrations.litellm_callback import CutctxCallback
 
-        callback = HeadroomCallback()
+        callback = CutctxCallback()
         data = {"messages": [{"role": "user", "content": "hi"}]}
 
         result = asyncio.run(callback.async_pre_call_hook("key", data, "embedding"))

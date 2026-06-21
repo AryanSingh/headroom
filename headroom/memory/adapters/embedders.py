@@ -1,4 +1,4 @@
-"""Embedder implementations for Headroom Memory.
+"""Embedder implementations for Cutctx Memory.
 
 Provides embedding generation via multiple backends:
 - LocalEmbedder: sentence-transformers (local, no API needed)

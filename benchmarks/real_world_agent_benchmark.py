@@ -1,5 +1,5 @@
 """
-Real-World Agent Benchmark: MCP Tools + Headroom
+Real-World Agent Benchmark: MCP Tools + Cutctx
 
 This benchmark simulates real multi-agent workflows using actual MCP tool output formats:
 1. Filesystem MCP Server - directory trees, file searches, file contents
@@ -7,7 +7,7 @@ This benchmark simulates real multi-agent workflows using actual MCP tool output
 3. Database MCP Server - query results, schema info
 
 We measure:
-- Token usage with vs without Headroom
+- Token usage with vs without Cutctx
 - Cost savings
 - Answer quality (does compression hurt agent performance?)
 
@@ -30,9 +30,9 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-# Headroom
+# Cutctx
 try:
-    from headroom import HeadroomClient, OpenAIProvider
+    from headroom import CutctxClient, OpenAIProvider
 
     HEADROOM_AVAILABLE = True
 except ImportError:
@@ -491,7 +491,7 @@ class BenchmarkResult:
     """Result from running a scenario."""
 
     scenario_name: str
-    mode: str  # "baseline" or "headroom"
+    mode: str  # "baseline" or "cutctx"
     total_input_tokens: int
     total_output_tokens: int
     total_tokens: int
@@ -556,9 +556,9 @@ def run_agent_scenario(
     # Make API call
     start = time.time()
 
-    # Determine if using HeadroomClient
-    is_headroom = isinstance(client, HeadroomClient) if HEADROOM_AVAILABLE else False
-    mode = "headroom" if is_headroom else "baseline"
+    # Determine if using CutctxClient
+    is_headroom = isinstance(client, CutctxClient) if HEADROOM_AVAILABLE else False
+    mode = "cutctx" if is_headroom else "baseline"
 
     try:
         response = client.chat.completions.create(
@@ -614,7 +614,7 @@ def run_agent_scenario(
 
 
 def run_full_benchmark(api_key: str = None) -> dict:
-    """Run complete benchmark comparing baseline vs Headroom."""
+    """Run complete benchmark comparing baseline vs Cutctx."""
 
     if api_key is None:
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -623,7 +623,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
         raise ValueError("OPENAI_API_KEY required")
 
     if not HEADROOM_AVAILABLE:
-        raise RuntimeError("Headroom not available")
+        raise RuntimeError("Cutctx not available")
 
     # Create clients
     import tempfile
@@ -632,9 +632,9 @@ def run_full_benchmark(api_key: str = None) -> dict:
 
     baseline_client = OpenAI(api_key=api_key)
 
-    # Headroom-wrapped client
+    # Cutctx-wrapped client
     db_path = os.path.join(tempfile.gettempdir(), "headroom_benchmark.db")
-    headroom_client = HeadroomClient(
+    headroom_client = CutctxClient(
         original_client=OpenAI(api_key=api_key),
         provider=OpenAIProvider(),
         store_url=f"sqlite:///{db_path}",
@@ -650,7 +650,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
     results = []
 
     print("\n" + "=" * 70)
-    print("REAL-WORLD AGENT BENCHMARK: MCP Tools + Headroom")
+    print("REAL-WORLD AGENT BENCHMARK: MCP Tools + Cutctx")
     print("=" * 70)
 
     for scenario in scenarios:
@@ -673,7 +673,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
         print(f"   Answer quality: {baseline_result.answer_quality:.1%}")
         results.append(baseline_result)
 
-        # Run with Headroom
+        # Run with Cutctx
         print("\n[2/2] Running HEADROOM (optimized)...")
         headroom_result = run_agent_scenario(headroom_client, scenario)
         print(f"   Input tokens: {headroom_result.total_input_tokens:,}")
@@ -705,14 +705,14 @@ def run_full_benchmark(api_key: str = None) -> dict:
     print("=" * 70)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "headroom"]
+    headroom_results = [r for r in results if r.mode == "cutctx"]
 
     total_baseline_tokens = sum(r.total_input_tokens for r in baseline_results)
     total_headroom_tokens = sum(r.total_input_tokens for r in headroom_results)
     total_baseline_cost = sum(r.cost_usd for r in baseline_results)
     total_headroom_cost = sum(r.cost_usd for r in headroom_results)
 
-    print(f"\n{'Metric':<25} {'Baseline':>15} {'Headroom':>15} {'Savings':>15}")
+    print(f"\n{'Metric':<25} {'Baseline':>15} {'Cutctx':>15} {'Savings':>15}")
     print("-" * 70)
 
     token_savings = (
@@ -743,7 +743,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
 
     return {
         "baseline": [r.__dict__ for r in baseline_results],
-        "headroom": [r.__dict__ for r in headroom_results],
+        "cutctx": [r.__dict__ for r in headroom_results],
         "summary": {
             "total_baseline_tokens": total_baseline_tokens,
             "total_headroom_tokens": total_headroom_tokens,

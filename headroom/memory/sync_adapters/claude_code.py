@@ -186,10 +186,10 @@ class ClaudeCodeAdapter(AgentMemoryAdapter):
         return written
 
     def _update_memory_md_index(self, new_entries: list[str]) -> None:
-        """Append new entries to MEMORY.md under a Headroom section."""
+        """Append new entries to MEMORY.md under a Cutctx section."""
         memory_md = self._memory_dir / "MEMORY.md"
 
-        section_marker = "## Headroom Shared Memory"
+        section_marker = "## Cutctx Shared Memory"
         new_section = f"\n{section_marker}\n" + "\n".join(new_entries) + "\n"
 
         if memory_md.exists():

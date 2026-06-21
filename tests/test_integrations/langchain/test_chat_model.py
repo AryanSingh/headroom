@@ -1,9 +1,9 @@
 """Comprehensive tests for LangChain integration.
 
 Tests cover:
-1. HeadroomChatModel - Wrapper for any BaseChatModel
-2. HeadroomCallbackHandler - Metrics and observability
-3. HeadroomRunnable - LCEL chain composition
+1. CutctxChatModel - Wrapper for any BaseChatModel
+2. CutctxCallbackHandler - Metrics and observability
+3. CutctxRunnable - LCEL chain composition
 4. optimize_messages() - Standalone optimization function
 """
 
@@ -28,7 +28,7 @@ try:
 except ImportError:
     LANGCHAIN_AVAILABLE = False
 
-from headroom import HeadroomConfig, HeadroomMode
+from headroom import CutctxConfig, CutctxMode
 
 # Skip all tests if LangChain not installed
 pytestmark = pytest.mark.skipif(not LANGCHAIN_AVAILABLE, reason="LangChain not installed")
@@ -98,46 +98,46 @@ class TestLangchainAvailable:
 
 
 class TestHeadroomChatModel:
-    """Tests for HeadroomChatModel wrapper."""
+    """Tests for CutctxChatModel wrapper."""
 
     def test_init_with_defaults(self, mock_chat_model):
         """Initialize with default config."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
 
         assert model.wrapped_model is mock_chat_model
-        assert model.mode == HeadroomMode.OPTIMIZE
+        assert model.mode == CutctxMode.OPTIMIZE
         assert model._metrics_history == []
         assert model._total_tokens_saved == 0
 
     def test_init_with_custom_config(self, mock_chat_model):
         """Initialize with custom config."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
-        model = HeadroomChatModel(
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
+        model = CutctxChatModel(
             mock_chat_model,
             config=config,
             mode=HeadroomMode.SIMULATE,
         )
 
         assert model.headroom_config is config
-        assert model.mode == HeadroomMode.SIMULATE
+        assert model.mode == CutctxMode.SIMULATE
 
     def test_llm_type(self, mock_chat_model):
         """_llm_type includes wrapped model type."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
-        assert "headroom" in model._llm_type
+        model = CutctxChatModel(mock_chat_model)
+        assert "cutctx" in model._llm_type
         assert "mock-chat" in model._llm_type
 
     def test_identifying_params(self, mock_chat_model):
         """_identifying_params includes wrapped model params."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
         params = model._identifying_params
 
         assert "wrapped_model" in params
@@ -145,9 +145,9 @@ class TestHeadroomChatModel:
 
     def test_convert_messages_to_openai(self, mock_chat_model, sample_messages):
         """Convert LangChain messages to OpenAI format."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
         openai_msgs = model._convert_messages_to_openai(sample_messages)
 
         assert len(openai_msgs) == 2
@@ -158,7 +158,7 @@ class TestHeadroomChatModel:
 
     def test_convert_messages_with_tool_calls(self, mock_chat_model):
         """Convert messages with tool calls."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         messages = [
             HumanMessage(content="Get the weather"),
@@ -169,7 +169,7 @@ class TestHeadroomChatModel:
             ToolMessage(content='{"temp": 20}', tool_call_id="call_123"),
         ]
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
         openai_msgs = model._convert_messages_to_openai(messages)
 
         assert len(openai_msgs) == 3
@@ -180,7 +180,7 @@ class TestHeadroomChatModel:
 
     def test_convert_messages_from_openai(self, mock_chat_model):
         """Convert OpenAI format back to LangChain."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         openai_msgs = [
             {"role": "system", "content": "You are helpful."},
@@ -188,7 +188,7 @@ class TestHeadroomChatModel:
             {"role": "assistant", "content": "Hi there!"},
         ]
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
         lc_msgs = model._convert_messages_from_openai(openai_msgs)
 
         assert len(lc_msgs) == 3
@@ -197,11 +197,11 @@ class TestHeadroomChatModel:
         assert isinstance(lc_msgs[2], AIMessage)
 
     def test_generate_applies_optimization(self, mock_chat_model, sample_messages):
-        """_generate applies Headroom optimization."""
-        from headroom.integrations import HeadroomChatModel
+        """_generate applies Cutctx optimization."""
+        from headroom.integrations import CutctxChatModel
         from headroom.providers import OpenAIProvider
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
 
         # Initialize provider and pipeline for mocking
         model._provider = OpenAIProvider()
@@ -230,9 +230,9 @@ class TestHeadroomChatModel:
 
     def test_metrics_history_limited(self, mock_chat_model, sample_messages):
         """Metrics history is limited to 100 entries."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
 
         # Add 150 fake metrics
         for _i in range(150):
@@ -245,9 +245,9 @@ class TestHeadroomChatModel:
 
     def test_get_savings_summary_empty(self, mock_chat_model):
         """get_savings_summary with no history."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
         summary = model.get_savings_summary()
 
         assert summary["total_requests"] == 0
@@ -256,10 +256,10 @@ class TestHeadroomChatModel:
 
     def test_get_savings_summary_with_data(self, mock_chat_model):
         """get_savings_summary with metrics."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
         from headroom.integrations.langchain import OptimizationMetrics
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = CutctxChatModel(mock_chat_model)
 
         # Add fake metrics
         model._metrics_history = [
@@ -294,13 +294,13 @@ class TestHeadroomChatModel:
 
 
 class TestHeadroomCallbackHandler:
-    """Tests for HeadroomCallbackHandler."""
+    """Tests for CutctxCallbackHandler."""
 
     def test_init_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
 
         assert handler.log_level == "INFO"
         assert handler.token_alert_threshold is None
@@ -309,9 +309,9 @@ class TestHeadroomCallbackHandler:
 
     def test_init_with_thresholds(self):
         """Initialize with alert thresholds."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler(
+        handler = CutctxCallbackHandler(
             token_alert_threshold=10000,
             cost_alert_threshold=1.0,
         )
@@ -321,9 +321,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_chat_model_start(self):
         """Track chat model start."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
 
         messages = [[HumanMessage(content="Hello, how are you?")]]
         handler.on_chat_model_start(
@@ -337,9 +337,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_chat_model_start_triggers_alert(self):
         """Alert triggered when tokens exceed threshold."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler(token_alert_threshold=5)
+        handler = CutctxCallbackHandler(token_alert_threshold=5)
 
         # Long message to exceed threshold
         messages = [[HumanMessage(content="A" * 100)]]
@@ -353,9 +353,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_llm_end_tracks_tokens(self):
         """Track tokens on LLM completion."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
         handler._current_request = {"start_time": datetime.now()}
 
         response = MagicMock()
@@ -375,9 +375,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_llm_error(self):
         """Track errors."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
         handler._current_request = {"start_time": datetime.now()}
 
         handler.on_llm_error(ValueError("Test error"), run_id=uuid4())
@@ -387,9 +387,9 @@ class TestHeadroomCallbackHandler:
 
     def test_get_summary(self):
         """Get summary statistics."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
 
         # Add some requests
         handler._requests = [
@@ -407,9 +407,9 @@ class TestHeadroomCallbackHandler:
 
     def test_reset(self):
         """Reset clears all state."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = CutctxCallbackHandler()
         handler._requests = [{"test": 1}]
         handler._total_tokens = 100
         handler._alerts = ["alert"]
@@ -422,44 +422,44 @@ class TestHeadroomCallbackHandler:
 
 
 class TestHeadroomRunnable:
-    """Tests for HeadroomRunnable LCEL component."""
+    """Tests for CutctxRunnable LCEL component."""
 
     def test_init_defaults(self):
         """Initialize with defaults."""
-        from headroom.integrations.langchain import HeadroomRunnable
+        from headroom.integrations.langchain import CutctxRunnable
 
-        runnable = HeadroomRunnable()
+        runnable = CutctxRunnable()
 
-        assert runnable.mode == HeadroomMode.OPTIMIZE
+        assert runnable.mode == CutctxMode.OPTIMIZE
         assert runnable.config is not None
 
     def test_init_custom_config(self):
         """Initialize with custom config."""
-        from headroom.integrations.langchain import HeadroomRunnable
+        from headroom.integrations.langchain import CutctxRunnable
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
-        runnable = HeadroomRunnable(config=config, mode=HeadroomMode.SIMULATE)
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
+        runnable = CutctxRunnable(config=config, mode=HeadroomMode.SIMULATE)
 
         assert runnable.config is config
-        assert runnable.mode == HeadroomMode.SIMULATE
+        assert runnable.mode == CutctxMode.SIMULATE
 
     def test_as_runnable(self):
         """Convert to LangChain Runnable."""
         from langchain_core.runnables import RunnableLambda
 
-        from headroom.integrations.langchain import HeadroomRunnable
+        from headroom.integrations.langchain import CutctxRunnable
 
-        runnable = HeadroomRunnable()
+        runnable = CutctxRunnable()
         lc_runnable = runnable.as_runnable()
 
         assert isinstance(lc_runnable, RunnableLambda)
 
     def test_optimize_messages(self, sample_messages):
         """Optimize list of messages."""
-        from headroom.integrations.langchain import HeadroomRunnable
+        from headroom.integrations.langchain import CutctxRunnable
         from headroom.providers import OpenAIProvider
 
-        runnable = HeadroomRunnable()
+        runnable = CutctxRunnable()
 
         # Initialize provider and pipeline for mocking
         runnable._provider = OpenAIProvider()
@@ -512,7 +512,7 @@ class TestOptimizeMessages:
         """Optimization with custom config."""
         from headroom.integrations import optimize_messages
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
 
         with patch("headroom.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
@@ -579,13 +579,13 @@ class TestOptimizeMessages:
 
 
 class TestIntegrationWithRealHeadroom:
-    """Integration tests using real Headroom components (no mocking)."""
+    """Integration tests using real Cutctx components (no mocking)."""
 
     def test_real_optimization_pipeline(self, sample_messages):
-        """Test with real Headroom client (no API calls)."""
+        """Test with real Cutctx client (no API calls)."""
         from headroom.integrations import optimize_messages
 
-        # This uses real Headroom transforms but no LLM API calls
+        # This uses real Cutctx transforms but no LLM API calls
         optimized, metrics = optimize_messages(
             sample_messages,
             mode=HeadroomMode.OPTIMIZE,
@@ -718,26 +718,26 @@ class TestOllamaIntegration:
         return model
 
     def test_headroom_chat_model_with_ollama(self, ollama_model_name):
-        """Test HeadroomChatModel wrapping real ChatOllama model."""
+        """Test CutctxChatModel wrapping real ChatOllama model."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         # Create real Ollama model (no API key needed)
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         assert headroom_model.wrapped_model is base_model
-        assert isinstance(headroom_model, HeadroomChatModel)
+        assert isinstance(headroom_model, CutctxChatModel)
 
     def test_invoke_with_ollama(self, ollama_model_name):
         """Actually invoke an LLM call with Ollama - full end-to-end test."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         messages = [
             SystemMessage(content="You are a helpful assistant. Be very brief."),
@@ -755,10 +755,10 @@ class TestOllamaIntegration:
         """Test _generate method with real Ollama model."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         messages = [
             HumanMessage(content="Say 'hello' and nothing else."),
@@ -774,10 +774,10 @@ class TestOllamaIntegration:
         """Test that optimization metrics are tracked with real calls."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         # Make a call with some messages
         messages = [
@@ -794,10 +794,10 @@ class TestOllamaIntegration:
         """Test multi-turn conversation with real Ollama."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         # First turn
         messages = [
@@ -818,13 +818,13 @@ class TestOllamaIntegration:
         assert len(response2.content) > 0
 
     def test_headroom_optimization_reduces_tokens(self, ollama_model_name):
-        """Test that Headroom optimization actually reduces token count."""
+        """Test that Cutctx optimization actually reduces token count."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model, mode=HeadroomMode.OPTIMIZE)
+        headroom_model = CutctxChatModel(base_model, mode=HeadroomMode.OPTIMIZE)
 
         # Create a conversation with repetitive content that should be compressed
         messages = [SystemMessage(content="You are a helpful assistant.")]
@@ -843,14 +843,14 @@ class TestOllamaIntegration:
             assert metrics.tokens_before >= metrics.tokens_after
 
     def test_callback_handler_with_ollama(self, ollama_model_name):
-        """Test HeadroomCallbackHandler with real Ollama calls."""
+        """Test CutctxCallbackHandler with real Ollama calls."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomCallbackHandler, HeadroomChatModel
+        from headroom.integrations import CutctxCallbackHandler, CutctxChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
-        handler = HeadroomCallbackHandler()
+        headroom_model = CutctxChatModel(base_model)
+        handler = CutctxCallbackHandler()
 
         messages = [
             HumanMessage(content="Say 'test' and nothing else."),
@@ -882,16 +882,16 @@ class TestRealLangChainIntegration:
         return model
 
     def test_lcel_chain_with_headroom(self, ollama_model_name):
-        """Test LCEL chain composition with HeadroomChatModel."""
+        """Test LCEL chain composition with CutctxChatModel."""
         from langchain_core.output_parsers import StrOutputParser
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         # Create chain: prompt -> headroom model -> output parser
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        headroom_model = CutctxChatModel(base_model)
 
         prompt = ChatPromptTemplate.from_messages(
             [

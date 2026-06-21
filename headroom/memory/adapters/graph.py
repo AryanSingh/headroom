@@ -1,4 +1,4 @@
-"""In-memory graph store for Headroom's knowledge graph memory system.
+"""In-memory graph store for Cutctx's knowledge graph memory system.
 
 Provides thread-safe in-memory storage for entities and relationships
 with efficient lookup via multiple indexes and BFS-based traversal.

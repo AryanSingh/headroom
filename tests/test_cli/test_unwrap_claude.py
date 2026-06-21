@@ -108,7 +108,7 @@ def test_unwrap_claude_removes_mcp_rtk_and_stops_proxy(
         result = runner.invoke(main, ["unwrap", "claude", "--port", "9999"])
 
     assert result.exit_code == 0, result.output
-    assert unregistered == ["headroom", "codebase-memory-mcp"]
+    assert unregistered == ["cutctx", "codebase-memory-mcp"]
     assert stopped == [9999]
     assert "Stopped local CutCtx proxy on port 9999" in result.output
     assert "hooks" not in json.loads(settings.read_text(encoding="utf-8"))
@@ -147,7 +147,7 @@ def test_unwrap_claude_preserves_user_managed_serena(
         result = runner.invoke(main, ["unwrap", "claude"])
 
     assert result.exit_code == 0, result.output
-    assert unregistered == ["headroom", "codebase-memory-mcp"]
+    assert unregistered == ["cutctx", "codebase-memory-mcp"]
 
 
 def test_unwrap_claude_removes_headroom_installed_serena(
@@ -187,7 +187,7 @@ def test_unwrap_claude_removes_headroom_installed_serena(
         result = runner.invoke(main, ["unwrap", "claude"])
 
     assert result.exit_code == 0, result.output
-    assert unregistered == ["headroom", "codebase-memory-mcp", "serena"]
+    assert unregistered == ["cutctx", "codebase-memory-mcp", "serena"]
     assert "Removed CutCtx-installed Serena MCP server" in result.output
 
 

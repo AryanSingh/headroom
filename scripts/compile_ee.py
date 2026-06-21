@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 
 """SP-3: Compile headroom_ee to native extensions using Nuitka.
 
@@ -222,7 +222,7 @@ def build_ee_wheel(
     # Create minimal __init__.py that imports from compiled extensions
     init_content = textwrap.dedent(f'''\
         # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-        # Copyright (c) 2025-2026 Headroom Labs.
+        # Copyright (c) 2025-2026 Cutctx Labs.
         # Auto-generated stub for compiled extensions — no source shipped.
         """CutCtx Enterprise Edition v{version} (compiled)."""
         __version__ = "{version}"

@@ -1,7 +1,7 @@
 """SharedContext — compressed inter-agent context sharing.
 
 When agents hand off to each other, context gets replayed in full.
-SharedContext compresses what moves between agents, using Headroom's
+SharedContext compresses what moves between agents, using Cutctx's
 existing CCR (Compress-Cache-Retrieve) architecture.
 
 Usage:

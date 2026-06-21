@@ -49,12 +49,12 @@ cutctx proxy --port 8787
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 ```
 
-### With HeadroomClient
+### With CutCtxClient
 
 ```python
-from headroom import HeadroomClient
+from cutctx import CutCtxClient
 
-client = HeadroomClient(provider="openai")
+client = CutCtxClient(provider="openai")
 
 response = client.chat.completions.create(
     model="gpt-4o",
@@ -72,7 +72,7 @@ response = client.chat.completions.create(
 ### Direct API
 
 ```python
-from headroom.image import ImageCompressor
+from cutctx.image import ImageCompressor
 
 compressor = ImageCompressor()
 
@@ -118,7 +118,7 @@ The compressor adapts its strategy per provider:
 ## Configuration
 
 ```python
-from headroom.image import ImageCompressor
+from cutctx.image import ImageCompressor
 
 compressor = ImageCompressor(
     model_id="chopratejas/technique-router",  # HuggingFace model

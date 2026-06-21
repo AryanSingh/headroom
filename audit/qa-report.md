@@ -14,10 +14,10 @@
 
 ## Import Verification
 All critical module imports succeeded:
-- `headroom.proxy.server.create_app`
-- `headroom.proxy.schema_compress.compress_tool_schemas`
-- `headroom.security.firewall.FirewallScanner`
-- `headroom.entitlements.EntitlementChecker`
+- `cutctx.proxy.server.create_app`
+- `cutctx.proxy.schema_compress.compress_tool_schemas`
+- `cutctx.security.firewall.FirewallScanner`
+- `cutctx.entitlements.EntitlementChecker`
 
 ## Warnings (non-blocking)
 - 22 Python warnings (deprecation notices for Python 3.14 tar filter, swigvarlink)

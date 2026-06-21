@@ -281,12 +281,12 @@ def is_kompress_available() -> bool:
 
 
 def _get_model_class() -> type:
-    """Return the HeadroomCompressorModel class, importing torch on demand."""
+    """Return the CutctxCompressorModel class, importing torch on demand."""
     import torch
     import torch.nn as nn
     from transformers import AutoModel
 
-    class HeadroomCompressorModel(nn.Module):
+    class CutctxCompressorModel(nn.Module):
         """Dual-head ModernBERT: token classification + span importance CNN."""
 
         def __init__(self, model_name: str = "answerdotai/ModernBERT-base"):
@@ -339,7 +339,7 @@ def _get_model_class() -> type:
                 span_scores = self.span_conv(hidden.transpose(1, 2)).squeeze(1)
                 return token_probs * (0.5 + 0.5 * span_scores)  # type: ignore[no-any-return]
 
-    return HeadroomCompressorModel
+    return CutctxCompressorModel
 
 
 # ── Model Loading ─────────────────────────────────────────────────────
@@ -529,8 +529,8 @@ def _load_kompress_pytorch(
                 raise KompressModelNotCached(model_id) from exc
             raise
 
-        HeadroomCompressorModel = _get_model_class()
-        model = HeadroomCompressorModel()
+        CutctxCompressorModel = _get_model_class()
+        model = CutctxCompressorModel()
 
         from safetensors.torch import load_file
 
@@ -561,7 +561,7 @@ def _validate_pytorch_device(model: Any, tokenizer: Any, device: str) -> None:
         return
 
     encoding = tokenizer(
-        ["headroom", "kompress", "probe"],
+        ["cutctx", "kompress", "probe"],
         is_split_into_words=True,
         truncation=True,
         max_length=512,

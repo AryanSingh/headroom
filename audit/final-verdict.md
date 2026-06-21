@@ -1,4 +1,4 @@
-# Ship-It Final Verdict — Headroom v0.26.0
+# Ship-It Final Verdict — Cutctx v0.26.0
 
 **Date:** 2026-06-19
 **Auditor:** Automated ship-it pipeline (4 parallel audits)
@@ -42,7 +42,7 @@
 **All Tiers (Free, Pro, Enterprise):** Ship immediately.
 - 6,991+ Python tests, 863 Rust tests, 19 Go tests — all perfectly green.
 - **Security**: NetworkPolicies enabled, TLS 1.3 enforced, SQLite persistent memory snapshotting enabled via K8s CronJob. Legal Runbooks (DMCA/Leak) implemented.
-- **Production Infrastructure**: K8s deployments officially rebranded to `headroom`, images pinned (`v0.26.0`), and graceful `preStop` draining hooks enabled.
+- **Production Infrastructure**: K8s deployments officially rebranded to `cutctx`, images pinned (`v0.26.0`), and graceful `preStop` draining hooks enabled.
 - **Observability**: OpenTelemetry spans active across all Rust compression pipelines. `PrometheusRule` triggers in place for `HighErrorRate` and `HighLatency`.
 - **Advanced Features**: Semantic Caching, Streaming-Aware Compression, Anthropic native-compaction integrations, and Deletion-Based Compaction are natively integrated into the proxy.
 

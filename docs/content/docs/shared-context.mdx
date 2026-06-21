@@ -28,7 +28,7 @@ const full = ctx.get("research", { full: true });
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import SharedContext
+from cutctx import SharedContext
 
 ctx = SharedContext()
 
@@ -170,7 +170,7 @@ SharedContext is framework-agnostic. It works anywhere context moves between age
 ### CrewAI
 
 ```python
-from headroom import SharedContext
+from cutctx import SharedContext
 
 ctx = SharedContext()
 
@@ -184,7 +184,7 @@ coder_context = ctx.get("findings")
 ### LangGraph
 
 ```python
-from headroom import SharedContext
+from cutctx import SharedContext
 
 ctx = SharedContext()
 
@@ -202,7 +202,7 @@ def coder_node(state):
 ### OpenAI Agents SDK
 
 ```python
-from headroom import SharedContext
+from cutctx import SharedContext
 
 ctx = SharedContext()
 

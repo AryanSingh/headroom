@@ -53,20 +53,20 @@ def test_linux_service_unit_uses_user_systemd_path(monkeypatch, tmp_path: Path) 
 def test_command_for_script_and_unix_runner(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         "headroom.install.supervisors.resolve_headroom_command",
-        lambda: ["python", "-m", "headroom"],
+        lambda: ["python", "-m", "cutctx"],
     )
 
     assert _command_for_script("install", "agent", "run") == [
         "python",
         "-m",
-        "headroom",
+        "cutctx",
         "install",
         "agent",
         "run",
     ]
 
     record = _render_unix_runner(
-        tmp_path / "scripts" / "run-headroom.sh", ["headroom", "run", "--flag"]
+        tmp_path / "scripts" / "run-headroom.sh", ["cutctx", "run", "--flag"]
     )
     assert record.kind == "script"
     content = Path(record.path).read_text(encoding="utf-8")
@@ -115,7 +115,7 @@ def test_render_windows_runner_writes_ps1_and_cmd_wrappers(tmp_path: Path) -> No
     records = _render_windows_runner(
         ps1_path,
         cmd_path,
-        ["C:\\Program Files\\Python\\python.exe", "headroom", "install", "agent", "run"],
+        ["C:\\Program Files\\Python\\python.exe", "cutctx", "install", "agent", "run"],
     )
 
     assert [record.path for record in records] == [str(ps1_path), str(cmd_path)]
@@ -131,7 +131,7 @@ def test_render_windows_runner_writes_ps1_and_cmd_wrappers(tmp_path: Path) -> No
 def test_render_runner_scripts_writes_unix_scripts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("headroom.install.supervisors.sys.platform", "linux")
     monkeypatch.setattr(
-        "headroom.install.supervisors.resolve_headroom_command", lambda: ["headroom"]
+        "headroom.install.supervisors.resolve_headroom_command", lambda: ["cutctx"]
     )
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = _manifest()
@@ -179,7 +179,7 @@ def test_render_runner_scripts_writes_windows_scripts(monkeypatch, tmp_path: Pat
 def test_install_supervisor_none_returns_runner_records(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("headroom.install.supervisors.sys.platform", "linux")
     monkeypatch.setattr(
-        "headroom.install.supervisors.resolve_headroom_command", lambda: ["headroom"]
+        "headroom.install.supervisors.resolve_headroom_command", lambda: ["cutctx"]
     )
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = _manifest(supervisor=SupervisorKind.NONE.value)

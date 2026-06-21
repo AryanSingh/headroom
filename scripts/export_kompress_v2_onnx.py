@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Export a Kompress PyTorch checkpoint to ONNX INT8 for Headroom's light path.
+"""Export a Kompress PyTorch checkpoint to ONNX INT8 for Cutctx's light path.
 
 Why this exists
 ---------------
@@ -11,7 +11,7 @@ proxy runs Kompress text compression on ONNX Runtime alone. The loader
 (per-token importance in ``[0, 1]``, kept when ``> 0.5``).
 
 ``chopratejas/kompress-v2-base`` ships only PyTorch weights
-(``model.safetensors`` / ``merged.pt``) — no ONNX. So pointing Headroom at v2
+(``model.safetensors`` / ``merged.pt``) — no ONNX. So pointing Cutctx at v2
 without an ONNX export would silently force the heavier ``[ml]`` (torch) path
 on every proxy install. This script reproduces v1's exact ONNX contract from
 the v2 PyTorch checkpoint, so a default swap stays zero-cost for light installs.
@@ -49,7 +49,7 @@ DEFAULT_MODEL_ID = "chopratejas/kompress-v2-base"
 
 
 def _build_core(model_id: str):
-    """Instantiate HeadroomCompressorModel and load the merged v2 weights.
+    """Instantiate CutctxCompressorModel and load the merged v2 weights.
 
     The v2 repo's ``model.safetensors`` is the *unmerged* PEFT structure
     (``encoder.base_model.model...`` with separate ``base_layer`` + LoRA
@@ -228,9 +228,9 @@ def upload(model_id: str, out_path: Path) -> None:
         path_or_fileobj=str(out_path),
         path_in_repo=repo_path,
         repo_id=model_id,
-        commit_message="Add ONNX export for Headroom lightweight (no-torch) path",
+        commit_message="Add ONNX export for Cutctx lightweight (no-torch) path",
     )
-    logger.info("Uploaded. Headroom's ONNX loader will now find it on next cold start.")
+    logger.info("Uploaded. Cutctx's ONNX loader will now find it on next cold start.")
 
 
 def main() -> int:

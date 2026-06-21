@@ -196,7 +196,7 @@ class _CollectingLogger:
 
 
 class _FunnelHarness:
-    """Pulls just enough of HeadroomProxy onto an object to exercise
+    """Pulls just enough of CutctxProxy onto an object to exercise
     ``_record_request_outcome`` without instantiating the full proxy.
 
     The harness assigns the real method to ``self`` via descriptor
@@ -205,14 +205,14 @@ class _FunnelHarness:
     """
 
     def __init__(self, *, with_cost_tracker: bool = True, with_logger: bool = True) -> None:
-        from headroom.proxy.server import HeadroomProxy
+        from headroom.proxy.server import CutctxProxy
 
         self.metrics = MagicMock()
         self.metrics.record_request = AsyncMock()
         self.cost_tracker = MagicMock() if with_cost_tracker else None
         self.logger = _CollectingLogger() if with_logger else None
         # Bind the real method to this harness.
-        self._record_request_outcome = HeadroomProxy._record_request_outcome.__get__(
+        self._record_request_outcome = CutctxProxy._record_request_outcome.__get__(
             self, type(self)
         )
 

@@ -1,4 +1,4 @@
-"""Mem0 backend adapter for Headroom's hierarchical memory system.
+"""Mem0 backend adapter for Cutctx's hierarchical memory system.
 
 Provides integration with Mem0's graph and vector memory capabilities:
 - Graph database for relationships (Neo4j)
@@ -78,7 +78,7 @@ class Mem0Config:
 
 class Mem0Backend:
     """
-    Mem0 backend implementation for Headroom memory system.
+    Mem0 backend implementation for Cutctx memory system.
 
     Mem0 provides:
     - Graph database for relationships (Neo4j)
@@ -86,7 +86,7 @@ class Mem0Backend:
     - Automatic entity extraction
     - Relationship inference
 
-    This adapter maps Mem0's API to Headroom's MemoryBackend interface:
+    This adapter maps Mem0's API to Cutctx's MemoryBackend interface:
     - mem0.add() -> save_memory()
     - mem0.search() -> search_memories()
     - mem0.update() -> update_memory()

@@ -1,4 +1,4 @@
-"""Demonstrate Headroom MCP compression on real-world tool outputs.
+"""Demonstrate Cutctx MCP compression on real-world tool outputs.
 
 Run with:
     PYTHONPATH=. python -m examples.mcp_demo.show_compression
@@ -6,10 +6,10 @@ Run with:
 
 import random
 
-from headroom.integrations.mcp import (
+from cutctx.integrations.mcp import (
     compress_tool_result_with_metrics,
 )
-from headroom.providers import OpenAIProvider
+from cutctx.providers import OpenAIProvider
 
 from .mock_mcp_servers import (
     generate_database_query_results,

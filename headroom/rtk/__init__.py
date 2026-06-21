@@ -1,7 +1,7 @@
-"""rtk (Rust Token Killer) integration for Headroom.
+"""rtk (Rust Token Killer) integration for Cutctx.
 
 rtk compresses CLI output (test results, git diffs, log dumps) before it
-enters the LLM context window. Headroom downloads and manages the rtk binary.
+enters the LLM context window. Cutctx downloads and manages the rtk binary.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ RTK_BIN_PATH = RTK_BIN_DIR / _RTK_NAME
 
 
 def _managed_rtk_candidates() -> list[Path]:
-    """Return known Headroom-managed rtk binary paths."""
+    """Return known Cutctx-managed rtk binary paths."""
     candidates = [RTK_BIN_DIR / _RTK_NAME]
     for name in ("rtk", "rtk.exe"):
         path = RTK_BIN_DIR / name
@@ -35,7 +35,7 @@ def get_rtk_path() -> Path | None:
     if system_rtk:
         return Path(system_rtk)
 
-    # Check Headroom-managed install
+    # Check Cutctx-managed install
     for candidate in _managed_rtk_candidates():
         if candidate.exists() and candidate.is_file():
             return candidate

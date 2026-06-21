@@ -1,4 +1,4 @@
-"""Tests for the Memory Bridge (markdown <-> Headroom bidirectional sync).
+"""Tests for the Memory Bridge (markdown <-> Cutctx bidirectional sync).
 
 Parser tests are pure functions (no backend needed).
 Bridge tests use a temp LocalBackend with a temporary database.
@@ -86,13 +86,13 @@ class TestClaudeCodeParser:
         parsed = parse_claude_code_memory(CLAUDE_CODE_MEMORY)
         overview = next(s for s in parsed.sections if s.heading == "Project Overview")
         assert len(overview.facts) == 2
-        assert any("Headroom" in f for f in overview.facts)
+        assert any("Cutctx" in f for f in overview.facts)
         assert any("Repos" in f for f in overview.facts)
 
     def test_bold_text_extracted_as_entities(self):
         parsed = parse_claude_code_memory(CLAUDE_CODE_MEMORY)
         overview = next(s for s in parsed.sections if s.heading == "Project Overview")
-        assert "Headroom" in overview.entities
+        assert "Cutctx" in overview.entities
         assert "Repos" in overview.entities
 
     def test_content_hash_computed(self):
@@ -211,15 +211,15 @@ class TestRelationshipExtraction:
         )
         rels = extract_relationships_from_section(section)
         assert len(rels) >= 1
-        assert rels[0]["source"] == "Headroom"
+        assert rels[0]["source"] == "Cutctx"
         assert rels[0]["relationship"] == "is"
 
     def test_verb_patterns(self):
         section = ParsedSection(
             heading="Test",
             heading_level=2,
-            content="Headroom uses SQLite for storage",
-            facts=["Headroom uses SQLite for storage"],
+            content="Cutctx uses SQLite for storage",
+            facts=["Cutctx uses SQLite for storage"],
         )
         rels = extract_relationships_from_section(section)
         uses_rels = [r for r in rels if r["relationship"] == "uses"]
@@ -372,7 +372,7 @@ class TestMemoryBridgeExport:
         """Export memories as Claude Code style markdown."""
         # Add some memories
         await backend.save_memory(
-            content="Headroom is a context optimization layer",
+            content="Cutctx is a context optimization layer",
             user_id="test_user",
             importance=0.8,
             metadata={"section_heading": "Overview"},
@@ -394,7 +394,7 @@ class TestMemoryBridgeExport:
         assert "# Memory" in markdown
         assert "## Overview" in markdown
         assert "## Architecture" in markdown
-        assert "Headroom" in markdown
+        assert "Cutctx" in markdown
         assert export_path.exists()
 
     @pytest.mark.asyncio
@@ -515,6 +515,6 @@ class TestRoundTrip:
         )
 
         # Key facts should survive the round trip
-        assert "Headroom" in markdown
+        assert "Cutctx" in markdown
         assert "compression" in markdown.lower() or "SmartCrusher" in markdown
         assert "Compresr" in markdown or "Portkey" in markdown

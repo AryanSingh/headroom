@@ -1,4 +1,4 @@
-"""SQLite graph store for Headroom's knowledge graph memory system.
+"""SQLite graph store for Cutctx's knowledge graph memory system.
 
 Provides persistent storage for entities and relationships with efficient
 lookup via database indexes and BFS-based traversal. Memory usage is bounded

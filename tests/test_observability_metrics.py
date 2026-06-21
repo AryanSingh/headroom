@@ -9,7 +9,7 @@ import pytest
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 
-from headroom.observability import HeadroomOtelMetrics, reset_otel_metrics, set_otel_metrics
+from headroom.observability import CutctxOtelMetrics, reset_otel_metrics, set_otel_metrics
 from headroom.proxy.prometheus_metrics import PrometheusMetrics
 from headroom.transforms.pipeline import TransformPipeline
 
@@ -36,7 +36,7 @@ def _find_point(metric: Any, **expected_attributes: Any) -> Any:
 def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = CutctxOtelMetrics(meter_provider=provider)
 
     otel_metrics.record_proxy_request(
         provider="anthropic",
@@ -166,7 +166,7 @@ def test_transform_pipeline_simulate_skips_metric_recording() -> None:
 def test_proxy_failure_and_rate_limit_metrics_include_provider_labels() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = CutctxOtelMetrics(meter_provider=provider)
 
     otel_metrics.record_proxy_failed(provider="openai")
     otel_metrics.record_proxy_rate_limited(provider="anthropic", model="claude-sonnet")

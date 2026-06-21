@@ -1,4 +1,4 @@
-"""Generic OAuth2 client-credentials upstream-auth extension for the Headroom proxy.
+"""Generic OAuth2 client-credentials upstream-auth extension for the Cutctx proxy.
 
 Enable: `--proxy-extension oauth2` (or HEADROOM_PROXY_EXTENSIONS=oauth2).
 No-op unless HEADROOM_OAUTH2_TOKEN_URL is set. See README for env config.
@@ -93,7 +93,7 @@ def provider_from_env(env: dict | None = None) -> OAuth2ClientCredentials | None
 
 
 def install(app: Any, config: Any) -> None:
-    """Headroom proxy-extension entry point: install(app, config) -> None."""
+    """Cutctx proxy-extension entry point: install(app, config) -> None."""
     try:
         provider = provider_from_env()
     except ValueError as e:

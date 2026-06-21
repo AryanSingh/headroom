@@ -1,4 +1,4 @@
-"""Image token compression for Headroom.
+"""Image token compression for Cutctx.
 
 Automatically compress images in LLM requests to save 40-90% tokens
 while maintaining answer accuracy.

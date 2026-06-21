@@ -312,7 +312,7 @@ class SessionStats:
         }
 
 
-class HeadroomMCPServer:
+class CutctxMCPServer:
     """MCP Server exposing CutCtx context compression tools.
 
     Tools:
@@ -907,7 +907,7 @@ class HeadroomMCPServer:
 def create_ccr_mcp_server(
     proxy_url: str = DEFAULT_PROXY_URL,
     direct_mode: bool = False,
-) -> HeadroomMCPServer:
+) -> CutctxMCPServer:
     """Create a CutCtx MCP server instance.
 
     Args:
@@ -915,9 +915,9 @@ def create_ccr_mcp_server(
         direct_mode: Ignored (kept for backward compatibility).
 
     Returns:
-        HeadroomMCPServer instance.
+        CutctxMCPServer instance.
     """
-    return HeadroomMCPServer(proxy_url=proxy_url)
+    return CutctxMCPServer(proxy_url=proxy_url)
 
 
 async def main() -> None:
@@ -948,7 +948,7 @@ async def main() -> None:
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    server = HeadroomMCPServer(proxy_url=args.proxy_url)
+    server = CutctxMCPServer(proxy_url=args.proxy_url)
 
     try:
         await server.run_stdio()

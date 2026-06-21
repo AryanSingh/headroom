@@ -15,7 +15,7 @@ import httpx
 import pytest
 
 import headroom.proxy.handlers.streaming as streaming_module
-from headroom.proxy.server import HeadroomProxy
+from headroom.proxy.server import CutctxProxy
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +40,7 @@ class TestStreamingRatelimitHeaderForwarding:
     """Test that upstream ratelimit headers are forwarded in streaming responses."""
 
     def _create_mock_proxy(self):
-        """Create a HeadroomProxy with mocked internals for unit testing."""
+        """Create a CutctxProxy with mocked internals for unit testing."""
         proxy = object.__new__(HeadroomProxy)
         proxy.http_client = MagicMock(spec=httpx.AsyncClient)
         proxy.metrics = MagicMock()

@@ -12,8 +12,8 @@ from .runtime import proxy_base_url
 
 _CODEX_MARKER_START = "# --- CutCtx persistent provider ---"
 _CODEX_MARKER_END = "# --- end CutCtx persistent provider ---"
-_LEGACY_CODEX_MARKER_START = "# --- Headroom persistent provider ---"
-_LEGACY_CODEX_MARKER_END = "# --- end Headroom persistent provider ---"
+_LEGACY_CODEX_MARKER_START = "# --- Cutctx persistent provider ---"
+_LEGACY_CODEX_MARKER_END = "# --- end Cutctx persistent provider ---"
 _CODEX_PATTERN = re.compile(
     r"(?:"
     + re.escape(_CODEX_MARKER_START)

@@ -1,4 +1,4 @@
-"""Relevance scorer benchmarks for Headroom SDK.
+"""Relevance scorer benchmarks for Cutctx SDK.
 
 This module contains performance benchmarks for relevance scorers:
 - BM25Scorer: Zero-dependency keyword matching

@@ -7,7 +7,7 @@ from fastapi import WebSocket
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import HeadroomProxy, ProxyConfig, create_app
+from headroom.proxy.server import CutctxProxy, ProxyConfig, create_app
 
 
 def _jwt(payload: dict) -> str:
@@ -162,7 +162,7 @@ def test_codex_responses_subpath_passthrough_derives_chatgpt_routing_from_jwt(pa
 def test_codex_model_metadata_fetches_codex_registry_for_chatgpt_auth(monkeypatch):
     """Issue #478: under Codex ChatGPT-subscription OAuth, the proxy
     must NOT forward `/v1/models[/{id}]` to chatgpt.com/backend-api —
-    that endpoint returns 403 to OAuth tokens. Instead, Headroom should
+    that endpoint returns 403 to OAuth tokens. Instead, Cutctx should
     fetch the Codex-specific model registry and synthesize an
     OpenAI-compatible payload from its slugs.
     """

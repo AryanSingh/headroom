@@ -1,4 +1,4 @@
-"""Canonical Headroom pipeline lifecycle and extension contracts."""
+"""Canonical Cutctx pipeline lifecycle and extension contracts."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ ENTRY_POINT_GROUP = "headroom.pipeline_extension"
 
 
 class PipelineStage(str, Enum):
-    """Stable lifecycle stages for the canonical Headroom pipeline."""
+    """Stable lifecycle stages for the canonical Cutctx pipeline."""
 
     SETUP = "setup"
     PRE_START = "pre_start"

@@ -1,4 +1,4 @@
-"""Graph data models for Headroom's knowledge graph memory system.
+"""Graph data models for Cutctx's knowledge graph memory system.
 
 Provides Entity, Relationship, and Subgraph dataclasses for representing
 structured knowledge as a graph.

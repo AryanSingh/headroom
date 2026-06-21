@@ -1,13 +1,13 @@
-"""Headroom MCP integration helpers for compressing tool outputs.
+"""Cutctx MCP integration helpers for compressing tool outputs.
 
 This module currently provides these MCP integration surfaces:
 
-1. HeadroomMCPCompressor - core compression logic for MCP tool results
+1. CutctxMCPCompressor - core compression logic for MCP tool results
 2. compress_tool_result() - standalone helper for host applications
-3. HeadroomMCPClientWrapper - client wrapper that compresses tool outputs
+3. CutctxMCPClientWrapper - client wrapper that compresses tool outputs
 4. create_headroom_mcp_proxy() - configuration helper for custom proxy setups
 
-The key insight: MCP tool outputs are the PERFECT use case for Headroom.
+The key insight: MCP tool outputs are the PERFECT use case for Cutctx.
 They're often large (100s-1000s of items), structured (JSON), and contain
 mostly low-relevance data with a few critical items (errors, matches).
 
@@ -41,7 +41,7 @@ Example - Standalone Function:
 Example - Middleware (for MCP client libraries):
     ```python
     # Wrap your MCP client's transport
-    middleware = HeadroomMCPMiddleware(config)
+    middleware = CutctxMCPMiddleware(config)
     client = MCPClient(transport=middleware.wrap(base_transport))
     ```
 """
@@ -54,7 +54,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from headroom.config import HeadroomConfig, SmartCrusherConfig
+from headroom.config import CutctxConfig, SmartCrusherConfig
 from headroom.providers.openai import OpenAIProvider
 from headroom.transforms.smart_crusher import SmartCrusher
 
@@ -137,7 +137,7 @@ DEFAULT_MCP_PROFILES: list[MCPToolProfile] = [
 ]
 
 
-class HeadroomMCPCompressor:
+class CutctxMCPCompressor:
     """Core compression logic for MCP tool outputs.
 
     This class handles the actual compression of MCP tool results.
@@ -146,18 +146,18 @@ class HeadroomMCPCompressor:
 
     def __init__(
         self,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
         profiles: list[MCPToolProfile] | None = None,
         token_counter: Callable[[str], int] | None = None,
     ):
         """Initialize MCP compressor.
 
         Args:
-            config: Headroom configuration.
+            config: Cutctx configuration.
             profiles: Tool-specific compression profiles.
             token_counter: Function to count tokens. Uses tiktoken if None.
         """
-        self.config = config or HeadroomConfig()
+        self.config = config or CutctxConfig()
         self.profiles = profiles or DEFAULT_MCP_PROFILES
 
         # Initialize token counter
@@ -304,7 +304,7 @@ class HeadroomMCPCompressor:
         result = crusher.apply(messages, tokenizer=tokenizer)  # type: ignore[arg-type]
         compressed_content = result.messages[-1]["content"]
 
-        # Remove any Headroom markers for clean output
+        # Remove any Cutctx markers for clean output
         compressed_content = re.sub(r"\n<headroom:[^>]+>", "", compressed_content)
 
         # Count items and errors
@@ -356,18 +356,18 @@ def compress_tool_result(
     tool_name: str,
     tool_args: dict[str, Any] | None = None,
     user_query: str = "",
-    config: HeadroomConfig | None = None,
+    config: CutctxConfig | None = None,
 ) -> str:
     """Compress an MCP tool result (standalone function).
 
-    This is the simplest way to use Headroom with MCP in your host application.
+    This is the simplest way to use Cutctx with MCP in your host application.
 
     Args:
         content: Raw tool output.
         tool_name: Name of the MCP tool.
         tool_args: Arguments passed to the tool.
         user_query: User's query for relevance scoring.
-        config: Optional Headroom configuration.
+        config: Optional Cutctx configuration.
 
     Returns:
         Compressed content string.
@@ -387,7 +387,7 @@ def compress_tool_result(
         messages.append({"role": "tool", "content": compressed})
         ```
     """
-    compressor = HeadroomMCPCompressor(config=config)
+    compressor = CutctxMCPCompressor(config=config)
     result = compressor.compress(
         content=content,
         tool_name=tool_name,
@@ -402,7 +402,7 @@ def compress_tool_result_with_metrics(
     tool_name: str,
     tool_args: dict[str, Any] | None = None,
     user_query: str = "",
-    config: HeadroomConfig | None = None,
+    config: CutctxConfig | None = None,
 ) -> MCPCompressionResult:
     """Compress an MCP tool result and return full metrics.
 
@@ -411,7 +411,7 @@ def compress_tool_result_with_metrics(
     Returns:
         MCPCompressionResult with all compression metrics.
     """
-    compressor = HeadroomMCPCompressor(config=config)
+    compressor = CutctxMCPCompressor(config=config)
     return compressor.compress(
         content=content,
         tool_name=tool_name,
@@ -420,7 +420,7 @@ def compress_tool_result_with_metrics(
     )
 
 
-class HeadroomMCPClientWrapper:
+class CutctxMCPClientWrapper:
     """Wrapper for MCP clients that automatically compresses tool results.
 
     This wraps an MCP client to transparently compress all tool outputs.
@@ -428,11 +428,11 @@ class HeadroomMCPClientWrapper:
     Example:
         ```python
         from mcp import Client
-        from headroom.integrations.mcp import HeadroomMCPClientWrapper
+        from headroom.integrations.mcp import CutctxMCPClientWrapper
 
         # Wrap your MCP client
         base_client = Client(transport)
-        client = HeadroomMCPClientWrapper(base_client)
+        client = CutctxMCPClientWrapper(base_client)
 
         # Use normally - compression is automatic
         result = await client.call_tool("search", {"query": "errors"})
@@ -442,18 +442,18 @@ class HeadroomMCPClientWrapper:
     def __init__(
         self,
         client: Any,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
         user_query_extractor: Callable[[dict], str] | None = None,
     ):
         """Initialize wrapper.
 
         Args:
             client: The MCP client to wrap.
-            config: Headroom configuration.
+            config: Cutctx configuration.
             user_query_extractor: Function to extract user query from context.
         """
         self._client = client
-        self._compressor = HeadroomMCPCompressor(config=config)
+        self._compressor = CutctxMCPCompressor(config=config)
         self._query_extractor = user_query_extractor or (lambda x: "")
         self._metrics: list[MCPCompressionResult] = []
 
@@ -511,17 +511,17 @@ MCPServer = Any
 
 def create_headroom_mcp_proxy(
     upstream_servers: list[tuple[str, MCPServer]],
-    config: HeadroomConfig | None = None,
+    config: CutctxConfig | None = None,
 ) -> dict[str, Any]:
-    """Create configuration for a custom Headroom MCP proxy/server wrapper.
+    """Create configuration for a custom Cutctx MCP proxy/server wrapper.
 
     This returns the compressor and upstream-server mapping needed by an
-    application-defined MCP proxy/server wrapper. Headroom does not yet ship
+    application-defined MCP proxy/server wrapper. Cutctx does not yet ship
     a ready-to-run ``HeadroomMCPProxy`` server implementation.
 
     Args:
         upstream_servers: List of (name, server) tuples.
-        config: Headroom configuration.
+        config: Cutctx configuration.
 
     Returns:
         Configuration dict for a custom proxy/server wrapper.
@@ -541,6 +541,6 @@ def create_headroom_mcp_proxy(
     """
     return {
         "upstream_servers": dict(upstream_servers),
-        "compressor": HeadroomMCPCompressor(config=config),
-        "config": config or HeadroomConfig(),
+        "compressor": CutctxMCPCompressor(config=config),
+        "config": config or CutctxConfig(),
     }

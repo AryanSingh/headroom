@@ -1,4 +1,4 @@
-"""HNSW vector index for Headroom Memory using hnswlib.
+"""HNSW vector index for Cutctx Memory using hnswlib.
 
 Provides fast approximate nearest neighbor search with cosine similarity
 for semantic memory retrieval. Supports filtering by user_id, session_id,

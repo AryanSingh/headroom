@@ -1,6 +1,6 @@
 # Blog Post 3: Cross-Agent Memory: The Missing Layer in AI Infrastructure
 
-*Published: Headroom Blog | Category: Architecture | Reading time: 12 minutes*
+*Published: Cutctx Blog | Category: Architecture | Reading time: 12 minutes*
 
 ---
 
@@ -33,14 +33,14 @@ User Request
 
 ## What is Cross-Agent Memory?
 
-Headroom's Cross-Agent Memory (CAM) creates a shared context layer between agents:
+Cutctx's Cross-Agent Memory (CAM) creates a shared context layer between agents:
 
 ```
 Agent A (Coder)          Agent B (Reviewer)
     │                         │
     ▼                         ▼
 ┌─────────────────────────────────────┐
-│        Headroom CAM Layer           │
+│        Cutctx CAM Layer           │
 │  ├── Shared context cache           │
 │  ├── Cross-agent state              │
 │  ├── Compressed memory              │
@@ -53,13 +53,13 @@ Agent A (Coder)          Agent B (Reviewer)
 
 ### How It Works
 
-1. **Context Extraction**: When Agent A processes a request, Headroom extracts reusable context (decisions, findings, code changes)
+1. **Context Extraction**: When Agent A processes a request, Cutctx extracts reusable context (decisions, findings, code changes)
 
 2. **Compression & Storage**: Context is compressed using CCR and stored in the CAM layer
 
 3. **Cross-Agent Query**: When Agent B needs context, it queries CAM: "What does the Coder know about this file?"
 
-4. **Smart Merge**: Headroom merges relevant context into Agent B's prompt, avoiding redundancy
+4. **Smart Merge**: Cutctx merges relevant context into Agent B's prompt, avoiding redundancy
 
 ### Example: Code Review Workflow
 
@@ -86,21 +86,21 @@ Savings: 41%
 ### Multi-Agent Coding System
 
 ```python
-from headroom import HeadroomClient, CAM
+from cutctx import CutctxClient, CAM
 
 # Shared CAM layer
 cam = CAM("redis://localhost:6379")
 
 # Agent 1: Coder
-coder = HeadroomClient("http://localhost:8080")
+coder = CutctxClient("http://localhost:8080")
 coder.config.cam = cam
 
 # Agent 2: Reviewer
-reviewer = HeadroomClient("http://localhost:8080")
+reviewer = CutctxClient("http://localhost:8080")
 reviewer.config.cam = cam
 
 # Agent 3: Tester
-tester = HeadroomClient("http://localhost:8080")
+tester = CutctxClient("http://localhost:8080")
 tester.config.cam = cam
 
 # Workflow
@@ -140,13 +140,13 @@ We tested CAM on a real multi-agent coding system:
 
 The key insight: CAM doesn't just save tokens — it *improves quality* by providing better context.
 
-## headroom learn: The Self-Improving Layer
+## cutctx learn: The Self-Improving Layer
 
-CAM gets smarter over time with `headroom learn`:
+CAM gets smarter over time with `cutctx learn`:
 
 ```python
 # Train on your agent's conversation patterns
-headroom learn --data ./conversations/ --output ./model/
+cutctx learn --data ./conversations/ --output ./model/
 
 # The model learns:
 # - Which contexts are most relevant for each agent type
@@ -163,25 +163,25 @@ After 1 week of learning:
 
 ```python
 # Install
-pip install headroom
+pip install cutctx
 
 # Enable CAM
-from headroom import HeadroomClient, CAM
+from cutctx import CutctxClient, CAM
 cam = CAM("redis://localhost:6379")
 
 # Configure your agents
 for agent in agents:
-    agent.headroom = HeadroomClient("http://localhost:8080")
-    agent.headroom.config.cam = cam
+    agent.cutctx = CutctxClient("http://localhost:8080")
+    agent.cutctx.config.cam = cam
 ```
 
 ## The Bottom Line
 
 Multi-agent systems are the future of AI. But without shared memory, they're wasteful and fragmented. Cross-Agent Memory is the missing infrastructure layer that makes multi-agent systems practical and affordable.
 
-**Start saving:** [headroom.sh](https://headroom.sh)
+**Start saving:** [cutctx.sh](https://cutctx.sh)
 
 ---
 
 *Tags: multi-agent, cross-agent memory, AI infrastructure, context sharing, cost optimization*
-*Author: Headroom Engineering Team*
+*Author: Cutctx Engineering Team*

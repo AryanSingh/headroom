@@ -1,6 +1,6 @@
 """End-to-end compression verification with realistic multi-turn payloads.
 
-Headroom only compresses content the model has already seen — assistant
+Cutctx only compresses content the model has already seen — assistant
 turns, tool results, and Responses-API output items. Fresh user prompts
 are *intentionally* skipped (the model needs them verbatim, and they're
 in the live-zone tail anyway). A conversation that contains nothing but

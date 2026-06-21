@@ -4,11 +4,11 @@
 
 | Component | Default | Env Var | CLI Flag | Scope | Interaction |
 |-----------|---------|---------|----------|-------|-------------|
-| `upstream_timeout` | 600s | `HEADROOM_PROXY_UPSTREAM_TIMEOUT` | `--upstream-timeout` | Per-request LLM stream | Max time to wait for upstream response |
-| `upstream_connect_timeout` | 10s | `HEADROOM_PROXY_UPSTREAM_CONNECT_TIMEOUT` | `--upstream-connect-timeout` | TCP/TLS handshake | Must be < upstream_timeout |
-| `graceful_shutdown_timeout` | 30s | `HEADROOM_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT` | `--graceful-shutdown-timeout` | SIGTERM drain | Must be > sum of in-flight timeouts |
-| `request_timeout` (Python) | 300s | `HEADROOM_REQUEST_TIMEOUT` | `--request-timeout` | Management API | Affects /dashboard, /stats only |
-| `episodic_idle_timeout` | 300s | `HEADROOM_EPISODIC_IDLE_TIMEOUT` | N/A | Memory extraction | When idle session triggers extraction |
+| `upstream_timeout` | 600s | `CUTCTX_PROXY_UPSTREAM_TIMEOUT` | `--upstream-timeout` | Per-request LLM stream | Max time to wait for upstream response |
+| `upstream_connect_timeout` | 10s | `CUTCTX_PROXY_UPSTREAM_CONNECT_TIMEOUT` | `--upstream-connect-timeout` | TCP/TLS handshake | Must be < upstream_timeout |
+| `graceful_shutdown_timeout` | 30s | `CUTCTX_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT` | `--graceful-shutdown-timeout` | SIGTERM drain | Must be > sum of in-flight timeouts |
+| `request_timeout` (Python) | 300s | `CUTCTX_REQUEST_TIMEOUT` | `--request-timeout` | Management API | Affects /dashboard, /stats only |
+| `episodic_idle_timeout` | 300s | `CUTCTX_EPISODIC_IDLE_TIMEOUT` | N/A | Memory extraction | When idle session triggers extraction |
 | K8s `terminationGracePeriodSeconds` | 60s | — | — | Pod shutdown | Must be > graceful_shutdown_timeout + 10s |
 | K8s `livenessProbe.periodSeconds` | 10s | — | — | Health check | How often to check liveness |
 | K8s `readinessProbe.periodSeconds` | 5s | — | — | Health check | How often to check readiness |
@@ -43,7 +43,7 @@ graceful_shutdown_timeout (30s) > upstream_timeout (600s)? NO ❌
 terminationGracePeriodSeconds: 60  # > 30s graceful_shutdown_timeout ✅
 ```
 
-The K8s grace period must exceed Headroom's graceful shutdown to allow:
+The K8s grace period must exceed Cutctx's graceful shutdown to allow:
 1. SIGTERM received → graceful shutdown starts
 2. Graceful shutdown drains in-flight requests (up to 30s)
 3. Remaining 30s for OS-level cleanup
@@ -62,10 +62,10 @@ When a session is idle for 300s, the episodic memory extractor fires asynchronou
 
 ```bash
 # Reduce upstream timeout for faster cycling
-HEADROOM_PROXY_UPSTREAM_TIMEOUT=120s
+CUTCTX_PROXY_UPSTREAM_TIMEOUT=120s
 
 # Reduce graceful shutdown for faster deploys
-HEADROOM_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=15s
+CUTCTX_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=15s
 
 # K8s: match termination grace period
 terminationGracePeriodSeconds: 30
@@ -75,10 +75,10 @@ terminationGracePeriodSeconds: 30
 
 ```bash
 # Increase upstream timeout for long generation
-HEADROOM_PROXY_UPSTREAM_TIMEOUT=900s
+CUTCTX_PROXY_UPSTREAM_TIMEOUT=900s
 
 # Increase graceful shutdown to drain long streams
-HEADROOM_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=920s
+CUTCTX_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=920s
 
 # K8s: increase termination grace period
 terminationGracePeriodSeconds: 960
@@ -88,9 +88,9 @@ terminationGracePeriodSeconds: 960
 
 ```bash
 # Short timeouts for fast feedback
-HEADROOM_PROXY_UPSTREAM_TIMEOUT=30s
-HEADROOM_PROXY_UPSTREAM_CONNECT_TIMEOUT=5s
-HEADROOM_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=5s
+CUTCTX_PROXY_UPSTREAM_TIMEOUT=30s
+CUTCTX_PROXY_UPSTREAM_CONNECT_TIMEOUT=5s
+CUTCTX_PROXY_GRACEFUL_SHUTDOWN_TIMEOUT=5s
 ```
 
 ### K8s Production (Conservative)
@@ -102,7 +102,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 65
       containers:
-        - name: headroom-proxy
+        - name: cutctx-proxy
           args:
             - "--upstream-timeout"
             - "600s"
@@ -135,7 +135,7 @@ Client Request
     │
     ▼
 ┌─────────────────────────────────────────────────────┐
-│  Headroom Proxy                                      │
+│  Cutctx Proxy                                      │
 │                                                      │
 │  1. Connect to upstream (upstream_connect_timeout)   │
 │     └── TCP/TLS handshake: 10s max                   │

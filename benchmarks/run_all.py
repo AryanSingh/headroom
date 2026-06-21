@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive benchmark runner for Headroom.
+Comprehensive benchmark runner for Cutctx.
 
 Reproduces the token reduction and quality metrics from docs/benchmarks.md.
 
@@ -32,13 +32,13 @@ from typing import Any
 
 import tiktoken
 
-# Headroom compression API
+# Cutctx compression API
 try:
     from headroom import compress
     HEADROOM_AVAILABLE = True
 except ImportError:
     HEADROOM_AVAILABLE = False
-    print("WARNING: headroom not installed, skipping Headroom benchmarks")
+    print("WARNING: headroom not installed, skipping Cutctx benchmarks")
 
 # Optional: Other compression tools
 try:
@@ -217,7 +217,7 @@ def load_real_corpus(corpus_name: str, corpus_dir: Path, limit: int | None = Non
 # =============================================================================
 
 def compress_with_headroom(text: str) -> tuple[str, float]:
-    """Compress text using Headroom.
+    """Compress text using Cutctx.
 
     Returns:
         (compressed_text, latency_ms)
@@ -257,7 +257,7 @@ def run_compression_benchmark(
     """Run a single compression benchmark.
 
     Args:
-        tool_name: "headroom" or "llmlingua2"
+        tool_name: "cutctx" or "llmlingua2"
         text: Input text to compress
         verbose: Print detailed output
 
@@ -265,7 +265,7 @@ def run_compression_benchmark(
         CompressionMetrics or None if tool unavailable
     """
     # Select compression function
-    if tool_name == "headroom":
+    if tool_name == "cutctx":
         compress_func = compress_with_headroom
         if not HEADROOM_AVAILABLE:
             logger.warning("headroom not available, skipping")
@@ -349,7 +349,7 @@ def get_machine_info() -> dict[str, Any]:
 def main() -> int:
     """Main benchmark runner."""
     parser = argparse.ArgumentParser(
-        description="Run Headroom compression benchmarks",
+        description="Run Cutctx compression benchmarks",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -378,7 +378,7 @@ def main() -> int:
         "--tools",
         type=str,
         nargs="+",
-        default=["headroom"],
+        default=["cutctx"],
         help="Tools to benchmark (default: headroom)",
     )
 
@@ -402,7 +402,7 @@ def main() -> int:
         logging.getLogger().setLevel(logging.DEBUG)
 
     logger.info("=" * 70)
-    logger.info("Headroom Benchmark Suite")
+    logger.info("Cutctx Benchmark Suite")
     logger.info("=" * 70)
 
     # Load data

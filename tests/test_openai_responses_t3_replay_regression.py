@@ -21,7 +21,7 @@ class T3FailureCase:
     unit_count: int
 
 
-# T3 provider logs keep the Headroom 413 metadata, not the raw /v1/responses
+# T3 provider logs keep the Cutctx 413 metadata, not the raw /v1/responses
 # body. These cases recreate the failing byte scale and Responses item shape.
 T3_FAILED_CASES = (
     T3FailureCase(

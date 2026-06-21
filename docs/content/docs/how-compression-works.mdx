@@ -56,7 +56,7 @@ console.log(`Compression ratio: ${result.compressionRatio}`);
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import compress
+from cutctx import compress
 
 result = compress(content)
 print(result.compressed)
@@ -84,8 +84,8 @@ console.log(`Transforms: ${result.transformsApplied.join(", ")}`);
 </Tab>
 <Tab value="Python">
 ```python
-# Advanced / Internal API -- prefer `from headroom import compress` for typical use
-from headroom.compression import UniversalCompressor, UniversalCompressorConfig
+# Advanced / Internal API -- prefer `from cutctx import compress` for typical use
+from cutctx.compression import UniversalCompressor, UniversalCompressorConfig
 
 config = UniversalCompressorConfig(
     compression_ratio_target=0.5,  # Keep 50% of content
@@ -130,8 +130,8 @@ CutCtx doesn't blindly truncate. It identifies what matters in each content type
 For multiple contents, batch compression is more efficient:
 
 ```python
-# Advanced / Internal API -- prefer `from headroom import compress` for typical use
-from headroom.compression import UniversalCompressor
+# Advanced / Internal API -- prefer `from cutctx import compress` for typical use
+from cutctx.compression import UniversalCompressor
 
 compressor = UniversalCompressor()
 

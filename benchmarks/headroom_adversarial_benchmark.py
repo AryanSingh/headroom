@@ -1,5 +1,5 @@
 """
-Headroom ADVERSARIAL Benchmark: True Worst Cases
+Cutctx ADVERSARIAL Benchmark: True Worst Cases
 
 The previous "worst case" scenarios still had JSON structure.
 This benchmark tests TRUE adversarial cases:
@@ -26,7 +26,7 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
-    from headroom import HeadroomClient, OpenAIProvider
+    from headroom import CutctxClient, OpenAIProvider
 
     HEADROOM_AVAILABLE = True
 except ImportError:
@@ -331,7 +331,7 @@ Each paper's findings are important. Don't skip any paper.
 Focus on methodology differences and key findings.""",
         user_query="Synthesize these research papers. For each paper, summarize the key methodology and findings. Then identify common themes and contradictions across papers.",
         tools=[generate_research_paper_excerpts(num_papers=10)],
-        expected_behavior="Headroom should have minimal compression - prose has no structural redundancy",
+        expected_behavior="Cutctx should have minimal compression - prose has no structural redundancy",
     )
 
 
@@ -345,7 +345,7 @@ Every changed line matters. Look for bugs, style issues, and potential problems.
 Don't skip any file or change.""",
         user_query="Review this diff carefully. For each file, identify: 1) What changed, 2) Any bugs or issues, 3) Style concerns. Be thorough.",
         tools=[generate_code_diff(num_files=15, changes_per_file=20)],
-        expected_behavior="Headroom should struggle - code changes are unique and can't be summarized",
+        expected_behavior="Cutctx should struggle - code changes are unique and can't be summarized",
     )
 
 
@@ -358,7 +358,7 @@ def create_encrypted_analysis_scenario() -> AdversarialScenario:
 Describe what you observe about the data format and structure.""",
         user_query="Examine this encrypted data blob. What can you tell about its format? Is there any visible structure? What's the encoding?",
         tools=[generate_encrypted_data(size_kb=20)],
-        expected_behavior="Headroom CANNOT compress this - random data has no patterns",
+        expected_behavior="Cutctx CANNOT compress this - random data has no patterns",
     )
 
 
@@ -370,7 +370,7 @@ def create_small_data_scenario() -> AdversarialScenario:
         system_prompt="""You are a data analyst. Analyze this small dataset.""",
         user_query="What patterns do you see in this data? Provide summary statistics and insights.",
         tools=[generate_tiny_dataset(num_items=5)],
-        expected_behavior="Headroom has no opportunity - data is already minimal",
+        expected_behavior="Cutctx has no opportunity - data is already minimal",
     )
 
 
@@ -383,7 +383,7 @@ def create_conversation_context_scenario() -> AdversarialScenario:
 Pay attention to who said what and how opinions evolved.""",
         user_query="Summarize this meeting. Who took which positions? How did the discussion evolve? What were the action items and who owns them?",
         tools=[generate_conversation_history(num_messages=50)],
-        expected_behavior="Headroom should preserve conversation flow - context matters",
+        expected_behavior="Cutctx should preserve conversation flow - context matters",
     )
 
 
@@ -480,7 +480,7 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
 
     if HEADROOM_AVAILABLE:
         db_path = os.path.join(tempfile.gettempdir(), "headroom_adversarial.db")
-        headroom_client = HeadroomClient(
+        headroom_client = CutctxClient(
             original_client=OpenAI(api_key=api_key),
             provider=OpenAIProvider(),
             store_url=f"sqlite:///{db_path}",
@@ -516,10 +516,10 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
         print(f"   Cost: ${baseline.cost_usd:.4f}")
         results.append(baseline)
 
-        # Headroom
+        # Cutctx
         if headroom_client:
             print("\n[2/2] HEADROOM...")
-            headroom = run_scenario(headroom_client, scenario, "headroom")
+            headroom = run_scenario(headroom_client, scenario, "cutctx")
             print(f"   Input tokens: {headroom.input_tokens:,}")
             print(f"   Cost: ${headroom.cost_usd:.4f}")
             results.append(headroom)
@@ -539,11 +539,11 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
     print("ADVERSARIAL BENCHMARK SUMMARY")
     print("=" * 70)
 
-    print(f"\n{'Scenario':<30} {'Baseline':>12} {'Headroom':>12} {'Change':>12}")
+    print(f"\n{'Scenario':<30} {'Baseline':>12} {'Cutctx':>12} {'Change':>12}")
     print("-" * 66)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "headroom"]
+    headroom_results = [r for r in results if r.mode == "cutctx"]
 
     for br in baseline_results:
         hr = next((r for r in headroom_results if r.scenario_name == br.scenario_name), None)

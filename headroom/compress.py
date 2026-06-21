@@ -1,6 +1,6 @@
-"""One-function compression API for Headroom.
+"""One-function compression API for Cutctx.
 
-The simplest way to use Headroom — no proxy, no config, just compress:
+The simplest way to use Cutctx — no proxy, no config, just compress:
 
     from headroom import compress
 
@@ -167,9 +167,9 @@ def compress(
     config: CompressConfig | None = None,
     **kwargs: Any,
 ) -> CompressResult:
-    """Compress messages using Headroom's full compression pipeline.
+    """Compress messages using Cutctx's full compression pipeline.
 
-    This is the simplest way to use Headroom. No proxy, no config needed.
+    This is the simplest way to use Cutctx. No proxy, no config needed.
     Just pass messages and get compressed messages back.
 
     Args:
@@ -384,5 +384,5 @@ def _get_pipeline() -> Any:
         # Phase B PR-B1 retired the trailing context-management stage —
         # live-zone-only compression never drops messages.
         _pipeline = TransformPipeline()
-        logger.debug("Headroom compression pipeline initialized")
+        logger.debug("Cutctx compression pipeline initialized")
         return _pipeline

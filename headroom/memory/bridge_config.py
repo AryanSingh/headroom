@@ -1,7 +1,7 @@
 """Configuration for the Memory Bridge.
 
 The Memory Bridge provides bidirectional sync between markdown memory files
-(used by Claude Code, ChatGPT, etc.) and Headroom's semantic memory system.
+(used by Claude Code, ChatGPT, etc.) and Cutctx's semantic memory system.
 """
 
 from __future__ import annotations

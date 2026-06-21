@@ -1,4 +1,4 @@
-"""Persistent install / deployment helpers for Headroom."""
+"""Persistent install / deployment helpers for Cutctx."""
 
 from .models import (
     ConfigScope,

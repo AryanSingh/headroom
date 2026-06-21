@@ -1,6 +1,6 @@
 # Blog Post 1: Why Your AI Agent's Token Bill Is 3x Higher Than It Should Be
 
-*Published: Headroom Blog | Category: Engineering | Reading time: 8 minutes*
+*Published: Cutctx Blog | Category: Engineering | Reading time: 8 minutes*
 
 ---
 
@@ -69,7 +69,7 @@ After: 23 tokens (85% reduction)
 
 ## Real Results
 
-We ran Headroom on a customer's agent workload:
+We ran Cutctx on a customer's agent workload:
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -82,8 +82,8 @@ The $1,500/mo Team tier paid for itself in the first 2 hours.
 
 ## How to Get Started
 
-1. **Install:** `pip install headroom` or `npm install headroom`
-2. **Point your agent:** Change the API base URL to your Headroom proxy
+1. **Install:** `pip install cutctx` or `npm install cutctx`
+2. **Point your agent:** Change the API base URL to your Cutctx proxy
 3. **Watch savings:** Dashboard shows real-time compression and cost savings
 
 ```python
@@ -94,8 +94,8 @@ response = client.chat.completions.create(model="gpt-4", messages=messages)
 
 # After
 import openai
-from headroom import HeadroomClient
-proxy = HeadroomClient("http://localhost:8080")
+from cutctx import CutctxClient
+proxy = CutctxClient("http://localhost:8080")
 client = openai.OpenAI(http_client=proxy)
 response = client.chat.completions.create(model="gpt-4", messages=messages)
 ```
@@ -104,9 +104,9 @@ response = client.chat.completions.create(model="gpt-4", messages=messages)
 
 Token costs are the biggest hidden expense in AI agent development. Compression isn't optional — it's infrastructure. The teams that figure this out first will have a massive cost advantage.
 
-**Try Headroom free for 14 days** → [headroom.sh](https://headroom.sh)
+**Try Cutctx free for 14 days** → [cutctx.sh](https://cutctx.sh)
 
 ---
 
 *Tags: AI agents, token costs, LLM optimization, context compression, cost reduction*
-*Author: Headroom Engineering Team*
+*Author: Cutctx Engineering Team*

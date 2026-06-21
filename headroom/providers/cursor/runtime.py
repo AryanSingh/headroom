@@ -34,7 +34,7 @@ def render_setup_lines(port: int, project: str | None = None) -> list[str]:
     """Render the Cursor setup instructions for the local proxy."""
     targets = build_proxy_targets(port, project)
     lines = [
-        "  Headroom proxy is running. Configure Cursor:",
+        "  Cutctx proxy is running. Configure Cursor:",
         "",
         "  For OpenAI models:",
         f"    Base URL:  {targets.openai_base_url}",

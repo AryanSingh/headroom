@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 
 """PitchToShip license validation client.
 
-Optional integration — Headroom works WITHOUT PitchToShip.
+Optional integration — Cutctx works WITHOUT PitchToShip.
 When PITCHTOSHIP_URL is set, license validation, trial, and seat
 management are delegated to PitchToShip's centralized API.
 
 Security model:
   1. Online:  PitchToShip verifies license in DB, returns ECDSA-signed token
-  2. Offline: Headroom verifies cached signed token using PitchToShip's public key
+  2. Offline: Cutctx verifies cached signed token using PitchToShip's public key
   3. Tamper:  Signature verification fails → fail closed (deny access)
 """
 
@@ -350,7 +350,7 @@ def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
     return None
 
 
-def issue_trial(hwid: str, product: str = "headroom") -> dict[str, Any] | None:
+def issue_trial(hwid: str, product: str = "cutctx") -> dict[str, Any] | None:
     """Request trial token from PitchToShip."""
     return _post("/api/trials/issue", {"hwid": hwid, "product": product})
 

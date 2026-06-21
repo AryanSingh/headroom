@@ -1,4 +1,4 @@
-"""Central configuration for all ML models used in Headroom.
+"""Central configuration for all ML models used in Cutctx.
 
 This is the SINGLE SOURCE OF TRUTH for model defaults. Change values here
 to switch model variants across the entire codebase.
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 class MLModelConfig:
     """Central configuration for all ML model defaults.
 
-    All model names are defined here. Components throughout Headroom
+    All model names are defined here. Components throughout Cutctx
     import these defaults, so changing a value here changes it everywhere.
 
     Environment variables can override any default:

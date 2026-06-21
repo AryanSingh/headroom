@@ -1,6 +1,6 @@
 """Base class and shared utilities for agent-native memory writers.
 
-Writers convert Headroom memory entries into agent-specific file formats.
+Writers convert Cutctx memory entries into agent-specific file formats.
 The base class handles token budgeting, deduplication, marker management,
 and priority ranking. Subclasses implement format-specific rendering.
 """
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# Marker delimiters for Headroom-managed sections (matches learn/writer.py)
+# Marker delimiters for Cutctx-managed sections (matches learn/writer.py)
 MARKER_START = "<!-- headroom:memory:start -->"
 MARKER_END = "<!-- headroom:memory:end -->"
 MARKER_PATTERN = re.compile(

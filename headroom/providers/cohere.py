@@ -1,4 +1,4 @@
-"""Cohere provider for Headroom SDK.
+"""Cohere provider for Cutctx SDK.
 
 Token counting uses Cohere's official tokenize API when a client
 is provided. This gives accurate counts for all content types.

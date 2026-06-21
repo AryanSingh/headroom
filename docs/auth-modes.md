@@ -4,10 +4,10 @@ CutCtx classifies every inbound request into one of three **auth modes** at requ
 
 The classifier ships in two equivalent implementations:
 
-- **Rust:** `crates/headroom-core/src/auth_mode.rs` (`classify`)
-- **Python:** `headroom/proxy/auth_mode.py` (`classify_auth_mode`)
+- **Rust:** `crates/cutctx-core/src/auth_mode.rs` (`classify`)
+- **Python:** `cutctx/proxy/auth_mode.py` (`classify_auth_mode`)
 
-Both are byte-for-byte identical on every header set covered by the parity test suite (`crates/headroom-core/tests/auth_mode.rs` + `tests/test_auth_mode.py`).
+Both are byte-for-byte identical on every header set covered by the parity test suite (`crates/cutctx-core/tests/auth_mode.rs` + `tests/test_auth_mode.py`).
 
 ## The three modes
 
@@ -49,7 +49,7 @@ Both are byte-for-byte identical on every header set covered by the parity test 
 **Compression policy:** stealth. Provider rate-limits by request count; programmatic-fingerprint detection means CutCtx MUST look like the upstream agent. Same compression policy as `OAuth` **plus**:
 
 - Preserve `accept-encoding` byte-for-byte.
-- Never inject `X-Headroom-*` headers on upstream-bound requests.
+- Never inject `X-Cutctx-*` headers on upstream-bound requests.
 - Never mutate `User-Agent`.
 - Skip `X-Forwarded-*` headers on upstream-bound requests (see Phase F PR-F4).
 
@@ -78,12 +78,12 @@ The "default to PAYG" rule is intentionally conservative: misclassifying a non-P
 
 Add the UA prefix to **both** files — they must agree:
 
-- `crates/headroom-core/src/auth_mode.rs` → `SUBSCRIPTION_UA_PREFIXES`
-- `headroom/proxy/auth_mode.py` → `SUBSCRIPTION_UA_PREFIXES`
+- `crates/cutctx-core/src/auth_mode.rs` → `SUBSCRIPTION_UA_PREFIXES`
+- `cutctx/proxy/auth_mode.py` → `SUBSCRIPTION_UA_PREFIXES`
 
 Then add a parametrised parity test case in **both**:
 
-- `crates/headroom-core/tests/auth_mode.rs` → add a `#[test] fn ..._ua_classified_subscription`.
+- `crates/cutctx-core/tests/auth_mode.rs` → add a `#[test] fn ..._ua_classified_subscription`.
 - `tests/test_auth_mode.py` → covered automatically by the existing `test_every_subscription_prefix_classified_subscription` parametrised test.
 
 ### Adding a new OAuth token shape
@@ -94,7 +94,7 @@ Add the prefix check **before** the `sk-` PAYG branch in both `classify` and `cl
 
 The list lives in a `const` so a future Phase F follow-up PR can swap it for a configurable source (env var, TOML config, CLI flag) without touching the function body. The recommended path:
 
-1. Read the list from `Config::subscription_ua_prefixes` (Rust) / `headroom.config.Settings.subscription_ua_prefixes` (Python).
+1. Read the list from `Config::subscription_ua_prefixes` (Rust) / `cutctx.config.Settings.subscription_ua_prefixes` (Python).
 2. Default to the current static list if unset.
 3. Pass the list as a parameter to `classify` / `classify_auth_mode`.
 
@@ -116,7 +116,7 @@ All paths are well under the <10us Rust budget and the <100us Python budget asse
 
 After classification, the value is stored on the request object so downstream code reads it without re-classifying:
 
-- **Rust:** `req.extensions_mut().insert(auth_mode)`. Read with `req.extensions().get::<headroom_core::auth_mode::AuthMode>()`.
+- **Rust:** `req.extensions_mut().insert(auth_mode)`. Read with `req.extensions().get::<cutctx_core::auth_mode::AuthMode>()`.
 - **Python:** `request.state.auth_mode`. Read with `request.state.auth_mode`.
 
 A structured log line (`event = auth_mode_classified`) fires once per request at request entry; the value is logged as `auth_mode = "payg" | "oauth" | "subscription"`.

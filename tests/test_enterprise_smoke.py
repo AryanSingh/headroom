@@ -228,7 +228,7 @@ class TestOrgAuditFlow:
         """Full org hierarchy should include workspaces and projects."""
         org = org_db.create_org(name="Acme Corp")
         ws = org_db.create_workspace(org_id=org["id"], name="Engineering")
-        proj = org_db.create_project(workspace_id=ws["id"], name="headroom", path="/srv/headroom")
+        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/headroom")
         hierarchy = org_db.get_org_hierarchy(org["id"])
         assert hierarchy is not None
         assert len(hierarchy["workspaces"]) == 1
@@ -375,7 +375,7 @@ class TestFullEnterpriseWorkflow:
         audit_db.log(AuditEvent(action="workspace.created", actor="admin@acme.com", detail={"workspace_id": ws["id"]}))
 
         # Create project
-        proj = org_db.create_project(workspace_id=ws["id"], name="headroom", path="/srv/headroom")
+        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/headroom")
         audit_db.log(AuditEvent(action="project.created", actor="admin@acme.com", detail={"project_id": proj["id"]}))
 
         # Verify hierarchy

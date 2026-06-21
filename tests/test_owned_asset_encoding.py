@@ -1,7 +1,7 @@
 """Regression tests for UTF-8 decoding/encoding of headroom-owned assets.
 
 These guard against ``UnicodeDecodeError`` on systems whose default text
-encoding is not UTF-8 (e.g. Windows ``cp949``/``cp1252`` locales). Headroom
+encoding is not UTF-8 (e.g. Windows ``cp949``/``cp1252`` locales). Cutctx
 ships and writes its own templates, JSON state and config files as UTF-8, so
 they must be read and written with an explicit ``encoding="utf-8"`` rather than
 relying on the platform default codec. See issue #533.

@@ -3,7 +3,7 @@ import {
   ProxyManager,
   normalizeAndValidateProxyUrl,
   isLocalProxyUrl,
-  probeHeadroomProxy,
+  probeCutCtxProxy,
 } from "../src/proxy-manager.js";
 
 afterEach(() => {
@@ -19,7 +19,7 @@ function stubProbeSuccess() {
   return mock;
 }
 
-function stubProbeNonHeadroom() {
+function stubProbeNonCutCtx() {
   const mock = vi.fn()
     .mockResolvedValueOnce({ ok: true, status: 200 })   // /health OK
     .mockResolvedValueOnce({ ok: false, status: 404 });  // /v1/retrieve/stats 404
@@ -71,26 +71,26 @@ describe("isLocalProxyUrl", () => {
   });
 });
 
-describe("probeHeadroomProxy", () => {
-  it("returns reachable+isHeadroom when both endpoints succeed", async () => {
+describe("probeCutCtxProxy", () => {
+  it("returns reachable+isCutCtx when both endpoints succeed", async () => {
     stubProbeSuccess();
-    const result = await probeHeadroomProxy("http://127.0.0.1:8787");
-    expect(result).toEqual({ reachable: true, isHeadroom: true });
+    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
+    expect(result).toEqual({ reachable: true, isCutCtx: true });
   });
 
   it("returns reachable but non-headroom when retrieve endpoint fails", async () => {
-    stubProbeNonHeadroom();
-    const result = await probeHeadroomProxy("http://127.0.0.1:8787");
+    stubProbeNonCutCtx();
+    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
     expect(result.reachable).toBe(true);
-    expect(result.isHeadroom).toBe(false);
+    expect(result.isCutCtx).toBe(false);
     expect(result.reason).toMatch(/retrieve stats HTTP 404/);
   });
 
   it("returns unreachable when health check fails", async () => {
     stubProbeUnreachable();
-    const result = await probeHeadroomProxy("http://127.0.0.1:8787");
+    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
     expect(result.reachable).toBe(false);
-    expect(result.isHeadroom).toBe(false);
+    expect(result.isCutCtx).toBe(false);
   });
 });
 
@@ -106,7 +106,7 @@ describe("ProxyManager.start", () => {
       .mockResolvedValueOnce({ ok: true, status: 200 });
     vi.stubGlobal("fetch", fetchMock);
 
-    const startSpy = vi.spyOn(manager as any, "startHeadroomProxy");
+    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy");
     const url = await manager.start();
     expect(url).toBe("http://localhost:8787");
     expect(startSpy).not.toHaveBeenCalled();
@@ -128,13 +128,13 @@ describe("ProxyManager.start", () => {
 
   it("fails when explicit URL is reachable but not a headroom proxy", async () => {
     const manager = new ProxyManager({ proxyUrl: "http://127.0.0.1:8787" });
-    stubProbeNonHeadroom();
-    await expect(manager.start()).rejects.toThrow(/does not appear to be a Headroom proxy/);
+    stubProbeNonCutCtx();
+    await expect(manager.start()).rejects.toThrow(/does not appear to be a CutCtx proxy/);
   });
 
   it("applies default proxyPort when explicit proxyUrl omits port", async () => {
     const manager = new ProxyManager({ proxyUrl: "http://127.0.0.1", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startHeadroomProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
 
     const fetchMock = vi
       .fn()
@@ -150,7 +150,7 @@ describe("ProxyManager.start", () => {
 
   it("connects to remote proxy without auto-start", async () => {
     const manager = new ProxyManager({ proxyUrl: "http://headroom.remote.example:8787", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startHeadroomProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
     stubProbeSuccess();
 
     const url = await manager.start();
@@ -168,16 +168,16 @@ describe("ProxyManager.start", () => {
 
   it("fails fast for unreachable remote proxy without attempting auto-start", async () => {
     const manager = new ProxyManager({ proxyUrl: "https://headroom.remote.example:8787", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startHeadroomProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
     stubProbeUnreachable();
 
-    await expect(manager.start()).rejects.toThrow(/Remote Headroom proxy not reachable/);
+    await expect(manager.start()).rejects.toThrow(/Remote CutCtx proxy not reachable/);
     expect(startSpy).not.toHaveBeenCalled();
   });
 
   it("auto-starts when nothing is detected", async () => {
     const manager = new ProxyManager({ autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startHeadroomProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
 
     // First two candidate probes fail (health only), then waitForHealthy probe succeeds.
     const fetchMock = vi
@@ -206,7 +206,7 @@ describe("ProxyManager launch internals", () => {
 
   it("prefers configured pythonPath ahead of PATH launchers", () => {
     const manager = new ProxyManager({ pythonPath: "C:\\Python311\\python.exe" });
-    vi.spyOn(manager as any, "getPyenvResolvedHeadroom").mockReturnValue(null);
+    vi.spyOn(manager as any, "getPyenvResolvedCutCtx").mockReturnValue(null);
 
     const specs = (manager as any).buildLaunchSpecs("127.0.0.1", "8787") as Array<Record<string, unknown>>;
 
@@ -237,7 +237,7 @@ describe("ProxyManager launch internals", () => {
     if (process.platform !== "win32") return;
 
     const manager = new ProxyManager({});
-    vi.spyOn(manager as any, "getPyenvResolvedHeadroom").mockReturnValue("C:\\Python312\\Scripts\\headroom.exe");
+    vi.spyOn(manager as any, "getPyenvResolvedCutCtx").mockReturnValue("C:\\Python312\\Scripts\\headroom.exe");
 
     const specs = (manager as any).buildLaunchSpecs("127.0.0.1", "8787") as Array<Record<string, unknown>>;
 
@@ -297,7 +297,7 @@ describe("ProxyManager launch internals", () => {
     ];
     const infoSpy = vi.spyOn((manager as any).logger, "info");
 
-    await (manager as any).startHeadroomProxy("http://127.0.0.1:8787");
+    await (manager as any).startCutCtxProxy("http://127.0.0.1:8787");
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Auto-start launcher selected"));
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("second-node"));
   });
@@ -317,7 +317,7 @@ describe("ProxyManager launch internals", () => {
     ];
     const infoSpy = vi.spyOn((manager as any).logger, "info");
 
-    await (manager as any).startHeadroomProxy("http://127.0.0.1:8787", 8787);
+    await (manager as any).startCutCtxProxy("http://127.0.0.1:8787", 8787);
 
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Auto-start launcher selected"));
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("shell-backed"));
@@ -336,8 +336,8 @@ describe("ProxyManager launch internals", () => {
     ];
     (manager as any).canExecute = () => false;
 
-    await expect((manager as any).startHeadroomProxy("http://127.0.0.1:8787")).rejects.toThrow(
-      /No usable Headroom launcher found/,
+    await expect((manager as any).startCutCtxProxy("http://127.0.0.1:8787")).rejects.toThrow(
+      /No usable CutCtx launcher found/,
     );
   });
 });

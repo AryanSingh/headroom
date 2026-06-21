@@ -175,7 +175,7 @@ def test_register_exposes_tool_with_marker_aware_schema(plugin: types.ModuleType
 
     # Assert
     assert registered["name"] == "headroom_retrieve"
-    assert registered["toolset"] == "headroom"
+    assert registered["toolset"] == "cutctx"
     assert registered["schema"]["parameters"]["required"] == ["hash"]
     # The description must teach both marker formats so the model recognizes them.
     description = registered["schema"]["description"]

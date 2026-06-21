@@ -1,4 +1,4 @@
-# Headroom vs. Caching: Why Compression Wins for AI Agents
+# Cutctx vs. Caching: Why Compression Wins for AI Agents
 
 *Published: June 2026 | Reading time: 4 minutes*
 
@@ -91,14 +91,14 @@ This gives you:
 - **Cache miss**: 75% savings via compression
 - **Stale cache**: Fresh data + compression
 
-## Headroom's Advantage
+## Cutctx's Advantage
 
-Headroom implements this hybrid approach:
+Cutctx implements this hybrid approach:
 
 1. **SmartCrusher**: Compresses JSON responses on-the-fly
 2. **CacheAligner**: Aligns compressed data for optimal cache performance
 3. **Cross-agent memory**: Shares compression patterns across sessions
-4. **headroom learn**: Learns which data is worth caching vs. compressing
+4. **cutctx learn**: Learns which data is worth caching vs. compressing
 
 ## Cost Comparison
 
@@ -107,7 +107,7 @@ Headroom implements this hybrid approach:
 | No optimization | $125/day | $1,250/day | None |
 | Caching only | $100/day (20% hit) | $1,000/day | HIGH |
 | Compression only | $31/day (75% savings) | $312/day | None |
-| **Headroom (hybrid)** | **$25/day** | **$250/day** | **LOW** |
+| **Cutctx (hybrid)** | **$25/day** | **$250/day** | **LOW** |
 
 ## Conclusion
 
@@ -115,4 +115,4 @@ Caching is a partial solution for a specific problem (repeated queries). Compres
 
 For AI agents that need fresh, diverse context on every request, compression wins.
 
-*See the difference yourself: [Try Headroom free](https://headroom.sh) for 14 days.*
+*See the difference yourself: [Try Cutctx free](https://cutctx.sh) for 14 days.*

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Tests
+# Copyright (c) 2025-2026 Cutctx Tests
 
 """SP-3/SP-5/SP-6/SP-7: Tests for software protection modules."""
 

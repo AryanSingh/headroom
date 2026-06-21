@@ -1,6 +1,6 @@
 """Third-party proxy extension point.
 
-External packages hook into the Headroom proxy at startup by declaring an
+External packages hook into the Cutctx proxy at startup by declaring an
 entry point in the ``headroom.proxy_extension`` group in their ``pyproject.toml``:
 
     [project.entry-points."headroom.proxy_extension"]

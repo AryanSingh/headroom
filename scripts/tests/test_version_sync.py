@@ -13,7 +13,7 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
     """Create a temporary project with all versioned files."""
     # Create directory structure
     root = tmp_path / "project"
-    headroom = root / "headroom"
+    headroom = root / "cutctx"
     headroom.mkdir(parents=True)
     repo_claude_plugin = root / ".claude-plugin"
     repo_claude_plugin.mkdir(parents=True)

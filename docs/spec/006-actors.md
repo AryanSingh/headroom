@@ -6,10 +6,10 @@
 
 ### End User
 
-The developer using an AI coding agent with Headroom.
+The developer using an AI coding agent with Cutctx.
 
 **Interactions:**
-- Configures Headroom via environment variables or config file
+- Configures Cutctx via environment variables or config file
 - Uses wrapped CLI commands or SDK
 - Views savings in dashboard
 - Optionally enables learn mode
@@ -25,17 +25,17 @@ The developer using an AI coding agent with Headroom.
 export ANTHROPIC_API_KEY=sk-...
 
 # Optional overrides
-export HEADROOM_MODE=token
+export CUTCTX_MODE=token
 ```
 
 ---
 
 ### Operator
 
-The person deploying and managing Headroom in production.
+The person deploying and managing Cutctx in production.
 
 **Interactions:**
-- Deploys Headroom (Docker, native, or embedded)
+- Deploys Cutctx (Docker, native, or embedded)
 - Configures profiles and presets
 - Monitors health endpoints
 - Reviews metrics and logs
@@ -49,7 +49,7 @@ The person deploying and managing Headroom in production.
 
 **Configuration:**
 ```yaml
-# ~/.headroom/config.yaml
+# ~/.cutctx/config.yaml
 proxy:
   host: 0.0.0.0
   port: 8787
@@ -81,8 +81,8 @@ The developer creating a custom learn plugin for a specific agent.
 
 **Interactions:**
 - Implements `LearnPlugin` interface
-- Plugins auto-discovered from `headroom/learn/plugins/` directory
-- Contributes to Headroom
+- Plugins auto-discovered from `cutctx/learn/plugins/` directory
+- Contributes to Cutctx
 
 **Needs:**
 - Clear plugin interface documentation
@@ -91,7 +91,7 @@ The developer creating a custom learn plugin for a specific agent.
 
 **Plugin Template:**
 ```python
-from headroom.learn.base import LearnPlugin, ConversationScanner
+from cutctx.learn.base import LearnPlugin, ConversationScanner
 
 class MyAgentPlugin(LearnPlugin):
     @property
@@ -123,7 +123,7 @@ class MyAgentPlugin(LearnPlugin):
 
 ### Enterprise Evaluator
 
-The person assessing Headroom for organizational adoption.
+The person assessing Cutctx for organizational adoption.
 
 **Interactions:**
 - Reviews security documentation
@@ -139,20 +139,20 @@ The person assessing Headroom for organizational adoption.
 **Security Configuration:**
 ```bash
 # Maximum privacy settings
-HEADROOM_TELEMETRY=off
-HEADROOM_STATELESS=true
-headroom proxy --no-cache --no-optimize
+CUTCTX_TELEMETRY=off
+CUTCTX_STATELESS=true
+cutctx proxy --no-cache --no-optimize
 ```
 
 ---
 
 ## Interaction Patterns
 
-### User → Headroom
+### User → Cutctx
 
 ```
 ┌──────────────┐       ┌────────────────┐       ┌─────────────┐
-│ User's AI    │──────▶│  Headroom      │──────▶│  Provider   │
+│ User's AI    │──────▶│  Cutctx      │──────▶│  Provider   │
 │ Agent        │       │  Proxy         │       │  API        │
 └──────────────┘       └───────┬────────┘       └─────────────┘
                                │
@@ -164,15 +164,15 @@ headroom proxy --no-cache --no-optimize
 ```
 
 **Flow:**
-1. User's AI agent sends request to Headroom proxy
-2. Headroom compresses context
+1. User's AI agent sends request to Cutctx proxy
+2. Cutctx compresses context
 3. Compressed request sent to provider API
 4. Response returned to agent
 5. Optional: savings logged to dashboard
 
 ---
 
-### Operator → Headroom
+### Operator → Cutctx
 
 ```
 ┌──────────┐       ┌────────────────┐       ┌─────────────┐
@@ -195,7 +195,7 @@ headroom proxy --no-cache --no-optimize
 
 ---
 
-### Plugin Author → Headroom
+### Plugin Author → Cutctx
 
 ```
 ┌──────────────┐       ┌────────────────┐       ┌─────────────┐
@@ -206,7 +206,7 @@ headroom proxy --no-cache --no-optimize
 
 **Flow:**
 1. Plugin author implements LearnPlugin
-2. Plugins are auto-discovered from `headroom/learn/plugins/` directory
+2. Plugins are auto-discovered from `cutctx/learn/plugins/` directory
 3. Writes unit tests
 4. Submits contribution
 

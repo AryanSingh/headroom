@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuthMode(str, enum.Enum):
-    """Three auth-mode classes Headroom routes compression policy through.
+    """Three auth-mode classes Cutctx routes compression policy through.
 
     Subclasses :class:`str` so the enum members serialize transparently
     into structured logs / metric labels / TOIN aggregation keys. The
@@ -223,7 +223,7 @@ def classify_client(headers: Mapping[str, Any] | Any) -> str | None:
     Decision order:
 
     1. **``X-Client`` header** (explicit override) — clients that
-       know they're talking to Headroom can self-identify with a
+       know they're talking to Cutctx can self-identify with a
        short name. Trimmed, lowercased. Wins over UA matching.
     2. **User-Agent substring match** against :data:`CLIENT_UA_MAP`
        — covers the unmodified-client case. Substring, not prefix,

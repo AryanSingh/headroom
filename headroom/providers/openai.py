@@ -1,4 +1,4 @@
-"""OpenAI provider implementation for Headroom SDK.
+"""OpenAI provider implementation for Cutctx SDK.
 
 Token counting is accurate (uses tiktoken).
 Cost estimates are APPROXIMATE - always verify against your actual billing.

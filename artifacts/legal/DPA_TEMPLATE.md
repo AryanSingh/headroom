@@ -1,4 +1,4 @@
-# Headroom Data Processing Addendum Template
+# Cutctx Data Processing Addendum Template
 
 ## Important Note
 
@@ -12,7 +12,7 @@ This is a draft operational template for internal preparation. It is not legal a
 
 ## Processing Description
 
-Headroom is generally deployed in the customer environment. Any processing performed by the provider should be described narrowly and accurately based on the actual commercial model in use.
+Cutctx is generally deployed in the customer environment. Any processing performed by the provider should be described narrowly and accurately based on the actual commercial model in use.
 
 ## Categories Of Data
 

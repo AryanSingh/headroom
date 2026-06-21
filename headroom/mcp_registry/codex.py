@@ -31,16 +31,16 @@ _MARKER_END = "# --- end CutCtx MCP server ---"
 
 
 def _marker_start(server_name: str) -> str:
-    if server_name == "headroom":
-        return "# --- Headroom MCP server ---"
+    if server_name == "cutctx":
+        return "# --- Cutctx MCP server ---"
     if server_name == "cutctx":
         return _MARKER_START
     return f"# --- CutCtx MCP server: {server_name} ---"
 
 
 def _marker_end(server_name: str) -> str:
-    if server_name == "headroom":
-        return "# --- end Headroom MCP server ---"
+    if server_name == "cutctx":
+        return "# --- end Cutctx MCP server ---"
     if server_name == "cutctx":
         return _MARKER_END
     return f"# --- end CutCtx MCP server: {server_name} ---"
@@ -100,7 +100,7 @@ class CodexRegistrar(MCPRegistrar):
             content = self._read_text()
             if _marker_start(spec.name) not in content:
                 # Even force=True is only allowed to replace blocks that
-                # Headroom owns. Otherwise appending our table would create a
+                # Cutctx owns. Otherwise appending our table would create a
                 # duplicate [mcp_servers.<name>] TOML section and may clobber a
                 # user-managed integration.
                 return RegisterResult(
@@ -109,7 +109,7 @@ class CodexRegistrar(MCPRegistrar):
                     f"{spec.name}] entry outside CutCtx markers; "
                     f"{_diff_specs(existing, spec)}",
                 )
-            # Drop any prior Headroom block before re-writing.
+            # Drop any prior Cutctx block before re-writing.
             self.unregister_server(spec.name)
 
         return self._write_block(spec)

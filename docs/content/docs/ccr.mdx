@@ -30,7 +30,7 @@ TOOL OUTPUT (1000 items)
 
 LLM PROCESSING
   Option A: LLM solves task with 20 items -> Done (90% savings)
-  Option B: LLM calls headroom_retrieve(hash=abc123)
+  Option B: LLM calls cutctx_retrieve(hash=abc123)
             -> Response Handler returns full data automatically
 ```
 
@@ -48,11 +48,11 @@ When SmartCrusher compresses tool output:
 
 ## Phase 2: Tool Injection
 
-CutCtx injects a `headroom_retrieve` tool into the LLM's available tools:
+CutCtx injects a `cutctx_retrieve` tool into the LLM's available tools:
 
 ```json
 {
-  "name": "headroom_retrieve",
+  "name": "cutctx_retrieve",
   "description": "Retrieve original uncompressed data from CutCtx cache",
   "parameters": {
     "hash": "The hash key from the compression marker",
@@ -65,7 +65,7 @@ The LLM sees this tool alongside your application's tools and can call it whenev
 
 ## Phase 3: Response Handler
 
-When the LLM calls `headroom_retrieve`:
+When the LLM calls `cutctx_retrieve`:
 
 1. The Response Handler intercepts the tool call
 2. Data is retrieved from the local cache (around 1ms)
@@ -99,7 +99,7 @@ The LLM does not have to retrieve everything. It can search within compressed da
 
 ```json
 {
-  "name": "headroom_retrieve",
+  "name": "cutctx_retrieve",
   "parameters": {
     "hash": "abc123",
     "query": "authentication errors"
@@ -130,7 +130,7 @@ console.log(result.messages);
 // CCR configuration options
 const ccrConfig: CCRConfig = {
   enabled: true,
-  injectTool: true,             // Inject headroom_retrieve tool
+  injectTool: true,             // Inject cutctx_retrieve tool
   injectRetrievalMarker: true,  // Add retrieval markers to compressed output
   feedbackEnabled: true,        // Learn from retrieval patterns
   storeMaxEntries: 1000,        // Max cached items
@@ -140,17 +140,17 @@ const ccrConfig: CCRConfig = {
 </Tab>
 <Tab value="Python">
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from cutctx import CutCtxClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = CutCtxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",
 )
 
 # CCR happens automatically during chat completions.
-# The LLM calls headroom_retrieve when it needs more data.
+# The LLM calls cutctx_retrieve when it needs more data.
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,

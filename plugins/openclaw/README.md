@@ -46,20 +46,20 @@ openclaw plugins install --dangerously-force-unsafe-install --link .
 
 Why this matters:
 - The plugin checks launchers in this order: PATH -> local npm bin -> global npm -> python.
-- "local npm bin" means `plugins/openclaw/node_modules/.bin/headroom` relative to the source checkout.
+- "local npm bin" means `plugins/openclaw/node_modules/.bin/cutctx` relative to the source checkout.
 - Using `--link dist` (or `--link .` from `dist/`) still keeps runtime code adjacent to the checkout, and launcher detection falls back to PATH/global/python if a local npm bin is not present under the installed root.
 - `plugins/openclaw` also carries a no-op hook shim so OpenClaw's hook-pack fallback treats the path as valid instead of emitting a misleading `package.json missing openclaw.hooks` warning.
 - If you install from a `.tgz`, local npm bin may not exist in the installed extension and detection will fall back to PATH/global/python.
 
 ## Configure
 
-Install automatically selects the `contextEngine` slot for `headroom` on current OpenClaw releases. If you need to switch back manually, set `plugins.slots.contextEngine` to `"legacy"` or another engine id.
+Install automatically selects the `contextEngine` slot for `cutctx` on current OpenClaw releases. If you need to switch back manually, set `plugins.slots.contextEngine` to `"legacy"` or another engine id.
 
 ```json
 {
   "plugins": {
     "entries": {
-      "headroom": {
+      "cutctx": {
         "enabled": true,
         "config": {
           "proxyUrl": "http://127.0.0.1:8787"
@@ -67,7 +67,7 @@ Install automatically selects the `contextEngine` slot for `headroom` on current
       }
     },
     "slots": {
-      "contextEngine": "headroom"
+      "contextEngine": "cutctx"
     }
   }
 }
@@ -81,9 +81,9 @@ Default `proxyPort` is `8787`.
 
 ### Upstream gateway routing
 
-By default, the plugin also rewrites the built-in `openai-codex` provider base URL to the active Headroom proxy at runtime. That means Codex provider traffic flows through Headroom, so `/stats` can observe real upstream request and cache activity instead of only local context compression.
+By default, the plugin also rewrites the built-in `openai-codex` provider base URL to the active Cutctx proxy at runtime. That means Codex provider traffic flows through Cutctx, so `/stats` can observe real upstream request and cache activity instead of only local context compression.
 
-This does not replace Headroom's existing Codex routing rules. The proxy already decides between `api.openai.com` and `chatgpt.com/backend-api/codex/responses` based on ChatGPT auth. The plugin change only points OpenClaw's provider config at the active proxy in memory and preserves the rest of the provider config.
+This does not replace Cutctx's existing Codex routing rules. The proxy already decides between `api.openai.com` and `chatgpt.com/backend-api/codex/responses` based on ChatGPT auth. The plugin change only points OpenClaw's provider config at the active proxy in memory and preserves the rest of the provider config.
 
 You can also route additional provider ids such as `anthropic`, `github-copilot`, `google`, or `openrouter` through the same proxy:
 
@@ -91,7 +91,7 @@ You can also route additional provider ids such as `anthropic`, `github-copilot`
 {
   "plugins": {
     "entries": {
-      "headroom": {
+      "cutctx": {
         "enabled": true,
         "config": {
           "gatewayProviderIds": ["openai-codex", "anthropic", "github-copilot", "google", "openrouter"]
@@ -120,7 +120,7 @@ GitHub Copilot is a special case because OpenClaw can route it through either Op
 
 The routing is intentionally lightweight and reversible:
 - the plugin does not persist provider `baseUrl` changes back to `openclaw.json`
-- disabling the plugin, clearing `gatewayProviderIds`, or restarting without Headroom restores OpenClaw's normal provider resolution
+- disabling the plugin, clearing `gatewayProviderIds`, or restarting without Cutctx restores OpenClaw's normal provider resolution
 - if you want durable provider rewrites, use `cutctx wrap openclaw` instead of relying on plugin install side effects
 
 If you need to disable that behavior:
@@ -129,7 +129,7 @@ If you need to disable that behavior:
 {
   "plugins": {
     "entries": {
-      "headroom": {
+      "cutctx": {
         "enabled": true,
         "config": {
           "routeCodexViaProxy": false
@@ -143,23 +143,23 @@ If you need to disable that behavior:
 ### Local proxy (auto-start)
 
 When `proxyUrl` points to localhost (or is omitted), the plugin will auto-start `cutctx proxy` if no running proxy is detected. Launch order:
-1. `headroom` from `PATH`
-2. local npm bin (`node_modules/.bin/headroom`)
+1. `cutctx` from `PATH`
+2. local npm bin (`node_modules/.bin/cutctx`)
 3. global npm bin
-4. Python module (`python -m headroom.cli proxy ...`)
+4. Python module (`python -m cutctx.cli proxy ...`)
 
 If `pythonPath` is set, it is tried first in the Python fallback step.
 
-Docker-native Headroom installs intentionally leave `pythonPath` unset so this launcher order prefers the installed host `headroom` wrapper on `PATH`, which then runs Headroom in Docker.
+Docker-native Cutctx installs intentionally leave `pythonPath` unset so this launcher order prefers the installed host `cutctx` wrapper on `PATH`, which then runs Cutctx in Docker.
 
 ### Remote proxy (connect-only)
 
-Point `proxyUrl` to any reachable Headroom instance:
+Point `proxyUrl` to any reachable Cutctx instance:
 
 ```json
 {
   "config": {
-    "proxyUrl": "https://headroom.example.com:8787"
+    "proxyUrl": "https://cutctx.example.com:8787"
   }
 }
 ```
@@ -193,28 +193,28 @@ Every time OpenClaw assembles context for the model, the plugin compresses tool 
 - **Logs** — pattern deduplication, keeps errors and boundaries
 - **Text** — ML-based token compression
 
-Compression is lossless via CCR (Compress-Cache-Retrieve): originals are stored and the agent gets a `headroom_retrieve` tool to access full details when needed.
+Compression is lossless via CCR (Compress-Cache-Retrieve): originals are stored and the agent gets a `cutctx_retrieve` tool to access full details when needed.
 
 ## Configuration Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `proxyUrl` | auto-detected | Optional URL of a Headroom proxy. Local addresses (`http://127.0.0.1:<port>`, `http://localhost:<port>`) enable auto-start; remote URLs (`https://headroom.example.com`) are connect-only. |
+| `proxyUrl` | auto-detected | Optional URL of a Cutctx proxy. Local addresses (`http://127.0.0.1:<port>`, `http://localhost:<port>`) enable auto-start; remote URLs (`https://cutctx.example.com`) are connect-only. |
 | `proxyPort` | `8787` | Port used for default auto-detect/auto-start when `proxyUrl` is not set. |
 | `pythonPath` | auto-detected | Optional Python executable override for Python fallback launcher. |
 | `autoStart` | `true` | Auto-start a local `cutctx proxy` if not already running (local URLs only; ignored for remote proxies) |
 | `startupTimeoutMs` | `20000` | Time to wait for auto-started proxy to become healthy |
-| `routeCodexViaProxy` | `true` | Rewrite OpenClaw's built-in `openai-codex` provider to use the active Headroom proxy in memory so upstream Codex requests pass through Headroom. |
-| `gatewayProviderIds` | `[]` | Optional explicit list of OpenClaw provider ids to route through the active Headroom proxy in memory. Friendly aliases `codex`, `claude`, `copilot`, and `gemini` are also accepted. When set, this overrides the default `openai-codex` routing list. |
+| `routeCodexViaProxy` | `true` | Rewrite OpenClaw's built-in `openai-codex` provider to use the active Cutctx proxy in memory so upstream Codex requests pass through Cutctx. |
+| `gatewayProviderIds` | `[]` | Optional explicit list of OpenClaw provider ids to route through the active Cutctx proxy in memory. Friendly aliases `codex`, `claude`, `copilot`, and `gemini` are also accepted. When set, this overrides the default `openai-codex` routing list. |
 
 ## Comparison with lossless-claw
 
-| | lossless-claw | headroom |
+| | lossless-claw | cutctx |
 |---|---|---|
 | Compaction method | LLM summarization (DAG) | Content-aware compression (zero LLM) |
 | Cost of compaction | Tokens (LLM calls) | Zero |
 | Best for | Long conversations | Tool-heavy agents with large outputs |
-| Retrieval | `lcm_grep`, `lcm_expand` | `headroom_retrieve` (instant) |
+| Retrieval | `lcm_grep`, `lcm_expand` | `cutctx_retrieve` (instant) |
 
 ## License
 

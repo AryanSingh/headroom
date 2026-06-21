@@ -70,16 +70,16 @@ def anthropic_llm():
     return ChatAnthropic(model=model, temperature=0)
 
 
-# --- HeadroomChatModel: invoke (sync) ---
+# --- CutctxChatModel: invoke (sync) ---
 
 
 class TestHeadroomChatModelLiveOpenAI:
-    """Live tests: HeadroomChatModel wrapping ChatOpenAI."""
+    """Live tests: CutctxChatModel wrapping ChatOpenAI."""
 
     def test_wrap_openai_and_invoke(self, openai_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         messages = [HumanMessage(content="Reply with exactly: OK")]
         response = model.invoke(messages)
 
@@ -94,18 +94,18 @@ class TestHeadroomChatModelLiveOpenAI:
 
     def test_invoke_with_string_input(self, openai_llm):
         """LangChain allows invoke(str); BaseChatModel converts to messages."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         response = model.invoke("Say hello in one word.")
         assert response is not None
         assert hasattr(response, "content")
         assert len(response.content) > 0
 
     def test_system_and_user_messages(self, openai_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         messages = [
             SystemMessage(content="You are a helpful assistant. Be very brief."),
             HumanMessage(content="What is 2+2? One number only."),
@@ -115,9 +115,9 @@ class TestHeadroomChatModelLiveOpenAI:
         assert "4" in response.content or "four" in response.content.lower()
 
     def test_get_savings_summary_after_calls(self, openai_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         model.invoke([HumanMessage(content="Hi")])
         summary = model.get_savings_summary()
         assert summary["total_requests"] >= 1
@@ -126,16 +126,16 @@ class TestHeadroomChatModelLiveOpenAI:
 
 
 class TestHeadroomChatModelLiveAnthropic:
-    """Live tests: HeadroomChatModel wrapping ChatAnthropic.
+    """Live tests: CutctxChatModel wrapping ChatAnthropic.
 
     If your Anthropic account does not have access to the default model,
     set ANTHROPIC_MODEL=your-model (e.g. claude-3-5-sonnet-20241022) in .env.
     """
 
     def test_wrap_anthropic_and_invoke(self, anthropic_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(anthropic_llm)
+        model = CutctxChatModel(anthropic_llm)
         messages = [HumanMessage(content="Reply with exactly: OK")]
         try:
             response = model.invoke(messages)
@@ -149,9 +149,9 @@ class TestHeadroomChatModelLiveAnthropic:
         assert len(model._metrics_history) >= 1
 
     def test_provider_detection_anthropic(self, anthropic_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(anthropic_llm)
+        model = CutctxChatModel(anthropic_llm)
         _ = model.pipeline
         assert model._provider is not None
         assert "anthropic" in model._provider.__class__.__name__.lower() or "anthropic" in str(
@@ -166,9 +166,9 @@ class TestHeadroomChatModelStreamingLive:
     """Live streaming tests."""
 
     def test_stream_openai(self, openai_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         messages = [HumanMessage(content="Count from 1 to 3, one number per line.")]
         chunks = list(model.stream(messages))
         assert len(chunks) >= 1
@@ -177,9 +177,9 @@ class TestHeadroomChatModelStreamingLive:
 
     @pytest.mark.asyncio
     async def test_astream_openai(self, openai_llm):
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         messages = [HumanMessage(content="Say 'stream' and nothing else.")]
         count = 0
         async for chunk in model.astream(messages):
@@ -196,7 +196,7 @@ class TestHeadroomChatModelToolCallsLive:
 
     def test_bind_tools_and_invoke_with_tool_output(self, openai_llm):
         """Simulate agent turn: user -> model (tool call) -> tool result -> model. We compress tool result."""
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         @tool
         def big_search(query: str) -> str:
@@ -213,7 +213,7 @@ class TestHeadroomChatModelToolCallsLive:
             )
 
         base = openai_llm.bind_tools([big_search])
-        model = HeadroomChatModel(base)
+        model = CutctxChatModel(base)
 
         # User asks something that may trigger tool use
         messages = [
@@ -232,12 +232,12 @@ class TestHeadroomChatModelToolCallsLive:
         assert len(model._metrics_history) >= 1
 
     def test_messages_with_tool_result_compressed(self, openai_llm):
-        """Conversation with tool call + large tool result; Headroom should compress the tool result."""
+        """Conversation with tool call + large tool result; Cutctx should compress the tool result."""
         import json
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         # Simulate: user -> assistant (tool call) -> tool (large result) -> user (follow-up)
         large_result = json.dumps([{"id": i, "data": "x" * 100} for i in range(100)])
         messages = [
@@ -276,9 +276,9 @@ class TestHeadroomLCELive:
         from langchain_core.output_parsers import StrOutputParser
         from langchain_core.prompts import ChatPromptTemplate
 
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
-        model = HeadroomChatModel(openai_llm)
+        model = CutctxChatModel(openai_llm)
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "You are helpful. Reply in one short sentence."),
@@ -295,7 +295,7 @@ class TestHeadroomLCELive:
 
 
 class TestOptimizeMessagesLive:
-    """Live optimize_messages with real Headroom pipeline (no API key needed for this)."""
+    """Live optimize_messages with real Cutctx pipeline (no API key needed for this)."""
 
     def test_optimize_messages_large_conversation(self):
         from headroom.integrations import optimize_messages

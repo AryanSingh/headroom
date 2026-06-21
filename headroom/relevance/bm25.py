@@ -1,4 +1,4 @@
-"""BM25 relevance scorer for Headroom SDK.
+"""BM25 relevance scorer for Cutctx SDK.
 
 This module provides a BM25-based relevance scorer with ZERO external dependencies.
 BM25 (Best Match 25) is a bag-of-words retrieval function that ranks documents

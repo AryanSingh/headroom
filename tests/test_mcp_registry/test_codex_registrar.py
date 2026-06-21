@@ -314,7 +314,7 @@ def test_unregister_preserves_user_managed_entry(tmp_path: Path) -> None:
     cfg.parent.mkdir()
     cfg.write_text('[mcp_servers.headroom]\ncommand = "/custom/headroom"\n')
     # No markers => unregister is a no-op.
-    assert _make_registrar(tmp_path).unregister_server("headroom") is False
+    assert _make_registrar(tmp_path).unregister_server("cutctx") is False
     assert "/custom/headroom" in cfg.read_text()
 
 

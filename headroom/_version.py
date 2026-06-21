@@ -45,7 +45,7 @@ def _source_tree_version(root: Path) -> str | None:
 
 
 def get_version() -> str:
-    """Return Headroom's runtime version."""
+    """Return Cutctx's runtime version."""
     root = _source_root()
     if root is not None:
         source_version = _source_tree_version(root)

@@ -1,4 +1,4 @@
-"""Anthropic provider implementation for Headroom SDK.
+"""Anthropic provider implementation for Cutctx SDK.
 
 Token counting uses Anthropic's official Token Count API when a client
 is provided. This gives accurate counts for all content types including

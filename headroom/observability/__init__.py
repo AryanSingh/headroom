@@ -1,7 +1,7 @@
-"""Operational observability helpers for Headroom."""
+"""Operational observability helpers for Cutctx."""
 
 from .metrics import (
-    HeadroomOtelMetrics,
+    CutctxOtelMetrics,
     OTelMetricsConfig,
     configure_otel_metrics,
     get_otel_metrics,
@@ -11,7 +11,7 @@ from .metrics import (
     shutdown_otel_metrics,
 )
 from .tracing import (
-    HeadroomTracer,
+    CutctxTracer,
     LangfuseTracingConfig,
     configure_langfuse_tracing,
     get_headroom_tracer,
@@ -21,12 +21,21 @@ from .tracing import (
     shutdown_headroom_tracing,
 )
 
+HeadroomOtelMetrics = CutctxOtelMetrics
+CutCtxOtelMetrics = CutctxOtelMetrics
+HeadroomTracer = CutctxTracer
+CutCtxTracer = CutctxTracer
+
 __all__ = [
+    "CutctxOtelMetrics",
+    "CutCtxOtelMetrics",
     "HeadroomOtelMetrics",
     "OTelMetricsConfig",
     "configure_otel_metrics",
     "get_otel_metrics",
     "get_otel_metrics_status",
+    "CutctxTracer",
+    "CutCtxTracer",
     "HeadroomTracer",
     "LangfuseTracingConfig",
     "configure_langfuse_tracing",

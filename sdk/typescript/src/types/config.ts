@@ -5,7 +5,7 @@
 
 // --- Enums ---
 
-export type HeadroomMode = "audit" | "optimize" | "simulate";
+export type CutCtxMode = "audit" | "optimize" | "simulate";
 
 export type RelevanceTier = "bm25" | "embedding" | "hybrid";
 
@@ -166,9 +166,9 @@ export interface CompressionProfile {
   maxK?: number | null;
 }
 
-export interface HeadroomConfig {
+export interface CutCtxConfig {
   storeUrl?: string;
-  defaultMode?: HeadroomMode;
+  defaultMode?: CutCtxMode;
   modelContextLimits?: Record<string, number>;
   toolCrusher?: ToolCrusherConfig;
   smartCrusher?: SmartCrusherConfig;

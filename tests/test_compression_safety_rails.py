@@ -25,7 +25,7 @@ import pytest
 
 from headroom import OpenAIProvider, Tokenizer
 from headroom.compress import compress
-from headroom.config import HeadroomConfig, TransformResult
+from headroom.config import CutctxConfig, TransformResult
 from headroom.tokenizer import Tokenizer as TokenizerType
 from headroom.transforms.base import Transform
 from headroom.transforms.content_router import ContentRouter, ContentRouterConfig

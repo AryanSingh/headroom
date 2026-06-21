@@ -1,9 +1,9 @@
 """Prompt Comparison System using LLM-as-Judge.
 
-This module provides tools to verify that Headroom preserves the semantic
+This module provides tools to verify that Cutctx preserves the semantic
 meaning of prompts by comparing prompts before and after processing.
 
-This is CRITICAL for proving that Headroom doesn't change the meaning of prompts
+This is CRITICAL for proving that Cutctx doesn't change the meaning of prompts
 when they go through the proxy.
 
 Usage:
@@ -75,8 +75,8 @@ class PromptComparisonResult:
     """Result of comparing two prompts for semantic equivalence.
 
     Attributes:
-        original: The original prompt before Headroom processing.
-        headroom_modified: The prompt after Headroom processing.
+        original: The original prompt before Cutctx processing.
+        headroom_modified: The prompt after Cutctx processing.
         are_equivalent: Whether the prompts are semantically equivalent.
         confidence: Confidence level of the judgment (HIGH, MEDIUM, LOW).
         differences: List of specific differences found between prompts.
@@ -223,8 +223,8 @@ def compare_prompts(
     to determine if they are semantically equivalent.
 
     Args:
-        original_prompt: The original prompt before Headroom processing.
-        headroom_modified_prompt: The prompt after Headroom processing.
+        original_prompt: The original prompt before Cutctx processing.
+        headroom_modified_prompt: The prompt after Cutctx processing.
         judge_model: The OpenAI model to use as judge (default: gpt-4o).
         api_key: OpenAI API key (uses OPENAI_API_KEY env var if not provided).
         metadata: Optional metadata to attach to the result.
@@ -348,8 +348,8 @@ class PromptComparer:
         """Compare two prompts and track the result.
 
         Args:
-            original_prompt: The original prompt before Headroom processing.
-            headroom_modified_prompt: The prompt after Headroom processing.
+            original_prompt: The original prompt before Cutctx processing.
+            headroom_modified_prompt: The prompt after Cutctx processing.
             metadata: Optional metadata to attach to the result.
 
         Returns:
@@ -399,8 +399,8 @@ class PromptComparer:
         """Compare two prompts and immediately log the result.
 
         Args:
-            original_prompt: The original prompt before Headroom processing.
-            headroom_modified_prompt: The prompt after Headroom processing.
+            original_prompt: The original prompt before Cutctx processing.
+            headroom_modified_prompt: The prompt after Cutctx processing.
             metadata: Optional metadata to attach to the result.
 
         Returns:
@@ -484,8 +484,8 @@ def compare_messages(
     This is useful for comparing full conversation histories, not just single prompts.
 
     Args:
-        original_messages: Original message list before Headroom.
-        modified_messages: Modified message list after Headroom.
+        original_messages: Original message list before Cutctx.
+        modified_messages: Modified message list after Cutctx.
         judge_model: The OpenAI model to use as judge.
         api_key: OpenAI API key.
 
@@ -591,15 +591,15 @@ def verify_headroom_preservation(
     api_key: str | None = None,
     fail_on_difference: bool = False,
 ) -> PromptComparisonResult:
-    """Verify that Headroom preserves the semantic meaning of a request.
+    """Verify that Cutctx preserves the semantic meaning of a request.
 
-    This is the main entry point for verifying Headroom's accuracy preservation.
-    It compares the original messages with those modified by Headroom and
+    This is the main entry point for verifying Cutctx's accuracy preservation.
+    It compares the original messages with those modified by Cutctx and
     raises an error if differences are found (when fail_on_difference=True).
 
     Args:
-        original_messages: Messages before Headroom processing.
-        headroom_messages: Messages after Headroom processing.
+        original_messages: Messages before Cutctx processing.
+        headroom_messages: Messages after Cutctx processing.
         judge_model: The model to use for judging.
         api_key: OpenAI API key.
         fail_on_difference: If True, raise an error when prompts differ.
@@ -611,7 +611,7 @@ def verify_headroom_preservation(
         ValueError: If fail_on_difference=True and prompts are not equivalent.
 
     Example:
-        # Capture messages before and after Headroom
+        # Capture messages before and after Cutctx
         original = [{"role": "user", "content": "Hello, how are you?"}]
         after_headroom = [{"role": "user", "content": "Hello, how are you?"}]
 
@@ -628,7 +628,7 @@ def verify_headroom_preservation(
 
     if fail_on_difference and not result.are_equivalent:
         raise ValueError(
-            f"Headroom modified prompt semantics! "
+            f"Cutctx modified prompt semantics! "
             f"Differences: {result.differences}. "
             f"Reasoning: {result.reasoning}"
         )

@@ -36,7 +36,7 @@ Send messages through CutCtx compression and return compressed messages.
 
 ### `retrieve(ref) → str`
 
-Fetch original content for a `[headroom:ref:HASH]` pointer.
+Fetch original content for a `[cutctx:ref:HASH]` pointer.
 
 ### `stats() → dict`
 

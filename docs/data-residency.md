@@ -15,7 +15,7 @@ what every field means.
 # Unsigned (informational)
 curl http://localhost:4000/v1/residency/proof?tenant_id=acme-corp
 
-# Signed (requires headroom_ee + HEADROOM_LICENSE_* env vars)
+# Signed (requires cutctx_ee + CUTCTX_LICENSE_* env vars)
 curl "http://localhost:4000/v1/residency/proof?tenant_id=acme-corp&sign=true"
 ```
 
@@ -36,7 +36,7 @@ curl "http://localhost:4000/v1/residency/proof?tenant_id=acme-corp&sign=true"
     "sensitive-file-paths (/etc/passwd, ~/.ssh/*)"
   ],
   "signature_hex": "4a7b…",             // Ed25519 signature, or null if unsigned
-  "signer_kid": "headroom-prod-2026"    // key ID used for signing, or null
+  "signer_kid": "cutctx-prod-2026"    // key ID used for signing, or null
 }
 ```
 
@@ -59,7 +59,7 @@ curl "http://localhost:4000/v1/residency/proof?tenant_id=acme-corp&sign=true"
 ## What is the audit chain tail hash?
 
 The **audit chain** is a tamper-evident append-only log stored in the
-`headroom_ee` audit database.  Every event row contains an `event_hash`
+`cutctx_ee` audit database.  Every event row contains an `event_hash`
 computed as:
 
 ```
@@ -163,9 +163,9 @@ pub  = priv.public_key()
 priv_hex = priv.private_bytes_raw().hex()
 pub_hex  = pub.public_bytes_raw().hex()
 
-print("HEADROOM_LICENSE_KID=my-key-id")
-print(f"HEADROOM_LICENSE_PRIVATE_KEY={priv_hex}")
-print(f"HEADROOM_LICENSE_PUBLIC_KEY={pub_hex}")
+print("CUTCTX_LICENSE_KID=my-key-id")
+print(f"CUTCTX_LICENSE_PRIVATE_KEY={priv_hex}")
+print(f"CUTCTX_LICENSE_PUBLIC_KEY={pub_hex}")
 ```
 
 Set these three variables in your environment / secret manager before starting
@@ -177,8 +177,8 @@ the proxy with `sign=true` attestation support.
 
 - **No raw content is ever stored** in an attestation — only hashes, region
   labels, domain patterns, and cryptographic signatures.
-- The `headroom/security/` module is **Apache-2.0** open-source.  The signing
-  and audit-chain integration lives in `headroom_ee` (commercial) and is only
+- The `cutctx/security/` module is **Apache-2.0** open-source.  The signing
+  and audit-chain integration lives in `cutctx_ee` (commercial) and is only
   invoked lazily when installed.
-- Attestations can be generated without `headroom_ee`; they will be unsigned
+- Attestations can be generated without `cutctx_ee`; they will be unsigned
   and the `audit_chain_tail_hash` will be `null`.

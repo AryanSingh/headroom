@@ -24,7 +24,7 @@ class CodexMemoryWriter(AgentWriter):
     def format_memories(self, memories: list[MemoryEntry]) -> str:
         """Format as AGENTS.md section."""
         lines = [
-            "## Headroom Learned Context",
+            "## Cutctx Learned Context",
             "",
         ]
 

@@ -204,7 +204,7 @@ def synthesize_payload(frame: Frame, turn_no: int) -> dict:
 
 
 def boot_proxy():
-    """Build a HeadroomProxy instance with optimize=True so the compression
+    """Build a CutctxProxy instance with optimize=True so the compression
     dispatch is actually exercised.
 
     This deliberately does NOT start the FastAPI server. We only need the

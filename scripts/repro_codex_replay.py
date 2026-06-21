@@ -20,7 +20,7 @@ phase ran for the requested duration, and ``/livez`` p99 stayed at or below the
 configured threshold (``--livez-threshold-ms``, default 500ms).
 
 The harness adds no new pip dependencies: it uses ``asyncio`` + ``websockets``
-+ ``httpx`` only, all already available in the Headroom dev environment.
++ ``httpx`` only, all already available in the Cutctx dev environment.
 """
 
 from __future__ import annotations
@@ -577,7 +577,7 @@ def format_summary(result: dict[str, Any]) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Reproducibly exercise the multi-agent Codex reconnect/retry "
-        "storm against a local Headroom proxy.",
+        "storm against a local Cutctx proxy.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

@@ -122,8 +122,8 @@ class TestClaudeCodeWriter:
         entries = _make_entries(3)
         formatted = writer.format_memories(entries)
 
-        assert "## Headroom Learned Context" in formatted
-        assert "Auto-maintained by Headroom" in formatted
+        assert "## Cutctx Learned Context" in formatted
+        assert "Auto-maintained by Cutctx" in formatted
         assert "Test memory entry" in formatted
 
     def test_export_dry_run(self, tmp_path: Path):
@@ -258,7 +258,7 @@ class TestCodexWriter:
         writer = CodexMemoryWriter()
         entries = _make_entries(3)
         formatted = writer.format_memories(entries)
-        assert "## Headroom Learned Context" in formatted
+        assert "## Cutctx Learned Context" in formatted
 
     def test_default_path(self, tmp_path: Path):
         writer = CodexMemoryWriter(project_path=tmp_path)

@@ -30,7 +30,7 @@ def test_build_plugin_entry_preserves_unmanaged_values_and_removes_empty_python_
     # Arrange
     existing_entry = {
         "enabled": False,
-        "name": "headroom",
+        "name": "cutctx",
         "config": {
             "keep": "value",
             "proxyUrl": "https://user.example",
@@ -51,7 +51,7 @@ def test_build_plugin_entry_preserves_unmanaged_values_and_removes_empty_python_
 
     # Assert
     assert entry["enabled"] is True
-    assert entry["name"] == "headroom"
+    assert entry["name"] == "cutctx"
     assert entry["config"] == {
         "keep": "value",
         "proxyUrl": "https://user.example",
@@ -91,7 +91,7 @@ def test_build_unwrap_entry_disables_plugin_and_removes_managed_keys_only() -> N
     # Arrange
     existing_entry = {
         "enabled": True,
-        "name": "headroom",
+        "name": "cutctx",
         "config": {
             "keep": "value",
             "gatewayProviderIds": ["openai-codex"],
@@ -109,7 +109,7 @@ def test_build_unwrap_entry_disables_plugin_and_removes_managed_keys_only() -> N
     # Assert
     assert entry == {
         "enabled": False,
-        "name": "headroom",
+        "name": "cutctx",
         "config": {"keep": "value"},
     }
 
@@ -129,7 +129,7 @@ def test_build_plugin_entry_strips_mcpServers_from_existing_entry() -> None:
     """
     existing_entry = {
         "enabled": True,
-        "name": "headroom",
+        "name": "cutctx",
         "mcpServers": {"some": "stale-block"},  # legacy, must be removed
         "config": {"keep": "value"},
     }
@@ -146,5 +146,5 @@ def test_build_plugin_entry_strips_mcpServers_from_existing_entry() -> None:
 
     assert "mcpServers" not in entry
     assert entry["enabled"] is True
-    assert entry["name"] == "headroom"
+    assert entry["name"] == "cutctx"
     assert entry["config"]["keep"] == "value"

@@ -1,5 +1,5 @@
 """
-Acceptance tests for Headroom SDK.
+Acceptance tests for Cutctx SDK.
 
 These are the 4 required acceptance tests from the spec:
 1. Date Trap Test

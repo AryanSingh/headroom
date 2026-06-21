@@ -4,7 +4,7 @@ The cleanest production setup for Strands is the same kit
 ``headroom wrap claude`` installs for Claude Code, restated as
 Strands-native primitives:
 
-* **Headroom MCP** (``headroom mcp serve``) — exposes
+* **Cutctx MCP** (``headroom mcp serve``) — exposes
   ``headroom_retrieve`` / ``headroom_compress`` / ``headroom_stats``
   via stdio. The proxy emits ``Retrieve original: hash=...`` markers
   in compressed content; the LLM calls ``headroom_retrieve`` when it
@@ -26,14 +26,14 @@ Pattern
 
     from strands import Agent
     from strands.models.openai import OpenAIModel
-    from headroom.integrations.strands import HeadroomBundle
+    from headroom.integrations.strands import CutctxBundle
 
     model = OpenAIModel(
         model_id="bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         client_args={"base_url": "http://127.0.0.1:8787/v1", "api_key": "x"},
     )
 
-    bundle = HeadroomBundle(proxy_url="http://127.0.0.1:8787")
+    bundle = CutctxBundle(proxy_url="http://127.0.0.1:8787")
     agent = Agent(
         model=model,
         tools=bundle.tools,    # Strands starts the MCP subprocesses on first use
@@ -72,14 +72,14 @@ from mcp import StdioServerParameters  # noqa: E402
 from mcp.client.stdio import stdio_client  # noqa: E402
 from strands.tools.mcp import MCPClient  # noqa: E402
 
-from headroom import HeadroomConfig
+from headroom import CutctxConfig
 from headroom.mcp_registry.install import (
     DEFAULT_PROXY_URL,
     build_headroom_spec,
     build_serena_spec,
 )
 
-from .hooks import HeadroomHookProvider
+from .hooks import CutctxHookProvider
 
 logger = logging.getLogger(__name__)
 
@@ -111,15 +111,15 @@ def _make_serena_client(context: str) -> MCPClient:
 
 
 @dataclass
-class HeadroomBundle:
-    """Single helper that hands a Strands Agent every Headroom integration.
+class CutctxBundle:
+    """Single helper that hands a Strands Agent every Cutctx integration.
 
     Attributes:
-        proxy_url: HTTP URL the Headroom MCP server should contact for
+        proxy_url: HTTP URL the Cutctx MCP server should contact for
             retrieval. Default :data:`DEFAULT_PROXY_URL`
             (``http://127.0.0.1:8787``).
         serena_context: Serena context label. Default ``"ide-assistant"``.
-        enable_headroom_mcp: Include the Headroom MCP server. Default True.
+        enable_headroom_mcp: Include the Cutctx MCP server. Default True.
         enable_serena_mcp: Include the Serena MCP server. Default True.
             Disabling skips the ``uvx`` first-launch download entirely.
         enable_hooks: Include :class:`HeadroomHookProvider` for in-place
@@ -148,17 +148,17 @@ class HeadroomBundle:
     # does the work" for the typical case. Flip on for long-running or
     # cross-host deploys.
     enable_hooks: bool = False
-    config: HeadroomConfig | None = None
+    config: CutctxConfig | None = None
 
     _headroom_mcp: MCPClient | None = field(default=None, init=False, repr=False, compare=False)
     _serena_mcp: MCPClient | None = field(default=None, init=False, repr=False, compare=False)
-    _hook: HeadroomHookProvider | None = field(default=None, init=False, repr=False, compare=False)
+    _hook: CutctxHookProvider | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.enable_headroom_mcp:
             self._headroom_mcp = _make_headroom_client(self.proxy_url)
             logger.info(
-                "HeadroomBundle: Headroom MCP client constructed (proxy_url=%s)",
+                "HeadroomBundle: Cutctx MCP client constructed (proxy_url=%s)",
                 self.proxy_url,
             )
         if self.enable_serena_mcp:
@@ -168,8 +168,8 @@ class HeadroomBundle:
                 self.serena_context,
             )
         if self.enable_hooks:
-            self._hook = HeadroomHookProvider(config=self.config)
-            logger.info("HeadroomBundle: HeadroomHookProvider attached")
+            self._hook = CutctxHookProvider(config=self.config)
+            logger.info("HeadroomBundle: CutctxHookProvider attached")
 
     @property
     def tools(self) -> list[Any]:
@@ -192,7 +192,7 @@ class HeadroomBundle:
 
     @property
     def headroom_mcp(self) -> MCPClient | None:
-        """Direct handle to the Headroom MCPClient (for advanced callers)."""
+        """Direct handle to the Cutctx MCPClient (for advanced callers)."""
         return self._headroom_mcp
 
     @property

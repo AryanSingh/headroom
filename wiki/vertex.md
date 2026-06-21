@@ -1,8 +1,8 @@
 # Vertex AI
 
-Headroom supports Google Cloud Vertex AI publisher endpoints through the proxy
+Cutctx supports Google Cloud Vertex AI publisher endpoints through the proxy
 passthrough surface. Configure the proxy with a regional Vertex base URL, then
-send normal Vertex REST requests through Headroom.
+send normal Vertex REST requests through Cutctx.
 
 Google documents Gemini generation on Vertex with `generateContent` and
 `streamGenerateContent`, and the request body uses the Vertex/Gemini `contents`
@@ -23,7 +23,7 @@ attached service accounts in that order. See:
 Set the Vertex regional host explicitly:
 
 ```bash
-headroom proxy --vertex-api-url https://us-central1-aiplatform.googleapis.com
+cutctx proxy --vertex-api-url https://us-central1-aiplatform.googleapis.com
 ```
 
 The same setting is available through `VERTEX_TARGET_API_URL`.
@@ -57,7 +57,7 @@ Supported passthrough actions:
 
 ## Anthropic Publisher On Vertex
 
-Headroom also forwards Anthropic publisher calls on Vertex:
+Cutctx also forwards Anthropic publisher calls on Vertex:
 
 - `rawPredict`
 - `streamRawPredict`

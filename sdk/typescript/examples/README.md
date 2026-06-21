@@ -1,6 +1,6 @@
 # cutctx-ai examples
 
-Runnable examples showing how to use the Headroom TypeScript SDK for context compression.
+Runnable examples showing how to use the Cutctx TypeScript SDK for context compression.
 
 ## Prerequisites
 
@@ -23,11 +23,11 @@ npx tsx examples/<filename>.ts
 
 | Example | Description |
 |---------|-------------|
-| [with-headroom-vercel.ts](with-headroom-vercel.ts) | One-liner `withHeadroom(openai('gpt-4o'))` — simplest integration |
-| [streaming-chat.ts](streaming-chat.ts) | `withHeadroom` + `streamText` for real-time streaming |
+| [with-cutctx-vercel.ts](with-cutctx-vercel.ts) | One-liner `withCutctx(openai('gpt-4o'))` — simplest integration |
+| [streaming-chat.ts](streaming-chat.ts) | `withCutctx` + `streamText` for real-time streaming |
 | [tool-calling-agent.ts](tool-calling-agent.ts) | Multi-step agent with tools, context auto-compressed each step |
 | [structured-output.ts](structured-output.ts) | Extract structured data with `Output.object()` from compressed context |
-| [middleware-composition.ts](middleware-composition.ts) | Stack `headroomMiddleware` with other middlewares (`extractReasoningMiddleware`) |
+| [middleware-composition.ts](middleware-composition.ts) | Stack `cutctxMiddleware` with other middlewares (`extractReasoningMiddleware`) |
 | [multi-provider.ts](multi-provider.ts) | Same compression across GPT-4o and GPT-4o-mini |
 
 ### Core SDK
@@ -44,4 +44,4 @@ npx tsx examples/<filename>.ts
 
 | Example | Description |
 |---------|-------------|
-| [openai-anthropic-adapters.ts](openai-anthropic-adapters.ts) | `withHeadroom` for native OpenAI and Anthropic SDKs (no Vercel AI SDK) |
+| [openai-anthropic-adapters.ts](openai-anthropic-adapters.ts) | `withCutctx` for native OpenAI and Anthropic SDKs (no Vercel AI SDK) |

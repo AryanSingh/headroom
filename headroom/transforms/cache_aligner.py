@@ -1,4 +1,4 @@
-"""Cache alignment detector for Headroom SDK.
+"""Cache alignment detector for Cutctx SDK.
 
 PR-A2 / P2-23 fix: This module is now a **detector-only** transform.
 

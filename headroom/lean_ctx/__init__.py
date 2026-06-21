@@ -1,7 +1,7 @@
-"""lean-ctx integration for Headroom.
+"""lean-ctx integration for Cutctx.
 
 lean-ctx configures supported coding agents to route tool output through its
-context-filtering layer. Headroom downloads and manages the lean-ctx binary.
+context-filtering layer. Cutctx downloads and manages the lean-ctx binary.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ LEAN_CTX_BIN_PATH = _paths.lean_ctx_path()
 
 
 def _managed_lean_ctx_candidates() -> list[Path]:
-    """Return known Headroom-managed lean-ctx binary paths."""
+    """Return known Cutctx-managed lean-ctx binary paths."""
     candidates = [LEAN_CTX_BIN_DIR / _LEAN_CTX_NAME]
     for name in ("lean-ctx", "lean-ctx.exe"):
         path = LEAN_CTX_BIN_DIR / name

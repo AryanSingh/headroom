@@ -133,7 +133,7 @@ CUTCTX_LEARN_CLI=gemini
 
 ### Savings telemetry contract
 
-External integrations that save tokens outside Headroom can report those
+External integrations that save tokens outside CutCtx can report those
 savings by sending `x-headroom-savings-metadata` to the local proxy. Use this
 for LiteLLM provider cache hits, GPTCache semantic-cache hits, vLLM APC prefix
 hits, and model-routing savings. See [Savings Telemetry](../savings-telemetry.md)

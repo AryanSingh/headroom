@@ -1,4 +1,4 @@
-"""OpenAI handler mixin for HeadroomProxy.
+"""OpenAI handler mixin for CutctxProxy.
 
 Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 """

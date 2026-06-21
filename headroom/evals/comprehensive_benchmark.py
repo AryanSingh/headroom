@@ -1,10 +1,10 @@
 """Comprehensive LLM Benchmarks using EleutherAI lm-evaluation-harness.
 
-This module runs industry-standard benchmarks to prove Headroom preserves accuracy.
+This module runs industry-standard benchmarks to prove Cutctx preserves accuracy.
 
 Approach:
 1. Run benchmarks directly against LLM provider (baseline)
-2. Run same benchmarks through Headroom proxy
+2. Run same benchmarks through Cutctx proxy
 3. Compare scores - goal is accuracy preserved or improved
 
 Supported benchmarks:
@@ -93,7 +93,7 @@ class BenchmarkResult:
 
 @dataclass
 class ComparisonResult:
-    """Comparison between baseline and Headroom results."""
+    """Comparison between baseline and Cutctx results."""
 
     task: str
     metric: str
@@ -106,12 +106,12 @@ class ComparisonResult:
 
     @property
     def accuracy_preserved(self) -> bool:
-        """True if Headroom score is within 2% of baseline."""
+        """True if Cutctx score is within 2% of baseline."""
         return self.headroom_score >= self.baseline_score - 0.02
 
     @property
     def accuracy_improved(self) -> bool:
-        """True if Headroom score exceeds baseline."""
+        """True if Cutctx score exceeds baseline."""
         return self.headroom_score > self.baseline_score
 
     def to_dict(self) -> dict[str, Any]:
@@ -119,7 +119,7 @@ class ComparisonResult:
             "task": self.task,
             "metric": self.metric,
             "baseline": round(self.baseline_score, 4),
-            "headroom": round(self.headroom_score, 4),
+            "cutctx": round(self.headroom_score, 4),
             "delta": round(self.delta, 4),
             "preserved": self.accuracy_preserved,
             "improved": self.accuracy_improved,
@@ -145,7 +145,7 @@ class BenchmarkSuiteResult:
 
     @property
     def avg_delta(self) -> float:
-        """Average score delta (positive = Headroom better)."""
+        """Average score delta (positive = Cutctx better)."""
         if not self.comparisons:
             return 0.0
         return sum(c.delta for c in self.comparisons) / len(self.comparisons)
@@ -157,7 +157,7 @@ class BenchmarkSuiteResult:
             "avg_delta": round(self.avg_delta, 4),
             "total_duration_seconds": round(self.total_duration_seconds, 2),
             "baseline": [r.to_dict() for r in self.baseline_results],
-            "headroom": [r.to_dict() for r in self.headroom_results],
+            "cutctx": [r.to_dict() for r in self.headroom_results],
             "comparisons": [c.to_dict() for c in self.comparisons],
         }
 
@@ -171,7 +171,7 @@ class BenchmarkSuiteResult:
         print()
 
         if self.comparisons:
-            print(f"{'Task':<20} {'Baseline':>10} {'Headroom':>10} {'Delta':>10} {'Status':>10}")
+            print(f"{'Task':<20} {'Baseline':>10} {'Cutctx':>10} {'Delta':>10} {'Status':>10}")
             print("-" * 70)
             for c in self.comparisons:
                 status = "PASS" if c.accuracy_preserved else "FAIL"
@@ -184,7 +184,7 @@ class BenchmarkSuiteResult:
             print()
             print(f"ALL BENCHMARKS PASSED: {'YES' if self.all_preserved else 'NO'}")
         else:
-            print("Headroom results only (no baseline comparison):")
+            print("Cutctx results only (no baseline comparison):")
             print(f"{'Task':<20} {'Score':>10} {'Metric':<15}")
             print("-" * 50)
             for r in self.headroom_results:
@@ -211,7 +211,7 @@ def run_lm_eval(
         num_fewshot: Number of few-shot examples
         limit: Limit samples per task (for quick testing)
         output_path: Where to save results
-        base_url: Base URL for API (for Headroom proxy)
+        base_url: Base URL for API (for Cutctx proxy)
 
     Returns:
         Dictionary with results from lm-eval
@@ -407,8 +407,8 @@ def run_headroom_benchmark(
     limit: int | None = None,
     headroom_port: int = 8787,
 ) -> list[BenchmarkResult]:
-    """Run benchmark through Headroom proxy."""
-    logger.info(f"Running Headroom benchmark with {model} through proxy...")
+    """Run benchmark through Cutctx proxy."""
+    logger.info(f"Running Cutctx benchmark with {model} through proxy...")
 
     # lm_eval expects base_url to be the full path to chat/completions
     base_url = f"http://localhost:{headroom_port}/v1/chat/completions"
@@ -433,7 +433,7 @@ def compare_results(
     baseline: list[BenchmarkResult],
     headroom: list[BenchmarkResult],
 ) -> list[ComparisonResult]:
-    """Compare baseline and Headroom results."""
+    """Compare baseline and Cutctx results."""
     comparisons = []
 
     # Match results by task
@@ -470,7 +470,7 @@ def run_comprehensive_benchmark(
         tasks: List of benchmark tasks
         limit: Limit samples per task (for quick testing)
         compare_baseline: Whether to run baseline comparison
-        headroom_port: Port where Headroom proxy is running
+        headroom_port: Port where Cutctx proxy is running
 
     Returns:
         BenchmarkSuiteResult with all results
@@ -481,7 +481,7 @@ def run_comprehensive_benchmark(
     suite = BenchmarkSuiteResult(model=model)
 
     # Run baseline FIRST to warm up OpenAI infrastructure (KV cache, prefix caching)
-    # This ensures a fair comparison - any speedup from Headroom is real, not from warm cache
+    # This ensures a fair comparison - any speedup from Cutctx is real, not from warm cache
     if compare_baseline:
         suite.baseline_results = run_baseline_benchmark(
             model=model,
@@ -489,7 +489,7 @@ def run_comprehensive_benchmark(
             limit=limit,
         )
 
-    # Run Headroom benchmark (after baseline warms things up)
+    # Run Cutctx benchmark (after baseline warms things up)
     suite.headroom_results = run_headroom_benchmark(
         model=model,
         tasks=tasks,
@@ -506,7 +506,7 @@ def run_comprehensive_benchmark(
 
 
 def check_headroom_proxy(port: int = 8787) -> bool:
-    """Check if Headroom proxy is running."""
+    """Check if Cutctx proxy is running."""
     import socket
 
     try:
@@ -535,7 +535,7 @@ def main() -> None:
     _load_env()
 
     parser = argparse.ArgumentParser(
-        description="Run comprehensive LLM benchmarks to verify Headroom accuracy"
+        description="Run comprehensive LLM benchmarks to verify Cutctx accuracy"
     )
     parser.add_argument(
         "--model", "-m", default="gpt-4o-mini", help="Model to benchmark (default: gpt-4o-mini)"
@@ -551,14 +551,14 @@ def main() -> None:
     )
     parser.add_argument("--limit", "-l", type=int, default=None, help="Limit samples per task")
     parser.add_argument(
-        "--compare", "-c", action="store_true", help="Compare with baseline (run without Headroom)"
+        "--compare", "-c", action="store_true", help="Compare with baseline (run without Cutctx)"
     )
     parser.add_argument(
-        "--port", "-p", type=int, default=8787, help="Headroom proxy port (default: 8787)"
+        "--port", "-p", type=int, default=8787, help="Cutctx proxy port (default: 8787)"
     )
     parser.add_argument("--output", "-o", default=None, help="Output file for results JSON")
     parser.add_argument(
-        "--headroom-only", action="store_true", help="Only run through Headroom (skip baseline)"
+        "--headroom-only", action="store_true", help="Only run through Cutctx (skip baseline)"
     )
 
     args = parser.parse_args()
@@ -576,7 +576,7 @@ def main() -> None:
 
     # Check proxy is running
     if not check_headroom_proxy(args.port):
-        print(f"ERROR: Headroom proxy not running on port {args.port}")
+        print(f"ERROR: Cutctx proxy not running on port {args.port}")
         print(f"Start it with: headroom proxy --port {args.port}")
         sys.exit(1)
 

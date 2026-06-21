@@ -1,7 +1,7 @@
-"""Strands SDK model wrapper for Headroom optimization.
+"""Strands SDK model wrapper for Cutctx optimization.
 
-This module provides HeadroomStrandsModel, which wraps any Strands model
-to apply Headroom context optimization before API calls.
+This module provides CutctxStrandsModel, which wraps any Strands model
+to apply Cutctx context optimization before API calls.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ except ImportError:
 
 T = TypeVar("T")
 
-from headroom import HeadroomConfig  # noqa: E402
+from headroom import CutctxConfig  # noqa: E402
 from headroom.providers import OpenAIProvider  # noqa: E402
 from headroom.transforms import TransformPipeline  # noqa: E402
 
@@ -71,8 +71,8 @@ class OptimizationMetrics:
     model: str
 
 
-class HeadroomStrandsModel(Model):  # type: ignore[misc]
-    """Strands model wrapper that applies Headroom optimizations.
+class CutctxStrandsModel(Model):  # type: ignore[misc]
+    """Strands model wrapper that applies Cutctx optimizations.
 
     Wraps any Strands Model and automatically optimizes the context
     before each API call. Works with any Strands-compatible model provider.
@@ -80,11 +80,11 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
     Example:
         from strands import Agent
         from strands.models.bedrock import BedrockModel
-        from headroom.integrations.strands import HeadroomStrandsModel
+        from headroom.integrations.strands import CutctxStrandsModel
 
         # Basic usage
         model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-        optimized = HeadroomStrandsModel(wrapped_model=model)
+        optimized = CutctxStrandsModel(wrapped_model=model)
 
         # Use with agent
         agent = Agent(model=optimized)
@@ -94,9 +94,9 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         print(f"Saved {optimized.total_tokens_saved} tokens")
 
         # With custom config
-        from headroom import HeadroomConfig
-        config = HeadroomConfig()
-        optimized = HeadroomStrandsModel(wrapped_model=model, config=config)
+        from headroom import CutctxConfig
+        config = CutctxConfig()
+        optimized = CutctxStrandsModel(wrapped_model=model, config=config)
 
     Attributes:
         wrapped_model: The underlying Strands model
@@ -107,15 +107,15 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
     def __init__(
         self,
         wrapped_model: Any,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
         auto_detect_provider: bool = True,
     ) -> None:
-        """Initialize HeadroomStrandsModel.
+        """Initialize CutctxStrandsModel.
 
         Args:
             wrapped_model: The Strands model to wrap (e.g., BedrockModel, OpenAIModel)
-            config: Optional HeadroomConfig for optimization settings
-            auto_detect_provider: Whether to auto-detect the Headroom provider
+            config: Optional CutctxConfig for optimization settings
+            auto_detect_provider: Whether to auto-detect the Cutctx provider
                 based on the wrapped model type. Default True.
         """
         _check_strands_available()
@@ -124,7 +124,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
             raise ValueError("wrapped_model cannot be None")
 
         self.wrapped_model = wrapped_model
-        self.headroom_config = config or HeadroomConfig()
+        self.headroom_config = config or CutctxConfig()
         self.auto_detect_provider = auto_detect_provider
 
         # Internal state
@@ -170,7 +170,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         return self._metrics_history.copy()
 
     def _convert_messages_to_openai(self, messages: list[Any]) -> list[dict[str, Any]]:
-        """Convert Strands messages to OpenAI format for Headroom.
+        """Convert Strands messages to OpenAI format for Cutctx.
 
         Strands uses dict-based messages similar to OpenAI format:
         - {"role": "user", "content": "..."}
@@ -286,7 +286,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
     def _optimize_messages(
         self, messages: list[Any]
     ) -> tuple[list[dict[str, Any]], OptimizationMetrics]:
-        """Apply Headroom optimization to messages.
+        """Apply Cutctx optimization to messages.
 
         Thread-safe with fallback on pipeline errors.
 
@@ -327,7 +327,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         )
 
         try:
-            # Apply Headroom transforms via pipeline
+            # Apply Cutctx transforms via pipeline
             result = self.pipeline.apply(
                 messages=openai_messages,
                 model=model,
@@ -349,7 +349,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         ) as e:
             # Fallback to original messages on pipeline error
             logger.warning(
-                f"Headroom optimization failed, using original messages: {type(e).__name__}: {e}"
+                f"Cutctx optimization failed, using original messages: {type(e).__name__}: {e}"
             )
             optimized = openai_messages
             # Estimate token count (rough approximation: ~4 chars/token)
@@ -395,7 +395,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         invocation_state: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> AsyncIterable[StreamEvent]:
-        """Stream response with Headroom optimization.
+        """Stream response with Cutctx optimization.
 
         This is the main method required by Strands Model interface.
         Optimizes messages before delegating to the wrapped model's stream method.
@@ -419,7 +419,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         )
 
         logger.info(
-            f"Headroom optimized (stream): {metrics.tokens_before} -> "
+            f"Cutctx optimized (stream): {metrics.tokens_before} -> "
             f"{metrics.tokens_after} tokens ({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -458,7 +458,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         system_prompt: str | None = None,
         **kwargs: Any,
     ) -> AsyncGenerator[dict[str, T | Any], None]:
-        """Generate structured output with Headroom optimization.
+        """Generate structured output with Cutctx optimization.
 
         Optimizes the prompt messages before delegating to the wrapped model's
         structured_output method.
@@ -479,7 +479,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
         )
 
         logger.info(
-            f"Headroom optimized (structured_output): {metrics.tokens_before} -> "
+            f"Cutctx optimized (structured_output): {metrics.tokens_before} -> "
             f"{metrics.tokens_after} tokens ({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -545,7 +545,7 @@ class HeadroomStrandsModel(Model):  # type: ignore[misc]
 
 def optimize_messages(
     messages: list[Any],
-    config: HeadroomConfig | None = None,
+    config: CutctxConfig | None = None,
     model: str = "gpt-4o",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Standalone function to optimize Strands messages.
@@ -554,7 +554,7 @@ def optimize_messages(
 
     Args:
         messages: List of Strands messages (dicts)
-        config: HeadroomConfig for optimization settings
+        config: CutctxConfig for optimization settings
         model: Model name for token estimation
 
     Returns:
@@ -573,7 +573,7 @@ def optimize_messages(
     """
     _check_strands_available()
 
-    config = config or HeadroomConfig()
+    config = config or CutctxConfig()
     provider = OpenAIProvider()
     pipeline = TransformPipeline(config=config, provider=provider)
 

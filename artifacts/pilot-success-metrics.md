@@ -1,4 +1,4 @@
-# Headroom Pilot Success Metrics & Reporting Format
+# Cutctx Pilot Success Metrics & Reporting Format
 
 **Date:** June 13, 2026  
 **Purpose:** Standardized framework for measuring and reporting pilot value
@@ -22,9 +22,9 @@ Every pilot must have measurable success criteria defined before deployment:
 
 ---
 
-## Baseline Metrics (Pre-Headroom)
+## Baseline Metrics (Pre-Cutctx)
 
-Capture these BEFORE deploying Headroom:
+Capture these BEFORE deploying Cutctx:
 
 ### Usage Metrics
 | Metric | How to Measure | Example |
@@ -47,9 +47,9 @@ Capture these BEFORE deploying Headroom:
 
 ---
 
-## During-Headroom Metrics
+## During-Cutctx Metrics
 
-### Compression Metrics (from Headroom /stats)
+### Compression Metrics (from Cutctx /stats)
 | Metric | Source | Target |
 |--------|--------|--------|
 | Compression ratio | /stats endpoint | >60% |
@@ -65,7 +65,7 @@ Capture these BEFORE deploying Headroom:
 | Output quality (subjective) | User feedback survey | "Same or better" |
 | Context-limit errors | Agent error logs | Reduced by >50% |
 | Retry rate | Agent logs | Reduced by >30% |
-| Compression rollbacks | Headroom logs | <2% of requests |
+| Compression rollbacks | Cutctx logs | <2% of requests |
 | Agent failure rate | Agent logs | No increase |
 
 ### Governance Metrics
@@ -79,8 +79,8 @@ Capture these BEFORE deploying Headroom:
 ### Performance Metrics
 | Metric | How to Measure | Target |
 |--------|---------------|--------|
-| Proxy latency (p50) | Headroom logs | <15ms |
-| Proxy latency (p99) | Headroom logs | <100ms |
+| Proxy latency (p50) | Cutctx logs | <15ms |
+| Proxy latency (p99) | Cutctx logs | <100ms |
 | End-to-end agent latency | Agent timing | <5% increase |
 | Memory usage | System monitoring | <500MB |
 
@@ -142,7 +142,7 @@ Capture these BEFORE deploying Headroom:
 
 #### ROI Summary
 
-| Metric | Baseline | Post-Headroom | Improvement | Annual Value |
+| Metric | Baseline | Post-Cutctx | Improvement | Annual Value |
 |--------|----------|---------------|-------------|--------------|
 | Monthly LLM spend | $15,000 | $6,750 | -55% | $99,000 saved |
 | Context-limit errors | 48/month | 12/month | -75% | — |

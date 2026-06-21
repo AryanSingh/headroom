@@ -48,7 +48,7 @@ curl -X POST http://localhost:8787/v1/chat/completions \
   }'
 ```
 
-**Verify:** Response headers include `X-Headroom-Version`, `X-Headroom-Tokens-Saved` (if compression applied).
+**Verify:** Response headers include `X-CutCtx-Version`, `X-CutCtx-Tokens-Saved` (if compression applied).
 
 ---
 
@@ -147,7 +147,7 @@ cutctx mcp serve
 
 # Test via Claude Code
 claude mcp add headroom -s user -- cutctx mcp serve
-# Then in Claude Code: use headroom_retrieve, cutctx_status, cutctx_compress tools
+# Then in Claude Code: use cutctx_retrieve, cutctx_status, cutctx_compress tools
 ```
 
 ---

@@ -40,7 +40,7 @@ class AgentSavingsProfile:
         return round(self.target_savings * 100)
 
     def proxy_env(self) -> dict[str, str]:
-        """Return env vars for Headroom proxy/wrapper entry points."""
+        """Return env vars for Cutctx proxy/wrapper entry points."""
 
         return {
             "HEADROOM_MODE": self.proxy_mode,

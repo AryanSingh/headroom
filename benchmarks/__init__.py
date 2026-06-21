@@ -1,6 +1,6 @@
-"""Headroom SDK Benchmark Suite.
+"""Cutctx SDK Benchmark Suite.
 
-This package provides performance benchmarks for Headroom transforms and relevance
+This package provides performance benchmarks for Cutctx transforms and relevance
 scorers. Benchmarks use pytest-benchmark for accurate timing measurements.
 
 Usage:

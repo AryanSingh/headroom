@@ -19,14 +19,14 @@ version = "0.26.0"
 description = "CutCtx commercial (enterprise edition) components — proprietary, All Rights Reserved."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "LicenseRef-Headroom-Commercial" }
+license = { text = "LicenseRef-CutCtx-Commercial" }
 authors = [{ name = "Payzli Inc. (operating as CutCtx Labs)" }]
 classifiers = [
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "cutctx-ai",              # the open-source Apache-2.0 client (published as cutctx-ai / headroom-ai)
+    "cutctx-ai",              # the open-source Apache-2.0 client (published as cutctx-ai; legacy headroom-ai remains compatible)
     "cryptography>=41.0.0",   # trial/seat state + license verification
     "PyJWT[crypto]>=2.8.0",   # required for SSO OIDC signature verification (Blocker-4 fix in headroom_ee/sso.py)
 ]

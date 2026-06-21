@@ -29,7 +29,7 @@ def runner() -> CliRunner:
 
 @pytest.fixture
 def wrap_modules(monkeypatch: pytest.MonkeyPatch) -> tuple[types.ModuleType, click.Group]:
-    headroom_pkg = sys.modules.get("headroom")
+    headroom_pkg = sys.modules.get("cutctx")
     saved_headroom_cli_attr = (
         headroom_pkg.cli if headroom_pkg is not None and hasattr(headroom_pkg, "cli") else None
     )

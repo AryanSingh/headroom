@@ -1,5 +1,5 @@
 /**
- * Headroom OpenClaw Plugin — register ContextEngine + CCR retrieval tool.
+ * CutCtx OpenClaw Plugin — register ContextEngine + CCR retrieval tool.
  *
  * Usage:
  *   openclaw plugins install cutctx-openclaw
@@ -15,13 +15,13 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HeadroomContextEngine } from "../engine.js";
+import { CutCtxContextEngine } from "../engine.js";
 import {
   applyGatewayProviderBaseUrlsInPlace,
   resolveGatewayProviderIds,
 } from "../gateway-config.js";
 import { normalizeAndValidateProxyUrl } from "../proxy-manager.js";
-import { createHeadroomRetrieveTool } from "../tools/headroom-retrieve.js";
+import { createCutCtxRetrieveTool } from "../tools/headroom-retrieve.js";
 
 export default function headroomPlugin(api: any) {
   const config = api.config?.plugins?.entries?.headroom?.config ?? {};
@@ -32,7 +32,7 @@ export default function headroomPlugin(api: any) {
       ? normalizeAndValidateProxyUrl(rawProxyUrl)
       : undefined;
 
-  const engine = new HeadroomContextEngine({ ...config, proxyUrl }, {
+  const engine = new CutCtxContextEngine({ ...config, proxyUrl }, {
     info: (m: string) => logger.info(m),
     warn: (m: string) => logger.warn(m),
     error: (m: string) => logger.error(m),
@@ -50,7 +50,7 @@ export default function headroomPlugin(api: any) {
 
       if (changed) {
         logger.info(
-          `[headroom] Routed ${gatewayProviderIds.join(", ")} through Headroom proxy in memory at ${activeProxyUrl}`,
+          `[headroom] Routed ${gatewayProviderIds.join(", ")} through CutCtx proxy in memory at ${activeProxyUrl}`,
         );
       } else {
         logger.info(
@@ -83,7 +83,7 @@ export default function headroomPlugin(api: any) {
   api.registerTool((ctx: any) => {
     const activeProxyUrl = engine.getProxyUrl() ?? proxyUrl;
     if (!activeProxyUrl) return null;
-    return createHeadroomRetrieveTool({ proxyUrl: activeProxyUrl });
+    return createCutCtxRetrieveTool({ proxyUrl: activeProxyUrl });
   });
 
   api.on("gateway_start", async () => {

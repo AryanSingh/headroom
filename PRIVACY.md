@@ -25,7 +25,7 @@ Your data stays on your infrastructure. Period.
 
 ### 3.1 Optional Aggregate Telemetry (When Enabled)
 
-If you explicitly opt in to telemetry (via `HEADROOM_TELEMETRY=1` or license activation), we receive:
+If you explicitly opt in to telemetry (via `CUTCTX_TELEMETRY=1` or license activation), we receive:
 
 - Request counts and token savings (aggregate numbers only)
 - Model distribution (which models are used, not what was sent)

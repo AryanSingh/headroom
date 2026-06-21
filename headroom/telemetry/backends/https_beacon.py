@@ -1,6 +1,6 @@
 """HTTPS Beacon backend for telemetry egress.
 
-Transmits federated insights (labels) to Headroom.
+Transmits federated insights (labels) to Cutctx.
 Includes protections to ensure NO RAW TEXT is ever transmitted.
 """
 

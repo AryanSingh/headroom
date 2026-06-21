@@ -81,7 +81,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 | Admin auth (auto-generated key) | Secure-by-default, all 80 routes gated |
 | CORS lockdown | Configurable origins, default closed |
 | Body limit | 50MB (was 100MB) in Python + Rust |
-| Test mode bypass removed | Tests use HEADROOM_ADMIN_API_KEY instead |
+| Test mode bypass removed | Tests use CUTCTX_ADMIN_API_KEY instead |
 | Decompression bomb protection | Streaming with intermediate size caps |
 | SQL column allowlist | org.py + scim.py validated |
 | SSRF fix | Base URL allowlist in structured_output.py |
@@ -103,7 +103,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 | Feature | Module | Pipeline Status | Tests |
 |---------|--------|-----------------|-------|
 | Structured Output | structured_output.py | Post-validation (streaming + non-streaming) | 10 |
-| Multi-Model Ensemble | ensemble.py | X-Headroom-Ensemble header triggered | 6 |
+| Multi-Model Ensemble | ensemble.py | X-Cutctx-Ensemble header triggered | 6 |
 | Budget Cut-offs | budget.py | Wired into streaming generate() | 8 |
 
 ### Capability Extensions (v0.26.0+)
@@ -142,8 +142,8 @@ All code-level implementation is complete. The codebase has a production-grade R
 | Claude Code | plugins/claude-code/ | install.sh, hooks, plugin.json — cutctx MCP |
 | Codex | plugins/codex/ | install.sh, plugin.json — config.toml provider |
 | CutCtx Plugin (web UI) | plugins/cutctx-plugin/ | .claude-plugin + skills/compress |
-| headroom-agent-hooks | plugins/headroom-agent-hooks/ | Legacy hooks |
-| headroom-oauth2 | plugins/headroom-oauth2/ | OAuth2 pip package |
+| cutctx-agent-hooks | plugins/cutctx-agent-hooks/ | Legacy hooks |
+| cutctx-oauth2 | plugins/cutctx-oauth2/ | OAuth2 pip package |
 | hermes | plugins/hermes/ | Hermes agent plugin |
 | openclaw | plugins/openclaw/ | TypeScript agent plugin |
 
@@ -159,7 +159,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 | server.py split | admin routes extracted | 6152 → 4061 lines |
 | Admin routes module | routes/admin.py | ~1600 lines, ~50 routes |
 | OpenAI handler split | 7-file package | Was 6171-line monolith |
-| API versioning | X-Headroom-Version header | Middleware added |
+| API versioning | X-Cutctx-Version header | Middleware added |
 | Request ID propagation | X-Request-ID | Through middleware stack |
 | Intelligence status | GET /intelligence/status | All 6 feature flags |
 
@@ -175,8 +175,8 @@ All code-level implementation is complete. The codebase has a production-grade R
 ### Testing
 | Suite | Count | Status |
 |-------|-------|--------|
-| Rust headroom-core | 937 | 0 failures, 3 ignored |
-| Rust headroom-proxy (lib) | 246 | 0 failures |
+| Rust cutctx-core | 937 | 0 failures, 3 ignored |
+| Rust cutctx-proxy (lib) | 246 | 0 failures |
 | Python (full) | 6,569 | 1 pre-existing failure |
 | Enterprise/security | 448 | 0 failures |
 | Intelligence layer | 138 | 0 failures (66 unit + 29 pipeline + 43 E2E) |
@@ -207,7 +207,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 - Legal templates — MSA + DPA
 - Go SDK — sdk/go/ (Client, 7 tests)
 - Design partner outreach — docs/gtm/DESIGN_PARTNER_OUTREACH.md
-- Upgrade prompt — headroom/cli/upgrade_prompt.py
+- Upgrade prompt — cutctx/cli/upgrade_prompt.py
 - Billing webhook — scripts/issue_license_from_webhook.py
 - CutCtx rebrand — All CI/CD, Docker, K8s, Helm, pyproject.toml
 
@@ -287,14 +287,14 @@ b1a25c5 chore: commit remaining uncommitted changes — rebranding, Helm, Go SDK
 0cc598e feat: close all PRODUCT_CAPABILITY_MATRIX gaps — enterprise admin UI, expanded MCP, CLI commands, rebrand to CutCtx
 386db7a docs: corrected product capability matrix — CLI has 14 subcommands, dashboard exists
 612637c docs: product capability matrix — 49 features mapped, 19 gaps identified
-6eeb468 fix: cutctx plugin — rename headroom→cutctx CLI refs, add auto-start proxy
+6eeb468 fix: cutctx plugin — rename cutctx→cutctx CLI refs, add auto-start proxy
 d23c252 feat: CutCtx Claude.ai skill plugin — uploadable ZIP for web UI
 6238a08 fix: Claude Code plugin — use claude mcp add for proper CLI registration
 8c31b18 feat: Claude Code + Codex plugins — install/uninstall, hooks, MCP integration
 d92107b docs: comprehensive status update — CHANGELOG with all v0.26.0 features
 791135a test: fix kompress order-dependent test
 0114853 feat: complete remaining AGENT_TASKS (6-14)
-c5a75f0 chore: rebrand headroom → cutctx across CI/CD, Docker, K8s, Helm, docs
+c5a75f0 chore: rebrand cutctx → cutctx across CI/CD, Docker, K8s, Helm, docs
 26a46df refactor: extract admin routes + add rate limiting middleware + CCR store bridge
 7612c53 docs: full E2E test + production audit report
 bcd67bb feat: pipeline wiring, openai split, integration tests, test fixes

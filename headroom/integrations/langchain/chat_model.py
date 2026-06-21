@@ -1,4 +1,4 @@
-"""LangChain integration for Headroom SDK.
+"""LangChain integration for Cutctx SDK.
 
 This module provides seamless integration with LangChain, enabling automatic
 context optimization for any LangChain chat model.
@@ -8,20 +8,20 @@ https://github.com/langchain-ai/langchain/issues/8725). Therefore, we wrap
 the chat model itself to intercept and transform messages.
 
 Components:
-1. HeadroomChatModel - Wraps any BaseChatModel to apply Headroom transforms
-2. HeadroomCallbackHandler - Tracks metrics and token usage (observability only)
-3. HeadroomRunnable - LCEL-compatible Runnable for chain composition
+1. CutctxChatModel - Wraps any BaseChatModel to apply Cutctx transforms
+2. CutctxCallbackHandler - Tracks metrics and token usage (observability only)
+3. CutctxRunnable - LCEL-compatible Runnable for chain composition
 4. optimize_messages() - Standalone function for manual optimization
 
 Example:
     from langchain_openai import ChatOpenAI
-    from headroom.integrations import HeadroomChatModel
+    from headroom.integrations import CutctxChatModel
 
     # Wrap any LangChain chat model
     llm = ChatOpenAI(model="gpt-4o")
-    optimized_llm = HeadroomChatModel(llm)
+    optimized_llm = CutctxChatModel(llm)
 
-    # Use normally - Headroom automatically optimizes context
+    # Use normally - Cutctx automatically optimizes context
     response = optimized_llm.invoke("What is 2+2?")
 """
 
@@ -60,7 +60,7 @@ except ImportError:
     Field = lambda **kwargs: None  # type: ignore[assignment]  # noqa: E731
     PrivateAttr = lambda **kwargs: None  # type: ignore[assignment]  # noqa: E731
 
-from headroom import HeadroomConfig, HeadroomMode
+from headroom import CutctxConfig, CutctxMode
 from headroom.providers import OpenAIProvider
 from headroom.transforms import TransformPipeline
 
@@ -114,11 +114,11 @@ class OptimizationMetrics:
     model: str
 
 
-class HeadroomChatModel(BaseChatModel):
-    """LangChain chat model wrapper that applies Headroom optimizations.
+class CutctxChatModel(BaseChatModel):
+    """LangChain chat model wrapper that applies Cutctx optimizations.
 
     Wraps any LangChain BaseChatModel and automatically optimizes the context
-    before each API call. This is the recommended way to use Headroom with
+    before each API call. This is the recommended way to use Cutctx with
     LangChain because:
 
     1. Callbacks cannot modify messages (LangChain design limitation)
@@ -127,32 +127,32 @@ class HeadroomChatModel(BaseChatModel):
 
     Example:
         from langchain_openai import ChatOpenAI
-        from headroom.integrations import HeadroomChatModel
+        from headroom.integrations import CutctxChatModel
 
         # Basic usage
         llm = ChatOpenAI(model="gpt-4o")
-        optimized = HeadroomChatModel(llm)
+        optimized = CutctxChatModel(llm)
         response = optimized.invoke([HumanMessage("Hello!")])
 
         # With custom config
-        from headroom import HeadroomConfig, HeadroomMode
-        config = HeadroomConfig(default_mode=HeadroomMode.OPTIMIZE)
-        optimized = HeadroomChatModel(llm, config=config)
+        from headroom import CutctxConfig, CutctxMode
+        config = CutctxConfig(default_mode=CutctxMode.OPTIMIZE)
+        optimized = CutctxChatModel(llm, config=config)
 
         # Access metrics
         print(f"Saved {optimized.total_tokens_saved} tokens")
 
     Attributes:
         wrapped_model: The underlying LangChain chat model
-        headroom_client: HeadroomClient instance for optimization
+        headroom_client: CutctxClient instance for optimization
         metrics_history: List of OptimizationMetrics from recent calls
         total_tokens_saved: Running total of tokens saved
     """
 
     # Pydantic model fields
     wrapped_model: Any = Field(description="The wrapped LangChain chat model")
-    headroom_config: Any = Field(default=None, description="Headroom configuration")
-    mode: HeadroomMode = Field(default=HeadroomMode.OPTIMIZE, description="Headroom mode")
+    headroom_config: Any = Field(default=None, description="Cutctx configuration")
+    mode: CutctxMode = Field(default=CutctxMode.OPTIMIZE, description="Cutctx mode")
     auto_detect_provider: bool = Field(
         default=True,
         description="Auto-detect provider from wrapped model (OpenAI, Anthropic, Google)",
@@ -170,28 +170,28 @@ class HeadroomChatModel(BaseChatModel):
     def __init__(
         self,
         wrapped_model: BaseChatModel,
-        config: HeadroomConfig | None = None,
-        mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+        config: CutctxConfig | None = None,
+        mode: CutctxMode = CutctxMode.OPTIMIZE,
         auto_detect_provider: bool = True,
         **kwargs: Any,
     ) -> None:
-        """Initialize HeadroomChatModel.
+        """Initialize CutctxChatModel.
 
         Args:
             wrapped_model: Any LangChain BaseChatModel to wrap
-            config: HeadroomConfig for optimization settings
-            mode: HeadroomMode (AUDIT, OPTIMIZE, or SIMULATE)
+            config: CutctxConfig for optimization settings
+            mode: CutctxMode (AUDIT, OPTIMIZE, or SIMULATE)
             auto_detect_provider: Auto-detect provider from wrapped model.
                 When True (default), automatically detects if the wrapped model
                 is OpenAI, Anthropic, Google, etc. and uses the appropriate
-                Headroom provider for accurate token counting.
+                Cutctx provider for accurate token counting.
             **kwargs: Additional arguments passed to BaseChatModel
         """
         _check_langchain_available()
 
         super().__init__(  # type: ignore[call-arg]
             wrapped_model=wrapped_model,
-            headroom_config=config or HeadroomConfig(),
+            headroom_config=config or CutctxConfig(),
             mode=mode,
             auto_detect_provider=auto_detect_provider,
             **kwargs,
@@ -245,7 +245,7 @@ class HeadroomChatModel(BaseChatModel):
         return self._metrics_history.copy()
 
     def _convert_messages_to_openai(self, messages: list[BaseMessage]) -> list[dict[str, Any]]:
-        """Convert LangChain messages to OpenAI format for Headroom."""
+        """Convert LangChain messages to OpenAI format for Cutctx."""
         result = []
         for msg in messages:
             if isinstance(msg, SystemMessage):
@@ -320,7 +320,7 @@ class HeadroomChatModel(BaseChatModel):
     def _optimize_messages(
         self, messages: list[BaseMessage]
     ) -> tuple[list[BaseMessage], OptimizationMetrics]:
-        """Apply Headroom optimization to messages."""
+        """Apply Cutctx optimization to messages."""
         request_id = str(uuid4())
 
         # Convert to OpenAI format
@@ -338,7 +338,7 @@ class HeadroomChatModel(BaseChatModel):
         # Ensure model is a string
         model_str = str(model) if model else "gpt-4o"
 
-        # Apply Headroom transforms via pipeline
+        # Apply Cutctx transforms via pipeline
         result = self.pipeline.apply(
             messages=openai_messages,
             model=model_str,
@@ -381,7 +381,7 @@ class HeadroomChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
-        """Generate response with Headroom optimization.
+        """Generate response with Cutctx optimization.
 
         This is the core method called by invoke(), batch(), etc.
         """
@@ -389,7 +389,7 @@ class HeadroomChatModel(BaseChatModel):
         optimized_messages, metrics = self._optimize_messages(messages)
 
         logger.info(
-            f"Headroom optimized: {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized: {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -410,12 +410,12 @@ class HeadroomChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> Iterator[ChatGenerationChunk]:
-        """Stream response with Headroom optimization."""
+        """Stream response with Cutctx optimization."""
         # Optimize messages
         optimized_messages, metrics = self._optimize_messages(messages)
 
         logger.info(
-            f"Headroom optimized (streaming): {metrics.tokens_before} -> "
+            f"Cutctx optimized (streaming): {metrics.tokens_before} -> "
             f"{metrics.tokens_after} tokens"
         )
 
@@ -434,7 +434,7 @@ class HeadroomChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
-        """Async generate response with Headroom optimization.
+        """Async generate response with Cutctx optimization.
 
         This enables `await model.ainvoke(messages)` to work correctly.
         The optimization step runs in a thread executor since it's CPU-bound.
@@ -446,7 +446,7 @@ class HeadroomChatModel(BaseChatModel):
         )
 
         logger.info(
-            f"Headroom optimized (async): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
+            f"Cutctx optimized (async): {metrics.tokens_before} -> {metrics.tokens_after} tokens "
             f"({metrics.savings_percent:.1f}% saved)"
         )
 
@@ -467,7 +467,7 @@ class HeadroomChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
-        """Async stream response with Headroom optimization.
+        """Async stream response with Cutctx optimization.
 
         This enables `async for chunk in model.astream(messages)` to work correctly.
         """
@@ -478,7 +478,7 @@ class HeadroomChatModel(BaseChatModel):
         )
 
         logger.info(
-            f"Headroom optimized (async streaming): {metrics.tokens_before} -> "
+            f"Cutctx optimized (async streaming): {metrics.tokens_before} -> "
             f"{metrics.tokens_after} tokens"
         )
 
@@ -491,10 +491,10 @@ class HeadroomChatModel(BaseChatModel):
         ):
             yield chunk
 
-    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> HeadroomChatModel:
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> CutctxChatModel:
         """Bind tools to the wrapped model."""
         new_wrapped = self.wrapped_model.bind_tools(tools, **kwargs)
-        return HeadroomChatModel(
+        return CutctxChatModel(
             wrapped_model=new_wrapped,
             config=self.headroom_config,
             mode=self.mode,
@@ -520,11 +520,11 @@ class HeadroomChatModel(BaseChatModel):
         }
 
 
-class HeadroomCallbackHandler(BaseCallbackHandler):
-    """LangChain callback handler for Headroom metrics and observability.
+class CutctxCallbackHandler(BaseCallbackHandler):
+    """LangChain callback handler for Cutctx metrics and observability.
 
     NOTE: Callbacks CANNOT modify messages in LangChain (by design).
-    Use HeadroomChatModel for actual optimization. This handler is for:
+    Use CutctxChatModel for actual optimization. This handler is for:
 
     1. Tracking token usage across chains
     2. Logging optimization metrics
@@ -533,9 +533,9 @@ class HeadroomCallbackHandler(BaseCallbackHandler):
 
     Example:
         from langchain_openai import ChatOpenAI
-        from headroom.integrations import HeadroomCallbackHandler
+        from headroom.integrations import CutctxCallbackHandler
 
-        handler = HeadroomCallbackHandler(
+        handler = CutctxCallbackHandler(
             log_level="INFO",
             token_alert_threshold=10000,
         )
@@ -739,15 +739,15 @@ class HeadroomCallbackHandler(BaseCallbackHandler):
         self._current_request = None
 
 
-class HeadroomRunnable:
-    """LCEL-compatible Runnable for Headroom optimization.
+class CutctxRunnable:
+    """LCEL-compatible Runnable for Cutctx optimization.
 
-    Use this to add Headroom optimization to any LangChain chain using LCEL.
+    Use this to add Cutctx optimization to any LangChain chain using LCEL.
 
     Example:
         from langchain_openai import ChatOpenAI
         from langchain_core.prompts import ChatPromptTemplate
-        from headroom.integrations import HeadroomRunnable
+        from headroom.integrations import CutctxRunnable
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a helpful assistant."),
@@ -755,25 +755,25 @@ class HeadroomRunnable:
         ])
         llm = ChatOpenAI(model="gpt-4o")
 
-        # Add Headroom optimization to chain
-        chain = prompt | HeadroomRunnable() | llm
+        # Add Cutctx optimization to chain
+        chain = prompt | CutctxRunnable() | llm
         response = chain.invoke({"input": "Hello!"})
     """
 
     def __init__(
         self,
-        config: HeadroomConfig | None = None,
-        mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+        config: CutctxConfig | None = None,
+        mode: CutctxMode = CutctxMode.OPTIMIZE,
     ):
-        """Initialize HeadroomRunnable.
+        """Initialize CutctxRunnable.
 
         Args:
-            config: HeadroomConfig for optimization settings
-            mode: HeadroomMode (AUDIT, OPTIMIZE, or SIMULATE)
+            config: CutctxConfig for optimization settings
+            mode: CutctxMode (AUDIT, OPTIMIZE, or SIMULATE)
         """
         _check_langchain_available()
 
-        self.config = config or HeadroomConfig()
+        self.config = config or CutctxConfig()
         self.mode = mode
         self._pipeline: TransformPipeline | None = None
         self._provider: OpenAIProvider | None = None
@@ -848,7 +848,7 @@ class HeadroomRunnable:
         model = "gpt-4o"  # Default model for estimation
         model_limit = self._provider.get_context_limit(model) if self._provider else 128000
 
-        # Apply Headroom transforms via pipeline
+        # Apply Cutctx transforms via pipeline
         result = self.pipeline.apply(
             messages=openai_messages,
             model=model,
@@ -897,8 +897,8 @@ class HeadroomRunnable:
 
 def optimize_messages(
     messages: list[BaseMessage],
-    config: HeadroomConfig | None = None,
-    mode: HeadroomMode = HeadroomMode.OPTIMIZE,
+    config: CutctxConfig | None = None,
+    mode: CutctxMode = CutctxMode.OPTIMIZE,
     model: str = "gpt-4o",
 ) -> tuple[list[BaseMessage], dict[str, Any]]:
     """Standalone function to optimize LangChain messages.
@@ -907,8 +907,8 @@ def optimize_messages(
 
     Args:
         messages: List of LangChain BaseMessage objects
-        config: HeadroomConfig for optimization settings
-        mode: HeadroomMode (AUDIT, OPTIMIZE, or SIMULATE)
+        config: CutctxConfig for optimization settings
+        mode: CutctxMode (AUDIT, OPTIMIZE, or SIMULATE)
         model: Model name for token estimation
 
     Returns:
@@ -928,7 +928,7 @@ def optimize_messages(
     """
     _check_langchain_available()
 
-    config = config or HeadroomConfig()
+    config = config or CutctxConfig()
     provider = OpenAIProvider()
     pipeline = TransformPipeline(config=config, provider=provider)
 

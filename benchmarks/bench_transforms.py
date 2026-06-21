@@ -1,6 +1,6 @@
-"""Transform benchmarks for Headroom SDK.
+"""Transform benchmarks for Cutctx SDK.
 
-This module contains performance benchmarks for Headroom transforms:
+This module contains performance benchmarks for Cutctx transforms:
 - SmartCrusher: Statistical tool output compression
 - CacheAligner: Cache-aligned prefix optimization
 - RollingWindow: Token budget management

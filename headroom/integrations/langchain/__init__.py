@@ -1,21 +1,21 @@
-"""LangChain integration for Headroom.
+"""LangChain integration for Cutctx.
 
 This package provides seamless integration with LangChain, including:
-- HeadroomChatModel: Drop-in wrapper for any LangChain chat model
-- HeadroomChatMessageHistory: Automatic conversation compression
-- HeadroomDocumentCompressor: Relevance-based document filtering
-- HeadroomToolWrapper: Tool output compression for agents
+- CutctxChatModel: Drop-in wrapper for any LangChain chat model
+- CutctxChatMessageHistory: Automatic conversation compression
+- CutctxDocumentCompressor: Relevance-based document filtering
+- CutctxToolWrapper: Tool output compression for agents
 - StreamingMetricsTracker: Token counting during streaming
-- HeadroomLangSmithCallbackHandler: LangSmith trace enrichment
+- CutctxLangSmithCallbackHandler: LangSmith trace enrichment
 - compress_tool_messages: LangGraph pre-model hook for ToolMessage compression
 - create_compress_tool_messages_node: LangGraph node factory
 
 Example:
     from langchain_openai import ChatOpenAI
-    from headroom.integrations.langchain import HeadroomChatModel
+    from headroom.integrations.langchain import CutctxChatModel
 
     # Wrap any LangChain model
-    llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+    llm = CutctxChatModel(ChatOpenAI(model="gpt-4o"))
 
     # Use like normal - optimization happens automatically
     response = llm.invoke("Hello!")
@@ -25,7 +25,7 @@ Install: pip install headroom[langchain]
 
 # Agent tool wrapping
 from .agents import (
-    HeadroomToolWrapper,
+    CutctxToolWrapper,
     ToolCompressionMetrics,
     ToolMetricsCollector,
     get_tool_metrics,
@@ -35,9 +35,9 @@ from .agents import (
 
 # Core chat model wrapper
 from .chat_model import (
-    HeadroomCallbackHandler,
-    HeadroomChatModel,
-    HeadroomRunnable,
+    CutctxCallbackHandler,
+    CutctxChatModel,
+    CutctxRunnable,
     OptimizationMetrics,
     langchain_available,
     optimize_messages,
@@ -54,13 +54,13 @@ from .langgraph import (
 
 # LangSmith integration
 from .langsmith import (
-    HeadroomLangSmithCallbackHandler,
+    CutctxLangSmithCallbackHandler,
     is_langsmith_available,
     is_langsmith_tracing_enabled,
 )
 
 # Memory integration
-from .memory import HeadroomChatMessageHistory
+from .memory import CutctxChatMessageHistory
 
 # Provider auto-detection
 from .providers import (
@@ -70,7 +70,7 @@ from .providers import (
 )
 
 # Retriever integration
-from .retriever import CompressionMetrics, HeadroomDocumentCompressor
+from .retriever import CompressionMetrics, CutctxDocumentCompressor
 
 # Streaming metrics
 from .streaming import (

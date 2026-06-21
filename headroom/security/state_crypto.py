@@ -1,4 +1,4 @@
-"""State encryption and integrity protection for Headroom local files.
+"""State encryption and integrity protection for Cutctx local files.
 
 Provides machine-derived symmetric encryption (Fernet) for sensitive local state
 (trial, seat) and HMAC-SHA256 integrity signing for license cache files.

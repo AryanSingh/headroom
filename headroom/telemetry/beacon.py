@@ -1,4 +1,4 @@
-"""Anonymous usage telemetry beacon for Headroom.
+"""Anonymous usage telemetry beacon for Cutctx.
 
 Local telemetry capture and aggregation may be on by default, but NETWORK
 EGRESS of telemetry to remote endpoints is OFF by default (local-first).
@@ -262,7 +262,7 @@ class TelemetryBeacon:
         except Exception:
             logger.debug("Beacon: failed to extract cache bust metrics", exc_info=True)
 
-        # --- Performance overhead (how much latency Headroom adds) ---
+        # --- Performance overhead (how much latency Cutctx adds) ---
         try:
             overhead = stats.get("overhead", {})
             payload.update(
@@ -354,5 +354,5 @@ class TelemetryBeacon:
                 )
         except Exception:
             # No internet, DNS failure, timeout, Supabase down — all fine.
-            # Headroom continues working perfectly without telemetry.
+            # Cutctx continues working perfectly without telemetry.
             logger.debug("Beacon: failed to send telemetry", exc_info=True)

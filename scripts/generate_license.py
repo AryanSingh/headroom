@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate signed Headroom license keys.
+"""Generate signed Cutctx license keys.
 
 This script generates HMAC-SHA256 signed license keys matching the format
 expected by the Rust proxy validator (config.rs).
@@ -85,7 +85,7 @@ def generate_license_key(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate HMAC-signed or Ed25519-signed Headroom license keys",
+        description="Generate HMAC-signed or Ed25519-signed Cutctx license keys",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -183,7 +183,7 @@ def main():
             sys.exit(1)
 
     # Output
-    print("Headroom License Key Generated")
+    print("Cutctx License Key Generated")
     print("=" * 60)
     print(f"Tier:               {args.tier}")
     print(f"Organization:       {args.org}")

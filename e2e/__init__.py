@@ -1,4 +1,4 @@
-"""End-to-end test suites for Headroom CLI commands.
+"""End-to-end test suites for Cutctx CLI commands.
 
 Subpackages:
     _lib — shared harness and helpers

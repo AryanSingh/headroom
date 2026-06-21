@@ -1,4 +1,4 @@
-"""Headroom Evaluation Framework.
+"""Cutctx Evaluation Framework.
 
 Prove that compression doesn't impact LLM accuracy through:
 1. Before/After comparisons on identical queries

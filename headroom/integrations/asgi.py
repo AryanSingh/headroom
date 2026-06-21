@@ -1,4 +1,4 @@
-"""ASGI Middleware — add Headroom compression to any Python proxy.
+"""ASGI Middleware — add Cutctx compression to any Python proxy.
 
 Drop-in middleware for FastAPI, Starlette, LiteLLM proxy, or any ASGI app.
 Intercepts LLM requests, compresses messages, forwards the smaller payload.
@@ -8,7 +8,7 @@ Local mode (compression runs in-process):
     from headroom.integrations.asgi import CompressionMiddleware
     app.add_middleware(CompressionMiddleware)
 
-Cloud mode (managed CCR, TOIN, analytics via Headroom Cloud):
+Cloud mode (managed CCR, TOIN, analytics via Cutctx Cloud):
 
     app.add_middleware(CompressionMiddleware, api_key="hdr_xxx")
 
@@ -56,7 +56,7 @@ class CompressionMiddleware:
 
     Two modes:
     - Local (default): Compresses in-process using headroom.compress().
-    - Cloud (api_key set): Calls Headroom Cloud API for managed compression
+    - Cloud (api_key set): Calls Cutctx Cloud API for managed compression
       with org-scoped CCR, TOIN learning, and analytics dashboards.
 
     Response headers include compression metrics:
@@ -80,7 +80,7 @@ class CompressionMiddleware:
         self._model_limit = model_limit
         self._hooks = hooks
 
-        # Cloud mode: if api_key is set, compress via Headroom Cloud API
+        # Cloud mode: if api_key is set, compress via Cutctx Cloud API
         self._api_key = api_key or os.environ.get("HEADROOM_API_KEY", "").strip() or None
         self._api_url = (
             api_url or os.environ.get("HEADROOM_API_URL", "").strip() or _DEFAULT_CLOUD_URL
@@ -163,7 +163,7 @@ class CompressionMiddleware:
                     )
 
         except (json.JSONDecodeError, TypeError, KeyError) as e:
-            logger.debug("Headroom middleware: skipping non-JSON request: %s", e)
+            logger.debug("Cutctx middleware: skipping non-JSON request: %s", e)
 
         # Create a new receive that returns the (possibly modified) body
         body_sent = False
@@ -208,13 +208,13 @@ class CompressionMiddleware:
         }
 
     async def _cloud_compress(self, messages: list[dict], model: str) -> dict[str, Any] | None:
-        """Compress via Headroom Cloud API (managed CCR, TOIN, analytics)."""
+        """Compress via Cutctx Cloud API (managed CCR, TOIN, analytics)."""
         if self._client is None:
             try:
                 import httpx
             except ImportError as e:
                 raise ImportError(
-                    "httpx is required for Headroom Cloud mode: pip install httpx"
+                    "httpx is required for Cutctx Cloud mode: pip install httpx"
                 ) from e
             self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -236,7 +236,7 @@ class CompressionMiddleware:
         )
 
         if resp.status_code != 200:
-            logger.warning("Headroom Cloud API error: %d %s", resp.status_code, resp.text[:200])
+            logger.warning("Cutctx Cloud API error: %d %s", resp.status_code, resp.text[:200])
             return None
 
         result: dict[str, Any] = resp.json()

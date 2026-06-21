@@ -1,19 +1,19 @@
-"""Custom exceptions for Headroom.
+"""Custom exceptions for Cutctx.
 
 This module provides explicit exception classes for better error handling
-and debugging. All exceptions inherit from HeadroomError, making it easy
-to catch all Headroom-related errors.
+and debugging. All exceptions inherit from CutctxError, making it easy
+to catch all Cutctx-related errors.
 
 Example:
-    from headroom import HeadroomClient, HeadroomError, ConfigurationError
+    from headroom import CutctxClient, CutctxError, ConfigurationError
 
     try:
-        client = HeadroomClient(...)
+        client = CutctxClient(...)
         client.validate_setup()
     except ConfigurationError as e:
         print(f"Configuration problem: {e}")
-    except HeadroomError as e:
-        print(f"Headroom error: {e}")
+    except CutctxError as e:
+        print(f"Cutctx error: {e}")
 """
 
 from __future__ import annotations
@@ -21,16 +21,16 @@ from __future__ import annotations
 from typing import Any
 
 
-class HeadroomError(Exception):
-    """Base exception for all Headroom errors.
+class CutctxError(Exception):
+    """Base exception for all Cutctx errors.
 
-    All Headroom exceptions inherit from this class, making it easy
-    to catch any Headroom-related error:
+    All Cutctx exceptions inherit from this class, making it easy
+    to catch any Cutctx-related error:
 
         try:
             client.chat.completions.create(...)
-        except HeadroomError as e:
-            # Handle any Headroom error
+        except CutctxError as e:
+            # Handle any Cutctx error
             pass
     """
 
@@ -46,8 +46,8 @@ class HeadroomError(Exception):
         return self.message
 
 
-class ConfigurationError(HeadroomError):
-    """Raised when Headroom is misconfigured.
+class ConfigurationError(CutctxError):
+    """Raised when Cutctx is misconfigured.
 
     This includes:
     - Invalid mode values
@@ -64,7 +64,7 @@ class ConfigurationError(HeadroomError):
     pass
 
 
-class ProviderError(HeadroomError):
+class ProviderError(CutctxError):
     """Raised when there's an issue with the LLM provider.
 
     This includes:
@@ -82,7 +82,7 @@ class ProviderError(HeadroomError):
     pass
 
 
-class StorageError(HeadroomError):
+class StorageError(CutctxError):
     """Raised when there's an issue with metrics storage.
 
     This includes:
@@ -100,7 +100,7 @@ class StorageError(HeadroomError):
     pass
 
 
-class CompressionError(HeadroomError):
+class CompressionError(CutctxError):
     """Raised when compression fails.
 
     This includes:
@@ -118,7 +118,7 @@ class CompressionError(HeadroomError):
     pass
 
 
-class TokenizationError(HeadroomError):
+class TokenizationError(CutctxError):
     """Raised when token counting fails.
 
     This includes:
@@ -136,7 +136,7 @@ class TokenizationError(HeadroomError):
     pass
 
 
-class CacheError(HeadroomError):
+class CacheError(CutctxError):
     """Raised when caching operations fail.
 
     This includes:
@@ -154,7 +154,7 @@ class CacheError(HeadroomError):
     pass
 
 
-class ValidationError(HeadroomError):
+class ValidationError(CutctxError):
     """Raised when setup validation fails.
 
     This is raised by validate_setup() when the configuration
@@ -174,7 +174,7 @@ class ValidationError(HeadroomError):
     pass
 
 
-class TransformError(HeadroomError):
+class TransformError(CutctxError):
     """Raised when a transform fails to apply.
 
     This includes:

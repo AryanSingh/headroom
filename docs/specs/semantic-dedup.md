@@ -1,4 +1,4 @@
-# Semantic Deduplication for Headroom
+# Semantic Deduplication for Cutctx
 
 ## Problem Statement
 
@@ -19,7 +19,7 @@ Desired result: Store once (100 tokens), reference 2 times (2 × 10 tokens ≈ 2
 
 2. **As an eval engineer,** I want semantic deduplication stats to be available, **so that** I can measure token savings on real agent workflows and identify dedup opportunities.
 
-3. **As a prompt engineer using Headroom,** I want the deduplication to integrate transparently with the CCR (Compress-Cache-Retrieve) system, **so that** if the LLM needs the full content later, it can call `headroom_retrieve(ref)`.
+3. **As a prompt engineer using Cutctx,** I want the deduplication to integrate transparently with the CCR (Compress-Cache-Retrieve) system, **so that** if the LLM needs the full content later, it can call `cutctx_retrieve(ref)`.
 
 4. **As a developer debugging a session,** I want short content and system messages to be skipped from dedup, **so that** the overhead of hashing and pointer management doesn't outweigh savings.
 
@@ -27,7 +27,7 @@ Desired result: Store once (100 tokens), reference 2 times (2 × 10 tokens ≈ 2
 
 ### Overview
 
-Semantic deduplication works at the message level and paragraph level (for longer content). It maintains a rolling hash index of content seen so far in the session. When identical content appears again, it is replaced with a `[headroom:ref:HASH]` pointer — a marker that the existing CCR system already knows how to retrieve.
+Semantic deduplication works at the message level and paragraph level (for longer content). It maintains a rolling hash index of content seen so far in the session. When identical content appears again, it is replaced with a `[cutctx:ref:HASH]` pointer — a marker that the existing CCR system already knows how to retrieve.
 
 ### Rolling Hash Approach
 
@@ -40,7 +40,7 @@ Semantic deduplication works at the message level and paragraph level (for longe
    - Hash each chunk using SHA-256 truncated to 16 hex chars
    - Check the session dedup index:
      - **First occurrence:** Store hash → content mapping, register with CCR if available
-     - **Subsequent occurrences:** Replace content with `[headroom:ref:HASH]`
+     - **Subsequent occurrences:** Replace content with `[cutctx:ref:HASH]`
 
 2. Return deduplicated messages + stats (tokens saved, dedup count, refs created).
 
@@ -52,10 +52,10 @@ Semantic deduplication works at the message level and paragraph level (for longe
 
 ### Pointer Format
 
-`[headroom:ref:HASH]` where:
-- `headroom:ref:` is a stable marker (matches CCR retrieval protocol)
+`[cutctx:ref:HASH]` where:
+- `cutctx:ref:` is a stable marker (matches CCR retrieval protocol)
 - `HASH` is the 16-char SHA-256 hex digest of the original content
-- The LLM can call `headroom_retrieve(hash=HASH)` to get the full content back
+- The LLM can call `cutctx_retrieve(hash=HASH)` to get the full content back
 
 ### Integration with Compression Pipeline
 
@@ -68,7 +68,7 @@ The deduplicator optionally uses the existing `CompressionStore` to register has
 ### API Design
 
 ```python
-from headroom.dedup import SessionDeduplicator, DeduplicationResult
+from cutctx.dedup import SessionDeduplicator, DeduplicationResult
 
 # Create a session-scoped deduplicator
 dedup = SessionDeduplicator()
@@ -101,8 +101,8 @@ dedup._store_to_ccr(hash_key, original_content)
 # This registers the hash→content mapping for later retrieval
 
 # When content is seen again:
-# Content is replaced with [headroom:ref:HASH], and the
-# LLM can retrieve via existing headroom_retrieve() mechanism
+# Content is replaced with [cutctx:ref:HASH], and the
+# LLM can retrieve via existing cutctx_retrieve() mechanism
 ```
 
 ## Success Metrics

@@ -37,14 +37,14 @@
 
 All settings can be overridden via environment variables:
 ```bash
-HEADROOM_MODE=token
-headroom proxy --no-cache
+CUTCTX_MODE=token
+cutctx proxy --no-cache
 ```
 
 ### Config File
 
 ```yaml
-# ~/.headroom/config.yaml
+# ~/.cutctx/config.yaml
 proxy:
   host: 0.0.0.0
   port: 8787
@@ -70,16 +70,16 @@ learn:
 ```bash
 # Disable compression for single request
 curl -X POST http://localhost:8787/v1/messages \
-  -H "X-Headroom-Compress: false"
+  -H "X-Cutctx-Compress: false"
 ```
 
 ### Runtime Headers
 
 | Header | Description |
 |--------|-------------|
-| `X-Headroom-Compress` | Override compression (true/false) |
-| `X-Headroom-Mode` | Override mode (passthrough/compress/learn) |
-| `X-Headroom-Cache` | Override cache (true/false) |
+| `X-Cutctx-Compress` | Override compression (true/false) |
+| `X-Cutctx-Mode` | Override mode (passthrough/compress/learn) |
+| `X-Cutctx-Cache` | Override cache (true/false) |
 
 ---
 

@@ -1,6 +1,6 @@
-"""Headroom CCR retrieve plugin.
+"""Cutctx CCR retrieve plugin.
 
-The headroom proxy (127.0.0.1:8787) compresses large tool outputs in LLM
+The cutctx proxy (127.0.0.1:8787) compresses large tool outputs in LLM
 requests, replacing them with markers like ``[N items compressed ...
 hash=abc123]`` or ``<<ccr:abc123>>``. This plugin gives Hermes a tool to fetch the original
 uncompressed content back from the proxy's compression store, so compressed
@@ -69,7 +69,7 @@ def _handle_headroom_retrieve(args: dict, **kw) -> str:
         resp = httpx.post(f"{_PROXY_URL}/v1/retrieve", json=payload, timeout=15)
     except httpx.HTTPError as exc:
         return tool_error(
-            f"headroom proxy unreachable at {_PROXY_URL} ({type(exc).__name__}). "
+            f"cutctx proxy unreachable at {_PROXY_URL} ({type(exc).__name__}). "
             "The proxy may be down; re-run the original command to get the data."
         )
 
@@ -79,7 +79,7 @@ def _handle_headroom_retrieve(args: dict, **kw) -> str:
             "Re-run the original command to regenerate the data."
         )
     if resp.status_code != 200:
-        return tool_error(f"headroom proxy returned HTTP {resp.status_code}: {resp.text[:200]}")
+        return tool_error(f"cutctx proxy returned HTTP {resp.status_code}: {resp.text[:200]}")
 
     data = resp.json()
     return tool_result(
@@ -95,7 +95,7 @@ def register(ctx) -> None:
     """Register the headroom_retrieve tool. Called by the plugin loader."""
     ctx.register_tool(
         name="headroom_retrieve",
-        toolset="headroom",
+        toolset="cutctx",
         schema=HEADROOM_RETRIEVE_SCHEMA,
         handler=_handle_headroom_retrieve,
         emoji="🗜️",

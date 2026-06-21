@@ -8,7 +8,7 @@
 
 ### 1. CLI (`cutctx` — Python Click CLI via `pyproject.toml`)
 
-Entry point: `cutctx = "headroom.cli:main"` (Python Click, 13 subcommand groups)
+Entry point: `cutctx = "cutctx.cli:main"` (Python Click, 13 subcommand groups)
 
 | Command | Module | Lines | What It Does |
 |---------|--------|-------|-------------|
@@ -37,14 +37,14 @@ Entry point: `cutctx = "headroom.cli:main"` (Python Click, 13 subcommand groups)
 - Dark/light theme toggle
 - HTMX-powered auto-refresh
 
-### 3. MCP Server (`headroom/mcp_server.py` — 253 lines)
+### 3. MCP Server (`cutctx/mcp_server.py` — 253 lines)
 
 3 tools exposed:
-- `headroom_retrieve` — retrieve original content from CCR markers (with BM25 query filtering)
+- `cutctx_retrieve` — retrieve original content from CCR markers (with BM25 query filtering)
 - `cutctx_status` — check proxy health + compression stats
 - `cutctx_proxy_start` — auto-start proxy if not running
 
-### 4. MCP Registry (`headroom/mcp_registry/` — 8 files)
+### 4. MCP Registry (`cutctx/mcp_registry/` — 8 files)
 
 - `ClaudeRegistrar` — registers MCP in `~/.claude.json`
 - `CodexRegistrar` — registers MCP in Codex TOML config
@@ -114,8 +114,8 @@ Logging: `--log-file`, `--log-messages`
 - `plugins/claude-code/` — Claude Code MCP integration
 - `plugins/codex/` — Codex plugin
 - `plugins/cutctx-plugin/` — Claude.ai web plugin
-- `plugins/headroom-agent-hooks/` — Agent hooks
-- `plugins/headroom-oauth2/` — OAuth2 client-credentials
+- `plugins/cutctx-agent-hooks/` — Agent hooks
+- `plugins/cutctx-oauth2/` — OAuth2 client-credentials
 - `plugins/hermes/` — Hermes integration
 - `plugins/openclaw/` — OpenClaw integration
 
@@ -137,7 +137,7 @@ Logging: `--log-file`, `--log-messages`
 | 1 | **No unified "install + verify" flow** | `cutctx init`, `cutctx wrap`, `cutctx install` exist but are scattered | No single `cutctx setup` that does: install → detect agents → register MCP → start proxy → verify savings | Buyer needs founder help to get started |
 | 2 | **Dashboard doesn't show enterprise admin state** | Dashboard shows compression stats | No RBAC viewer, no org management, no audit log viewer, no SSO status, no retention config, no fleet view | Enterprise buyer can't see governance controls |
 | 3 | **No ROI proof path** | `cutctx savings report` exists, `/reports/savings` API exists | No end-to-end "install → use for 7 days → show savings report" workflow documented or automated | Buyer can't prove value before paying |
-| 4 | **MCP server is thin** | 3 tools (retrieve, status, proxy_start) | No `headroom_compress` (the memo claims it exists but it doesn't), no `headroom_scan` (firewall), no admin tools | Claude Code users can't access most features via MCP |
+| 4 | **MCP server is thin** | 3 tools (retrieve, status, proxy_start) | No `cutctx_compress` (the memo claims it exists but it doesn't), no `cutctx_scan` (firewall), no admin tools | Claude Code users can't access most features via MCP |
 | 5 | **No pricing page or activation flow** | `cutctx billing checkout` opens browser, `cutctx license activate` exists | No in-product pricing comparison, no tier selection, no trial-to-paid conversion flow | Buyer doesn't know what to pay for |
 
 ### 🟡 HIGH — Enterprise workflows are API-first only

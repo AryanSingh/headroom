@@ -36,7 +36,7 @@ Homepage = "https://github.com/chopratejas/headroom"
 Repository = "https://github.com/chopratejas/headroom"
 Issues = "https://github.com/chopratejas/headroom/issues"
 
-# Registers with Headroom's opt-in proxy-extension seam (headroom/proxy/extensions.py).
+# Registers with CutCtx's opt-in proxy-extension seam (headroom/proxy/extensions.py).
 # Enable at runtime with `--proxy-extension oauth2` or HEADROOM_PROXY_EXTENSIONS=oauth2.
 [project.entry-points."cutctx.proxy_extension"]
 oauth2 = "headroom_oauth2:install"

@@ -80,7 +80,7 @@ def _get_parser(language: str) -> Any:
 
     tree-sitter ≥ 0.23 wraps the C ``TSParser`` in a PyO3
     ``#[pyclass(unsendable)]`` which hard-panics if the object is accessed
-    from any thread other than its creator.  Because Headroom runs
+    from any thread other than its creator.  Because Cutctx runs
     compression inside a ``ThreadPoolExecutor``, a single shared parser
     would be touched from arbitrary pool threads → instant crash.
 

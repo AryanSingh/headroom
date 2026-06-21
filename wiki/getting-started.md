@@ -1,6 +1,6 @@
-# Getting Started with Headroom
+# Getting Started with Cutctx
 
-This guide will help you get up and running with Headroom in under 5 minutes.
+This guide will help you get up and running with Cutctx in under 5 minutes.
 
 ## Installation
 
@@ -8,51 +8,51 @@ This guide will help you get up and running with Headroom in under 5 minutes.
 
 ```bash
 # Core package (minimal dependencies)
-pip install headroom
+pip install cutctx
 
 # With proxy server
-pip install headroom[proxy]
+pip install cutctx[proxy]
 
 # With semantic relevance (for smarter compression)
-pip install headroom[relevance]
+pip install cutctx[relevance]
 
 # Everything
-pip install headroom[all]
+pip install cutctx[all]
 ```
 
 **TypeScript / Node.js:**
 
 ```bash
-npm install headroom-ai
+npm install cutctx-ai
 ```
 
 **Docker-native:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | bash
 ```
 
 PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.ps1 | iex
 ```
 
 See [Docker-native install](docker-install.md) for wrapper behavior, compose usage, and host-integrated `wrap` flows.
 
-If you want Headroom to stay up in the background and automatically serve supported tools, use [Persistent Installs](persistent-installs.md):
+If you want Cutctx to stay up in the background and automatically serve supported tools, use [Persistent Installs](persistent-installs.md):
 
 ```bash
-headroom install apply --preset persistent-service --providers auto
+cutctx install apply --preset persistent-service --providers auto
 ```
 
 ## Quick Start: Proxy Mode (Recommended)
 
-The easiest way to use Headroom is as a proxy server:
+The easiest way to use Cutctx is as a proxy server:
 
 ```bash
 # Start the proxy
-headroom proxy --port 8787
+cutctx proxy --port 8787
 ```
 
 Then point your LLM client at it:
@@ -62,24 +62,24 @@ Then point your LLM client at it:
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 
 # GitHub Copilot CLI (default Anthropic-style proxy route)
-headroom wrap copilot -- --model claude-sonnet-4-20250514
+cutctx wrap copilot -- --model claude-sonnet-4-20250514
 
 # OpenAI-compatible clients
 OPENAI_BASE_URL=http://localhost:8787/v1 your-app
 ```
 
-That's it! All your requests now go through Headroom and get optimized automatically.
+That's it! All your requests now go through Cutctx and get optimized automatically.
 
 ## Quick Start: Python SDK
 
 If you want programmatic control:
 
 ```python
-from headroom import HeadroomClient
+from cutctx import CutctxClient
 from openai import OpenAI
 
 # Create a wrapped client
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     default_mode="optimize",
 )
@@ -101,7 +101,7 @@ response = client.chat.completions.create(
 Observe without modifying:
 
 ```python
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     default_mode="audit",
 )
@@ -113,7 +113,7 @@ client = HeadroomClient(
 Apply transforms to reduce tokens:
 
 ```python
-client = HeadroomClient(
+client = CutctxClient(
     original_client=OpenAI(),
     default_mode="optimize",
 )

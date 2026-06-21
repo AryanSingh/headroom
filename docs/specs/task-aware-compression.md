@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Current compression in Headroom routes content by **type** (JSON → SmartCrusher, code → AST, prose → Kompress). This type-based approach is agnostic to what the agent is actually trying to accomplish. 
+Current compression in Cutctx routes content by **type** (JSON → SmartCrusher, code → AST, prose → Kompress). This type-based approach is agnostic to what the agent is actually trying to accomplish. 
 
 For example, when debugging an HTTP error, file system tool outputs are irrelevant and should be crushed aggressively, while HTTP responses should be preserved with minimal compression. Today, both get treated the same because they're both JSON.
 
@@ -73,7 +73,7 @@ Task: None (no detectable task)
 **Output:** Float [0.0, 1.0] indicating relevance
 
 **Algorithm:**
-1. Use BM25 (fast, zero GPU, already available in headroom.relevance) as primary scorer
+1. Use BM25 (fast, zero GPU, already available in cutctx.relevance) as primary scorer
 2. Fall back to simple keyword overlap if BM25 unavailable
 3. Score = number of overlapping terms / max(task_terms, content_terms)
 

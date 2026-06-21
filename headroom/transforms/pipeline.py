@@ -1,4 +1,4 @@
-"""Transform pipeline orchestration for Headroom SDK."""
+"""Transform pipeline orchestration for Cutctx SDK."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from ..config import (
     CacheAlignerConfig,
     DiffArtifact,
-    HeadroomConfig,
+    CutctxConfig,
     TransformDiff,
     TransformResult,
     WasteSignals,
@@ -66,7 +66,7 @@ class TransformPipeline:
 
     def __init__(
         self,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
         transforms: list[Transform] | None = None,
         provider: Provider | None = None,
     ):
@@ -74,11 +74,11 @@ class TransformPipeline:
         Initialize pipeline.
 
         Args:
-            config: Headroom configuration.
+            config: Cutctx configuration.
             transforms: Optional custom transform list (overrides config).
             provider: Provider for model-specific behavior.
         """
-        self.config = config or HeadroomConfig()
+        self.config = config or CutctxConfig()
         self._provider = provider
 
         if transforms is not None:
@@ -104,7 +104,7 @@ class TransformPipeline:
 
         # 0. Tool-result interceptors (ast-grep Read outline, etc.) run first
         # so downstream compressors operate on the already-shrunk content.
-        # OPT-IN: enable via HeadroomConfig.intercept_tool_results, or for
+        # OPT-IN: enable via CutctxConfig.intercept_tool_results, or for
         # non-config callers (CLI / SDK / tests) the env var
         # HEADROOM_INTERCEPT_ENABLED=1. Off by default while this ships — lets
         # users try it and compare before we make it the default.
@@ -225,7 +225,7 @@ class TransformPipeline:
         if model_limit is None:
             raise ValueError(
                 "model_limit is required. Provide it via kwargs or "
-                "configure model_context_limits in HeadroomClient."
+                "configure model_context_limits in CutctxClient."
             )
 
         # Start with original tokens
@@ -508,7 +508,7 @@ def create_pipeline(
     Returns:
         Configured TransformPipeline.
     """
-    config = HeadroomConfig()
+    config = CutctxConfig()
 
     if cache_aligner_config is not None:
         config.cache_aligner = cache_aligner_config

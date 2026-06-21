@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Headroom Proxy Shell Integration
+# Cutctx Proxy Shell Integration
 #
-# Automatically sets ANTHROPIC_BASE_URL if the headroom proxy is running.
+# Automatically sets ANTHROPIC_BASE_URL if the cutctx proxy is running.
 # Supports both bash and zsh.
 #
 # Usage:
@@ -20,7 +20,7 @@
 
 # Configuration: Port can be customized via environment variable
 HEADROOM_PROXY_PORT="${HEADROOM_PROXY_PORT:-8787}"
-HEADROOM_PLIST_LABEL="com.headroom.proxy"
+CUTCTX_PLIST_LABEL="com.cutctx.proxy"
 USER_UID=$(id -u)
 
 # Prevent duplicate loading (bash and zsh compatible)
@@ -36,7 +36,7 @@ _headroom_proxy_running() {
 
 # Try to start the LaunchAgent if not running
 _headroom_start_proxy() {
-  local plist_path="${HOME}/Library/LaunchAgents/${HEADROOM_PLIST_LABEL}.plist"
+  local plist_path="${HOME}/Library/LaunchAgents/${CUTCTX_PLIST_LABEL}.plist"
 
   # Check if LaunchAgent is installed
   if [[ ! -f "${plist_path}" ]]; then
@@ -62,10 +62,10 @@ else
   if _headroom_start_proxy && _headroom_proxy_running; then
     # Successfully started - set ANTHROPIC_BASE_URL
     export ANTHROPIC_BASE_URL="http://localhost:${HEADROOM_PROXY_PORT}"
-    echo "✓ Headroom proxy started on port ${HEADROOM_PROXY_PORT}"
+    echo "✓ Cutctx proxy started on port ${HEADROOM_PROXY_PORT}"
   else
     # Could not start - provide helpful message
-    echo "⚠ Headroom proxy not running on port ${HEADROOM_PROXY_PORT}"
+    echo "⚠ Cutctx proxy not running on port ${HEADROOM_PROXY_PORT}"
     echo "  Install with: cd /path/to/headroom/examples/deployment/macos-launchagent && ./install.sh"
   fi
 fi

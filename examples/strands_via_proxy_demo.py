@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end demo: Strands -> Headroom proxy -> Bedrock.
+"""End-to-end demo: Strands -> Cutctx proxy -> Bedrock.
 
 Proves the four Path-B fixes work together against live AWS Bedrock:
 
@@ -10,12 +10,12 @@ Proves the four Path-B fixes work together against live AWS Bedrock:
 
 What this script does
 ---------------------
-1. Spawns the Headroom proxy as a subprocess (backend=bedrock).
+1. Spawns the Cutctx proxy as a subprocess (backend=bedrock).
 2. Waits for /readyz.
 3. Sends two requests in the same session via Strands' OpenAIModel
    pointed at the proxy. The system prompt is intentionally large
    (>1024 tokens; Bedrock's minimum cacheable block) and tagged with
-   ``cache_control: {type: "ephemeral"}`` via Headroom's CacheAligner.
+   ``cache_control: {type: "ephemeral"}`` via Cutctx's CacheAligner.
 4. Reports:
      * compression numbers (tokens before/after, on each turn)
      * Bedrock cache hits (cache_read_input_tokens on turn 2 -- proves
@@ -75,7 +75,7 @@ LARGE_SYSTEM_PROMPT = (
     "Treat the following as authoritative reference context for every "
     "question in this conversation. Quote it accurately, do not "
     "fabricate. Reference context:\n\n"
-    + "Headroom is an open-source context compression layer for LLM "
+    + "Cutctx is an open-source context compression layer for LLM "
     "applications. It sits in front of provider APIs (Anthropic, "
     "OpenAI, Bedrock, Vertex) and shrinks the prompt without losing "
     "semantically important information. " * 200
@@ -88,7 +88,7 @@ LARGE_SYSTEM_PROMPT = (
 
 
 def start_proxy(port: int, region: str) -> subprocess.Popen[bytes]:
-    """Spawn `headroom proxy --backend bedrock` as a subprocess."""
+    """Spawn `cutctx proxy --backend bedrock` as a subprocess."""
     env = os.environ.copy()
     env.setdefault("AWS_REGION", region)
     env.setdefault("AWS_DEFAULT_REGION", region)
@@ -97,7 +97,7 @@ def start_proxy(port: int, region: str) -> subprocess.Popen[bytes]:
     cmd = [
         sys.executable,
         "-m",
-        "headroom.cli",
+        "cutctx.cli",
         "proxy",
         "--backend",
         "bedrock",
@@ -232,7 +232,7 @@ def direct_smoke_test(
             "model": model_id,
             "messages": [
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": "In one short sentence, what is Headroom?"},
+                {"role": "user", "content": "In one short sentence, what is Cutctx?"},
             ],
             "max_tokens": 60,
             "temperature": 0.2,
@@ -274,13 +274,13 @@ def usage_summary(usage: dict[str, Any]) -> str:
 
 async def run_demo(port: int, region: str, model_id: str) -> int:
     print("=" * 76)
-    print(" Headroom Path-B E2E: Strands -> Headroom proxy -> Bedrock")
+    print(" Cutctx Path-B E2E: Strands -> Cutctx proxy -> Bedrock")
     print("=" * 76)
     print(f" port={port} region={region} model={model_id}")
     print(f" session_id={SESSION_ID}")
     print()
 
-    print("[1/4] Spawning Headroom proxy ...")
+    print("[1/4] Spawning Cutctx proxy ...")
     proxy = start_proxy(port=port, region=region)
     try:
         try:
@@ -532,7 +532,7 @@ async def run_demo(port: int, region: str, model_id: str) -> int:
             "\n[4/4] Two-turn cache test via Strands (cache_control inserted by CacheAligner) ..."
         )
         print("  turn 1: priming the cache with the large system prompt")
-        r1 = agent("In one short sentence, what is Headroom?")
+        r1 = agent("In one short sentence, what is Cutctx?")
         print(f"  turn 1 response: {str(r1)[:160]}")
 
         print("\n  turn 2: same session -> should hit Bedrock prompt cache")
@@ -578,7 +578,7 @@ async def run_demo(port: int, region: str, model_id: str) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Strands -> Headroom proxy -> Bedrock E2E")
+    ap = argparse.ArgumentParser(description="Strands -> Cutctx proxy -> Bedrock E2E")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--region", default=DEFAULT_REGION)
     ap.add_argument("--model", default=DEFAULT_MODEL)

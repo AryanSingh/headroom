@@ -76,18 +76,23 @@ from typing import Any
 from ._version import __version__  # noqa: F401
 from .compress import CompressConfig, CompressResult, compress
 from .config import CutctxConfig, CutctxMode
+
 # Backward-compat aliases (pre-db7f7a4 rebrand).
 HeadroomConfig = CutctxConfig  # type: ignore[misc,assignment]
 HeadroomMode = CutctxMode  # type: ignore[misc,assignment]
+CutCtxConfig = CutctxConfig  # type: ignore[misc,assignment]
+CutCtxMode = CutctxMode  # type: ignore[misc,assignment]
 # Lazy client alias to avoid an import cycle on first import.
 try:
     from .client import CutctxClient as _CutctxClientImpl
     HeadroomClient = _CutctxClientImpl
     CutctxClient = _CutctxClientImpl
+    CutCtxClient = _CutctxClientImpl
     del _CutctxClientImpl
 except ImportError:  # pragma: no cover - the client is always available in practice
     HeadroomClient = None  # type: ignore[assignment]
     CutctxClient = None  # type: ignore[assignment]
+    CutCtxClient = None  # type: ignore[assignment]
 
 # Keep a real callable bound for the one-function compression API so
 # `from headroom import compress` is never shadowed by the submodule object.
@@ -95,6 +100,8 @@ except ImportError:  # pragma: no cover - the client is always available in prac
 __all__ = [
     # Main client
     "HeadroomClient",
+    "CutctxClient",
+    "CutCtxClient",
     # Providers
     "Provider",
     "TokenCounter",
@@ -102,6 +109,8 @@ __all__ = [
     "AnthropicProvider",
     # Exceptions
     "HeadroomError",
+    "CutctxError",
+    "CutCtxError",
     "ConfigurationError",
     "ProviderError",
     "StorageError",
@@ -113,6 +122,8 @@ __all__ = [
     # Config
     "CutctxConfig",
     "CutctxMode",
+    "CutCtxConfig",
+    "CutCtxMode",
     # Backward-compat: rebrand from HeadroomConfig/HeadroomMode (pre-db7f7a4).
     # External callers may still reference the old names. Aliases will be
     # removed in the next minor release.
@@ -162,8 +173,12 @@ __all__ = [
     "count_tokens_messages",
     "generate_report",
     # Observability
+    "CutctxOtelMetrics",
+    "CutctxTracer",
     "HeadroomOtelMetrics",
     "HeadroomTracer",
+    "CutCtxOtelMetrics",
+    "CutCtxTracer",
     "LangfuseTracingConfig",
     "OTelMetricsConfig",
     "configure_otel_metrics",
@@ -203,13 +218,16 @@ __all__ = [
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Main client
     "CutctxClient": ("headroom.client", "CutctxClient"),
+    "CutCtxClient": ("headroom.client", "CutctxClient"),
     # Providers
     "Provider": ("headroom.providers", "Provider"),
     "TokenCounter": ("headroom.providers", "TokenCounter"),
     "OpenAIProvider": ("headroom.providers", "OpenAIProvider"),
     "AnthropicProvider": ("headroom.providers", "AnthropicProvider"),
     # Exceptions
+    "HeadroomError": ("headroom.exceptions", "CutctxError"),
     "CutctxError": ("headroom.exceptions", "CutctxError"),
+    "CutCtxError": ("headroom.exceptions", "CutctxError"),
     "ConfigurationError": ("headroom.exceptions", "ConfigurationError"),
     "ProviderError": ("headroom.exceptions", "ProviderError"),
     "StorageError": ("headroom.exceptions", "StorageError"),
@@ -221,6 +239,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Config
     "CutctxConfig": ("headroom.config", "CutctxConfig"),
     "CutctxMode": ("headroom.config", "CutctxMode"),
+    "CutCtxConfig": ("headroom.config", "CutctxConfig"),
+    "CutCtxMode": ("headroom.config", "CutctxMode"),
     "SmartCrusherConfig": ("headroom.config", "SmartCrusherConfig"),
     "CacheAlignerConfig": ("headroom.config", "CacheAlignerConfig"),
     "CacheOptimizerConfig": ("headroom.config", "CacheOptimizerConfig"),
@@ -265,8 +285,12 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "count_tokens_messages": ("headroom.tokenizer", "count_tokens_messages"),
     "generate_report": ("headroom.reporting", "generate_report"),
     # Observability
-    "HeadroomOtelMetrics": ("headroom.observability", "HeadroomOtelMetrics"),
-    "HeadroomTracer": ("headroom.observability", "HeadroomTracer"),
+    "CutctxOtelMetrics": ("headroom.observability", "CutctxOtelMetrics"),
+    "CutctxTracer": ("headroom.observability", "CutctxTracer"),
+    "HeadroomOtelMetrics": ("headroom.observability", "CutctxOtelMetrics"),
+    "HeadroomTracer": ("headroom.observability", "CutctxTracer"),
+    "CutCtxOtelMetrics": ("headroom.observability", "CutctxOtelMetrics"),
+    "CutCtxTracer": ("headroom.observability", "CutctxTracer"),
     "LangfuseTracingConfig": ("headroom.observability", "LangfuseTracingConfig"),
     "OTelMetricsConfig": ("headroom.observability", "OTelMetricsConfig"),
     "configure_otel_metrics": ("headroom.observability", "configure_otel_metrics"),

@@ -1,6 +1,6 @@
 """``MemoryRanker``: pluggable re-ranker for memory candidates.
 
-Pre-this-PR Headroom ranked memory candidates by pure cosine
+Pre-this-PR Cutctx ranked memory candidates by pure cosine
 similarity. Every other memory system we surveyed
 (Letta / Mem0 / Cognee / Supermemory) re-ranks beyond cosine — recency,
 source weight, access count, and decay are table-stakes for not

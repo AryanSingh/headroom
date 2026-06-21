@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
-"""Seat management for Headroom organizations.
+"""Seat management for Cutctx organizations.
 
 Tracks per-org seat usage and enforces seat limits defined by the license tier.
 Seat state is persisted to ``~/.headroom/seat_state.json`` using

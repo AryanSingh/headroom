@@ -36,9 +36,9 @@ class TestGreedyPathDecode:
     """Unit tests for _greedy_path_decode."""
 
     def test_simple_directory(self, tmp_path: Path) -> None:
-        _make_dirs(tmp_path, "headroom")
-        result = _greedy_path_decode(tmp_path, ["headroom"])
-        assert result == tmp_path / "headroom"
+        _make_dirs(tmp_path, "cutctx")
+        result = _greedy_path_decode(tmp_path, ["cutctx"])
+        assert result == tmp_path / "cutctx"
 
     def test_single_hyphen_in_dirname(self, tmp_path: Path) -> None:
         """Directory name contains one literal hyphen."""
@@ -89,8 +89,8 @@ class TestGreedyPathDecode:
     def test_multi_hyphen_dot_dir_containing_subproject(self, tmp_path: Path) -> None:
         """Path like my-cool-project.nosync/headroom — hardest combination."""
         _make_dirs(tmp_path, "my-cool-project.nosync/headroom")
-        result = _greedy_path_decode(tmp_path, ["my", "cool", "project.nosync", "headroom"])
-        assert result == tmp_path / "my-cool-project.nosync" / "headroom"
+        result = _greedy_path_decode(tmp_path, ["my", "cool", "project.nosync", "cutctx"])
+        assert result == tmp_path / "my-cool-project.nosync" / "cutctx"
 
     def test_dot_flattened_into_separate_tokens(self, tmp_path: Path) -> None:
         """Flattened encoding like GitHub-nosync should map back to GitHub.nosync."""
@@ -101,8 +101,8 @@ class TestGreedyPathDecode:
     def test_hybrid_hyphen_and_dot_flattening(self, tmp_path: Path) -> None:
         """Flattened encoding should reconstruct mixed separators in one component."""
         _make_dirs(tmp_path, "my-cool-project.nosync/headroom")
-        result = _greedy_path_decode(tmp_path, ["my", "cool", "project", "nosync", "headroom"])
-        assert result == tmp_path / "my-cool-project.nosync" / "headroom"
+        result = _greedy_path_decode(tmp_path, ["my", "cool", "project", "nosync", "cutctx"])
+        assert result == tmp_path / "my-cool-project.nosync" / "cutctx"
 
     # ---- Underscore tests (issue #159) ----
 
@@ -174,7 +174,7 @@ class TestDecodeProjectPath:
         The encoded name maps directly to the real path because every ``-`` is
         a path separator; dots in directory names are preserved unchanged.
         """
-        project = users_tmp / "GitHub.nosync" / "headroom"
+        project = users_tmp / "GitHub.nosync" / "cutctx"
         project.mkdir(parents=True)
         # Build the encoded name exactly as Claude Code does (/  →  -)
         encoded = "-" + str(project)[1:].replace("/", "-")

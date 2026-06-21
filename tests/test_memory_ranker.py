@@ -1,7 +1,7 @@
 """Tests for :class:`headroom.proxy.memory_ranker.MemoryRanker` +
 :class:`RecencyBoostRanker`.
 
-Pre-this-PR Headroom ranked memory candidates by pure cosine
+Pre-this-PR Cutctx ranked memory candidates by pure cosine
 similarity. Every other memory system we surveyed (Letta, Mem0,
 Cognee, Supermemory) re-ranks beyond cosine — recency / source /
 access-count / decay are table-stakes. The pure-cosine baseline

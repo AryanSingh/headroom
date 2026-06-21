@@ -1,5 +1,5 @@
 /**
- * Manages connectivity to a Headroom proxy (local or remote).
+ * Manages connectivity to a CutCtx proxy (local or remote).
  *
  * Security model:
  * - Local proxies (127.0.0.1 / localhost) can be auto-started via subprocess
@@ -39,7 +39,7 @@ export const defaultLogger: ProxyManagerLogger = {
 
 export interface ProxyProbeResult {
   reachable: boolean;
-  isHeadroom: boolean;
+  isCutCtx: boolean;
   reason?: string;
 }
 
@@ -84,20 +84,20 @@ export class ProxyManager {
     const probeByUrl = new Map<string, ProxyProbeResult>();
 
     for (const url of candidateUrls) {
-      const probe = await probeHeadroomProxy(url);
+      const probe = await probeCutCtxProxy(url);
       probeByUrl.set(url, probe);
-      if (probe.reachable && probe.isHeadroom) {
+      if (probe.reachable && probe.isCutCtx) {
         this.proxyUrl = url;
-        this.logger.info(`Headroom proxy already running at ${url}`);
+        this.logger.info(`CutCtx proxy already running at ${url}`);
         return url;
       }
     }
 
     if (explicitUrl) {
       const explicitProbe = probeByUrl.get(explicitUrl);
-      if (explicitProbe?.reachable && !explicitProbe.isHeadroom) {
+      if (explicitProbe?.reachable && !explicitProbe.isCutCtx) {
         throw new Error(
-          `Service reachable at ${explicitUrl}, but it does not appear to be a Headroom proxy (${explicitProbe.reason ?? "unknown service"}).`,
+          `Service reachable at ${explicitUrl}, but it does not appear to be a CutCtx proxy (${explicitProbe.reason ?? "unknown service"}).`,
         );
       }
     }
@@ -105,7 +105,7 @@ export class ProxyManager {
     // Remote URLs are connect-only — never auto-start a subprocess for them
     if (explicitUrl && !isLocalProxyUrl(explicitUrl)) {
       throw new Error(
-        `Remote Headroom proxy not reachable at ${explicitUrl}. Ensure the proxy is running at that address.`,
+        `Remote CutCtx proxy not reachable at ${explicitUrl}. Ensure the proxy is running at that address.`,
       );
     }
 
@@ -113,39 +113,39 @@ export class ProxyManager {
     if (this.config.autoStart !== false) {
       const startupUrl = explicitUrl ?? defaultCandidates[0];
       const startupProbe = probeByUrl.get(startupUrl);
-      if (startupProbe?.reachable && !startupProbe.isHeadroom) {
+      if (startupProbe?.reachable && !startupProbe.isCutCtx) {
         throw new Error(
-          `Cannot auto-start Headroom at ${startupUrl}: port is in use by a non-Headroom service (${startupProbe.reason ?? "unknown service"}).`,
+          `Cannot auto-start CutCtx at ${startupUrl}: port is in use by a non-CutCtx service (${startupProbe.reason ?? "unknown service"}).`,
         );
       }
 
       this.logger.info(
-        `No Headroom proxy detected${explicitUrl ? ` at ${startupUrl}` : " on default local endpoints"}; attempting to auto-start...`,
+        `No CutCtx proxy detected${explicitUrl ? ` at ${startupUrl}` : " on default local endpoints"}; attempting to auto-start...`,
       );
-      await this.startHeadroomProxy(startupUrl, port);
+      await this.startCutCtxProxy(startupUrl, port);
 
-      const startedProbe = await waitForHeadroomProxy(
+      const startedProbe = await waitForCutCtxProxy(
         startupUrl,
         this.config.startupTimeoutMs ?? 20_000,
       );
-      if (startedProbe.reachable && startedProbe.isHeadroom) {
+      if (startedProbe.reachable && startedProbe.isCutCtx) {
         this.proxyUrl = startupUrl;
-        this.logger.info(`Headroom proxy started and reachable at ${startupUrl}`);
+        this.logger.info(`CutCtx proxy started and reachable at ${startupUrl}`);
         return startupUrl;
       }
       throw new Error(
-        `Attempted to start Headroom proxy, but it was not reachable at ${startupUrl} (${startedProbe.reason ?? "unknown"}).`,
+        `Attempted to start CutCtx proxy, but it was not reachable at ${startupUrl} (${startedProbe.reason ?? "unknown"}).`,
       );
     }
 
     if (explicitUrl) {
       throw new Error(
-        `Headroom proxy not reachable at ${explicitUrl}. Ensure the proxy is running first.`,
+        `CutCtx proxy not reachable at ${explicitUrl}. Ensure the proxy is running first.`,
       );
     }
 
     throw new Error(
-      `Headroom proxy not detected on default endpoints (${defaultCandidates.join(", ")}). ` +
+      `CutCtx proxy not detected on default endpoints (${defaultCandidates.join(", ")}). ` +
         "Set proxyUrl explicitly or enable autoStart.",
     );
   }
@@ -176,7 +176,7 @@ export class ProxyManager {
 
   // --- Internal ---
 
-  private async startHeadroomProxy(proxyUrl: string, defaultPort: number): Promise<void> {
+  private async startCutCtxProxy(proxyUrl: string, defaultPort: number): Promise<void> {
     const parsed = new URL(proxyUrl);
     const host = parsed.hostname;
     const port = parsed.port || String(defaultPort);
@@ -204,7 +204,7 @@ export class ProxyManager {
     }
 
     throw new Error(
-      "No usable Headroom launcher found. Tried PATH, local npm, global npm, and Python. " +
+      "No usable CutCtx launcher found. Tried PATH, local npm, global npm, and Python. " +
         "Install cutctx-ai (npm or pip) and ensure one launcher is available.\n" +
         (errors.length > 0 ? `Launch errors: ${errors.join("; ")}` : ""),
     );
@@ -237,13 +237,13 @@ export class ProxyManager {
 
     // 2) Windows pyenv: resolve the real executable so we avoid shim .bat wrappers.
     if (process.platform === "win32") {
-      const pyenvHeadroom = this.getPyenvResolvedHeadroom();
-      if (pyenvHeadroom) {
+      const pyenvCutCtx = this.getPyenvResolvedCutCtx();
+      if (pyenvCutCtx) {
         specs.push({
-          label: `pyenv: ${pyenvHeadroom}`,
-          command: pyenvHeadroom,
+          label: `pyenv: ${pyenvCutCtx}`,
+          command: pyenvCutCtx,
           args: commonArgs,
-          checkCommand: pyenvHeadroom,
+          checkCommand: pyenvCutCtx,
           checkArgs: ["--version"],
           useShell: false,
         });
@@ -325,7 +325,7 @@ export class ProxyManager {
     return configured.length > 0 ? configured : null;
   }
 
-  private getPyenvResolvedHeadroom(): string | null {
+  private getPyenvResolvedCutCtx(): string | null {
     if (process.platform !== "win32") return null;
 
     try {
@@ -427,9 +427,9 @@ function withDefaultPort(proxyUrl: string, defaultPort: number): string {
 }
 
 /**
- * Probe a configured URL and verify whether it is a running Headroom proxy.
+ * Probe a configured URL and verify whether it is a running CutCtx proxy.
  */
-export async function probeHeadroomProxy(proxyUrl: string): Promise<ProxyProbeResult> {
+export async function probeCutCtxProxy(proxyUrl: string): Promise<ProxyProbeResult> {
   const origin = normalizeAndValidateProxyUrl(proxyUrl);
 
   try {
@@ -437,10 +437,10 @@ export async function probeHeadroomProxy(proxyUrl: string): Promise<ProxyProbeRe
       signal: AbortSignal.timeout(3_000),
     });
     if (!health.ok) {
-      return { reachable: false, isHeadroom: false, reason: `health HTTP ${health.status}` };
+      return { reachable: false, isCutCtx: false, reason: `health HTTP ${health.status}` };
     }
   } catch {
-    return { reachable: false, isHeadroom: false, reason: "health check failed" };
+    return { reachable: false, isCutCtx: false, reason: "health check failed" };
   }
 
   try {
@@ -448,30 +448,30 @@ export async function probeHeadroomProxy(proxyUrl: string): Promise<ProxyProbeRe
       signal: AbortSignal.timeout(3_000),
     });
     if (retrieveStats.ok) {
-      return { reachable: true, isHeadroom: true };
+      return { reachable: true, isCutCtx: true };
     }
     return {
       reachable: true,
-      isHeadroom: false,
+      isCutCtx: false,
       reason: `retrieve stats HTTP ${retrieveStats.status}`,
     };
   } catch {
     return {
       reachable: true,
-      isHeadroom: false,
+      isCutCtx: false,
       reason: "retrieve stats endpoint unavailable",
     };
   }
 }
 
-async function waitForHeadroomProxy(proxyUrl: string, timeoutMs: number): Promise<ProxyProbeResult> {
+async function waitForCutCtxProxy(proxyUrl: string, timeoutMs: number): Promise<ProxyProbeResult> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const result = await probeHeadroomProxy(proxyUrl);
-    if (result.reachable && result.isHeadroom) {
+    const result = await probeCutCtxProxy(proxyUrl);
+    if (result.reachable && result.isCutCtx) {
       return result;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return probeHeadroomProxy(proxyUrl);
+  return probeCutCtxProxy(proxyUrl);
 }

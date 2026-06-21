@@ -42,7 +42,7 @@ class BenchmarkSpec:
     dataset_name: str | None = None  # For before_after runner
     lm_eval_tasks: list[str] | None = None  # For lm_eval runner
     primary_metric: str = "accuracy"
-    pass_threshold: float = 0.98  # Headroom score >= baseline - (1-threshold)
+    pass_threshold: float = 0.98  # Cutctx score >= baseline - (1-threshold)
     estimated_cost_usd: float = 0.50
     avg_input_tokens: int = 500  # Per sample, for cost estimation
     provider: Literal["anthropic", "openai", "ollama"] = "openai"  # LLM provider
@@ -57,7 +57,7 @@ BENCHMARK_SUITE: list[BenchmarkSpec] = [
     # -----------------------------------------------------------------------
     # TIER 1: Core Report Card (~$3, ~30 min)
     # -----------------------------------------------------------------------
-    # Standard benchmarks via lm-eval harness (through Headroom proxy)
+    # Standard benchmarks via lm-eval harness (through Cutctx proxy)
     BenchmarkSpec(
         name="GSM8K",
         category="reasoning",
@@ -261,7 +261,7 @@ def _load_env() -> None:
 
 
 def _check_proxy(port: int) -> bool:
-    """Check if Headroom proxy is running on given port."""
+    """Check if Cutctx proxy is running on given port."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
@@ -272,8 +272,8 @@ def _check_proxy(port: int) -> bool:
 
 
 def _start_proxy(port: int) -> subprocess.Popen | None:
-    """Start Headroom proxy as a subprocess. Returns process handle."""
-    logger.info(f"Starting Headroom proxy on port {port}...")
+    """Start Cutctx proxy as a subprocess. Returns process handle."""
+    logger.info(f"Starting Cutctx proxy on port {port}...")
     try:
         proc = subprocess.Popen(
             [sys.executable, "-m", "headroom.proxy.server", "--port", str(port)],
@@ -284,7 +284,7 @@ def _start_proxy(port: int) -> subprocess.Popen | None:
         for _ in range(30):
             time.sleep(1)
             if _check_proxy(port):
-                logger.info(f"Headroom proxy ready on port {port}")
+                logger.info(f"Cutctx proxy ready on port {port}")
                 return proc
         logger.error("Proxy failed to start within 30 seconds")
         proc.kill()
@@ -326,7 +326,7 @@ class SuiteRunner:
         return [s for s in BENCHMARK_SUITE if s.tier in self.tiers]
 
     def _ensure_proxy(self) -> bool:
-        """Ensure the Headroom proxy is running (needed for lm-eval benchmarks)."""
+        """Ensure the Cutctx proxy is running (needed for lm-eval benchmarks)."""
         if _check_proxy(self.headroom_port):
             return True
         if self.auto_start_proxy:
@@ -337,7 +337,7 @@ class SuiteRunner:
     def _cleanup_proxy(self) -> None:
         """Stop proxy if we started it."""
         if self._proxy_proc:
-            logger.info("Stopping Headroom proxy...")
+            logger.info("Stopping Cutctx proxy...")
             self._proxy_proc.send_signal(signal.SIGTERM)
             try:
                 self._proxy_proc.wait(timeout=5)
@@ -368,8 +368,8 @@ class SuiteRunner:
             limit=limit,
         )
 
-        # Run through Headroom proxy
-        print("    Running through Headroom proxy...")
+        # Run through Cutctx proxy
+        print("    Running through Cutctx proxy...")
         headroom_results = run_headroom_benchmark(
             model=spec.model or self.model,
             tasks=tasks,
@@ -500,7 +500,7 @@ class SuiteRunner:
         if has_lm_eval:
             proxy_available = self._ensure_proxy()
             if not proxy_available:
-                print("WARNING: Headroom proxy not available. Skipping lm-eval benchmarks.")
+                print("WARNING: Cutctx proxy not available. Skipping lm-eval benchmarks.")
                 print("  Start with: headroom proxy --port 8787")
 
         try:

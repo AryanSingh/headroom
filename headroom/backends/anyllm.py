@@ -1,4 +1,4 @@
-"""any-llm backend for Headroom.
+"""any-llm backend for Cutctx.
 
 Talk to 38+ LLM providers (OpenAI, Mistral, Groq, Ollama, Bedrock, etc.)
 through a single interface. Auth and format translation handled automatically.

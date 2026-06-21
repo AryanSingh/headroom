@@ -23,7 +23,7 @@ vi.mock("../src/proxy-manager.js", () => ({
   defaultLogger: mocked.logger,
 }));
 
-import { HeadroomContextEngine } from "../src/engine.js";
+import { CutCtxContextEngine } from "../src/engine.js";
 
 afterEach(() => {
   mocked.start.mockReset();
@@ -35,9 +35,9 @@ afterEach(() => {
   mocked.logger.warn.mockClear();
 });
 
-describe("HeadroomContextEngine proxy startup helpers", () => {
+describe("CutCtxContextEngine proxy startup helpers", () => {
   it("bootstraps by scheduling proxy startup when enabled", async () => {
-    const engine = new HeadroomContextEngine();
+    const engine = new CutCtxContextEngine();
 
     await expect(
       engine.bootstrap({
@@ -52,7 +52,7 @@ describe("HeadroomContextEngine proxy startup helpers", () => {
   });
 
   it("removes unsubscribed proxy listeners before notifying readiness", async () => {
-    const engine = new HeadroomContextEngine();
+    const engine = new CutCtxContextEngine();
     const first = vi.fn();
     const second = vi.fn();
 
@@ -68,7 +68,7 @@ describe("HeadroomContextEngine proxy startup helpers", () => {
   });
 
   it("returns the existing proxy URL without starting again", async () => {
-    const engine = new HeadroomContextEngine();
+    const engine = new CutCtxContextEngine();
 
     (engine as { proxyUrl: string | null }).proxyUrl = "http://127.0.0.1:8787";
 
@@ -77,14 +77,14 @@ describe("HeadroomContextEngine proxy startup helpers", () => {
   });
 
   it("throws when proxy startup is disabled", async () => {
-    const engine = new HeadroomContextEngine({ enabled: false });
+    const engine = new CutCtxContextEngine({ enabled: false });
 
-    await expect(engine.ensureProxyUrl()).rejects.toThrow("Headroom proxy startup is disabled");
+    await expect(engine.ensureProxyUrl()).rejects.toThrow("CutCtx proxy startup is disabled");
     expect(mocked.start).not.toHaveBeenCalled();
   });
 
   it("schedules startup and returns original messages when assembling before proxy readiness", async () => {
-    const engine = new HeadroomContextEngine();
+    const engine = new CutCtxContextEngine();
     const messages = [{ role: "user", content: "hello" }];
 
     await expect(

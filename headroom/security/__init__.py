@@ -1,4 +1,4 @@
-"""Headroom security layer — LLM firewall, PII detection, injection blocking, state encryption."""
+"""Cutctx security layer — LLM firewall, PII detection, injection blocking, state encryption."""
 
 from headroom.security.firewall import (
     FirewallConfig,

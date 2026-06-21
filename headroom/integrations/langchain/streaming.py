@@ -5,9 +5,9 @@ during streaming responses from LangChain models.
 
 Example:
     from langchain_openai import ChatOpenAI
-    from headroom.integrations import HeadroomChatModel, StreamingMetricsTracker
+    from headroom.integrations import CutctxChatModel, StreamingMetricsTracker
 
-    llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+    llm = CutctxChatModel(ChatOpenAI(model="gpt-4o"))
     tracker = StreamingMetricsTracker(model="gpt-4o")
 
     for chunk in llm.stream("Tell me a story"):
@@ -105,7 +105,7 @@ class StreamingMetricsTracker:
 
         Args:
             model: Model name for token counting. Default "gpt-4o".
-            provider: Headroom provider for token counting. Uses
+            provider: Cutctx provider for token counting. Uses
                 OpenAIProvider if not specified.
         """
         _check_langchain_available()
@@ -250,7 +250,7 @@ class StreamingMetricsCallback:
 
         Args:
             model: Model name for token counting.
-            provider: Headroom provider for token counting.
+            provider: Cutctx provider for token counting.
         """
         self._tracker = StreamingMetricsTracker(model=model, provider=provider)
         self._metrics: StreamingMetrics | None = None
@@ -287,7 +287,7 @@ def track_streaming_response(
     Args:
         stream: Iterable of streaming chunks.
         model: Model name for token counting.
-        provider: Headroom provider for token counting.
+        provider: Cutctx provider for token counting.
 
     Returns:
         Tuple of (accumulated_content, metrics).
@@ -321,7 +321,7 @@ async def track_async_streaming_response(
     Args:
         stream: Async iterable of streaming chunks.
         model: Model name for token counting.
-        provider: Headroom provider for token counting.
+        provider: Cutctx provider for token counting.
 
     Returns:
         Tuple of (accumulated_content, metrics).

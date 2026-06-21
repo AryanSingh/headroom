@@ -37,7 +37,7 @@ POST `/v1/compress` — returns semantically compressed messages.
 
 ### `Retrieve(ctx, ref) (string, error)`
 
-GET `/v1/retrieve/{ref}` — fetches original content for a `[headroom:ref:HASH]` pointer.
+GET `/v1/retrieve/{ref}` — fetches original content for a `[cutctx:ref:HASH]` pointer.
 
 ### `Stats() Stats`
 

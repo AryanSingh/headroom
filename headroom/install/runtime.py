@@ -60,7 +60,7 @@ def _deployment_env(manifest: DeploymentManifest) -> dict[str, str]:
 def resolve_headroom_command() -> list[str]:
     """Resolve the most reliable command to invoke headroom."""
 
-    headroom_bin = shutil.which("headroom")
+    headroom_bin = shutil.which("cutctx")
     if headroom_bin:
         return [headroom_bin]
     return [sys.executable, "-m", "headroom.cli"]
@@ -107,7 +107,7 @@ def build_runtime_command(manifest: DeploymentManifest) -> list[str]:
         f"HOME={container_home}",
         "--env",
         "PYTHONUNBUFFERED=1",
-        # Canonical Headroom filesystem contract (issue #175).
+        # Canonical Cutctx filesystem contract (issue #175).
         "--env",
         f"HEADROOM_WORKSPACE_DIR={container_home}/.headroom",
         "--env",
@@ -135,7 +135,7 @@ def build_runtime_command(manifest: DeploymentManifest) -> list[str]:
     command.extend(
         [
             manifest.image,
-            "headroom",
+            "cutctx",
             "proxy",
             "--host",
             "0.0.0.0",

@@ -1,4 +1,4 @@
-"""Memory backends for Headroom's hierarchical memory system.
+"""Memory backends for Cutctx's hierarchical memory system.
 
 This module provides backend adapters for the memory system:
 - LocalBackend: Fully local using SQLite + HNSW + InMemoryGraph (default)

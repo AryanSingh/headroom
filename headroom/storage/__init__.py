@@ -1,4 +1,4 @@
-"""Storage modules for Headroom SDK."""
+"""Storage modules for Cutctx SDK."""
 
 from .base import Storage
 from .jsonl import JSONLStorage

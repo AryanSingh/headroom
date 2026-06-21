@@ -35,11 +35,11 @@ def restore_isolated_modules() -> None:
 
 def _load_handler_module(monkeypatch: pytest.MonkeyPatch, module_name: str, relative_path: str):
     proxy_pkg = types.ModuleType("headroom.proxy")
-    proxy_pkg.__path__ = [str(ROOT / "headroom" / "proxy")]
+    proxy_pkg.__path__ = [str(ROOT / "cutctx" / "proxy")]
     monkeypatch.setitem(sys.modules, "headroom.proxy", proxy_pkg)
 
     handlers_pkg = types.ModuleType("headroom.proxy.handlers")
-    handlers_pkg.__path__ = [str(ROOT / "headroom" / "proxy" / "handlers")]
+    handlers_pkg.__path__ = [str(ROOT / "cutctx" / "proxy" / "handlers")]
     monkeypatch.setitem(sys.modules, "headroom.proxy.handlers", handlers_pkg)
 
     httpx_mod = types.ModuleType("httpx")
@@ -117,7 +117,7 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
             await emit_request_outcome(self, outcome)
 
         def _extract_tags(self, headers: dict) -> dict[str, str]:
-            # Mirror of HeadroomProxy._extract_tags. The passthrough
+            # Mirror of CutctxProxy._extract_tags. The passthrough
             # handler now extracts tags at entry as part of the
             # outcome-tag invariant lock (PR #480).
             return {

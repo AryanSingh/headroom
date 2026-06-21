@@ -1,7 +1,7 @@
-"""Google Gemini provider for Headroom SDK.
+"""Google Gemini provider for Cutctx SDK.
 
 Supports Google's Gemini models through two interfaces:
-1. OpenAI-compatible endpoint (recommended for Headroom)
+1. OpenAI-compatible endpoint (recommended for Cutctx)
 2. Native Google AI SDK (for advanced features)
 
 Token counting uses Google's official countTokens API when a client

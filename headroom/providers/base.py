@@ -1,4 +1,4 @@
-"""Base provider protocol for Headroom SDK.
+"""Base provider protocol for Cutctx SDK.
 
 Providers are responsible for:
 - Token counting (model-specific)

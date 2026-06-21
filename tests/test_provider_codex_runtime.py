@@ -263,7 +263,7 @@ def _assert_delivery(
             break
         time.sleep(0.1)
     else:
-        raise AssertionError(f"Headroom never recorded model {model!r} in /stats")
+        raise AssertionError(f"Cutctx never recorded model {model!r} in /stats")
 
     assert payload["choices"][0]["message"]["content"] == "mock completion from upstream"
     assert any(
@@ -316,7 +316,7 @@ def test_codex_launch_env_routes_messages_through_headroom(
         codex_proxy_stack,
         base_url=str(env["OPENAI_BASE_URL"]),
         model="wrap-launch-delivery-probe",
-        content="Verify temporary launch env traffic reaches Headroom.",
+        content="Verify temporary launch env traffic reaches Cutctx.",
     )
 
 
@@ -330,7 +330,7 @@ def test_codex_install_env_routes_messages_through_headroom(
         codex_proxy_stack,
         base_url=env["OPENAI_BASE_URL"],
         model="persistent-install-delivery-probe",
-        content="Verify persistent install env traffic reaches Headroom.",
+        content="Verify persistent install env traffic reaches Cutctx.",
     )
 
 
@@ -359,7 +359,7 @@ def test_init_codex_config_routes_messages_through_headroom(
         codex_proxy_stack,
         base_url=_codex_base_url_from_config(config_path),
         model="init-config-delivery-probe",
-        content="Verify init-generated Codex config sends traffic to Headroom.",
+        content="Verify init-generated Codex config sends traffic to Cutctx.",
     )
 
 
@@ -383,5 +383,5 @@ def test_provider_scope_codex_config_routes_messages_through_headroom(
         codex_proxy_stack,
         base_url=_codex_base_url_from_config(config_path),
         model="provider-scope-delivery-probe",
-        content="Verify persistent provider config sends traffic to Headroom.",
+        content="Verify persistent provider config sends traffic to Cutctx.",
     )

@@ -1,4 +1,4 @@
-"""Data models for Headroom Learn — tool-agnostic abstractions.
+"""Data models for Cutctx Learn — tool-agnostic abstractions.
 
 These models normalize tool call data from ANY agent system (Claude Code, Cursor,
 Codex, custom agents) into a common format that analyzers can work with.

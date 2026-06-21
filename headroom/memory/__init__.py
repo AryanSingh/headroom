@@ -1,4 +1,4 @@
-"""Headroom Memory - Simple, zero-config memory for AI applications.
+"""Cutctx Memory - Simple, zero-config memory for AI applications.
 
 Quick Start (No Docker Required):
     from headroom.memory import Memory
@@ -63,7 +63,7 @@ from headroom.memory.adapters.graph import InMemoryGraphStore
 from headroom.memory.backends.local import LocalBackend, LocalBackendConfig
 
 # =============================================================================
-# Memory Bridge (markdown <-> Headroom bidirectional sync)
+# Memory Bridge (markdown <-> Cutctx bidirectional sync)
 # =============================================================================
 from headroom.memory.bridge import ImportStats, MemoryBridge, SyncStats
 from headroom.memory.bridge_config import BridgeConfig, MarkdownFormat
@@ -282,7 +282,7 @@ __all__ = [
     "DirectMem0Adapter",
     "DirectMem0Config",
     # =========================================================================
-    # Memory Bridge (markdown <-> Headroom bidirectional sync)
+    # Memory Bridge (markdown <-> Cutctx bidirectional sync)
     # =========================================================================
     "MemoryBridge",
     "BridgeConfig",

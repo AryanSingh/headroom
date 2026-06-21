@@ -1,6 +1,6 @@
 """``MemoryInjectionBudget``: uniform token/entry cap on retrieved memory.
 
-Pre-this-PR Headroom had NO token cap on injected memory. Top-K=10
+Pre-this-PR Cutctx had NO token cap on injected memory. Top-K=10
 candidates × ~400 tokens each = up to ~4000 tokens injected per
 request. None of Letta/Mem0/Cognee/Supermemory ship a token-uncapped
 injection path on the hot wire.

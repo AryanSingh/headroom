@@ -1,6 +1,6 @@
-"""Canonical filesystem contract for Headroom.
+"""Canonical filesystem contract for Cutctx.
 
-This module defines the single source of truth for where Headroom reads and
+This module defines the single source of truth for where Cutctx reads and
 writes files. It introduces two canonical roots:
 
 * ``HEADROOM_CONFIG_DIR`` -- read-mostly configuration (defaults to
@@ -241,7 +241,7 @@ def bridge_state_path() -> Path:
 
 
 def log_dir() -> Path:
-    """Return the directory for Headroom log files."""
+    """Return the directory for Cutctx log files."""
 
     return workspace_dir() / _LOGS_DIR
 
@@ -265,7 +265,7 @@ def codex_wire_debug_dir() -> Path:
 
 
 def bin_dir() -> Path:
-    """Return the directory where Headroom ships vendored binaries."""
+    """Return the directory where Cutctx ships vendored binaries."""
 
     return workspace_dir() / _BIN_DIR
 

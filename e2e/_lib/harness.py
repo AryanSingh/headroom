@@ -105,7 +105,7 @@ def _resolve_headroom_bin(name: str) -> str:
     return name
 
 
-def _run_single(case: Case, headroom_bin: str = "headroom") -> bool:
+def _run_single(case: Case, headroom_bin: str = "cutctx") -> bool:
     """Execute one case. Return True on pass, False on fail."""
 
     with tempfile.TemporaryDirectory(prefix=f"headroom-e2e-{case.name}-") as temp_raw:
@@ -251,7 +251,7 @@ def _run_in_scratch(
 def run_cases(
     cases: list[Case],
     *,
-    headroom_bin: str = "headroom",
+    headroom_bin: str = "cutctx",
     fail_fast: bool = False,
 ) -> int:
     """Run each case in its own scratch dir. Return exit code (0 = all pass)."""
@@ -274,7 +274,7 @@ def run_cases(
 def run_case_sequence(
     cases: list[Case],
     *,
-    headroom_bin: str = "headroom",
+    headroom_bin: str = "cutctx",
     label: str = "sequence",
     fail_fast: bool = True,
 ) -> int:

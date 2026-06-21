@@ -1,6 +1,6 @@
 """Image Compressor - Seamless image token optimization.
 
-This is the main entry point for image compression in Headroom.
+This is the main entry point for image compression in Cutctx.
 It automatically:
 1. Detects images in messages
 2. Extracts the user's query

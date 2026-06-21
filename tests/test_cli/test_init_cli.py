@@ -325,7 +325,7 @@ def test_init_openclaw_delegates_to_wrap(monkeypatch) -> None:
     class _Result:
         returncode = 0
 
-    monkeypatch.setattr(init_cli, "resolve_headroom_command", lambda: ["headroom"])
+    monkeypatch.setattr(init_cli, "resolve_headroom_command", lambda: ["cutctx"])
     monkeypatch.setattr(
         init_cli.subprocess,
         "run",
@@ -334,7 +334,7 @@ def test_init_openclaw_delegates_to_wrap(monkeypatch) -> None:
 
     init_cli._init_openclaw(global_scope=True, port=9999)
 
-    assert calls == [["headroom", "wrap", "openclaw", "--proxy-port", "9999"]]
+    assert calls == [["cutctx", "wrap", "openclaw", "--proxy-port", "9999"]]
 
 
 def test_detect_init_targets_respects_scope(monkeypatch) -> None:
@@ -374,7 +374,7 @@ def test_command_string_and_matcher_on_windows(monkeypatch) -> None:
     monkeypatch.setattr(init_cli, "os", SimpleNamespace(name="nt"))
     monkeypatch.setattr(init_cli.subprocess, "list2cmdline", lambda parts: "joined-command")
 
-    assert init_cli._command_string(["headroom", "init"]) == "joined-command"
+    assert init_cli._command_string(["cutctx", "init"]) == "joined-command"
     assert init_cli._powershell_matcher() == "Bash|PowerShell"
 
 
@@ -1036,7 +1036,7 @@ def test_init_openclaw_propagates_nonzero_exit(monkeypatch) -> None:
     class _Result:
         returncode = 9
 
-    monkeypatch.setattr(init_cli, "resolve_headroom_command", lambda: ["headroom"])
+    monkeypatch.setattr(init_cli, "resolve_headroom_command", lambda: ["cutctx"])
     monkeypatch.setattr(init_cli.subprocess, "run", lambda command: _Result())
 
     with pytest.raises(SystemExit) as exc:

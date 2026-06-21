@@ -53,6 +53,6 @@ The trait shape accepts all three without changes.
 
 ## What does NOT live here
 
-- Concrete transforms — they go in `crates/headroom-core/src/transforms/`.
+- Concrete transforms — they go in `crates/cutctx-core/src/transforms/`.
 - Static keyword data tables — they're configuration for `KeywordDetector`, not detection logic. They live alongside the detector that consumes them (`signals/keyword_detector.rs::KeywordRegistry`).
-- Tag protection (`<headroom:keep>` markers) — that's user intent, not classification.
+- Tag protection (`<cutctx:keep>` markers) — that's user intent, not classification.

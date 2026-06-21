@@ -1,6 +1,6 @@
 # macOS LaunchAgent Deployment
 
-This directory contains templates and scripts for running the headroom proxy server as a persistent background service on macOS using LaunchAgent.
+This directory contains templates and scripts for running the cutctx proxy server as a persistent background service on macOS using LaunchAgent.
 
 ## Quick Start
 
@@ -9,13 +9,13 @@ This directory contains templates and scripts for running the headroom proxy ser
 ./install.sh
 
 # Add shell integration to ~/.bashrc or ~/.zshrc
-export HEADROOM_PORT=8787
+export CUTCTX_PORT=8787
 source /path/to/shell-integration.sh
 ```
 
 ## Files
 
-- **com.headroom.proxy.plist.template**: LaunchAgent plist template
+- **com.cutctx.proxy.plist.template**: LaunchAgent plist template
 - **install.sh**: Automated installation script
 - **uninstall.sh**: Automated removal script
 - **shell-integration.sh**: Shell integration for automatic ANTHROPIC_BASE_URL configuration
@@ -25,13 +25,13 @@ source /path/to/shell-integration.sh
 - **Automatic Startup**: Service starts on user login
 - **Crash Recovery**: Automatically restarts if the proxy crashes
 - **Configurable Port**: Default 8787, customizable during installation
-- **Standard Logging**: Logs to `~/Library/Logs/headroom/`
+- **Standard Logging**: Logs to `~/Library/Logs/cutctx/`
 - **Shell Integration**: Automatically sets `ANTHROPIC_BASE_URL` for Claude clients
 
 ## Requirements
 
 - macOS 10.13+ (High Sierra or later)
-- headroom-ai installed with proxy support: `pip install headroom-ai[proxy]`
+- cutctx-ai installed with proxy support: `pip install cutctx-ai[proxy]`
 - Anthropic API key configured in environment
 
 ## Installation Options
@@ -60,7 +60,7 @@ Check if the service is running:
 
 ```bash
 # Check LaunchAgent status
-launchctl print gui/$(id -u)/com.headroom.proxy
+launchctl print gui/$(id -u)/com.cutctx.proxy
 
 # Check if port is listening
 lsof -iTCP:8787 -sTCP:LISTEN
@@ -75,10 +75,10 @@ View logs:
 
 ```bash
 # Standard output
-tail -f ~/Library/Logs/headroom/proxy.log
+tail -f ~/Library/Logs/cutctx/proxy.log
 
 # Error output
-tail -f ~/Library/Logs/headroom/proxy-error.log
+tail -f ~/Library/Logs/cutctx/proxy-error.log
 ```
 
 ## Uninstallation
@@ -98,14 +98,14 @@ tail -f ~/Library/Logs/headroom/proxy-error.log
 Check logs for errors:
 
 ```bash
-tail -n 50 ~/Library/Logs/headroom/proxy-error.log
+tail -n 50 ~/Library/Logs/cutctx/proxy-error.log
 ```
 
 Common causes:
 
 - Missing ANTHROPIC_API_KEY environment variable
 - Port already in use
-- headroom not installed with proxy support
+- cutctx not installed with proxy support
 
 ### Port already in use
 
@@ -127,13 +127,13 @@ Change to a different port:
 Verify LaunchAgent is loaded:
 
 ```bash
-launchctl list | grep headroom
+launchctl list | grep cutctx
 ```
 
 If not loaded:
 
 ```bash
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.headroom.proxy.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cutctx.proxy.plist
 ```
 
 ## Manual Installation
@@ -143,24 +143,24 @@ If you prefer manual installation:
 1. Copy template and customize:
 
    ```bash
-   cp com.headroom.proxy.plist.template ~/Library/LaunchAgents/com.headroom.proxy.plist
+   cp com.cutctx.proxy.plist.template ~/Library/LaunchAgents/com.cutctx.proxy.plist
    ```
 
 2. Edit the plist file:
-   - Replace `__HEADROOM_PATH__` with output of `command -v headroom`
+   - Replace `__CUTCTX_PATH__` with output of `command -v cutctx`
    - Replace `__PORT__` with your desired port
    - Replace `__HOME__` with your home directory path
 
 3. Create log directory:
 
    ```bash
-   mkdir -p ~/Library/Logs/headroom
+   mkdir -p ~/Library/Logs/cutctx
    ```
 
 4. Load the LaunchAgent:
 
    ```bash
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.headroom.proxy.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cutctx.proxy.plist
    ```
 
 ## Documentation

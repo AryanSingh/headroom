@@ -1,4 +1,4 @@
-"""Memory evaluation framework for Headroom.
+"""Memory evaluation framework for Cutctx.
 
 Benchmarks for evaluating memory system quality using industry-standard
 datasets like LoCoMo.

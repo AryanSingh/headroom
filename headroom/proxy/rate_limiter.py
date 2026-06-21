@@ -1,4 +1,4 @@
-"""Token bucket rate limiter for the Headroom proxy.
+"""Token bucket rate limiter for the Cutctx proxy.
 
 Rate limits requests and token usage per API key or IP address.
 

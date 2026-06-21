@@ -1,4 +1,4 @@
-"""LiteLLM-based backend for Headroom.
+"""LiteLLM-based backend for Cutctx.
 
 Uses LiteLLM to support 100+ providers with minimal code:
 - AWS Bedrock: model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0"

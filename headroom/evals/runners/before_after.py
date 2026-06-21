@@ -82,7 +82,7 @@ class BeforeAfterRunner:
         self._llm_client = self._init_llm_client()
 
         # If proxy URL is set, create a second client pointing at the proxy.
-        # This gives us the FULL Headroom stack (compression + CCR + cache alignment)
+        # This gives us the FULL Cutctx stack (compression + CCR + cache alignment)
         # rather than just local ContentRouter compression.
         self._proxy_client: Any = None
         if self.llm_config.headroom_proxy_url:
@@ -127,7 +127,7 @@ class BeforeAfterRunner:
             raise ValueError(f"Unknown provider: {self.llm_config.provider}")
 
     def _init_proxy_client(self) -> Any:
-        """Initialize an OpenAI client pointing at the Headroom proxy."""
+        """Initialize an OpenAI client pointing at the Cutctx proxy."""
         import openai
 
         return openai.OpenAI(
@@ -136,7 +136,7 @@ class BeforeAfterRunner:
         )
 
     def _call_llm_via_proxy(self, context: str, query: str) -> str:
-        """Call LLM through Headroom proxy (full stack: compression + CCR)."""
+        """Call LLM through Cutctx proxy (full stack: compression + CCR)."""
         prompt = f"""Based on the following context, answer the question.
 
 Context:
@@ -307,7 +307,7 @@ Answer:"""
 
         # --- BEFORE_AFTER mode (default) ---
 
-        # Run LLM with ORIGINAL context (direct to API, no Headroom)
+        # Run LLM with ORIGINAL context (direct to API, no Cutctx)
         start = time.time()
         try:
             response_original = self._call_llm(case.context, case.query)
@@ -315,7 +315,7 @@ Answer:"""
             response_original = f"ERROR: {e}"
         latency_original = (time.time() - start) * 1000
 
-        # Run LLM with Headroom context
+        # Run LLM with Cutctx context
         # If proxy is configured: send ORIGINAL context through proxy (full stack:
         # compression + CCR + cache alignment — the real production path)
         # If no proxy: send locally-compressed context directly to LLM (legacy)

@@ -4,7 +4,7 @@ Derives two orthogonal identity fields the beacon reports:
 
 * ``install_mode`` — how the proxy process is deployed
   (``persistent`` / ``on_demand`` / ``wrapped`` / ``unknown``).
-* ``headroom_stack`` — how Headroom is being invoked
+* ``headroom_stack`` — how Cutctx is being invoked
   (``proxy``, ``wrap_claude``, ``adapter_ts_openai``, ...).
 
 Both helpers are best-effort and never raise: telemetry is fire-and-forget and
@@ -98,7 +98,7 @@ def detect_install_mode(port: int) -> str:
 
 
 def detect_stack(stats: dict[str, Any] | None = None) -> str:
-    """Classify how Headroom is being invoked.
+    """Classify how Cutctx is being invoked.
 
     Resolution order:
 

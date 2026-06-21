@@ -9,7 +9,7 @@ description: Install CutCtx via pip, npm, or Docker. Includes Python extras, Typ
 
 **pip** - you're writing Python, or you need the CLI (`cutctx proxy`, `wrap`, `mcp`, `learn`, `perf`), regardless of what language your app is in.
 
-**npm** - you're writing TypeScript/Node and want inline `compress()`, SDK wrapping (`withHeadroom`), or Vercel AI SDK middleware.
+**npm** - you're writing TypeScript/Node and want inline `compress()`, SDK wrapping (`withCutCtx`), or Vercel AI SDK middleware.
 
 ## Python
 
@@ -48,8 +48,8 @@ pip install "cutctx-ai[all]"
 | `otel` | OpenTelemetry exporter (OTLP) | `pip install "cutctx-ai[otel]"` |
 | `voice` | Voice/audio support | `pip install "cutctx-ai[voice]"` |
 | `mcp` | MCP server tools (`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`) | `pip install "cutctx-ai[mcp]"` |
-| `langchain` | LangChain `HeadroomChatModel` wrapper | `pip install "cutctx-ai[langchain]"` |
-| `agno` | Agno `HeadroomAgnoModel` wrapper | `pip install "cutctx-ai[agno]"` |
+| `langchain` | LangChain `CutCtxChatModel` wrapper | `pip install "cutctx-ai[langchain]"` |
+| `agno` | Agno `CutCtxAgnoModel` wrapper | `pip install "cutctx-ai[agno]"` |
 | `evals` | Evaluation framework (GSM8K, SQuAD, BFCL benchmarks) | `pip install "cutctx-ai[evals]"` |
 | `pytorch-mps` | Apple-GPU (MPS) memory-embedder offload — **macOS only**, not in `[all]` (torch + sentence-transformers); opt in with `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps` | `pip install "cutctx-ai[pytorch-mps]"` |
 | `all` | Everything above | `pip install "cutctx-ai[all]"` |

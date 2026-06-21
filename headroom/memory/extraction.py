@@ -1,7 +1,7 @@
 """Memory extraction prompts and utilities.
 
 This module contains extraction prompts derived from Mem0's internal prompts,
-adapted for use with Headroom's memory system. By using these prompts in the
+adapted for use with Cutctx's memory system. By using these prompts in the
 main LLM, we can extract facts/entities/relationships in a SINGLE pass,
 avoiding the double LLM calls that occur when Mem0 does its own extraction.
 
@@ -12,7 +12,7 @@ Architecture:
                                                             → Mem0 LLM extracts relationships
         Total: 3-4 LLM calls per memory save!
 
-    Optimized Headroom flow (EFFICIENT):
+    Optimized Cutctx flow (EFFICIENT):
         User → Main LLM (with extraction prompts) → memory_save(facts, entities, relationships)
                                                   → Direct write to Qdrant + Neo4j
         Total: 1 LLM call per memory save!

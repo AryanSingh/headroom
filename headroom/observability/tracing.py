@@ -1,4 +1,4 @@
-"""OTEL tracing helpers for Headroom and Langfuse."""
+"""OTEL tracing helpers for Cutctx and Langfuse."""
 
 from __future__ import annotations
 
@@ -15,23 +15,23 @@ from .metrics import _headroom_version, _parse_bool, _parse_key_value_pairs
 
 logger = logging.getLogger(__name__)
 
-_SCOPE_NAME = "headroom"
+_SCOPE_NAME = "cutctx"
 
 _tracing_lock = Lock()
-_global_tracer: HeadroomTracer | None = None
+_global_tracer: CutctxTracer | None = None
 _owned_tracer_provider: Any | None = None
 _owned_langfuse_config: LangfuseTracingConfig | None = None
 
 
 @dataclass(slots=True)
 class LangfuseTracingConfig:
-    """Configuration for Headroom-managed Langfuse OTLP trace export."""
+    """Configuration for Cutctx-managed Langfuse OTLP trace export."""
 
     enabled: bool = False
     public_key: str = field(default="", repr=False)
     secret_key: str = field(default="", repr=False)
     base_url: str = "https://cloud.langfuse.com"
-    service_name: str = "headroom"
+    service_name: str = "cutctx"
     resource_attributes: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -51,7 +51,7 @@ class LangfuseTracingConfig:
         }
 
     @classmethod
-    def from_env(cls, *, default_service_name: str = "headroom") -> LangfuseTracingConfig:
+    def from_env(cls, *, default_service_name: str = "cutctx") -> LangfuseTracingConfig:
         public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip()
         secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "").strip()
 
@@ -89,8 +89,8 @@ class LangfuseTracingConfig:
         }
 
 
-class HeadroomTracer:
-    """Tracer facade used by shared Headroom compression paths."""
+class CutctxTracer:
+    """Tracer facade used by shared Cutctx compression paths."""
 
     def __init__(self, tracer_provider: Any | None = None):
         if tracer_provider is None:
@@ -112,18 +112,18 @@ class HeadroomTracer:
         )
 
 
-def get_headroom_tracer() -> HeadroomTracer:
+def get_headroom_tracer() -> CutctxTracer:
     global _global_tracer
 
     if _global_tracer is None:
         with _tracing_lock:
             if _global_tracer is None:
-                _global_tracer = HeadroomTracer()
+                _global_tracer = CutctxTracer()
 
     return _global_tracer
 
 
-def set_headroom_tracer(headroom_tracer: HeadroomTracer) -> HeadroomTracer:
+def set_headroom_tracer(headroom_tracer: CutctxTracer) -> CutctxTracer:
     global _global_tracer
     with _tracing_lock:
         _global_tracer = headroom_tracer
@@ -132,7 +132,7 @@ def set_headroom_tracer(headroom_tracer: HeadroomTracer) -> HeadroomTracer:
 
 def configure_langfuse_tracing(
     config: LangfuseTracingConfig | None = None,
-) -> HeadroomTracer:
+) -> CutctxTracer:
     global _global_tracer
     global _owned_tracer_provider
     global _owned_langfuse_config
@@ -174,7 +174,7 @@ def configure_langfuse_tracing(
             )
         )
     )
-    headroom_tracer = HeadroomTracer(tracer_provider=tracer_provider)
+    headroom_tracer = CutctxTracer(tracer_provider=tracer_provider)
 
     previous_provider = None
     with _tracing_lock:

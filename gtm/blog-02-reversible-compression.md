@@ -1,6 +1,6 @@
 # Blog Post 2: Reversible Compression: Why It Matters for AI Agents
 
-*Published: Headroom Blog | Category: Deep Dive | Reading time: 10 minutes*
+*Published: Cutctx Blog | Category: Deep Dive | Reading time: 10 minutes*
 
 ---
 
@@ -15,9 +15,9 @@ When you compress a conversation for an LLM, you need the *full context* later:
 
 If you compressed lossily, that data is gone. You can't recover the original prompt.
 
-## Headroom's CCR: Compress, Cache, Reconstruct
+## Cutctx's CCR: Compress, Cache, Reconstruct
 
-CCR (Context Compression & Reconstruction) is Headroom's reversible compression algorithm. It works in three phases:
+CCR (Context Compression & Reconstruction) is Cutctx's reversible compression algorithm. It works in three phases:
 
 ### Phase 1: Analyze
 ```
@@ -99,7 +99,7 @@ Pattern: Error messages → deduplicated
 
 ## CCR vs Traditional Compression
 
-| Feature | Gzip/Zstd | KV Cache | Headroom CCR |
+| Feature | Gzip/Zstd | KV Cache | Cutctx CCR |
 |---------|-----------|----------|--------------|
 | Compression ratio | 3-5x | 0x (no compression) | 5-10x |
 | Reversible | Yes | N/A | Yes |
@@ -151,9 +151,9 @@ The compression itself is faster than a single LLM API call.
 ## Getting Started
 
 ```python
-from headroom import HeadroomClient
+from cutctx import CutctxClient
 
-client = HeadroomClient("http://localhost:8080")
+client = CutctxClient("http://localhost:8080")
 
 # CCR is enabled by default
 # Compress
@@ -172,9 +172,9 @@ Reversible compression isn't a nice-to-have — it's essential for production AI
 
 CCR gives you both: **90% cost reduction** with **100% fidelity**.
 
-**Learn more:** [headroom.sh/docs/ccr](https://headroom.sh/docs/ccr)
+**Learn more:** [cutctx.sh/docs/ccr](https://cutctx.sh/docs/ccr)
 
 ---
 
 *Tags: reversible compression, CCR, AI agents, context compression, debugging*
-*Author: Headroom Engineering Team*
+*Author: Cutctx Engineering Team*

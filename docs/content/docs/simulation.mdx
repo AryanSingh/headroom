@@ -124,8 +124,8 @@ else:
 Test different configurations to find the best settings for your workload:
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
-from headroom.transforms import SmartCrusherConfig
+from cutctx import CutCtxClient, OpenAIProvider
+from cutctx.transforms import SmartCrusherConfig
 
 configs = [
     SmartCrusherConfig(max_items_after_crush=10),
@@ -134,7 +134,7 @@ configs = [
 ]
 
 for config in configs:
-    client = HeadroomClient(
+    client = CutCtxClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         smart_crusher_config=config,

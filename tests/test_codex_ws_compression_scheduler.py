@@ -33,7 +33,7 @@ from unittest.mock import MagicMock
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OPENAI_HANDLER = REPO_ROOT / "headroom" / "proxy" / "handlers" / "openai" / "responses.py"
+OPENAI_HANDLER = REPO_ROOT / "cutctx" / "proxy" / "handlers" / "openai" / "responses.py"
 
 
 # ── Source-level regression guards ──────────────────────────────────────

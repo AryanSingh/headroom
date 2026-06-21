@@ -3,9 +3,9 @@
 **Version:** 1.0
 **Effective Date:** 2026-06-15
 **Prepared by:** Security Engineering, CutCtx
-**Contact:** security@headroom.dev
+**Contact:** security@cutctx.dev
 
-This document provides pre-filled responses to common enterprise security questionnaire questions. For questions not addressed here, or to request supporting documentation (penetration test executive summary, SOC 2 report when available), contact security@headroom.dev.
+This document provides pre-filled responses to common enterprise security questionnaire questions. For questions not addressed here, or to request supporting documentation (penetration test executive summary, SOC 2 report when available), contact security@cutctx.dev.
 
 ---
 
@@ -61,11 +61,11 @@ Yes, MFA is required for all CutCtx employee access to production systems, code 
 
 **Q12. Is Single Sign-On (SSO) supported?**
 
-Yes. Enterprise tier customers can configure SSO/OIDC authentication via the headroom-oauth2 plugin, supporting major identity providers including Okta, Azure Active Directory, Google Workspace, and any OIDC-compliant IdP. Team and Business tier customers use signed API key authentication.
+Yes. Enterprise tier customers can configure SSO/OIDC authentication via the cutctx-oauth2 plugin, supporting major identity providers including Okta, Azure Active Directory, Google Workspace, and any OIDC-compliant IdP. Team and Business tier customers use signed API key authentication.
 
 **Q13. Is SCIM-based user provisioning supported?**
 
-SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers can manage license seat assignments through the customer portal or via the management API. Contact sales@headroom.dev to discuss provisioning integration requirements.
+SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers can manage license seat assignments through the customer portal or via the management API. Contact sales@cutctx.dev to discuss provisioning integration requirements.
 
 **Q14. Does your product follow a least-privilege access model?**
 
@@ -146,7 +146,7 @@ CutCtx does not currently operate a public bug bounty program. We operate a priv
 
 **Q31. What is your vulnerability disclosure process?**
 
-Security vulnerabilities are reported to security@headroom.dev. CutCtx acknowledges reports within 48 hours, assesses severity within 7 days, and targets remediation within 90 days (7 days for critical issues, CVSS 9.0+). CVEs are requested where applicable. The full process is described in `SECURITY.md` and `docs/security/SECURITY_POLICY.md` Section 7.
+Security vulnerabilities are reported to security@cutctx.dev. CutCtx acknowledges reports within 48 hours, assesses severity within 7 days, and targets remediation within 90 days (7 days for critical issues, CVSS 9.0+). CVEs are requested where applicable. The full process is described in `SECURITY.md` and `docs/security/SECURITY_POLICY.md` Section 7.
 
 **Q32. How are security patches deployed?**
 
@@ -170,7 +170,7 @@ Yes. CutCtx's local-first architecture means no customer personal data (includin
 
 **Q36. Are you CCPA compliant?**
 
-Yes. CutCtx does not sell customer personal information. California residents whose personal information CutCtx processes (account and billing data) may exercise their CCPA rights by contacting privacy@headroom.dev. Given the local-first architecture, CutCtx does not process the personal information that may appear within customer prompts.
+Yes. CutCtx does not sell customer personal information. California residents whose personal information CutCtx processes (account and billing data) may exercise their CCPA rights by contacting privacy@cutctx.dev. Given the local-first architecture, CutCtx does not process the personal information that may appear within customer prompts.
 
 **Q37. Can you provide a list of sub-processors?**
 
@@ -195,6 +195,6 @@ Yes. CutCtx's incident response plan is documented in `docs/security/SECURITY_PO
 
 **Q40. Who is the security contact for incidents and questions?**
 
-**Email:** security@headroom.dev
+**Email:** security@cutctx.dev
 **Response SLA:** 48 hours for non-urgent inquiries; 24 hours for potential security incidents.
 For urgent incidents outside business hours, Enterprise customers have access to a dedicated escalation path provided in their onboarding documentation.

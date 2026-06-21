@@ -1,4 +1,4 @@
-"""Memory adapters for Headroom's hierarchical memory system.
+"""Memory adapters for Cutctx's hierarchical memory system.
 
 This module provides concrete implementations of the memory system's ports:
 - SQLiteMemoryStore: SQLite-based memory persistence

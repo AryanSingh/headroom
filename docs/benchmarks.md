@@ -107,7 +107,7 @@ cd benchmarks/
 python run_all.py --output results.json
 
 # Run a single comparison
-python compare.py --tool headroom --tool llmlingua2 --corpus toolbench
+python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench
 ```
 
 See [`benchmarks/README.md`](../benchmarks/README.md) for corpus download instructions and GPU/CPU configuration.

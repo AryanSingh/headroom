@@ -1,4 +1,4 @@
-"""JSONL file storage implementation for Headroom SDK."""
+"""JSONL file storage implementation for Cutctx SDK."""
 
 from __future__ import annotations
 

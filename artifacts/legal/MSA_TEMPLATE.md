@@ -1,4 +1,4 @@
-# Headroom Master Services Agreement Template
+# Cutctx Master Services Agreement Template
 
 ## Important Note
 
@@ -12,7 +12,7 @@ This is a draft operational template for internal preparation. It is not legal a
 
 ## Services
 
-Provider offers access to Headroom software, related support, and any listed onboarding or deployment services described in an order form or commercial quote.
+Provider offers access to Cutctx software, related support, and any listed onboarding or deployment services described in an order form or commercial quote.
 
 ## Fees
 
@@ -32,7 +32,7 @@ Support obligations are governed by the current support policy and any order-for
 
 ## Security And Data Handling
 
-The parties acknowledge that Headroom is primarily deployed in the customer environment and that customer-managed data handling remains subject to customer configuration and customer-selected deployment mode.
+The parties acknowledge that Cutctx is primarily deployed in the customer environment and that customer-managed data handling remains subject to customer configuration and customer-selected deployment mode.
 
 ## Confidentiality
 

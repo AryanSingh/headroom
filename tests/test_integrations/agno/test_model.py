@@ -1,7 +1,7 @@
 """Comprehensive tests for Agno integration.
 
 Tests cover:
-1. HeadroomAgnoModel - Wrapper for any Agno model
+1. CutctxAgnoModel - Wrapper for any Agno model
 2. Provider detection - Detecting correct provider from Agno model
 3. Hooks - Pre and post hooks for observability
 4. optimize_messages() - Standalone optimization function
@@ -20,7 +20,7 @@ try:
 except ImportError:
     AGNO_AVAILABLE = False
 
-from headroom import HeadroomConfig, HeadroomMode
+from headroom import CutctxConfig, CutctxMode
 
 # Skip all tests if Agno not installed
 pytestmark = pytest.mark.skipif(not AGNO_AVAILABLE, reason="Agno not installed")
@@ -147,13 +147,13 @@ class TestAgnoAvailable:
 
 
 class TestHeadroomAgnoModel:
-    """Tests for HeadroomAgnoModel wrapper."""
+    """Tests for CutctxAgnoModel wrapper."""
 
     def test_init_with_defaults(self, mock_agno_model):
         """Initialize with default config."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert model.wrapped_model is mock_agno_model
         assert model.headroom_config is not None
@@ -162,40 +162,40 @@ class TestHeadroomAgnoModel:
 
     def test_init_with_custom_config(self, mock_agno_model):
         """Initialize with custom config."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
-        model = HeadroomAgnoModel(
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
+        model = CutctxAgnoModel(
             wrapped_model=mock_agno_model,
             headroom_config=config,
             headroom_mode=HeadroomMode.SIMULATE,
         )
 
         assert model.headroom_config is config
-        assert model.headroom_mode == HeadroomMode.SIMULATE
+        assert model.headroom_mode == CutctxMode.SIMULATE
 
     def test_init_auto_detect_provider(self, mock_agno_model):
         """Auto-detect provider from wrapped model."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model, auto_detect_provider=True)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model, auto_detect_provider=True)
 
         assert model.auto_detect_provider is True
 
     def test_forward_attributes(self, mock_agno_model):
         """Forward attribute access to wrapped model."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.custom_attribute = "test_value"
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert model.custom_attribute == "test_value"
 
     def test_properties_not_forwarded(self, mock_agno_model):
         """Own properties should not be forwarded."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # These should work without forwarding to wrapped model
         assert model.total_tokens_saved == 0
@@ -203,9 +203,9 @@ class TestHeadroomAgnoModel:
 
     def test_convert_messages_to_openai(self, mock_agno_model, sample_messages):
         """Convert Agno messages to OpenAI format."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Test with dict messages (already OpenAI format)
         openai_msgs = model._convert_messages_to_openai(sample_messages)
@@ -218,7 +218,7 @@ class TestHeadroomAgnoModel:
 
     def test_convert_agno_message_objects(self, mock_agno_model):
         """Convert Agno Message objects to OpenAI format."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Create mock Agno Message objects
         system_msg = MagicMock()
@@ -235,7 +235,7 @@ class TestHeadroomAgnoModel:
 
         messages = [system_msg, user_msg]
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
         openai_msgs = model._convert_messages_to_openai(messages)
 
         assert len(openai_msgs) == 2
@@ -244,7 +244,7 @@ class TestHeadroomAgnoModel:
 
     def test_convert_messages_with_tool_calls(self, mock_agno_model):
         """Convert messages with tool calls."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         assistant_msg = MagicMock()
         assistant_msg.role = "assistant"
@@ -262,7 +262,7 @@ class TestHeadroomAgnoModel:
 
         messages = [assistant_msg, tool_msg]
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
         openai_msgs = model._convert_messages_to_openai(messages)
 
         assert len(openai_msgs) == 2
@@ -271,11 +271,11 @@ class TestHeadroomAgnoModel:
         assert openai_msgs[1]["tool_call_id"] == "call_123"
 
     def test_response_applies_optimization(self, mock_agno_model, sample_messages):
-        """response() applies Headroom optimization."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        """response() applies Cutctx optimization."""
+        from headroom.integrations.agno import CutctxAgnoModel
         from headroom.providers import OpenAIProvider
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Initialize provider and pipeline for mocking
         model._headroom_provider = OpenAIProvider()
@@ -303,11 +303,11 @@ class TestHeadroomAgnoModel:
             assert model._metrics_history[0].tokens_saved == 20
 
     def test_response_stream_applies_optimization(self, mock_agno_model, sample_messages):
-        """response_stream() applies Headroom optimization."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        """response_stream() applies Cutctx optimization."""
+        from headroom.integrations.agno import CutctxAgnoModel
         from headroom.providers import OpenAIProvider
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
         model._headroom_provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -327,9 +327,9 @@ class TestHeadroomAgnoModel:
 
     def test_metrics_history_limited(self, mock_agno_model, sample_messages):
         """Metrics history is limited to 100 entries."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Add 150 fake metrics
         for _i in range(150):
@@ -342,9 +342,9 @@ class TestHeadroomAgnoModel:
 
     def test_get_savings_summary_empty(self, mock_agno_model):
         """get_savings_summary with no history."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
         summary = model.get_savings_summary()
 
         assert summary["total_requests"] == 0
@@ -353,10 +353,10 @@ class TestHeadroomAgnoModel:
 
     def test_get_savings_summary_with_data(self, mock_agno_model):
         """get_savings_summary with metrics."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
         from headroom.integrations.agno.model import OptimizationMetrics
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Add fake metrics
         model._metrics_history = [
@@ -391,10 +391,10 @@ class TestHeadroomAgnoModel:
 
     def test_reset_clears_all_state(self, mock_agno_model):
         """reset() clears all metrics state."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
         from headroom.integrations.agno.model import OptimizationMetrics
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Add fake metrics
         model._metrics_history = [
@@ -538,7 +538,7 @@ class TestOptimizeMessages:
         """Optimization with custom config."""
         from headroom.integrations.agno import optimize_messages
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
 
         with patch("headroom.integrations.agno.model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
@@ -563,13 +563,13 @@ class TestOptimizeMessages:
 
 
 class TestIntegrationWithRealHeadroom:
-    """Integration tests using real Headroom components (no mocking)."""
+    """Integration tests using real Cutctx components (no mocking)."""
 
     def test_real_optimization_pipeline(self, sample_messages):
-        """Test with real Headroom client (no API calls)."""
+        """Test with real Cutctx client (no API calls)."""
         from headroom.integrations.agno import optimize_messages
 
-        # This uses real Headroom transforms but no LLM API calls
+        # This uses real Cutctx transforms but no LLM API calls
         optimized, metrics = optimize_messages(
             sample_messages,
             mode=HeadroomMode.OPTIMIZE,
@@ -595,10 +595,10 @@ class TestIntegrationWithRealHeadroom:
         assert metrics["tokens_before"] >= metrics["tokens_after"]
 
     def test_model_wrapper_real_optimization(self, mock_agno_model, sample_messages):
-        """Test HeadroomAgnoModel with real Headroom optimization."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        """Test CutctxAgnoModel with real Cutctx optimization."""
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        model = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        model = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Call response - this will apply real optimization
         model.response(sample_messages)
@@ -611,18 +611,18 @@ class TestIntegrationWithRealHeadroom:
 
 
 class TestReasoningCapabilityForwarding:
-    """Tests for reasoning capability forwarding in HeadroomAgnoModel.
+    """Tests for reasoning capability forwarding in CutctxAgnoModel.
 
-    These tests verify that HeadroomAgnoModel properly forwards
+    These tests verify that CutctxAgnoModel properly forwards
     reasoning-related properties from the wrapped model, enabling
     framework introspection (e.g., Agno's reasoning detection).
     """
 
     def test_underlying_model_property_returns_wrapped_model(self, mock_agno_model):
         """underlying_model property should return the wrapped model."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.underlying_model is mock_agno_model
 
@@ -630,10 +630,10 @@ class TestReasoningCapabilityForwarding:
         """underlying_model allows class name introspection for framework detection."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        wrapped = HeadroomAgnoModel(wrapped_model=base_model)
+        wrapped = CutctxAgnoModel(wrapped_model=base_model)
 
         # Framework detection typically checks __class__.__name__
         assert wrapped.underlying_model.__class__.__name__ == "OpenAIChat"
@@ -641,143 +641,143 @@ class TestReasoningCapabilityForwarding:
 
     def test_thinking_property_forwarded_when_present(self, mock_agno_model):
         """thinking property is forwarded from wrapped model when present."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Set thinking config on mock model
         mock_agno_model.thinking = {"type": "enabled", "budget_tokens": 5000}
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.thinking == {"type": "enabled", "budget_tokens": 5000}
 
     def test_thinking_property_not_present_when_absent(self, mock_agno_model):
         """thinking property not set when wrapped model doesn't have it."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Ensure mock doesn't have thinking attribute
         if hasattr(mock_agno_model, "thinking"):
             delattr(mock_agno_model, "thinking")
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         # Should raise AttributeError when accessed
         assert not hasattr(wrapped, "thinking") or wrapped.thinking is None
 
     def test_reasoning_effort_property_forwarded(self, mock_agno_model):
         """reasoning_effort property is forwarded from wrapped model."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.reasoning_effort = "high"
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.reasoning_effort == "high"
 
     def test_provider_property_forwarded_from_wrapped_model(self, mock_agno_model):
         """provider property is set from wrapped model during init."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.provider = "OpenAI"
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.provider == "OpenAI"
 
     def test_name_property_forwarded_from_wrapped_model(self, mock_agno_model):
         """name property is set from wrapped model during init."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.name = "gpt-4o"
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.name == "gpt-4o"
 
     def test_has_extended_thinking_enabled_with_dict_config(self, mock_agno_model):
         """has_extended_thinking_enabled returns True when thinking dict is enabled."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = {"type": "enabled", "budget_tokens": 5000}
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is True
 
     def test_has_extended_thinking_disabled_with_dict_config(self, mock_agno_model):
         """has_extended_thinking_enabled returns False when thinking dict is disabled."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = {"type": "disabled"}
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is False
 
     def test_has_extended_thinking_returns_false_when_none(self, mock_agno_model):
         """has_extended_thinking_enabled returns False when thinking is None."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = None
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is False
 
     def test_has_extended_thinking_returns_false_when_missing(self, mock_agno_model):
         """has_extended_thinking_enabled returns False when thinking attribute missing."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Remove thinking attribute if present
         if hasattr(mock_agno_model, "thinking"):
             delattr(mock_agno_model, "thinking")
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is False
 
     def test_has_extended_thinking_with_truthy_value(self, mock_agno_model):
         """has_extended_thinking_enabled handles non-dict truthy values."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = True
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is True
 
     def test_has_extended_thinking_with_falsy_value(self, mock_agno_model):
         """has_extended_thinking_enabled handles non-dict falsy values."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = False
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.has_extended_thinking_enabled() is False
 
     def test_supports_native_structured_outputs_forwarded(self, mock_agno_model):
         """supports_native_structured_outputs property is forwarded."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.supports_native_structured_outputs = True
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.supports_native_structured_outputs is True
 
     def test_supports_json_schema_outputs_forwarded(self, mock_agno_model):
         """supports_json_schema_outputs property is forwarded."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.supports_json_schema_outputs = True
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.supports_json_schema_outputs is True
 
     def test_multiple_capability_properties_forwarded(self, mock_agno_model):
         """Multiple capability properties are forwarded correctly."""
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         mock_agno_model.thinking = {"type": "enabled", "budget_tokens": 10000}
         mock_agno_model.reasoning_effort = "medium"
@@ -785,7 +785,7 @@ class TestReasoningCapabilityForwarding:
         mock_agno_model.supports_json_schema_outputs = False
         mock_agno_model.provider = "Anthropic"
 
-        wrapped = HeadroomAgnoModel(wrapped_model=mock_agno_model)
+        wrapped = CutctxAgnoModel(wrapped_model=mock_agno_model)
 
         assert wrapped.thinking == {"type": "enabled", "budget_tokens": 10000}
         assert wrapped.reasoning_effort == "medium"
@@ -797,10 +797,10 @@ class TestReasoningCapabilityForwarding:
         """Test underlying_model with real Agno OpenAIChat model."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        wrapped = HeadroomAgnoModel(wrapped_model=base_model)
+        wrapped = CutctxAgnoModel(wrapped_model=base_model)
 
         # Verify underlying_model returns the actual model
         assert wrapped.underlying_model is base_model
@@ -810,7 +810,7 @@ class TestReasoningCapabilityForwarding:
 class TestRealAgnoIntegration:
     """REAL integration tests with actual Agno components.
 
-    These tests verify that HeadroomAgnoModel:
+    These tests verify that CutctxAgnoModel:
     1. Is a proper subclass of agno.models.base.Model
     2. Passes Agno's get_model() validation
     3. Can be used with Agno Agent
@@ -823,7 +823,7 @@ class TestRealAgnoIntegration:
         """HeadroomAgnoModel must be a subclass of agno.models.base.Model."""
         from agno.models.base import Model
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         assert issubclass(HeadroomAgnoModel, Model)
 
@@ -832,28 +832,28 @@ class TestRealAgnoIntegration:
         from agno.models.openai import OpenAIChat
         from agno.models.utils import get_model
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Create a real OpenAIChat model (doesn't need API key for instantiation)
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # This should NOT raise "Model must be a Model instance, string, or None"
         result = get_model(headroom_model)
 
         assert result is headroom_model
-        assert isinstance(result, HeadroomAgnoModel)
+        assert isinstance(result, CutctxAgnoModel)
 
     def test_agent_accepts_headroom_model(self):
-        """Agno Agent must accept HeadroomAgnoModel as model parameter."""
+        """Agno Agent must accept CutctxAgnoModel as model parameter."""
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Create wrapped model
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # This should NOT raise any validation errors
         agent = Agent(model=headroom_model, markdown=False)
@@ -865,10 +865,10 @@ class TestRealAgnoIntegration:
         """HeadroomAgnoModel id should reflect the wrapped model."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o-mini")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         assert "gpt-4o-mini" in headroom_model.id
         assert headroom_model.id.startswith("headroom:")
@@ -877,10 +877,10 @@ class TestRealAgnoIntegration:
         """HeadroomAgnoModel must implement all required abstract methods."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # Verify required methods exist and are callable
         assert hasattr(headroom_model, "invoke")
@@ -906,24 +906,24 @@ class TestRealAgnoIntegration:
         from agno.models.base import Model
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # This is the exact check that get_model() uses
         assert isinstance(headroom_model, Model)
 
     def test_model_with_custom_headroom_config(self):
-        """Test with custom Headroom configuration."""
+        """Test with custom Cutctx configuration."""
         from agno.agent import Agent
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
+        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(
+        headroom_model = CutctxAgnoModel(
             wrapped_model=base_model,
             headroom_config=config,
         )
@@ -931,16 +931,16 @@ class TestRealAgnoIntegration:
         agent = Agent(model=headroom_model, markdown=False)
 
         assert agent.model.headroom_config is config
-        assert agent.model.headroom_config.default_mode == HeadroomMode.AUDIT
+        assert agent.model.headroom_config.default_mode == CutctxMode.AUDIT
 
     def test_response_method_delegates_to_wrapped(self):
         """Test that response() method works with real Agno model structure."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # We can't actually call the response method without an API key, but we can verify
         # the method signature matches what Agno expects
@@ -955,10 +955,10 @@ class TestRealAgnoIntegration:
         """Test that optimization metrics are tracked properly."""
         from agno.models.openai import OpenAIChat
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = OpenAIChat(id="gpt-4o")
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # Initially no metrics
         assert headroom_model.total_tokens_saved == 0
@@ -1060,32 +1060,32 @@ class TestOllamaIntegration:
         return model
 
     def test_agent_with_ollama_model(self, ollama_model_name):
-        """Test Agent with HeadroomAgnoModel wrapping real Ollama model."""
+        """Test Agent with CutctxAgnoModel wrapping real Ollama model."""
         from agno.agent import Agent
         from agno.models.ollama import Ollama
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Create wrapped Ollama model (real, local, no API key needed)
         base_model = Ollama(id=ollama_model_name)
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
-        # Create agent - this validates HeadroomAgnoModel works with Agent
+        # Create agent - this validates CutctxAgnoModel works with Agent
         agent = Agent(model=headroom_model, markdown=False)
 
         assert agent.model is headroom_model
-        assert isinstance(agent.model, HeadroomAgnoModel)
+        assert isinstance(agent.model, CutctxAgnoModel)
 
     def test_agent_run_with_ollama(self, ollama_model_name):
         """Actually run an agent with Ollama - full end-to-end test."""
         from agno.agent import Agent
         from agno.models.ollama import Ollama
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         # Create wrapped Ollama model
         base_model = Ollama(id=ollama_model_name)
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # Create and run agent
         agent = Agent(model=headroom_model, markdown=False)
@@ -1098,7 +1098,7 @@ class TestOllamaIntegration:
         assert response.content is not None
         assert len(response.content) > 0
 
-        # Verify Headroom optimization was applied
+        # Verify Cutctx optimization was applied
         assert len(headroom_model.metrics_history) >= 1
 
     def test_agent_with_system_prompt_and_ollama(self, ollama_model_name):
@@ -1106,10 +1106,10 @@ class TestOllamaIntegration:
         from agno.agent import Agent
         from agno.models.ollama import Ollama
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = Ollama(id=ollama_model_name)
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # Agent with system prompt - tests system message optimization
         agent = Agent(
@@ -1123,7 +1123,7 @@ class TestOllamaIntegration:
         assert response is not None
         assert response.content is not None
 
-        # Headroom should have processed the system prompt
+        # Cutctx should have processed the system prompt
         assert headroom_model.total_tokens_saved >= 0
 
     def test_multiple_turns_with_ollama(self, ollama_model_name):
@@ -1131,10 +1131,10 @@ class TestOllamaIntegration:
         from agno.agent import Agent
         from agno.models.ollama import Ollama
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = Ollama(id=ollama_model_name)
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         agent = Agent(model=headroom_model, markdown=False)
 
@@ -1146,13 +1146,13 @@ class TestOllamaIntegration:
         assert len(headroom_model.metrics_history) >= 2
 
     def test_headroom_optimization_reduces_tokens(self, ollama_model_name, large_conversation):
-        """Test that Headroom actually reduces tokens on large conversations."""
+        """Test that Cutctx actually reduces tokens on large conversations."""
         from agno.models.ollama import Ollama
 
-        from headroom.integrations.agno import HeadroomAgnoModel
+        from headroom.integrations.agno import CutctxAgnoModel
 
         base_model = Ollama(id=ollama_model_name)
-        headroom_model = HeadroomAgnoModel(wrapped_model=base_model)
+        headroom_model = CutctxAgnoModel(wrapped_model=base_model)
 
         # Optimize the large conversation
         optimized, metrics = headroom_model._optimize_messages(large_conversation)

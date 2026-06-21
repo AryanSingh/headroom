@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Episodic memory latency benchmark for Headroom.
+"""Episodic memory latency benchmark for Cutctx.
 
 Measures the end-to-end latency of the episodic memory pipeline:
   1. Memory store save/load (file I/O)

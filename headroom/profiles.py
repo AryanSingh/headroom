@@ -4,7 +4,7 @@ After each session, records what compression ratios were used and what content
 was retrieved via CCR (a signal that content was over-compressed). Builds a
 per-workspace profile that adjusts compression aggressiveness for future sessions.
 
-The longer you use Headroom in a codebase, the better it gets.
+The longer you use Cutctx in a codebase, the better it gets.
 
 Usage:
     profile = CompressionProfile.load()  # loads for current workspace

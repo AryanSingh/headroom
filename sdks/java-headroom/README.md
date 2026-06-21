@@ -1,8 +1,8 @@
-# Headroom Java SDK
+# Cutctx Java SDK
 
-Java client for the [Headroom](https://headroom.sh) AI context compression proxy.
+Java client for the [Cutctx](https://cutctx.sh) AI context compression proxy.
 
-Headroom reduces LLM API token usage by **60-95%** by compressing prompt context before forwarding requests to the model provider.
+Cutctx reduces LLM API token usage by **60-95%** by compressing prompt context before forwarding requests to the model provider.
 
 ## Installation
 
@@ -10,8 +10,8 @@ Headroom reduces LLM API token usage by **60-95%** by compressing prompt context
 
 ```xml
 <dependency>
-    <groupId>com.headroom</groupId>
-    <artifactId>headroom-java</artifactId>
+    <groupId>com.cutctx</groupId>
+    <artifactId>cutctx-java</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
@@ -19,13 +19,13 @@ Headroom reduces LLM API token usage by **60-95%** by compressing prompt context
 ### Gradle
 
 ```groovy
-implementation 'com.headroom:headroom-java:0.1.0'
+implementation 'com.cutctx:cutctx-java:0.1.0'
 ```
 
 ## Quick Start
 
 ```java
-import com.headroom.HeadroomClient;
+import com.cutctx.CutctxClient;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -34,8 +34,8 @@ import java.time.Duration;
 
 public class Example {
     public static void main(String[] args) throws Exception {
-        // 1. Create a Headroom client pointing to your proxy
-        HeadroomClient client = new HeadroomClient("http://localhost:8080");
+        // 1. Create a Cutctx client pointing to your proxy
+        CutctxClient client = new CutctxClient("http://localhost:8080");
 
         // 2. Create an HTTP client
         HttpClient httpClient = HttpClient.newBuilder()
@@ -55,8 +55,8 @@ public class Example {
                 """))
             .build();
 
-        // 4. Send through Headroom (auto-compresses context)
-        HeadroomHttpTransport transport = new HeadroomHttpTransport(client);
+        // 4. Send through Cutctx (auto-compresses context)
+        CutctxHttpTransport transport = new CutctxHttpTransport(client);
         HttpRequest proxied = transport.rewrite(request);
         HttpResponse<String> response = httpClient.send(proxied, HttpResponse.BodyHandlers.ofString());
 
@@ -70,10 +70,10 @@ public class Example {
 ```
 Your App
   │
-  ├── HeadroomClient.proxy("https://api.openai.com/...")
+  ├── CutctxClient.proxy("https://api.openai.com/...")
   │         │
   │         ▼
-  │   Headroom Proxy (localhost:8080)
+  │   Cutctx Proxy (localhost:8080)
   │     ├── Compresses prompt context (60-95%)
   │     ├── Forwards to OpenAI/Anthropic/etc.
   │     └── Returns compressed response
@@ -83,22 +83,22 @@ Your App
 
 ## API Reference
 
-### `HeadroomClient`
+### `CutctxClient`
 
 | Method | Description |
 |--------|-------------|
-| `HeadroomClient(String proxyUrl)` | Create client with proxy URL |
-| `HeadroomClient(String proxyUrl, int connectMs, int readMs)` | Create with custom timeouts |
+| `CutctxClient(String proxyUrl)` | Create client with proxy URL |
+| `CutctxClient(String proxyUrl, int connectMs, int readMs)` | Create with custom timeouts |
 | `proxy(String targetUrl)` | Get proxied HttpURLConnection |
 | `proxy(String targetUrl, String method)` | Get proxied connection with HTTP method |
 | `proxy(String targetUrl, String method, Map headers)` | Get proxied connection with headers |
 | `getProxyUrl()` | Get the proxy URL |
 
-### `HeadroomHttpTransport`
+### `CutctxHttpTransport`
 
 | Method | Description |
 |--------|-------------|
-| `HeadroomHttpTransport(HeadroomClient client)` | Create transport from client |
+| `CutctxHttpTransport(CutctxClient client)` | Create transport from client |
 | `rewrite(HttpRequest request)` | Rewrite request to go through proxy |
 | `send(HttpClient httpClient, HttpRequest request)` | Send request through proxy |
 

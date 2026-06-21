@@ -61,17 +61,17 @@ Scope these to the specific model ARNs you intend to use. Example IAM policy sni
 ## Region configuration
 
 ```sh
-headroom-proxy \
+cutctx-proxy \
   --upstream http://unused-when-bedrock-only \
   --bedrock-region us-east-1
 ```
 
 | Flag | Env var | Default | Notes |
 |---|---|---|---|
-| `--bedrock-region` | `HEADROOM_PROXY_BEDROCK_REGION` (or `AWS_REGION`) | `us-east-1` | Drives both the SigV4 region and the derived endpoint hostname. |
-| `--bedrock-endpoint` | `HEADROOM_PROXY_BEDROCK_ENDPOINT` | derived from region | Override for FIPS endpoints (`bedrock-runtime-fips.{region}.amazonaws.com`), VPC endpoints, or local mock servers. |
-| `--aws-profile` | `HEADROOM_PROXY_AWS_PROFILE` | unset | Selects the named profile from the shared credentials file. |
-| `--enable-bedrock-native` | `HEADROOM_PROXY_ENABLE_BEDROCK_NATIVE` | `true` | Set to `false` to mount no Bedrock routes at all (Bedrock requests will then fall through to the catch-all and fail without SigV4). |
+| `--bedrock-region` | `CUTCTX_PROXY_BEDROCK_REGION` (or `AWS_REGION`) | `us-east-1` | Drives both the SigV4 region and the derived endpoint hostname. |
+| `--bedrock-endpoint` | `CUTCTX_PROXY_BEDROCK_ENDPOINT` | derived from region | Override for FIPS endpoints (`bedrock-runtime-fips.{region}.amazonaws.com`), VPC endpoints, or local mock servers. |
+| `--aws-profile` | `CUTCTX_PROXY_AWS_PROFILE` | unset | Selects the named profile from the shared credentials file. |
+| `--enable-bedrock-native` | `CUTCTX_PROXY_ENABLE_BEDROCK_NATIVE` | `true` | Set to `false` to mount no Bedrock routes at all (Bedrock requests will then fall through to the catch-all and fail without SigV4). |
 
 ## Supported model IDs
 
@@ -159,11 +159,11 @@ Every metric increment in the Bedrock path is paired with a `tracing::debug!` lo
 - `metric = "bedrock_invoke_count_total" | "bedrock_invoke_latency_seconds" | "bedrock_eventstream_message_count_total"`
 - the same labels as the metric
 
-Enable with `RUST_LOG=headroom_proxy::observability=debug` for incident correlation. In normal operation keep this at the default `info` level — debug volume per request is bounded by the same cardinality the metric uses.
+Enable with `RUST_LOG=cutctx_proxy::observability=debug` for incident correlation. In normal operation keep this at the default `info` level — debug volume per request is bounded by the same cardinality the metric uses.
 
 ## Live cloud validation
 
-The PR-D1, D2, D3 implementations are exercised end-to-end against a wiremock upstream (`crates/headroom-proxy/tests/integration_bedrock_*.rs`). The wiremock-based tests are the canonical correctness gate.
+The PR-D1, D2, D3 implementations are exercised end-to-end against a wiremock upstream (`crates/cutctx-proxy/tests/integration_bedrock_*.rs`). The wiremock-based tests are the canonical correctness gate.
 
 A real Bedrock smoke test (`aws bedrock-runtime invoke-model ...` through the proxy) requires `bedrock:InvokeModel` permissions in the developer's AWS account. Set the proxy upstream to the proxy URL (`http://localhost:8787`) via the AWS SDK's `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` env var:
 

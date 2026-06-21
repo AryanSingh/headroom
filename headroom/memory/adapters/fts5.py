@@ -1,4 +1,4 @@
-"""SQLite FTS5 full-text search index for Headroom Memory.
+"""SQLite FTS5 full-text search index for Cutctx Memory.
 
 Provides fast, local full-text search with BM25 ranking.
 Uses SQLite's built-in FTS5 extension with Porter stemming

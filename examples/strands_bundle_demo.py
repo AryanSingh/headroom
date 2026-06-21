@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Strands agent + Headroom — drop-in compression demo.
+"""Strands agent + Cutctx — drop-in compression demo.
 
-This is what a real Strands user writes. The ONLY Headroom-specific
+This is what a real Strands user writes. The ONLY Cutctx-specific
 lines are the import and the bundle construction. Everything else
 is normal Strands code.
 
@@ -9,13 +9,13 @@ The demo:
   1. Defines a normal Strands `@tool` that returns a verbose JSON blob
      (mimicking a real RAG or DB tool result).
   2. Builds a normal Strands `Agent` with that tool + the bundle's MCP
-     tools (headroom_compress / headroom_retrieve / headroom_stats).
+     tools (cutctx_compress / cutctx_retrieve / cutctx_status).
   3. Sends ONE user query.
   4. Lets the agent loop autonomously.
   5. Prints the answer + the proxy /stats summary so you can SEE that
-     Headroom compressed the verbose tool output on the way to Bedrock.
+     Cutctx compressed the verbose tool output on the way to Bedrock.
 
-The Headroom proxy is started as a background process here so the
+The Cutctx proxy is started as a background process here so the
 script is self-contained. In production, the proxy runs as a
 long-lived service (ECS / k8s / EC2) and the application code looks
 exactly like what's below the `=== USER CODE ===` line.
@@ -44,7 +44,7 @@ from contextlib import suppress
 from pathlib import Path
 
 # ============================================================================
-# Boilerplate: start the Headroom proxy as a child process for the demo.
+# Boilerplate: start the Cutctx proxy as a child process for the demo.
 # In production this is a long-lived service — none of this code is in your
 # Strands app.
 # ============================================================================
@@ -57,7 +57,7 @@ def _start_proxy() -> subprocess.Popen[bytes]:
     cmd = [
         sys.executable,
         "-m",
-        "headroom.cli",
+        "cutctx.cli",
         "proxy",
         "--backend",
         "bedrock",
@@ -113,7 +113,7 @@ def _print_stats_panel() -> None:
     if comp.get("best_compression_pct"):
         print(f"    best_compression_pct:   {comp['best_compression_pct']:.1f}%")
     print(f"    uncompressed reasons:   {uncomp}")
-    # MCP-side work (headroom_compress / headroom_retrieve called by the LLM
+    # MCP-side work (cutctx_compress / cutctx_retrieve called by the LLM
     # via Strands' MCP dispatcher). The retrievals counter is the
     # over-compression alarm — if it grows linearly with turn count, our
     # lossy compressors are dropping info the model actually needs.
@@ -125,14 +125,13 @@ def _print_stats_panel() -> None:
 # ============================================================================
 # === USER CODE ===
 # Everything below is what a normal Strands user writes. The only
-# Headroom-specific bits are the `HeadroomBundle` import and one
+# Cutctx-specific bits are the `CutctxBundle` import and one
 # construction call. The rest is vanilla Strands.
 # ============================================================================
 
+from cutctx.integrations.strands import CutctxBundle  # noqa: E402
 from strands import Agent, tool  # noqa: E402  (kept under USER CODE banner for readability)
 from strands.models.openai import OpenAIModel  # noqa: E402
-
-from headroom.integrations.strands import HeadroomBundle  # noqa: E402
 
 
 @tool
@@ -140,7 +139,7 @@ def search_documentation(query: str) -> str:
     """Search the documentation for articles matching `query`. Returns up to 30 results as JSON."""
     # Mock data — pretend this hit a real search API. The point is the
     # response is big and repetitive, which is the kind of tool output
-    # Headroom is designed to shrink.
+    # Cutctx is designed to shrink.
     articles = [
         {
             "id": f"doc-{i:04d}",
@@ -167,8 +166,8 @@ def search_documentation(query: str) -> str:
 def run_agent_demo() -> None:
     """The actual Strands agent demo — looks like any other Strands app."""
 
-    # === The only Headroom-specific code in your app ===
-    bundle = HeadroomBundle(
+    # === The only Cutctx-specific code in your app ===
+    bundle = CutctxBundle(
         proxy_url=PROXY_URL,
         enable_serena_mcp=False,  # disabled here so the demo runs fast
     )
@@ -189,7 +188,7 @@ def run_agent_demo() -> None:
 
     agent = Agent(
         model=model,
-        # bundle.tools = [Headroom MCP client]; we also add our local tool
+        # bundle.tools = [Cutctx MCP client]; we also add our local tool
         tools=bundle.tools + [search_documentation],
         system_prompt=(
             "You are a documentation assistant. When the user asks about a "
@@ -223,11 +222,11 @@ def run_agent_demo() -> None:
 
 def main() -> int:
     print("=" * 72)
-    print(" Strands agent + Headroom (drop-in compression)")
+    print(" Strands agent + Cutctx (drop-in compression)")
     print("=" * 72)
     print(f" proxy: {PROXY_URL}    region: {os.environ.get('AWS_REGION', 'us-west-2')}")
     print()
-    print(" Starting Headroom proxy (in production this is a long-lived service) ...")
+    print(" Starting Cutctx proxy (in production this is a long-lived service) ...")
     proxy = _start_proxy()
     try:
         _wait_for_proxy()
@@ -235,7 +234,7 @@ def main() -> int:
         run_agent_demo()
         _print_stats_panel()
         print("\n" + "=" * 72)
-        print(" Done. If requests_compressed > 0 above, Headroom shrunk the")
+        print(" Done. If requests_compressed > 0 above, Cutctx shrunk the")
         print(" verbose tool output on its way to Bedrock — automatically,")
         print(" with no code changes in the agent.")
         print("=" * 72)

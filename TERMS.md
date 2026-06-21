@@ -11,7 +11,7 @@ By installing, copying, or using CutCtx software or services ("Service"), you ag
 ## 2. Definitions
 
 - **"OSS Software"** means the open-source CutCtx client, including the compression engine, proxy, SDKs, CLI, MCP server, and base model, distributed under the Apache License 2.0.
-- **"Commercial Software"** means the enterprise control plane, agent-tuned models, and proprietary modules distributed under the Headroom Commercial License.
+- **"Commercial Software"** means the enterprise control plane, agent-tuned models, and proprietary modules distributed under the Cutctx Commercial License.
 - **"Service"** refers collectively to the OSS Software, Commercial Software, and any hosted or support services provided by CutCtx Labs.
 - **"User," "you"** means any individual or entity using the Service.
 
