@@ -38,6 +38,7 @@ import logging
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -157,9 +158,15 @@ def create_dsr_router(
         if memory_handler is not None:
             try:
                 result = await memory_handler.export_for_user(target)
+                # Audit-Deep-2026-06-21 P0 GDPR fix: the memory
+                # records can contain numpy arrays (the embedding
+                # vector) which FastAPI's default JSON encoder
+                # cannot serialize. We pre-encode with
+                # jsonable_encoder so the route returns 200, not
+                # 500, for users whose memories include embeddings.
                 payload["stores"]["memory"] = {
                     "count": result.get("count", 0),
-                    "records": result.get("records", []),
+                    "records": jsonable_encoder(result.get("records", [])),
                 }
             except Exception as exc:  # noqa: BLE001
                 logger.exception(
@@ -178,7 +185,10 @@ def create_dsr_router(
             events = await query_spend(sq) if callable(query_spend) else []
             payload["stores"]["spend_ledger"] = {
                 "count": len(events) if events else 0,
-                "records": events if events else [],
+                # Audit-Deep-2026-06-21 P0 GDPR fix: pre-encode
+                # records to strip numpy/datetime objects that
+                # would otherwise 500 the response.
+                "records": jsonable_encoder(events) if events else [],
             }
         except ImportError:
             payload["store_errors"]["spend_ledger"] = "EE module not installed"
@@ -197,7 +207,7 @@ def create_dsr_router(
                 events = audit_logger.query(actor=target, limit=1000)
                 payload["stores"]["audit"] = {
                     "count": len(events) if events else 0,
-                    "records": events if events else [],
+                    "records": jsonable_encoder(events) if events else [],
                 }
             else:
                 payload["store_errors"]["audit"] = "AuditLogger.instance() not available"

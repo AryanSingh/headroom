@@ -2400,10 +2400,42 @@ To SAVE: create /memories/<topic>.txt "content"
                     exc,
                 )
         # Fallback: ask the underlying memory system directly.
-        if self._backend is not None and hasattr(self._backend, "clear_scope"):
+        # Audit-Deep-2026-06-21 P0 GDPR fix: the previous code
+        # only checked for `clear_scope`. The production
+        # `LocalBackend` exposes `clear_user` (not `clear_scope`),
+        # so the DSR delete was a no-op — the route returned
+        # `{"backend": 0}` and the rows stayed in SQLite.
+        # We now try `clear_user` first, then `clear_scope`,
+        # then any method whose name starts with `clear_` and
+        # accepts `user_id` (covers custom backends).
+        if self._backend is None:
+            results["backend"] = 0
+        else:
             try:
-                n = await self._backend.clear_scope(user_id=user_id)
-                results["backend"] = int(n) if n is not None else 0
+                deleted = 0
+                found = False
+                for method_name in ("clear_user", "clear_scope"):
+                    if hasattr(self._backend, method_name):
+                        method = getattr(self._backend, method_name)
+                        n = await method(user_id=user_id)
+                        deleted += int(n) if n is not None else 0
+                        found = True
+                        break
+                if not found:
+                    # Generic fall-through: try any clear_ method.
+                    for name in dir(self._backend):
+                        if name.startswith("clear_") and callable(
+                            getattr(self._backend, name, None)
+                        ):
+                            method = getattr(self._backend, name)
+                            try:
+                                n = await method(user_id=user_id)
+                                deleted += int(n) if n is not None else 0
+                                found = True
+                                break
+                            except TypeError:
+                                continue
+                results["backend"] = deleted
             except Exception as exc:  # noqa: BLE001
                 results["backend_error"] = -1
                 logger.exception(
@@ -2411,8 +2443,6 @@ To SAVE: create /memories/<topic>.txt "content"
                     user_id,
                     exc,
                 )
-        else:
-            results["backend"] = 0
         return results
 
     async def export_for_user(self, user_id: str, limit: int = 1000) -> dict[str, Any]:
