@@ -602,6 +602,58 @@ class AnthropicHandlerMixin:
                 request_headers=request.headers,
                 body=body,
             )
+
+            # Audit-Deep-2026-06-21 Blocker 1: invoke the ModelRouter if
+            # enabled. The router decides whether to downgrade the
+            # request to a cheaper model. The decision is recorded in
+            # ``request_savings_metadata`` and consumed by
+            # ``emit_request_outcome`` (which promotes the typed
+            # model_routing_tokens_saved / model_routing_usd_saved
+            # fields from the metadata). The actual model override
+            # is applied to the upstream call below.
+            model_routing_decision = None
+            if getattr(self, "_model_router", None) is not None:
+                try:
+                    from dataclasses import replace as _dc_replace
+
+                    decision = self._model_router.maybe_route(
+                        model,
+                        cache_read_tokens=0,
+                        attempted_input_tokens=0,
+                        tool_calls=sum(
+                            1
+                            for m in messages
+                            for c in (m.get("content") or [])
+                            if isinstance(c, dict) and c.get("type") == "tool_use"
+                        ),
+                        num_messages=len(messages),
+                    )
+                    if decision.routing_applied and decision.target_model:
+                        # Override the model in the request body so the
+                        # upstream call goes to the cheaper model. The
+                        # decision will be finalized (savings computed)
+                        # by emit_request_outcome based on actual tokens.
+                        model = decision.target_model
+                        body = _dc_replace(body, model=decision.target_model)
+                        # Attach to request_savings_metadata so the funnel
+                        # can pick it up.
+                        if request_savings_metadata is None:
+                            request_savings_metadata = {}
+                        request_savings_metadata = {
+                            **request_savings_metadata,
+                            "model_routing": {
+                                "source_model": decision.source_model,
+                                "target_model": decision.target_model,
+                                "reason": decision.reason,
+                                "tokens_saved": 0,  # finalized in outcome
+                                "usd_saved": 0.0,  # finalized in outcome
+                            },
+                        }
+                        model_routing_decision = decision
+                except Exception:
+                    # Routing is best-effort; never let a router error
+                    # poison the request path.
+                    model_routing_decision = None
             pipeline_provider = provider_name
             pipeline_path = request.url.path if upstream_base_url else "/v1/messages"
             pipeline_stream = bool(body.get("stream", False) or force_stream)

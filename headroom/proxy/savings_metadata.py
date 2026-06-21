@@ -139,7 +139,14 @@ def _merge_headers(
         tokens=_header(headers, "x-headroom-prefix-cache-hits")
         or _header(headers, "x-headroom-self-hosted-prefix-cache-hits")
         or _header(headers, "x-headroom-vllm-apc-hits")
-        or _header(headers, "x-headroom-vllm-apc-tokens"),
+        or _header(headers, "x-headroom-vllm-apc-tokens")
+        # Standard vLLM APC header aliases (Audit-Deep-2026-06-21
+        # Blocker 1: enables live detection of self-hosted prefix
+        # cache hits when a vLLM sidecar or proxy sets these on the
+        # upstream response).
+        or _header(headers, "x-vllm-prefix-cache-hits")
+        or _header(headers, "vllm-prefix-cache-hits")
+        or _header(headers, "x-vllm-apc-hits"),
     )
     _merge(
         result,

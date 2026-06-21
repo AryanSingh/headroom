@@ -608,6 +608,77 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     from headroom.proxy.models import RequestLog
     from headroom.proxy.project_context import get_current_project
 
+    # Audit-Deep-2026-06-21 Blocker 1: when the ModelRouter is enabled
+    # and a routing decision was made (signaled by savings_metadata carrying
+    # a "model_routing" entry with target_model), populate the typed
+    # model_routing_* fields. This was previously dead code: the
+    # ModelRouter was bound to proxy._model_router at server boot but
+    # never invoked from the request path, so the model's
+    # model_routing_tokens_saved and model_routing_usd_saved sources
+    # were structurally zero in production.
+    if getattr(handler, "_model_router", None) is not None:
+        try:
+            sm = outcome.savings_metadata or {}
+            if "model_routing" in sm:
+                meta = sm["model_routing"]
+                # If the handler attached placeholder zeros, finalize
+                # the savings now using the actual input-token count.
+                tokens_saved = int(meta.get("tokens_saved", 0))
+                usd_saved = float(meta.get("usd_saved", 0.0))
+                if tokens_saved == 0 and usd_saved == 0.0:
+                    try:
+                        # Re-derive the decision and finalize with the
+                        # actual token count.
+                        from headroom.proxy.model_router import (
+                            ModelRouter,
+                            RoutingDecision,
+                        )
+
+                        # The model router uses a Decision internally;
+                        # we synthesize a placeholder to call
+                        # finalize_savings with the real token count.
+                        decision = RoutingDecision(
+                            source_model=meta.get("source_model", ""),
+                            target_model=meta.get("target_model", ""),
+                            routing_applied=True,
+                            reason=meta.get("reason", ""),
+                        )
+                        input_tokens = int(
+                            outcome.attempted_input_tokens
+                            or outcome.optimized_tokens
+                            or 0
+                        )
+                        if input_tokens > 0:
+                            finalized = handler._model_router.finalize_savings(
+                                decision, input_tokens=input_tokens
+                            )
+                            tokens_saved = int(
+                                getattr(finalized, "tokens_saved", 0) or 0
+                            )
+                            usd_saved = float(
+                                getattr(finalized, "usd_saved", 0.0) or 0.0
+                            )
+                    except Exception:
+                        # Router not usable here (e.g. LiteLLM not
+                        # installed in tests). Leave at 0.
+                        tokens_saved = 0
+                        usd_saved = 0.0
+                if (tokens_saved > 0 or usd_saved > 0.0) and (
+                    outcome.model_routing_tokens_saved == 0
+                ):
+                    # Mutate a copy so we don't poison caller state.
+                    from dataclasses import replace as _dc_replace
+
+                    outcome = _dc_replace(
+                        outcome,
+                        model_routing_tokens_saved=tokens_saved,
+                        model_routing_usd_saved=usd_saved,
+                    )
+        except Exception:
+            # The model router is best-effort; never let a failure
+            # here poison the funnel.
+            pass
+
     # Project attribution: explicit outcome field wins, else the value the
     # HTTP middleware / WS accept captured from ``X-Headroom-Project``.
     project = outcome.project or get_current_project()
