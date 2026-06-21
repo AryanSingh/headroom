@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 import csv
@@ -59,6 +59,7 @@ async def ingest_spend_events(
 
 @router.get("/query")
 async def query_spend(
+    request: Request,
     group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
     start_ts: int | None = None,
     end_ts: int | None = None,
@@ -67,7 +68,30 @@ async def query_spend(
     project_id: str | None = None,
     store: LedgerStore = Depends(get_store),
 ) -> list[dict[str, Any]]:
-    """Time-series aggregation of spend data."""
+    """Time-series aggregation of spend data.
+
+    Audit-Deep-2026-06-21: an authenticated admin with spend.read
+    could previously dump aggregate spend across all orgs by
+    omitting the org_id filter. The endpoint now requires an
+    explicit tenant filter (org_id / workspace_id / project_id)
+    UNLESS the caller has the cross-tenant admin scope.
+    """
+    from headroom.proxy.routes.admin import _resolve_audit_actor
+    from headroom_ee.rbac import has_permission
+
+    actor = _resolve_audit_actor(request)
+    has_cross_tenant = has_permission(actor, "spend.read.cross_tenant")
+    if not has_cross_tenant and not (org_id or workspace_id or project_id):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Explicit tenant filter required (org_id, "
+                "workspace_id, or project_id). Cross-tenant "
+                "queries require the spend.read.cross_tenant "
+                "permission."
+            ),
+        )
+
     with store.SessionLocal() as session:
         query_engine = LedgerQuery(session)
         results = query_engine.aggregate_spend(
@@ -83,6 +107,7 @@ async def query_spend(
 
 @router.get("/export/csv")
 async def export_spend_csv(
+    request: Request,
     group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
     start_ts: int | None = None,
     end_ts: int | None = None,
@@ -91,7 +116,27 @@ async def export_spend_csv(
     project_id: str | None = None,
     store: LedgerStore = Depends(get_store),
 ) -> StreamingResponse:
-    """Export aggregated spend data as CSV."""
+    """Export aggregated spend data as CSV.
+
+    Audit-Deep-2026-06-21: same tenant-scoping rule as /query
+    (explicit filter required unless cross-tenant scope).
+    """
+    from headroom.proxy.routes.admin import _resolve_audit_actor
+    from headroom_ee.rbac import has_permission
+
+    actor = _resolve_audit_actor(request)
+    has_cross_tenant = has_permission(actor, "spend.read.cross_tenant")
+    if not has_cross_tenant and not (org_id or workspace_id or project_id):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Explicit tenant filter required (org_id, "
+                "workspace_id, or project_id). Cross-tenant "
+                "exports require the spend.read.cross_tenant "
+                "permission."
+            ),
+        )
+
     with store.SessionLocal() as session:
         query_engine = LedgerQuery(session)
         results = query_engine.aggregate_spend(
