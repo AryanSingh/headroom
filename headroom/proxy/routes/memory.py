@@ -6,15 +6,16 @@ Blocker-1: the EE ``/v1/memory/*`` endpoints were previously mounted
 without admin auth or RBAC. The EE module's own auth TODO comments
 (``headroom_ee/memory_service/api.py:36-85``) explicitly noted this gap.
 This factory applies the auth dependencies from ``server.py`` so
-memory sync/query/review require the operator role.
+memory sync and review require the operator role.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def _get_ee_router() -> APIRouter:
         raise HTTPException(
             status_code=501,
             detail="Team Memory Service is an Enterprise Edition feature.",
-        )
+        ) from e
 
 
 def create_memory_router(
@@ -49,33 +50,8 @@ def create_memory_router(
             "/v1/memory/* will be reachable without auth."
         )
 
-    @router.post(
-        "/v1/memory/sync",
-        dependencies=dependencies,
-    )
-    async def sync_memory(request: Request) -> Any:
-        """Proxy for memory sync (authenticated)."""
-        ee = _get_ee_router()
-        for route in ee.routes:
-            if getattr(route, "path", "") == "/v1/memory/sync":
-                return await route.endpoint(request=request)  # type: ignore
-        raise HTTPException(
-            status_code=404, detail="Route not found in EE module"
-        )
-
-    @router.post(
-        "/v1/memory/query",
-        dependencies=dependencies,
-    )
-    async def query_memory(request: Request) -> Any:
-        """Proxy for memory query (authenticated)."""
-        ee = _get_ee_router()
-        for route in ee.routes:
-            if getattr(route, "path", "") == "/v1/memory/query":
-                return await route.endpoint(request=request)  # type: ignore
-        raise HTTPException(
-            status_code=404, detail="Route not found in EE module"
-        )
+    ee_router = _get_ee_router()
+    router.include_router(ee_router, dependencies=dependencies)
 
     return router
 

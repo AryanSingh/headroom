@@ -59,6 +59,7 @@ dependencies = [
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
     "cryptography>=41.0.0",       # Fernet encryption for local state + HMAC for license cache
     "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
+    "opentelemetry-sdk>=1.24.0",
 ]
 
 [project.optional-dependencies]
@@ -226,6 +227,14 @@ benchmark = [
     "openai>=1.0.0",
     "anthropic>=0.18.0",
 ]
+# Optional commercial-demo integrations used to prove external savings
+# telemetry from semantic cache and self-hosted prefix-cache layers.
+# Kept out of [proxy] and [dev] because vLLM is Linux/GPU-oriented and
+# GPTCache is only needed when that demo path is enabled.
+demo-integrations = [
+    "gptcache>=0.1.43,<0.2; python_version < '3.13'",
+    "vllm>=0.8.0,<1.0; platform_system == 'Linux' and python_version < '3.13'",
+]
 # Development dependencies
 dev = [
     "pytest>=7.0.0",
@@ -241,7 +250,7 @@ dev = [
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
     "websockets>=13.0",
-    "opentelemetry-sdk>=1.24.0",
+    "playwright>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
     "ollama>=0.4.0",
     "langchain-ollama>=0.2.0",

@@ -4,13 +4,13 @@
 
 ## Supported Agents
 
-### Claude (`headroom/learn/plugins/claude/`)
+### Claude (`cutctx/learn/plugins/claude/`)
 
 **Plugin:** `ClaudeLearnPlugin`
 
 **Capabilities:**
 - Session branch comparison
-- Token headroom mode detection
+- Token cutctx mode detection
 - Tool use tracking
 - Multi-modal support (images)
 
@@ -44,12 +44,12 @@ class ClaudeLearnPlugin(LearnPlugin, ConversationScanner):
 
 **Configuration:**
 ```bash
-HEADROOM_LEARN_CLI=claude
+CUTCTX_LEARN_CLI=claude
 ```
 
 ---
 
-### Codex (OpenAI) (`headroom/learn/plugins/codex/`)
+### Codex (OpenAI) (`cutctx/learn/plugins/codex/`)
 
 **Plugin:** `CodexLearnPlugin`
 
@@ -84,12 +84,12 @@ class CodexLearnPlugin(LearnPlugin, ConversationScanner):
 
 **Configuration:**
 ```bash
-HEADROOM_LEARN_CLI=codex
+CUTCTX_LEARN_CLI=codex
 ```
 
 ---
 
-### Gemini (Google) (`headroom/learn/plugins/gemini/`)
+### Gemini (Google) (`cutctx/learn/plugins/gemini/`)
 
 **Plugin:** `GeminiLearnPlugin`
 
@@ -124,14 +124,22 @@ class GeminiLearnPlugin(LearnPlugin, ConversationScanner):
 
 **Configuration:**
 ```bash
-HEADROOM_LEARN_CLI=gemini
+CUTCTX_LEARN_CLI=gemini
 ```
 
 ---
 
 ## Integration Points
 
-### LiteLLM Callback (`headroom/integrations/litellm_callback.py`)
+### Savings telemetry contract
+
+External integrations that save tokens outside Headroom can report those
+savings by sending `x-headroom-savings-metadata` to the local proxy. Use this
+for LiteLLM provider cache hits, GPTCache semantic-cache hits, vLLM APC prefix
+hits, and model-routing savings. See [Savings Telemetry](../savings-telemetry.md)
+for accepted JSON keys, dedicated headers, and a curl example.
+
+### LiteLLM Callback (`cutctx/integrations/litellm_callback.py`)
 
 LiteLLM proxy callback for integrating with LiteLLM-based setups.
 
@@ -140,10 +148,10 @@ LiteLLM proxy callback for integrating with LiteLLM-based setups.
 class LiteLLMCallback:
     def __init__(
         self,
-        headroom_url: str = "http://localhost:8787",
+        cutctx_url: str = "http://localhost:8787",
         api_key: str | None = None,
     ) -> None:
-        self.headroom_url = headroom_url
+        self.cutctx_url = cutctx_url
         self.api_key = api_key
     
     def on_completion(self, completion_response: dict) -> dict:
@@ -157,29 +165,29 @@ class LiteLLMCallback:
 
 **Usage:**
 ```python
-from headroom.integrations import LiteLLMCallback
+from cutctx.integrations import LiteLLMCallback
 
-callback = LiteLLMCallback(headroom_url="http://localhost:8787")
+callback = LiteLLMCallback(cutctx_url="http://localhost:8787")
 # Register with LiteLLM proxy
 ```
 
 ---
 
-### ASGI Middleware (`headroom/integrations/asgi.py`)
+### ASGI Middleware (`cutctx/integrations/asgi.py`)
 
 ASGI-compatible middleware for Python web frameworks (FastAPI, Starlette, etc.).
 
-**`HeadroomMiddleware` class:**
+**`CutctxMiddleware` class:**
 ```python
-class HeadroomMiddleware:
+class CutctxMiddleware:
     def __init__(
         self,
         app: ASGIApplication,
-        headroom_url: str = "http://localhost:8787",
+        cutctx_url: str = "http://localhost:8787",
         mode: ProxyMode = ProxyMode.COMPRESS,
     ) -> None:
         self.app = app
-        self.headroom_url = headroom_url
+        self.cutctx_url = cutctx_url
         self.mode = mode
     
     async def __call__(
@@ -194,30 +202,30 @@ class HeadroomMiddleware:
 
 **Usage:**
 ```python
-from headroom.integrations import HeadroomMiddleware
+from cutctx.integrations import CutctxMiddleware
 from fastapi import FastAPI
 
 app = FastAPI()
 app.add_middleware(
-    HeadroomMiddleware,
-    headroom_url="http://localhost:8787",
+    CutctxMiddleware,
+    cutctx_url="http://localhost:8787",
     mode=ProxyMode.COMPRESS,
 )
 ```
 
 ---
 
-### MCP integration helpers (`headroom/integrations/mcp/server.py`)
+### MCP integration helpers (`cutctx/integrations/mcp/server.py`)
 
 Helpers for MCP-aware host applications and custom wrappers. This module does
-not currently ship a standalone `HeadroomMCPProxy` server implementation.
+not currently ship a standalone `CutctxMCPProxy` server implementation.
 
-**`HeadroomMCPCompressor` class:**
+**`CutctxMCPCompressor` class:**
 ```python
-class HeadroomMCPCompressor:
+class CutctxMCPCompressor:
     def __init__(
         self,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
         profiles: list[MCPToolProfile] | None = None,
         token_counter: Callable[[str], int] | None = None,
     ) -> None:
@@ -236,42 +244,42 @@ class HeadroomMCPCompressor:
 
 **Companion helpers:**
 - `compress_tool_result(...)` — standalone helper for host applications
-- `HeadroomMCPClientWrapper` — wraps an MCP client and compresses tool results
-- `create_headroom_mcp_proxy(...)` — returns config for a custom wrapper/proxy
+- `CutctxMCPClientWrapper` — wraps an MCP client and compresses tool results
+- `create_cutctx_mcp_proxy(...)` — returns config for a custom wrapper/proxy
 
 **Ready-to-run MCP tools server:**
 ```bash
-headroom mcp serve
+cutctx mcp serve
 ```
 
 ---
 
-### Strands (`headroom/integrations/strands/`)
+### Strands (`cutctx/integrations/strands/`)
 
 Strands framework integration.
 
 **Usage:**
 ```python
-from headroom.integrations.strands import HeadroomStrandsPlugin
+from cutctx.integrations.strands import CutctxStrandsPlugin
 
-plugin = HeadroomStrandsPlugin()
+plugin = CutctxStrandsPlugin()
 ```
 
 ---
 
-### LangChain (`headroom/integrations/langchain/`)
+### LangChain (`cutctx/integrations/langchain/`)
 
 LangChain callback handler integration.
 
-**`HeadroomLangChainCallback` class:**
+**`CutctxLangChainCallback` class:**
 ```python
-class HeadroomLangChainCallback(BaseCallbackHandler):
+class CutctxLangChainCallback(BaseCallbackHandler):
     def __init__(
         self,
-        headroom_url: str = "http://localhost:8787",
+        cutctx_url: str = "http://localhost:8787",
         api_key: str | None = None,
     ) -> None:
-        self.headroom_url = headroom_url
+        self.cutctx_url = cutctx_url
         self.api_key = api_key
     
     async def on_llm_start(self, serialized, prompts, **kwargs) -> None:
@@ -283,9 +291,9 @@ class HeadroomLangChainCallback(BaseCallbackHandler):
 
 **Usage:**
 ```python
-from langchain.callbacks import HeadroomLangChainCallback
+from langchain.callbacks import CutctxLangChainCallback
 
-callback = HeadroomLangChainCallback()
+callback = CutctxLangChainCallback()
 # Pass to LangChain chain
 ```
 
@@ -297,8 +305,8 @@ All learn plugins must implement the `LearnPlugin` interface:
 
 ```python
 from abc import ABC, abstractmethod
-from headroom.learn.base import ConversationScanner, ContextWriter
-from headroom.learn.models import ProjectInfo, SessionData
+from cutctx.learn.base import ConversationScanner, ContextWriter
+from cutctx.learn.models import ProjectInfo, SessionData
 
 class LearnPlugin(ConversationScanner):
     """A self-contained learn plugin for a single coding agent."""
@@ -342,7 +350,7 @@ class LearnPlugin(ConversationScanner):
 plugin = MyAgentPlugin()
 ```
 
-Plugins are auto-discovered from `headroom.learn.plugins.*` or via `headroom.learn_plugin` entry points.
+Plugins are auto-discovered from `cutctx.learn.plugins.*` or via `cutctx.learn_plugin` entry points.
 
 ---
 
