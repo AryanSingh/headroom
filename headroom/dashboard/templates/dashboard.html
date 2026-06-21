@@ -163,6 +163,23 @@
         </div>
     </header>
 
+    <!-- Audit-Deep-2026-06-21 Blocker 4: error toast -->
+    <div
+        x-show="lastError"
+        x-transition.opacity.duration.150ms
+        role="alert"
+        aria-live="assertive"
+        class="fixed top-4 right-4 z-50 max-w-sm rounded border border-red-600 bg-red-900/80 text-red-100 px-4 py-3 shadow-lg flex items-start gap-2"
+    >
+        <span class="text-sm" x-text="lastError"></span>
+        <button
+            type="button"
+            @click="lastError = null"
+            aria-label="Dismiss error"
+            class="ml-2 text-red-200 hover:text-white"
+        >&times;</button>
+    </div>
+
     <main class="p-6 max-w-7xl mx-auto">
         <template x-if="viewMode === 'session'">
             <div>
@@ -1022,11 +1039,64 @@
 
         <!-- Recent Requests Table (with expandable rows) -->
         <div class="bg-surface rounded-lg border border-border overflow-hidden">
-            <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+            <div class="px-4 py-3 border-b border-border flex flex-wrap gap-3 justify-between items-center">
                 <span class="text-sm font-medium text-gray-300">Recent Requests</span>
-                <span class="text-xs text-gray-500">Last 10 &mdash; click row to expand</span>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <input
+                        type="search"
+                        x-model="searchQuery"
+                        @input.debounce.150ms="$nextTick(() => filterAndSortRequests())"
+                        placeholder="Filter by model, request id, or path…"
+                        aria-label="Filter recent requests"
+                        class="bg-bg border border-border rounded px-2 py-1 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
+                    >
+                    <select
+                        x-model="filterProvider"
+                        @change="filterAndSortRequests()"
+                        aria-label="Filter by provider"
+                        class="bg-bg border border-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                        <option value="">All providers</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="google">Google</option>
+                        <option value="bedrock">Bedrock</option>
+                        <option value="vertex">Vertex</option>
+                    </select>
+                    <select
+                        x-model="sortBy"
+                        @change="filterAndSortRequests()"
+                        aria-label="Sort by"
+                        class="bg-bg border border-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                        <option value="time_desc">Time (newest)</option>
+                        <option value="time_asc">Time (oldest)</option>
+                        <option value="tokens_desc">Tokens saved (high)</option>
+                        <option value="tokens_asc">Tokens saved (low)</option>
+                        <option value="latency_desc">Latency (slow)</option>
+                        <option value="latency_asc">Latency (fast)</option>
+                    </select>
+                    <span class="text-xs text-gray-500" x-text="filteredRequestsCount + ' / ' + (stats.recent_requests || []).length"></span>
+                </div>
             </div>
-            <div class="overflow-x-auto">
+            <!-- Audit-Deep-2026-06-21 Blocker 4: loading spinner -->
+            <div
+                x-show="requestsLoading"
+                x-cloak
+                role="status"
+                aria-live="polite"
+                class="flex items-center justify-center py-8 text-gray-400 text-sm"
+            >
+                <span
+                    class="inline-block w-5 h-5 mr-2 rounded-full border-2 border-blue-500 border-r-transparent animate-spin"
+                ></span>
+                <span>Loading requests…</span>
+            </div>
+            <div
+                class="overflow-x-auto"
+                x-show="!requestsLoading"
+                x-transition.opacity.duration.150ms
+            >
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-gray-500 uppercase tracking-wide">
@@ -1040,7 +1110,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
-                        <template x-for="req in (stats.recent_requests || [])" :key="req.request_id">
+                        <template x-for="req in (visibleRequests || [])" :key="req.request_id">
                             <tr>
                                 <td colspan="7" class="p-0">
                                     <div class="cursor-pointer" @click="toggleExpanded(req.request_id)">
@@ -1564,6 +1634,17 @@
                 requestHistory: [],
                 savingsHistory: [],
                 expandedRows: {},
+                // Audit-Deep-2026-06-21 Blocker 4: search / filter /
+                // sort for the Recent Requests table. visibleRequests
+                // is the rendered slice; searchQuery / filterProvider
+                // / sortBy drive filterAndSortRequests().
+                searchQuery: '',
+                filterProvider: '',
+                sortBy: 'time_desc',
+                visibleRequests: [],
+                filteredRequestsCount: 0,
+                requestsLoading: false,
+                lastError: null,
                 pollInterval: null,
                 statsPollMs: 5000,
                 historyPollMs: 30000,
@@ -1623,6 +1704,7 @@
                 },
 
                 async fetchStats() {
+                    this.requestsLoading = true;
                     try {
                         const [statsRes, healthRes] = await Promise.all([
                             fetch('/stats?cached=1'),
@@ -1643,10 +1725,22 @@
                         if (this.requestHistory.length > 30) this.requestHistory.shift();
                         if (this.savingsHistory.length > 30) this.savingsHistory.shift();
 
+                        // Audit-Deep-2026-06-21 Blocker 4: refresh the
+                        // filtered/sorted view after each stats update.
+                        this.filterAndSortRequests();
+                        this.lastError = null;
                         this.lastUpdate = new Date().toLocaleTimeString();
                     } catch (e) {
                         console.error('Failed to fetch stats:', e);
                         this.healthy = false;
+                        // Audit-Deep-2026-06-21 Blocker 4: surface the
+                        // error to the operator (was previously
+                        // silent).
+                        this.setError(
+                            'Failed to fetch stats: ' + (e?.message || e)
+                        );
+                    } finally {
+                        this.requestsLoading = false;
                     }
                 },
 
@@ -2287,6 +2381,64 @@
 
                 toggleExpanded(id) {
                     this.expandedRows[id] = !this.expandedRows[id];
+                },
+
+                // --- Filter / Sort (Audit-Deep-2026-06-21 Blocker 4) ---
+
+                filterAndSortRequests() {
+                    const all = this.stats.recent_requests || [];
+                    const q = (this.searchQuery || '').trim().toLowerCase();
+                    const provider = (this.filterProvider || '').trim().toLowerCase();
+                    let out = all.filter((req) => {
+                        if (provider) {
+                            const p = (req.provider || '').toLowerCase();
+                            if (p !== provider) return false;
+                        }
+                        if (q) {
+                            const hay = [
+                                req.request_id,
+                                req.model,
+                                req.provider,
+                                req.path,
+                            ]
+                                .filter(Boolean)
+                                .join(' ')
+                                .toLowerCase();
+                            if (!hay.includes(q)) return false;
+                        }
+                        return true;
+                    });
+                    const k = this.sortBy || 'time_desc';
+                    out = out.slice().sort((a, b) => {
+                        const ta = Date.parse(a.timestamp || '') || 0;
+                        const tb = Date.parse(b.timestamp || '') || 0;
+                        const sa = Number(a.tokens_saved || 0);
+                        const sb = Number(b.tokens_saved || 0);
+                        const la = Number(a.total_latency_ms || a.latency_ms || 0);
+                        const lb = Number(b.total_latency_ms || b.latency_ms || 0);
+                        switch (k) {
+                            case 'time_asc': return ta - tb;
+                            case 'tokens_desc': return sb - sa;
+                            case 'tokens_asc': return sa - sb;
+                            case 'latency_desc': return lb - la;
+                            case 'latency_asc': return la - lb;
+                            case 'time_desc':
+                            default: return tb - ta;
+                        }
+                    });
+                    this.visibleRequests = out;
+                    this.filteredRequestsCount = out.length;
+                },
+
+                setError(msg) {
+                    this.lastError = msg;
+                    if (msg) {
+                        // Auto-clear after 6s so transient errors
+                        // don't pollute the UI.
+                        setTimeout(() => {
+                            if (this.lastError === msg) this.lastError = null;
+                        }, 6000);
+                    }
                 },
 
                 // --- Charts ---
