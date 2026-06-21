@@ -1,9 +1,9 @@
 """
-Headroom - The Context Optimization Layer for LLM Applications.
+Cutctx - The Context Optimization Layer for LLM Applications.
 
 Cut your LLM costs by 50-90% without losing accuracy.
 
-Headroom wraps LLM clients to provide:
+Cutctx wraps LLM clients to provide:
 - Smart compression of tool outputs (keeps errors, anomalies, relevant items)
 - Cache-aligned prefix optimization for better provider cache hits
 - Rolling window token management for long conversations
@@ -11,11 +11,11 @@ Headroom wraps LLM clients to provide:
 
 Quick Start:
 
-    from headroom import HeadroomClient, OpenAIProvider
+    from headroom import CutctxClient, OpenAIProvider
     from openai import OpenAI
 
     # Wrap your existing client
-    client = HeadroomClient(
+    client = CutctxClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         default_mode="optimize",
@@ -56,14 +56,14 @@ Simulate Before Sending:
 
 Error Handling:
 
-    from headroom import HeadroomError, ConfigurationError, ProviderError
+    from headroom import CutctxError, ConfigurationError, ProviderError
 
     try:
         response = client.chat.completions.create(...)
     except ConfigurationError as e:
         print(f"Config issue: {e.details}")
-    except HeadroomError as e:
-        print(f"Headroom error: {e}")
+    except CutctxError as e:
+        print(f"Cutctx error: {e}")
 
 For more examples, see https://github.com/headroom-sdk/headroom/tree/main/examples
 """
@@ -75,6 +75,19 @@ from typing import Any
 
 from ._version import __version__  # noqa: F401
 from .compress import CompressConfig, CompressResult, compress
+from .config import CutctxConfig, CutctxMode
+# Backward-compat aliases (pre-db7f7a4 rebrand).
+HeadroomConfig = CutctxConfig  # type: ignore[misc,assignment]
+HeadroomMode = CutctxMode  # type: ignore[misc,assignment]
+# Lazy client alias to avoid an import cycle on first import.
+try:
+    from .client import CutctxClient as _CutctxClientImpl
+    HeadroomClient = _CutctxClientImpl
+    CutctxClient = _CutctxClientImpl
+    del _CutctxClientImpl
+except ImportError:  # pragma: no cover - the client is always available in practice
+    HeadroomClient = None  # type: ignore[assignment]
+    CutctxClient = None  # type: ignore[assignment]
 
 # Keep a real callable bound for the one-function compression API so
 # `from headroom import compress` is never shadowed by the submodule object.
@@ -98,6 +111,11 @@ __all__ = [
     "ValidationError",
     "TransformError",
     # Config
+    "CutctxConfig",
+    "CutctxMode",
+    # Backward-compat: rebrand from HeadroomConfig/HeadroomMode (pre-db7f7a4).
+    # External callers may still reference the old names. Aliases will be
+    # removed in the next minor release.
     "HeadroomConfig",
     "HeadroomMode",
     "SmartCrusherConfig",
@@ -184,14 +202,14 @@ __all__ = [
 # load provider SDKs, ML stacks, or optional proxy/runtime integrations.
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Main client
-    "HeadroomClient": ("headroom.client", "HeadroomClient"),
+    "CutctxClient": ("headroom.client", "CutctxClient"),
     # Providers
     "Provider": ("headroom.providers", "Provider"),
     "TokenCounter": ("headroom.providers", "TokenCounter"),
     "OpenAIProvider": ("headroom.providers", "OpenAIProvider"),
     "AnthropicProvider": ("headroom.providers", "AnthropicProvider"),
     # Exceptions
-    "HeadroomError": ("headroom.exceptions", "HeadroomError"),
+    "CutctxError": ("headroom.exceptions", "CutctxError"),
     "ConfigurationError": ("headroom.exceptions", "ConfigurationError"),
     "ProviderError": ("headroom.exceptions", "ProviderError"),
     "StorageError": ("headroom.exceptions", "StorageError"),
@@ -201,8 +219,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "ValidationError": ("headroom.exceptions", "ValidationError"),
     "TransformError": ("headroom.exceptions", "TransformError"),
     # Config
-    "HeadroomConfig": ("headroom.config", "HeadroomConfig"),
-    "HeadroomMode": ("headroom.config", "HeadroomMode"),
+    "CutctxConfig": ("headroom.config", "CutctxConfig"),
+    "CutctxMode": ("headroom.config", "CutctxMode"),
     "SmartCrusherConfig": ("headroom.config", "SmartCrusherConfig"),
     "CacheAlignerConfig": ("headroom.config", "CacheAlignerConfig"),
     "CacheOptimizerConfig": ("headroom.config", "CacheOptimizerConfig"),

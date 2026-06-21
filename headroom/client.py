@@ -1,4 +1,4 @@
-"""Main HeadroomClient implementation for Headroom SDK."""
+"""Main CutctxClient implementation for Cutctx SDK."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ from .cache import (
     SemanticCacheLayer,
 )
 from .config import (
-    HeadroomConfig,
+    CutctxConfig,
+    CutctxMode,
     HeadroomMode,
     RequestMetrics,
     SimulationResult,
@@ -38,7 +39,7 @@ from .utils import (
 class ChatCompletions:
     """Wrapper for chat.completions API (OpenAI-style)."""
 
-    def __init__(self, client: HeadroomClient):
+    def __init__(self, client: CutctxClient):
         self._client = client
 
     def create(
@@ -47,7 +48,7 @@ class ChatCompletions:
         model: str,
         messages: list[dict[str, Any]],
         stream: bool = False,
-        # Headroom-specific parameters
+        # Cutctx-specific parameters
         headroom_mode: str | None = None,
         headroom_cache_prefix_tokens: int | None = None,
         headroom_output_buffer_tokens: int | None = None,
@@ -57,7 +58,7 @@ class ChatCompletions:
         **kwargs: Any,
     ) -> Any:
         """
-        Create a chat completion with optional Headroom optimization.
+        Create a chat completion with optional Cutctx optimization.
 
         Args:
             model: Model name.
@@ -122,7 +123,7 @@ class ChatCompletions:
 class Messages:
     """Wrapper for messages API (Anthropic-style)."""
 
-    def __init__(self, client: HeadroomClient):
+    def __init__(self, client: CutctxClient):
         self._client = client
 
     def create(
@@ -131,7 +132,7 @@ class Messages:
         model: str,
         messages: list[dict[str, Any]],
         max_tokens: int = 1024,
-        # Headroom-specific parameters
+        # Cutctx-specific parameters
         headroom_mode: str | None = None,
         headroom_cache_prefix_tokens: int | None = None,
         headroom_output_buffer_tokens: int | None = None,
@@ -141,7 +142,7 @@ class Messages:
         **kwargs: Any,
     ) -> Any:
         """
-        Create a message with optional Headroom optimization.
+        Create a message with optional Cutctx optimization.
 
         Args:
             model: Model name.
@@ -177,7 +178,7 @@ class Messages:
         model: str,
         messages: list[dict[str, Any]],
         max_tokens: int = 1024,
-        # Headroom-specific parameters
+        # Cutctx-specific parameters
         headroom_mode: str | None = None,
         headroom_cache_prefix_tokens: int | None = None,
         headroom_output_buffer_tokens: int | None = None,
@@ -187,7 +188,7 @@ class Messages:
         **kwargs: Any,
     ) -> Any:
         """
-        Stream a message with optional Headroom optimization.
+        Stream a message with optional Cutctx optimization.
 
         Args:
             model: Model name.
@@ -250,7 +251,7 @@ class Messages:
         )
 
 
-class HeadroomClient:
+class CutctxClient:
     """
     Context Budget Controller wrapper for LLM API clients.
 
@@ -268,10 +269,10 @@ class HeadroomClient:
         cache_optimizer: BaseCacheOptimizer | None = None,
         enable_cache_optimizer: bool = True,
         enable_semantic_cache: bool = False,
-        config: HeadroomConfig | None = None,
+        config: CutctxConfig | None = None,
     ):
         """
-        Initialize HeadroomClient.
+        Initialize CutctxClient.
 
         Args:
             original_client: The underlying LLM client (OpenAI-compatible).
@@ -283,7 +284,7 @@ class HeadroomClient:
                 enable_cache_optimizer=True, auto-detects from provider.
             enable_cache_optimizer: Enable provider-specific cache optimization.
             enable_semantic_cache: Enable query-level semantic caching.
-            config: Optional HeadroomConfig for full control over all settings.
+            config: Optional CutctxConfig for full control over all settings.
                 When provided, takes precedence over individual settings like
                 store_url, default_mode, etc.
         """
@@ -299,7 +300,7 @@ class HeadroomClient:
             store_url = f"sqlite:///{db_path}"
 
         self._store_url = store_url
-        self._default_mode = HeadroomMode(default_mode)
+        self._default_mode = CutctxMode(default_mode)
 
         # Use provided config or build from individual parameters
         if config is not None:
@@ -312,7 +313,7 @@ class HeadroomClient:
             self._default_mode = config.default_mode
         else:
             # Build config from individual parameters
-            self._config = HeadroomConfig()
+            self._config = CutctxConfig()
             self._config.store_url = store_url
             self._config.default_mode = self._default_mode
             self._config.cache_optimizer.enabled = enable_cache_optimizer
@@ -405,7 +406,7 @@ class HeadroomClient:
         """Internal implementation of create."""
         request_id = generate_request_id()
         timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
-        mode = HeadroomMode(headroom_mode) if headroom_mode else self._default_mode
+        mode = CutctxMode(headroom_mode) if headroom_mode else self._default_mode
 
         input_event = self._pipeline_extensions.emit(
             PipelineStage.INPUT_RECEIVED,
@@ -443,7 +444,7 @@ class HeadroomClient:
         cached_response = None
 
         # Apply transforms if in optimize mode
-        if mode == HeadroomMode.OPTIMIZE:
+        if mode == CutctxMode.OPTIMIZE:
             output_buffer = headroom_output_buffer_tokens or self._config.output_buffer_tokens
             model_limit = self._get_context_limit(model)
 
@@ -863,7 +864,7 @@ class HeadroomClient:
         """Close storage connection."""
         self._storage.close()
 
-    def __enter__(self) -> HeadroomClient:
+    def __enter__(self) -> CutctxClient:
         """Context manager entry."""
         return self
 
@@ -872,7 +873,7 @@ class HeadroomClient:
         self.close()
 
     def validate_setup(self) -> dict[str, Any]:
-        """Validate that Headroom is properly configured.
+        """Validate that Cutctx is properly configured.
 
         This method checks:
         - Provider is valid and can count tokens
@@ -894,7 +895,7 @@ class HeadroomClient:
             ValidationError: If validation fails and raise_on_error=True.
 
         Example:
-            client = HeadroomClient(...)
+            client = CutctxClient(...)
             result = client.validate_setup()
             if not result["valid"]:
                 print("Setup issues:", result)
@@ -935,7 +936,7 @@ class HeadroomClient:
         # Validate config
         try:
             # Check mode is valid
-            if self._default_mode in (HeadroomMode.AUDIT, HeadroomMode.OPTIMIZE):
+            if self._default_mode in (HeadroomMode.AUDIT, CutctxMode.OPTIMIZE):
                 result["config"]["ok"] = True
             else:
                 result["config"]["error"] = f"Invalid mode: {self._default_mode}"
@@ -1016,7 +1017,7 @@ class HeadroomClient:
 
     def _update_session_stats(
         self,
-        mode: HeadroomMode,
+        mode: CutctxMode,
         tokens_before: int,
         tokens_after: int,
         cache_hit: bool = False,
@@ -1033,7 +1034,7 @@ class HeadroomClient:
 
         self._session_stats["requests_total"] += 1
 
-        if mode == HeadroomMode.OPTIMIZE:
+        if mode == CutctxMode.OPTIMIZE:
             self._session_stats["requests_optimized"] += 1
             self._session_stats["tokens_saved_total"] += max(0, tokens_before - tokens_after)
         else:
@@ -1041,3 +1042,8 @@ class HeadroomClient:
 
         if cache_hit:
             self._session_stats["cache_hits"] += 1
+
+
+# Backward-compat alias (pre-db7f7a4 rebrand).
+HeadroomClient = CutctxClient
+

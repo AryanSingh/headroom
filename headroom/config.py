@@ -1,4 +1,4 @@
-"""Configuration models for Headroom SDK."""
+"""Configuration models for Cutctx SDK."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from typing import Any, Literal
 from headroom.models.config import ML_MODEL_DEFAULTS
 
 
-class HeadroomMode(str, Enum):
-    """Operating modes for Headroom."""
+class CutctxMode(str, Enum):
+    """Operating modes for Cutctx."""
 
     AUDIT = "audit"  # Observe only, no modifications
     OPTIMIZE = "optimize"  # Apply deterministic transforms
@@ -381,7 +381,7 @@ class CacheOptimizerConfig:
     """
 
     enabled: bool = True  # Enable provider-specific cache optimization
-    auto_detect_provider: bool = True  # Auto-detect from HeadroomClient provider
+    auto_detect_provider: bool = True  # Auto-detect from CutctxClient provider
     min_cacheable_tokens: int = 1024  # Minimum tokens for caching (provider may override)
     enable_semantic_cache: bool = False  # Enable query-level semantic caching
     semantic_cache_similarity: float = 0.95  # Similarity threshold for semantic cache
@@ -444,7 +444,7 @@ class PrefixFreezeConfig:
 
     When enabled, tracks provider prefix cache state across turns and freezes
     already-cached messages so the transform pipeline skips them. This prevents
-    Headroom from invalidating the provider's prefix cache (which would replace
+    Cutctx from invalidating the provider's prefix cache (which would replace
     a 90% read discount with a 25% write penalty on Anthropic).
 
     The force_compress_threshold controls when compression savings are large
@@ -459,11 +459,11 @@ class PrefixFreezeConfig:
 
 
 @dataclass
-class HeadroomConfig:
-    """Main configuration for HeadroomClient."""
+class CutctxConfig:
+    """Main configuration for CutctxClient."""
 
     store_url: str = "sqlite:///headroom.db"
-    default_mode: HeadroomMode = HeadroomMode.AUDIT
+    default_mode: CutctxMode = CutctxMode.AUDIT
     model_context_limits: dict[str, int] = field(
         default_factory=lambda: DEFAULT_MODEL_CONTEXT_LIMITS.copy()
     )
@@ -623,7 +623,7 @@ class TransformDiff:
 class DiffArtifact:
     """Complete diff artifact for debugging transform pipeline.
 
-    Opt-in via HeadroomConfig.generate_diff_artifact = True.
+    Opt-in via CutctxConfig.generate_diff_artifact = True.
     Useful for understanding what each transform did to your messages.
     """
 
@@ -693,3 +693,15 @@ class RequestMetrics:
     # For debugging
     messages_hash: str = ""
     error: str | None = None
+
+
+# ── Backward-compat aliases ──────────────────────────────────────────────
+# Renamed to the Cutctx brand in commit db7f7a4 (the moat-b1 rebrand).
+# External callers and uncommitted in-tree diffs still reference the old
+# names. These aliases let the rename ship atomically without breaking
+# downstream call sites that haven't been updated yet. The aliases will
+# be removed in the next minor release.
+
+HeadroomMode = CutctxMode  # type: ignore[misc,assignment]
+HeadroomConfig = CutctxConfig  # type: ignore[misc,assignment]
+

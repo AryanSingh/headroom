@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs contributors.
+# Copyright (c) 2025-2026 Cutctx Labs contributors.
 # Licensed under the Apache License, Version 2.0 — see LICENSE for details.
-"""Verifiable data-residency attestation for the Headroom proxy.
+"""Verifiable data-residency attestation for the Cutctx proxy.
 
 Generates a signed (or unsigned) snapshot that proves:
   - which data regions are configured for this tenant
@@ -223,7 +223,13 @@ class ResidencyProver:
             public_key = Ed25519PublicKey.from_public_bytes(pub_bytes)
             sig_bytes = bytes.fromhex(attestation.signature_hex)
             payload = _canonical_payload(attestation)
-            public_key.verify(sig_bytes, payload)
+            # Signer signs SHA-256(payload).digest() (see _sign() below);
+            # Ed25519 also accepts raw messages, so the verifier MUST hash
+            # the payload to match. Without this, the in-process
+            # `prover.verify(prover.sign(attest))` round-trip returns False
+            # for a valid signature.
+            digest = hashlib.sha256(payload).digest()
+            public_key.verify(sig_bytes, digest)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.warning("verify(): signature verification failed: %s", exc)
