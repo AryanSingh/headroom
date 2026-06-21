@@ -164,6 +164,8 @@ class WebhookDispatcher:
         max_delay_s: float = DEFAULT_MAX_DELAY_S,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         queue_max: int = DEFAULT_QUEUE_MAX,
+        subscription_store: Any | None = None,
+        dlq_store: Any | None = None,
     ) -> None:
         self.max_attempts = max(1, int(max_attempts))
         self.base_delay_s = max(0.01, float(base_delay_s))
@@ -171,7 +173,33 @@ class WebhookDispatcher:
         self.timeout_s = max(0.1, float(timeout_s))
         self.queue_max = max(1, int(queue_max))
 
+        # Audit-Deep-2026-06-21 High-15: subscription + DLQ
+        # persistence. Falls back to in-memory when the stores
+        # are not provided (tests, dev).
+        self._sub_store = subscription_store
+        self._dlq_store = dlq_store
+        # In-memory mirror of the subscriptions, used as the
+        # hot-path filter. Refreshed on every change.
         self._subscriptions: list[WebhookSubscription] = []
+        if self._sub_store is not None:
+            try:
+                for stored in self._sub_store.list_all():
+                    self._subscriptions.append(
+                        WebhookSubscription(
+                            url=stored.url,
+                            secret=stored.secret,
+                            event_types=stored.event_types,
+                            org_id=stored.org_id,
+                            enabled=stored.enabled,
+                        )
+                    )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning(
+                    "WebhookDispatcher: failed to load subscriptions "
+                    "from store: %s",
+                    exc,
+                )
+
         self._queue: asyncio.Queue[WebhookDelivery | None] = asyncio.Queue(
             maxsize=self.queue_max
         )
@@ -187,13 +215,27 @@ class WebhookDispatcher:
             env_secret = os.environ.get(
                 "HEADROOM_WEBHOOK_SECRET", "headroom-dev-secret"
             )
-            self._subscriptions.append(
-                WebhookSubscription(
-                    url=env_url,
-                    secret=env_secret,
-                    event_types=None,  # catch-all
-                )
+            sub = WebhookSubscription(
+                url=env_url,
+                secret=env_secret,
+                event_types=None,  # catch-all
             )
+            if self._sub_store is not None:
+                try:
+                    self._sub_store.upsert(
+                        url=sub.url,
+                        secret=sub.secret,
+                        event_types=sub.event_types,
+                        org_id=sub.org_id,
+                        enabled=sub.enabled,
+                    )
+                except Exception:  # pragma: no cover
+                    logger.debug(
+                        "WebhookDispatcher: failed to persist env-var "
+                        "subscription",
+                        exc_info=True,
+                    )
+            self._subscriptions.append(sub)
 
     # ── Subscription management ────────────────────────────────────
 
@@ -202,18 +244,50 @@ class WebhookDispatcher:
 
         Idempotent on URL: re-subscribing the same URL updates
         the existing entry rather than appending a duplicate.
+
+        When a subscription store is configured, the change
+        is also persisted so it survives a restart and is
+        shared across replicas.
         """
         for i, existing in enumerate(self._subscriptions):
             if existing.url == sub.url:
                 self._subscriptions[i] = sub
-                return
-        self._subscriptions.append(sub)
+                break
+        else:
+            self._subscriptions.append(sub)
+        if self._sub_store is not None:
+            try:
+                self._sub_store.upsert(
+                    url=sub.url,
+                    secret=sub.secret,
+                    event_types=sub.event_types,
+                    org_id=sub.org_id,
+                    enabled=sub.enabled,
+                )
+            except Exception:  # pragma: no cover - defensive
+                logger.warning(
+                    "WebhookDispatcher: failed to persist subscription",
+                    exc_info=True,
+                )
 
     def unsubscribe(self, url: str) -> bool:
         """Remove a subscription by URL. Returns True if removed."""
         before = len(self._subscriptions)
         self._subscriptions = [s for s in self._subscriptions if s.url != url]
-        return len(self._subscriptions) < before
+        removed = len(self._subscriptions) < before
+        if removed and self._sub_store is not None:
+            try:
+                # Find the stored sub_id and delete by id.
+                for stored in self._sub_store.list_all():
+                    if stored.url == url:
+                        self._sub_store.delete(stored.id)
+                        break
+            except Exception:  # pragma: no cover
+                logger.warning(
+                    "WebhookDispatcher: failed to persist unsubscribe",
+                    exc_info=True,
+                )
+        return removed
 
     def list_subscriptions(self) -> list[dict[str, Any]]:
         """Return a JSON-serialisable view of the current
@@ -302,11 +376,29 @@ class WebhookDispatcher:
                 self._queue.put_nowait(delivery)
                 n_enqueued += 1
             except asyncio.QueueFull:
+                # Audit-Deep-2026-06-21 High-15: persistent DLQ
                 logger.error(
                     "Webhook queue full; dropping %s for %s (dead-lettered)",
                     event_type,
                     sub.url,
                 )
+                if self._dlq_store is not None:
+                    try:
+                        self._dlq_store.add(
+                            event_id=enriched.get("event_id", ""),
+                            event_type=event_type,
+                            payload=enriched,
+                            target_url=sub.url,
+                            last_status=None,
+                            last_error="queue_full",
+                            attempts=0,
+                        )
+                    except Exception:  # pragma: no cover
+                        logger.debug(
+                            "Webhook DLQ: failed to persist queue-full "
+                            "entry",
+                            exc_info=True,
+                        )
         return n_enqueued
 
     def _select_subscriptions(
@@ -397,6 +489,29 @@ class WebhookDispatcher:
                         delivery.subscription.url,
                         response.status_code,
                     )
+                    # Audit-Deep-2026-06-21 High-15: persistent DLQ
+                    if self._dlq_store is not None:
+                        try:
+                            self._dlq_store.add(
+                                event_id=getattr(
+                                    delivery, "event_id", ""
+                                )
+                                or "",
+                                event_type=delivery.event_type,
+                                payload=getattr(
+                                    delivery, "payload", {}
+                                )
+                                or {},
+                                target_url=delivery.subscription.url,
+                                last_status=response.status_code,
+                                last_error=delivery.last_error,
+                                attempts=delivery.attempt,
+                            )
+                        except Exception:
+                            logger.debug(
+                                "Webhook DLQ: failed to persist",
+                                exc_info=True,
+                            )
                     return
                 delivery.last_error = f"HTTP {response.status_code}"
             except (httpx.HTTPError, asyncio.TimeoutError) as exc:
@@ -423,6 +538,23 @@ class WebhookDispatcher:
             delivery.max_attempts if hasattr(delivery, "max_attempts") else self.max_attempts,
             delivery.last_error,
         )
+        # Audit-Deep-2026-06-21 High-15: persistent DLQ
+        if self._dlq_store is not None:
+            try:
+                self._dlq_store.add(
+                    event_id=getattr(delivery, "event_id", "") or "",
+                    event_type=delivery.event_type,
+                    payload=getattr(delivery, "payload", {}) or {},
+                    target_url=delivery.subscription.url,
+                    last_status=None,
+                    last_error=delivery.last_error,
+                    attempts=delivery.attempt,
+                )
+            except Exception:
+                logger.debug(
+                    "Webhook DLQ: failed to persist exhausted entry",
+                    exc_info=True,
+                )
 
 
 # ── Module-level singleton ────────────────────────────────────────
@@ -431,10 +563,42 @@ _dispatcher: WebhookDispatcher | None = None
 
 
 def get_webhook_dispatcher() -> WebhookDispatcher:
-    """Return the process-wide dispatcher, creating it lazily."""
+    """Return the process-wide dispatcher, creating it lazily.
+
+    Audit-Deep-2026-06-21 High-15: the singleton now
+    defaults to using the persistent subscription + DLQ
+    stores (at ~/.cutctx/webhooks.db and
+    ~/.cutctx/webhook_dlq.db). Operators that need
+    in-memory behavior can set HEADROOM_WEBHOOKS_IN_MEMORY=1
+    (useful for tests + ephemeral dev environments).
+    """
     global _dispatcher
     if _dispatcher is None:
-        _dispatcher = WebhookDispatcher()
+        if os.environ.get("HEADROOM_WEBHOOKS_IN_MEMORY") == "1":
+            _dispatcher = WebhookDispatcher()
+        else:
+            try:
+                from headroom.proxy.webhook_stores import (
+                    WebhookDeadLetterStore,
+                    WebhookSubscriptionStore,
+                )
+
+                sub_store = WebhookSubscriptionStore()
+                dlq_store = WebhookDeadLetterStore()
+                _dispatcher = WebhookDispatcher(
+                    subscription_store=sub_store,
+                    dlq_store=dlq_store,
+                )
+            except Exception as exc:
+                # If the stores can't open (read-only mount,
+                # etc.) fall back to in-memory. The proxy still
+                # works; we just lose persistence.
+                logger.warning(
+                    "Webhook stores unavailable (%s); "
+                    "falling back to in-memory dispatcher.",
+                    exc,
+                )
+                _dispatcher = WebhookDispatcher()
     return _dispatcher
 
 
