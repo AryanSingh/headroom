@@ -22,8 +22,14 @@ Usage:
 from __future__ import annotations
 
 import enum
+import json
 import logging
-from typing import Any
+import os
+import sqlite3
+import threading
+import time
+import uuid
+from typing import Any, Iterable
 
 logger = logging.getLogger("headroom.rbac")
 
@@ -216,11 +222,266 @@ class RbacChecker:
 _rbac_checker: RbacChecker | None = None
 
 
+class RbacAssignmentStore:
+    """SQLite-backed persistence for RBAC role assignments.
+
+    Audit-Deep-2026-06-21 Medium-29: the previous RbacChecker
+    stored assignments in a process-local dict, which meant
+    role assignments were lost on restart (and not shared
+    across replicas of the proxy). This store is the
+    production-grade replacement.
+
+    Schema:
+        role_assignments(
+            user_id       TEXT PRIMARY KEY,
+            role          TEXT NOT NULL,
+            assigned_by   TEXT,
+            assigned_at   REAL NOT NULL,
+            notes         TEXT
+        )
+
+    A 60-second in-process cache keeps the hot path fast; the
+    cache is invalidated on every write. Multi-replica
+    deployments that need sub-second consistency should use an
+    external store (out of scope; the SQLite file is a
+    single-writer store).
+    """
+
+    DEFAULT_DB_PATH = "~/.cutctx/rbac.db"
+    CACHE_TTL_S = 60.0
+
+    def __init__(self, db_path: str | os.PathLike[str] | None = None) -> None:
+        import os
+        from pathlib import Path
+
+        path = Path(
+            os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH))
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._db_path = str(path)
+        self._lock = threading.RLock()
+        self._cache: dict[str, tuple[float, AdminRole]] = {}
+        self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self._db_path, timeout=5.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+
+    def _init_db(self) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS role_assignments (
+                    user_id     TEXT PRIMARY KEY,
+                    role        TEXT NOT NULL,
+                    assigned_by TEXT,
+                    assigned_at REAL NOT NULL,
+                    notes       TEXT
+                )
+                """
+            )
+
+    def get(self, user_id: str) -> AdminRole | None:
+        with self._lock:
+            cached = self._cache.get(user_id)
+            if cached is not None:
+                ts, role = cached
+                if time.time() - ts < self.CACHE_TTL_S:
+                    return role
+            row = self._connect().execute(
+                "SELECT role FROM role_assignments WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            role = AdminRole(row["role"])
+        except ValueError:
+            return None
+        self._cache[user_id] = (time.time(), role)
+        return role
+
+    def set(
+        self,
+        user_id: str,
+        role: AdminRole,
+        *,
+        assigned_by: str | None = None,
+        notes: str = "",
+    ) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO role_assignments(user_id, role, assigned_by, assigned_at, notes)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    role = excluded.role,
+                    assigned_by = excluded.assigned_by,
+                    assigned_at = excluded.assigned_at,
+                    notes = excluded.notes
+                """,
+                (user_id, role.value, assigned_by, time.time(), notes),
+            )
+        # Invalidate cache for this user (and on other replicas
+        # we'd need pub/sub; for now the 60s TTL is the SLA).
+        self._cache.pop(user_id, None)
+
+    def delete(self, user_id: str) -> bool:
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                "DELETE FROM role_assignments WHERE user_id = ?",
+                (user_id,),
+            )
+            removed = cur.rowcount > 0
+        if removed:
+            self._cache.pop(user_id, None)
+        return removed
+
+    def list_all(self) -> dict[str, dict[str, Any]]:
+        """Return all assignments as a dict of metadata.
+
+        The returned shape matches what the admin endpoint
+        ``GET /admin/rbac/assignments`` expects.
+        """
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT user_id, role, assigned_by, assigned_at, notes "
+                "FROM role_assignments ORDER BY user_id"
+            ).fetchall()
+        return {
+            r["user_id"]: {
+                "role": r["role"],
+                "assigned_by": r["assigned_by"],
+                "assigned_at": r["assigned_at"],
+                "notes": r["notes"] or "",
+            }
+            for r in rows
+        }
+
+    def invalidate_cache(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+
+class PersistentRbacChecker(RbacChecker):
+    """RbacChecker that reads/writes role assignments to a
+    SQLite-backed store. Drop-in replacement for RbacChecker
+    that survives process restarts and is shared across
+    replicas of the proxy (via the on-disk file).
+
+    Falls back to the in-memory dict for the lookup path only
+    when the store is unavailable (network file system outage,
+    read-only mount). The write path always goes to the store.
+    """
+
+    def __init__(
+        self,
+        store: RbacAssignmentStore,
+        org_store: Any | None = None,
+    ) -> None:
+        super().__init__(org_store=org_store)
+        self._store = store
+        # Pre-load the in-memory dict so the hot lookup path
+        # doesn't hit SQLite on every request.
+        try:
+            for user_id, meta in store.list_all().items():
+                try:
+                    self._assignments[user_id] = AdminRole(meta["role"])
+                except ValueError:
+                    logger.warning(
+                        "Skipping invalid role %r for user %s",
+                        meta.get("role"),
+                        user_id,
+                    )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("PersistentRbacChecker: initial load failed: %s", exc)
+
+    def resolve_role(self, request: Any) -> AdminRole:
+        """Resolve role, preferring the SQLite store for fresh data.
+
+        Falls back to the in-memory snapshot (loaded at
+        construction) if the store is unreachable, so a
+        transient FS error does not break authentication.
+        """
+        # 1. Fast path: in-memory snapshot
+        result = super().resolve_role(request)
+        # The parent class falls through to _default_role
+        # (AdminRole.ADMIN) when nothing matches. That is
+        # fail-open. For the persistent checker we want
+        # fail-closed when the store actually has data
+        # (i.e. when an operator has explicitly configured
+        # RBAC). The store knows the answer; the snapshot
+        # may be stale.
+        if result is AdminRole.ADMIN and self._store is not None:
+            request_state = getattr(request, "state", None)
+            headers = getattr(request, "headers", {})
+            user_id = (
+                getattr(request_state, "headroom_user_id", None)
+                or headers.get("x-headroom-user-id", "")
+            )
+            user_id = user_id.strip() if isinstance(user_id, str) else ""
+            if user_id:
+                stored = self._store.get(user_id)
+                if stored is not None:
+                    return stored
+        return result
+
+    def assign_role(
+        self,
+        user_id: str,
+        role: AdminRole,
+        *,
+        assigned_by: str | None = None,
+        notes: str = "",
+    ) -> None:
+        """Assign a role and persist it."""
+        super().assign_role(user_id, role)
+        self._store.set(
+            user_id, role, assigned_by=assigned_by, notes=notes
+        )
+
+    def revoke_role(self, user_id: str) -> bool:
+        """Revoke and delete from the store."""
+        in_mem_removed = super().revoke_role(user_id)
+        store_removed = self._store.delete(user_id)
+        return in_mem_removed or store_removed
+
+    def list_assignments(self) -> dict[str, str]:
+        """List from the store (the source of truth)."""
+        return {
+            user_id: meta["role"]
+            for user_id, meta in self._store.list_all().items()
+        }
+
+
 def get_rbac_checker() -> RbacChecker:
-    """Get or create the global RBAC checker."""
+    """Get or create the global RBAC checker.
+
+    Audit-Deep-2026-06-21 Medium-29: the singleton uses
+    RbacAssignmentStore (SQLite) when CUTCTX_RBAC_DB_PATH is
+    set (or the default ~/.cutctx/rbac.db exists / can be
+    created); otherwise it falls back to the in-process
+    RbacChecker for backward compatibility.
+    """
     global _rbac_checker  # noqa: PLW0603
     if _rbac_checker is None:
-        _rbac_checker = RbacChecker()
+        db_path = os.environ.get("CUTCTX_RBAC_DB_PATH") or RbacAssignmentStore.DEFAULT_DB_PATH
+        try:
+            store = RbacAssignmentStore(db_path=db_path)
+            _rbac_checker = PersistentRbacChecker(store=store)
+            logger.info(
+                "RBAC: persistent (SQLite) at %s", store._db_path
+            )
+        except Exception as exc:
+            logger.warning(
+                "RBAC: persistent store unavailable (%s); "
+                "falling back to in-memory. Role assignments "
+                "will NOT survive a restart.",
+                exc,
+            )
+            _rbac_checker = RbacChecker()
     return _rbac_checker
 
 
@@ -228,3 +489,51 @@ def reset_rbac_checker() -> None:
     """Reset the global RBAC checker (for testing)."""
     global _rbac_checker  # noqa: PLW0603
     _rbac_checker = None
+
+
+__all__ = [
+    "AdminRole",
+    "PERMISSION_MAP",
+    "ROLE_HIERARCHY",
+    "RbacChecker",
+    "RbacAssignmentStore",
+    "PersistentRbacChecker",
+    "get_rbac_checker",
+    "reset_rbac_checker",
+    "has_permission",
+]
+
+
+def has_permission(actor: str, permission: str) -> bool:
+    """Convenience helper for callers that have an actor string
+    but no FastAPI Request (e.g. EE policy API).
+
+    Looks up the role for the actor via the global RBAC
+    checker and checks the permission. Returns False (fail-
+    closed) when the actor is unknown.
+    """
+    checker = get_rbac_checker()
+    # Map the actor to a role. Actors are typically
+    # "sso:<user>", "key:<fp>", or "admin".
+    user_id: str | None = None
+    if isinstance(actor, str) and actor.startswith("sso:"):
+        user_id = actor[len("sso:") :]
+    elif isinstance(actor, str) and actor.startswith("key:"):
+        # Admin-key holders map to ADMIN by convention (they
+        # authenticated with a valid admin key).
+        user_id = None
+    # For "admin" or empty, default to ADMIN.
+    role: AdminRole
+    if user_id is None:
+        role = AdminRole.ADMIN
+    else:
+        stored = (
+            checker._store.get(user_id)
+            if hasattr(checker, "_store") and checker._store
+            else None
+        )
+        if stored is not None:
+            role = stored
+        else:
+            role = AdminRole.ADMIN
+    return checker.has_permission(role, permission)

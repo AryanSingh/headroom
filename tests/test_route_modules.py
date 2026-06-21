@@ -59,7 +59,13 @@ def test_airgap_status_authenticated(client: TestClient) -> None:
     r = client.get("/v1/airgap/status", headers=_auth())
     assert r.status_code == 200, r.text
     body = r.json()
-    assert "status" in body
+    # Audit-Deep-2026-06-21 Blocker 3a: the response now reports
+    # the real egress policy state instead of a hardcoded payload.
+    assert "offline_mode" in body
+    assert "policy_id" in body
+    assert "allowed_patterns" in body
+    assert "is_empty" in body
+    assert "limits_enforced" in body
 
 
 def test_create_airgap_router_no_auth_warns_but_runs() -> None:
@@ -153,8 +159,11 @@ def test_secrets_list_authenticated_empty(client: TestClient) -> None:
 
 
 def test_secrets_create_authenticated(client: TestClient) -> None:
+    # Audit-Deep-2026-06-21 Blocker 3b: the endpoint now takes
+    # a JSON body (was a stub). Use the new shape.
     r = client.post(
-        "/v1/secrets/?name=my-secret&value=supersecret",
+        "/v1/secrets/",
+        json={"name": "my-secret", "value": "supersecret"},
         headers=_auth(),
     )
     assert r.status_code == 200, r.text
