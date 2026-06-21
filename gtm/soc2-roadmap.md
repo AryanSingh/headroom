@@ -84,7 +84,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 ### Business Continuity
 | Control | Status | Owner | Notes |
 |---------|--------|-------|-------|
-| Automated backups | ⚠️ Partial | DevOps | `k8s/backup-cronjob.yaml` covers `headroom_memory.db` ONLY; spend ledger has no backup |
+| Automated backups | ✅ Implemented | DevOps | `k8s/backup-cronjob.yaml` covers `headroom_memory.db`, `spend_ledger.db`, and `audit.db`; 30-day retention in S3; pruned via `aws s3api list-objects-v2` |
 | Recovery procedures | 📋 To implement | DevOps | |
 | DR plan documentation | 📋 To implement | DevOps | |
 | Regular DR testing | 📋 To implement | DevOps | |

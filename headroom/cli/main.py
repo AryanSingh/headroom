@@ -71,6 +71,34 @@ def _register_commands() -> None:
     except ImportError:
         pass
 
+    # Register orphan commands/groups so they appear in `cutctx --help`.
+    # The audit below fixes 6 documented-but-unreachable top-level commands:
+    # `audit`, `orgs`, `rbac`, `sso-test`, `config-check`, `bench`.
+    # Audit-Deep-2026-06-21 Blocker 5: help text advertised these
+    # commands but they were imported-but-never-registered.
+    for _name in ("audit", "orgs", "rbac"):
+        try:
+            mod = __import__(f"headroom.cli.{_name}", fromlist=["main"])
+            grp = getattr(mod, _name, None)
+            if isinstance(grp, click.Group):
+                main.add_command(grp, name=_name)
+        except Exception:
+            pass
+    for _cmd_name, _mod_name in (
+        ("sso-test", "sso_test"),
+        ("config-check", "config_check"),
+        ("bench", "bench"),
+    ):
+        try:
+            mod = __import__(f"headroom.cli.{_mod_name}", fromlist=["main"])
+            for attr in (_cmd_name.replace("-", "_"), _cmd_name, _mod_name):
+                cmd = getattr(mod, attr, None)
+                if isinstance(cmd, click.Command):
+                    main.add_command(cmd, name=_cmd_name)
+                    break
+        except Exception:
+            pass
+
 
 _register_commands()
 

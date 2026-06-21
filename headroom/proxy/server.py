@@ -3394,11 +3394,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if proxy.audit_logger:
             try:
                 from headroom.audit import AuditEvent
+                from headroom.proxy.routes.admin import _resolve_audit_actor
 
+                # Audit-Deep-2026-06-21 Blocker 6: use the shared actor
+                # resolver so the audit attribution matches the
+                # sso: > key: > admin hierarchy used by every other
+                # admin path. The previous code took the actor from a
+                # client-controllable X-Headroom-User-Id header, which
+                # let a caller with a valid admin key forge audit
+                # attribution.
                 await proxy.audit_logger.async_log(
                     AuditEvent(
                         action="stats.reset",
-                        actor=request.headers.get("x-headroom-user-id", "admin"),
+                        actor=_resolve_audit_actor(request),
                         detail={},
                         ip_address=getattr(request.client, "host", None),
                     )

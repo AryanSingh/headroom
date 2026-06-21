@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
-# Copyright (c) 2025-2026 Headroom Labs. All rights reserved.
+# Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from headroom_ee.policy.resolver import PolicyResolver
@@ -36,6 +36,7 @@ class PolicyCreate(BaseModel):
 
 @router.post("")
 async def create_or_update_policy(
+    request: Request,
     policy: PolicyCreate,
     store: PolicyStore = Depends(get_store),
 ) -> dict[str, Any]:
@@ -48,11 +49,17 @@ async def create_or_update_policy(
 
     try:
         from headroom_ee.audit.api import get_store as get_audit_store
+        from headroom.proxy.routes.admin import _resolve_audit_actor
 
+        # Audit-Deep-2026-06-21: use the shared actor resolver so the
+        # audit attribution matches the sso: > key: > admin hierarchy
+        # used by every other admin path. The previous code hardcoded
+        # actor="admin", which made it impossible to attribute policy
+        # changes to the actual authenticated identity.
         audit_store = get_audit_store()
         audit_store.append_event(
             tenant_id=policy.org_id,
-            actor="admin",  # Assuming admin for now
+            actor=_resolve_audit_actor(request),
             action="policy.upsert",
             payload={"workspace_id": policy.workspace_id, "changes": kwargs},
         )

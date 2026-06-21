@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: headroom-proxy
-          image: headroom-proxy:v0.26.0
+          image: ghcr.io/aryansingh/headroom:v0.26.0
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

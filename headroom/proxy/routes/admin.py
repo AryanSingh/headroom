@@ -26,6 +26,46 @@ def _iso_utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _resolve_audit_actor(request: Request) -> str:
+    """Resolve the audit ``actor`` field for a request.
+
+    Medium-33 (production-audit-progress-2026-06-20.md) and
+    Audit-Deep-2026-06-21 Blocker 6: the previous code took the actor
+    from a client-controllable ``X-Headroom-User-Id`` header when no
+    SSO state was set, which let a caller with a valid admin key
+    forge audit attribution. The hierarchy is now:
+
+      1. SSO-resolved subject (``request.state.headroom_user_id``,
+         set by the SSO validator). The only trusted source.
+      2. Admin-key fingerprint (first 8 hex chars of the API key
+         SHA-256, prefixed ``key:``). A stable, non-secret
+         identifier for the key holder.
+      3. ``"admin"`` — only when neither is available (should
+         never happen since both auth methods gate this path).
+
+    This helper is shared with ``server.py`` (e.g. ``/stats/reset``
+    audit event) so all admin paths use the same actor resolution.
+    """
+    sso_user = getattr(request.state, "headroom_user_id", None)
+    if sso_user:
+        return f"sso:{sso_user}"
+
+    auth_header = request.headers.get("authorization", "")
+    admin_header = request.headers.get("x-headroom-admin-key", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif admin_header:
+        token = admin_header
+    if token:
+        import hashlib as _h
+
+        fp = _h.sha256(token.encode("utf-8")).hexdigest()[:8]
+        return f"key:{fp}"
+
+    return "admin"
+
+
 async def _audit_admin_action(
     proxy: Any,
     request: Request,
@@ -42,7 +82,10 @@ async def _audit_admin_action(
     try:
         from headroom.audit import AuditEvent
 
-        # Medium-33 (production-audit-progress-2026-06-20.md):
+        # Medium-33 (production-audit-progress-2026-06-20.md) and
+        # Audit-Deep-2026-06-21 Blocker 6: resolve actor via the shared
+        # helper so all admin paths (including /stats/reset in
+        # server.py) use the same hierarchy.
         # The previous code took the actor from a client-controllable
         # X-Headroom-User-Id header when no SSO state was set,
         # which let a caller with a valid admin key forge audit
@@ -56,30 +99,11 @@ async def _audit_admin_action(
         #   3. "admin" — only when neither is available (which
         #      should never happen since both auth methods gate
         #      this path).
-        sso_user = getattr(request.state, "headroom_user_id", None)
-        if sso_user:
-            actor = f"sso:{sso_user}"
-        else:
-            # Hash the admin key to produce a stable, non-secret
-            # fingerprint. The fingerprint changes when the key
-            # rotates, which is the desired audit behavior.
-            auth_header = request.headers.get("authorization", "")
-            admin_header = request.headers.get("x-headroom-admin-key", "")
-            token = ""
-            if auth_header.startswith("Bearer "):
-                token = auth_header[7:].strip()
-            elif admin_header:
-                token = admin_header
-            if token:
-                import hashlib as _h
+        # Audit-Deep-2026-06-21 Blocker 6: use the shared helper so the
+        # same hierarchy applies to all admin paths (including
+        # /stats/reset in server.py).
+        actor = _resolve_audit_actor(request)
 
-                fp = _h.sha256(token.encode("utf-8")).hexdigest()[:8]
-                actor = f"key:{fp}"
-            else:
-                # Fallback: this should not happen since the
-                # admin auth dependency runs first, but be
-                # explicit rather than silent.
-                actor = "admin"
         await proxy.audit_logger.async_log(
             AuditEvent(
                 action=action,
