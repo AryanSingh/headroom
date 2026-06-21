@@ -541,48 +541,6 @@ class SsoValidator:
         # Already a PyJWKClient or compatible.
         return key
 
-
-class _InMemoryJwksClient:
-    """Minimal in-memory PyJWKClient replacement.
-
-    PyJWKClient's constructor requires a URL, but the IdP key
-    material is already in memory at SSO-validation time. This
-    adapter wraps the in-memory JWKS so ``get_signing_key_from_jwt``
-    works without spinning up a local HTTP server.
-    """
-
-    def __init__(self, jwks: dict) -> None:
-        import jwt as pyjwt  # noqa: F811
-
-        self._pyjwt = pyjwt
-        self._keys_by_kid: dict[str, Any] = {}
-        for jwk in jwks.get("keys", []):
-            try:
-                pyjwk = pyjwt.PyJWK(jwk)
-            except Exception:
-                continue
-            kid = jwk.get("kid")
-            if kid:
-                self._keys_by_kid[kid] = pyjwk
-
-    def get_signing_key_from_jwt(self, token: str) -> Any:
-        unverified_header = self._pyjwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-        if kid and kid in self._keys_by_kid:
-            return self._keys_by_kid[kid]
-        # No kid match — try each key in turn (development-only).
-        for pyjwk in self._keys_by_kid.values():
-            try:
-                # PyJWK exposes ``key`` only after instantiation; we
-                # assume any key from the JWKS is acceptable as a
-                # fallback when no kid is set.
-                return pyjwk
-            except Exception:
-                continue
-        raise SsoTokenInvalidError(
-            f"No matching key in JWKS (kid={kid!r}); tokens must include a 'kid' header"
-        )
-
     async def _get_jwks_uri(self) -> str:
         """Get JWKS URI, discovering from OIDC if needed."""
         if self.config.jwks_uri:
@@ -679,6 +637,48 @@ class _InMemoryJwksClient:
             else:
                 return None
         return current
+
+
+class _InMemoryJwksClient:
+    """Minimal in-memory PyJWKClient replacement.
+
+    PyJWKClient's constructor requires a URL, but the IdP key
+    material is already in memory at SSO-validation time. This
+    adapter wraps the in-memory JWKS so ``get_signing_key_from_jwt``
+    works without spinning up a local HTTP server.
+    """
+
+    def __init__(self, jwks: dict) -> None:
+        import jwt as pyjwt  # noqa: F811
+
+        self._pyjwt = pyjwt
+        self._keys_by_kid: dict[str, Any] = {}
+        for jwk in jwks.get("keys", []):
+            try:
+                pyjwk = pyjwt.PyJWK(jwk)
+            except Exception:
+                continue
+            kid = jwk.get("kid")
+            if kid:
+                self._keys_by_kid[kid] = pyjwk
+
+    def get_signing_key_from_jwt(self, token: str) -> Any:
+        unverified_header = self._pyjwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if kid and kid in self._keys_by_kid:
+            return self._keys_by_kid[kid]
+        # No kid match — try each key in turn (development-only).
+        for pyjwk in self._keys_by_kid.values():
+            try:
+                # PyJWK exposes ``key`` only after instantiation; we
+                # assume any key from the JWKS is acceptable as a
+                # fallback when no kid is set.
+                return pyjwk
+            except Exception:
+                continue
+        raise SsoTokenInvalidError(
+            f"No matching key in JWKS (kid={kid!r}); tokens must include a 'kid' header"
+        )
 
 
 # Module-level singleton

@@ -28,7 +28,7 @@ services:
     command: ["--help"]
 
   proxy:
-    image: ${HEADROOM_IMAGE:-ghcr.io/chopratejas/headroom:latest}
+    image: ${HEADROOM_IMAGE:-ghcr.io/aryansingh/headroom:latest}
     entrypoint: ["headroom", "proxy"]
     working_dir: /workspace
     restart: unless-stopped
