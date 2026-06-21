@@ -2387,6 +2387,136 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if claims is not None:
             request.state.headroom_sso_claims = claims
 
+    async def _enforce_mfa_if_enrolled(request: Request) -> None:
+        """Audit-Deep-2026-06-21 High-12: second-factor auth.
+
+        If the authenticated user has an MFA enrollment, the
+        request must include a valid TOTP code in the
+        ``X-Headroom-MFA-Code`` header. Codes are single-use
+        (replay-protected via the last_used_counter).
+
+        API-key authenticated requests are bypassed: the admin
+        key is itself a long-lived secret and the user_id
+        is unknown (it's the key fingerprint, not a human).
+        This matches the threat model: SSO identities are
+        the ones that need a second factor; admin keys are
+        already a high-entropy secret.
+        """
+        # Already verified in this request? Skip.
+        if getattr(request.state, "_headroom_mfa_verified", False):
+            return
+        # Skip when the request was authenticated by an API key
+        # (no human user to enroll).
+        if getattr(request.state, "headroom_admin_auth_method", None) == "api_key":
+            return
+        # Determine the user_id (SSO subject).
+        user_id = getattr(request.state, "headroom_user_id", None)
+        if not user_id:
+            return
+        # Lazily import the MFA store; opens the same DB file
+        # as the RBAC store.
+        from headroom.security.mfa import MfaStore, verify_totp
+
+        store_path = os.environ.get("CUTCTX_RBAC_DB_PATH") or "~/.cutctx/rbac.db"
+        try:
+            mfa_store = MfaStore(db_path=store_path)
+        except Exception:
+            # If the store can't open (read-only mount, etc.)
+            # we silently allow the request through. Logging
+            # the failure is enough; we don't want to break
+            # auth when the FS is in a weird state.
+            logger.warning("MFA store unavailable; skipping MFA check", exc_info=True)
+            return
+        enrollment = mfa_store.get(user_id)
+        if enrollment is None:
+            # No enrollment; nothing to enforce.
+            return
+        # Enrollment exists: the caller MUST supply a valid TOTP.
+        code = request.headers.get("x-headroom-mfa-code", "").strip()
+        if not code:
+            error = HTTPException(
+                status_code=401,
+                detail=(
+                    "MFA required. Pass the current TOTP code in the "
+                    "X-Headroom-MFA-Code header. Enroll via POST /v1/admin/mfa."
+                ),
+            )
+            request.state._headroom_admin_error = error
+            try:
+                if proxy.audit_logger is not None:
+                    from headroom.audit import AuditEvent
+
+                    await proxy.audit_logger.async_log(
+                        AuditEvent(
+                            action="auth.failed",
+                            actor="anonymous",
+                            success=False,
+                            detail={
+                                "method": "sso",
+                                "path": request.url.path,
+                                "reason": "mfa_missing",
+                                "user_id": user_id,
+                            },
+                            ip_address=getattr(request.client, "host", None)
+                            if request.client
+                            else None,
+                            user_agent=request.headers.get("user-agent", ""),
+                        )
+                    )
+            except Exception:
+                logger.debug("audit emit failed", exc_info=True)
+            raise error
+        # Verify the TOTP (with replay protection).
+        ok = verify_totp(
+            enrollment["secret_b32"],
+            code,
+            last_used_counter=enrollment["last_used_counter"],
+        )
+        if not ok:
+            error = HTTPException(
+                status_code=401,
+                detail=(
+                    "MFA TOTP invalid or replayed. "
+                    "Wait for a fresh 30s code from your "
+                    "authenticator app."
+                ),
+            )
+            request.state._headroom_admin_error = error
+            try:
+                if proxy.audit_logger is not None:
+                    from headroom.audit import AuditEvent
+
+                    await proxy.audit_logger.async_log(
+                        AuditEvent(
+                            action="auth.failed",
+                            actor="anonymous",
+                            success=False,
+                            detail={
+                                "method": "sso",
+                                "path": request.url.path,
+                                "reason": "mfa_invalid",
+                                "user_id": user_id,
+                            },
+                            ip_address=getattr(request.client, "host", None)
+                            if request.client
+                            else None,
+                            user_agent=request.headers.get("user-agent", ""),
+                        )
+                    )
+            except Exception:
+                logger.debug("audit emit failed", exc_info=True)
+            raise error
+        # Success: advance the single-use counter to prevent
+        # replay.
+        import time as _time
+
+        now = _time.time()
+        current_counter = int(now) // 30
+        mfa_store.consume_counter(user_id, current_counter)
+        # Mark the cached path as MFA-verified so the
+        # inner-loop call doesn't re-enforce.
+        request.state._headroom_mfa_verified = True
+
     async def _authenticate_admin_request(request: Request) -> None:
         """Authenticate an admin request using API key or enterprise SSO."""
         # SECURITY: Test mode bypass removed. Tests use HEADROOM_ADMIN_API_KEY
@@ -2398,6 +2528,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             cached_error = getattr(request.state, "_headroom_admin_error", None)
             if cached_error is not None:
                 raise cached_error
+            # Audit-Deep-2026-06-21 High-12: if MFA is enrolled for
+            # this user, the second-factor check must also pass on
+            # every request (including the cached fast path).
+            await _enforce_mfa_if_enrolled(request)
             return
 
         auth_header = request.headers.get("authorization", "")
@@ -2486,6 +2620,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "role": getattr(claims, "role", None),
                     },
                 )
+                # Audit-Deep-2026-06-21 High-12: enforce MFA
+                # second factor. Raises 401 if the user is
+                # enrolled but didn't supply a valid TOTP.
+                await _enforce_mfa_if_enrolled(request)
                 return
             except SsoError as exc:
                 logger.debug("SSO token validation failed: %s", exc)
@@ -3554,6 +3692,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         app.include_router(
             create_memory_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
+    except ImportError:
+        pass
+
+    # MFA (TOTP) enrollment + management — admin auth + mfa.write RBAC.
+    # Audit-Deep-2026-06-21 High-12: the second-factor admin
+    # auth surface lives behind the same auth pattern as the
+    # other admin routes.
+    try:
+        from headroom.proxy.routes.mfa import create_mfa_router
+
+        app.include_router(
+            create_mfa_router(
                 require_admin_auth=_require_admin_auth,
                 require_rbac_permission=_require_rbac_permission,
             )

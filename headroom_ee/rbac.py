@@ -95,6 +95,7 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "retention.write": AdminRole.ADMIN,
     "audit.export": AdminRole.ADMIN,
     "scim.write": AdminRole.ADMIN,
+    "mfa.write": AdminRole.ADMIN,
 }
 
 
