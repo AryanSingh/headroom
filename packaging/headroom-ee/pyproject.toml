@@ -10,8 +10,8 @@
 #               -> `uv sync --extra ee`
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0", "Cython>=3.0.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "headroom-ee"
@@ -34,6 +34,5 @@ dependencies = [
 [project.urls]
 Homepage = "https://headroomlabs.ai"
 
-# Source comes from the symlinked `headroom_ee/` package in this directory.
-[tool.hatch.build.targets.wheel]
+[tool.setuptools]
 packages = ["headroom_ee"]

@@ -40,6 +40,7 @@ use headroom_core::transforms::{
     SearchCompressionResult as RustSearchResult, SearchCompressor as RustSearchCompressor,
     SearchCompressorConfig as RustSearchConfig, SearchCompressorStats as RustSearchStats,
 };
+use headroom_core::licensing::verify_license_signature as rust_verify_license_signature;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
@@ -47,6 +48,11 @@ use pyo3::types::{PyBytes, PyDict};
 #[pyfunction]
 fn hello() -> &'static str {
     headroom_core::hello()
+}
+
+#[pyfunction]
+fn verify_license_signature(tier: &str, random_id: &str, customer_id: &str, signature_hex: &str) -> bool {
+    rust_verify_license_signature(tier, random_id, customer_id, signature_hex)
 }
 
 fn type_name(v: &serde_json::Value) -> &'static str {
@@ -1603,6 +1609,7 @@ fn compress_openai_responses_live_zone(
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hello, m)?)?;
+    m.add_function(wrap_pyfunction!(verify_license_signature, m)?)?;
     m.add_class::<PyDiffCompressorConfig>()?;
     m.add_class::<PyDiffCompressionResult>()?;
     m.add_class::<PyDiffCompressorStats>()?;

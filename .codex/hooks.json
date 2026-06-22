@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3 -m headroom.cli init hook ensure --profile init-headroom-a4d5fe9c --marker headroom-init-codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3 -m headroom.cli init hook ensure --profile init-headroom-a4d5fe9c --marker headroom-init-codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

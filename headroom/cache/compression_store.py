@@ -153,7 +153,12 @@ class CompressionEntry:
     last_accessed: float | None = None
 
     def is_expired(self) -> bool:
-        """Check if this entry has expired."""
+        """Check if this entry has expired.
+
+        A ttl of 0 means never expire.
+        """
+        if self.ttl == 0:
+            return False
         return time.time() - self.created_at > self.ttl
 
     def record_access(self, query: str | None = None) -> None:

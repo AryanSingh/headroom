@@ -598,6 +598,12 @@ class CutctxProxy(
             else None
         )
 
+        # Seed the global CCR compression store with the configured TTL so that
+        # the singleton is created with the right default_ttl on first access.
+        # get_compression_store() is idempotent once the store exists; calling it
+        # here with default_ttl wins because the store hasn't been built yet.
+        get_compression_store(default_ttl=config.ccr_store_ttl_seconds)
+
         # Turn counter for context tracking
         self._turn_counter = 0
 

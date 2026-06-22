@@ -145,6 +145,11 @@ class ProxyConfig:
     ccr_proactive_expansion: bool = True
     ccr_max_proactive_expansions: int = 2
 
+    # CCR store TTL: how long originals are retained for retrieval.
+    # 0 = never expire. Default 1800s (30 min) balances memory vs long agent runs.
+    # CLI: --ccr-ttl-seconds; env: HEADROOM_CCR_TTL_SECONDS.
+    ccr_store_ttl_seconds: int = 1800
+
     # Code-aware compression (disabled by default — use code graph tools instead)
     code_aware_enabled: bool = False
 

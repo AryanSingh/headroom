@@ -7,6 +7,9 @@ Usage:
     cutctx wrap gemini                    # Start proxy + Gemini CLI
     cutctx wrap aider                     # Start proxy + aider
     cutctx wrap cursor                    # Start proxy + print Cursor config instructions
+    cutctx wrap windsurf                  # Start proxy + print Windsurf config instructions
+    cutctx wrap zed                       # Start proxy + print Zed config instructions
+    cutctx wrap opencode                  # Start proxy + launch opencode CLI
     cutctx wrap openclaw                  # Install + configure OpenClaw plugin
     cutctx wrap claude --no-context-tool  # Without CLI context-tool setup
     cutctx wrap claude --port 9999        # Custom proxy port
@@ -111,7 +114,7 @@ _WRAP_PROXY_TIMEOUT_ML_MODULES = ("torch", "sentence_transformers", "spacy")
 # Code, so the agent loop is unaffected).
 _TOOL_SEARCH_ENV = "ENABLE_TOOL_SEARCH"
 _TOOL_SEARCH_DEFAULT = "true"
-_AGENT_SAVINGS_WRAP_AGENTS = {"claude", "codex", "cursor", "gemini"}
+_AGENT_SAVINGS_WRAP_AGENTS = {"claude", "codex", "cursor", "gemini", "opencode", "windsurf"}
 _DEFAULT_AGENT_SAVINGS_PROFILE = "agent-90"
 
 
@@ -623,7 +626,7 @@ def _setup_serena_mcp(
         result,
         label="Serena MCP",
         verbose=verbose,
-        overwrite_hint="update or remove the existing serena MCP entry, then rerun headroom wrap",
+        overwrite_hint="update or remove the existing serena MCP entry, then rerun cutctx wrap",
         restart_hint=f"restart {registrar.display_name} if it was already running",
     )
     if line is not None:
@@ -3791,6 +3794,221 @@ def continue_dev(
     )
 
 
+
+# =============================================================================
+# Windsurf
+# =============================================================================
+
+
+@wrap.command(context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option(
+    "--no-context-tool",
+    "--no-rtk",
+    "no_rtk",
+    is_flag=True,
+    help="Skip CLI context-tool setup",
+)
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option("--learn", is_flag=True, help="Enable live traffic learning")
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--prepare-only", is_flag=True, hidden=True)
+def windsurf(
+    port: int,
+    no_rtk: bool,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    verbose: bool,
+    prepare_only: bool,
+) -> None:
+    """Start CutCtx proxy for use with Windsurf.
+
+    \b
+    Windsurf reads its AI model configuration from the Settings UI.
+    This command starts the proxy, injects rtk guidance into .windsurfrules,
+    and prints the settings the user should configure.
+
+    \b
+    After running this command, open Windsurf Settings and set:
+        AI > OpenAI Base URL → http://127.0.0.1:PORT/v1
+
+    \b
+    Examples:
+        cutctx wrap windsurf                    # Start proxy + .windsurfrules
+        cutctx wrap windsurf --no-context-tool  # Proxy only
+        cutctx wrap windsurf --port 9999        # Custom proxy port
+    """
+    from headroom.providers.windsurf import render_setup_lines as _render_windsurf_setup_lines
+
+    windsurfrules: Path | None = Path.cwd() / ".windsurfrules" if not no_rtk else None
+    if not no_rtk:
+        _setup_context_tool_for_agent(
+            agent="windsurf",
+            agent_display="Windsurf",
+            marker_path=windsurfrules,
+            on_rtk_ready=lambda _rtk: _inject_rtk_instructions(
+                cast(Path, windsurfrules), verbose=verbose
+            ),
+            verbose=verbose,
+        )
+
+    if prepare_only:
+        return
+
+    def _print_windsurf_setup() -> None:
+        for line in _render_windsurf_setup_lines(port, project=_project_name_from_cwd()):
+            click.echo(line)
+        if not no_rtk:
+            click.echo()
+            if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
+                click.echo("  lean-ctx configured for Windsurf")
+            else:
+                click.echo("  rtk instructions injected into .windsurfrules")
+            click.echo("  Windsurf will use token-optimized commands automatically.")
+
+    _run_proxy_only_watcher(
+        agent_label="windsurf",
+        port=port,
+        no_proxy=no_proxy,
+        learn=learn,
+        memory=memory,
+        agent_type="windsurf",
+        print_setup_lines=_print_windsurf_setup,
+    )
+
+
+# =============================================================================
+# Zed
+# =============================================================================
+
+
+@wrap.command(context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option("--learn", is_flag=True, help="Enable live traffic learning")
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option("--prepare-only", is_flag=True, hidden=True)
+def zed(
+    port: int,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    prepare_only: bool,
+) -> None:
+    """Start CutCtx proxy for use with Zed editor.
+
+    \b
+    Zed stores its AI configuration in ~/.config/zed/settings.json.
+    This command starts the proxy and prints the JSON settings to add.
+
+    \b
+    Examples:
+        cutctx wrap zed                 # Start proxy + print settings
+        cutctx wrap zed --port 9999     # Custom proxy port
+    """
+    from headroom.providers.zed import render_setup_lines as _render_zed_setup_lines
+
+    if prepare_only:
+        return
+
+    def _print_zed_setup() -> None:
+        for line in _render_zed_setup_lines(port, project=_project_name_from_cwd()):
+            click.echo(line)
+
+    _run_proxy_only_watcher(
+        agent_label="zed",
+        port=port,
+        no_proxy=no_proxy,
+        learn=learn,
+        memory=memory,
+        agent_type="zed",
+        print_setup_lines=_print_zed_setup,
+    )
+
+
+# =============================================================================
+# opencode
+# =============================================================================
+
+
+@wrap.command(context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option(
+    "--no-context-tool",
+    "--no-rtk",
+    "no_rtk",
+    is_flag=True,
+    help="Skip CLI context-tool setup",
+)
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option("--learn", is_flag=True, help="Enable live traffic learning")
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option(
+    "--backend", default=None, help="API backend: 'anthropic', 'anyllm', 'litellm-vertex', etc."
+)
+@click.argument("opencode_args", nargs=-1, type=click.UNPROCESSED)
+def opencode(
+    port: int,
+    no_rtk: bool,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    verbose: bool,
+    backend: str | None,
+    opencode_args: tuple,
+) -> None:
+    """Launch opencode through CutCtx proxy.
+
+    \b
+    opencode is an OpenAI-compatible terminal coding agent. This command
+    starts the proxy and launches opencode with OPENAI_BASE_URL pointed
+    at the local proxy.
+
+    \b
+    Examples:
+        cutctx wrap opencode                        # Start proxy + opencode
+        cutctx wrap opencode --port 9999            # Custom proxy port
+        cutctx wrap opencode -- --model claude-sonnet-4-5
+    """
+    from headroom.providers.codex import build_launch_env as _build_opencode_launch_env
+
+    agents_md = Path.cwd() / "AGENTS.md"
+    if not no_rtk:
+        _setup_context_tool_for_agent(
+            agent="opencode",
+            agent_display="opencode",
+            marker_path=agents_md,
+            on_rtk_ready=lambda _rtk: _inject_rtk_instructions(agents_md, verbose=verbose),
+            verbose=verbose,
+        )
+
+    opencode_bin = shutil.which("opencode")
+    if not opencode_bin:
+        click.echo("Error: 'opencode' not found in PATH.")
+        click.echo("Install opencode: https://opencode.ai")
+        raise SystemExit(1)
+
+    env, env_vars_display = _build_opencode_launch_env(port, os.environ)
+    _apply_project_header_env(env)
+
+    _launch_tool(
+        binary=opencode_bin,
+        args=opencode_args,
+        env=env,
+        port=port,
+        no_proxy=no_proxy,
+        tool_label="OPENCODE",
+        env_vars_display=env_vars_display,
+        learn=learn,
+        memory=memory,
+        agent_type="opencode",
+        backend=backend,
+    )
+
+
 # =============================================================================
 # Goose (Block)
 # =============================================================================
@@ -4099,7 +4317,7 @@ def openhands(
 @click.option(
     "--no-auto-start",
     is_flag=True,
-    help="Disable plugin auto-start of local headroom proxy",
+    help="Disable plugin auto-start of local cutctx proxy",
 )
 @click.option(
     "--no-restart",

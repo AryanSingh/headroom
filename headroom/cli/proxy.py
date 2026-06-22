@@ -201,6 +201,17 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--ccr-ttl-seconds",
+    default=None,
+    type=click.IntRange(min=0),
+    envvar="HEADROOM_CCR_TTL_SECONDS",
+    help=(
+        "How long (seconds) CCR originals are retained for retrieval. "
+        "0 = never expire. Default: 1800 (30 min). "
+        "Env: HEADROOM_CCR_TTL_SECONDS."
+    ),
+)
+@click.option(
     "--proxy-extension",
     "proxy_extension",
     multiple=True,
@@ -608,6 +619,7 @@ def proxy(
     no_ccr_inject_tool: bool,
     no_ccr_marker: bool,
     no_ccr_proactive_expansion: bool,
+    ccr_ttl_seconds: int | None,
     proxy_extension: tuple[str, ...],
     no_subscription_tracking: bool,
     subscription_poll_interval: int | None,
@@ -789,6 +801,7 @@ def proxy(
         ccr_inject_tool=not no_ccr_inject_tool,
         ccr_inject_marker=not no_ccr_marker,
         ccr_proactive_expansion=not no_ccr_proactive_expansion,
+        ccr_store_ttl_seconds=ccr_ttl_seconds if ccr_ttl_seconds is not None else 1800,
         compress_user_messages=_get_env_bool("HEADROOM_COMPRESS_USER_MESSAGES", False),
         min_tokens_to_crush=_get_env_int_optional("HEADROOM_MIN_TOKENS") or 500,
         max_items_after_crush=_get_env_int_optional("HEADROOM_MAX_ITEMS") or 50,

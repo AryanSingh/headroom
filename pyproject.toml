@@ -271,9 +271,9 @@ cutctx = "headroom.cli:main"
 [project.urls]
 Homepage = "https://cutctx.dev"
 Documentation = "https://cutctx.dev/docs"
-Repository = "https://github.com/AryanSingh/cutcxt"
-Issues = "https://github.com/AryanSingh/cutcxt/issues"
-Changelog = "https://github.com/AryanSingh/cutcxt/blob/main/CHANGELOG.md"
+Repository = "https://github.com/cutctx/cutctx"
+Issues = "https://github.com/cutctx/cutctx/issues"
+Changelog = "https://github.com/cutctx/cutctx/blob/main/CHANGELOG.md"
 # llms.txt convention (llmstxt.org) — point AI agents / LLM crawlers
 # at the auto-generated docs index so they can resolve install paths
 # and entry points without a follow-up fetch.

@@ -77,14 +77,14 @@ def _enable_verbose_logging() -> None:
 
     Idempotent: calling this multiple times in one process (e.g. when nested
     subcommands are invoked) leaves exactly one handler attached. Does NOT
-    mutate stdout; all verbose output goes to stderr so ``headroom init``
+    mutate stdout; all verbose output goes to stderr so ``cutctx init``
     can still be composed in pipes that consume stdout.
     """
 
     if getattr(logger, _VERBOSE_HANDLER_ATTR, None) is not None:
         return
     handler = logging.StreamHandler(stream=sys.stderr)
-    handler.setFormatter(logging.Formatter("[headroom init] %(message)s"))
+    handler.setFormatter(logging.Formatter("[cutctx init] %(message)s"))
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
@@ -799,6 +799,66 @@ def _init_openclaw(*, global_scope: bool, port: int) -> None:
         raise SystemExit(result.returncode)
 
 
+def _init_opencode(*, port: int) -> None:
+    _apply_user_env({"OPENAI_BASE_URL": f"http://127.0.0.1:{port}/v1"}, target="opencode")
+    click.echo("Configured opencode — OPENAI_BASE_URL written to shell profile.")
+    click.echo("Restart your shell or run: source ~/.zshrc  (or your shell profile)")
+    click.echo("Then launch opencode normally — it will route through the CutCtx proxy.")
+
+
+def _windsurf_settings_path() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Windsurf" / "User" / "settings.json"
+    elif os.name == "nt":
+        return Path(os.environ.get("APPDATA", Path.home())) / "Windsurf" / "User" / "settings.json"
+    else:
+        return Path.home() / ".config" / "Windsurf" / "User" / "settings.json"
+
+
+def _init_windsurf(*, port: int) -> None:
+    settings_path = _windsurf_settings_path()
+    settings: dict[str, Any] = {}
+    if settings_path.exists():
+        try:
+            text = settings_path.read_text(encoding="utf-8").strip()
+            if text:
+                settings = json.loads(text)
+        except (json.JSONDecodeError, OSError):
+            settings = {}
+    settings["openai.baseUrl"] = f"http://127.0.0.1:{port}/v1"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    click.echo(f"Configured Windsurf — openai.baseUrl written to {settings_path}")
+    click.echo("Restart Windsurf to activate CutCtx provider routing.")
+
+
+def _zed_settings_path() -> Path:
+    if os.name == "nt":
+        return Path(os.environ.get("APPDATA", Path.home())) / "Zed" / "settings.json"
+    return Path.home() / ".config" / "zed" / "settings.json"
+
+
+def _init_zed(*, port: int) -> None:
+    settings_path = _zed_settings_path()
+    settings: dict[str, Any] = {}
+    if settings_path.exists():
+        try:
+            text = settings_path.read_text(encoding="utf-8").strip()
+            if text:
+                settings = json.loads(text)
+        except (json.JSONDecodeError, OSError):
+            settings = {}
+    language_models = settings.setdefault("language_models", {})
+    openai_cfg = language_models.setdefault("openai", {})
+    openai_cfg["api_url"] = f"http://127.0.0.1:{port}/v1"
+    anthropic_cfg = language_models.setdefault("anthropic", {})
+    anthropic_cfg["api_url"] = f"http://127.0.0.1:{port}"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    click.echo(f"Configured Zed — language_models.openai.api_url and language_models.anthropic.api_url written to {settings_path}")
+    click.echo("Restart Zed to activate CutCtx provider routing.")
+
+
 def _run_init_targets(
     *,
     targets: list[str],
@@ -840,6 +900,12 @@ def _run_init_targets(
             _init_gemini(global_scope=global_scope, profile=profile, port=port)
         elif target == "openclaw":
             _init_openclaw(global_scope=global_scope, port=port)
+        elif target == "opencode":
+            _init_opencode(port=port)
+        elif target == "windsurf":
+            _init_windsurf(port=port)
+        elif target == "zed":
+            _init_zed(port=port)
 
     # Register the CutCtx MCP server with every targeted agent that has
     # a registrar implemented. Wave 1 covers Claude Code; subsequent waves
@@ -1005,6 +1071,51 @@ def init_openclaw(ctx: click.Context) -> None:
     """Install the durable OpenClaw CutCtx plugin."""
     _run_init_targets(
         targets=["openclaw"],
+        global_scope=bool(_ctx_value(ctx, "global_scope")),
+        port=int(_ctx_value(ctx, "port") or 8787),
+        backend=str(_ctx_value(ctx, "backend") or "anthropic"),
+        anyllm_provider=_ctx_value(ctx, "anyllm_provider"),
+        region=_ctx_value(ctx, "region"),
+        memory=bool(_ctx_value(ctx, "memory")),
+    )
+
+
+@init.command("windsurf")
+@click.pass_context
+def init_windsurf(ctx: click.Context) -> None:
+    """Install durable Headroom integration for Windsurf."""
+    _run_init_targets(
+        targets=["windsurf"],
+        global_scope=bool(_ctx_value(ctx, "global_scope")),
+        port=int(_ctx_value(ctx, "port") or 8787),
+        backend=str(_ctx_value(ctx, "backend") or "anthropic"),
+        anyllm_provider=_ctx_value(ctx, "anyllm_provider"),
+        region=_ctx_value(ctx, "region"),
+        memory=bool(_ctx_value(ctx, "memory")),
+    )
+
+
+@init.command("opencode")
+@click.pass_context
+def init_opencode(ctx: click.Context) -> None:
+    """Install durable Headroom integration for opencode."""
+    _run_init_targets(
+        targets=["opencode"],
+        global_scope=bool(_ctx_value(ctx, "global_scope")),
+        port=int(_ctx_value(ctx, "port") or 8787),
+        backend=str(_ctx_value(ctx, "backend") or "anthropic"),
+        anyllm_provider=_ctx_value(ctx, "anyllm_provider"),
+        region=_ctx_value(ctx, "region"),
+        memory=bool(_ctx_value(ctx, "memory")),
+    )
+
+
+@init.command("zed")
+@click.pass_context
+def init_zed(ctx: click.Context) -> None:
+    """Install durable Headroom integration for Zed."""
+    _run_init_targets(
+        targets=["zed"],
         global_scope=bool(_ctx_value(ctx, "global_scope")),
         port=int(_ctx_value(ctx, "port") or 8787),
         backend=str(_ctx_value(ctx, "backend") or "anthropic"),

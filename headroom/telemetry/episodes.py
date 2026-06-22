@@ -87,7 +87,7 @@ class EpisodeStore:
         with self._get_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO compression_episodes
+                INSERT OR REPLACE INTO compression_episodes
                 (episode_id, tenant_id, original_size, compressed_size, start_line, end_line, timestamp_ts)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """,

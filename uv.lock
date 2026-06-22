@@ -2327,12 +2327,14 @@ source = { editable = "packaging/headroom-ee" }
 dependencies = [
     { name = "cryptography" },
     { name = "cutctx-ai" },
+    { name = "pyjwt", extra = ["crypto"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=41.0.0" },
     { name = "cutctx-ai", editable = "." },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
 ]
 
 [[package]]

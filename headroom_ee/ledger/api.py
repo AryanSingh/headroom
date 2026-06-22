@@ -4,7 +4,7 @@
 
 import csv
 import io
-from typing import Any
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -45,7 +45,7 @@ class SpendEventPayload(BaseModel):
 
 @router.post("/events", status_code=202)
 async def ingest_spend_events(
-    events: list[SpendEventPayload], store: LedgerStore = Depends(get_store)
+    events: List[SpendEventPayload], store: LedgerStore = Depends(get_store)
 ) -> dict[str, Any]:
     """Ingest spend events asynchronously from proxy instances."""
     # Convert Pydantic models to dicts for the store
@@ -60,14 +60,14 @@ async def ingest_spend_events(
 @router.get("/query")
 async def query_spend(
     request: Request,
-    group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
+    group_by: List[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
     start_ts: int | None = None,
     end_ts: int | None = None,
     org_id: str | None = None,
     workspace_id: str | None = None,
     project_id: str | None = None,
     store: LedgerStore = Depends(get_store),
-) -> list[dict[str, Any]]:
+) -> List[dict[str, Any]]:
     """Time-series aggregation of spend data.
 
     Audit-Deep-2026-06-21: an authenticated admin with spend.read
@@ -108,7 +108,7 @@ async def query_spend(
 @router.get("/export/csv")
 async def export_spend_csv(
     request: Request,
-    group_by: list[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
+    group_by: List[str] = Query(..., description="Columns to group by, e.g. 'org_id', 'model'"),
     start_ts: int | None = None,
     end_ts: int | None = None,
     org_id: str | None = None,

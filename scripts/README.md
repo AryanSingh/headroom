@@ -69,6 +69,31 @@ captured traffic to replay instead.
 A smoke test at `tests/test_scripts/test_repro_codex_replay_smoke.py`
 exercises the script against a mock FastAPI server on every PR.
 
+## Distribution protection
+
+### `strip_wheel.py`
+
+Strips proprietary Python source files from a built wheel, leaving only the compiled Rust extension (`.so` / `.pyd`). All five compression algorithms (SmartCrusher, DiffCompressor, LogCompressor, SearchCompressor, CodeAwareCompressor) are implemented in Rust in `crates/headroom-core/` — this script ensures their `.py` dispatch wrappers are not included in public distributions.
+
+```bash
+python scripts/strip_wheel.py dist/cutctx_ai-0.27.0-cp310-abi3-macosx_11_0_arm64.whl
+# → dist/cutctx_ai_0.27.0_cp310_abi3_macosx_11_0_arm64-stripped.whl
+```
+
+Files matching `STRIP_PATTERNS` (algorithm sources, relevance, semantic cache, tokenizers) are removed; `__init__.py` stubs are always preserved.
+
+### `build_protected_wheel.sh`
+
+Full protected build pipeline: runs `maturin build --release` then calls `strip_wheel.py` on the output.
+
+```bash
+bash scripts/build_protected_wheel.sh
+# or via make:
+make dist-protected
+```
+
+See `PROTECTION.md` for the full architecture and additional hardening options (`strip = true`, `lto = true` in `Cargo.toml`).
+
 ## Install scripts
 
 - `install.sh` — POSIX installer.

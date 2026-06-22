@@ -437,7 +437,7 @@ class ContentRouterConfig:
     """
 
     # Enable/disable specific compressors
-    enable_code_aware: bool = False  # Disabled: use code graph MCP tools instead
+    enable_code_aware: bool = True  # Enabled for code compression
     enable_kompress: bool = True  # Kompress: ModernBERT token compressor
     enable_smart_crusher: bool = True
     enable_search_compressor: bool = True
@@ -446,7 +446,7 @@ class ContentRouterConfig:
     enable_image_optimizer: bool = True  # Image token optimization
 
     # Routing preferences
-    prefer_code_aware_for_code: bool = False  # Disabled: let code pass through unmangled
+    prefer_code_aware_for_code: bool = True  # Enabled: AST compression preferred over text
     mixed_content_threshold: int = 2  # Min types to consider mixed
     min_section_tokens: int = 20  # Min tokens to compress a section
 
@@ -579,10 +579,14 @@ def split_into_sections(content: str) -> list[ContentSection]:
                 code_lines.append(lines[i])
                 i += 1
 
+            ctype = ContentType.SOURCE_CODE
+            if language.lower() in ("log", "logs", "output"):
+                ctype = ContentType.BUILD_OUTPUT
+
             sections.append(
                 ContentSection(
                     content="\n".join(code_lines),
-                    content_type=ContentType.SOURCE_CODE,
+                    content_type=ctype,
                     language=language,
                     start_line=start_line,
                     end_line=i,

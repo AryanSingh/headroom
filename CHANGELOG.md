@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+* **pyproject.toml URLs**: corrected typo `AryanSingh/cutcxt` → `cutctx/cutctx` in Repository, Issues, and Changelog URLs
+* **JetBrains plugin**: raised `pluginUntilBuild` from `243.*` to `251.*` so the plugin is compatible with IntelliJ 2025.1+ (build 251)
+
+### Added
+* **`cutctx init windsurf`**: now performs real durable install — writes `openai.baseUrl` to the platform-correct Windsurf `settings.json` (macOS/Linux/Windows paths resolved automatically); merges non-destructively with existing settings
+* **`cutctx init zed`**: now performs real durable install — writes `language_models.openai.api_url` and `language_models.anthropic.api_url` into `~/.config/zed/settings.json` via deep-merge
+* **`cutctx init opencode`**: now performs real durable install — injects `OPENAI_BASE_URL` into the user's shell profile using the existing marker-block mechanism (same pattern as Copilot/Gemini)
+* **`cutctx proxy --ccr-ttl-seconds`**: configurable CCR store TTL (default 1800s / 30 min; `0` = never expire). Also controllable via `HEADROOM_CCR_TTL_SECONDS` env var. Removes the silent-data-loss risk on long agent runs and enables persistent/daemon deployments with no expiry
+* **e2e wrap smoke tests**: added `verify_windsurf_wrap`, `verify_zed_wrap`, `verify_opencode_wrap` to `e2e/wrap/run.py` following the `--prepare-only` pattern used by cline/continue/goose/openhands
+
 ## [v0.26.0] — 2026-06-19
 
 Released with CutCtx branding, intelligence layer, enterprise features, and security hardening.
@@ -237,6 +250,14 @@ Released with CutCtx branding, intelligence layer, enterprise features, and secu
 ## [Unreleased]
 
 ### Added
+
+* **harnesses — Windsurf:** `cutctx wrap windsurf` starts the proxy and prints OpenAI and Anthropic base URL configuration instructions for Windsurf's Settings UI and `settings.json`. Provider module at `headroom/providers/windsurf/`. `cutctx init windsurf` prints manual shell-profile setup instructions.
+* **harnesses — Zed:** `cutctx wrap zed` starts the proxy and prints the exact `language_models.openai.api_url` / `language_models.anthropic.api_url` JSON snippet for `~/.config/zed/settings.json`. Provider module at `headroom/providers/zed/`. `cutctx init zed` prints manual setup instructions.
+* **harnesses — opencode:** `cutctx wrap opencode` starts the proxy and launches opencode with `OPENAI_BASE_URL` pointed at the local proxy — same Pattern A as `cutctx wrap codex`. `cutctx init opencode` prints manual shell-profile instructions. Added `opencode` and `windsurf` to `_AGENT_SAVINGS_WRAP_AGENTS` for per-session savings attribution.
+* **VS Code extension:** full TypeScript extension at `extensions/vscode/` — auto-starts the `cutctx proxy` process, polls `/stats` every 30 s, shows tokens saved in the status bar, and configures Cline / Continue via command. Published as `cutctx-ai` on the VS Code Marketplace.
+* **JetBrains plugin:** full Kotlin/Gradle plugin at `extensions/jetbrains/` for IntelliJ IDEA, PyCharm, and all JetBrains IDEs — `ProxyService` manages the proxy process lifetime, status bar widget shows live savings, settings configurable, Tools > CutCtx menu. Uses IntelliJ Platform Gradle Plugin v2.
+* **distribution protection:** `scripts/strip_wheel.py` strips proprietary `.py` sources from built wheels (algorithms stay in compiled Rust `.so`). `scripts/build_protected_wheel.sh` runs the full maturin + strip pipeline in one command. `make dist-protected` target added. `PROTECTION.md` documents the protection architecture.
+* **compress SKILL.md:** adversarially tested all five claims against live `headroom-ai` v0.27.0 install; corrected binary name, removed non-existent CLI commands (`compress`, `stats`, `retrieve`), added proxy dependency note, fixed compression ratio claims, documented 30-minute CCR TTL.
 
 * **kompress:** warn when `CUTCTX_KOMPRESS_BACKEND` is set to an unrecognized
   value instead of silently falling back to `auto`, and document the backend

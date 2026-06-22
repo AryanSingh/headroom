@@ -1,0 +1,44 @@
+{
+  "name": "cutctx-ai",
+  "displayName": "CutCtx - AI Context Compression",
+  "description": "Compress LLM context automatically to save 60-90% of tokens. Works with Claude Code, Cursor, Cline, and Continue.",
+  "version": "0.1.0",
+  "publisher": "cutctx-ai",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["AI", "Other"],
+  "keywords": ["ai", "llm", "compression", "tokens", "claude", "cursor", "cline"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {"command": "cutctx.startProxy", "title": "Start Proxy", "category": "CutCtx"},
+      {"command": "cutctx.stopProxy", "title": "Stop Proxy", "category": "CutCtx"},
+      {"command": "cutctx.showStats", "title": "Show Compression Stats", "category": "CutCtx"},
+      {"command": "cutctx.configureExtension", "title": "Configure Active AI Extension", "category": "CutCtx"}
+    ],
+    "configuration": {
+      "title": "CutCtx",
+      "properties": {
+        "cutctx.port": {"type": "number", "default": 8787, "description": "Proxy port"},
+        "cutctx.autoStart": {"type": "boolean", "default": true, "description": "Auto-start proxy on VS Code launch"},
+        "cutctx.binaryPath": {"type": "string", "default": "cutctx", "description": "Path to cutctx binary"}
+      }
+    }
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cutctx/cutctx"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

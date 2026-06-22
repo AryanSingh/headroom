@@ -1,0 +1,60 @@
+<idea-plugin>
+    <id>dev.cutctx.proxy</id>
+    <name>CutCtx - AI Context Compression</name>
+    <version>0.1.0</version>
+    <vendor email="support@cutctx.dev" url="https://cutctx.dev">CutCtx</vendor>
+
+    <description><![CDATA[
+        CutCtx sits between your IDE's AI features and LLM APIs,
+        compressing context to save 60-90% of tokens automatically.
+        <br><br>
+        Works with JetBrains AI Assistant, Codeium, and any OpenAI-compatible provider.
+        <br><br>
+        <b>Features:</b>
+        <ul>
+            <li>Auto-start proxy on IDE launch</li>
+            <li>Status bar showing tokens saved and cost reduction</li>
+            <li>One-click AI Assistant configuration</li>
+        </ul>
+        Requires: <code>pip install cutctx-ai</code>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+            serviceInterface="dev.cutctx.ProxyService"
+            serviceImplementation="dev.cutctx.ProxyService"/>
+        <applicationService
+            serviceInterface="dev.cutctx.CutCtxSettings"
+            serviceImplementation="dev.cutctx.CutCtxSettings"/>
+        <statusBarWidgetFactory
+            implementation="dev.cutctx.ProxyStatusWidgetFactory"
+            id="dev.cutctx.statusbar"
+            order="last"/>
+        <applicationConfigurable
+            parentId="tools"
+            instance="dev.cutctx.CutCtxConfigurable"
+            id="dev.cutctx.settings"
+            displayName="CutCtx"/>
+        <projectActivity implementation="dev.cutctx.CutCtxStartupActivity"/>
+    </extensions>
+
+    <actions>
+        <group id="dev.cutctx.actions" text="CutCtx" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="dev.cutctx.StartProxy"
+                    class="dev.cutctx.StartProxyAction"
+                    text="Start CutCtx Proxy"
+                    description="Start the CutCtx context compression proxy"/>
+            <action id="dev.cutctx.StopProxy"
+                    class="dev.cutctx.StopProxyAction"
+                    text="Stop CutCtx Proxy"
+                    description="Stop the CutCtx context compression proxy"/>
+            <action id="dev.cutctx.ShowStats"
+                    class="dev.cutctx.ShowStatsAction"
+                    text="Show Compression Stats"
+                    description="Show CutCtx compression statistics"/>
+        </group>
+    </actions>
+</idea-plugin>

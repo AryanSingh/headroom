@@ -35,6 +35,9 @@ CLINE_PORT = 28892
 CONTINUE_PORT = 28893
 GOOSE_PORT = 28894
 OPENHANDS_PORT = 28895
+WINDSURF_PORT = 28896
+ZED_PORT = 28897
+OPENCODE_PORT = 28898
 
 
 def log(message: str) -> None:
@@ -777,6 +780,48 @@ def verify_openhands_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     )
 
 
+def verify_windsurf_wrap(base_env: dict[str, str], project_dir: Path) -> None:
+    """Smoke test: `wrap windsurf --prepare-only` exits clean and prints the proxy URL."""
+    result = run(
+        ["cutctx", "wrap", "windsurf", "--prepare-only", "--proxy-port", str(WINDSURF_PORT)],
+        env=base_env,
+        cwd=project_dir,
+        timeout=60,
+    )
+    assert_true(
+        str(WINDSURF_PORT) in result.stdout,
+        f"Windsurf wrap --prepare-only should mention port {WINDSURF_PORT} in output",
+    )
+
+
+def verify_zed_wrap(base_env: dict[str, str], project_dir: Path) -> None:
+    """Smoke test: `wrap zed --prepare-only` exits clean and prints the proxy URL."""
+    result = run(
+        ["cutctx", "wrap", "zed", "--prepare-only", "--proxy-port", str(ZED_PORT)],
+        env=base_env,
+        cwd=project_dir,
+        timeout=60,
+    )
+    assert_true(
+        str(ZED_PORT) in result.stdout,
+        f"Zed wrap --prepare-only should mention port {ZED_PORT} in output",
+    )
+
+
+def verify_opencode_wrap(base_env: dict[str, str], project_dir: Path) -> None:
+    """Smoke test: `wrap opencode --prepare-only` exits clean and prints the proxy URL."""
+    result = run(
+        ["cutctx", "wrap", "opencode", "--prepare-only", "--proxy-port", str(OPENCODE_PORT)],
+        env=base_env,
+        cwd=project_dir,
+        timeout=60,
+    )
+    assert_true(
+        str(OPENCODE_PORT) in result.stdout,
+        f"Opencode wrap --prepare-only should mention port {OPENCODE_PORT} in output",
+    )
+
+
 def verify_openclaw_wrap(
     base_env: dict[str, str],
     project_dir: Path,
@@ -911,6 +956,9 @@ def main() -> None:
             verify_continue_wrap(base_env, project_dir)
             verify_goose_wrap(base_env, project_dir)
             verify_openhands_wrap(base_env, project_dir)
+            verify_windsurf_wrap(base_env, project_dir)
+            verify_zed_wrap(base_env, project_dir)
+            verify_opencode_wrap(base_env, project_dir)
             local_plugin_dir = prepare_local_openclaw_plugin(base_env, tmp_dir)
             verify_openclaw_wrap(base_env, project_dir, local_plugin_dir)
         finally:

@@ -117,6 +117,16 @@ class LicenseDB:
         record = self.get(license_key)
         if not record:
             return {"valid": False, "reason": "key_not_found"}
+
+        parts = license_key.split("-")
+        if len(parts) == 3:
+            tier, random_id, sig = parts
+            try:
+                import headroom._core as rust_core
+                if not rust_core.verify_license_signature(tier, random_id, record.stripe_customer_id, sig):
+                    return {"valid": False, "reason": "invalid_signature"}
+            except ImportError:
+                pass
         if not record.active:
             return {"valid": False, "reason": "subscription_cancelled"}
         if record.expires_at < time.time():

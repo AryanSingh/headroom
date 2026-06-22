@@ -34,6 +34,9 @@ This page is the authoritative reference for the **Python Cutctx CLI** exposed b
 | `cutctx wrap codex` | Start proxy and launch Codex CLI | **host-bridged** |
 | `cutctx wrap aider` | Start proxy and launch Aider | **host-bridged** |
 | `cutctx wrap cursor` | Start proxy and print Cursor config guidance | **host-bridged** |
+| `cutctx wrap windsurf` | Start proxy and print Windsurf config guidance | **host-bridged** |
+| `cutctx wrap zed` | Start proxy and print Zed `settings.json` snippet | **host-bridged** |
+| `cutctx wrap opencode` | Start proxy and launch opencode CLI | **host-bridged** |
 | `cutctx wrap openclaw` | Install and configure the OpenClaw plugin | **host-bridged** |
 | `cutctx unwrap openclaw` | Disable the Cutctx OpenClaw plugin | **host-bridged** |
 

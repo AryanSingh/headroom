@@ -53,7 +53,7 @@ CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 
 - **Library** — `compress(messages)` in Python or TypeScript, inline in any app
 - **Proxy** — `cutctx proxy --port 8787`, zero code changes, any language
-- **Agent wrap** — `cutctx wrap claude|codex|cursor|aider|copilot` in one command
+- **Agent wrap** — `cutctx wrap claude|codex|cursor|aider|copilot|windsurf|zed|opencode` in one command
 - **MCP server** — `cutctx_compress`, `cutctx_retrieve`, `cutctx_status` for any MCP client
 - **Cross-agent memory** — shared store across Claude, Codex, Gemini, auto-dedup
 - **`cutctx learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session

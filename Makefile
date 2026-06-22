@@ -145,3 +145,18 @@ ci-precheck-commitlint:
 
 install-git-hooks:
 	@scripts/install-git-hooks.sh
+
+# ─── Protected distribution ────────────────────────────────────────────────
+#
+# Strips Python source for all proprietary algorithm modules from the wheel,
+# leaving only the compiled Rust extension (headroom_core.so / .pyd).
+# See PROTECTION.md for full details.
+
+.PHONY: build-protected dist-protected
+
+build-protected: ## Strip Python source from most recently built wheel
+	$(PYTHON) scripts/strip_wheel.py $$(ls -t dist/headroom_ai-*.whl | head -1)
+
+dist-protected: ## Full protected build: compile Rust + strip Python source
+	$(MATURIN) build --release -m crates/headroom-py/Cargo.toml
+	$(MAKE) build-protected
