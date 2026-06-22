@@ -2369,8 +2369,8 @@
 
 
 <h1 id="persistent-installs">Persistent Installs<a class="headerlink" href="#persistent-installs" title="Permanent link">&para;</a></h1>
-<p>Headroom can now be installed as a durable local runtime instead of only being started ad hoc with <code>headroom proxy</code> or <code>headroom wrap ...</code>.</p>
-<p>Use the Python-native <code>headroom install</code> CLI when you want supported tools to keep talking to an always-on proxy at <code>http://127.0.0.1:8787</code> and have <code>wrap</code> reuse or recover that deployment instead of starting a second ephemeral proxy.</p>
+<p>Cutctx can now be installed as a durable local runtime instead of only being started ad hoc with <code>cutctx proxy</code> or <code>cutctx wrap ...</code>.</p>
+<p>Use the Python-native <code>cutctx install</code> CLI when you want supported tools to keep talking to an always-on proxy at <code>http://127.0.0.1:8787</code> and have <code>wrap</code> reuse or recover that deployment instead of starting a second ephemeral proxy.</p>
 <h2 id="runtime-matrix">Runtime matrix<a class="headerlink" href="#runtime-matrix" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2384,22 +2384,22 @@
 <tr>
 <td>Persistent Service</td>
 <td>Native background service</td>
-<td><code>headroom install apply --preset persistent-service</code></td>
+<td><code>cutctx install apply --preset persistent-service</code></td>
 </tr>
 <tr>
 <td>Persistent Task</td>
 <td>Scheduled watchdog + on-demand runner</td>
-<td><code>headroom install apply --preset persistent-task</code></td>
+<td><code>cutctx install apply --preset persistent-task</code></td>
 </tr>
 <tr>
 <td>Persistent Docker</td>
 <td>Restartable Docker container</td>
-<td><code>headroom install apply --preset persistent-docker</code></td>
+<td><code>cutctx install apply --preset persistent-docker</code></td>
 </tr>
 <tr>
 <td>On-Demand CLI (Python)</td>
 <td>Nothing after command exits</td>
-<td><code>headroom proxy</code></td>
+<td><code>cutctx proxy</code></td>
 </tr>
 <tr>
 <td>On-Demand CLI (Docker)</td>
@@ -2409,7 +2409,7 @@
 <tr>
 <td>Wrapped (Python)</td>
 <td>Proxy lasts for wrapped session</td>
-<td><code>headroom wrap ...</code></td>
+<td><code>cutctx wrap ...</code></td>
 </tr>
 <tr>
 <td>Wrapped (Docker)</td>
@@ -2420,28 +2420,28 @@
 </table>
 <h2 id="quick-examples">Quick examples<a class="headerlink" href="#quick-examples" title="Permanent link">&para;</a></h2>
 <h3 id="persistent-service-on-the-local-machine">Persistent service on the local machine<a class="headerlink" href="#persistent-service-on-the-local-machine" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-service<span class="w"> </span>--providers<span class="w"> </span>auto
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>headroom<span class="w"> </span>install<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-service<span class="w"> </span>--providers<span class="w"> </span>auto
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cutctx<span class="w"> </span>install<span class="w"> </span>status
 </span></code></pre></div>
 <p>This installs a background service on the current machine, applies persistent tool wiring, and keeps the proxy healthy on port <code>8787</code>.</p>
 <h3 id="persistent-watchdog-task">Persistent watchdog task<a class="headerlink" href="#persistent-watchdog-task" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-task<span class="w"> </span>--providers<span class="w"> </span>manual<span class="w"> </span>--target<span class="w"> </span>claude<span class="w"> </span>--target<span class="w"> </span>codex
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-task<span class="w"> </span>--providers<span class="w"> </span>manual<span class="w"> </span>--target<span class="w"> </span>claude<span class="w"> </span>--target<span class="w"> </span>codex
 </span></code></pre></div>
 <p>This installs a scheduled recovery path instead of a traditional always-running service.</p>
 <h3 id="persistent-docker">Persistent Docker<a class="headerlink" href="#persistent-docker" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-docker<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--providers<span class="w"> </span>auto
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-docker<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--providers<span class="w"> </span>auto
 </span></code></pre></div>
 <p>This uses Docker's restart policy instead of an OS supervisor.</p>
-<p>If you are using the Docker-native host wrapper instead of a Python install, you can now use <code>headroom install apply|status|start|stop|restart|remove</code> for the <code>persistent-docker</code> preset directly from the installed wrapper. Service/task installs and provider/user/system mutation flows still belong to the Python-native CLI.</p>
+<p>If you are using the Docker-native host wrapper instead of a Python install, you can now use <code>cutctx install apply|status|start|stop|restart|remove</code> for the <code>persistent-docker</code> preset directly from the installed wrapper. Service/task installs and provider/user/system mutation flows still belong to the Python-native CLI.</p>
 <h2 id="command-surface">Command surface<a class="headerlink" href="#command-surface" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>headroom install apply
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>headroom install status
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>headroom install start
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>headroom install stop
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>headroom install restart
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>headroom install remove
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cutctx install apply
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cutctx install status
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cutctx install start
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cutctx install stop
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cutctx install restart
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>cutctx install remove
 </span></code></pre></div>
-<p><code>apply</code> creates or updates a named deployment profile, stores its manifest under <code>~/.headroom/deploy/&lt;profile&gt;/manifest.json</code>, applies reversible configuration changes, and starts the selected runtime.</p>
+<p><code>apply</code> creates or updates a named deployment profile, stores its manifest under <code>~/.cutctx/deploy/&lt;profile&gt;/manifest.json</code>, applies reversible configuration changes, and starts the selected runtime.</p>
 <h2 id="presets-and-runtime-kinds">Presets and runtime kinds<a class="headerlink" href="#presets-and-runtime-kinds" title="Permanent link">&para;</a></h2>
 <h3 id="presets">Presets<a class="headerlink" href="#presets" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2451,8 +2451,8 @@
 </ul>
 <h3 id="runtime-kinds">Runtime kinds<a class="headerlink" href="#runtime-kinds" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>--runtime python</code> runs <code>headroom proxy</code> directly</li>
-<li><code>--runtime docker</code> runs Headroom inside Docker while keeping the deployment managed locally</li>
+<li><code>--runtime python</code> runs <code>cutctx proxy</code> directly</li>
+<li><code>--runtime docker</code> runs Cutctx inside Docker while keeping the deployment managed locally</li>
 </ul>
 <p>For <code>persistent-docker</code>, the runtime is always Docker.</p>
 <h2 id="configuration-scopes">Configuration scopes<a class="headerlink" href="#configuration-scopes" title="Permanent link">&para;</a></h2>
@@ -2466,7 +2466,7 @@
 <tbody>
 <tr>
 <td><code>provider</code></td>
-<td>Tool-specific config surfaces where Headroom can make a precise reversible edit</td>
+<td>Tool-specific config surfaces where Cutctx can make a precise reversible edit</td>
 </tr>
 <tr>
 <td><code>user</code></td>
@@ -2510,9 +2510,9 @@
 </tbody>
 </table>
 <p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>auto
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>all<span class="w"> </span>--scope<span class="w"> </span>user
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>manual<span class="w"> </span>--target<span class="w"> </span>claude<span class="w"> </span>--target<span class="w"> </span>copilot
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>auto
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>all<span class="w"> </span>--scope<span class="w"> </span>user
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--providers<span class="w"> </span>manual<span class="w"> </span>--target<span class="w"> </span>claude<span class="w"> </span>--target<span class="w"> </span>copilot
 </span></code></pre></div>
 <h2 id="health-and-wrap-behavior">Health and wrap behavior<a class="headerlink" href="#health-and-wrap-behavior" title="Permanent link">&para;</a></h2>
 <p>Persistent deployments publish the same <code>readyz</code> and <code>health</code> endpoints as ad hoc proxy runs.</p>
@@ -2527,24 +2527,24 @@
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="p">}</span>
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The Python-native <code>headroom wrap ...</code> flow checks for a matching persistent deployment on the requested port before it starts a new ephemeral proxy. If an installed deployment exists but is stopped or unhealthy, it attempts to recover it first.</p>
+<p>The Python-native <code>cutctx wrap ...</code> flow checks for a matching persistent deployment on the requested port before it starts a new ephemeral proxy. If an installed deployment exists but is stopped or unhealthy, it attempts to recover it first.</p>
 <p>The Docker-native host wrapper does <strong>not</strong> yet reuse or recover persistent profiles automatically; it still starts a fresh proxy container unless you opt into <code>--no-proxy</code>.</p>
 <h2 id="docker-native-relationship">Docker-native relationship<a class="headerlink" href="#docker-native-relationship" title="Permanent link">&para;</a></h2>
 <p>The Docker-native host wrapper and the Python install CLI solve different layers of the runtime story:</p>
 <ul>
 <li><a href="../docker-install/">Docker-Native Install</a> -&gt; containerized on-demand CLI, wrapped host-tool flows, and Docker-native <code>persistent-docker</code> lifecycle commands</li>
-<li><code>headroom install ...</code> -&gt; full persistent service, task, and Docker lifecycle management, including provider/user/system mutation</li>
+<li><code>cutctx install ...</code> -&gt; full persistent service, task, and Docker lifecycle management, including provider/user/system mutation</li>
 </ul>
 <p>For a no-Python persistent Docker workflow, use the compose-managed proxy path from <code>docker/docker-compose.native.yml</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>proxy
 </span></code></pre></div>
 <p>That keeps <code>localhost:8787</code> stable and restarts the proxy automatically.</p>
 <blockquote>
-<p><strong>Note:</strong> <code>HEADROOM_WORKSPACE</code> (the host-side bind-mount source used
+<p><strong>Note:</strong> <code>CUTCTX_WORKSPACE</code> (the host-side bind-mount source used
 by the compose file) is <strong>not</strong> the same variable as
-<code>HEADROOM_WORKSPACE_DIR</code> (the canonical Headroom state root inside
+<code>CUTCTX_WORKSPACE_DIR</code> (the canonical Cutctx state root inside
 the container). Both are retained; the compose file sets the latter
 automatically. See <a href="../filesystem-contract/">Filesystem Contract</a> for
 the full bucket model.</p>

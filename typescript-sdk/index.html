@@ -2124,13 +2124,13 @@
 
 
 <h1 id="typescript-sdk">TypeScript SDK<a class="headerlink" href="#typescript-sdk" title="Permanent link">&para;</a></h1>
-<p>The Headroom TypeScript SDK lets any JavaScript or TypeScript application compress LLM messages before sending them to a model. It saves tokens, reduces costs, and fits more context into every request.</p>
+<p>The Cutctx TypeScript SDK lets any JavaScript or TypeScript application compress LLM messages before sending them to a model. It saves tokens, reduces costs, and fits more context into every request.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>npm<span class="w"> </span>install<span class="w"> </span>headroom-ai
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>npm<span class="w"> </span>install<span class="w"> </span>cutctx-ai
 </span></code></pre></div>
-<p>Requires a running <a href="../proxy/">Headroom proxy</a> or Headroom Cloud API key.</p>
+<p>Requires a running <a href="../proxy/">Cutctx proxy</a> or Cutctx Cloud API key.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">compress</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;gpt-4o&#39;</span><span class="w"> </span><span class="p">});</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Saved </span><span class="si">${</span><span class="nx">result</span><span class="p">.</span><span class="nx">tokensSaved</span><span class="si">}</span><span class="sb"> tokens`</span><span class="p">);</span>
@@ -2141,16 +2141,16 @@
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">});</span>
 </span></code></pre></div>
 <h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>The TypeScript SDK is an HTTP client. When you call <code>compress()</code>, it sends your messages to the Headroom proxy's <code>POST /v1/compress</code> endpoint. The proxy runs the full compression pipeline (SmartCrusher, ContentRouter, CacheAligner, etc.) and returns compressed messages. No compression logic runs in Node.js — all the heavy lifting happens in the proxy.</p>
+<p>The TypeScript SDK is an HTTP client. When you call <code>compress()</code>, it sends your messages to the Cutctx proxy's <code>POST /v1/compress</code> endpoint. The proxy runs the full compression pipeline (SmartCrusher, ContentRouter, CacheAligner, etc.) and returns compressed messages. No compression logic runs in Node.js — all the heavy lifting happens in the proxy.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Your TypeScript App
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    │
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    │  compress(messages)
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    ▼
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>headroom-ai (npm)  ← HTTP client
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>cutctx-ai (npm)  ← HTTP client
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    │
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    │  POST /v1/compress
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    ▼
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>Headroom Proxy / Cloud  ← compression pipeline (Python)
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>Cutctx Proxy / Cloud  ← compression pipeline (Python)
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    │
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    │  compressed messages
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    ▼
@@ -2161,12 +2161,12 @@
 </span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>LLM Provider
 </span></code></pre></div>
 <h2 id="core-api-compress">Core API: <code>compress()</code><a class="headerlink" href="#core-api-compress" title="Permanent link">&para;</a></h2>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">compress</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;gpt-4o&#39;</span><span class="p">,</span><span class="w">                      </span><span class="c1">// model name (for token counting)</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;http://localhost:8787&#39;</span><span class="p">,</span><span class="w">      </span><span class="c1">// proxy URL (default)</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nx">apiKey</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;hr_...&#39;</span><span class="p">,</span><span class="w">                      </span><span class="c1">// Headroom Cloud key</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nx">apiKey</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;hr_...&#39;</span><span class="p">,</span><span class="w">                      </span><span class="c1">// Cutctx Cloud key</span>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="nx">timeout</span><span class="o">:</span><span class="w"> </span><span class="kt">30000</span><span class="p">,</span><span class="w">                        </span><span class="c1">// ms (default)</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nx">fallback</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w">                        </span><span class="c1">// return uncompressed if proxy down (default)</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="nx">retries</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span><span class="w">                            </span><span class="c1">// retry on transient errors (default)</span>
@@ -2184,14 +2184,14 @@
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
 <p>Instead of passing options, set environment variables:</p>
 <ul>
-<li><code>HEADROOM_BASE_URL</code> — proxy or cloud URL (default: <code>http://localhost:8787</code>)</li>
-<li><code>HEADROOM_API_KEY</code> — Headroom Cloud API key</li>
+<li><code>CUTCTX_BASE_URL</code> — proxy or cloud URL (default: <code>http://localhost:8787</code>)</li>
+<li><code>CUTCTX_API_KEY</code> — Cutctx Cloud API key</li>
 </ul>
 <h2 id="reusable-client">Reusable Client<a class="headerlink" href="#reusable-client" title="Permanent link">&para;</a></h2>
 <p>For apps making many calls, create a client once and reuse it:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">HeadroomClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CutctxClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">HeadroomClient</span><span class="p">({</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">CutctxClient</span><span class="p">({</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;http://localhost:8787&#39;</span><span class="p">,</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nx">apiKey</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;hr_...&#39;</span><span class="p">,</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">});</span>
@@ -2201,14 +2201,14 @@
 </span></code></pre></div>
 <h2 id="framework-adapters">Framework Adapters<a class="headerlink" href="#framework-adapters" title="Permanent link">&para;</a></h2>
 <h3 id="vercel-ai-sdk">Vercel AI SDK<a class="headerlink" href="#vercel-ai-sdk" title="Permanent link">&para;</a></h3>
-<p>The Headroom middleware plugs directly into Vercel AI SDK's <code>wrapLanguageModel()</code>:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">headroomMiddleware</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai/vercel-ai&#39;</span><span class="p">;</span>
+<p>The Cutctx middleware plugs directly into Vercel AI SDK's <code>wrapLanguageModel()</code>:</p>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cutctxMiddleware</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai/vercel-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">wrapLanguageModel</span><span class="p">,</span><span class="w"> </span><span class="nx">generateText</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;ai&#39;</span><span class="p">;</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">openai</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@ai-sdk/openai&#39;</span><span class="p">;</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="kd">const</span><span class="w"> </span><span class="nx">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">wrapLanguageModel</span><span class="p">({</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="kt">openai</span><span class="p">(</span><span class="s1">&#39;gpt-4o&#39;</span><span class="p">),</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nx">middleware</span><span class="o">:</span><span class="w"> </span><span class="kt">headroomMiddleware</span><span class="p">(),</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nx">middleware</span><span class="o">:</span><span class="w"> </span><span class="kt">cutctxMiddleware</span><span class="p">(),</span>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">});</span>
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1">// All calls through this model are automatically compressed</span>
@@ -2216,17 +2216,17 @@
 </span></code></pre></div>
 <p>The middleware intercepts messages in the <code>transformParams</code> hook, converts Vercel's internal format to OpenAI format, compresses via the proxy, and converts back. Your app code doesn't change.</p>
 <p>You can also compress Vercel messages directly:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compressVercelMessages</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai/vercel-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compressVercelMessages</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai/vercel-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">compressVercelMessages</span><span class="p">(</span><span class="nx">modelMessages</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;gpt-4o&#39;</span><span class="w"> </span><span class="p">});</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1">// result.messages is in Vercel ModelMessage[] format</span>
 </span></code></pre></div>
 <h3 id="openai-sdk">OpenAI SDK<a class="headerlink" href="#openai-sdk" title="Permanent link">&para;</a></h3>
 <p>Wrap your OpenAI client to auto-compress messages on every <code>chat.completions.create()</code> call:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">withHeadroom</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai/openai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">withCutctx</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai/openai&#39;</span><span class="p">;</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">import</span><span class="w"> </span><span class="nx">OpenAI</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;openai&#39;</span><span class="p">;</span>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">withHeadroom</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">OpenAI</span><span class="p">());</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">withCutctx</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">OpenAI</span><span class="p">());</span>
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
 </span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1">// Messages are compressed before sending — transparent to your code</span>
 </span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">client</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
@@ -2237,10 +2237,10 @@
 <p>Only <code>chat.completions.create()</code> is intercepted. All other methods (embeddings, images, audio) pass through unchanged.</p>
 <h3 id="anthropic-sdk">Anthropic SDK<a class="headerlink" href="#anthropic-sdk" title="Permanent link">&para;</a></h3>
 <p>Same pattern for the Anthropic client:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">withHeadroom</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai/anthropic&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">withCutctx</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai/anthropic&#39;</span><span class="p">;</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">import</span><span class="w"> </span><span class="nx">Anthropic</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@anthropic-ai/sdk&#39;</span><span class="p">;</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">withHeadroom</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">Anthropic</span><span class="p">());</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">withCutctx</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">Anthropic</span><span class="p">());</span>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">client</span><span class="p">.</span><span class="nx">messages</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;claude-sonnet-4-5-20250929&#39;</span><span class="p">,</span>
@@ -2250,14 +2250,14 @@
 </span></code></pre></div>
 <p>Only <code>messages.create()</code> is intercepted. The adapter converts between Anthropic's content block format and OpenAI format automatically.</p>
 <h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="p">,</span><span class="w"> </span><span class="nx">HeadroomConnectionError</span><span class="p">,</span><span class="w"> </span><span class="nx">HeadroomAuthError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="p">,</span><span class="w"> </span><span class="nx">CutctxConnectionError</span><span class="p">,</span><span class="w"> </span><span class="nx">CutctxAuthError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">try</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">compress</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;gpt-4o&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">fallback</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">HeadroomAuthError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">CutctxAuthError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="c1">// Invalid API key (401)</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">HeadroomConnectionError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">CutctxConnectionError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="c1">// Proxy unreachable</span>
 </span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">  </span><span class="p">}</span>
 </span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">}</span>
@@ -2277,29 +2277,29 @@
 <tr>
 <td>Proxy unreachable</td>
 <td>Returns uncompressed, <code>compressed: false</code></td>
-<td>Throws <code>HeadroomConnectionError</code></td>
+<td>Throws <code>CutctxConnectionError</code></td>
 </tr>
 <tr>
 <td>Proxy 503 error</td>
 <td>Returns uncompressed after retries</td>
-<td>Throws <code>HeadroomCompressError</code></td>
+<td>Throws <code>CutctxCompressError</code></td>
 </tr>
 <tr>
 <td>Invalid API key (401)</td>
-<td>Throws <code>HeadroomAuthError</code></td>
-<td>Throws <code>HeadroomAuthError</code></td>
+<td>Throws <code>CutctxAuthError</code></td>
+<td>Throws <code>CutctxAuthError</code></td>
 </tr>
 <tr>
 <td>Bad request (400)</td>
-<td>Throws <code>HeadroomCompressError</code></td>
-<td>Throws <code>HeadroomCompressError</code></td>
+<td>Throws <code>CutctxCompressError</code></td>
+<td>Throws <code>CutctxCompressError</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="zero-dependencies">Zero Dependencies<a class="headerlink" href="#zero-dependencies" title="Permanent link">&para;</a></h2>
-<p>The <code>headroom-ai</code> package has no runtime dependencies. Framework SDKs (Vercel AI, OpenAI, Anthropic) are optional peer dependencies — only install what you use.</p>
+<p>The <code>cutctx-ai</code> package has no runtime dependencies. Framework SDKs (Vercel AI, OpenAI, Anthropic) are optional peer dependencies — only install what you use.</p>
 <h2 id="openclaw-plugin">OpenClaw Plugin<a class="headerlink" href="#openclaw-plugin" title="Permanent link">&para;</a></h2>
-<p>The TypeScript SDK powers the <a href="https://www.npmjs.com/package/headroom-openclaw"><code>headroom-openclaw</code></a> plugin for <a href="https://github.com/openclaw/openclaw">OpenClaw</a> agents. The plugin uses <code>HeadroomClient</code> internally to compress context during the <code>assemble()</code> lifecycle hook. The preferred install flow is <code>headroom wrap openclaw</code>; the direct plugin command is <code>openclaw plugins install --dangerously-force-unsafe-install headroom-ai/openclaw</code>. See the <a href="https://github.com/chopratejas/headroom/tree/main/plugins/openclaw">plugin source</a> for details.</p>
+<p>The TypeScript SDK powers the <a href="https://www.npmjs.com/package/cutctx-openclaw"><code>cutctx-openclaw</code></a> plugin for <a href="https://github.com/openclaw/openclaw">OpenClaw</a> agents. The plugin uses <code>CutctxClient</code> internally to compress context during the <code>assemble()</code> lifecycle hook. The preferred install flow is <code>cutctx wrap openclaw</code>; the direct plugin command is <code>openclaw plugins install --dangerously-force-unsafe-install cutctx-ai/openclaw</code>. See the <a href="https://github.com/chopratejas/cutctx/tree/main/plugins/openclaw">plugin source</a> for details.</p>
 <h2 id="comparison-with-python-sdk">Comparison with Python SDK<a class="headerlink" href="#comparison-with-python-sdk" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2327,17 +2327,17 @@
 </tr>
 <tr>
 <td>OpenAI SDK</td>
-<td><code>HeadroomClient</code> wrapper</td>
-<td><code>withHeadroom()</code> wrapper</td>
+<td><code>CutctxClient</code> wrapper</td>
+<td><code>withCutctx()</code> wrapper</td>
 </tr>
 <tr>
 <td>Anthropic SDK</td>
-<td><code>HeadroomClient</code> wrapper</td>
-<td><code>withHeadroom()</code> wrapper</td>
+<td><code>CutctxClient</code> wrapper</td>
+<td><code>withCutctx()</code> wrapper</td>
 </tr>
 <tr>
 <td>LangChain</td>
-<td><code>HeadroomChatModel</code></td>
+<td><code>CutctxChatModel</code></td>
 <td>Use <code>compress()</code> directly</td>
 </tr>
 <tr>
@@ -2352,7 +2352,7 @@
 </tr>
 <tr>
 <td>CLI tools</td>
-<td><code>headroom proxy</code>, <code>headroom wrap</code>, etc.</td>
+<td><code>cutctx proxy</code>, <code>cutctx wrap</code>, etc.</td>
 <td>N/A (use Python CLI)</td>
 </tr>
 </tbody>

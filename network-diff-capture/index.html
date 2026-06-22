@@ -2069,8 +2069,8 @@
 
 
 <h1 id="differential-network-capture">Differential Network Capture<a class="headerlink" href="#differential-network-capture" title="Permanent link">&para;</a></h1>
-<p>Headroom includes a containerized harness for comparing Claude Code traffic sent
-directly to Anthropic with traffic sent through a Headroom proxy. The harness
+<p>Cutctx includes a containerized harness for comparing Claude Code traffic sent
+directly to Anthropic with traffic sent through a Cutctx proxy. The harness
 uses mitmproxy in two isolated lanes, writes sanitized JSONL captures, and then
 generates Markdown/JSON reports with request route, header, body size, body hash,
 and JSON payload differences.</p>
@@ -2079,24 +2079,24 @@ and JSON payload differences.</p>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>captures
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span>...
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CLAUDE_PROMPT</span><span class="o">=</span><span class="s2">&quot;Summarize this repository in one sentence.&quot;</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>mitm-direct<span class="w"> </span>mitm-headroom-upstream<span class="w"> </span>headroom-proxy<span class="w"> </span>mitm-headroom-client
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>mitm-direct<span class="w"> </span>mitm-cutctx-upstream<span class="w"> </span>cutctx-proxy<span class="w"> </span>mitm-cutctx-client
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-direct
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-headroom
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-cutctx
 </span></code></pre></div>
 <p>The primary captures are written to:</p>
 <ul>
 <li><code>docker/differential-network-capture/captures/direct.jsonl</code></li>
-<li><code>docker/differential-network-capture/captures/headroom-client.jsonl</code></li>
+<li><code>docker/differential-network-capture/captures/cutctx-client.jsonl</code></li>
 </ul>
-<p>The Headroom lane also writes
-<code>docker/differential-network-capture/captures/headroom-upstream.jsonl</code>, which is
-the request Headroom forwards to Anthropic after proxy processing.</p>
+<p>The Cutctx lane also writes
+<code>docker/differential-network-capture/captures/cutctx-upstream.jsonl</code>, which is
+the request Cutctx forwards to Anthropic after proxy processing.</p>
 <p>By default only <code>api.anthropic.com</code> is logged. Override
 <code>CAPTURE_INCLUDE_HOSTS</code> with a comma-separated list to include other hosts.</p>
 <h2 id="generate-a-report">Generate A Report<a class="headerlink" href="#generate-a-report" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>headroom<span class="w"> </span>capture<span class="w"> </span>network-diff<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cutctx<span class="w"> </span>capture<span class="w"> </span>network-diff<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--direct<span class="w"> </span>docker/differential-network-capture/captures/direct.jsonl<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--headroom<span class="w"> </span>docker/differential-network-capture/captures/headroom-client.jsonl<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--cutctx<span class="w"> </span>docker/differential-network-capture/captures/cutctx-client.jsonl<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--output<span class="w"> </span>docker/differential-network-capture/captures/report.md<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--json-output<span class="w"> </span>docker/differential-network-capture/captures/report.json
 </span></code></pre></div>
@@ -2106,16 +2106,16 @@ identified; keep the generated <code>captures/</code> directory out of commits b
 may contain prompts, tool outputs, and repository context.</p>
 <p>For Claude Code deferred-tool investigations, the paired exchange table includes
 top-level Anthropic <code>tools</code> counts and serialized tool bytes. A jump from
-<code>tools=0-&gt;N</code> in the Headroom client lane is evidence that Claude Code eagerly
-materialized tool schemas before the request reached Headroom.</p>
+<code>tools=0-&gt;N</code> in the Cutctx client lane is evidence that Claude Code eagerly
+materialized tool schemas before the request reached Cutctx.</p>
 <h2 id="custom-claude-invocation">Custom Claude Invocation<a class="headerlink" href="#custom-claude-invocation" title="Permanent link">&para;</a></h2>
 <p>Set <code>CLAUDE_COMMAND</code> to run the exact command under test in both lanes:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">CLAUDE_COMMAND</span><span class="o">=</span><span class="s1">&#39;claude -p &quot;read README.md and summarize the proxy setup&quot;&#39;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-direct
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nv">CLAUDE_COMMAND</span><span class="o">=</span><span class="s1">&#39;claude -p &quot;read README.md and summarize the proxy setup&quot;&#39;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-headroom
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>run<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>claude-cutctx
 </span></code></pre></div>
-<p>Use <code>CLAUDE_DIRECT_ARGS</code> and <code>CLAUDE_HEADROOM_ARGS</code> when each lane needs
+<p>Use <code>CLAUDE_DIRECT_ARGS</code> and <code>CLAUDE_CUTCTX_ARGS</code> when each lane needs
 different flags.</p>
 
 

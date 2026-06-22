@@ -2613,35 +2613,35 @@
 
 
 <h1 id="quickstart-guide">Quickstart Guide<a class="headerlink" href="#quickstart-guide" title="Permanent link">&para;</a></h1>
-<p>Get Headroom running in 5 minutes with these copy-paste examples.</p>
+<p>Get Cutctx running in 5 minutes with these copy-paste examples.</p>
 <hr />
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <p><strong>Python:</strong></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Core only (minimal dependencies)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>headroom-ai
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>cutctx-ai
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># With proxy server</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[proxy]&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[proxy]&quot;</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Everything</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[all]&quot;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[all]&quot;</span>
 </span></code></pre></div>
 <p><strong>TypeScript / Node.js:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>npm<span class="w"> </span>install<span class="w"> </span>headroom-ai
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>npm<span class="w"> </span>install<span class="w"> </span>cutctx-ai
 </span></code></pre></div>
 <p><strong>Docker-native:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 </span></code></pre></div>
-<p>See <a href="../docker-install/">Docker-native install</a> if you want Docker to provide the Headroom runtime while your agent CLIs stay on the host.</p>
+<p>See <a href="../docker-install/">Docker-native install</a> if you want Docker to provide the Cutctx runtime while your agent CLIs stay on the host.</p>
 <p><strong>Persistent background runtime:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>headroom<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-service<span class="w"> </span>--providers<span class="w"> </span>auto
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--preset<span class="w"> </span>persistent-service<span class="w"> </span>--providers<span class="w"> </span>auto
 </span></code></pre></div>
-<p>See <a href="../persistent-installs/">Persistent Installs</a> if you want Headroom to stay up in the background and be reused by <code>wrap</code>.</p>
+<p>See <a href="../persistent-installs/">Persistent Installs</a> if you want Cutctx to stay up in the background and be reused by <code>wrap</code>.</p>
 <hr />
 <h2 id="option-1-proxy-server-zero-code-changes">Option 1: Proxy Server (Zero Code Changes)<a class="headerlink" href="#option-1-proxy-server-zero-code-changes" title="Permanent link">&para;</a></h2>
 <p>The fastest way to start saving tokens. Works with any OpenAI-compatible client.</p>
 <h3 id="step-1-start-the-proxy">Step 1: Start the Proxy<a class="headerlink" href="#step-1-start-the-proxy" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
 </span></code></pre></div>
 <h3 id="step-2-verify-its-running">Step 2: Verify It's Running<a class="headerlink" href="#step-2-verify-its-running" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>curl<span class="w"> </span>http://localhost:8787/health
@@ -2652,7 +2652,7 @@
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nv">ANTHROPIC_BASE_URL</span><span class="o">=</span>http://localhost:8787<span class="w"> </span>claude
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># GitHub Copilot CLI (default Anthropic-style proxy route)</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>copilot<span class="w"> </span>--<span class="w"> </span>--model<span class="w"> </span>claude-sonnet-4-20250514
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>copilot<span class="w"> </span>--<span class="w"> </span>--model<span class="w"> </span>claude-sonnet-4-20250514
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Cursor / Continue / any OpenAI client</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span>http://localhost:8787/v1<span class="w"> </span>your-app
@@ -2669,11 +2669,11 @@
 <h2 id="option-2-python-sdk">Option 2: Python SDK<a class="headerlink" href="#option-2-python-sdk" title="Permanent link">&para;</a></h2>
 <p>Wrap your existing client for fine-grained control.</p>
 <h3 id="basic-example">Basic Example<a class="headerlink" href="#basic-example" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Create wrapped client</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">(),</span>
 </span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
@@ -2695,11 +2695,11 @@
 </span><span id="__span-8-24"><a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tokens saved: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">][</span><span class="s1">&#39;tokens_saved_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="with-tool-outputs-where-savings-happen">With Tool Outputs (Where Savings Happen)<a class="headerlink" href="#with-tool-outputs-where-savings-happen" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">(),</span>
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
@@ -2721,7 +2721,7 @@
 </span><span id="__span-9-24"><a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>    <span class="p">{</span>
 </span><span id="__span-9-25"><a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;tool&quot;</span><span class="p">,</span>
 </span><span id="__span-9-26"><a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a>        <span class="s2">&quot;tool_call_id&quot;</span><span class="p">:</span> <span class="s2">&quot;call_1&quot;</span><span class="p">,</span>
-</span><span id="__span-9-27"><a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>        <span class="c1"># This is where Headroom shines - compressing large outputs</span>
+</span><span id="__span-9-27"><a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>        <span class="c1"># This is where Cutctx shines - compressing large outputs</span>
 </span><span id="__span-9-28"><a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
 </span><span id="__span-9-29"><a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a>            <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Result </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="o">-</span><span class="n">i</span><span class="p">}</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">500</span><span class="p">)]</span>
 </span><span id="__span-9-30"><a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a>        <span class="p">}),</span>
@@ -2729,7 +2729,7 @@
 </span><span id="__span-9-32"><a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a>    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What are the top 3 results?&quot;</span><span class="p">},</span>
 </span><span id="__span-9-33"><a id="__codelineno-9-33" name="__codelineno-9-33" href="#__codelineno-9-33"></a><span class="p">]</span>
 </span><span id="__span-9-34"><a id="__codelineno-9-34" name="__codelineno-9-34" href="#__codelineno-9-34"></a>
-</span><span id="__span-9-35"><a id="__codelineno-9-35" name="__codelineno-9-35" href="#__codelineno-9-35"></a><span class="c1"># Headroom compresses the 500 results to ~20, keeping the most relevant</span>
+</span><span id="__span-9-35"><a id="__codelineno-9-35" name="__codelineno-9-35" href="#__codelineno-9-35"></a><span class="c1"># Cutctx compresses the 500 results to ~20, keeping the most relevant</span>
 </span><span id="__span-9-36"><a id="__codelineno-9-36" name="__codelineno-9-36" href="#__codelineno-9-36"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 </span><span id="__span-9-37"><a id="__codelineno-9-37" name="__codelineno-9-37" href="#__codelineno-9-37"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
 </span><span id="__span-9-38"><a id="__codelineno-9-38" name="__codelineno-9-38" href="#__codelineno-9-38"></a>    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
@@ -2753,10 +2753,10 @@
 </span></code></pre></div>
 <hr />
 <h2 id="option-3-anthropic-sdk">Option 3: Anthropic SDK<a class="headerlink" href="#option-3-anthropic-sdk" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">AnthropicProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">AnthropicProvider</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Anthropic</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">Anthropic</span><span class="p">(),</span>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">AnthropicProvider</span><span class="p">(),</span>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
@@ -2780,8 +2780,8 @@
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
 </span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Now you&#39;ll see:</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># INFO:headroom.transforms.pipeline:Pipeline complete: 45000 -&gt; 4500 tokens (saved 40500, 90.0% reduction)</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># INFO:headroom.transforms.smart_crusher:SmartCrusher: keeping 15 of 500 items</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># INFO:cutctx.transforms.pipeline:Pipeline complete: 45000 -&gt; 4500 tokens (saved 40500, 90.0% reduction)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># INFO:cutctx.transforms.smart_crusher:SmartCrusher: keeping 15 of 500 items</span>
 </span></code></pre></div>
 <h3 id="method-2-check-session-stats">Method 2: Check Session Stats<a class="headerlink" href="#method-2-check-session-stats" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
@@ -2804,9 +2804,9 @@
 <hr />
 <h2 id="common-configuration">Common Configuration<a class="headerlink" href="#common-configuration" title="Permanent link">&para;</a></h2>
 <h3 id="adjust-compression">Adjust Compression<a class="headerlink" href="#adjust-compression" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span><span class="p">,</span> <span class="n">HeadroomConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span><span class="p">,</span> <span class="n">CutctxConfig</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">HeadroomConfig</span><span class="p">()</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CutctxConfig</span><span class="p">()</span>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1"># Keep more items after compression (default: 15)</span>
 </span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">config</span><span class="o">.</span><span class="n">smart_crusher</span><span class="o">.</span><span class="n">max_items_after_crush</span> <span class="o">=</span> <span class="mi">30</span>
@@ -2814,7 +2814,7 @@
 </span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># Only compress if tool output has &gt; 500 tokens (default: 200)</span>
 </span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">config</span><span class="o">.</span><span class="n">smart_crusher</span><span class="o">.</span><span class="n">min_tokens_to_crush</span> <span class="o">=</span> <span class="mi">500</span>
 </span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>
-</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">(),</span>
 </span><span id="__span-15-14"><a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>  <span class="c1"># Pass custom config</span>
@@ -2825,7 +2825,7 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">headroom_tool_profiles</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">cutctx_tool_profiles</span><span class="o">=</span><span class="p">{</span>
 </span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>        <span class="s2">&quot;database_query&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;skip_compression&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>  <span class="c1"># Never compress</span>
 </span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>        <span class="s2">&quot;search&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;max_items&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>  <span class="c1"># Keep more items</span>
 </span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="p">},</span>
@@ -2833,7 +2833,7 @@
 </span></code></pre></div>
 <h3 id="audit-mode-observe-only">Audit Mode (Observe Only)<a class="headerlink" href="#audit-mode-observe-only" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Start in audit mode - see what WOULD be optimized</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">(),</span>
 </span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="s2">&quot;audit&quot;</span><span class="p">,</span>  <span class="c1"># No modifications, just logging</span>
@@ -2843,7 +2843,7 @@
 </span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 </span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
 </span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
-</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>    <span class="n">headroom_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>  <span class="c1"># Enable for this request only</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>    <span class="n">cutctx_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>  <span class="c1"># Enable for this request only</span>
 </span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="p">)</span>
 </span></code></pre></div>
 <hr />
@@ -2852,7 +2852,7 @@
 <thead>
 <tr>
 <th>Content Type</th>
-<th>What Headroom Does</th>
+<th>What Cutctx Does</th>
 <th>Typical Savings</th>
 </tr>
 </thead>

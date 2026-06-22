@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#headroom" class="md-skip">
+        <a href="#cutctx" class="md-skip">
           Skip to content
         </a>
       
@@ -2583,15 +2583,15 @@
   
 
 
-<h1 id="headroom">Headroom<a class="headerlink" href="#headroom" title="Permanent link">&para;</a></h1>
+<h1 id="cutctx">Cutctx<a class="headerlink" href="#cutctx" title="Permanent link">&para;</a></h1>
 <div class="hero">
 <p><strong>The Context Optimization Layer for LLM Applications</strong></p>
 <p>Compress everything your AI agent reads. Same answers, fraction of the tokens.</p>
 </div>
 <div class="badges">
-<p><a href="https://pypi.org/project/headroom-ai/"><img alt="PyPI" src="https://img.shields.io/pypi/v/headroom-ai.svg" /></a>
-<a href="https://pypi.org/project/headroom-ai/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/headroom-ai.svg" /></a>
-<a href="https://github.com/chopratejas/headroom/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" /></a>
+<p><a href="https://pypi.org/project/cutctx-ai/"><img alt="PyPI" src="https://img.shields.io/pypi/v/cutctx-ai.svg" /></a>
+<a href="https://pypi.org/project/cutctx-ai/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/cutctx-ai.svg" /></a>
+<a href="https://github.com/chopratejas/cutctx/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" /></a>
 <a href="https://discord.gg/yRmaUNpsPJ"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&amp;logoColor=white" /></a></p>
 </div>
 <div class="stats-bar">
@@ -2614,24 +2614,24 @@
 </div>
 <hr />
 <h2 id="what-it-does">What It Does<a class="headerlink" href="#what-it-does" title="Permanent link">&para;</a></h2>
-<p>Every tool call, DB query, file read, and RAG retrieval your agent makes is 70-95% boilerplate. Headroom compresses it away before it hits the model. The LLM sees less noise, responds faster, and costs less.</p>
+<p>Every tool call, DB query, file read, and RAG retrieval your agent makes is 70-95% boilerplate. Cutctx compresses it away before it hits the model. The LLM sees less noise, responds faster, and costs less.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Your Agent / App
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    │
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    │  tool outputs, logs, DB reads, RAG results, file reads, API responses
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    ▼
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a> Headroom  ← proxy, Python library, or framework integration
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a> Cutctx  ← proxy, Python library, or framework integration
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    │
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    ▼
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a> LLM Provider  (OpenAI, Anthropic, Google, Bedrock, 100+ via LiteLLM)
 </span></code></pre></div>
-<p>Headroom works as a <strong>transparent proxy</strong> (zero code changes), a <strong>Python function</strong> (<code>compress()</code>), or a <strong>framework integration</strong> (LangChain, Agno, Strands, LiteLLM, MCP).</p>
+<p>Cutctx works as a <strong>transparent proxy</strong> (zero code changes), a <strong>Python function</strong> (<code>compress()</code>), or a <strong>framework integration</strong> (LangChain, Agno, Strands, LiteLLM, MCP).</p>
 <hr />
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Proxy (Zero Code Changes)</label><label for="__tabbed_1_2">Python SDK</label><label for="__tabbed_1_3">Coding Agents</label><label for="__tabbed_1_4">TypeScript SDK</label><label for="__tabbed_1_5">LiteLLM Callback</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[all]&quot;</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>headroom<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[all]&quot;</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cutctx<span class="w"> </span>proxy
 </span></code></pre></div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Point any tool at the proxy</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">ANTHROPIC_BASE_URL</span><span class="o">=</span>http://localhost:8787<span class="w"> </span>claude
@@ -2641,7 +2641,7 @@
 <p>Want an always-on local runtime instead? See <a href="persistent-installs/">Persistent Installs &rarr;</a>.</p>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">compress</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">compress</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">compress</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-5-20250929&quot;</span><span class="p">)</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
@@ -2653,18 +2653,18 @@
 <p>Works with any Python LLM client. <a href="sdk/">Full SDK guide &rarr;</a></p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>claude<span class="w">       </span><span class="c1"># Claude Code</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>copilot<span class="w"> </span>--<span class="w"> </span>--model<span class="w"> </span>claude-sonnet-4-20250514
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>codex<span class="w">        </span><span class="c1"># OpenAI Codex CLI</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>aider<span class="w">        </span><span class="c1"># Aider</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>cursor<span class="w">       </span><span class="c1"># Cursor</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>openclaw<span class="w">     </span><span class="c1"># OpenClaw plugin bootstrap</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>claude<span class="w">       </span><span class="c1"># Claude Code</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>copilot<span class="w"> </span>--<span class="w"> </span>--model<span class="w"> </span>claude-sonnet-4-20250514
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>codex<span class="w">        </span><span class="c1"># OpenAI Codex CLI</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>aider<span class="w">        </span><span class="c1"># Aider</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>cursor<span class="w">       </span><span class="c1"># Cursor</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>openclaw<span class="w">     </span><span class="c1"># OpenClaw plugin bootstrap</span>
 </span></code></pre></div>
 <p>Starts the proxy, points your tool at it, compresses everything automatically.</p>
 <p>If you prefer an always-on proxy that <code>wrap</code> can reuse or recover, see <a href="persistent-installs/">Persistent Installs &rarr;</a>.</p>
 </div>
 <div class="tabbed-block">
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">compress</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;claude-sonnet-4-5-20250929&#39;</span><span class="w"> </span><span class="p">});</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1">// Use result.messages with any LLM client</span>
@@ -2674,9 +2674,9 @@
 </div>
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">litellm</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.litellm_callback</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomCallback</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.litellm_callback</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxCallback</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">litellm</span><span class="o">.</span><span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span><span class="n">HeadroomCallback</span><span class="p">()]</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">litellm</span><span class="o">.</span><span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span><span class="n">CutctxCallback</span><span class="p">()]</span>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># All 100+ providers now compressed automatically</span>
 </span></code></pre></div>
 </div>
@@ -2688,18 +2688,18 @@
 <div class="grid-item">
 <h3 id="langchain">LangChain<a class="headerlink" href="#langchain" title="Permanent link">&para;</a></h3>
 <p>Wrap any chat model. Supports memory, retrievers, tools, streaming, async.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span></code></pre></div>
 <p><a href="langchain/">LangChain Guide &rarr;</a></p>
 </div>
 <div class="grid-item">
 <h3 id="agno">Agno<a class="headerlink" href="#agno" title="Permanent link">&para;</a></h3>
 <p>Full agent framework integration with observability hooks.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="p">))</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="p">))</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
 </span></code></pre></div>
 <p><a href="agno/">Agno Guide &rarr;</a></p>
@@ -2707,39 +2707,39 @@
 <div class="grid-item">
 <h3 id="strands">Strands<a class="headerlink" href="#strands" title="Permanent link">&para;</a></h3>
 <p>Model wrapping + tool output hook provider for Strands Agents.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.strands</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomStrandsModel</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.strands</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxStrandsModel</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomStrandsModel</span><span class="p">(</span><span class="n">wrapped_model</span><span class="o">=</span><span class="n">bedrock_model</span><span class="p">)</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxStrandsModel</span><span class="p">(</span><span class="n">wrapped_model</span><span class="o">=</span><span class="n">bedrock_model</span><span class="p">)</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
 </span></code></pre></div>
 <p><a href="strands/">Strands Guide &rarr;</a></p>
 </div>
 <div class="grid-item">
 <h3 id="mcp-tools">MCP Tools<a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h3>
-<p>Three tools for Claude Code, Cursor, or any MCP client: <code>headroom_compress</code>, <code>headroom_retrieve</code>, <code>headroom_stats</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>claude
+<p>Three tools for Claude Code, Cursor, or any MCP client: <code>cutctx_compress</code>, <code>cutctx_retrieve</code>, <code>cutctx_stats</code>.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>claude
 </span></code></pre></div>
 <p><a href="mcp/">MCP Guide &rarr;</a></p>
 </div>
 <div class="grid-item">
 <h3 id="typescript-sdk">TypeScript SDK<a class="headerlink" href="#typescript-sdk" title="Permanent link">&para;</a></h3>
 <p><code>compress()</code>, Vercel AI SDK middleware, OpenAI and Anthropic client wrappers.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>npm<span class="w"> </span>install<span class="w"> </span>headroom-ai
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>npm<span class="w"> </span>install<span class="w"> </span>cutctx-ai
 </span></code></pre></div>
 <p><a href="typescript-sdk/">TypeScript SDK Guide &rarr;</a></p>
 </div>
 <div class="grid-item">
 <h3 id="openclaw">OpenClaw<a class="headerlink" href="#openclaw" title="Permanent link">&para;</a></h3>
 <p>ContextEngine plugin for OpenClaw agents. Auto-compresses context in <code>assemble()</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>headroom<span class="w"> </span>wrap<span class="w"> </span>openclaw
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>cutctx<span class="w"> </span>wrap<span class="w"> </span>openclaw
 </span></code></pre></div>
-<p><a href="https://github.com/chopratejas/headroom/tree/main/plugins/openclaw">OpenClaw Plugin &rarr;</a></p>
+<p><a href="https://github.com/chopratejas/cutctx/tree/main/plugins/openclaw">OpenClaw Plugin &rarr;</a></p>
 </div>
 </div>
 <p><a class="md-button" href="integration-guide/">All integration patterns &rarr;</a></p>
 <hr />
 <h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Headroom runs a three-stage pipeline on every request:</p>
+<p>Cutctx runs a three-stage pipeline on every request:</p>
 <pre class="mermaid"><code>graph LR
     A[Your Prompt] --&gt; B[CacheAligner]
     B --&gt; C[ContentRouter]
@@ -2804,7 +2804,7 @@
 </tbody>
 </table>
 <p><strong>Stage 3: IntelligentContext</strong> — If the conversation still exceeds the model's context limit, scores each message by importance (recency, references, density) and drops the lowest-value ones.</p>
-<p><strong>Nothing is lost.</strong> Compressed content goes into the CCR store (Compress-Cache-Retrieve). The LLM gets a <code>headroom_retrieve</code> tool and can fetch full originals when it needs more detail.</p>
+<p><strong>Nothing is lost.</strong> Compressed content goes into the CCR store (Compress-Cache-Retrieve). The LLM gets a <code>cutctx_retrieve</code> tool and can fetch full originals when it needs more detail.</p>
 <p><a href="ARCHITECTURE/">Full architecture deep dive &rarr;</a></p>
 <hr />
 <h2 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h2>
@@ -2814,7 +2814,7 @@
 <tr>
 <th>Metric</th>
 <th>Baseline</th>
-<th>Headroom</th>
+<th>Cutctx</th>
 </tr>
 </thead>
 <tbody>
@@ -2969,37 +2969,37 @@
 <hr />
 <h2 id="cloud-providers">Cloud Providers<a class="headerlink" href="#cloud-providers" title="Permanent link">&para;</a></h2>
 <p>Works with any LLM provider out of the box:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>headroom<span class="w"> </span>proxy<span class="w">                                          </span><span class="c1"># Direct Anthropic/OpenAI</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>bedrock<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w">     </span><span class="c1"># AWS Bedrock</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>vertex_ai<span class="w"> </span>--region<span class="w"> </span>us-central1<span class="w"> </span><span class="c1"># Google Vertex AI</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>azure<span class="w">                          </span><span class="c1"># Azure OpenAI</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>openrouter<span class="w">                     </span><span class="c1"># OpenRouter (400+ models)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cutctx<span class="w"> </span>proxy<span class="w">                                          </span><span class="c1"># Direct Anthropic/OpenAI</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>bedrock<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w">     </span><span class="c1"># AWS Bedrock</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>vertex_ai<span class="w"> </span>--region<span class="w"> </span>us-central1<span class="w"> </span><span class="c1"># Google Vertex AI</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>azure<span class="w">                          </span><span class="c1"># Azure OpenAI</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--backend<span class="w"> </span>openrouter<span class="w">                     </span><span class="c1"># OpenRouter (400+ models)</span>
 </span></code></pre></div>
 <p>Or via LiteLLM for 100+ providers (Together, Groq, Fireworks, Ollama, vLLM, etc.).</p>
 <hr />
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>pip<span class="w"> </span>install<span class="w"> </span>headroom-ai<span class="w">                </span><span class="c1"># Core library (Python)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[all]&quot;</span><span class="w">         </span><span class="c1"># Everything (recommended)</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>npm<span class="w"> </span>install<span class="w"> </span>headroom-ai<span class="w">                </span><span class="c1"># TypeScript / Node.js</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[proxy]&quot;</span><span class="w">       </span><span class="c1"># Proxy server + MCP tools</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[ml]&quot;</span><span class="w">          </span><span class="c1"># ML compression (Kompress, requires torch)</span>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[langchain]&quot;</span><span class="w">   </span><span class="c1"># LangChain integration</span>
-</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[agno]&quot;</span><span class="w">        </span><span class="c1"># Agno integration</span>
-</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[evals]&quot;</span><span class="w">       </span><span class="c1"># Evaluation framework</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>pip<span class="w"> </span>install<span class="w"> </span>cutctx-ai<span class="w">                </span><span class="c1"># Core library (Python)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[all]&quot;</span><span class="w">         </span><span class="c1"># Everything (recommended)</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>npm<span class="w"> </span>install<span class="w"> </span>cutctx-ai<span class="w">                </span><span class="c1"># TypeScript / Node.js</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[proxy]&quot;</span><span class="w">       </span><span class="c1"># Proxy server + MCP tools</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[ml]&quot;</span><span class="w">          </span><span class="c1"># ML compression (Kompress, requires torch)</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[langchain]&quot;</span><span class="w">   </span><span class="c1"># LangChain integration</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[agno]&quot;</span><span class="w">        </span><span class="c1"># Agno integration</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[evals]&quot;</span><span class="w">       </span><span class="c1"># Evaluation framework</span>
 </span></code></pre></div>
 <p>Requires Python 3.10+.</p>
 <hr />
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong><a href="quickstart/">Quickstart</a></strong> — Running in 5 minutes</li>
-<li><strong><a href="integration-guide/">Integration Guide</a></strong> — Every way to add Headroom to your stack</li>
+<li><strong><a href="integration-guide/">Integration Guide</a></strong> — Every way to add Cutctx to your stack</li>
 <li><strong><a href="ARCHITECTURE/">Architecture</a></strong> — How the pipeline works under the hood</li>
 <li><strong><a href="benchmarks/">Benchmarks</a></strong> — Accuracy and latency data</li>
 <li><strong><a href="LIMITATIONS/">Limitations</a></strong> — When compression helps and when it doesn't</li>
 <li><strong><a href="filesystem-contract/">Filesystem Contract</a></strong> — Canonical config/workspace env vars and paths</li>
 </ul>
 <hr />
-<p>Apache 2.0 — Free for commercial use. <a href="https://github.com/chopratejas/headroom">GitHub</a> | <a href="https://pypi.org/project/headroom-ai/">PyPI</a> | <a href="https://discord.gg/yRmaUNpsPJ">Discord</a></p>
+<p>Apache 2.0 — Free for commercial use. <a href="https://github.com/chopratejas/cutctx">GitHub</a> | <a href="https://pypi.org/project/cutctx-ai/">PyPI</a> | <a href="https://discord.gg/yRmaUNpsPJ">Discord</a></p>
 
 
 

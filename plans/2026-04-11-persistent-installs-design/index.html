@@ -2058,8 +2058,8 @@
 
 <h1 id="persistent-deployments-installs-design">Persistent Deployments / Installs Design<a class="headerlink" href="#persistent-deployments-installs-design" title="Permanent link">&para;</a></h1>
 <h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
-<p>Headroom already supports session-oriented usage through <code>headroom proxy</code>, <code>headroom wrap ...</code>, and the Docker-native wrapper scripts, but there is no first-class way to install Headroom as a durable background runtime. That leaves users to hand-roll launch agents, services, scheduled tasks, or Docker restart policies, and it keeps direct tool usage (<code>claude</code>, <code>codex</code>, <code>copilot</code>, <code>openclaw</code>, etc.) tied to explicit <code>wrap</code> commands.</p>
-<p>The new feature should make Headroom deployable as a persistent local runtime while keeping the existing on-demand and wrapped flows intact.</p>
+<p>Cutctx already supports session-oriented usage through <code>cutctx proxy</code>, <code>cutctx wrap ...</code>, and the Docker-native wrapper scripts, but there is no first-class way to install Cutctx as a durable background runtime. That leaves users to hand-roll launch agents, services, scheduled tasks, or Docker restart policies, and it keeps direct tool usage (<code>claude</code>, <code>codex</code>, <code>copilot</code>, <code>openclaw</code>, etc.) tied to explicit <code>wrap</code> commands.</p>
+<p>The new feature should make Cutctx deployable as a persistent local runtime while keeping the existing on-demand and wrapped flows intact.</p>
 <h2 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Support these runtime/install modes as one coherent system:</li>
@@ -2082,7 +2082,7 @@
 <li>Preserve local defaults such as <code>localhost:8787</code>.</li>
 </ul>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<p>Introduce a new shared deployment subsystem under <code>headroom.install</code>.</p>
+<p>Introduce a new shared deployment subsystem under <code>cutctx.install</code>.</p>
 <p>Core model:</p>
 <ul>
 <li><code>execution_mode</code>: <code>persistent | on_demand | wrapped</code></li>
@@ -2090,7 +2090,7 @@
 <li><code>supervisor_kind</code>: <code>service | task | none</code></li>
 </ul>
 <p>These three axes normalize all seven user-facing runtime modes without duplicating logic across CLI commands, install scripts, and platform-specific deployment adapters.</p>
-<p>The subsystem centers on a persisted deployment manifest in <code>~/.headroom/deploy/</code> that records:</p>
+<p>The subsystem centers on a persisted deployment manifest in <code>~/.cutctx/deploy/</code> that records:</p>
 <ul>
 <li>resolved proxy configuration</li>
 <li>runtime type</li>
@@ -2101,24 +2101,24 @@
 <li>health URL and port</li>
 </ul>
 <h2 id="command-model">Command model<a class="headerlink" href="#command-model" title="Permanent link">&para;</a></h2>
-<p>Add a new public <code>headroom install</code> group:</p>
+<p>Add a new public <code>cutctx install</code> group:</p>
 <ul>
-<li><code>headroom install apply</code></li>
-<li><code>headroom install status</code></li>
-<li><code>headroom install start</code></li>
-<li><code>headroom install stop</code></li>
-<li><code>headroom install restart</code></li>
-<li><code>headroom install remove</code></li>
+<li><code>cutctx install apply</code></li>
+<li><code>cutctx install status</code></li>
+<li><code>cutctx install start</code></li>
+<li><code>cutctx install stop</code></li>
+<li><code>cutctx install restart</code></li>
+<li><code>cutctx install remove</code></li>
 </ul>
 <p>Add hidden helper commands for artifact runners and health recovery:</p>
 <ul>
-<li><code>headroom install agent run --profile &lt;name&gt;</code></li>
-<li><code>headroom install agent ensure --profile &lt;name&gt;</code></li>
+<li><code>cutctx install agent run --profile &lt;name&gt;</code></li>
+<li><code>cutctx install agent ensure --profile &lt;name&gt;</code></li>
 </ul>
-<p>Platform supervisors should register the hidden agent entrypoint rather than raw <code>headroom proxy ...</code> so restart, health polling, and manifest handling live in one place.</p>
+<p>Platform supervisors should register the hidden agent entrypoint rather than raw <code>cutctx proxy ...</code> so restart, health polling, and manifest handling live in one place.</p>
 <h2 id="runtime-adapters">Runtime adapters<a class="headerlink" href="#runtime-adapters" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>PythonRuntimeAdapter</code>: launches <code>headroom proxy</code> directly.</li>
+<li><code>PythonRuntimeAdapter</code>: launches <code>cutctx proxy</code> directly.</li>
 <li><code>DockerRuntimeAdapter</code>: launches a detached or foreground Docker container with the existing host mounts and loopback-only port publishing.</li>
 </ul>
 <p>Persistent Docker uses the same deployment manifest and status semantics as service/task installs, but the child runtime is Docker-managed rather than OS-supervised.</p>
@@ -2134,7 +2134,7 @@
 <li>Service: Windows Service wrapper</li>
 <li>Task: Scheduled Task startup + periodic health-check task</li>
 </ul>
-<p>Each adapter renders artifacts into <code>~/.headroom/deploy/</code> and stores enough metadata for clean removal.</p>
+<p>Each adapter renders artifacts into <code>~/.cutctx/deploy/</code> and stores enough metadata for clean removal.</p>
 <h2 id="tool-target-configuration">Tool target configuration<a class="headerlink" href="#tool-target-configuration" title="Permanent link">&para;</a></h2>
 <p>Provider-level configuration should be target-specific and reversible.</p>
 <p>Initial target adapters:</p>
@@ -2150,9 +2150,9 @@
 <li>Aider / Cursor</li>
 <li>use env-based integration first, with tool-specific config only where a stable supported surface exists</li>
 </ul>
-<p>All non-marker edits must store previous values in the deployment manifest so uninstall removes only Headroom-managed changes.</p>
+<p>All non-marker edits must store previous values in the deployment manifest so uninstall removes only Cutctx-managed changes.</p>
 <h2 id="wrap-behavior">Wrap behavior<a class="headerlink" href="#wrap-behavior" title="Permanent link">&para;</a></h2>
-<p><code>headroom wrap ...</code> should consult the active deployment manifest before starting a new proxy. If a compatible persistent deployment is present and healthy, <code>wrap</code> should reuse it and only perform any remaining tool-specific preparation. If the deployment exists but is unhealthy, <code>wrap</code> should attempt to recover it through the install subsystem before falling back to an ephemeral proxy.</p>
+<p><code>cutctx wrap ...</code> should consult the active deployment manifest before starting a new proxy. If a compatible persistent deployment is present and healthy, <code>wrap</code> should reuse it and only perform any remaining tool-specific preparation. If the deployment exists but is unhealthy, <code>wrap</code> should attempt to recover it through the install subsystem before falling back to an ephemeral proxy.</p>
 <h2 id="docs-strategy">Docs strategy<a class="headerlink" href="#docs-strategy" title="Permanent link">&para;</a></h2>
 <p>The public docs should be reframed around:</p>
 <ul>

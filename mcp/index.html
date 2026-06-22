@@ -1262,10 +1262,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroom_compress" class="md-nav__link">
+  <a href="#cutctx_compress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_compress
+        cutctx_compress
       
     </span>
   </a>
@@ -1273,10 +1273,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroom_retrieve" class="md-nav__link">
+  <a href="#cutctx_retrieve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_retrieve
+        cutctx_retrieve
       
     </span>
   </a>
@@ -1284,10 +1284,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroom_stats" class="md-nav__link">
+  <a href="#cutctx_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_stats
+        cutctx_stats
       
     </span>
   </a>
@@ -1456,10 +1456,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#claude-doesnt-see-headroom-tools" class="md-nav__link">
+  <a href="#claude-doesnt-see-cutctx-tools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Claude doesn't see headroom tools
+        Claude doesn't see cutctx tools
       
     </span>
   </a>
@@ -2250,10 +2250,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroom_compress" class="md-nav__link">
+  <a href="#cutctx_compress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_compress
+        cutctx_compress
       
     </span>
   </a>
@@ -2261,10 +2261,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroom_retrieve" class="md-nav__link">
+  <a href="#cutctx_retrieve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_retrieve
+        cutctx_retrieve
       
     </span>
   </a>
@@ -2272,10 +2272,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroom_stats" class="md-nav__link">
+  <a href="#cutctx_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        headroom_stats
+        cutctx_stats
       
     </span>
   </a>
@@ -2444,10 +2444,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#claude-doesnt-see-headroom-tools" class="md-nav__link">
+  <a href="#claude-doesnt-see-cutctx-tools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Claude doesn't see headroom tools
+        Claude doesn't see cutctx tools
       
     </span>
   </a>
@@ -2491,31 +2491,31 @@
 
 
 <h1 id="mcp-server-context-engineering-toolkit">MCP Server — Context Engineering Toolkit<a class="headerlink" href="#mcp-server-context-engineering-toolkit" title="Permanent link">&para;</a></h1>
-<p>Headroom's MCP server exposes <strong>compression, retrieval, and observability</strong> as tools that any MCP-compatible AI coding tool can use — Claude Code, Cursor, Codex, and more.</p>
+<p>Cutctx's MCP server exposes <strong>compression, retrieval, and observability</strong> as tools that any MCP-compatible AI coding tool can use — Claude Code, Cursor, Codex, and more.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Install (MCP is included with proxy, or standalone)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[proxy]&quot;</span><span class="w">    </span><span class="c1"># Proxy + MCP tools</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[mcp]&quot;</span><span class="w">      </span><span class="c1"># MCP tools only (lightweight)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[proxy]&quot;</span><span class="w">    </span><span class="c1"># Proxy + MCP tools</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[mcp]&quot;</span><span class="w">      </span><span class="c1"># MCP tools only (lightweight)</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Register with Claude Code (one-time)</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>install
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Start Claude Code — it now has headroom tools!</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Start Claude Code — it now has cutctx tools!</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>claude
 </span></code></pre></div>
 <p>That's it. Claude Code can now compress content on demand, retrieve originals, and check session stats — <strong>no proxy required</strong>.</p>
 <p>For automatic compression of ALL traffic, also run the proxy:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Terminal 1</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>headroom<span class="w"> </span>proxy
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cutctx<span class="w"> </span>proxy
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Terminal 2</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">ANTHROPIC_BASE_URL</span><span class="o">=</span>http://127.0.0.1:8787<span class="w"> </span>claude
 </span></code></pre></div>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <p>The MCP server provides three tools:</p>
-<h3 id="headroom_compress">headroom_compress<a class="headerlink" href="#headroom_compress" title="Permanent link">&para;</a></h3>
+<h3 id="cutctx_compress">cutctx_compress<a class="headerlink" href="#cutctx_compress" title="Permanent link">&para;</a></h3>
 <p>Compress content on demand. The LLM calls this when it wants to shrink large content before reasoning over it.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Tool: headroom_compress
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Tool: cutctx_compress
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Parameters:
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  - content (required): Text to compress (files, JSON, logs, search results, etc.)
@@ -2529,7 +2529,7 @@
 <p>Example — Claude reads a large file, then compresses it:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Claude: Let me compress this large output to save context space.
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>→ headroom_compress(content=&quot;[5000 lines of grep results...]&quot;)
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>→ cutctx_compress(content=&quot;[5000 lines of grep results...]&quot;)
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>← {
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    &quot;compressed&quot;: &quot;[key matches with context...]&quot;,
@@ -2540,10 +2540,10 @@
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    &quot;transforms&quot;: [&quot;router:search:0.27&quot;]
 </span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  }
 </span></code></pre></div>
-<p>The original is stored locally for the session (1-hour TTL). If Claude needs the full content later, it calls <code>headroom_retrieve</code>.</p>
-<h3 id="headroom_retrieve">headroom_retrieve<a class="headerlink" href="#headroom_retrieve" title="Permanent link">&para;</a></h3>
+<p>The original is stored locally for the session (1-hour TTL). If Claude needs the full content later, it calls <code>cutctx_retrieve</code>.</p>
+<h3 id="cutctx_retrieve">cutctx_retrieve<a class="headerlink" href="#cutctx_retrieve" title="Permanent link">&para;</a></h3>
 <p>Retrieve original uncompressed content by hash.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Tool: headroom_retrieve
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Tool: cutctx_retrieve
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Parameters:
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  - hash (required): Hash key from compression
@@ -2553,10 +2553,10 @@
 </span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  - original_content (full retrieval) or results (search)
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  - source: &quot;local&quot; or &quot;proxy&quot;
 </span></code></pre></div>
-<p>Retrieval checks the local store first (content compressed via <code>headroom_compress</code>), then falls back to the proxy's store (content compressed automatically by the proxy). Hashes from either source work transparently.</p>
-<h3 id="headroom_stats">headroom_stats<a class="headerlink" href="#headroom_stats" title="Permanent link">&para;</a></h3>
+<p>Retrieval checks the local store first (content compressed via <code>cutctx_compress</code>), then falls back to the proxy's store (content compressed automatically by the proxy). Hashes from either source work transparently.</p>
+<h3 id="cutctx_stats">cutctx_stats<a class="headerlink" href="#cutctx_stats" title="Permanent link">&para;</a></h3>
 <p>Session compression statistics — including sub-agent stats and proxy cache info.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Tool: headroom_stats
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Tool: cutctx_stats
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Returns:
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  - compressions, retrievals, tokens_saved, savings_percent
@@ -2567,22 +2567,22 @@
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  - proxy (request count, cache hits, cost saved — if proxy is running)
 </span></code></pre></div>
 <p>Sub-agent stats are aggregated via a shared stats file at
-<code>${HEADROOM_WORKSPACE_DIR}/session_stats.jsonl</code> (default
-<code>~/.headroom/session_stats.jsonl</code> — see the
+<code>${CUTCTX_WORKSPACE_DIR}/session_stats.jsonl</code> (default
+<code>~/.cutctx/session_stats.jsonl</code> — see the
 <a href="../filesystem-contract/">Filesystem Contract</a>). Each MCP server instance
-(main session and sub-agents) writes events there, and <code>headroom_stats</code>
+(main session and sub-agents) writes events there, and <code>cutctx_stats</code>
 reads across all of them.</p>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <h3 id="mcp-only-no-proxy">MCP Only (no proxy)<a class="headerlink" href="#mcp-only-no-proxy" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>┌─────────────────────────────────────────────┐
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>│  Claude Code / Cursor / Codex               │
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│                                              │
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│  LLM calls headroom_compress on demand       │
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│  LLM calls cutctx_compress on demand       │
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│  ↓                                           │
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>│  Compression happens locally in MCP process  │
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>│  Original stored in local CompressionStore   │
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│  ↓                                           │
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>│  LLM calls headroom_retrieve when needed     │
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>│  LLM calls cutctx_retrieve when needed     │
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>└─────────────────────────────────────────────┘
 </span></code></pre></div>
 <h3 id="mcp-proxy-full-setup">MCP + Proxy (full setup)<a class="headerlink" href="#mcp-proxy-full-setup" title="Permanent link">&para;</a></h3>
@@ -2591,30 +2591,30 @@ reads across all of them.</p>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>│                                              │
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>│  1. Sends request ──→ Proxy (auto-compress)  │
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>│  2. Gets response with compressed outputs    │
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>│  3. Can call headroom_compress for more      │
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>│  4. headroom_retrieve checks:                │
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>│  3. Can call cutctx_compress for more      │
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>│  4. cutctx_retrieve checks:                │
 </span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>│     local store → proxy store                │
 </span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>└──────────────────┬──────────────────────────┘
 </span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>                   │ MCP (stdio)
 </span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>                   ▼
 </span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>┌─────────────────────────────────────────────┐
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>│  Headroom MCP Server                         │
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>│  ├── headroom_compress  (local compression)  │
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>│  ├── headroom_retrieve  (local + proxy)      │
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>│  └── headroom_stats     (aggregated stats)   │
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>│  Cutctx MCP Server                         │
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>│  ├── cutctx_compress  (local compression)  │
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>│  ├── cutctx_retrieve  (local + proxy)      │
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>│  └── cutctx_stats     (aggregated stats)   │
 </span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>└─────────────────────────────────────────────┘
 </span></code></pre></div>
 <p>No double-compression: the proxy compresses at the HTTP level (before the LLM sees content). MCP tools operate after the LLM receives content. They don't touch the same data.</p>
 <h2 id="cli-commands">CLI Commands<a class="headerlink" href="#cli-commands" title="Permanent link">&para;</a></h2>
 <h3 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>install<span class="w">                              </span><span class="c1"># Default setup</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span>--proxy-url<span class="w"> </span>http://host:9000<span class="w">  </span><span class="c1"># Custom proxy URL</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span>--force<span class="w">                       </span><span class="c1"># Overwrite existing</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install<span class="w">                              </span><span class="c1"># Default setup</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span>--proxy-url<span class="w"> </span>http://host:9000<span class="w">  </span><span class="c1"># Custom proxy URL</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install<span class="w"> </span>--force<span class="w">                       </span><span class="c1"># Overwrite existing</span>
 </span></code></pre></div>
 <h3 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>status
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Headroom MCP Status
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Cutctx MCP Status
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>========================================
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>MCP SDK:        ✓ Installed
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>Claude Config:  ✓ Configured
@@ -2623,10 +2623,10 @@ reads across all of them.</p>
 </span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>Proxy Status:   ✓ Running at http://127.0.0.1:8787
 </span></code></pre></div>
 <h3 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>uninstall
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>uninstall
 </span></code></pre></div>
 <h3 id="debug">Debug<a class="headerlink" href="#debug" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>headroom<span class="w"> </span>mcp<span class="w"> </span>serve<span class="w"> </span>--debug
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>serve<span class="w"> </span>--debug
 </span></code></pre></div>
 <h2 id="cross-tool-compatibility">Cross-Tool Compatibility<a class="headerlink" href="#cross-tool-compatibility" title="Permanent link">&para;</a></h2>
 <p>The MCP server works with any MCP-compatible host:</p>
@@ -2642,7 +2642,7 @@ reads across all of them.</p>
 <tr>
 <td>Claude Code</td>
 <td>Native</td>
-<td><code>headroom mcp install</code></td>
+<td><code>cutctx mcp install</code></td>
 </tr>
 <tr>
 <td>Cursor</td>
@@ -2657,31 +2657,31 @@ reads across all of them.</p>
 <tr>
 <td>Any MCP host</td>
 <td>Yes</td>
-<td>Point to <code>headroom mcp serve</code></td>
+<td>Point to <code>cutctx mcp serve</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="mcp-sdk-not-installed">"MCP SDK not installed"<a class="headerlink" href="#mcp-sdk-not-installed" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[mcp]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[mcp]&quot;</span>
 </span></code></pre></div>
 <h3 id="proxy-not-running-when-using-proxy-features">"Proxy not running" (when using proxy features)<a class="headerlink" href="#proxy-not-running-when-using-proxy-features" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>headroom<span class="w"> </span>proxy<span class="w">  </span><span class="c1"># In another terminal</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cutctx<span class="w"> </span>proxy<span class="w">  </span><span class="c1"># In another terminal</span>
 </span></code></pre></div>
 <h3 id="entry-not-found-or-expired">"Entry not found or expired"<a class="headerlink" href="#entry-not-found-or-expired" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Content compressed via <code>headroom_compress</code>: stored for 1 hour (session TTL)</li>
+<li>Content compressed via <code>cutctx_compress</code>: stored for 1 hour (session TTL)</li>
 <li>Content compressed by the proxy: stored for 5 minutes (proxy TTL)</li>
 <li>The proxy must be running for proxy-compressed content</li>
 </ul>
-<h3 id="claude-doesnt-see-headroom-tools">Claude doesn't see headroom tools<a class="headerlink" href="#claude-doesnt-see-headroom-tools" title="Permanent link">&para;</a></h3>
+<h3 id="claude-doesnt-see-cutctx-tools">Claude doesn't see cutctx tools<a class="headerlink" href="#claude-doesnt-see-cutctx-tools" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Check: <code>headroom mcp status</code></li>
+<li>Check: <code>cutctx mcp status</code></li>
 <li>Restart Claude Code after installing MCP</li>
-<li>Verify with <code>/mcp</code> in Claude Code — should show 3 headroom tools</li>
+<li>Verify with <code>/mcp</code> in Claude Code — should show 3 cutctx tools</li>
 </ol>
 <h3 id="sub-agent-stats-not-showing">Sub-agent stats not showing<a class="headerlink" href="#sub-agent-stats-not-showing" title="Permanent link">&para;</a></h3>
-<p>Sub-agent stats appear in <code>headroom_stats</code> only after sub-agents have run compressions. The shared stats file is at <code>${HEADROOM_WORKSPACE_DIR}/session_stats.jsonl</code> (defaults to <code>~/.headroom/session_stats.jsonl</code>).</p>
+<p>Sub-agent stats appear in <code>cutctx_stats</code> only after sub-agents have run compressions. The shared stats file is at <code>${CUTCTX_WORKSPACE_DIR}/session_stats.jsonl</code> (defaults to <code>~/.cutctx/session_stats.jsonl</code>).</p>
 
 
 

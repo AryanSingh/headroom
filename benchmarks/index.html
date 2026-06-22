@@ -1653,10 +1653,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-headroom-does-not-compress" class="md-nav__link">
+  <a href="#what-cutctx-does-not-compress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Headroom Does NOT Compress
+        What Cutctx Does NOT Compress
       
     </span>
   </a>
@@ -1675,10 +1675,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-headroom-adds-the-most-value" class="md-nav__link">
+  <a href="#when-cutctx-adds-the-most-value" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Adds the Most Value
+        When Cutctx Adds the Most Value
       
     </span>
   </a>
@@ -1686,10 +1686,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-headroom-adds-little-value" class="md-nav__link">
+  <a href="#when-cutctx-adds-little-value" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Adds Little Value
+        When Cutctx Adds Little Value
       
     </span>
   </a>
@@ -2361,10 +2361,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-headroom-does-not-compress" class="md-nav__link">
+  <a href="#what-cutctx-does-not-compress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Headroom Does NOT Compress
+        What Cutctx Does NOT Compress
       
     </span>
   </a>
@@ -2383,10 +2383,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-headroom-adds-the-most-value" class="md-nav__link">
+  <a href="#when-cutctx-adds-the-most-value" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Adds the Most Value
+        When Cutctx Adds the Most Value
       
     </span>
   </a>
@@ -2394,10 +2394,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#when-headroom-adds-little-value" class="md-nav__link">
+  <a href="#when-cutctx-adds-little-value" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Adds Little Value
+        When Cutctx Adds Little Value
       
     </span>
   </a>
@@ -2491,7 +2491,7 @@
 
 
 <h1 id="benchmarks">Benchmarks<a class="headerlink" href="#benchmarks" title="Permanent link">&para;</a></h1>
-<p>Headroom's core promise: <strong>compress context without losing accuracy</strong>. This page shows accuracy benchmarks, compression performance, and real-world production telemetry from 250+ active proxy instances.</p>
+<p>Cutctx's core promise: <strong>compress context without losing accuracy</strong>. This page shows accuracy benchmarks, compression performance, and real-world production telemetry from 250+ active proxy instances.</p>
 <div class="admonition success">
 <p class="admonition-title">Key Results</p>
 <p><strong>98.2% recall</strong> on article extraction with <strong>94.9% compression</strong>.
@@ -2499,7 +2499,7 @@
 </div>
 <hr />
 <h2 id="compression-performance">Compression Performance<a class="headerlink" href="#compression-performance" title="Permanent link">&para;</a></h2>
-<p>Tested on Apple M-series (CPU), headroom v0.5.18. Each test runs <code>compress()</code> on realistic tool outputs.</p>
+<p>Tested on Apple M-series (CPU), cutctx v0.5.18. Each test runs <code>compress()</code> on realistic tool outputs.</p>
 <table>
 <thead>
 <tr>
@@ -2577,7 +2577,7 @@
 </ul>
 <hr />
 <h2 id="production-telemetry">Production Telemetry<a class="headerlink" href="#production-telemetry" title="Permanent link">&para;</a></h2>
-<p>Real-world data from <strong>50,000+ proxy sessions</strong> across 250+ unique instances (March 30 – April 2, 2026). Collected via anonymous telemetry beacon (opt-out: <code>HEADROOM_TELEMETRY=off</code>).</p>
+<p>Real-world data from <strong>50,000+ proxy sessions</strong> across 250+ unique instances (March 30 – April 2, 2026). Collected via anonymous telemetry beacon (opt-out: <code>CUTCTX_TELEMETRY=off</code>).</p>
 <h3 id="proxy-overhead">Proxy Overhead<a class="headerlink" href="#proxy-overhead" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2769,7 +2769,7 @@
 </table>
 <p>For LLM applications, <strong>recall is critical</strong> — 98.2% means nearly all article content is preserved. The slight precision drop (some extra content) doesn't hurt LLM accuracy.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Run it yourself</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[html]&quot;</span><span class="w"> </span>datasets
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[html]&quot;</span><span class="w"> </span>datasets
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pytest<span class="w"> </span>tests/test_evals/test_html_oss_benchmarks.py::TestExtractionBenchmark<span class="w"> </span>-v<span class="w"> </span>-s
 </span></code></pre></div>
 <h3 id="json-compression-smartcrusher">JSON Compression (SmartCrusher)<a class="headerlink" href="#json-compression-smartcrusher" title="Permanent link">&para;</a></h3>
@@ -2780,7 +2780,7 @@
 <tr>
 <th>Metric</th>
 <th>Baseline</th>
-<th>Headroom</th>
+<th>Cutctx</th>
 </tr>
 </thead>
 <tbody>
@@ -2833,7 +2833,7 @@
 </div>
 <hr />
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
-<h3 id="what-headroom-does-not-compress">What Headroom Does NOT Compress<a class="headerlink" href="#what-headroom-does-not-compress" title="Permanent link">&para;</a></h3>
+<h3 id="what-cutctx-does-not-compress">What Cutctx Does NOT Compress<a class="headerlink" href="#what-cutctx-does-not-compress" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Short messages</strong> (&lt; 300 tokens) — overhead exceeds savings</li>
 <li><strong>Source code</strong> — passes through unchanged to preserve correctness (unless tree-sitter AST compression is enabled)</li>
@@ -2848,14 +2848,14 @@
 <li><strong>Kompress ONNX</strong> (P90: 576ms) — ML inference on CPU for text compression</li>
 <li><strong>Content detection</strong> (Magika) — ML classification of content type</li>
 </ul>
-<h3 id="when-headroom-adds-the-most-value">When Headroom Adds the Most Value<a class="headerlink" href="#when-headroom-adds-the-most-value" title="Permanent link">&para;</a></h3>
+<h3 id="when-cutctx-adds-the-most-value">When Cutctx Adds the Most Value<a class="headerlink" href="#when-cutctx-adds-the-most-value" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Long agent sessions</strong> with accumulated tool outputs (40-80% compression)</li>
 <li><strong>JSON-heavy workflows</strong> (API responses, database queries) — 83-94% compression</li>
 <li><strong>Build/test output</strong> — 85-94% compression</li>
 <li><strong>Multi-tool agents</strong> — 60-76% compression across tool results</li>
 </ul>
-<h3 id="when-headroom-adds-little-value">When Headroom Adds Little Value<a class="headerlink" href="#when-headroom-adds-little-value" title="Permanent link">&para;</a></h3>
+<h3 id="when-cutctx-adds-little-value">When Cutctx Adds Little Value<a class="headerlink" href="#when-cutctx-adds-little-value" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Short conversational exchanges</strong> — median 4.8% compression</li>
 <li><strong>Code-only sessions</strong> (reading/writing files) — code passes through</li>
@@ -2877,13 +2877,13 @@
 <li>Collected via anonymous beacon (no prompts, no content, no PII)</li>
 <li>Image-inflated instances excluded (base64 counted as text tokens — fixed in v0.5.18)</li>
 <li>Multi-worker beacon spam excluded (per-instance MAX, not SUM)</li>
-<li>Opt-out: <code>HEADROOM_TELEMETRY=off</code></li>
+<li>Opt-out: <code>CUTCTX_TELEMETRY=off</code></li>
 </ul>
 <hr />
 <h2 id="reproducing-results">Reproducing Results<a class="headerlink" href="#reproducing-results" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Clone the repo</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chopratejas/headroom.git
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nb">cd</span><span class="w"> </span>headroom
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chopratejas/cutctx.git
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nb">cd</span><span class="w"> </span>cutctx
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Install with eval dependencies</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[evals,html]&quot;</span>
@@ -2892,7 +2892,7 @@
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>pytest<span class="w"> </span>tests/test_evals/<span class="w"> </span>-v<span class="w"> </span>-s
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># Run compression benchmark</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from headroom import compress; print(compress([{&#39;role&#39;:&#39;user&#39;,&#39;content&#39;:&#39;test&#39;}]))&quot;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from cutctx import compress; print(compress([{&#39;role&#39;:&#39;user&#39;,&#39;content&#39;:&#39;test&#39;}]))&quot;</span>
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
 </span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="c1"># Run local proxy mode benchmark (no API calls)</span>
 </span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>python<span class="w"> </span>benchmarks/proxy_mode_benchmark.py<span class="w"> </span>--turns<span class="w"> </span><span class="m">12</span><span class="w"> </span>--show-real-harness

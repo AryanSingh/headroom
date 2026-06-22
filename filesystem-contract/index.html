@@ -1961,10 +1961,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#workspace-bucket-headroom_workspace_dir" class="md-nav__link">
+  <a href="#workspace-bucket-cutctx_workspace_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workspace bucket (HEADROOM_WORKSPACE_DIR)
+        Workspace bucket (CUTCTX_WORKSPACE_DIR)
       
     </span>
   </a>
@@ -1972,10 +1972,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#config-bucket-headroom_config_dir" class="md-nav__link">
+  <a href="#config-bucket-cutctx_config_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Config bucket (HEADROOM_CONFIG_DIR)
+        Config bucket (CUTCTX_CONFIG_DIR)
       
     </span>
   </a>
@@ -2038,10 +2038,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#docker-naming-overlap-headroom_workspace-vs-headroom_workspace_dir" class="md-nav__link">
+  <a href="#docker-naming-overlap-cutctx_workspace-vs-cutctx_workspace_dir" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Docker naming overlap: HEADROOM_WORKSPACE vs HEADROOM_WORKSPACE_DIR
+        Docker naming overlap: CUTCTX_WORKSPACE vs CUTCTX_WORKSPACE_DIR
       
     </span>
   </a>
@@ -2049,10 +2049,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#project-scoped-headroom-directories" class="md-nav__link">
+  <a href="#project-scoped-cutctx-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Project-scoped .headroom/ directories
+        Project-scoped .cutctx/ directories
       
     </span>
   </a>
@@ -2102,7 +2102,7 @@
 
 
 <h1 id="filesystem-contract">Filesystem Contract<a class="headerlink" href="#filesystem-contract" title="Permanent link">&para;</a></h1>
-<p>Headroom writes configuration, runtime state, logs, and caches to a small
+<p>Cutctx writes configuration, runtime state, logs, and caches to a small
 set of well-known paths under the user's home directory. This page is the
 source of truth for where those paths live, how to override them, and how
 they behave inside Docker containers.</p>
@@ -2118,14 +2118,14 @@ they behave inside Docker containers.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_CONFIG_DIR</code></td>
-<td><code>~/.headroom/config</code></td>
+<td><code>CUTCTX_CONFIG_DIR</code></td>
+<td><code>~/.cutctx/config</code></td>
 <td>User/admin-authored configuration (model catalogs, plugin settings, etc.)</td>
 <td>Read-mostly</td>
 </tr>
 <tr>
-<td><code>HEADROOM_WORKSPACE_DIR</code></td>
-<td><code>~/.headroom</code></td>
+<td><code>CUTCTX_WORKSPACE_DIR</code></td>
+<td><code>~/.cutctx</code></td>
 <td>Runtime state written by the proxy and CLI (savings, logs, memory DB, telemetry, caches)</td>
 <td>Read-write</td>
 </tr>
@@ -2133,32 +2133,32 @@ they behave inside Docker containers.</p>
 </table>
 <p>Both variables are recognized by the Python proxy / CLI and the npm SDK.
 They are <strong>additive</strong> — every pre-existing per-resource env var
-(<code>HEADROOM_SAVINGS_PATH</code>, <code>HEADROOM_TOIN_PATH</code>,
-<code>HEADROOM_SUBSCRIPTION_STATE_PATH</code>, <code>HEADROOM_MODEL_LIMITS</code>, ...)
+(<code>CUTCTX_SAVINGS_PATH</code>, <code>CUTCTX_TOIN_PATH</code>,
+<code>CUTCTX_SUBSCRIPTION_STATE_PATH</code>, <code>CUTCTX_MODEL_LIMITS</code>, ...)
 continues to work with identical semantics.</p>
 <h2 id="precedence">Precedence<a class="headerlink" href="#precedence" title="Permanent link">&para;</a></h2>
 <p>For every per-resource helper, resolution follows this order:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>explicit argument
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    │ falls through when None/&quot;&quot;
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    ▼
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>per-resource env var (e.g. HEADROOM_SAVINGS_PATH)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>per-resource env var (e.g. CUTCTX_SAVINGS_PATH)
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    │ falls through when unset/blank
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    ▼
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>derived from canonical root
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    │ e.g. ${HEADROOM_WORKSPACE_DIR}/proxy_savings.json
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    │ e.g. ${CUTCTX_WORKSPACE_DIR}/proxy_savings.json
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    ▼
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>default (e.g. ~/.headroom/proxy_savings.json)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>default (e.g. ~/.cutctx/proxy_savings.json)
 </span></code></pre></div>
 <p>Examples:</p>
 <ul>
-<li><code>HEADROOM_WORKSPACE_DIR=/mnt/state</code> → savings land at
-  <code>/mnt/state/proxy_savings.json</code> unless <code>HEADROOM_SAVINGS_PATH</code> overrides.</li>
-<li><code>HEADROOM_SAVINGS_PATH=/custom/savings.json</code> always wins, even when
-  <code>HEADROOM_WORKSPACE_DIR</code> is set.</li>
-<li>Unset both and the default is <code>~/.headroom/proxy_savings.json</code>.</li>
+<li><code>CUTCTX_WORKSPACE_DIR=/mnt/state</code> → savings land at
+  <code>/mnt/state/proxy_savings.json</code> unless <code>CUTCTX_SAVINGS_PATH</code> overrides.</li>
+<li><code>CUTCTX_SAVINGS_PATH=/custom/savings.json</code> always wins, even when
+  <code>CUTCTX_WORKSPACE_DIR</code> is set.</li>
+<li>Unset both and the default is <code>~/.cutctx/proxy_savings.json</code>.</li>
 </ul>
 <h2 id="bucket-assignments">Bucket assignments<a class="headerlink" href="#bucket-assignments" title="Permanent link">&para;</a></h2>
-<h3 id="workspace-bucket-headroom_workspace_dir">Workspace bucket (<code>HEADROOM_WORKSPACE_DIR</code>)<a class="headerlink" href="#workspace-bucket-headroom_workspace_dir" title="Permanent link">&para;</a></h3>
+<h3 id="workspace-bucket-cutctx_workspace_dir">Workspace bucket (<code>CUTCTX_WORKSPACE_DIR</code>)<a class="headerlink" href="#workspace-bucket-cutctx_workspace_dir" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2171,17 +2171,17 @@ continues to work with identical semantics.</p>
 <tr>
 <td>Proxy savings ledger</td>
 <td><code>${WORKSPACE_DIR}/proxy_savings.json</code></td>
-<td><code>HEADROOM_SAVINGS_PATH</code></td>
+<td><code>CUTCTX_SAVINGS_PATH</code></td>
 </tr>
 <tr>
 <td>TOIN telemetry JSON</td>
 <td><code>${WORKSPACE_DIR}/toin.json</code></td>
-<td><code>HEADROOM_TOIN_PATH</code></td>
+<td><code>CUTCTX_TOIN_PATH</code></td>
 </tr>
 <tr>
 <td>Subscription tracker state</td>
 <td><code>${WORKSPACE_DIR}/subscription_state.json</code></td>
-<td><code>HEADROOM_SUBSCRIPTION_STATE_PATH</code></td>
+<td><code>CUTCTX_SUBSCRIPTION_STATE_PATH</code></td>
 </tr>
 <tr>
 <td>Memory SQLite</td>
@@ -2240,7 +2240,7 @@ continues to work with identical semantics.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="config-bucket-headroom_config_dir">Config bucket (<code>HEADROOM_CONFIG_DIR</code>)<a class="headerlink" href="#config-bucket-headroom_config_dir" title="Permanent link">&para;</a></h3>
+<h3 id="config-bucket-cutctx_config_dir">Config bucket (<code>CUTCTX_CONFIG_DIR</code>)<a class="headerlink" href="#config-bucket-cutctx_config_dir" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2253,7 +2253,7 @@ continues to work with identical semantics.</p>
 <tr>
 <td>Models catalog</td>
 <td><code>${CONFIG_DIR}/models.json</code></td>
-<td><code>HEADROOM_MODEL_LIMITS</code> (content override)</td>
+<td><code>CUTCTX_MODEL_LIMITS</code> (content override)</td>
 </tr>
 <tr>
 <td>Plugin settings</td>
@@ -2263,12 +2263,12 @@ continues to work with identical semantics.</p>
 </tbody>
 </table>
 <h3 id="backward-compatibility-modelsjson">Backward compatibility — models.json<a class="headerlink" href="#backward-compatibility-modelsjson" title="Permanent link">&para;</a></h3>
-<p><code>models.json</code> historically lived at <code>~/.headroom/models.json</code> (i.e. in the
+<p><code>models.json</code> historically lived at <code>~/.cutctx/models.json</code> (i.e. in the
 workspace root, not in <code>config/</code>). For a seamless migration the Python
 providers check <strong>both</strong> locations in this order:</p>
 <ol>
-<li><code>${HEADROOM_CONFIG_DIR}/models.json</code> (new canonical location)</li>
-<li><code>${HEADROOM_WORKSPACE_DIR}/models.json</code> (legacy fallback)</li>
+<li><code>${CUTCTX_CONFIG_DIR}/models.json</code> (new canonical location)</li>
+<li><code>${CUTCTX_WORKSPACE_DIR}/models.json</code> (legacy fallback)</li>
 </ol>
 <p>Existing installs continue to work unchanged. New installs are encouraged
 to put <code>models.json</code> in the config bucket.</p>
@@ -2276,26 +2276,26 @@ to put <code>models.json</code> in the config bucket.</p>
 <p>Two helpers give plugins isolated, per-plugin directories under both
 roots:</p>
 <h3 id="python">Python<a class="headerlink" href="#python" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">paths</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">paths</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cfg_dir</span> <span class="o">=</span> <span class="n">paths</span><span class="o">.</span><span class="n">plugin_config_dir</span><span class="p">(</span><span class="s2">&quot;my-plugin&quot;</span><span class="p">)</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># → ~/.headroom/config/plugins/my-plugin</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># → ~/.cutctx/config/plugins/my-plugin</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">state_dir</span> <span class="o">=</span> <span class="n">paths</span><span class="o">.</span><span class="n">plugin_workspace_dir</span><span class="p">(</span><span class="s2">&quot;my-plugin&quot;</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># → ~/.headroom/plugins/my-plugin</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># → ~/.cutctx/plugins/my-plugin</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">cfg_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">(</span><span class="n">cfg_dir</span> <span class="o">/</span> <span class="s2">&quot;settings.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="npm-sdk">npm SDK<a class="headerlink" href="#npm-sdk" title="Permanent link">&para;</a></h3>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pluginConfigDir</span><span class="p">,</span><span class="w"> </span><span class="nx">pluginWorkspaceDir</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@headroom/sdk&quot;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pluginConfigDir</span><span class="p">,</span><span class="w"> </span><span class="nx">pluginWorkspaceDir</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@cutctx/sdk&quot;</span><span class="p">;</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kd">const</span><span class="w"> </span><span class="nx">cfgDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pluginConfigDir</span><span class="p">(</span><span class="s2">&quot;my-plugin&quot;</span><span class="p">);</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">stateDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pluginWorkspaceDir</span><span class="p">(</span><span class="s2">&quot;my-plugin&quot;</span><span class="p">);</span>
 </span></code></pre></div>
 <p>Plugin-author helpers reject names containing <code>/</code> or <code>\</code> to keep the
 namespace flat.</p>
-<h2 id="docker-naming-overlap-headroom_workspace-vs-headroom_workspace_dir">Docker naming overlap: <code>HEADROOM_WORKSPACE</code> vs <code>HEADROOM_WORKSPACE_DIR</code><a class="headerlink" href="#docker-naming-overlap-headroom_workspace-vs-headroom_workspace_dir" title="Permanent link">&para;</a></h2>
+<h2 id="docker-naming-overlap-cutctx_workspace-vs-cutctx_workspace_dir">Docker naming overlap: <code>CUTCTX_WORKSPACE</code> vs <code>CUTCTX_WORKSPACE_DIR</code><a class="headerlink" href="#docker-naming-overlap-cutctx_workspace-vs-cutctx_workspace_dir" title="Permanent link">&para;</a></h2>
 <p>These are <strong>two different variables</strong> with different semantics, both
 retained for backward compatibility:</p>
 <table>
@@ -2308,31 +2308,31 @@ retained for backward compatibility:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_WORKSPACE</code></td>
+<td><code>CUTCTX_WORKSPACE</code></td>
 <td>Host-side (Docker)</td>
 <td>Directory to bind-mount into the container as <code>/workspace</code> (equivalent to CWD in native runs). Used by <code>docker-compose.native.yml</code>.</td>
 </tr>
 <tr>
-<td><code>HEADROOM_WORKSPACE_DIR</code></td>
+<td><code>CUTCTX_WORKSPACE_DIR</code></td>
 <td>Inside-the-container</td>
-<td>Canonical Headroom state root. Resolves to <code>/tmp/headroom-home/.headroom</code> inside the official container image, which in turn bind-mounts to <code>${HOME}/.headroom</code> on the host.</td>
+<td>Canonical Cutctx state root. Resolves to <code>/tmp/cutctx-home/.cutctx</code> inside the official container image, which in turn bind-mounts to <code>${HOME}/.cutctx</code> on the host.</td>
 </tr>
 </tbody>
 </table>
 <p>The official Docker bootstrap (compose file, <code>scripts/install.sh</code>, and the
-Python <code>install</code> command) sets <code>HEADROOM_WORKSPACE_DIR</code> and
-<code>HEADROOM_CONFIG_DIR</code> inside the container so the proxy resolves state to
+Python <code>install</code> command) sets <code>CUTCTX_WORKSPACE_DIR</code> and
+<code>CUTCTX_CONFIG_DIR</code> inside the container so the proxy resolves state to
 the bind-mounted path without any user action.</p>
-<h2 id="project-scoped-headroom-directories">Project-scoped <code>.headroom/</code> directories<a class="headerlink" href="#project-scoped-headroom-directories" title="Permanent link">&para;</a></h2>
-<p>A few code paths deliberately use <strong>project-local</strong> <code>.headroom/</code> paths
+<h2 id="project-scoped-cutctx-directories">Project-scoped <code>.cutctx/</code> directories<a class="headerlink" href="#project-scoped-cutctx-directories" title="Permanent link">&para;</a></h2>
+<p>A few code paths deliberately use <strong>project-local</strong> <code>.cutctx/</code> paths
 resolved relative to the current working directory rather than the
 canonical workspace root:</p>
 <ul>
-<li><code>headroom/proxy/server.py</code> — project-scoped memory DB default</li>
-<li><code>headroom/memory/mcp_server.py</code> — project-scoped memory DB default</li>
-<li><code>headroom/cli/wrap.py</code> — project-scoped memory and hook artifacts</li>
+<li><code>cutctx/proxy/server.py</code> — project-scoped memory DB default</li>
+<li><code>cutctx/memory/mcp_server.py</code> — project-scoped memory DB default</li>
+<li><code>cutctx/cli/wrap.py</code> — project-scoped memory and hook artifacts</li>
 </ul>
-<p>These <strong>do not obey</strong> <code>HEADROOM_WORKSPACE_DIR</code>. This is intentional: it
+<p>These <strong>do not obey</strong> <code>CUTCTX_WORKSPACE_DIR</code>. This is intentional: it
 preserves the "project memory lives in the project directory" invariant
 documented in <a href="../memory/">memory.md</a>. Users who want a single centrally
 located memory store can pass <code>--memory-db-path &lt;path&gt;</code> explicitly or set
@@ -2343,10 +2343,10 @@ string in, raw string out — no tilde expansion, no path-separator
 normalization), ensuring byte-for-byte backward compatibility.</p>
 <p>Full list:</p>
 <ul>
-<li><code>HEADROOM_SAVINGS_PATH</code></li>
-<li><code>HEADROOM_TOIN_PATH</code></li>
-<li><code>HEADROOM_SUBSCRIPTION_STATE_PATH</code></li>
-<li><code>HEADROOM_MODEL_LIMITS</code> (content override — JSON string or file path)</li>
+<li><code>CUTCTX_SAVINGS_PATH</code></li>
+<li><code>CUTCTX_TOIN_PATH</code></li>
+<li><code>CUTCTX_SUBSCRIPTION_STATE_PATH</code></li>
+<li><code>CUTCTX_MODEL_LIMITS</code> (content override — JSON string or file path)</li>
 </ul>
 <h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>

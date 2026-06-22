@@ -2069,9 +2069,9 @@
 
 
 <h1 id="vertex-ai">Vertex AI<a class="headerlink" href="#vertex-ai" title="Permanent link">&para;</a></h1>
-<p>Headroom supports Google Cloud Vertex AI publisher endpoints through the proxy
+<p>Cutctx supports Google Cloud Vertex AI publisher endpoints through the proxy
 passthrough surface. Configure the proxy with a regional Vertex base URL, then
-send normal Vertex REST requests through Headroom.</p>
+send normal Vertex REST requests through Cutctx.</p>
 <p>Google documents Gemini generation on Vertex with <code>generateContent</code> and
 <code>streamGenerateContent</code>, and the request body uses the Vertex/Gemini <code>contents</code>
 shape. See Google Cloud's model inference reference:
@@ -2087,7 +2087,7 @@ attached service accounts in that order. See:</p>
 </ul>
 <h2 id="configure">Configure<a class="headerlink" href="#configure" title="Permanent link">&para;</a></h2>
 <p>Set the Vertex regional host explicitly:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--vertex-api-url<span class="w"> </span>https://us-central1-aiplatform.googleapis.com
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--vertex-api-url<span class="w"> </span>https://us-central1-aiplatform.googleapis.com
 </span></code></pre></div>
 <p>The same setting is available through <code>VERTEX_TARGET_API_URL</code>.</p>
 <h2 id="gemini-on-vertex">Gemini On Vertex<a class="headerlink" href="#gemini-on-vertex" title="Permanent link">&para;</a></h2>
@@ -2114,7 +2114,7 @@ attached service accounts in that order. See:</p>
 <li><code>countTokens</code></li>
 </ul>
 <h2 id="anthropic-publisher-on-vertex">Anthropic Publisher On Vertex<a class="headerlink" href="#anthropic-publisher-on-vertex" title="Permanent link">&para;</a></h2>
-<p>Headroom also forwards Anthropic publisher calls on Vertex:</p>
+<p>Cutctx also forwards Anthropic publisher calls on Vertex:</p>
 <ul>
 <li><code>rawPredict</code></li>
 <li><code>streamRawPredict</code></li>

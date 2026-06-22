@@ -2779,12 +2779,12 @@
 
 
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
-<p>Headroom can be configured via the SDK, proxy command line, or per-request overrides.</p>
+<p>Cutctx can be configured via the SDK, proxy command line, or per-request overrides.</p>
 <h2 id="sdk-configuration">SDK Configuration<a class="headerlink" href="#sdk-configuration" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">OpenAIProvider</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">(),</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
@@ -2804,48 +2804,48 @@
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="p">},</span>
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="c1"># Database location (defaults to temp directory)</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="c1"># store_url=&quot;sqlite:////absolute/path/to/headroom.db&quot;,</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="c1"># store_url=&quot;sqlite:////absolute/path/to/cutctx.db&quot;,</span>
 </span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="proxy-configuration">Proxy Configuration<a class="headerlink" href="#proxy-configuration" title="Permanent link">&para;</a></h2>
 <h3 id="command-line-options">Command Line Options<a class="headerlink" href="#command-line-options" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">8787</span><span class="w"> </span><span class="se">\ </span><span class="w">             </span><span class="c1"># Port to listen on</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span><span class="se">\ </span><span class="w">          </span><span class="c1"># Host to bind to</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--budget<span class="w"> </span><span class="m">10</span>.00<span class="w"> </span><span class="se">\ </span><span class="w">          </span><span class="c1"># Daily budget limit in USD</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--log-file<span class="w"> </span>headroom.jsonl<span class="w">  </span><span class="c1"># Log file path</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--log-file<span class="w"> </span>cutctx.jsonl<span class="w">  </span><span class="c1"># Log file path</span>
 </span></code></pre></div>
 <h3 id="feature-flags">Feature Flags<a class="headerlink" href="#feature-flags" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Disable optimization (passthrough mode)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-optimize
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-optimize
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Disable semantic caching</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-cache
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-cache
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Disable CCR response handling</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-responses
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-responses
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Disable proactive expansion</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-expansion
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-expansion
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># (The earlier --llmlingua flag was retired in 0.9.x and replaced by</span>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># Kompress (ModernBERT). See `wiki/transforms.md` for the current</span>
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># opt-in path via the `[ml]` extra.)</span>
 </span></code></pre></div>
 <h3 id="all-options">All Options<a class="headerlink" href="#all-options" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--help
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--help
 </span></code></pre></div>
 <h3 id="kompress-backend-selection">Kompress backend selection<a class="headerlink" href="#kompress-backend-selection" title="Permanent link">&para;</a></h3>
 <p>Kompress (the model-based compressor) can run on two engines:</p>
 <ul>
 <li><strong>ONNX Runtime</strong> — lightweight, CPU-first. Installed with
-  <code>pip install headroom-ai[proxy]</code>. Optionally uses the CoreML execution
+  <code>pip install cutctx-ai[proxy]</code>. Optionally uses the CoreML execution
   provider on macOS.</li>
 <li><strong>PyTorch</strong> — heavier, supports CUDA and Apple-Silicon MPS
-  acceleration. Installed with <code>pip install headroom-ai[ml]</code>. With
+  acceleration. Installed with <code>pip install cutctx-ai[ml]</code>. With
   <code>device=auto</code> it selects <code>cuda</code>, then <code>mps</code>, then <code>cpu</code>.</li>
 </ul>
-<p>Select the backend via the <code>HEADROOM_KOMPRESS_BACKEND</code> environment
+<p>Select the backend via the <code>CUTCTX_KOMPRESS_BACKEND</code> environment
 variable:</p>
 <table>
 <thead>
@@ -2882,8 +2882,8 @@ variable:</p>
 <code>onnx_coreml</code>, <code>mps</code> / <code>torch_mps</code> → <code>pytorch_mps</code>, <code>torch</code> →
 <code>pytorch</code>. Unrecognized values log a warning and fall back to <code>auto</code>.</p>
 <p>Example — opt in to MPS on an Apple-Silicon machine:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_KOMPRESS_BACKEND</span><span class="o">=</span>mps
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>...
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_KOMPRESS_BACKEND</span><span class="o">=</span>mps
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>...
 </span></code></pre></div>
 <p>The default deliberately stays on ONNX CPU so existing installs keep
 their compression quality and performance characteristics; accelerator
@@ -2895,16 +2895,16 @@ backends are opt-in.</p>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="c1"># Override mode for this request</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">headroom_mode</span><span class="o">=</span><span class="s2">&quot;audit&quot;</span><span class="p">,</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">cutctx_mode</span><span class="o">=</span><span class="s2">&quot;audit&quot;</span><span class="p">,</span>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="c1"># Reserve more tokens for output</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">headroom_output_buffer_tokens</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">cutctx_output_buffer_tokens</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
 </span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="c1"># Keep last N turns (don&#39;t compress)</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">headroom_keep_turns</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">cutctx_keep_turns</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
 </span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
 </span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="c1"># Skip compression for specific tools</span>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">headroom_tool_profiles</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">cutctx_tool_profiles</span><span class="o">=</span><span class="p">{</span>
 </span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>        <span class="s2">&quot;important_tool&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;skip_compression&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
 </span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="p">}</span>
 </span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">)</span>
@@ -2949,7 +2949,7 @@ backends are opt-in.</p>
 </span></code></pre></div>
 <h2 id="smartcrusher-configuration">SmartCrusher Configuration<a class="headerlink" href="#smartcrusher-configuration" title="Permanent link">&para;</a></h2>
 <p>Fine-tune JSON compression behavior:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">SmartCrusherConfig</span><span class="p">(</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="c1"># Maximum items to keep after compression</span>
@@ -2967,7 +2967,7 @@ backends are opt-in.</p>
 </span></code></pre></div>
 <h2 id="cache-aligner-configuration">Cache Aligner Configuration<a class="headerlink" href="#cache-aligner-configuration" title="Permanent link">&para;</a></h2>
 <p>Control prefix stabilization:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CacheAlignerConfig</span><span class="p">(</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="c1"># Enable/disable cache alignment</span>
@@ -2982,7 +2982,7 @@ backends are opt-in.</p>
 </span></code></pre></div>
 <h2 id="rolling-window-configuration">Rolling Window Configuration<a class="headerlink" href="#rolling-window-configuration" title="Permanent link">&para;</a></h2>
 <p>Control context window management:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">RollingWindowConfig</span><span class="p">(</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="c1"># Minimum turns to always keep</span>
@@ -2997,7 +2997,7 @@ backends are opt-in.</p>
 </span></code></pre></div>
 <h2 id="intelligent-context-manager-configuration">Intelligent Context Manager Configuration<a class="headerlink" href="#intelligent-context-manager-configuration" title="Permanent link">&para;</a></h2>
 <p>For semantic-aware context management with importance scoring:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Customize scoring weights (must sum to 1.0, or will be normalized)</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">ScoringWeights</span><span class="p">(</span>
@@ -3032,7 +3032,7 @@ backends are opt-in.</p>
 </span></code></pre></div>
 <h3 id="ccr-integration">CCR Integration<a class="headerlink" href="#ccr-integration" title="Permanent link">&para;</a></h3>
 <p>When IntelligentContext drops messages, they're stored in CCR for potential retrieval:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># Pass TOIN for bidirectional integration</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">toin</span> <span class="o">=</span> <span class="n">get_toin</span><span class="p">()</span>
@@ -3107,71 +3107,71 @@ backends are opt-in.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_MODEL_LIMITS</code></td>
+<td><code>CUTCTX_MODEL_LIMITS</code></td>
 <td>Custom model config (JSON string or file path)</td>
 <td>-</td>
 </tr>
 <tr>
-<td><code>HEADROOM_CONFIG_DIR</code></td>
+<td><code>CUTCTX_CONFIG_DIR</code></td>
 <td>Canonical config (read-mostly) root. Derives <code>models.json</code> and per-plugin config paths when set.</td>
-<td><code>~/.headroom/config</code></td>
+<td><code>~/.cutctx/config</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_WORKSPACE_DIR</code></td>
+<td><code>CUTCTX_WORKSPACE_DIR</code></td>
 <td>Canonical workspace (read-write state) root. Derives savings ledger, memory DB, logs, TOIN, subscription state, and more when set.</td>
-<td><code>~/.headroom</code></td>
+<td><code>~/.cutctx</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_SAVINGS_PATH</code></td>
+<td><code>CUTCTX_SAVINGS_PATH</code></td>
 <td>Full path to the proxy savings JSON ledger. Always wins when set.</td>
-<td>derived from <code>${HEADROOM_WORKSPACE_DIR}</code></td>
+<td>derived from <code>${CUTCTX_WORKSPACE_DIR}</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_TOIN_PATH</code></td>
+<td><code>CUTCTX_TOIN_PATH</code></td>
 <td>Full path to the TOIN telemetry JSON file. Always wins when set.</td>
-<td>derived from <code>${HEADROOM_WORKSPACE_DIR}</code></td>
+<td>derived from <code>${CUTCTX_WORKSPACE_DIR}</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_SUBSCRIPTION_STATE_PATH</code></td>
+<td><code>CUTCTX_SUBSCRIPTION_STATE_PATH</code></td>
 <td>Full path to the subscription tracker state. Always wins when set.</td>
-<td>derived from <code>${HEADROOM_WORKSPACE_DIR}</code></td>
+<td>derived from <code>${CUTCTX_WORKSPACE_DIR}</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_EMBEDDER_RUNTIME</code></td>
+<td><code>CUTCTX_EMBEDDER_RUNTIME</code></td>
 <td>Set to <code>pytorch_mps</code> to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. <code>pytorch_mps</code> is the only accepted value. Requires the <code>[pytorch-mps]</code> extra. See <a href="../memory/#embedding-runtime--gpu-offload-apple-silicon">Memory</a>.</td>
 <td>default embedder selection</td>
 </tr>
 </tbody>
 </table>
 <h2 id="filesystem-contract">Filesystem Contract<a class="headerlink" href="#filesystem-contract" title="Permanent link">&para;</a></h2>
-<p>Headroom resolves every on-disk resource through a two-root model:</p>
+<p>Cutctx resolves every on-disk resource through a two-root model:</p>
 <ul>
-<li><code>HEADROOM_CONFIG_DIR</code> (default <code>~/.headroom/config</code>) — read-mostly
+<li><code>CUTCTX_CONFIG_DIR</code> (default <code>~/.cutctx/config</code>) — read-mostly
   configuration</li>
-<li><code>HEADROOM_WORKSPACE_DIR</code> (default <code>~/.headroom</code>) — read-write state</li>
+<li><code>CUTCTX_WORKSPACE_DIR</code> (default <code>~/.cutctx</code>) — read-write state</li>
 </ul>
 <p>Precedence for each resource is: explicit argument &gt; per-resource env
 var &gt; derived from canonical root &gt; default. Every legacy env var
 continues to work unchanged.</p>
 <p>See <strong><a href="../filesystem-contract/">Filesystem Contract</a></strong> for the full
 bucket table, plugin-author guidance, and the Docker naming overlap
-note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM_WORKSPACE_DIR</code>).</p>
+note (<code>CUTCTX_WORKSPACE</code> is <em>not</em> the same as <code>CUTCTX_WORKSPACE_DIR</code>).</p>
 <hr />
 <h2 id="custom-model-configuration">Custom Model Configuration<a class="headerlink" href="#custom-model-configuration" title="Permanent link">&para;</a></h2>
 <p>Configure context limits and pricing for new or custom models. Useful when:
-- A new model is released before Headroom is updated
+- A new model is released before Cutctx is updated
 - You're using fine-tuned or custom models
 - You want to override built-in limits</p>
 <h3 id="configuration-methods">Configuration Methods<a class="headerlink" href="#configuration-methods" title="Permanent link">&para;</a></h3>
 <p>Settings are resolved in this order (later overrides earlier):
 1. Built-in defaults
-2. <code>${HEADROOM_CONFIG_DIR}/models.json</code> (defaults to
-   <code>~/.headroom/config/models.json</code>); falls back to the legacy location
-   <code>~/.headroom/models.json</code> when the canonical file is absent
-3. <code>HEADROOM_MODEL_LIMITS</code> environment variable
+2. <code>${CUTCTX_CONFIG_DIR}/models.json</code> (defaults to
+   <code>~/.cutctx/config/models.json</code>); falls back to the legacy location
+   <code>~/.cutctx/models.json</code> when the canonical file is absent
+3. <code>CUTCTX_MODEL_LIMITS</code> environment variable
 4. SDK constructor arguments</p>
 <h3 id="config-file-format">Config File Format<a class="headerlink" href="#config-file-format" title="Permanent link">&para;</a></h3>
-<p>Create <code>~/.headroom/models.json</code>:</p>
+<p>Create <code>~/.cutctx/models.json</code>:</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="p">{</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">&quot;anthropic&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="nt">&quot;context_limits&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -3198,12 +3198,12 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 </span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="environment-variable">Environment Variable<a class="headerlink" href="#environment-variable" title="Permanent link">&para;</a></h3>
-<p>Set <code>HEADROOM_MODEL_LIMITS</code> as a JSON string or file path:</p>
+<p>Set <code>CUTCTX_MODEL_LIMITS</code> as a JSON string or file path:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># JSON string</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_MODEL_LIMITS</span><span class="o">=</span><span class="s1">&#39;{&quot;anthropic&quot;:{&quot;context_limits&quot;:{&quot;claude-new&quot;:200000}}}&#39;</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_MODEL_LIMITS</span><span class="o">=</span><span class="s1">&#39;{&quot;anthropic&quot;:{&quot;context_limits&quot;:{&quot;claude-new&quot;:200000}}}&#39;</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># File path</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_MODEL_LIMITS</span><span class="o">=</span>/path/to/models.json
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_MODEL_LIMITS</span><span class="o">=</span>/path/to/models.json
 </span></code></pre></div>
 <h3 id="pattern-based-inference">Pattern-Based Inference<a class="headerlink" href="#pattern-based-inference" title="Permanent link">&para;</a></h3>
 <p>Unknown models are automatically inferred from naming patterns:</p>
@@ -3240,9 +3240,9 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 <p>This means new models like <code>claude-4-sonnet-20251201</code> will work automatically with Sonnet-tier defaults.</p>
 <h3 id="sdk-override">SDK Override<a class="headerlink" href="#sdk-override" title="Permanent link">&para;</a></h3>
 <p>Override in code for specific models:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span><span class="p">,</span> <span class="n">AnthropicProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span><span class="p">,</span> <span class="n">AnthropicProvider</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">Anthropic</span><span class="p">(),</span>
 </span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">provider</span><span class="o">=</span><span class="n">AnthropicProvider</span><span class="p">(</span>
 </span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>        <span class="n">context_limits</span><span class="o">=</span><span class="p">{</span>
@@ -3253,7 +3253,7 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 </span></code></pre></div>
 <h2 id="provider-specific-settings">Provider-Specific Settings<a class="headerlink" href="#provider-specific-settings" title="Permanent link">&para;</a></h2>
 <h3 id="openai">OpenAI<a class="headerlink" href="#openai" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIProvider</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">OpenAIProvider</span><span class="p">(</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="c1"># Enable automatic prefix caching</span>
@@ -3261,7 +3261,7 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 </span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="anthropic">Anthropic<a class="headerlink" href="#anthropic" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">AnthropicProvider</span><span class="p">(</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="c1"># Enable cache_control blocks</span>
@@ -3269,7 +3269,7 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 </span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="google">Google<a class="headerlink" href="#google" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleProvider</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">GoogleProvider</span><span class="p">(</span>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="c1"># Enable context caching</span>
@@ -3307,28 +3307,28 @@ note (<code>HEADROOM_WORKSPACE</code> is <em>not</em> the same as <code>HEADROOM
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_BASE_URL</code></td>
-<td>Base URL of the Headroom proxy or cloud API</td>
+<td><code>CUTCTX_BASE_URL</code></td>
+<td>Base URL of the Cutctx proxy or cloud API</td>
 <td><code>http://localhost:8787</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_API_KEY</code></td>
-<td>API key for Headroom Cloud authentication</td>
+<td><code>CUTCTX_API_KEY</code></td>
+<td>API key for Cutctx Cloud authentication</td>
 <td>-</td>
 </tr>
 </tbody>
 </table>
 <h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_BASE_URL</span><span class="o">=</span>http://localhost:8787
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_API_KEY</span><span class="o">=</span>your-api-key
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_BASE_URL</span><span class="o">=</span>http://localhost:8787
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_API_KEY</span><span class="o">=</span>your-api-key
 </span></code></pre></div>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">HeadroomClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;headroom-ai&#39;</span><span class="p">;</span>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CutctxClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;cutctx-ai&#39;</span><span class="p">;</span>
 </span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="c1">// Reads from HEADROOM_BASE_URL and HEADROOM_API_KEY automatically</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">HeadroomClient</span><span class="p">();</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="c1">// Reads from CUTCTX_BASE_URL and CUTCTX_API_KEY automatically</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">CutctxClient</span><span class="p">();</span>
 </span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
 </span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="c1">// Or configure explicitly</span>
-</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">HeadroomClient</span><span class="p">({</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">CutctxClient</span><span class="p">({</span>
 </span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">  </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;http://localhost:8787&#39;</span><span class="p">,</span>
 </span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="w">  </span><span class="nx">apiKey</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;your-api-key&#39;</span><span class="p">,</span>
 </span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="p">});</span>

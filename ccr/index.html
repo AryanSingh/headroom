@@ -2301,7 +2301,7 @@
 
 
 <h1 id="ccr-compress-cache-retrieve">CCR: Compress-Cache-Retrieve<a class="headerlink" href="#ccr-compress-cache-retrieve" title="Permanent link">&para;</a></h1>
-<p>Headroom's CCR architecture makes compression <strong>reversible</strong>. When content is compressed, the original data is cached. If the LLM needs more data, it can retrieve it instantly.</p>
+<p>Cutctx's CCR architecture makes compression <strong>reversible</strong>. When content is compressed, the original data is cached. If the LLM needs more data, it can retrieve it instantly.</p>
 <h2 id="the-problem-with-traditional-compression">The Problem with Traditional Compression<a class="headerlink" href="#the-problem-with-traditional-compression" title="Permanent link">&para;</a></h2>
 <p>Traditional compression is lossy — if you guess wrong about what's important, data is lost forever. This creates a difficult tradeoff:</p>
 <ul>
@@ -2348,7 +2348,7 @@
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>┌─────────────────────────────────────────────────────────────────┐
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│  LLM PROCESSING                                                  │
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│  Option A: LLM solves task with 20 items → Done (90% savings)   │
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│  Option B: LLM calls headroom_retrieve(hash=abc123)             │
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│  Option B: LLM calls cutctx_retrieve(hash=abc123)             │
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│            → Response Handler executes retrieval automatically  │
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│            → LLM receives full data, responds accurately        │
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>└─────────────────────────────────────────────────────────────────┘
@@ -2359,10 +2359,10 @@
 2. A hash key is generated for retrieval
 3. A marker is added to the compressed output: <code>[1000 items compressed to 20. Retrieve more: hash=abc123]</code></p>
 <h3 id="phase-2-tool-injection">Phase 2: Tool Injection<a class="headerlink" href="#phase-2-tool-injection" title="Permanent link">&para;</a></h3>
-<p>Headroom injects a <code>headroom_retrieve</code> tool into the LLM's available tools:</p>
+<p>Cutctx injects a <code>cutctx_retrieve</code> tool into the LLM's available tools:</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_retrieve&quot;</span><span class="p">,</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Retrieve original uncompressed data from Headroom cache&quot;</span><span class="p">,</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_retrieve&quot;</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Retrieve original uncompressed data from Cutctx cache&quot;</span><span class="p">,</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;parameters&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">&quot;hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;The hash key from the compression marker&quot;</span><span class="p">,</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Optional: search within the cached data&quot;</span>
@@ -2370,7 +2370,7 @@
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="phase-3-response-handler">Phase 3: Response Handler<a class="headerlink" href="#phase-3-response-handler" title="Permanent link">&para;</a></h3>
-<p>When the LLM calls <code>headroom_retrieve</code>:
+<p>When the LLM calls <code>cutctx_retrieve</code>:
 1. Response Handler intercepts the tool call
 2. Retrieves data from the local cache (~1ms)
 3. Adds the result to the conversation
@@ -2407,7 +2407,7 @@
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>│  LLM PROCESSING                                                  │
 </span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>│  Option A: LLM solves task with remaining messages → Done       │
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>│  Option B: LLM needs earlier context                            │
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>│            → Calls headroom_retrieve(hash=def456)               │
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>│            → Calls cutctx_retrieve(hash=def456)               │
 </span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>│            → Full conversation restored                          │
 </span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>└─────────────────────────────────────────────────────────────────┘
 </span></code></pre></div>
@@ -2427,7 +2427,7 @@
 <tbody>
 <tr>
 <td><strong>Automatic Response Handling</strong></td>
-<td>When LLM calls <code>headroom_retrieve</code>, the proxy handles it automatically</td>
+<td>When LLM calls <code>cutctx_retrieve</code>, the proxy handles it automatically</td>
 </tr>
 <tr>
 <td><strong>Multi-Turn Context Tracking</strong></td>
@@ -2435,7 +2435,7 @@
 </tr>
 <tr>
 <td><strong>BM25 Search</strong></td>
-<td>LLM can search within compressed data: <code>headroom_retrieve(hash, query="errors")</code></td>
+<td>LLM can search within compressed data: <code>cutctx_retrieve(hash, query="errors")</code></td>
 </tr>
 <tr>
 <td><strong>Feedback Learning</strong></td>
@@ -2445,13 +2445,13 @@
 </table>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Proxy with CCR enabled (default)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Disable CCR response handling</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-responses
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-responses
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Disable proactive expansion</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-expansion
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-ccr-expansion
 </span></code></pre></div>
 <h2 id="why-this-matters">Why This Matters<a class="headerlink" href="#why-this-matters" title="Permanent link">&para;</a></h2>
 <table>

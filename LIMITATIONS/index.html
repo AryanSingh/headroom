@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#headroom-limitations-known-behavior" class="md-skip">
+        <a href="#cutctx-limitations-known-behavior" class="md-skip">
           Skip to content
         </a>
       
@@ -1575,10 +1575,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-headroom-helps-and-when-it-doesnt" class="md-nav__link">
+  <a href="#when-cutctx-helps-and-when-it-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Helps (and When It Doesn't)
+        When Cutctx Helps (and When It Doesn't)
       
     </span>
   </a>
@@ -2143,10 +2143,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-headroom-helps-and-when-it-doesnt" class="md-nav__link">
+  <a href="#when-cutctx-helps-and-when-it-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When Headroom Helps (and When It Doesn't)
+        When Cutctx Helps (and When It Doesn't)
       
     </span>
   </a>
@@ -2322,9 +2322,9 @@
   
 
 
-<h1 id="headroom-limitations-known-behavior">Headroom Limitations &amp; Known Behavior<a class="headerlink" href="#headroom-limitations-known-behavior" title="Permanent link">&para;</a></h1>
-<p>Honest documentation of when Headroom helps, when it doesn't, and what to watch out for.</p>
-<h2 id="when-headroom-helps-and-when-it-doesnt">When Headroom Helps (and When It Doesn't)<a class="headerlink" href="#when-headroom-helps-and-when-it-doesnt" title="Permanent link">&para;</a></h2>
+<h1 id="cutctx-limitations-known-behavior">Cutctx Limitations &amp; Known Behavior<a class="headerlink" href="#cutctx-limitations-known-behavior" title="Permanent link">&para;</a></h1>
+<p>Honest documentation of when Cutctx helps, when it doesn't, and what to watch out for.</p>
+<h2 id="when-cutctx-helps-and-when-it-doesnt">When Cutctx Helps (and When It Doesn't)<a class="headerlink" href="#when-cutctx-helps-and-when-it-doesnt" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2393,7 +2393,7 @@
 </table>
 <p>See <a href="../LATENCY_BENCHMARKS/">LATENCY_BENCHMARKS.md</a> for full data with per-scenario timing.</p>
 <h2 id="code-compression">Code Compression<a class="headerlink" href="#code-compression" title="Permanent link">&para;</a></h2>
-<p>Headroom includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it's gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.</p>
+<p>Cutctx includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it's gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.</p>
 <p><strong>Why code mostly passes through:</strong></p>
 <ol>
 <li><strong>Word count gate</strong>: Content under 50 words is silently skipped</li>
@@ -2402,7 +2402,7 @@
 </ol>
 <p><strong>Why this is the right default</strong>: Code is almost always fetched because the user wants to work with it. Compressing function bodies would remove exactly what they need. LLMs like Claude are excellent at navigating large code files without compression.</p>
 <p><strong>Where code savings come from</strong>: The IntelligentContextManager drops old code messages that are no longer relevant (scoring-based), which is a better strategy than stripping function bodies from active code.</p>
-<p><strong>Override</strong>: Set <code>protect_analysis_context=False</code> in <code>ContentRouterConfig</code> for aggressive code compression. Requires <code>headroom-ai[code]</code> for tree-sitter.</p>
+<p><strong>Override</strong>: Set <code>protect_analysis_context=False</code> in <code>ContentRouterConfig</code> for aggressive code compression. Requires <code>cutctx-ai[code]</code> for tree-sitter.</p>
 <h2 id="json-compression-constraints">JSON Compression Constraints<a class="headerlink" href="#json-compression-constraints" title="Permanent link">&para;</a></h2>
 <h3 id="what-gets-compressed">What gets compressed<a class="headerlink" href="#what-gets-compressed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2443,13 +2443,13 @@
 <p>These are kept even if they exceed the K budget.</p>
 <h2 id="ml-text-compression-kompress-opt-in">ML Text Compression (Kompress, opt-in)<a class="headerlink" href="#ml-text-compression-kompress-opt-in" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Requires</strong>: <code>headroom-ai[ml]</code> — downloads model weights and needs GPU/CPU RAM for inference</li>
+<li><strong>Requires</strong>: <code>cutctx-ai[ml]</code> — downloads model weights and needs GPU/CPU RAM for inference</li>
 <li><strong>First call</strong>: model-load latency (cached globally after)</li>
 <li><strong>Latency</strong>: Adds overhead that doesn't break even on fast models. Use for <strong>cost savings</strong>, not speed</li>
 <li><strong>Thread safety</strong>: Single global model instance with lock — sequential access under concurrency</li>
 </ul>
 <blockquote>
-<p>The earlier LLMLingua-2 integration (<code>headroom-ai[llmlingua]</code>) was retired and is no longer installable.</p>
+<p>The earlier LLMLingua-2 integration (<code>cutctx-ai[llmlingua]</code>) was retired and is no longer installable.</p>
 </blockquote>
 <h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
 <p>All compressors follow the same principle: <strong>fail gracefully, return original content unchanged</strong>.</p>

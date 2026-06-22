@@ -1400,10 +1400,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroomchatmodel" class="md-nav__link">
+  <a href="#cutctxchatmodel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomChatModel
+        CutctxChatModel
       
     </span>
   </a>
@@ -1411,10 +1411,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomchatmessagehistory" class="md-nav__link">
+  <a href="#cutctxchatmessagehistory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomChatMessageHistory
+        CutctxChatMessageHistory
       
     </span>
   </a>
@@ -1422,10 +1422,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomdocumentcompressor" class="md-nav__link">
+  <a href="#cutctxdocumentcompressor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomDocumentCompressor
+        CutctxDocumentCompressor
       
     </span>
   </a>
@@ -1433,10 +1433,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#wrap_tools_with_headroom" class="md-nav__link">
+  <a href="#wrap_tools_with_cutctx" class="md-nav__link">
     <span class="md-ellipsis">
       
-        wrap_tools_with_headroom
+        wrap_tools_with_cutctx
       
     </span>
   </a>
@@ -2594,10 +2594,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroomchatmodel" class="md-nav__link">
+  <a href="#cutctxchatmodel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomChatModel
+        CutctxChatModel
       
     </span>
   </a>
@@ -2605,10 +2605,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomchatmessagehistory" class="md-nav__link">
+  <a href="#cutctxchatmessagehistory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomChatMessageHistory
+        CutctxChatMessageHistory
       
     </span>
   </a>
@@ -2616,10 +2616,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomdocumentcompressor" class="md-nav__link">
+  <a href="#cutctxdocumentcompressor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomDocumentCompressor
+        CutctxDocumentCompressor
       
     </span>
   </a>
@@ -2627,10 +2627,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#wrap_tools_with_headroom" class="md-nav__link">
+  <a href="#wrap_tools_with_cutctx" class="md-nav__link">
     <span class="md-ellipsis">
       
-        wrap_tools_with_headroom
+        wrap_tools_with_cutctx
       
     </span>
   </a>
@@ -2735,23 +2735,23 @@
 
 
 <h1 id="langchain-integration">LangChain Integration<a class="headerlink" href="#langchain-integration" title="Permanent link">&para;</a></h1>
-<p>Headroom provides seamless integration with LangChain, enabling automatic context optimization across all LangChain patterns: chat models, memory, retrievers, agents, and observability.</p>
+<p>Cutctx provides seamless integration with LangChain, enabling automatic context optimization across all LangChain patterns: chat models, memory, retrievers, agents, and observability.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[langchain]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[langchain]&quot;</span>
 </span></code></pre></div>
-<p>This installs Headroom with LangChain dependencies (<code>langchain-core</code>).</p>
+<p>This installs Cutctx with LangChain dependencies (<code>langchain-core</code>).</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <h3 id="wrap-any-chat-model-1-line">Wrap Any Chat Model (1 Line)<a class="headerlink" href="#wrap-any-chat-model-1-line" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Wrap your model - that&#39;s it!</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Use exactly like before</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">response</span> <span class="o">=</span> <span class="n">llm</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;Hello!&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Headroom automatically:
+<p>Cutctx automatically:
 - Detects the provider (OpenAI, Anthropic, Google)
 - Compresses tool outputs in conversation history
 - Optimizes for provider caching
@@ -2764,27 +2764,27 @@
 <hr />
 <h2 id="integration-patterns">Integration Patterns<a class="headerlink" href="#integration-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="1-chat-model-wrapper">1. Chat Model Wrapper<a class="headerlink" href="#1-chat-model-wrapper" title="Permanent link">&para;</a></h3>
-<p>The <code>HeadroomChatModel</code> wraps any LangChain <code>BaseChatModel</code>:</p>
+<p>The <code>CutctxChatModel</code> wraps any LangChain <code>BaseChatModel</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatAnthropic</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># OpenAI</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Anthropic (auto-detected)</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatAnthropic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatAnthropic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># Custom configuration</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomConfig</span><span class="p">,</span> <span class="n">HeadroomMode</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxConfig</span><span class="p">,</span> <span class="n">CutctxMode</span>
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">config</span> <span class="o">=</span> <span class="n">HeadroomConfig</span><span class="p">(</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="n">HeadroomMode</span><span class="o">.</span><span class="n">OPTIMIZE</span><span class="p">,</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CutctxConfig</span><span class="p">(</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="n">CutctxMode</span><span class="o">.</span><span class="n">OPTIMIZE</span><span class="p">,</span>
 </span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="n">smart_crusher_target_ratio</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>  <span class="c1"># Target 70% compression</span>
 </span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="p">)</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span>
 </span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">),</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">headroom_config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">cutctx_config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
 </span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">)</span>
 </span></code></pre></div>
 <h4 id="async-support">Async Support<a class="headerlink" href="#async-support" title="Permanent link">&para;</a></h4>
@@ -2811,14 +2811,14 @@
 </span></code></pre></div>
 <hr />
 <h3 id="2-memory-integration">2. Memory Integration<a class="headerlink" href="#2-memory-integration" title="Permanent link">&para;</a></h3>
-<p><code>HeadroomChatMessageHistory</code> wraps any chat history with automatic compression:</p>
+<p><code>CutctxChatMessageHistory</code> wraps any chat history with automatic compression:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConversationBufferMemory</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_community.chat_message_histories</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatMessageHistory</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatMessageHistory</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatMessageHistory</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Wrap any history</span>
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">base_history</span> <span class="o">=</span> <span class="n">ChatMessageHistory</span><span class="p">()</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">compressed_history</span> <span class="o">=</span> <span class="n">HeadroomChatMessageHistory</span><span class="p">(</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">compressed_history</span> <span class="o">=</span> <span class="n">CutctxChatMessageHistory</span><span class="p">(</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">base_history</span><span class="p">,</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">compress_threshold_tokens</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span>  <span class="c1"># Compress when over 4K tokens</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">keep_recent_turns</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>             <span class="c1"># Always keep last 5 turns</span>
@@ -2830,24 +2830,24 @@
 </span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="c1"># Zero changes to your chain!</span>
 </span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="n">chain</span> <span class="o">=</span> <span class="n">ConversationChain</span><span class="p">(</span><span class="n">llm</span><span class="o">=</span><span class="n">llm</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="n">memory</span><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Why this matters</strong>: Long conversations can blow up to 50K+ tokens. HeadroomChatMessageHistory automatically compresses older turns while preserving recent context.</p>
+<p><strong>Why this matters</strong>: Long conversations can blow up to 50K+ tokens. CutctxChatMessageHistory automatically compresses older turns while preserving recent context.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Check compression stats</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">compressed_history</span><span class="o">.</span><span class="n">get_compression_stats</span><span class="p">())</span>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># {&#39;compression_count&#39;: 12, &#39;total_tokens_saved&#39;: 28000}</span>
 </span></code></pre></div>
 <hr />
 <h3 id="3-retriever-integration">3. Retriever Integration<a class="headerlink" href="#3-retriever-integration" title="Permanent link">&para;</a></h3>
-<p><code>HeadroomDocumentCompressor</code> filters retrieved documents by relevance:</p>
+<p><code>CutctxDocumentCompressor</code> filters retrieved documents by relevance:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContextualCompressionRetriever</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_community.vectorstores</span><span class="w"> </span><span class="kn">import</span> <span class="n">FAISS</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomDocumentCompressor</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxDocumentCompressor</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Create vector store retriever (retrieve many for recall)</span>
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">vectorstore</span> <span class="o">=</span> <span class="n">FAISS</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span><span class="n">documents</span><span class="p">,</span> <span class="n">embeddings</span><span class="p">)</span>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="n">base_retriever</span> <span class="o">=</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">as_retriever</span><span class="p">(</span><span class="n">search_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">})</span>
 </span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="c1"># Wrap with Headroom compression (keep best for precision)</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">HeadroomDocumentCompressor</span><span class="p">(</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="c1"># Wrap with Cutctx compression (keep best for precision)</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">CutctxDocumentCompressor</span><span class="p">(</span>
 </span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">max_documents</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>      <span class="c1"># Keep top 10</span>
 </span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="n">min_relevance</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>     <span class="c1"># Minimum relevance score</span>
 </span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="n">prefer_diverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>   <span class="c1"># MMR-style diversity</span>
@@ -2861,13 +2861,13 @@
 </span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="c1"># Retrieves 50 docs, returns best 10</span>
 </span><span id="__span-8-22"><a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="n">docs</span> <span class="o">=</span> <span class="n">retriever</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;What is Python?&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Why this matters</strong>: Vector search often returns many marginally-relevant documents. HeadroomDocumentCompressor uses BM25-style scoring to keep only the most relevant ones, reducing context size while improving answer quality.</p>
+<p><strong>Why this matters</strong>: Vector search often returns many marginally-relevant documents. CutctxDocumentCompressor uses BM25-style scoring to keep only the most relevant ones, reducing context size while improving answer quality.</p>
 <hr />
 <h3 id="4-agent-tool-wrapping">4. Agent Tool Wrapping<a class="headerlink" href="#4-agent-tool-wrapping" title="Permanent link">&para;</a></h3>
-<p><code>wrap_tools_with_headroom</code> compresses tool outputs for agents:</p>
+<p><code>wrap_tools_with_cutctx</code> compresses tool outputs for agents:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_openai_tools_agent</span><span class="p">,</span> <span class="n">AgentExecutor</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">tool</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">wrap_tools_with_headroom</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">wrap_tools_with_cutctx</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nd">@tool</span>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">search_database</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -2883,7 +2883,7 @@
 </span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>
 </span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="c1"># Wrap tools with compression</span>
 </span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="n">tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">search_database</span><span class="p">,</span> <span class="n">fetch_logs</span><span class="p">]</span>
-</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="n">wrapped_tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_headroom</span><span class="p">(</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="n">wrapped_tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_cutctx</span><span class="p">(</span>
 </span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>    <span class="n">tools</span><span class="p">,</span>
 </span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>    <span class="n">min_chars_to_compress</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>  <span class="c1"># Only compress large outputs</span>
 </span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="p">)</span>
@@ -2896,7 +2896,7 @@
 </span><span id="__span-9-29"><a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="n">result</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="s2">&quot;Find users who logged in yesterday&quot;</span><span class="p">})</span>
 </span></code></pre></div>
 <p><strong>Per-tool metrics:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tool_metrics</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tool_metrics</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">metrics</span> <span class="o">=</span> <span class="n">get_tool_metrics</span><span class="p">()</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">metrics</span><span class="o">.</span><span class="n">get_summary</span><span class="p">())</span>
@@ -2913,7 +2913,7 @@
 <hr />
 <h3 id="5-streaming-metrics">5. Streaming Metrics<a class="headerlink" href="#5-streaming-metrics" title="Permanent link">&para;</a></h3>
 <p>Track output tokens during streaming:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamingMetricsTracker</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamingMetricsTracker</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">tracker</span> <span class="o">=</span> <span class="n">StreamingMetricsTracker</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">)</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
@@ -2926,7 +2926,7 @@
 </span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Duration: </span><span class="si">{</span><span class="n">metrics</span><span class="o">.</span><span class="n">duration_ms</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p><strong>Context manager style:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamingMetricsCallback</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamingMetricsCallback</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">with</span> <span class="n">StreamingMetricsCallback</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tracker</span><span class="p">:</span>
 </span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">llm</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="n">messages</span><span class="p">):</span>
@@ -2937,23 +2937,23 @@
 </span></code></pre></div>
 <hr />
 <h3 id="6-langsmith-integration">6. LangSmith Integration<a class="headerlink" href="#6-langsmith-integration" title="Permanent link">&para;</a></h3>
-<p>Add Headroom metrics to LangSmith traces:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomLangSmithCallbackHandler</span>
+<p>Add Cutctx metrics to LangSmith traces:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxLangSmithCallbackHandler</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Create callback handler</span>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">langsmith_handler</span> <span class="o">=</span> <span class="n">HeadroomLangSmithCallbackHandler</span><span class="p">()</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">langsmith_handler</span> <span class="o">=</span> <span class="n">CutctxLangSmithCallbackHandler</span><span class="p">()</span>
 </span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
 </span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="c1"># Use with your LLM</span>
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span>
 </span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">),</span>
 </span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">langsmith_handler</span><span class="p">],</span>
 </span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="p">)</span>
 </span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>
 </span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="c1"># After calls, metrics appear in LangSmith traces:</span>
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># - headroom.tokens_before</span>
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="c1"># - headroom.tokens_after</span>
-</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="c1"># - headroom.tokens_saved</span>
-</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="c1"># - headroom.compression_ratio</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># - cutctx.tokens_before</span>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="c1"># - cutctx.tokens_after</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="c1"># - cutctx.tokens_saved</span>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="c1"># - cutctx.compression_ratio</span>
 </span></code></pre></div>
 <hr />
 <h2 id="real-world-examples">Real-World Examples<a class="headerlink" href="#real-world-examples" title="Permanent link">&para;</a></h2>
@@ -2962,7 +2962,7 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">tool</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.prebuilt</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_react_agent</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span><span class="p">,</span> <span class="n">wrap_tools_with_headroom</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span><span class="p">,</span> <span class="n">wrap_tools_with_cutctx</span>
 </span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
 </span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c1"># Define tools that return large outputs</span>
 </span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="nd">@tool</span>
@@ -2985,11 +2985,11 @@
 </span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a>        <span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>
 </span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a>    <span class="p">})</span>
 </span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a>
-</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="c1"># Wrap model with Headroom</span>
-</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="c1"># Wrap model with Cutctx</span>
+</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-14-29"><a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a>
 </span><span id="__span-14-30"><a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a><span class="c1"># Wrap tools with compression</span>
-</span><span id="__span-14-31"><a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a><span class="n">tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_headroom</span><span class="p">([</span><span class="n">search_web</span><span class="p">,</span> <span class="n">query_database</span><span class="p">])</span>
+</span><span id="__span-14-31"><a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a><span class="n">tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_cutctx</span><span class="p">([</span><span class="n">search_web</span><span class="p">,</span> <span class="n">query_database</span><span class="p">])</span>
 </span><span id="__span-14-32"><a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a>
 </span><span id="__span-14-33"><a id="__codelineno-14-33" name="__codelineno-14-33" href="#__codelineno-14-33"></a><span class="c1"># Create ReAct agent</span>
 </span><span id="__span-14-34"><a id="__codelineno-14-34" name="__codelineno-14-34" href="#__codelineno-14-34"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">create_react_agent</span><span class="p">(</span><span class="n">llm</span><span class="p">,</span> <span class="n">tools</span><span class="p">)</span>
@@ -3002,8 +3002,8 @@
 </span><span id="__span-14-41"><a id="__codelineno-14-41" name="__codelineno-14-41" href="#__codelineno-14-41"></a><span class="c1"># Check savings</span>
 </span><span id="__span-14-42"><a id="__codelineno-14-42" name="__codelineno-14-42" href="#__codelineno-14-42"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tokens saved: </span><span class="si">{</span><span class="n">llm</span><span class="o">.</span><span class="n">get_metrics</span><span class="p">()[</span><span class="s1">&#39;tokens_saved&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Without Headroom</strong>: Each tool call adds 10-50K tokens to context.
-<strong>With Headroom</strong>: Tool outputs compressed to 1-2K tokens, agent runs faster and cheaper.</p>
+<p><strong>Without Cutctx</strong>: Each tool call adds 10-50K tokens to context.
+<strong>With Cutctx</strong>: Tool outputs compressed to 1-2K tokens, agent runs faster and cheaper.</p>
 <hr />
 <h3 id="example-1b-langgraph-custom-graph-with-compress_tool_messages-node">Example 1b: LangGraph Custom Graph with compress_tool_messages Node<a class="headerlink" href="#example-1b-langgraph-custom-graph-with-compress_tool_messages-node" title="Permanent link">&para;</a></h3>
 <p>If you're building a custom LangGraph <code>StateGraph</code> (instead of using <code>create_react_agent</code>),
@@ -3012,7 +3012,7 @@ you can insert a compression node between tools and the agent. This compresses a
 <div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.messages</span><span class="w"> </span><span class="kn">import</span> <span class="n">HumanMessage</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">StateGraph</span><span class="p">,</span> <span class="n">MessagesState</span><span class="p">,</span> <span class="n">START</span><span class="p">,</span> <span class="n">END</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_compress_tool_messages_node</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_compress_tool_messages_node</span>
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
 </span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># Define your agent and tools nodes</span>
 </span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">agent_node</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MessagesState</span><span class="p">):</span>
@@ -3042,7 +3042,7 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-15-31"><a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a><span class="n">result</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">HumanMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;Find sales data&quot;</span><span class="p">)]})</span>
 </span></code></pre></div>
 <p>You can also use <code>compress_tool_messages</code> directly as a standalone function:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">compress_tool_messages</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">compress_tool_messages</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1"># Compress ToolMessages in any list of LangChain messages</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">compress_tool_messages</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">min_tokens_to_compress</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
@@ -3055,7 +3055,7 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_community.vectorstores</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chroma</span>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chains</span><span class="w"> </span><span class="kn">import</span> <span class="n">RetrievalQA</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContextualCompressionRetriever</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span><span class="p">,</span> <span class="n">HeadroomDocumentCompressor</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span><span class="p">,</span> <span class="n">CutctxDocumentCompressor</span>
 </span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
 </span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Setup vector store</span>
 </span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="n">embeddings</span> <span class="o">=</span> <span class="n">OpenAIEmbeddings</span><span class="p">()</span>
@@ -3064,8 +3064,8 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="c1"># High-recall retriever (get many candidates)</span>
 </span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="n">base_retriever</span> <span class="o">=</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">as_retriever</span><span class="p">(</span><span class="n">search_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">})</span>
 </span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>
-</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="c1"># Headroom compressor for precision</span>
-</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">HeadroomDocumentCompressor</span><span class="p">(</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="c1"># Cutctx compressor for precision</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">CutctxDocumentCompressor</span><span class="p">(</span>
 </span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>    <span class="n">max_documents</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>       <span class="c1"># Keep only top 5</span>
 </span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>    <span class="n">min_relevance</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>     <span class="c1"># Must be 40%+ relevant</span>
 </span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>    <span class="n">prefer_diverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>   <span class="c1"># Avoid redundant docs</span>
@@ -3078,7 +3078,7 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-17-25"><a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a><span class="p">)</span>
 </span><span id="__span-17-26"><a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a>
 </span><span id="__span-17-27"><a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a><span class="c1"># Wrap LLM</span>
-</span><span id="__span-17-28"><a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-17-28"><a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-17-29"><a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a>
 </span><span id="__span-17-30"><a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a><span class="c1"># Create QA chain</span>
 </span><span id="__span-17-31"><a id="__codelineno-17-31" name="__codelineno-17-31" href="#__codelineno-17-31"></a><span class="n">qa_chain</span> <span class="o">=</span> <span class="n">RetrievalQA</span><span class="o">.</span><span class="n">from_chain_type</span><span class="p">(</span>
@@ -3094,21 +3094,21 @@ you can insert a compression node between tools and the agent. This compresses a
 </span></code></pre></div>
 <p><strong>Impact</strong>:
 - Without filtering: 50 docs × ~500 tokens = 25K context tokens
-- With Headroom: 5 docs × ~500 tokens = 2.5K context tokens (90% reduction)</p>
+- With Cutctx: 5 docs × ~500 tokens = 2.5K context tokens (90% reduction)</p>
 <hr />
 <h3 id="example-3-conversational-agent-with-memory">Example 3: Conversational Agent with Memory<a class="headerlink" href="#example-3-conversational-agent-with-memory" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConversationBufferMemory</span>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_community.chat_message_histories</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatMessageHistory</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chains</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConversationChain</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span><span class="p">,</span> <span class="n">HeadroomChatMessageHistory</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span><span class="p">,</span> <span class="n">CutctxChatMessageHistory</span>
 </span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
 </span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Wrap LLM</span>
-</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>
 </span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="c1"># Wrap memory with auto-compression</span>
 </span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">base_history</span> <span class="o">=</span> <span class="n">ChatMessageHistory</span><span class="p">()</span>
-</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="n">compressed_history</span> <span class="o">=</span> <span class="n">HeadroomChatMessageHistory</span><span class="p">(</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="n">compressed_history</span> <span class="o">=</span> <span class="n">CutctxChatMessageHistory</span><span class="p">(</span>
 </span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>    <span class="n">base_history</span><span class="p">,</span>
 </span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>    <span class="n">compress_threshold_tokens</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span>  <span class="c1"># Compress when over 8K</span>
 </span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>    <span class="n">keep_recent_turns</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>            <span class="c1"># Always keep last 10 turns</span>
@@ -3131,16 +3131,16 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-18-32"><a id="__codelineno-18-32" name="__codelineno-18-32" href="#__codelineno-18-32"></a><span class="nb">print</span><span class="p">(</span><span class="n">compressed_history</span><span class="o">.</span><span class="n">get_compression_stats</span><span class="p">())</span>
 </span><span id="__span-18-33"><a id="__codelineno-18-33" name="__codelineno-18-33" href="#__codelineno-18-33"></a><span class="c1"># {&#39;compression_count&#39;: 8, &#39;total_tokens_saved&#39;: 45000}</span>
 </span></code></pre></div>
-<p><strong>Impact</strong>: Without compression, 100-turn conversation = 100K+ tokens. With HeadroomChatMessageHistory, it stays under 8K tokens while preserving recent context.</p>
+<p><strong>Impact</strong>: Without compression, 100-turn conversation = 100K+ tokens. With CutctxChatMessageHistory, it stays under 8K tokens while preserving recent context.</p>
 <hr />
 <h3 id="example-4-multi-tool-research-agent">Example 4: Multi-Tool Research Agent<a class="headerlink" href="#example-4-multi-tool-research-agent" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">AgentExecutor</span><span class="p">,</span> <span class="n">create_openai_tools_agent</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.prompts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatPromptTemplate</span>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">tool</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="n">HeadroomChatModel</span><span class="p">,</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>    <span class="n">wrap_tools_with_headroom</span><span class="p">,</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="n">CutctxChatModel</span><span class="p">,</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>    <span class="n">wrap_tools_with_cutctx</span><span class="p">,</span>
 </span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>    <span class="n">get_tool_metrics</span><span class="p">,</span>
 </span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="n">reset_tool_metrics</span><span class="p">,</span>
 </span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="p">)</span>
@@ -3161,8 +3161,8 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-19-25"><a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a>    <span class="k">return</span> <span class="s2">&quot;...&quot;</span> <span class="o">*</span> <span class="mi">5000</span>  <span class="c1"># Large doc content</span>
 </span><span id="__span-19-26"><a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a>
 </span><span id="__span-19-27"><a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a><span class="c1"># Wrap everything</span>
-</span><span id="__span-19-28"><a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
-</span><span id="__span-19-29"><a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a><span class="n">tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_headroom</span><span class="p">([</span><span class="n">search_arxiv</span><span class="p">,</span> <span class="n">search_github</span><span class="p">,</span> <span class="n">fetch_documentation</span><span class="p">])</span>
+</span><span id="__span-19-28"><a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span><span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-19-29"><a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a><span class="n">tools</span> <span class="o">=</span> <span class="n">wrap_tools_with_cutctx</span><span class="p">([</span><span class="n">search_arxiv</span><span class="p">,</span> <span class="n">search_github</span><span class="p">,</span> <span class="n">fetch_documentation</span><span class="p">])</span>
 </span><span id="__span-19-30"><a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a>
 </span><span id="__span-19-31"><a id="__codelineno-19-31" name="__codelineno-19-31" href="#__codelineno-19-31"></a><span class="n">prompt</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_messages</span><span class="p">([</span>
 </span><span id="__span-19-32"><a id="__codelineno-19-32" name="__codelineno-19-32" href="#__codelineno-19-32"></a>    <span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;You are a research assistant. Use tools to gather information.&quot;</span><span class="p">),</span>
@@ -3188,30 +3188,30 @@ you can insert a compression node between tools and the agent. This compresses a
 </span></code></pre></div>
 <hr />
 <h2 id="configuration-options">Configuration Options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h2>
-<h3 id="headroomchatmodel">HeadroomChatModel<a class="headerlink" href="#headroomchatmodel" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">HeadroomChatModel</span><span class="p">(</span>
+<h3 id="cutctxchatmodel">CutctxChatModel<a class="headerlink" href="#cutctxchatmodel" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">CutctxChatModel</span><span class="p">(</span>
 </span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="n">wrapped_model</span><span class="p">,</span>                     <span class="c1"># Any LangChain BaseChatModel</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="n">headroom_config</span><span class="o">=</span><span class="n">HeadroomConfig</span><span class="p">(),</span>  <span class="c1"># Headroom configuration</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="n">cutctx_config</span><span class="o">=</span><span class="n">CutctxConfig</span><span class="p">(),</span>  <span class="c1"># Cutctx configuration</span>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">auto_detect_provider</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>         <span class="c1"># Auto-detect from wrapped model</span>
 </span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="headroomchatmessagehistory">HeadroomChatMessageHistory<a class="headerlink" href="#headroomchatmessagehistory" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">HeadroomChatMessageHistory</span><span class="p">(</span>
+<h3 id="cutctxchatmessagehistory">CutctxChatMessageHistory<a class="headerlink" href="#cutctxchatmessagehistory" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">CutctxChatMessageHistory</span><span class="p">(</span>
 </span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    <span class="n">base_history</span><span class="p">,</span>                      <span class="c1"># Any BaseChatMessageHistory</span>
 </span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>    <span class="n">compress_threshold_tokens</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span>    <span class="c1"># Token threshold for compression</span>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    <span class="n">keep_recent_turns</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>               <span class="c1"># Minimum turns to preserve</span>
 </span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>                    <span class="c1"># Model for token counting</span>
 </span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="headroomdocumentcompressor">HeadroomDocumentCompressor<a class="headerlink" href="#headroomdocumentcompressor" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">HeadroomDocumentCompressor</span><span class="p">(</span>
+<h3 id="cutctxdocumentcompressor">CutctxDocumentCompressor<a class="headerlink" href="#cutctxdocumentcompressor" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">CutctxDocumentCompressor</span><span class="p">(</span>
 </span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    <span class="n">max_documents</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>                  <span class="c1"># Maximum docs to return</span>
 </span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="n">min_relevance</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>                 <span class="c1"># Minimum relevance score (0-1)</span>
 </span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="n">prefer_diverse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>              <span class="c1"># Use MMR for diversity</span>
 </span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="wrap_tools_with_headroom">wrap_tools_with_headroom<a class="headerlink" href="#wrap_tools_with_headroom" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">wrap_tools_with_headroom</span><span class="p">(</span>
+<h3 id="wrap_tools_with_cutctx">wrap_tools_with_cutctx<a class="headerlink" href="#wrap_tools_with_cutctx" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">wrap_tools_with_cutctx</span><span class="p">(</span>
 </span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="n">tools</span><span class="p">,</span>                             <span class="c1"># List of LangChain tools</span>
 </span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="n">min_chars_to_compress</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>        <span class="c1"># Minimum output size</span>
 </span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">smart_crusher_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>         <span class="c1"># SmartCrusher configuration</span>
@@ -3219,19 +3219,19 @@ you can insert a compression node between tools and the agent. This compresses a
 </span></code></pre></div>
 <hr />
 <h2 id="import-reference">Import Reference<a class="headerlink" href="#import-reference" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
 </span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>    <span class="c1"># Chat Model</span>
-</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>    <span class="n">HeadroomChatModel</span><span class="p">,</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>    <span class="n">CutctxChatModel</span><span class="p">,</span>
 </span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>
 </span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>    <span class="c1"># Memory</span>
-</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">HeadroomChatMessageHistory</span><span class="p">,</span>
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">CutctxChatMessageHistory</span><span class="p">,</span>
 </span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>
 </span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>    <span class="c1"># Retrievers</span>
-</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>    <span class="n">HeadroomDocumentCompressor</span><span class="p">,</span>
+</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>    <span class="n">CutctxDocumentCompressor</span><span class="p">,</span>
 </span><span id="__span-24-10"><a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a>
 </span><span id="__span-24-11"><a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>    <span class="c1"># Agents</span>
-</span><span id="__span-24-12"><a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>    <span class="n">HeadroomToolWrapper</span><span class="p">,</span>
-</span><span id="__span-24-13"><a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a>    <span class="n">wrap_tools_with_headroom</span><span class="p">,</span>
+</span><span id="__span-24-12"><a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>    <span class="n">CutctxToolWrapper</span><span class="p">,</span>
+</span><span id="__span-24-13"><a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a>    <span class="n">wrap_tools_with_cutctx</span><span class="p">,</span>
 </span><span id="__span-24-14"><a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a>    <span class="n">get_tool_metrics</span><span class="p">,</span>
 </span><span id="__span-24-15"><a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a>    <span class="n">reset_tool_metrics</span><span class="p">,</span>
 </span><span id="__span-24-16"><a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a>
@@ -3241,30 +3241,30 @@ you can insert a compression node between tools and the agent. This compresses a
 </span><span id="__span-24-20"><a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a>    <span class="n">track_streaming_response</span><span class="p">,</span>
 </span><span id="__span-24-21"><a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a>
 </span><span id="__span-24-22"><a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a>    <span class="c1"># LangSmith</span>
-</span><span id="__span-24-23"><a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a>    <span class="n">HeadroomLangSmithCallbackHandler</span><span class="p">,</span>
+</span><span id="__span-24-23"><a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a>    <span class="n">CutctxLangSmithCallbackHandler</span><span class="p">,</span>
 </span><span id="__span-24-24"><a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a>
 </span><span id="__span-24-25"><a id="__codelineno-24-25" name="__codelineno-24-25" href="#__codelineno-24-25"></a>    <span class="c1"># Provider Detection</span>
 </span><span id="__span-24-26"><a id="__codelineno-24-26" name="__codelineno-24-26" href="#__codelineno-24-26"></a>    <span class="n">detect_provider</span><span class="p">,</span>
-</span><span id="__span-24-27"><a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a>    <span class="n">get_headroom_provider</span><span class="p">,</span>
+</span><span id="__span-24-27"><a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a>    <span class="n">get_cutctx_provider</span><span class="p">,</span>
 </span><span id="__span-24-28"><a id="__codelineno-24-28" name="__codelineno-24-28" href="#__codelineno-24-28"></a><span class="p">)</span>
 </span><span id="__span-24-29"><a id="__codelineno-24-29" name="__codelineno-24-29" href="#__codelineno-24-29"></a>
 </span><span id="__span-24-30"><a id="__codelineno-24-30" name="__codelineno-24-30" href="#__codelineno-24-30"></a><span class="c1"># Or import from subpackage directly</span>
-</span><span id="__span-24-31"><a id="__codelineno-24-31" name="__codelineno-24-31" href="#__codelineno-24-31"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatModel</span>
-</span><span id="__span-24-32"><a id="__codelineno-24-32" name="__codelineno-24-32" href="#__codelineno-24-32"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.langchain.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomChatMessageHistory</span>
+</span><span id="__span-24-31"><a id="__codelineno-24-31" name="__codelineno-24-31" href="#__codelineno-24-31"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.langchain</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatModel</span>
+</span><span id="__span-24-32"><a id="__codelineno-24-32" name="__codelineno-24-32" href="#__codelineno-24-32"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.langchain.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxChatMessageHistory</span>
 </span></code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="langchain-not-detected">LangChain not detected<a class="headerlink" href="#langchain-not-detected" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">langchain_available</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">langchain_available</span>
 </span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>
 </span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="k">if</span> <span class="ow">not</span> <span class="n">langchain_available</span><span class="p">():</span>
-</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install with: pip install headroom-ai[langchain]&quot;</span><span class="p">)</span>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install with: pip install cutctx-ai[langchain]&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="provider-detection-failing">Provider detection failing<a class="headerlink" href="#provider-detection-failing" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Force a specific provider</span>
-</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
 </span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
-</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">HeadroomChatModel</span><span class="p">(</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="n">llm</span> <span class="o">=</span> <span class="n">CutctxChatModel</span><span class="p">(</span>
 </span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>    <span class="n">ChatAnthropic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">),</span>
 </span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>    <span class="n">auto_detect_provider</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 </span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="p">)</span>
@@ -3272,7 +3272,7 @@ you can insert a compression node between tools and the agent. This compresses a
 </span></code></pre></div>
 <h3 id="memory-not-compressing">Memory not compressing<a class="headerlink" href="#memory-not-compressing" title="Permanent link">&para;</a></h3>
 <p>Check that your message count exceeds the threshold:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">history</span> <span class="o">=</span> <span class="n">HeadroomChatMessageHistory</span><span class="p">(</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">history</span> <span class="o">=</span> <span class="n">CutctxChatMessageHistory</span><span class="p">(</span>
 </span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>    <span class="n">base_history</span><span class="p">,</span>
 </span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>    <span class="n">compress_threshold_tokens</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>  <span class="c1"># Lower threshold</span>
 </span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>    <span class="n">keep_recent_turns</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>             <span class="c1"># Fewer preserved turns</span>

@@ -3055,7 +3055,7 @@
 
 
 <h1 id="transform-reference">Transform Reference<a class="headerlink" href="#transform-reference" title="Permanent link">&para;</a></h1>
-<p>Headroom provides several transforms that work together to optimize LLM context.</p>
+<p>Cutctx provides several transforms that work together to optimize LLM context.</p>
 <h2 id="smartcrusher">SmartCrusher<a class="headerlink" href="#smartcrusher" title="Permanent link">&para;</a></h2>
 <p>Statistical compression for JSON tool outputs.</p>
 <h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
@@ -3068,7 +3068,7 @@
 <li><strong>Change points</strong> - Significant transitions in data</li>
 </ol>
 <h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">SmartCrusherConfig</span><span class="p">(</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">min_tokens_to_crush</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>      <span class="c1"># Only compress if &gt; 200 tokens</span>
@@ -3081,7 +3081,7 @@
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusher</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusher</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">crusher</span> <span class="o">=</span> <span class="n">SmartCrusher</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
@@ -3142,7 +3142,7 @@
 </span></code></pre></div>
 <h3 id="the-solution">The Solution<a class="headerlink" href="#the-solution" title="Permanent link">&para;</a></h3>
 <p>CacheAligner extracts dynamic content to stabilize the prefix:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAligner</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAligner</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">aligner</span> <span class="o">=</span> <span class="n">CacheAligner</span><span class="p">()</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">aligner</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
@@ -3154,7 +3154,7 @@
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># [Current date context]</span>
 </span></code></pre></div>
 <h3 id="configuration_1">Configuration<a class="headerlink" href="#configuration_1" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CacheAlignerConfig</span><span class="p">(</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">extract_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>           <span class="c1"># Move dates to dynamic section</span>
@@ -3199,7 +3199,7 @@
 </span></code></pre></div>
 <h3 id="the-solution_1">The Solution<a class="headerlink" href="#the-solution_1" title="Permanent link">&para;</a></h3>
 <p>RollingWindow drops complete tool units, preserving pairs:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindow</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindow</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">window</span> <span class="o">=</span> <span class="n">RollingWindow</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100000</span><span class="p">)</span>
@@ -3211,7 +3211,7 @@
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># 4. Oldest tool outputs dropped first</span>
 </span></code></pre></div>
 <h3 id="configuration_2">Configuration<a class="headerlink" href="#configuration_2" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">RollingWindowConfig</span><span class="p">(</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>            <span class="c1"># Target token limit</span>
@@ -3242,7 +3242,7 @@
 </ul>
 <h3 id="the-solution_2">The Solution<a class="headerlink" href="#the-solution_2" title="Permanent link">&para;</a></h3>
 <p>IntelligentContextManager uses multi-factor importance scoring:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span><span class="p">,</span> <span class="n">IntelligentContextConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span><span class="p">,</span> <span class="n">IntelligentContextConfig</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">manager</span> <span class="o">=</span> <span class="n">IntelligentContextManager</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">model_limit</span><span class="o">=</span><span class="mi">128000</span><span class="p">)</span>
@@ -3298,8 +3298,8 @@
 </table>
 <p><strong>Key principle:</strong> No hardcoded patterns. Error detection uses TOIN's <code>field_semantics.inferred_type == "error_indicator"</code>, not keyword matching.</p>
 <h3 id="configuration_3">Configuration<a class="headerlink" href="#configuration_3" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Custom scoring weights</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">ScoringWeights</span><span class="p">(</span>
@@ -3362,7 +3362,7 @@
 <li><strong>CCR stores originals</strong>: Dropped messages are stored in CCR for potential retrieval</li>
 <li><strong>Retrievals feed back to TOIN</strong>: If users retrieve dropped messages, TOIN learns to score those patterns higher</li>
 </ol>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">toin</span> <span class="o">=</span> <span class="n">get_toin</span><span class="p">()</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">manager</span> <span class="o">=</span> <span class="n">IntelligentContextManager</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">toin</span><span class="o">=</span><span class="n">toin</span><span class="p">)</span>
@@ -3399,7 +3399,7 @@
 </span></code></pre></div></p>
 <h3 id="backwards-compatibility">Backwards Compatibility<a class="headerlink" href="#backwards-compatibility" title="Permanent link">&para;</a></h3>
 <p>Convert from RollingWindowConfig:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">RollingWindowConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">RollingWindowConfig</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">rolling_config</span> <span class="o">=</span> <span class="n">RollingWindowConfig</span><span class="p">(</span>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
@@ -3417,9 +3417,9 @@
 <h2 id="llmlinguacompressor-retired">LLMLinguaCompressor — RETIRED<a class="headerlink" href="#llmlinguacompressor-retired" title="Permanent link">&para;</a></h2>
 <p>The earlier LLMLingua-2 integration (<code>LLMLinguaCompressor</code>,
 <code>LLMLinguaConfig</code>, <code>is_llmlingua_model_loaded</code>, <code>unload_llmlingua_model</code>,
-the <code>headroom-ai[llmlingua]</code> extra, and the <code>--llmlingua</code> proxy flag)
+the <code>cutctx-ai[llmlingua]</code> extra, and the <code>--llmlingua</code> proxy flag)
 was retired in 0.9.x and replaced by <strong>Kompress</strong> (ModernBERT).
-<code>pip install 'headroom-ai[llmlingua]'</code> no longer resolves; use the
+<code>pip install 'cutctx-ai[llmlingua]'</code> no longer resolves; use the
 <code>[ml]</code> extra instead. The Kompress transform shipped with the proxy
 runs as Transform 4 in the live-zone pipeline (see
 <a href="../ARCHITECTURE/">ARCHITECTURE.md</a>).</p>
@@ -3465,10 +3465,10 @@ runs as Transform 4 in the live-zone pipeline (see
 <li><strong>Lightweight</strong> — ~50MB vs ~1GB for the ML compressor</li>
 </ul>
 <h3 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[code]&quot;</span><span class="w">  </span><span class="c1"># Adds tree-sitter-language-pack</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[code]&quot;</span><span class="w">  </span><span class="c1"># Adds tree-sitter-language-pack</span>
 </span></code></pre></div>
 <h3 id="configuration_4">Configuration<a class="headerlink" href="#configuration_4" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeAwareCompressor</span><span class="p">,</span> <span class="n">CodeCompressorConfig</span><span class="p">,</span> <span class="n">DocstringMode</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeAwareCompressor</span><span class="p">,</span> <span class="n">CodeCompressorConfig</span><span class="p">,</span> <span class="n">DocstringMode</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CodeCompressorConfig</span><span class="p">(</span>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">preserve_imports</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>              <span class="c1"># Always keep imports</span>
@@ -3486,7 +3486,7 @@ runs as Transform 4 in the live-zone pipeline (see
 </span><span id="__span-15-16"><a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">CodeAwareCompressor</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="example_1">Example<a class="headerlink" href="#example_1" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeAwareCompressor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeAwareCompressor</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">CodeAwareCompressor</span><span class="p">()</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>
@@ -3543,7 +3543,7 @@ runs as Transform 4 in the live-zone pipeline (see
 </tbody>
 </table>
 <h3 id="memory-management">Memory Management<a class="headerlink" href="#memory-management" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_tree_sitter_available</span><span class="p">,</span> <span class="n">unload_tree_sitter</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_tree_sitter_available</span><span class="p">,</span> <span class="n">unload_tree_sitter</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># Check if tree-sitter is installed</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">is_tree_sitter_available</span><span class="p">())</span>  <span class="c1"># True/False</span>
@@ -3563,7 +3563,7 @@ runs as Transform 4 in the live-zone pipeline (see
 <li><strong>Log decisions</strong> — Transparent routing for debugging</li>
 </ol>
 <h3 id="configuration_5">Configuration<a class="headerlink" href="#configuration_5" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span><span class="p">,</span> <span class="n">ContentRouterConfig</span><span class="p">,</span> <span class="n">CompressionStrategy</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span><span class="p">,</span> <span class="n">ContentRouterConfig</span><span class="p">,</span> <span class="n">CompressionStrategy</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">ContentRouterConfig</span><span class="p">(</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">min_section_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>             <span class="c1"># Minimum tokens to compress</span>
@@ -3576,7 +3576,7 @@ runs as Transform 4 in the live-zone pipeline (see
 </span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">router</span> <span class="o">=</span> <span class="n">ContentRouter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="example_2">Example<a class="headerlink" href="#example_2" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">router</span> <span class="o">=</span> <span class="n">ContentRouter</span><span class="p">()</span>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
@@ -3650,7 +3650,7 @@ runs as Transform 4 in the live-zone pipeline (see
 <hr />
 <h2 id="transformpipeline">TransformPipeline<a class="headerlink" href="#transformpipeline" title="Permanent link">&para;</a></h2>
 <p>Combine transforms for optimal results.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransformPipeline</span><span class="p">,</span> <span class="n">SmartCrusher</span><span class="p">,</span> <span class="n">CacheAligner</span><span class="p">,</span> <span class="n">RollingWindow</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransformPipeline</span><span class="p">,</span> <span class="n">SmartCrusher</span><span class="p">,</span> <span class="n">CacheAligner</span><span class="p">,</span> <span class="n">RollingWindow</span>
 </span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">TransformPipeline</span><span class="p">([</span>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">SmartCrusher</span><span class="p">(),</span>      <span class="c1"># First: compress tool outputs</span>

@@ -2357,9 +2357,9 @@
 
 
 <h1 id="sharedcontext-compressed-inter-agent-context-sharing">SharedContext — Compressed Inter-Agent Context Sharing<a class="headerlink" href="#sharedcontext-compressed-inter-agent-context-sharing" title="Permanent link">&para;</a></h1>
-<p>When agents hand off to each other, context gets replayed in full. SharedContext compresses what moves between agents using Headroom's compression pipeline.</p>
+<p>When agents hand off to each other, context gets replayed in full. SharedContext compresses what moves between agents using Cutctx's compression pipeline.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">ctx</span> <span class="o">=</span> <span class="n">SharedContext</span><span class="p">()</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
@@ -2374,7 +2374,7 @@
 </span></code></pre></div>
 <h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
 <h3 id="putkey-content-agentnone"><code>put(key, content, *, agent=None)</code><a class="headerlink" href="#putkey-content-agentnone" title="Permanent link">&para;</a></h3>
-<p>Store content under a key. Compresses automatically using Headroom's full pipeline (SmartCrusher for JSON, CodeCompressor for code, Kompress for text).</p>
+<p>Store content under a key. Compresses automatically using Cutctx's full pipeline (SmartCrusher for JSON, CodeCompressor for code, Kompress for text).</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">entry</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;findings&quot;</span><span class="p">,</span> <span class="n">big_json_output</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;researcher&quot;</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">entry</span><span class="o">.</span><span class="n">original_tokens</span>     <span class="c1"># 20,000</span>
@@ -2421,7 +2421,7 @@
 </span></code></pre></div>
 <h2 id="framework-examples">Framework Examples<a class="headerlink" href="#framework-examples" title="Permanent link">&para;</a></h2>
 <h3 id="crewai">CrewAI<a class="headerlink" href="#crewai" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">ctx</span> <span class="o">=</span> <span class="n">SharedContext</span><span class="p">()</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
@@ -2432,7 +2432,7 @@
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">coder_context</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;findings&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="langgraph">LangGraph<a class="headerlink" href="#langgraph" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">ctx</span> <span class="o">=</span> <span class="n">SharedContext</span><span class="p">()</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
@@ -2447,7 +2447,7 @@
 </span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;code&quot;</span><span class="p">:</span> <span class="n">write_code</span><span class="p">(</span><span class="n">full</span><span class="p">)}</span>
 </span></code></pre></div>
 <h3 id="openai-agents-sdk">OpenAI Agents SDK<a class="headerlink" href="#openai-agents-sdk" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SharedContext</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">ctx</span> <span class="o">=</span> <span class="n">SharedContext</span><span class="p">()</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
@@ -2463,7 +2463,7 @@
 <h3 id="any-framework">Any Framework<a class="headerlink" href="#any-framework" title="Permanent link">&para;</a></h3>
 <p>SharedContext is framework-agnostic. It's just <code>put()</code> and <code>get()</code>. Use it wherever context moves between agents.</p>
 <h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Under the hood, <code>put()</code> calls <code>headroom.compress()</code> (the same pipeline used by the proxy) and stores the original in memory. <code>get()</code> returns the compressed version. <code>get(full=True)</code> returns the original.</p>
+<p>Under the hood, <code>put()</code> calls <code>cutctx.compress()</code> (the same pipeline used by the proxy) and stores the original in memory. <code>get()</code> returns the compressed version. <code>get(full=True)</code> returns the original.</p>
 <ul>
 <li>JSON arrays → SmartCrusher (70-95% compression)</li>
 <li>Code → CodeCompressor (AST-aware, with <code>[code]</code> extra)</li>

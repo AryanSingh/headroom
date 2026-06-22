@@ -2591,7 +2591,7 @@
 
 
 <h1 id="metrics-monitoring">Metrics &amp; Monitoring<a class="headerlink" href="#metrics-monitoring" title="Permanent link">&para;</a></h1>
-<p>Headroom provides comprehensive metrics for monitoring compression performance, cost savings, and system health.</p>
+<p>Cutctx provides comprehensive metrics for monitoring compression performance, cost savings, and system health.</p>
 <h2 id="proxy-metrics">Proxy Metrics<a class="headerlink" href="#proxy-metrics" title="Permanent link">&para;</a></h2>
 <h3 id="stats-endpoint">Stats Endpoint<a class="headerlink" href="#stats-endpoint" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>http://localhost:8787/stats
@@ -2635,10 +2635,10 @@
 <p><code>/stats</code> keeps the existing live/session fields, including <code>savings_history</code>,
 for backward compatibility. The new <code>persistent_savings</code> block is durable local
 proxy compression history stored by default at
-<code>${HEADROOM_WORKSPACE_DIR}/proxy_savings.json</code> (i.e.
-<code>~/.headroom/proxy_savings.json</code> when <code>HEADROOM_WORKSPACE_DIR</code> is unset).
-Use <code>HEADROOM_SAVINGS_PATH</code> to override the file location directly, or
-set <code>HEADROOM_WORKSPACE_DIR</code> to relocate the entire state root. See the
+<code>${CUTCTX_WORKSPACE_DIR}/proxy_savings.json</code> (i.e.
+<code>~/.cutctx/proxy_savings.json</code> when <code>CUTCTX_WORKSPACE_DIR</code> is unset).
+Use <code>CUTCTX_SAVINGS_PATH</code> to override the file location directly, or
+set <code>CUTCTX_WORKSPACE_DIR</code> to relocate the entire state root. See the
 <a href="../filesystem-contract/">Filesystem Contract</a> for details.</p>
 <p>For Anthropic-style providers that return cache-write TTL buckets, <code>/stats</code>
 also surfaces observed cache TTL usage under <code>prefix_cache</code>:</p>
@@ -2726,29 +2726,29 @@ totals.</p>
 <h3 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl<span class="w"> </span>http://localhost:8787/metrics
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a># HELP headroom_requests_total Total number of requests
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>headroom_requests_total 1234
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a># HELP cutctx_requests_total Total number of requests
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cutctx_requests_total 1234
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a># HELP headroom_latency_ms_count Count of observed request latencies
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>headroom_latency_ms_count 1234
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a># HELP cutctx_latency_ms_count Count of observed request latencies
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cutctx_latency_ms_count 1234
 </span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a># HELP headroom_tokens_saved_total Tokens saved by optimization
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>headroom_tokens_saved_total 5678900
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a># HELP cutctx_tokens_saved_total Tokens saved by optimization
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cutctx_tokens_saved_total 5678900
 </span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a># HELP headroom_requests_by_provider Requests by provider
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>headroom_requests_by_provider{provider=&quot;anthropic&quot;} 800
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>headroom_requests_by_provider{provider=&quot;openai&quot;} 434
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a># HELP cutctx_requests_by_provider Requests by provider
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>cutctx_requests_by_provider{provider=&quot;anthropic&quot;} 800
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>cutctx_requests_by_provider{provider=&quot;openai&quot;} 434
 </span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a># HELP headroom_requests_by_stack Requests by Headroom integration stack
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>headroom_requests_by_stack{stack=&quot;wrap_claude&quot;} 612
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>headroom_requests_by_stack{stack=&quot;adapter_ts_openai&quot;} 48
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a># HELP cutctx_requests_by_stack Requests by Cutctx integration stack
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>cutctx_requests_by_stack{stack=&quot;wrap_claude&quot;} 612
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>cutctx_requests_by_stack{stack=&quot;adapter_ts_openai&quot;} 48
 </span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a># HELP headroom_transform_timing_ms_sum Sum of transform timing in milliseconds
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>headroom_transform_timing_ms_sum{transform=&quot;router&quot;} 5123.7
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a># HELP cutctx_transform_timing_ms_sum Sum of transform timing in milliseconds
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>cutctx_transform_timing_ms_sum{transform=&quot;router&quot;} 5123.7
 </span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>
-</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a># HELP headroom_cache_write_ttl_tokens_total Provider cache write tokens by observed TTL bucket
-</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>headroom_cache_write_ttl_tokens_total{provider=&quot;anthropic&quot;,ttl=&quot;5m&quot;} 20000
-</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>headroom_cache_write_ttl_tokens_total{provider=&quot;anthropic&quot;,ttl=&quot;1h&quot;} 50000
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a># HELP cutctx_cache_write_ttl_tokens_total Provider cache write tokens by observed TTL bucket
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>cutctx_cache_write_ttl_tokens_total{provider=&quot;anthropic&quot;,ttl=&quot;5m&quot;} 20000
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>cutctx_cache_write_ttl_tokens_total{provider=&quot;anthropic&quot;,ttl=&quot;1h&quot;} 50000
 </span></code></pre></div>
 <p>The built-in Prometheus endpoint exposes the proxy's in-memory operational state, including:</p>
 <ul>
@@ -2762,28 +2762,28 @@ totals.</p>
 <li>cache bust counters</li>
 </ul>
 <h3 id="otel-metrics">OTEL Metrics<a class="headerlink" href="#otel-metrics" title="Permanent link">&para;</a></h3>
-<p>Headroom now emits the same operational events through a shared OTEL metrics facade.</p>
+<p>Cutctx now emits the same operational events through a shared OTEL metrics facade.</p>
 <p>There are two integration modes:</p>
 <ol>
-<li><strong>Ambient OTEL app setup</strong> - if your application already configures a global OTEL meter provider, Headroom records into that provider automatically.</li>
-<li><strong>Headroom-managed export</strong> - if you want the proxy to configure its own OTEL metrics exporter, install:</li>
+<li><strong>Ambient OTEL app setup</strong> - if your application already configures a global OTEL meter provider, Cutctx records into that provider automatically.</li>
+<li><strong>Cutctx-managed export</strong> - if you want the proxy to configure its own OTEL metrics exporter, install:</li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[proxy,otel]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[proxy,otel]&quot;</span>
 </span></code></pre></div>
 <p>Then set:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">HEADROOM_OTEL_METRICS_ENABLED</span><span class="o">=</span><span class="m">1</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nv">HEADROOM_OTEL_METRICS_EXPORTER</span><span class="o">=</span>otlp_http
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nv">HEADROOM_OTEL_METRICS_ENDPOINT</span><span class="o">=</span>http://127.0.0.1:4318/v1/metrics
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nv">HEADROOM_OTEL_SERVICE_NAME</span><span class="o">=</span>headroom-proxy
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nv">HEADROOM_OTEL_RESOURCE_ATTRIBUTES</span><span class="o">=</span>deployment.environment<span class="o">=</span>dev,service.namespace<span class="o">=</span>headroom
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">CUTCTX_OTEL_METRICS_ENABLED</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nv">CUTCTX_OTEL_METRICS_EXPORTER</span><span class="o">=</span>otlp_http
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nv">CUTCTX_OTEL_METRICS_ENDPOINT</span><span class="o">=</span>http://127.0.0.1:4318/v1/metrics
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nv">CUTCTX_OTEL_SERVICE_NAME</span><span class="o">=</span>cutctx-proxy
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nv">CUTCTX_OTEL_RESOURCE_ATTRIBUTES</span><span class="o">=</span>deployment.environment<span class="o">=</span>dev,service.namespace<span class="o">=</span>cutctx
 </span></code></pre></div>
 <p>For local validation without a collector:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">HEADROOM_OTEL_METRICS_ENABLED</span><span class="o">=</span><span class="m">1</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nv">HEADROOM_OTEL_METRICS_EXPORTER</span><span class="o">=</span>console
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>headroom<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">CUTCTX_OTEL_METRICS_ENABLED</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nv">CUTCTX_OTEL_METRICS_EXPORTER</span><span class="o">=</span>console
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>cutctx<span class="w"> </span>proxy
 </span></code></pre></div>
-<p>The proxy's <code>/stats</code> response now includes an <code>otel</code> block that reports whether Headroom is managing an OTEL exporter for the current process.</p>
-<p>Headroom's managed OTEL exporters are intentionally scoped to Headroom's own instrumentation. If you already manage global OTEL providers in your app, keep using those and let Headroom record into the ambient providers instead of enabling <code>HEADROOM_OTEL_*</code>.</p>
+<p>The proxy's <code>/stats</code> response now includes an <code>otel</code> block that reports whether Cutctx is managing an OTEL exporter for the current process.</p>
+<p>Cutctx's managed OTEL exporters are intentionally scoped to Cutctx's own instrumentation. If you already manage global OTEL providers in your app, keep using those and let Cutctx record into the ambient providers instead of enabling <code>CUTCTX_OTEL_*</code>.</p>
 <h3 id="otel-environment-variables">OTEL Environment Variables<a class="headerlink" href="#otel-environment-variables" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2795,77 +2795,77 @@ totals.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_OTEL_METRICS_ENABLED</code></td>
+<td><code>CUTCTX_OTEL_METRICS_ENABLED</code></td>
 <td><code>0</code></td>
-<td>Enables Headroom-managed OTEL metric export</td>
+<td>Enables Cutctx-managed OTEL metric export</td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_METRICS_EXPORTER</code></td>
+<td><code>CUTCTX_OTEL_METRICS_EXPORTER</code></td>
 <td><code>otlp_http</code></td>
 <td>Exporter type: <code>otlp_http</code> or <code>console</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_METRICS_ENDPOINT</code></td>
+<td><code>CUTCTX_OTEL_METRICS_ENDPOINT</code></td>
 <td>unset</td>
 <td>OTLP HTTP metrics endpoint</td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_METRICS_HEADERS</code></td>
+<td><code>CUTCTX_OTEL_METRICS_HEADERS</code></td>
 <td>unset</td>
 <td>Comma-separated <code>key=value</code> headers for OTLP export</td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_METRICS_EXPORT_INTERVAL_MS</code></td>
+<td><code>CUTCTX_OTEL_METRICS_EXPORT_INTERVAL_MS</code></td>
 <td><code>10000</code></td>
 <td>Periodic export interval in milliseconds</td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_SERVICE_NAME</code></td>
-<td><code>headroom-proxy</code> in proxy mode</td>
+<td><code>CUTCTX_OTEL_SERVICE_NAME</code></td>
+<td><code>cutctx-proxy</code> in proxy mode</td>
 <td>OTEL <code>service.name</code></td>
 </tr>
 <tr>
-<td><code>HEADROOM_OTEL_RESOURCE_ATTRIBUTES</code></td>
+<td><code>CUTCTX_OTEL_RESOURCE_ATTRIBUTES</code></td>
 <td>unset</td>
 <td>Comma-separated resource attributes</td>
 </tr>
 </tbody>
 </table>
 <h3 id="anonymous-telemetry-vs-otel">Anonymous Telemetry vs OTEL<a class="headerlink" href="#anonymous-telemetry-vs-otel" title="Permanent link">&para;</a></h3>
-<p>Headroom has two separate systems:</p>
+<p>Cutctx has two separate systems:</p>
 <ul>
-<li><code>HEADROOM_TELEMETRY</code> / <code>--no-telemetry</code> controls the privacy-preserving anonymous data-flywheel beacon and TOIN-related aggregate reporting.</li>
-<li><code>HEADROOM_OTEL_*</code> controls operational OTEL metric export.</li>
+<li><code>CUTCTX_TELEMETRY</code> / <code>--no-telemetry</code> controls the privacy-preserving anonymous data-flywheel beacon and TOIN-related aggregate reporting.</li>
+<li><code>CUTCTX_OTEL_*</code> controls operational OTEL metric export.</li>
 </ul>
 <p>They are independent by design so you can disable the anonymous beacon while keeping OTEL metrics enabled, or vice versa.</p>
 <h4 id="beacon-identity-fields">Beacon identity fields<a class="headerlink" href="#beacon-identity-fields" title="Permanent link">&para;</a></h4>
 <p>When the anonymous beacon is enabled, each report includes two identity fields
 so usage can be segmented by integration surface and deployment shape:</p>
 <ul>
-<li><code>headroom_stack</code> — how Headroom is invoked in this process. Values:
+<li><code>cutctx_stack</code> — how Cutctx is invoked in this process. Values:
   <code>proxy</code>, <code>wrap_&lt;agent&gt;</code> (e.g. <code>wrap_claude</code>, <code>wrap_codex</code>),
   <code>adapter_&lt;lang&gt;_&lt;provider&gt;</code> (e.g. <code>adapter_ts_openai</code>), <code>mixed</code>
   (multi-stack proxy with no dominant caller), or <code>unknown</code>. Overridable via
-  <code>HEADROOM_STACK</code>; <code>headroom wrap &lt;tool&gt;</code> sets it automatically.</li>
+  <code>CUTCTX_STACK</code>; <code>cutctx wrap &lt;tool&gt;</code> sets it automatically.</li>
 <li><code>install_mode</code> — how the proxy is deployed. Values: <code>wrapped</code> (spawned by
-  <code>headroom wrap</code>), <code>persistent</code> (long-lived service on a fixed port),
+  <code>cutctx wrap</code>), <code>persistent</code> (long-lived service on a fixed port),
   <code>on_demand</code> (short-lived direct invocation), or <code>unknown</code>.</li>
 <li><code>requests_by_stack</code> — for proxies serving multiple integrations (e.g. a
   persistent proxy hit by both <code>wrap_claude</code> and a TS adapter), a per-stack
-  request count dict mirroring the <code>headroom_requests_by_stack</code> counter.</li>
+  request count dict mirroring the <code>cutctx_requests_by_stack</code> counter.</li>
 </ul>
-<p>Clients tag requests with an <code>X-Headroom-Stack</code> header; the proxy's FastAPI
+<p>Clients tag requests with an <code>X-Cutctx-Stack</code> header; the proxy's FastAPI
 middleware buckets these on <code>/v1/*</code>. Detection is best-effort — any failure
 falls back to <code>"unknown"</code> and never breaks the proxy.</p>
 <h3 id="langfuse">Langfuse<a class="headerlink" href="#langfuse" title="Permanent link">&para;</a></h3>
 <p>Langfuse fits next to this implementation as a <strong>trace backend</strong>, not as a metrics backend.</p>
 <ul>
-<li>Headroom metrics continue to go to <code>/metrics</code> and/or your OTEL metrics exporter.</li>
-<li>Langfuse receives OTLP traces for Headroom's compression pipeline.</li>
-<li>Headroom's <code>/stats</code> response includes a <code>langfuse</code> block when Headroom is managing Langfuse trace export for the process.</li>
+<li>Cutctx metrics continue to go to <code>/metrics</code> and/or your OTEL metrics exporter.</li>
+<li>Langfuse receives OTLP traces for Cutctx's compression pipeline.</li>
+<li>Cutctx's <code>/stats</code> response includes a <code>langfuse</code> block when Cutctx is managing Langfuse trace export for the process.</li>
 </ul>
 <p>Enable it with:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nv">HEADROOM_LANGFUSE_ENABLED</span><span class="o">=</span><span class="m">1</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nv">CUTCTX_LANGFUSE_ENABLED</span><span class="o">=</span><span class="m">1</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nv">LANGFUSE_PUBLIC_KEY</span><span class="o">=</span>pk-lf-...
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nv">LANGFUSE_SECRET_KEY</span><span class="o">=</span>sk-lf-...
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="nv">LANGFUSE_BASE_URL</span><span class="o">=</span>https://cloud.langfuse.com
@@ -2941,17 +2941,17 @@ falls back to <code>"unknown"</code> and never breaks the proxy.</p>
 </span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="log-output-examples">Log Output Examples<a class="headerlink" href="#log-output-examples" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>INFO:headroom.transforms.pipeline:Pipeline complete: 45000 -&gt; 4500 tokens (saved 40500, 90.0% reduction)
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>INFO:headroom.transforms.smart_crusher:SmartCrusher applied top_n strategy: kept 15 of 1000 items
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>INFO:headroom.cache.compression_store:CCR cache hit: hash=abc123, retrieved 1000 items
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>DEBUG:headroom.transforms.smart_crusher:Kept items: [0,1,2,42,77,97,98,99] (errors at 42, warnings at 77)
+<div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>INFO:cutctx.transforms.pipeline:Pipeline complete: 45000 -&gt; 4500 tokens (saved 40500, 90.0% reduction)
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>INFO:cutctx.transforms.smart_crusher:SmartCrusher applied top_n strategy: kept 15 of 1000 items
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>INFO:cutctx.cache.compression_store:CCR cache hit: hash=abc123, retrieved 1000 items
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>DEBUG:cutctx.transforms.smart_crusher:Kept items: [0,1,2,42,77,97,98,99] (errors at 42, warnings at 77)
 </span></code></pre></div>
 <h3 id="proxy-logging">Proxy Logging<a class="headerlink" href="#proxy-logging" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Log to file</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--log-file<span class="w"> </span>headroom.jsonl
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--log-file<span class="w"> </span>cutctx.jsonl
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># Increase verbosity</span>
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--log-level<span class="w"> </span>debug
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--log-level<span class="w"> </span>debug
 </span></code></pre></div>
 <h2 id="grafana-dashboard">Grafana Dashboard<a class="headerlink" href="#grafana-dashboard" title="Permanent link">&para;</a></h2>
 <p>Example Grafana dashboard configuration for Prometheus metrics:</p>
@@ -2960,22 +2960,22 @@ falls back to <code>"unknown"</code> and never breaks the proxy.</p>
 </span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="p">{</span>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">      </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Tokens Saved&quot;</span><span class="p">,</span>
 </span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;stat&quot;</span><span class="p">,</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_tokens_saved_total&quot;</span><span class="p">}]</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_tokens_saved_total&quot;</span><span class="p">}]</span>
 </span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">    </span><span class="p">},</span>
 </span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">    </span><span class="p">{</span>
 </span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">      </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Average Request Latency (ms)&quot;</span><span class="p">,</span>
 </span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;gauge&quot;</span><span class="p">,</span>
-</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_latency_ms_sum / clamp_min(headroom_latency_ms_count, 1)&quot;</span><span class="p">}]</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_latency_ms_sum / clamp_min(cutctx_latency_ms_count, 1)&quot;</span><span class="p">}]</span>
 </span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">    </span><span class="p">},</span>
 </span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">    </span><span class="p">{</span>
 </span><span id="__span-21-14"><a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="w">      </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Max Request Latency (ms)&quot;</span><span class="p">,</span>
 </span><span id="__span-21-15"><a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a><span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;graph&quot;</span><span class="p">,</span>
-</span><span id="__span-21-16"><a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_latency_ms_max&quot;</span><span class="p">}]</span>
+</span><span id="__span-21-16"><a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_latency_ms_max&quot;</span><span class="p">}]</span>
 </span><span id="__span-21-17"><a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a><span class="w">    </span><span class="p">},</span>
 </span><span id="__span-21-18"><a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="w">    </span><span class="p">{</span>
 </span><span id="__span-21-19"><a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="w">      </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Provider Cache Hit Rate&quot;</span><span class="p">,</span>
 </span><span id="__span-21-20"><a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a><span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;gauge&quot;</span><span class="p">,</span>
-</span><span id="__span-21-21"><a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_provider_cache_hit_requests_total / clamp_min(headroom_provider_cache_requests_total, 1)&quot;</span><span class="p">}]</span>
+</span><span id="__span-21-21"><a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a><span class="w">      </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;expr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_provider_cache_hit_requests_total / clamp_min(cutctx_provider_cache_requests_total, 1)&quot;</span><span class="p">}]</span>
 </span><span id="__span-21-22"><a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-21-23"><a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a><span class="w">  </span><span class="p">]</span>
 </span><span id="__span-21-24"><a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a><span class="p">}</span>
@@ -2990,7 +2990,7 @@ falls back to <code>"unknown"</code> and never breaks the proxy.</p>
 </span></code></pre></div>
 <h3 id="budget-alerts">Budget Alerts<a class="headerlink" href="#budget-alerts" title="Permanent link">&para;</a></h3>
 <p>Set a budget limit in the proxy:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--budget<span class="w"> </span><span class="m">10</span>.00
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--budget<span class="w"> </span><span class="m">10</span>.00
 </span></code></pre></div>
 <p>When the budget is exceeded:
 - Requests return a budget exceeded error

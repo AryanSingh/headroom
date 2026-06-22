@@ -1433,10 +1433,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroomagnomodel" class="md-nav__link">
+  <a href="#cutctxagnomodel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomAgnoModel
+        CutctxAgnoModel
       
     </span>
   </a>
@@ -1444,10 +1444,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomprehook" class="md-nav__link">
+  <a href="#cutctxprehook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomPreHook
+        CutctxPreHook
       
     </span>
   </a>
@@ -1455,10 +1455,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomposthook" class="md-nav__link">
+  <a href="#cutctxposthook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomPostHook
+        CutctxPostHook
       
     </span>
   </a>
@@ -1466,10 +1466,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#create_headroom_hooks" class="md-nav__link">
+  <a href="#create_cutctx_hooks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        create_headroom_hooks()
+        create_cutctx_hooks()
       
     </span>
   </a>
@@ -2593,10 +2593,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#headroomagnomodel" class="md-nav__link">
+  <a href="#cutctxagnomodel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomAgnoModel
+        CutctxAgnoModel
       
     </span>
   </a>
@@ -2604,10 +2604,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomprehook" class="md-nav__link">
+  <a href="#cutctxprehook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomPreHook
+        CutctxPreHook
       
     </span>
   </a>
@@ -2615,10 +2615,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#headroomposthook" class="md-nav__link">
+  <a href="#cutctxposthook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomPostHook
+        CutctxPostHook
       
     </span>
   </a>
@@ -2626,10 +2626,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#create_headroom_hooks" class="md-nav__link">
+  <a href="#create_cutctx_hooks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        create_headroom_hooks()
+        create_cutctx_hooks()
       
     </span>
   </a>
@@ -2723,22 +2723,22 @@
 
 
 <h1 id="agno-integration">Agno Integration<a class="headerlink" href="#agno-integration" title="Permanent link">&para;</a></h1>
-<p>Headroom integrates with <a href="https://github.com/agno-agi/agno">Agno</a> (formerly Phidata) to provide automatic context optimization for AI agents. This guide covers model wrapping, observability hooks, and multi-provider support.</p>
+<p>Cutctx integrates with <a href="https://github.com/agno-agi/agno">Agno</a> (formerly Phidata) to provide automatic context optimization for AI agents. This guide covers model wrapping, observability hooks, and multi-provider support.</p>
 <hr />
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;headroom-ai[agno]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[agno]&quot;</span>
 </span></code></pre></div>
-<p>This installs Headroom with Agno support. You'll also need Agno itself:</p>
+<p>This installs Cutctx with Agno support. You'll also need Agno itself:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>agno
 </span></code></pre></div>
 <hr />
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.agent</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChat</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Wrap your model</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Create agent as usual</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
@@ -2754,36 +2754,36 @@
 <hr />
 <h2 id="integration-patterns">Integration Patterns<a class="headerlink" href="#integration-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="1-basic-model-wrapping">1. Basic Model Wrapping<a class="headerlink" href="#1-basic-model-wrapping" title="Permanent link">&para;</a></h3>
-<p>The simplest integration - wrap any Agno model with <code>HeadroomAgnoModel</code>:</p>
+<p>The simplest integration - wrap any Agno model with <code>CutctxAgnoModel</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChat</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Claude</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.google</span><span class="w"> </span><span class="kn">import</span> <span class="n">Gemini</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Works with any Agno model</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">openai_model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">claude_model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">gemini_model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">Gemini</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gemini-2.0-flash&quot;</span><span class="p">))</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">openai_model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">claude_model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">gemini_model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">Gemini</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gemini-2.0-flash&quot;</span><span class="p">))</span>
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># Each automatically uses the correct provider for accurate token counting</span>
 </span></code></pre></div>
-<p><strong>Why this matters</strong>: Headroom automatically detects the underlying provider and applies the correct tokenizer for accurate optimization metrics.</p>
+<p><strong>Why this matters</strong>: Cutctx automatically detects the underlying provider and applies the correct tokenizer for accurate optimization metrics.</p>
 <h3 id="2-agent-with-observability-hooks">2. Agent with Observability Hooks<a class="headerlink" href="#2-agent-with-observability-hooks" title="Permanent link">&para;</a></h3>
 <p>Use hooks for detailed tracking without modifying your model:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.agent</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChat</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">HeadroomAgnoModel</span><span class="p">,</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">HeadroomPreHook</span><span class="p">,</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">HeadroomPostHook</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">CutctxAgnoModel</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">CutctxPreHook</span><span class="p">,</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">CutctxPostHook</span><span class="p">,</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">)</span>
 </span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Model wrapper for optimization</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
 </span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="c1"># Hooks for observability</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="n">pre_hook</span> <span class="o">=</span> <span class="n">HeadroomPreHook</span><span class="p">()</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="n">post_hook</span> <span class="o">=</span> <span class="n">HeadroomPostHook</span><span class="p">(</span><span class="n">token_alert_threshold</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="n">pre_hook</span> <span class="o">=</span> <span class="n">CutctxPreHook</span><span class="p">()</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="n">post_hook</span> <span class="o">=</span> <span class="n">CutctxPostHook</span><span class="p">(</span><span class="n">token_alert_threshold</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
 </span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
 </span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span>
 </span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
@@ -2803,10 +2803,10 @@
 </span></code></pre></div>
 <p><strong>Why this matters</strong>: Hooks provide observability into agent behavior and can alert when token usage exceeds thresholds.</p>
 <h3 id="3-convenience-hook-factory">3. Convenience Hook Factory<a class="headerlink" href="#3-convenience-hook-factory" title="Permanent link">&para;</a></h3>
-<p>Use <code>create_headroom_hooks()</code> to create matched hook pairs:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_headroom_hooks</span>
+<p>Use <code>create_cutctx_hooks()</code> to create matched hook pairs:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_cutctx_hooks</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">pre_hook</span><span class="p">,</span> <span class="n">post_hook</span> <span class="o">=</span> <span class="n">create_headroom_hooks</span><span class="p">(</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">pre_hook</span><span class="p">,</span> <span class="n">post_hook</span> <span class="o">=</span> <span class="n">create_cutctx_hooks</span><span class="p">(</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">token_alert_threshold</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">log_level</span><span class="o">=</span><span class="s2">&quot;DEBUG&quot;</span><span class="p">,</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">)</span>
@@ -2818,23 +2818,23 @@
 </span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="4-custom-configuration">4. Custom Configuration<a class="headerlink" href="#4-custom-configuration" title="Permanent link">&para;</a></h3>
-<p>Pass a <code>HeadroomConfig</code> for fine-grained control:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomConfig</span><span class="p">,</span> <span class="n">HeadroomMode</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+<p>Pass a <code>CutctxConfig</code> for fine-grained control:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxConfig</span><span class="p">,</span> <span class="n">CutctxMode</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">HeadroomConfig</span><span class="p">(</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="n">HeadroomMode</span><span class="o">.</span><span class="n">OPTIMIZE</span><span class="p">,</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CutctxConfig</span><span class="p">(</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="n">CutctxMode</span><span class="o">.</span><span class="n">OPTIMIZE</span><span class="p">,</span>
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="c1"># Add other configuration options as needed</span>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">)</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">wrapped_model</span><span class="o">=</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">),</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
 </span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="5-standalone-message-optimization">5. Standalone Message Optimization<a class="headerlink" href="#5-standalone-message-optimization" title="Permanent link">&para;</a></h3>
 <p>Optimize messages without wrapping a model:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_messages</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_messages</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">},</span>
@@ -2849,10 +2849,10 @@
 <h3 id="6-async-operations">6. Async Operations<a class="headerlink" href="#6-async-operations" title="Permanent link">&para;</a></h3>
 <p>Full async support for high-throughput applications:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_async</span><span class="p">():</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="c1"># Async response</span>
 </span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">aresponse</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
@@ -2871,10 +2871,10 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.agent</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChat</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.tools.duckduckgo</span><span class="w"> </span><span class="kn">import</span> <span class="n">DuckDuckGoTools</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Wrap model for optimization</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
 </span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="c1"># Agent with search tools</span>
 </span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span>
@@ -2893,11 +2893,11 @@
 <h3 id="example-2-multi-model-routing">Example 2: Multi-Model Routing<a class="headerlink" href="#example-2-multi-model-routing" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChat</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.models.anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Claude</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Different models for different tasks</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">fast_model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">))</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">powerful_model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">fast_model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">))</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">powerful_model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">Claude</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">))</span>
 </span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
 </span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># Use fast model for simple tasks</span>
 </span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="n">simple_agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">fast_model</span><span class="p">)</span>
@@ -2911,13 +2911,13 @@
 </span></code></pre></div>
 <h3 id="example-3-production-monitoring">Example 3: Production Monitoring<a class="headerlink" href="#example-3-production-monitoring" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agno.agent</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">HeadroomAgnoModel</span><span class="p">,</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">create_headroom_hooks</span><span class="p">,</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">CutctxAgnoModel</span><span class="p">,</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">create_cutctx_hooks</span><span class="p">,</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">)</span>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">pre_hook</span><span class="p">,</span> <span class="n">post_hook</span> <span class="o">=</span> <span class="n">create_headroom_hooks</span><span class="p">(</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">pre_hook</span><span class="p">,</span> <span class="n">post_hook</span> <span class="o">=</span> <span class="n">create_cutctx_hooks</span><span class="p">(</span>
 </span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="n">token_alert_threshold</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span>  <span class="c1"># Alert on large requests</span>
 </span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="n">log_level</span><span class="o">=</span><span class="s2">&quot;WARNING&quot;</span><span class="p">,</span>
 </span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="p">)</span>
@@ -2944,7 +2944,7 @@
 </span><span id="__span-11-32"><a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Average tokens: </span><span class="si">{</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;average_tokens&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="example-4-reset-for-new-sessions">Example 4: Reset for New Sessions<a class="headerlink" href="#example-4-reset-for-new-sessions" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span><span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">))</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Session 1</span>
 </span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;First conversation...&quot;</span><span class="p">)</span>
@@ -2959,7 +2959,7 @@
 </span></code></pre></div>
 <hr />
 <h2 id="supported-providers">Supported Providers<a class="headerlink" href="#supported-providers" title="Permanent link">&para;</a></h2>
-<p>HeadroomAgnoModel automatically detects the provider from the wrapped model:</p>
+<p>CutctxAgnoModel automatically detects the provider from the wrapped model:</p>
 <table>
 <thead>
 <tr>
@@ -3012,7 +3012,7 @@
 </tbody>
 </table>
 <p>To disable auto-detection:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">HeadroomAgnoModel</span><span class="p">(</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">CutctxAgnoModel</span><span class="p">(</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">wrapped_model</span><span class="o">=</span><span class="n">some_model</span><span class="p">,</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">auto_detect_provider</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Falls back to OpenAI tokenizer</span>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="p">)</span>
@@ -3020,7 +3020,7 @@
 <hr />
 <h2 id="feature-coverage">Feature Coverage<a class="headerlink" href="#feature-coverage" title="Permanent link">&para;</a></h2>
 <h3 id="whats-optimized">What's Optimized<a class="headerlink" href="#whats-optimized" title="Permanent link">&para;</a></h3>
-<p>HeadroomAgnoModel optimizes messages at the LLM call boundary. This covers:</p>
+<p>CutctxAgnoModel optimizes messages at the LLM call boundary. This covers:</p>
 <table>
 <thead>
 <tr>
@@ -3120,10 +3120,10 @@
 <li><strong>Tool schema deduplication</strong> — Cache and reference repeated tool definitions</li>
 <li><strong>Team-level optimization</strong> — Shared context compression across agent teams</li>
 </ul>
-<p>Contributions welcome! See <a href="https://github.com/chopratejas/headroom/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+<p>Contributions welcome! See <a href="https://github.com/chopratejas/cutctx/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 <hr />
 <h2 id="configuration-reference">Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h2>
-<h3 id="headroomagnomodel">HeadroomAgnoModel<a class="headerlink" href="#headroomagnomodel" title="Permanent link">&para;</a></h3>
+<h3 id="cutctxagnomodel">CutctxAgnoModel<a class="headerlink" href="#cutctxagnomodel" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3142,7 +3142,7 @@
 </tr>
 <tr>
 <td><code>config</code></td>
-<td><code>HeadroomConfig</code></td>
+<td><code>CutctxConfig</code></td>
 <td><code>None</code></td>
 <td>Custom configuration</td>
 </tr>
@@ -3165,7 +3165,7 @@
 - <code>aresponse_stream(messages, **kwargs)</code> - Async streaming
 - <code>get_savings_summary()</code> - Returns dict with stats
 - <code>reset()</code> - Clear all metrics</p>
-<h3 id="headroomprehook">HeadroomPreHook<a class="headerlink" href="#headroomprehook" title="Permanent link">&para;</a></h3>
+<h3 id="cutctxprehook">CutctxPreHook<a class="headerlink" href="#cutctxprehook" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3178,7 +3178,7 @@
 <tbody>
 <tr>
 <td><code>config</code></td>
-<td><code>HeadroomConfig</code></td>
+<td><code>CutctxConfig</code></td>
 <td><code>None</code></td>
 <td>Configuration (for future use)</td>
 </tr>
@@ -3190,7 +3190,7 @@
 </tr>
 </tbody>
 </table>
-<h3 id="headroomposthook">HeadroomPostHook<a class="headerlink" href="#headroomposthook" title="Permanent link">&para;</a></h3>
+<h3 id="cutctxposthook">CutctxPostHook<a class="headerlink" href="#cutctxposthook" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3221,7 +3221,7 @@
 <p><strong>Methods:</strong>
 - <code>get_summary()</code> - Returns dict with request stats
 - <code>reset()</code> - Clear history and alerts</p>
-<h3 id="create_headroom_hooks">create_headroom_hooks()<a class="headerlink" href="#create_headroom_hooks" title="Permanent link">&para;</a></h3>
+<h3 id="create_cutctx_hooks">create_cutctx_hooks()<a class="headerlink" href="#create_cutctx_hooks" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3234,7 +3234,7 @@
 <tbody>
 <tr>
 <td><code>config</code></td>
-<td><code>HeadroomConfig</code></td>
+<td><code>CutctxConfig</code></td>
 <td><code>None</code></td>
 <td>Config for pre-hook</td>
 </tr>
@@ -3258,47 +3258,47 @@
 </tr>
 </tbody>
 </table>
-<p>Returns: <code>tuple[HeadroomPreHook, HeadroomPostHook]</code></p>
+<p>Returns: <code>tuple[CutctxPreHook, CutctxPostHook]</code></p>
 <hr />
 <h2 id="import-reference">Import Reference<a class="headerlink" href="#import-reference" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Main integration</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># Hooks</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomPreHook</span>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomPostHook</span>
-</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_headroom_hooks</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxPreHook</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxPostHook</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_cutctx_hooks</span>
 </span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>
 </span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="c1"># Utilities</span>
-</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_messages</span>
-</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">agno_available</span>
-</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_headroom_provider</span>
-</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model_name_from_agno</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimize_messages</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">agno_available</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_cutctx_provider</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model_name_from_agno</span>
 </span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>
 </span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="c1"># Or import everything from parent</span>
-</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>    <span class="n">HeadroomAgnoModel</span><span class="p">,</span>
-</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>    <span class="n">HeadroomPreHook</span><span class="p">,</span>
-</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>    <span class="n">HeadroomPostHook</span><span class="p">,</span>
-</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>    <span class="n">create_headroom_hooks</span><span class="p">,</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>    <span class="n">CutctxAgnoModel</span><span class="p">,</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>    <span class="n">CutctxPreHook</span><span class="p">,</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>    <span class="n">CutctxPostHook</span><span class="p">,</span>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>    <span class="n">create_cutctx_hooks</span><span class="p">,</span>
 </span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a><span class="p">)</span>
 </span></code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="check-if-agno-is-available">Check if Agno is Available<a class="headerlink" href="#check-if-agno-is-available" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">agno_available</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">agno_available</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">if</span> <span class="n">agno_available</span><span class="p">():</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomAgnoModel</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxAgnoModel</span>
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">else</span><span class="p">:</span>
 </span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install agno: pip install agno&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="provider-detection-issues">Provider Detection Issues<a class="headerlink" href="#provider-detection-issues" title="Permanent link">&para;</a></h3>
 <p>If auto-detection fails, check the detected provider:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_headroom_provider</span><span class="p">,</span> <span class="n">get_model_name_from_agno</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.integrations.agno</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_cutctx_provider</span><span class="p">,</span> <span class="n">get_model_name_from_agno</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">OpenAIChat</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">)</span>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">get_headroom_provider</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">get_cutctx_provider</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 </span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">model_name</span> <span class="o">=</span> <span class="n">get_model_name_from_agno</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 </span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
 </span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detected provider: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>

@@ -2175,7 +2175,7 @@
 
 <h1 id="fix-codex-proxy-resilience-under-reconnect-storms">fix: Codex proxy resilience under reconnect storms<a class="headerlink" href="#fix-codex-proxy-resilience-under-reconnect-storms" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Harden the shared Headroom proxy so it can survive real multi-agent Codex traffic — especially the <strong>large Anthropic <code>/v1/messages?beta=true</code> reconnect/retry storm</strong> that hits the proxy immediately after a restart — without appearing dead (<code>/livez</code> timing out, new <code>/v1/responses</code> websocket handshakes hanging) and without bypassing compression.</p>
+<p>Harden the shared Cutctx proxy so it can survive real multi-agent Codex traffic — especially the <strong>large Anthropic <code>/v1/messages?beta=true</code> reconnect/retry storm</strong> that hits the proxy immediately after a restart — without appearing dead (<code>/livez</code> timing out, new <code>/v1/responses</code> websocket handshakes hanging) and without bypassing compression.</p>
 <p>This is the follow-on work to the runtime analysis captured in the origin document. The previous branch (<code>fix/responses-retries-keep-compression</code>) fixed the upstream WS handshake/fallback issues and kept compression enabled. This plan addresses the <strong>remaining long-lived runtime degradation</strong> described in §4 of the origin ("Long-lived service degradation on <code>8787</code>").</p>
 <p>The plan deliberately focuses on <strong>observability + lifecycle hygiene + cold-start backpressure</strong>, not more blind patching. Compression stays enabled throughout.</p>
 <h2 id="problem-frame">Problem Frame<a class="headerlink" href="#problem-frame" title="Permanent link">&para;</a></h2>
@@ -2212,7 +2212,7 @@
 <li><strong>Not</strong> redesigning the memory stack, embedder choice, or Kompress model. Those are upstream concerns.</li>
 <li><strong>Not</strong> building a full distributed tracing system. The instrumentation added here is structured logs + in-process counters; OpenTelemetry hookup is a separate plan.</li>
 <li><strong>Not</strong> changing the WS→HTTP fallback semantics beyond what's needed to plumb through the new request-id/session-id logging fields.</li>
-<li><strong>Not</strong> modifying <code>headroom-ai[ml]</code> dependencies, HuggingFace model IDs, or the embedder's own backend.</li>
+<li><strong>Not</strong> modifying <code>cutctx-ai[ml]</code> dependencies, HuggingFace model IDs, or the embedder's own backend.</li>
 </ul>
 <h3 id="deferred-to-separate-tasks">Deferred to Separate Tasks<a class="headerlink" href="#deferred-to-separate-tasks" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2224,21 +2224,21 @@
 <h2 id="context-research">Context &amp; Research<a class="headerlink" href="#context-research" title="Permanent link">&para;</a></h2>
 <h3 id="relevant-code-and-patterns">Relevant Code and Patterns<a class="headerlink" href="#relevant-code-and-patterns" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>headroom/proxy/handlers/openai.py:1206</code> — <code>handle_openai_responses_ws</code> (Codex WS entry point, 600+ lines)</li>
-<li><code>headroom/proxy/handlers/openai.py:1559-1767</code> — upstream WS connect retry loop, <code>open_timeout</code> handling</li>
-<li><code>headroom/proxy/handlers/openai.py:1815</code> — <code>_ws_http_fallback</code> (preserved as-is)</li>
-<li><code>headroom/proxy/handlers/openai.py:1439-1452</code> — memory context timeout fail-open (preserved as-is)</li>
-<li><code>headroom/proxy/handlers/anthropic.py:293</code> — <code>handle_anthropic_messages</code> (HTTP entry point, also covers the <code>?beta=true</code> replay traffic)</li>
-<li><code>headroom/proxy/server.py:586-733</code> — <code>HeadroomProxy.startup</code> (where eager preload runs)</li>
-<li><code>headroom/proxy/server.py:634-637</code> — current eager preload iterates <strong>only</strong> <code>anthropic_pipeline.transforms</code> and breaks on first match</li>
-<li><code>headroom/proxy/server.py:301-308</code> — both pipelines currently share the same <code>transforms</code> list (so the module-level <code>_kompress_cache</code> is de facto shared, but this is fragile)</li>
-<li><code>headroom/proxy/server.py:1190-1212</code> — <code>/livez</code>, <code>/readyz</code>, <code>/health</code> handlers (trivial JSON, no I/O)</li>
-<li><code>headroom/proxy/memory_handler.py:134-207</code> — <code>MemoryHandler._ensure_initialized</code> (lazy, no <code>asyncio.Lock</code>)</li>
-<li><code>headroom/transforms/content_router.py:1221-1297</code> — <code>eager_load_compressors</code> (Kompress + Magika + Code-Aware + SmartCrusher)</li>
-<li><code>headroom/transforms/kompress_compressor.py:163-221</code> — <code>_load_kompress_onnx</code> / <code>_load_kompress</code> with module-level <code>_kompress_cache</code> + <code>threading.Lock</code></li>
-<li><code>headroom/proxy/request_logger.py</code> — existing structured request log sink (extend, don't replace)</li>
-<li><code>headroom/proxy/prometheus_metrics.py</code> — existing <code>PrometheusMetrics</code> class; add counters/gauges here</li>
-<li><code>headroom/proxy/helpers.py:138-207</code> — <code>_read_request_json</code> (pre-upstream work on Anthropic path)</li>
+<li><code>cutctx/proxy/handlers/openai.py:1206</code> — <code>handle_openai_responses_ws</code> (Codex WS entry point, 600+ lines)</li>
+<li><code>cutctx/proxy/handlers/openai.py:1559-1767</code> — upstream WS connect retry loop, <code>open_timeout</code> handling</li>
+<li><code>cutctx/proxy/handlers/openai.py:1815</code> — <code>_ws_http_fallback</code> (preserved as-is)</li>
+<li><code>cutctx/proxy/handlers/openai.py:1439-1452</code> — memory context timeout fail-open (preserved as-is)</li>
+<li><code>cutctx/proxy/handlers/anthropic.py:293</code> — <code>handle_anthropic_messages</code> (HTTP entry point, also covers the <code>?beta=true</code> replay traffic)</li>
+<li><code>cutctx/proxy/server.py:586-733</code> — <code>CutctxProxy.startup</code> (where eager preload runs)</li>
+<li><code>cutctx/proxy/server.py:634-637</code> — current eager preload iterates <strong>only</strong> <code>anthropic_pipeline.transforms</code> and breaks on first match</li>
+<li><code>cutctx/proxy/server.py:301-308</code> — both pipelines currently share the same <code>transforms</code> list (so the module-level <code>_kompress_cache</code> is de facto shared, but this is fragile)</li>
+<li><code>cutctx/proxy/server.py:1190-1212</code> — <code>/livez</code>, <code>/readyz</code>, <code>/health</code> handlers (trivial JSON, no I/O)</li>
+<li><code>cutctx/proxy/memory_handler.py:134-207</code> — <code>MemoryHandler._ensure_initialized</code> (lazy, no <code>asyncio.Lock</code>)</li>
+<li><code>cutctx/transforms/content_router.py:1221-1297</code> — <code>eager_load_compressors</code> (Kompress + Magika + Code-Aware + SmartCrusher)</li>
+<li><code>cutctx/transforms/kompress_compressor.py:163-221</code> — <code>_load_kompress_onnx</code> / <code>_load_kompress</code> with module-level <code>_kompress_cache</code> + <code>threading.Lock</code></li>
+<li><code>cutctx/proxy/request_logger.py</code> — existing structured request log sink (extend, don't replace)</li>
+<li><code>cutctx/proxy/prometheus_metrics.py</code> — existing <code>PrometheusMetrics</code> class; add counters/gauges here</li>
+<li><code>cutctx/proxy/helpers.py:138-207</code> — <code>_read_request_json</code> (pre-upstream work on Anthropic path)</li>
 </ul>
 <h3 id="institutional-learnings">Institutional Learnings<a class="headerlink" href="#institutional-learnings" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2264,7 +2264,7 @@
 <h2 id="open-questions">Open Questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <h3 id="resolved-during-planning">Resolved During Planning<a class="headerlink" href="#resolved-during-planning" title="Permanent link">&para;</a></h3>
 <ul>
-<li><em>Q: Target upstream or the fork?</em> Resolved: target the fork (<code>fix/responses-retries-keep-compression</code>), structured so each unit is cherry-pickable into a PR against <code>chopratejas/headroom#172</code>.</li>
+<li><em>Q: Target upstream or the fork?</em> Resolved: target the fork (<code>fix/responses-retries-keep-compression</code>), structured so each unit is cherry-pickable into a PR against <code>chopratejas/cutctx#172</code>.</li>
 <li><em>Q: Should Unit 5's debug endpoints require an explicit flag to enable?</em> Resolved: <strong>no</strong> — loopback-only gating is sufficient and the debug data is useless if it isn't always available when the process is struggling.</li>
 <li><em>Q: Does <code>MemoryHandler._ensure_initialized</code> already have a concurrency guard?</em> Resolved: <strong>no</strong>. It relies on <code>self._initialized = True</code> flip, which is not atomic across <code>await</code> points. Unit 1 adds an <code>asyncio.Lock</code>.</li>
 <li><em>Q: Are the WS relay tasks already cancelled on partner exit?</em> Resolved: <strong>no</strong>. <code>asyncio.gather(return_exceptions=True)</code> waits for both; the survivor only exits when its own loop raises. Unit 3 fixes this.</li>
@@ -2272,17 +2272,17 @@
 </ul>
 <h3 id="deferred-to-implementation">Deferred to Implementation<a class="headerlink" href="#deferred-to-implementation" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Exact default for the Anthropic pre-upstream semaphore.</strong> Start at <code>max(2, min(8, os.cpu_count()))</code> and expose via <code>--anthropic-pre-upstream-concurrency</code> / <code>HEADROOM_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code>. Tune after Unit 2's stage timings land.</li>
+<li><strong>Exact default for the Anthropic pre-upstream semaphore.</strong> Start at <code>max(2, min(8, os.cpu_count()))</code> and expose via <code>--anthropic-pre-upstream-concurrency</code> / <code>CUTCTX_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code>. Tune after Unit 2's stage timings land.</li>
 <li><strong>Which asyncio task names are "long-lived" thresholds</strong> for Unit 5's dump. Likely <code>&gt; 2× median lifetime</code>, but the median is only observable after Unit 2 runs in production.</li>
 <li><strong>Whether the repro harness (Unit 6) needs to speak realistic Codex subprotocol framing or can synthesize enough with recorded frames.</strong> Depends on how faithfully <code>tests/test_openai_codex_routing.py</code> fixtures already capture the handshake.</li>
-<li><strong>Final placement of <code>WebSocketSessionRegistry</code></strong>: <code>headroom/proxy/ws_session_registry.py</code> as a new module, or folded into <code>headroom/proxy/server.py</code>. Likely new module; confirm during implementation once imports are real.</li>
+<li><strong>Final placement of <code>WebSocketSessionRegistry</code></strong>: <code>cutctx/proxy/ws_session_registry.py</code> as a new module, or folded into <code>cutctx/proxy/server.py</code>. Likely new module; confirm during implementation once imports are real.</li>
 </ul>
 <h2 id="high-level-technical-design">High-Level Technical Design<a class="headerlink" href="#high-level-technical-design" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p><em>This illustrates the intended approach and is directional guidance for review, not implementation specification. The implementing agent should treat it as context, not code to reproduce.</em></p>
 </blockquote>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>                    ┌───────────────────────────────────────────────────────┐
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                    │                   HeadroomProxy.startup                │
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                    │                   CutctxProxy.startup                │
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                    │                                                        │
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                    │   Unit 1: shared_warmup()                              │
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    │     • eager-load on both pipelines (not just first)    │
@@ -2371,14 +2371,14 @@
 <p><strong>Requirements:</strong> R2, R7</p>
 <p><strong>Dependencies:</strong> None (pure startup change; no other unit depends on this landing first, but landing it first reduces noise in Unit 2's timings)</p>
 <p><strong>Files:</strong>
-- Modify: <code>headroom/proxy/server.py</code> (startup orchestration around lines 627-675)
-- Modify: <code>headroom/proxy/memory_handler.py</code> (add <code>asyncio.Lock</code> in <code>_ensure_initialized</code>)
-- Modify: <code>headroom/transforms/content_router.py</code> (no behavior change — ensure <code>eager_load_compressors</code> is idempotent when called via both pipelines)
-- Create: <code>headroom/proxy/warmup.py</code> (new <code>WarmupRegistry</code> holding preloaded handles)
+- Modify: <code>cutctx/proxy/server.py</code> (startup orchestration around lines 627-675)
+- Modify: <code>cutctx/proxy/memory_handler.py</code> (add <code>asyncio.Lock</code> in <code>_ensure_initialized</code>)
+- Modify: <code>cutctx/transforms/content_router.py</code> (no behavior change — ensure <code>eager_load_compressors</code> is idempotent when called via both pipelines)
+- Create: <code>cutctx/proxy/warmup.py</code> (new <code>WarmupRegistry</code> holding preloaded handles)
 - Test: <code>tests/test_proxy_warmup.py</code> (new)
 - Test: <code>tests/test_memory_handler_concurrent_init.py</code> (new)</p>
 <p><strong>Approach:</strong>
-- Introduce <code>WarmupRegistry</code> with typed slots for kompress, magika, code-aware, smart-crusher, memory-embedder, memory-backend. Populate during <code>HeadroomProxy.startup</code>, expose via <code>proxy.warmup</code> for <code>/debug/warmup</code> (Unit 5) and <code>/readyz</code>.
+- Introduce <code>WarmupRegistry</code> with typed slots for kompress, magika, code-aware, smart-crusher, memory-embedder, memory-backend. Populate during <code>CutctxProxy.startup</code>, expose via <code>proxy.warmup</code> for <code>/debug/warmup</code> (Unit 5) and <code>/readyz</code>.
 - Iterate <strong>both</strong> <code>self.anthropic_pipeline.transforms</code> and <code>self.openai_pipeline.transforms</code> when calling <code>eager_load_compressors</code>; dedupe by <code>id(transform)</code> so shared transforms don't double-load.
 - Preload the memory embedder explicitly — today <code>ensure_initialized</code> initializes the backend but the embedder's first-use cost may still be deferred until the first <code>search_and_format_context</code>. Force one warm-up encode (a single short string) to pre-compile the ONNX graph.
 - Add <code>asyncio.Lock</code> in <code>MemoryHandler._ensure_initialized</code> so concurrent first callers await one load, not N.
@@ -2407,12 +2407,12 @@
 <p><strong>Requirements:</strong> R3</p>
 <p><strong>Dependencies:</strong> None (independent), but landing alongside Unit 1 gives early visibility into whether warmup actually helped.</p>
 <p><strong>Files:</strong>
-- Modify: <code>headroom/proxy/handlers/openai.py</code> (WS path at lines 1206+; HTTP path at 798+)
-- Modify: <code>headroom/proxy/handlers/anthropic.py</code> (<code>handle_anthropic_messages</code> around line 293 and downstream)
-- Modify: <code>headroom/proxy/request_logger.py</code> (extend schema)
-- Modify: <code>headroom/proxy/prometheus_metrics.py</code> (add histograms per stage)
-- Modify: <code>headroom/proxy/helpers.py</code> (thread <code>stage_timer</code> through <code>_read_request_json</code> / compression helpers)
-- Create: <code>headroom/proxy/stage_timer.py</code> (small context-manager util)
+- Modify: <code>cutctx/proxy/handlers/openai.py</code> (WS path at lines 1206+; HTTP path at 798+)
+- Modify: <code>cutctx/proxy/handlers/anthropic.py</code> (<code>handle_anthropic_messages</code> around line 293 and downstream)
+- Modify: <code>cutctx/proxy/request_logger.py</code> (extend schema)
+- Modify: <code>cutctx/proxy/prometheus_metrics.py</code> (add histograms per stage)
+- Modify: <code>cutctx/proxy/helpers.py</code> (thread <code>stage_timer</code> through <code>_read_request_json</code> / compression helpers)
+- Create: <code>cutctx/proxy/stage_timer.py</code> (small context-manager util)
 - Test: <code>tests/test_stage_timer.py</code> (new)
 - Test: <code>tests/test_openai_codex_ws_timings.py</code> (new)
 - Test: <code>tests/test_anthropic_stage_timings.py</code> (new)</p>
@@ -2424,7 +2424,7 @@
 - <code>request_id</code> is already threaded through both handlers. Add a <code>session_id</code> (UUID generated at WS accept / HTTP request start) so multi-turn sessions are correlatable.</p>
 <p><strong>Execution note:</strong> Land the util + test (<code>StageTimer</code>) first; only then plumb it through the two handlers. Keeps the diff reviewable.</p>
 <p><strong>Patterns to follow:</strong>
-- <code>headroom/proxy/request_logger.py</code> structured-field schema.
+- <code>cutctx/proxy/request_logger.py</code> structured-field schema.
 - <code>PrometheusMetrics.record_request</code> histogram pattern.
 - Existing <code>request_id = await self._next_request_id()</code> at <code>openai.py:1232</code>.</p>
 <p><strong>Test scenarios:</strong>
@@ -2446,9 +2446,9 @@
 <p><strong>Requirements:</strong> R4</p>
 <p><strong>Dependencies:</strong> Unit 2 (uses the same <code>session_id</code>)</p>
 <p><strong>Files:</strong>
-- Create: <code>headroom/proxy/ws_session_registry.py</code> (new)
-- Modify: <code>headroom/proxy/handlers/openai.py</code> (<code>handle_openai_responses_ws</code> at 1206; relay task construction around 1559-1767; <code>_upstream_to_client</code> at 1565)
-- Modify: <code>headroom/proxy/prometheus_metrics.py</code> (add <code>active_ws_sessions</code> gauge, <code>active_relay_tasks</code> gauge, <code>ws_session_duration</code> histogram)
+- Create: <code>cutctx/proxy/ws_session_registry.py</code> (new)
+- Modify: <code>cutctx/proxy/handlers/openai.py</code> (<code>handle_openai_responses_ws</code> at 1206; relay task construction around 1559-1767; <code>_upstream_to_client</code> at 1565)
+- Modify: <code>cutctx/proxy/prometheus_metrics.py</code> (add <code>active_ws_sessions</code> gauge, <code>active_relay_tasks</code> gauge, <code>ws_session_duration</code> histogram)
 - Test: <code>tests/test_ws_session_registry.py</code> (new)
 - Test: <code>tests/test_openai_codex_ws_lifecycle.py</code> (new)</p>
 <p><strong>Approach:</strong>
@@ -2481,20 +2481,20 @@
 <p><strong>Requirements:</strong> R1, R5, R7</p>
 <p><strong>Dependencies:</strong> Unit 2 (must have stage timings landed so the default semaphore size can be tuned from real numbers; the unit itself can ship with a conservative default and be retuned later)</p>
 <p><strong>Files:</strong>
-- Modify: <code>headroom/proxy/handlers/anthropic.py</code> (wrap the pre-upstream phases in <code>handle_anthropic_messages</code> at ~293 through first upstream call)
-- Modify: <code>headroom/proxy/models.py</code> or config module (add <code>anthropic_pre_upstream_concurrency: int</code> config field)
-- Modify: <code>headroom/proxy/server.py</code> (construct the <code>asyncio.Semaphore</code> on <code>HeadroomProxy.__init__</code> so it's per-process, not per-request)
+- Modify: <code>cutctx/proxy/handlers/anthropic.py</code> (wrap the pre-upstream phases in <code>handle_anthropic_messages</code> at ~293 through first upstream call)
+- Modify: <code>cutctx/proxy/models.py</code> or config module (add <code>anthropic_pre_upstream_concurrency: int</code> config field)
+- Modify: <code>cutctx/proxy/server.py</code> (construct the <code>asyncio.Semaphore</code> on <code>CutctxProxy.__init__</code> so it's per-process, not per-request)
 - Modify: CLI surface (add <code>--anthropic-pre-upstream-concurrency</code> flag + env var)
 - Test: <code>tests/test_anthropic_pre_upstream_backpressure.py</code> (new)</p>
 <p><strong>Approach:</strong>
-- Add <code>self.anthropic_pre_upstream_sem = asyncio.Semaphore(config.anthropic_pre_upstream_concurrency or max(2, min(8, os.cpu_count())))</code> in <code>HeadroomProxy.__init__</code>.
+- Add <code>self.anthropic_pre_upstream_sem = asyncio.Semaphore(config.anthropic_pre_upstream_concurrency or max(2, min(8, os.cpu_count())))</code> in <code>CutctxProxy.__init__</code>.
 - In <code>handle_anthropic_messages</code>, wrap the region from <code>_read_request_json</code> through the first <code>self.http_client.send()</code> / <code>stream()</code> call in <code>async with self.anthropic_pre_upstream_sem:</code>.
 - <strong>Critically:</strong> <code>/livez</code> and <code>/readyz</code> do not go through this semaphore. They remain free even under replay storm.
 - Emit a log (not a warning — expected under load) when a request waits &gt; 100ms for the semaphore, so we can see queueing in the Unit 2 stage timings.
-- Default config: <code>HEADROOM_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code> env var honored; CLI flag overrides; unset defaults to the computed floor.</p>
+- Default config: <code>CUTCTX_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code> env var honored; CLI flag overrides; unset defaults to the computed floor.</p>
 <p><strong>Patterns to follow:</strong>
-- Existing config field addition pattern in <code>headroom/proxy/models.py</code>.
-- Existing CLI flag plumbing in <code>headroom/cli/</code>.
+- Existing config field addition pattern in <code>cutctx/proxy/models.py</code>.
+- Existing CLI flag plumbing in <code>cutctx/cli/</code>.
 - <code>request_logger.info(..., stage="pre_upstream_wait_ms", ...)</code> field extension from Unit 2.</p>
 <p><strong>Test scenarios:</strong>
 - Happy path: a single request passes through with negligible <code>pre_upstream_wait_ms</code>.
@@ -2514,9 +2514,9 @@
 <p><strong>Requirements:</strong> R3</p>
 <p><strong>Dependencies:</strong> Unit 3 (ws session data), Unit 1 (warmup registry data)</p>
 <p><strong>Files:</strong>
-- Modify: <code>headroom/proxy/server.py</code> (add <code>/debug/tasks</code>, <code>/debug/ws-sessions</code>, <code>/debug/warmup</code> routes near the existing <code>/livez</code> at 1190)
-- Create: <code>headroom/proxy/debug_introspection.py</code> (pure functions that serialize state)
-- Create: <code>headroom/proxy/loopback_guard.py</code> (middleware / dep that 404s non-loopback requests)
+- Modify: <code>cutctx/proxy/server.py</code> (add <code>/debug/tasks</code>, <code>/debug/ws-sessions</code>, <code>/debug/warmup</code> routes near the existing <code>/livez</code> at 1190)
+- Create: <code>cutctx/proxy/debug_introspection.py</code> (pure functions that serialize state)
+- Create: <code>cutctx/proxy/loopback_guard.py</code> (middleware / dep that 404s non-loopback requests)
 - Test: <code>tests/test_proxy_debug_endpoints.py</code> (new)</p>
 <p><strong>Approach:</strong>
 - <code>loopback_guard</code>: inspect <code>request.client.host</code>; if not in <code>{"127.0.0.1", "::1", "localhost"}</code>, return 404 with no body. A 404 (not 403) keeps debug endpoints invisible to external scanners.
@@ -2567,13 +2567,13 @@
 - Test expectation: light — the harness is a script, not a library. A smoke test in <code>tests/test_scripts/test_repro_codex_replay_smoke.py</code> launches it against a mock server and verifies it exits 0 with the expected summary shape.
 - Happy path: harness runs against a healthy proxy; exit code 0; summary shows livez p99 &lt; 500ms.
 - Error path: harness invoked with <code>--url</code> pointing at a closed port; exits with clear "connection refused" message, non-zero code, within 5 seconds.
-- Integration: after Unit 4 lands, harness with default Anthropic concurrency limits shows livez p99 &lt; 100ms; harness with <code>HEADROOM_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY=10000</code> (unbounded) reproduces the original starvation (p99 &gt; 5s).</p>
+- Integration: after Unit 4 lands, harness with default Anthropic concurrency limits shows livez p99 &lt; 100ms; harness with <code>CUTCTX_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY=10000</code> (unbounded) reproduces the original starvation (p99 &gt; 5s).</p>
 <p><strong>Verification:</strong>
 - CI smoke test runs the script against a mock server on every PR.
 - <code>wiki/proxy.md</code> gets a "Reproducing the reconnect storm" subsection referencing the script.</p>
 <h2 id="system-wide-impact">System-Wide Impact<a class="headerlink" href="#system-wide-impact" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Interaction graph:</strong> the new <code>WarmupRegistry</code> (Unit 1) and <code>WebSocketSessionRegistry</code> (Unit 3) are accessed from <code>HeadroomProxy</code> during request handling and by <code>/debug/*</code> routes. Both are single-writer-per-event-loop; no locks needed beyond the <code>asyncio.Lock</code> in <code>MemoryHandler._ensure_initialized</code> (Unit 1).</li>
+<li><strong>Interaction graph:</strong> the new <code>WarmupRegistry</code> (Unit 1) and <code>WebSocketSessionRegistry</code> (Unit 3) are accessed from <code>CutctxProxy</code> during request handling and by <code>/debug/*</code> routes. Both are single-writer-per-event-loop; no locks needed beyond the <code>asyncio.Lock</code> in <code>MemoryHandler._ensure_initialized</code> (Unit 1).</li>
 <li><strong>Error propagation:</strong> Unit 3 changes <code>asyncio.gather(..., return_exceptions=True)</code> to explicit <code>asyncio.wait(FIRST_COMPLETED)</code> + cancel. This means partner-side exceptions surface earlier — previously, a client-side error would still let upstream-side drain to completion. Verify in test scenarios that this does not drop in-flight frames that the client had already queued.</li>
 <li><strong>State lifecycle risks:</strong> Unit 3's session registry must be deregistered in the outermost <code>finally</code> — a leak here re-creates the exact bug this plan fixes. Unit 1's <code>asyncio.Lock</code> must be released on exception paths (use <code>async with</code>, not manual acquire/release).</li>
 <li><strong>API surface parity:</strong> no change to <code>/v1/responses</code> or <code>/v1/messages</code> request/response contract. The only new routes are <code>/debug/*</code>, loopback-gated.</li>
@@ -2646,7 +2646,7 @@
 <li>Add a "Debug endpoints" subsection to <code>wiki/proxy.md</code> covering the three new loopback-only routes, their output shape, and the loopback-only guarantee.</li>
 <li>Add a "Reproducing the reconnect storm" subsection to <code>wiki/proxy.md</code> referencing <code>scripts/repro_codex_replay.py</code>.</li>
 <li>Update <code>wiki/metrics.md</code> with the new histogram series names from Unit 2 and the new gauges from Unit 3.</li>
-<li>Update <code>CHANGELOG.md</code> under an "Unreleased" heading with: (a) compression preserved — no behavioral change for existing Codex users; (b) new stage timings visible in logs; (c) new <code>HEADROOM_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code> env var; (d) new <code>/debug/*</code> loopback endpoints.</li>
+<li>Update <code>CHANGELOG.md</code> under an "Unreleased" heading with: (a) compression preserved — no behavioral change for existing Codex users; (b) new stage timings visible in logs; (c) new <code>CUTCTX_ANTHROPIC_PRE_UPSTREAM_CONCURRENCY</code> env var; (d) new <code>/debug/*</code> loopback endpoints.</li>
 <li><strong>Rollout note:</strong> deploy behind the existing launchd flow; monitor <code>/metrics</code> for the new histograms; monitor logs for <code>pre_upstream_wait_ms</code> — sustained non-zero values across many requests mean the Unit 4 default is too tight for this machine's load profile.</li>
 <li><strong>Rollback note:</strong> each unit is cherry-pickable. If Unit 4 causes regression, revert only Unit 4 (semaphore removal); Units 1–3 and 5–6 have no user-visible behavior change.</li>
 </ul>
@@ -2654,14 +2654,14 @@
 <ul>
 <li><strong>Origin document:</strong> <code>wiki/plans/2026-04-17-codex-proxy-runtime-analysis.md</code></li>
 <li>Related code:</li>
-<li><code>headroom/proxy/handlers/openai.py</code> — <code>handle_openai_responses_ws</code>, <code>_client_to_upstream</code>, <code>_upstream_to_client</code>, <code>_ws_http_fallback</code></li>
-<li><code>headroom/proxy/handlers/anthropic.py</code> — <code>handle_anthropic_messages</code></li>
-<li><code>headroom/proxy/server.py</code> — <code>HeadroomProxy.__init__</code>, <code>.startup</code>, health routes</li>
-<li><code>headroom/proxy/memory_handler.py</code> — <code>MemoryHandler._ensure_initialized</code></li>
-<li><code>headroom/transforms/content_router.py</code> — <code>eager_load_compressors</code></li>
-<li><code>headroom/transforms/kompress_compressor.py</code> — <code>_load_kompress_onnx</code>, <code>_kompress_cache</code></li>
+<li><code>cutctx/proxy/handlers/openai.py</code> — <code>handle_openai_responses_ws</code>, <code>_client_to_upstream</code>, <code>_upstream_to_client</code>, <code>_ws_http_fallback</code></li>
+<li><code>cutctx/proxy/handlers/anthropic.py</code> — <code>handle_anthropic_messages</code></li>
+<li><code>cutctx/proxy/server.py</code> — <code>CutctxProxy.__init__</code>, <code>.startup</code>, health routes</li>
+<li><code>cutctx/proxy/memory_handler.py</code> — <code>MemoryHandler._ensure_initialized</code></li>
+<li><code>cutctx/transforms/content_router.py</code> — <code>eager_load_compressors</code></li>
+<li><code>cutctx/transforms/kompress_compressor.py</code> — <code>_load_kompress_onnx</code>, <code>_kompress_cache</code></li>
 <li>Related PRs/issues:</li>
-<li>Upstream: <code>https://github.com/chopratejas/headroom/issues/172</code></li>
+<li>Upstream: <code>https://github.com/chopratejas/cutctx/issues/172</code></li>
 <li>Fork branch: <code>fix/responses-retries-keep-compression</code> (commit <code>0b11637</code>)</li>
 <li>External docs: none used for this plan.</li>
 </ul>

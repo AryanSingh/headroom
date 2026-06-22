@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#headroom-learn" class="md-skip">
+        <a href="#cutctx-learn" class="md-skip">
           Skip to content
         </a>
       
@@ -2502,20 +2502,20 @@
   
 
 
-<h1 id="headroom-learn">Headroom Learn<a class="headerlink" href="#headroom-learn" title="Permanent link">&para;</a></h1>
+<h1 id="cutctx-learn">Cutctx Learn<a class="headerlink" href="#cutctx-learn" title="Permanent link">&para;</a></h1>
 <p>Offline failure learning for coding agents. Analyzes past conversations, finds what went wrong, correlates it with what eventually worked, and writes specific project-level learnings that prevent the same mistakes next session.</p>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># See recommendations for current project (dry-run, no changes)</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>headroom<span class="w"> </span>learn
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cutctx<span class="w"> </span>learn
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Write recommendations to CLAUDE.md and MEMORY.md</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>headroom<span class="w"> </span>learn<span class="w"> </span>--apply
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>cutctx<span class="w"> </span>learn<span class="w"> </span>--apply
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Analyze a specific project</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>headroom<span class="w"> </span>learn<span class="w"> </span>--project<span class="w"> </span>~/my-project<span class="w"> </span>--apply
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>cutctx<span class="w"> </span>learn<span class="w"> </span>--project<span class="w"> </span>~/my-project<span class="w"> </span>--apply
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Analyze all projects</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>headroom<span class="w"> </span>learn<span class="w"> </span>--all<span class="w"> </span>--apply
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>cutctx<span class="w"> </span>learn<span class="w"> </span>--all<span class="w"> </span>--apply
 </span></code></pre></div>
 <h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Past Sessions → Plugin → Analyzer → Writer → Agent-native context file
@@ -2532,7 +2532,7 @@
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>                     • Gemini CLI:  ~/.gemini/tmp/*/chats/session-*.json
 </span></code></pre></div>
 <h3 id="success-correlation">Success Correlation<a class="headerlink" href="#success-correlation" title="Permanent link">&para;</a></h3>
-<p>The core innovation. Instead of cataloging failures ("Read failed 5 times"), Headroom finds what the model did to fix each failure:</p>
+<p>The core innovation. Instead of cataloging failures ("Read failed 5 times"), Cutctx finds what the model did to fix each failure:</p>
 <ul>
 <li><strong>Failed</strong>: <code>Read axion-formats/src/main/java/.../FirstClassEntity.java</code></li>
 <li><strong>Then succeeded</strong>: <code>Read axion-scala-common/src/main/scala/.../FirstClassEntity.scala</code></li>
@@ -2598,34 +2598,34 @@
 </table>
 <p>Output files are agent-native: Claude Code uses CLAUDE.md/MEMORY.md, Codex uses AGENTS.md, Gemini uses GEMINI.md. The same learnings, written to the format each agent reads.</p>
 <h2 id="marker-based-updates">Marker-Based Updates<a class="headerlink" href="#marker-based-updates" title="Permanent link">&para;</a></h2>
-<p>Headroom manages a clearly-delimited section in each file:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>&lt;!-- headroom:learn:start --&gt;
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="gu">## Headroom Learned Patterns</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="ge">*Auto-generated by `headroom learn` — do not edit manually*</span>
+<p>Cutctx manages a clearly-delimited section in each file:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>&lt;!-- cutctx:learn:start --&gt;
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="gu">## Cutctx Learned Patterns</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="ge">*Auto-generated by `cutctx learn` — do not edit manually*</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>...
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>&lt;!-- headroom:learn:end --&gt;
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>&lt;!-- cutctx:learn:end --&gt;
 </span></code></pre></div>
 <p>On re-run, only the content between markers is replaced. Your existing file content is preserved.</p>
 <h2 id="architecture-plugin-system">Architecture (Plugin System)<a class="headerlink" href="#architecture-plugin-system" title="Permanent link">&para;</a></h2>
-<p>Headroom Learn uses a plugin architecture where each agent is a self-contained plugin:</p>
+<p>Cutctx Learn uses a plugin architecture where each agent is a self-contained plugin:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Plugin Registry (auto-discovered)
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>├── ClaudeCodePlugin  →  Analyzer (LLM)  →  ClaudeCodeWriter  →  CLAUDE.md / MEMORY.md
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>├── CodexPlugin       →  Analyzer (LLM)  →  CodexWriter       →  AGENTS.md / instructions.md
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>├── GeminiPlugin      →  Analyzer (LLM)  →  GeminiWriter      →  GEMINI.md
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>└── (your plugin)     →  Analyzer (LLM)  →  (your writer)     →  (your file)
 </span></code></pre></div>
-<p><strong>Plugins</strong> bundle scanning, detection, and writing for one agent. Built-in plugins are auto-discovered from <code>headroom.learn.plugins.*</code>. External plugins register via the <code>headroom.learn_plugin</code> entry point.</p>
+<p><strong>Plugins</strong> bundle scanning, detection, and writing for one agent. Built-in plugins are auto-discovered from <code>cutctx.learn.plugins.*</code>. External plugins register via the <code>cutctx.learn_plugin</code> entry point.</p>
 <p><strong>The Analyzer</strong> is shared — it uses an LLM (Sonnet, GPT-4o, or Gemini Flash) to find patterns. Same analysis for any agent.</p>
 <h3 id="adding-support-for-a-new-agent">Adding Support for a New Agent<a class="headerlink" href="#adding-support-for-a-new-agent" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Create <code>headroom/learn/plugins/myagent.py</code></li>
+<li>Create <code>cutctx/learn/plugins/myagent.py</code></li>
 <li>Implement <code>LearnPlugin</code> + <code>ConversationScanner</code> (scanner + writer + detection)</li>
 <li>Add <code>plugin = MyAgentPlugin()</code> at module scope</li>
-<li>Done — <code>headroom learn --agent myagent</code> works automatically</li>
+<li>Done — <code>cutctx learn --agent myagent</code> works automatically</li>
 </ol>
-<p>Or install an external plugin: <code>pip install headroom-learn-cursor</code> (registers via entry point).</p>
+<p>Or install an external plugin: <code>pip install cutctx-learn-cursor</code> (registers via entry point).</p>
 <h2 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>headroom learn [OPTIONS]
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cutctx learn [OPTIONS]
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Options:
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  --project PATH               Project directory (default: current directory)
@@ -2667,7 +2667,7 @@
 </tbody>
 </table>
 <h2 id="llm-backend-selection">LLM Backend Selection<a class="headerlink" href="#llm-backend-selection" title="Permanent link">&para;</a></h2>
-<p><code>headroom learn</code> needs an LLM to analyze your sessions. It picks one automatically using this priority:</p>
+<p><code>cutctx learn</code> needs an LLM to analyze your sessions. It picks one automatically using this priority:</p>
 <table>
 <thead>
 <tr>
@@ -2680,7 +2680,7 @@
 <tr>
 <td>1</td>
 <td><code>--model</code> flag</td>
-<td><code>headroom learn --model gpt-4o</code></td>
+<td><code>cutctx learn --model gpt-4o</code></td>
 </tr>
 <tr>
 <td>2</td>
@@ -2689,8 +2689,8 @@
 </tr>
 <tr>
 <td>3</td>
-<td><code>HEADROOM_LEARN_CLI</code> env var</td>
-<td><code>export HEADROOM_LEARN_CLI=gemini</code></td>
+<td><code>CUTCTX_LEARN_CLI</code> env var</td>
+<td><code>export CUTCTX_LEARN_CLI=gemini</code></td>
 </tr>
 <tr>
 <td>4</td>
@@ -2700,18 +2700,18 @@
 </tbody>
 </table>
 <h3 id="using-without-an-api-key">Using without an API key<a class="headerlink" href="#using-without-an-api-key" title="Permanent link">&para;</a></h3>
-<p>If you use Claude Code, Gemini CLI, or Codex via subscription (no raw API key), <code>headroom learn</code> can call them directly:</p>
+<p>If you use Claude Code, Gemini CLI, or Codex via subscription (no raw API key), <code>cutctx learn</code> can call them directly:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Auto-detects claude in PATH — no API key needed</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>headroom<span class="w"> </span>learn
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>cutctx<span class="w"> </span>learn
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Explicitly select a CLI backend</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>headroom<span class="w"> </span>learn<span class="w"> </span>--model<span class="w"> </span>gemini-cli
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>cutctx<span class="w"> </span>learn<span class="w"> </span>--model<span class="w"> </span>gemini-cli
 </span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
 </span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Pin a CLI via environment variable</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_LEARN_CLI</span><span class="o">=</span>codex
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>headroom<span class="w"> </span>learn
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_LEARN_CLI</span><span class="o">=</span>codex
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>cutctx<span class="w"> </span>learn
 </span></code></pre></div>
-<p>Valid values for <code>HEADROOM_LEARN_CLI</code>: <code>claude</code>, <code>gemini</code>, <code>codex</code>.</p>
+<p>Valid values for <code>CUTCTX_LEARN_CLI</code>: <code>claude</code>, <code>gemini</code>, <code>codex</code>.</p>
 <h2 id="real-world-results">Real-World Results<a class="headerlink" href="#real-world-results" title="Permanent link">&para;</a></h2>
 <p>Tested on 67,583 tool calls across 23 projects:</p>
 <table>

@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#headroom-sdk-a-complete-explanation" class="md-skip">
+        <a href="#cutctx-sdk-a-complete-explanation" class="md-skip">
           Skip to content
         </a>
       
@@ -1349,10 +1349,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-problem-does-headroom-solve" class="md-nav__link">
+  <a href="#what-problem-does-cutctx-solve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Problem Does Headroom Solve?
+        What Problem Does Cutctx Solve?
       
     </span>
   </a>
@@ -1360,10 +1360,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-headroom-works-the-big-picture" class="md-nav__link">
+  <a href="#how-cutctx-works-the-big-picture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How Headroom Works: The Big Picture
+        How Cutctx Works: The Big Picture
       
     </span>
   </a>
@@ -1383,10 +1383,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-headroomclient-clientpy-the-wrapper" class="md-nav__link">
+  <a href="#1-cutctxclient-clientpy-the-wrapper" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. HeadroomClient (client.py) - The Wrapper
+        1. CutctxClient (client.py) - The Wrapper
       
     </span>
   </a>
@@ -1538,10 +1538,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-headroomclient-intercepts" class="md-nav__link">
+  <a href="#step-2-cutctxclient-intercepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: HeadroomClient intercepts
+        Step 2: CutctxClient intercepts
       
     </span>
   </a>
@@ -2614,10 +2614,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-problem-does-headroom-solve" class="md-nav__link">
+  <a href="#what-problem-does-cutctx-solve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Problem Does Headroom Solve?
+        What Problem Does Cutctx Solve?
       
     </span>
   </a>
@@ -2625,10 +2625,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-headroom-works-the-big-picture" class="md-nav__link">
+  <a href="#how-cutctx-works-the-big-picture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How Headroom Works: The Big Picture
+        How Cutctx Works: The Big Picture
       
     </span>
   </a>
@@ -2648,10 +2648,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-headroomclient-clientpy-the-wrapper" class="md-nav__link">
+  <a href="#1-cutctxclient-clientpy-the-wrapper" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. HeadroomClient (client.py) - The Wrapper
+        1. CutctxClient (client.py) - The Wrapper
       
     </span>
   </a>
@@ -2803,10 +2803,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-headroomclient-intercepts" class="md-nav__link">
+  <a href="#step-2-cutctxclient-intercepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: HeadroomClient intercepts
+        Step 2: CutctxClient intercepts
       
     </span>
   </a>
@@ -3242,12 +3242,12 @@
   
 
 
-<h1 id="headroom-sdk-a-complete-explanation">Headroom SDK: A Complete Explanation<a class="headerlink" href="#headroom-sdk-a-complete-explanation" title="Permanent link">&para;</a></h1>
+<h1 id="cutctx-sdk-a-complete-explanation">Cutctx SDK: A Complete Explanation<a class="headerlink" href="#cutctx-sdk-a-complete-explanation" title="Permanent link">&para;</a></h1>
 <h2 id="architecture-overview">Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart TB
     subgraph Entry["Entry Points"]
         Proxy["Proxy Mode&lt;br/&gt;&lt;i&gt;Zero code changes&lt;/i&gt;"]
-        SDK["SDK Mode&lt;br/&gt;&lt;i&gt;HeadroomClient&lt;/i&gt;"]
+        SDK["SDK Mode&lt;br/&gt;&lt;i&gt;CutctxClient&lt;/i&gt;"]
         Integrations["Integrations&lt;br/&gt;&lt;i&gt;LangChain / Agno&lt;/i&gt;"]
     end
 
@@ -3284,7 +3284,7 @@
     SC -.-&gt;|"Stores original"| Store
     LLM -.-&gt;|"If needed"| Tool</code></pre>
 <hr />
-<h2 id="what-problem-does-headroom-solve">What Problem Does Headroom Solve?<a class="headerlink" href="#what-problem-does-headroom-solve" title="Permanent link">&para;</a></h2>
+<h2 id="what-problem-does-cutctx-solve">What Problem Does Cutctx Solve?<a class="headerlink" href="#what-problem-does-cutctx-solve" title="Permanent link">&para;</a></h2>
 <p>When you use AI models like GPT-4 or Claude, you pay for <strong>tokens</strong> - the pieces of text you send (input) and receive (output). The problem is:</p>
 <ol>
 <li><strong>Tool outputs are HUGE</strong>: When an AI agent calls tools (search, database queries, APIs), the responses are often massive JSON blobs with thousands of tokens</li>
@@ -3292,16 +3292,16 @@
 <li><strong>You're paying for waste</strong>: Every token costs money and adds latency</li>
 <li><strong>Context windows fill up</strong>: Models have limits (128K tokens), and bloated tool outputs eat into your available space</li>
 </ol>
-<p><strong>Headroom creates "headroom"</strong> - it intelligently compresses your input tokens so you have more room (and budget) for what matters.</p>
+<p><strong>Cutctx creates "cutctx"</strong> - it intelligently compresses your input tokens so you have more room (and budget) for what matters.</p>
 <hr />
-<h2 id="how-headroom-works-the-big-picture">How Headroom Works: The Big Picture<a class="headerlink" href="#how-headroom-works-the-big-picture" title="Permanent link">&para;</a></h2>
+<h2 id="how-cutctx-works-the-big-picture">How Cutctx Works: The Big Picture<a class="headerlink" href="#how-cutctx-works-the-big-picture" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────────┐
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                        YOUR APPLICATION                          │
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>└─────────────────────────────────────────────────────────────────┘
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                               │
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                               ▼
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>┌─────────────────────────────────────────────────────────────────┐
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│                      HEADROOM CLIENT                             │
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│                      CUTCTX CLIENT                             │
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│  │   ANALYZE   │→ │  TRANSFORM  │→ │    CALL     │             │
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│  │  (Parser)   │  │  (Pipeline) │  │   (API)     │             │
@@ -3319,15 +3319,15 @@
 </span></code></pre></div>
 <hr />
 <h2 id="the-core-components-in-simple-terms">The Core Components (In Simple Terms)<a class="headerlink" href="#the-core-components-in-simple-terms" title="Permanent link">&para;</a></h2>
-<h3 id="1-headroomclient-clientpy-the-wrapper">1. HeadroomClient (<code>client.py</code>) - The Wrapper<a class="headerlink" href="#1-headroomclient-clientpy-the-wrapper" title="Permanent link">&para;</a></h3>
+<h3 id="1-cutctxclient-clientpy-the-wrapper">1. CutctxClient (<code>client.py</code>) - The Wrapper<a class="headerlink" href="#1-cutctxclient-clientpy-the-wrapper" title="Permanent link">&para;</a></h3>
 <p>This is what you interact with. It wraps your existing OpenAI or Anthropic client:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Before (normal OpenAI)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># After (with Headroom)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># After (with Cutctx)</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">base</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span><span class="n">original_client</span><span class="o">=</span><span class="n">base</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">())</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span><span class="n">original_client</span><span class="o">=</span><span class="n">base</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">OpenAIProvider</span><span class="p">())</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
 </span></code></pre></div>
 <p><strong>What it does:</strong>
@@ -3352,10 +3352,10 @@
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="c1"># Uses different tokenization (~4 chars per token)</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="c1"># Different pricing structure</span>
 </span></code></pre></div>
-<p><strong>Why this matters:</strong> Token counting is model-specific. GPT-4 uses different tokenization than Claude. Headroom needs accurate counts to know how much to compress.</p>
+<p><strong>Why this matters:</strong> Token counting is model-specific. GPT-4 uses different tokenization than Claude. Cutctx needs accurate counts to know how much to compress.</p>
 <hr />
 <h3 id="3-parser-parserpy-understanding-your-messages">3. Parser (<code>parser.py</code>) - Understanding Your Messages<a class="headerlink" href="#3-parser-parserpy-understanding-your-messages" title="Permanent link">&para;</a></h3>
-<p>Before optimizing, Headroom needs to understand what's in your messages:</p>
+<p>Before optimizing, Cutctx needs to understand what's in your messages:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;You are helpful...&quot;</span><span class="p">},</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Search for X&quot;</span><span class="p">},</span>
@@ -3378,7 +3378,7 @@
 - Excessive whitespace</p>
 <hr />
 <h3 id="4-transforms-transforms-the-compression-magic">4. Transforms (<code>transforms/</code>) - The Compression Magic<a class="headerlink" href="#4-transforms-transforms-the-compression-magic" title="Permanent link">&para;</a></h3>
-<p>This is where the real work happens. Headroom has 4 transforms that run in sequence:</p>
+<p>This is where the real work happens. Cutctx has 4 transforms that run in sequence:</p>
 <h4 id="transform-1-cache-aligner">Transform 1: Cache Aligner<a class="headerlink" href="#transform-1-cache-aligner" title="Permanent link">&para;</a></h4>
 <p><strong>Problem:</strong> LLM providers cache your prompts, but only if they're byte-identical. If your system prompt has today's date, every day is a cache miss.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Before:</span>
@@ -3415,8 +3415,8 @@
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Smart compression:</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">{</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="s2">&quot;__headroom_constants&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="s2">&quot;prod-1&quot;</span><span class="p">},</span>  <span class="c1"># Factor out</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="s2">&quot;__headroom_summary&quot;</span><span class="p">:</span> <span class="s2">&quot;items 0-44: cpu stable at ~45&quot;</span><span class="p">,</span>  <span class="c1"># Summarize boring part</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="s2">&quot;__cutctx_constants&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="s2">&quot;prod-1&quot;</span><span class="p">},</span>  <span class="c1"># Factor out</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="s2">&quot;__cutctx_summary&quot;</span><span class="p">:</span> <span class="s2">&quot;items 0-44: cpu stable at ~45&quot;</span><span class="p">,</span>  <span class="c1"># Summarize boring part</span>
 </span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
 </span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        <span class="p">{</span><span class="s2">&quot;ts&quot;</span><span class="p">:</span> <span class="mi">45</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">92</span><span class="p">},</span>  <span class="c1"># Keep the spike!</span>
 </span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>        <span class="p">{</span><span class="s2">&quot;ts&quot;</span><span class="p">:</span> <span class="mi">46</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">95</span><span class="p">},</span>
@@ -3434,10 +3434,10 @@
 <p><strong>When to use:</strong> Maximum compression needed and latency is acceptable.</p>
 <p>The proxy ships an opt-in ML compression path backed by <strong>Kompress</strong>
 (ModernBERT-based token classifier). Install with <code>pip install
-'headroom-ai[ml]'</code>; see <code>wiki/transforms.md</code> for current configuration.</p>
+'cutctx-ai[ml]'</code>; see <code>wiki/transforms.md</code> for current configuration.</p>
 <p><strong>Note:</strong> The earlier LLMLingua-2 integration (<code>--llmlingua</code> flag, the
-<code>headroom-ai[llmlingua]</code> extra, and the <code>LLMLinguaCompressor</code> class) was
-retired and replaced by Kompress. <code>pip install 'headroom-ai[llmlingua]'</code>
+<code>cutctx-ai[llmlingua]</code> extra, and the <code>LLMLinguaCompressor</code> class) was
+retired and replaced by Kompress. <code>pip install 'cutctx-ai[llmlingua]'</code>
 no longer resolves; use <code>[ml]</code> instead.</p>
 <hr />
 <h4 id="transform-5-rolling-window">Transform 5: Rolling Window<a class="headerlink" href="#transform-5-rolling-window" title="Permanent link">&para;</a></h4>
@@ -3507,8 +3507,8 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">timestamp</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="n">model</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="k">mode</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">  </span><span class="c1">-- audit or optimize</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="n">tokens_input_before</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">  </span><span class="c1">-- Before Headroom</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="n">tokens_input_after</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">   </span><span class="c1">-- After Headroom</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="n">tokens_input_before</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">  </span><span class="c1">-- Before Cutctx</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="n">tokens_input_after</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">   </span><span class="c1">-- After Cutctx</span>
 </span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="n">tokens_saved</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">         </span><span class="c1">-- The win!</span>
 </span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="n">transforms_applied</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">      </span><span class="c1">-- What we did</span>
 </span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="p">...</span>
@@ -3531,10 +3531,10 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;tool&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;{60 metric points...}&quot;</span><span class="p">},</span>  <span class="c1"># 5000 tokens!</span>
 </span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What&#39;s wrong?&quot;</span><span class="p">},</span>
 </span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="p">],</span>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="n">headroom_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="n">cutctx_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
 </span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="step-2-headroomclient-intercepts">Step 2: HeadroomClient intercepts<a class="headerlink" href="#step-2-headroomclient-intercepts" title="Permanent link">&para;</a></h3>
+<h3 id="step-2-cutctxclient-intercepts">Step 2: CutctxClient intercepts<a class="headerlink" href="#step-2-cutctxclient-intercepts" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># In client.py:</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="c1"># 1. Parse messages into blocks</span>
@@ -3557,7 +3557,7 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    <span class="c1"># - Compresses to 17 points (preserving spike)</span>
 </span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="c1"># - Factors out constant &quot;host&quot; field</span>
 </span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>
-</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="c1"># Transform 3: Kompress ML compressor (opt-in via headroom-ai[ml])</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="c1"># Transform 3: Kompress ML compressor (opt-in via cutctx-ai[ml])</span>
 </span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>    <span class="c1"># - ModernBERT-based compression on remaining long text</span>
 </span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="c1"># - Auto-detects content type for optimal rate</span>
 </span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>    <span class="c1"># - Stores original in CCR for retrieval</span>
@@ -3659,7 +3659,7 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>                         │
 </span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>                         ▼
 </span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>┌──────────────────────────────────────────────────────────────────┐
-</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>│  HEADROOM CCR LAYER                                               │
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>│  CUTCTX CCR LAYER                                               │
 </span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>│                                                                   │
 </span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>│  1. COMPRESS: Keep 20 items (errors, anomalies, relevant)        │
 </span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>│  2. CACHE: Store full 1000 items in fast local cache             │
@@ -3688,7 +3688,7 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span></code></pre></div>
 <hr />
 <h3 id="ccr-phase-1-compression-store">CCR Phase 1: Compression Store<a class="headerlink" href="#ccr-phase-1-compression-store" title="Permanent link">&para;</a></h3>
-<p><strong>Location:</strong> <code>headroom/cache/compression_store.py</code></p>
+<p><strong>Location:</strong> <code>cutctx/cache/compression_store.py</code></p>
 <p>When SmartCrusher compresses, the original content is stored for on-demand retrieval:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nd">@dataclass</span>
 </span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">CompressionEntry</span><span class="p">:</span>
@@ -3772,7 +3772,7 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span></code></pre></div></p>
 <hr />
 <h3 id="ccr-phase-3-tool-injection">CCR Phase 3: Tool Injection<a class="headerlink" href="#ccr-phase-3-tool-injection" title="Permanent link">&para;</a></h3>
-<p>When compression happens, Headroom injects retrieval instructions into the LLM context.</p>
+<p>When compression happens, Cutctx injects retrieval instructions into the LLM context.</p>
 <p><strong>Method A: System Message Injection</strong>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>## Compressed Context Available
 </span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>The following tool outputs have been compressed. If you need more detail,
@@ -3781,9 +3781,9 @@ no longer resolves; use <code>[ml]</code> instead.</p>
 </span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>Available: hash=abc123 (1000→20 items from search_api)
 </span></code></pre></div></p>
 <p><strong>Method B: MCP Tool Registration (Hybrid)</strong>
-When running as MCP server, Headroom exposes retrieval as a tool:</p>
+When running as MCP server, Cutctx exposes retrieval as a tool:</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">{</span>
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;headroom_retrieve&quot;</span><span class="p">,</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cutctx_retrieve&quot;</span><span class="p">,</span>
 </span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Retrieve more items from compressed tool output&quot;</span><span class="p">,</span>
 </span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="nt">&quot;inputSchema&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">        </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object&quot;</span><span class="p">,</span>
@@ -3797,9 +3797,9 @@ When running as MCP server, Headroom exposes retrieval as a tool:</p>
 <p><strong>Marker Injection:</strong>
 Compressed content includes retrieval markers:
 <div class="language-json highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="p">{</span>
-</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">    </span><span class="nt">&quot;__headroom_compressed&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="nt">&quot;__headroom_hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123def456&quot;</span><span class="p">,</span>
-</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="nt">&quot;__headroom_stats&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">    </span><span class="nt">&quot;__cutctx_compressed&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="nt">&quot;__cutctx_hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123def456&quot;</span><span class="p">,</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="nt">&quot;__cutctx_stats&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="w">        </span><span class="nt">&quot;original_items&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span>
 </span><span id="__span-28-6"><a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">        </span><span class="nt">&quot;kept_items&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
 </span><span id="__span-28-7"><a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="w">        </span><span class="nt">&quot;errors_preserved&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span>
@@ -3809,7 +3809,7 @@ Compressed content includes retrieval markers:
 </span></code></pre></div></p>
 <hr />
 <h3 id="ccr-phase-4-feedback-loop">CCR Phase 4: Feedback Loop<a class="headerlink" href="#ccr-phase-4-feedback-loop" title="Permanent link">&para;</a></h3>
-<p><strong>Location:</strong> <code>headroom/cache/compression_feedback.py</code></p>
+<p><strong>Location:</strong> <code>cutctx/cache/compression_feedback.py</code></p>
 <p>The feedback system learns from retrieval patterns to improve future compression.</p>
 <p><strong>Tracked Patterns per Tool:</strong>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nd">@dataclass</span>
@@ -3893,14 +3893,14 @@ Compressed content includes retrieval markers:
 </span></code></pre></div></p>
 <hr />
 <h3 id="ccr-phase-5-response-handler-automatic-tool-call-handling">CCR Phase 5: Response Handler (Automatic Tool Call Handling)<a class="headerlink" href="#ccr-phase-5-response-handler-automatic-tool-call-handling" title="Permanent link">&para;</a></h3>
-<p><strong>Location:</strong> <code>headroom/ccr/response_handler.py</code></p>
-<p><strong>The Problem:</strong> When the proxy injects the <code>headroom_retrieve</code> tool, the LLM might call it. But who handles that tool call? Without response handling, the tool call would go back to the client unhandled.</p>
+<p><strong>Location:</strong> <code>cutctx/ccr/response_handler.py</code></p>
+<p><strong>The Problem:</strong> When the proxy injects the <code>cutctx_retrieve</code> tool, the LLM might call it. But who handles that tool call? Without response handling, the tool call would go back to the client unhandled.</p>
 <p><strong>The Solution:</strong> The Response Handler intercepts LLM responses, detects CCR tool calls, executes retrievals automatically, and continues the conversation until the LLM produces a final response.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>┌──────────────────────────────────────────────────────────────────┐
 </span><span id="__span-33-2"><a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>│  RESPONSE HANDLER FLOW                                           │
 </span><span id="__span-33-3"><a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>│                                                                   │
 </span><span id="__span-33-4"><a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a>│  1. LLM Response arrives                                         │
-</span><span id="__span-33-5"><a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a>│     └─ Contains: tool_use(headroom_retrieve, hash=abc123)       │
+</span><span id="__span-33-5"><a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a>│     └─ Contains: tool_use(cutctx_retrieve, hash=abc123)       │
 </span><span id="__span-33-6"><a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a>│                                                                   │
 </span><span id="__span-33-7"><a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a>│  2. Handler detects CCR tool call                                │
 </span><span id="__span-33-8"><a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a>│     └─ Extracts hash and optional query                         │
@@ -3959,7 +3959,7 @@ Compressed content includes retrieval markers:
 </span></code></pre></div>
 <hr />
 <h3 id="ccr-phase-6-context-tracker-multi-turn-awareness">CCR Phase 6: Context Tracker (Multi-Turn Awareness)<a class="headerlink" href="#ccr-phase-6-context-tracker-multi-turn-awareness" title="Permanent link">&para;</a></h3>
-<p><strong>Location:</strong> <code>headroom/ccr/context_tracker.py</code></p>
+<p><strong>Location:</strong> <code>cutctx/ccr/context_tracker.py</code></p>
 <p><strong>The Problem:</strong> In multi-turn conversations, earlier compressed data might become relevant later. Without tracking, the LLM has "context amnesia" - it can't reference data that was compressed in turn 1 when answering a question in turn 5.</p>
 <p><strong>The Solution:</strong> The Context Tracker maintains awareness of all compressed content across the conversation and can proactively expand relevant data when a new query might need it.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>┌──────────────────────────────────────────────────────────────────┐
@@ -4041,7 +4041,7 @@ Compressed content includes retrieval markers:
 </ol>
 <hr />
 <h2 id="image-compression-architecture">Image Compression Architecture<a class="headerlink" href="#image-compression-architecture" title="Permanent link">&para;</a></h2>
-<p>Vision models charge by the token, and images are expensive (765-2900 tokens for a typical image). Headroom's image compression uses a <strong>trained ML router</strong> to automatically select the optimal compression technique.</p>
+<p>Vision models charge by the token, and images are expensive (765-2900 tokens for a typical image). Cutctx's image compression uses a <strong>trained ML router</strong> to automatically select the optimal compression technique.</p>
 <h3 id="the-key-insight_1">The Key Insight<a class="headerlink" href="#the-key-insight_1" title="Permanent link">&para;</a></h3>
 <p>Not all image queries need full resolution:
 - "What is this?" → Low detail is fine (87% savings)
@@ -4127,7 +4127,7 @@ Compressed content includes retrieval markers:
 </span></code></pre></div>
 <p>This ensures images are compressed first, then text compression (CCR, SmartCrusher) handles the rest.</p>
 <h3 id="code-location">Code Location<a class="headerlink" href="#code-location" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>headroom/
+<div class="language-text highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>cutctx/
 </span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>├── image/
 </span><span id="__span-41-3"><a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>│   ├── __init__.py         # Public API
 </span><span id="__span-41-4"><a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>│   ├── compressor.py       # ImageCompressor class
@@ -4137,9 +4137,9 @@ Compressed content includes retrieval markers:
 </span></code></pre></div>
 <hr />
 <h2 id="file-structure-explained">File Structure Explained<a class="headerlink" href="#file-structure-explained" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>headroom/
+<div class="language-text highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>cutctx/
 </span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>├── __init__.py          # Public exports
-</span><span id="__span-42-3"><a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a>├── client.py            # HeadroomClient - the main wrapper
+</span><span id="__span-42-3"><a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a>├── client.py            # CutctxClient - the main wrapper
 </span><span id="__span-42-4"><a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a>├── config.py            # All configuration dataclasses
 </span><span id="__span-42-5"><a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a>├── parser.py            # Message → Block decomposition
 </span><span id="__span-42-6"><a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a>├── tokenizer.py         # Token counting abstraction
@@ -4230,7 +4230,7 @@ Compressed content includes retrieval markers:
 <table>
 <thead>
 <tr>
-<th>Headroom</th>
+<th>Cutctx</th>
 <th>Summarization</th>
 </tr>
 </thead>
@@ -4261,7 +4261,7 @@ Compressed content includes retrieval markers:
 <table>
 <thead>
 <tr>
-<th>Headroom</th>
+<th>Cutctx</th>
 <th>Truncation</th>
 </tr>
 </thead>
@@ -4298,7 +4298,7 @@ Compressed content includes retrieval markers:
 - Provide correct remediation commands</p>
 <hr />
 <h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
-<p><strong>Headroom is a Context Budget Controller that:</strong></p>
+<p><strong>Cutctx is a Context Budget Controller that:</strong></p>
 <ol>
 <li><strong>Wraps</strong> your existing LLM client</li>
 <li><strong>Analyzes</strong> your messages to find waste</li>

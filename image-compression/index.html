@@ -946,10 +946,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#with-headroom-proxy-zero-code-changes" class="md-nav__link">
+  <a href="#with-cutctx-proxy-zero-code-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        With Headroom Proxy (Zero Code Changes)
+        With Cutctx Proxy (Zero Code Changes)
       
     </span>
   </a>
@@ -957,10 +957,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#with-headroomclient" class="md-nav__link">
+  <a href="#with-cutctxclient" class="md-nav__link">
     <span class="md-ellipsis">
       
-        With HeadroomClient
+        With CutctxClient
       
     </span>
   </a>
@@ -2417,10 +2417,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#with-headroom-proxy-zero-code-changes" class="md-nav__link">
+  <a href="#with-cutctx-proxy-zero-code-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        With Headroom Proxy (Zero Code Changes)
+        With Cutctx Proxy (Zero Code Changes)
       
     </span>
   </a>
@@ -2428,10 +2428,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#with-headroomclient" class="md-nav__link">
+  <a href="#with-cutctxclient" class="md-nav__link">
     <span class="md-ellipsis">
       
-        With HeadroomClient
+        With CutctxClient
       
     </span>
   </a>
@@ -2803,12 +2803,12 @@
 
 
 <h1 id="image-compression">Image Compression<a class="headerlink" href="#image-compression" title="Permanent link">&para;</a></h1>
-<p>Headroom automatically compresses images in your LLM requests, reducing token usage by <strong>40-90%</strong> while maintaining answer accuracy.</p>
+<p>Cutctx automatically compresses images in your LLM requests, reducing token usage by <strong>40-90%</strong> while maintaining answer accuracy.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Vision models charge by the token, and images are expensive:
 - A 1024x1024 image costs ~765 tokens (OpenAI)
 - A 2048x2048 image costs ~2,900 tokens</p>
-<p>Headroom's image compression uses a <strong>trained ML router</strong> to analyze your query and automatically select the optimal compression technique:</p>
+<p>Cutctx's image compression uses a <strong>trained ML router</strong> to analyze your query and automatically select the optimal compression technique:</p>
 <table>
 <thead>
 <tr>
@@ -2859,18 +2859,18 @@
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   Compressed request to LLM
 </span></code></pre></div>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<h3 id="with-headroom-proxy-zero-code-changes">With Headroom Proxy (Zero Code Changes)<a class="headerlink" href="#with-headroom-proxy-zero-code-changes" title="Permanent link">&para;</a></h3>
+<h3 id="with-cutctx-proxy-zero-code-changes">With Cutctx Proxy (Zero Code Changes)<a class="headerlink" href="#with-cutctx-proxy-zero-code-changes" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Start the proxy</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Connect your client</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">ANTHROPIC_BASE_URL</span><span class="o">=</span>http://localhost:8787<span class="w"> </span>claude
 </span></code></pre></div>
 <p>Images are automatically compressed based on your queries.</p>
-<h3 id="with-headroomclient">With HeadroomClient<a class="headerlink" href="#with-headroomclient" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span>
+<h3 id="with-cutctxclient">With CutctxClient<a class="headerlink" href="#with-cutctxclient" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">)</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
@@ -2885,7 +2885,7 @@
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># Image automatically compressed with detail=&quot;low&quot; (87% savings)</span>
 </span></code></pre></div>
 <h3 id="direct-api">Direct API<a class="headerlink" href="#direct-api" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">ImageCompressor</span><span class="p">()</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
@@ -2899,13 +2899,13 @@
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <h3 id="proxy-configuration">Proxy Configuration<a class="headerlink" href="#proxy-configuration" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Enable image compression (default: true)</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--image-optimize
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--image-optimize
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Disable image compression</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--no-image-optimize
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--no-image-optimize
 </span></code></pre></div>
 <h3 id="programmatic-configuration">Programmatic Configuration<a class="headerlink" href="#programmatic-configuration" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">ImageCompressor</span><span class="p">(</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_id</span><span class="o">=</span><span class="s2">&quot;chopratejas/technique-router&quot;</span><span class="p">,</span>  <span class="c1"># HuggingFace model</span>
@@ -3070,7 +3070,7 @@
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;HF_HOME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;/path/to/cache&quot;</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">ImageCompressor</span><span class="p">()</span>
 </span></code></pre></div>
 <h3 id="gpu-memory">GPU Memory<a class="headerlink" href="#gpu-memory" title="Permanent link">&para;</a></h3>
@@ -3079,7 +3079,7 @@
 </span></code></pre></div>
 <h3 id="disable-image-compression">Disable Image Compression<a class="headerlink" href="#disable-image-compression" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Proxy</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">headroom</span> <span class="n">proxy</span> <span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">image</span><span class="o">-</span><span class="n">optimize</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">cutctx</span> <span class="n">proxy</span> <span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">image</span><span class="o">-</span><span class="n">optimize</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Direct</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Simply don&#39;t call compress()</span>

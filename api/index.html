@@ -1708,15 +1708,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#headroomclient" class="md-nav__link">
+  <a href="#cutctxclient" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomClient
+        CutctxClient
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="HeadroomClient">
+    <nav class="md-nav" aria-label="CutctxClient">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2416,15 +2416,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#headroomclient" class="md-nav__link">
+  <a href="#cutctxclient" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HeadroomClient
+        CutctxClient
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="HeadroomClient">
+    <nav class="md-nav" aria-label="CutctxClient">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2869,12 +2869,12 @@
 
 
 <h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
-<h2 id="headroomclient">HeadroomClient<a class="headerlink" href="#headroomclient" title="Permanent link">&para;</a></h2>
-<p>The main entry point for Headroom SDK.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadroomClient</span>
+<h2 id="cutctxclient">CutctxClient<a class="headerlink" href="#cutctxclient" title="Permanent link">&para;</a></h2>
+<p>The main entry point for Cutctx SDK.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CutctxClient</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">HeadroomClient</span><span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">CutctxClient</span><span class="p">(</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">original_client</span><span class="o">=</span><span class="n">OpenAI</span><span class="p">(),</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">default_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
@@ -2940,7 +2940,7 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">headroom_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>  <span class="c1"># Override default mode</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">cutctx_mode</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span>  <span class="c1"># Override default mode</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><strong>Additional Parameters:</strong></p>
@@ -2954,12 +2954,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>headroom_mode</code></td>
+<td><code>cutctx_mode</code></td>
 <td><code>str</code></td>
 <td>Override mode for this request</td>
 </tr>
 <tr>
-<td><code>headroom_query</code></td>
+<td><code>cutctx_query</code></td>
 <td><code>str</code></td>
 <td>Query for relevance scoring</td>
 </tr>
@@ -2980,7 +2980,7 @@
 <hr />
 <h2 id="configuration-classes">Configuration Classes<a class="headerlink" href="#configuration-classes" title="Permanent link">&para;</a></h2>
 <h3 id="smartcrusherconfig">SmartCrusherConfig<a class="headerlink" href="#smartcrusherconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusherConfig</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">SmartCrusherConfig</span><span class="p">(</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">min_tokens_to_crush</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
@@ -2993,7 +2993,7 @@
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="cachealignerconfig">CacheAlignerConfig<a class="headerlink" href="#cachealignerconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAlignerConfig</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">CacheAlignerConfig</span><span class="p">(</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">extract_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -3002,7 +3002,7 @@
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="rollingwindowconfig">RollingWindowConfig<a class="headerlink" href="#rollingwindowconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindowConfig</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">RollingWindowConfig</span><span class="p">(</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
@@ -3012,7 +3012,7 @@
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="intelligentcontextconfig">IntelligentContextConfig<a class="headerlink" href="#intelligentcontextconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span><span class="p">,</span> <span class="n">ScoringWeights</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">ScoringWeights</span><span class="p">(</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">recency</span><span class="o">=</span><span class="mf">0.20</span><span class="p">,</span>
@@ -3036,7 +3036,7 @@
 </span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="scoringweights">ScoringWeights<a class="headerlink" href="#scoringweights" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringWeights</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringWeights</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">ScoringWeights</span><span class="p">(</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">recency</span><span class="o">=</span><span class="mf">0.20</span><span class="p">,</span>              <span class="c1"># Exponential decay from end</span>
@@ -3051,7 +3051,7 @@
 </span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="n">normalized</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">normalized</span><span class="p">()</span>
 </span></code></pre></div>
 <h3 id="relevancescorerconfig">RelevanceScorerConfig<a class="headerlink" href="#relevancescorerconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelevanceScorerConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelevanceScorerConfig</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">RelevanceScorerConfig</span><span class="p">(</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">scorer_type</span><span class="o">=</span><span class="s2">&quot;bm25&quot;</span><span class="p">,</span>      <span class="c1"># &quot;bm25&quot;, &quot;embedding&quot;, or &quot;hybrid&quot;</span>
@@ -3099,7 +3099,7 @@
 <hr />
 <h2 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h2>
 <h3 id="openaiprovider">OpenAIProvider<a class="headerlink" href="#openaiprovider" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIProvider</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">OpenAIProvider</span><span class="p">()</span>
 </span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
@@ -3118,7 +3118,7 @@
 </span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="anthropicprovider">AnthropicProvider<a class="headerlink" href="#anthropicprovider" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnthropicProvider</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Anthropic</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">provider</span> <span class="o">=</span> <span class="n">AnthropicProvider</span><span class="p">(</span><span class="n">client</span><span class="o">=</span><span class="n">Anthropic</span><span class="p">())</span>
@@ -3130,7 +3130,7 @@
 <h2 id="relevance-scoring">Relevance Scoring<a class="headerlink" href="#relevance-scoring" title="Permanent link">&para;</a></h2>
 <h3 id="bm25scorer">BM25Scorer<a class="headerlink" href="#bm25scorer" title="Permanent link">&para;</a></h3>
 <p>Fast keyword-based scoring (zero dependencies).</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">BM25Scorer</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">BM25Scorer</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">scorer</span> <span class="o">=</span> <span class="n">BM25Scorer</span><span class="p">()</span>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">scorer</span><span class="o">.</span><span class="n">score_items</span><span class="p">(</span>
@@ -3140,7 +3140,7 @@
 </span></code></pre></div>
 <h3 id="embeddingscorer">EmbeddingScorer<a class="headerlink" href="#embeddingscorer" title="Permanent link">&para;</a></h3>
 <p>Semantic similarity scoring (requires <code>sentence-transformers</code>).</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">EmbeddingScorer</span><span class="p">,</span> <span class="n">embedding_available</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">EmbeddingScorer</span><span class="p">,</span> <span class="n">embedding_available</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">if</span> <span class="n">embedding_available</span><span class="p">():</span>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">scorer</span> <span class="o">=</span> <span class="n">EmbeddingScorer</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;all-MiniLM-L6-v2&quot;</span><span class="p">)</span>
@@ -3148,14 +3148,14 @@
 </span></code></pre></div>
 <h3 id="hybridscorer">HybridScorer<a class="headerlink" href="#hybridscorer" title="Permanent link">&para;</a></h3>
 <p>Combines BM25 and embeddings.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">HybridScorer</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">HybridScorer</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">scorer</span> <span class="o">=</span> <span class="n">HybridScorer</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>  <span class="c1"># 50% BM25, 50% embedding</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">scorer</span><span class="o">.</span><span class="n">score_items</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="create_scorer">create_scorer()<a class="headerlink" href="#create_scorer" title="Permanent link">&para;</a></h3>
 <p>Factory function to create scorers.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_scorer</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_scorer</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># Auto-select best available scorer</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">scorer</span> <span class="o">=</span> <span class="n">create_scorer</span><span class="p">()</span>
@@ -3166,7 +3166,7 @@
 <hr />
 <h2 id="transforms-direct-use">Transforms (Direct Use)<a class="headerlink" href="#transforms-direct-use" title="Permanent link">&para;</a></h2>
 <h3 id="smartcrusher">SmartCrusher<a class="headerlink" href="#smartcrusher" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusher</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartCrusher</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">crusher</span> <span class="o">=</span> <span class="n">SmartCrusher</span><span class="p">()</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">crusher</span><span class="o">.</span><span class="n">crush</span><span class="p">(</span>
@@ -3175,21 +3175,21 @@
 </span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="cachealigner">CacheAligner<a class="headerlink" href="#cachealigner" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAligner</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheAligner</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">aligner</span> <span class="o">=</span> <span class="n">CacheAligner</span><span class="p">()</span>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">aligner</span><span class="o">.</span><span class="n">align</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="rollingwindow">RollingWindow<a class="headerlink" href="#rollingwindow" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindow</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">RollingWindow</span>
 </span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">window</span> <span class="o">=</span> <span class="n">RollingWindow</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100000</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="intelligentcontextmanager">IntelligentContextManager<a class="headerlink" href="#intelligentcontextmanager" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextManager</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentContextConfig</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.telemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_toin</span>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
 </span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="c1"># With TOIN integration for learned patterns</span>
 </span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">toin</span> <span class="o">=</span> <span class="n">get_toin</span><span class="p">()</span>
@@ -3207,8 +3207,8 @@
 </span><span id="__span-21-18"><a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">tokens_before</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">tokens_after</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="messagescorer">MessageScorer<a class="headerlink" href="#messagescorer" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">MessageScorer</span><span class="p">,</span> <span class="n">MessageScore</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringWeights</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">MessageScorer</span><span class="p">,</span> <span class="n">MessageScore</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringWeights</span>
 </span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
 </span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">scorer</span> <span class="o">=</span> <span class="n">MessageScorer</span><span class="p">(</span>
 </span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">weights</span><span class="o">=</span><span class="n">ScoringWeights</span><span class="p">(),</span>
@@ -3231,7 +3231,7 @@
 </span><span id="__span-22-22"><a id="__codelineno-22-22" name="__codelineno-22-22" href="#__codelineno-22-22"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Protected: </span><span class="si">{</span><span class="n">score</span><span class="o">.</span><span class="n">is_protected</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="transformpipeline">TransformPipeline<a class="headerlink" href="#transformpipeline" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransformPipeline</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransformPipeline</span>
 </span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>
 </span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">TransformPipeline</span><span class="p">([</span>
 </span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">SmartCrusher</span><span class="p">(),</span>
@@ -3244,7 +3244,7 @@
 <hr />
 <h2 id="utilities">Utilities<a class="headerlink" href="#utilities" title="Permanent link">&para;</a></h2>
 <h3 id="tokenizer">Tokenizer<a class="headerlink" href="#tokenizer" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tokenizer</span><span class="p">,</span> <span class="n">count_tokens_text</span><span class="p">,</span> <span class="n">count_tokens_messages</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tokenizer</span><span class="p">,</span> <span class="n">count_tokens_text</span><span class="p">,</span> <span class="n">count_tokens_messages</span>
 </span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
 </span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c1"># Quick counting</span>
 </span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">tokens</span> <span class="o">=</span> <span class="n">count_tokens_text</span><span class="p">(</span><span class="s2">&quot;Hello, world!&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">)</span>
@@ -3256,10 +3256,10 @@
 </span></code></pre></div>
 <h3 id="generate_report">generate_report()<a class="headerlink" href="#generate_report" title="Permanent link">&para;</a></h3>
 <p>Generate HTML/Markdown reports from stored metrics.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_report</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_report</span>
 </span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>
 </span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="n">report</span> <span class="o">=</span> <span class="n">generate_report</span><span class="p">(</span>
-</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="n">store_url</span><span class="o">=</span><span class="s2">&quot;sqlite:///headroom.db&quot;</span><span class="p">,</span>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="n">store_url</span><span class="o">=</span><span class="s2">&quot;sqlite:///cutctx.db&quot;</span><span class="p">,</span>
 </span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>    <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;html&quot;</span><span class="p">,</span>
 </span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>    <span class="n">period</span><span class="o">=</span><span class="s2">&quot;day&quot;</span><span class="p">,</span>
 </span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="p">)</span>
@@ -3267,7 +3267,7 @@
 <hr />
 <h2 id="typescript-sdk">TypeScript SDK<a class="headerlink" href="#typescript-sdk" title="Permanent link">&para;</a></h2>
 <p>For the TypeScript SDK API reference, see <a href="../typescript-sdk/">TypeScript SDK</a>.</p>
-<p>The TypeScript SDK provides <code>compress()</code>, <code>HeadroomClient</code>, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.</p>
+<p>The TypeScript SDK provides <code>compress()</code>, <code>CutctxClient</code>, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.</p>
 
 
 
