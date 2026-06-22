@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * **pyproject.toml URLs**: corrected typo `AryanSingh/cutcxt` → `cutctx/cutctx` in Repository, Issues, and Changelog URLs
+* **README badge URLs**: all 5 `AryanSingh/cutcxt` badge and star-history URLs corrected to `cutctx/cutctx`
+
+### Added
+* **PRIVACY.md**: new document covering local-first architecture, CCR store location, `--stateless` / `--no-telemetry` modes, API key pass-through, enterprise VPC deployment, and explicit "what CutCtx does NOT do" list
+* **Image optimization documented**: README and proxy `--help` now surface the `image_optimize` capability (40–90% reduction, zero config, on-by-default)
+* **Accuracy guard documented**: `HEADROOM_ACCURACY_GUARD=strict|balanced|off` surfaces in README near proxy configuration
+* **LLMLingua-2 integration** (`pip install cutctx-ai[llmlingua]`): Microsoft's BERT-level ML token-classification compressor now available as an optional algorithm. Use `cutctx proxy --llmlingua` or `HEADROOM_USE_LLMLINGUA=1`. Falls through to Kompress gracefully when not installed. Provides a second ML compression path independent of the Kompress/ModernBERT stack.
+* **CompactTableCompressor**: new pure-Python transform that serializes JSON arrays of homogeneous objects into a compact pipe-delimited table format (30–60% smaller than JSON for file listings, DB rows, search results, API list responses). Auto-activates for arrays of ≥5 dicts before SmartCrusher; constant columns collapsed to header annotations.
+* **Query-aware compression** (`--query-aware` / `HEADROOM_QUERY_AWARE=1`): detects the user's task type from the last message (CODE, DEBUG, SEARCH, LIST, SUMMARIZE, etc.) and automatically adjusts `protect_recent` and `min_tokens_to_crush` per compression pass. CODE/DEBUG: conservative (protect last 6 turns). SEARCH/LIST/SUMMARIZE: aggressive (protect last 2 turns). Uses existing `TaskType` feature extractor infrastructure.
 * **JetBrains plugin**: raised `pluginUntilBuild` from `243.*` to `251.*` so the plugin is compatible with IntelliJ 2025.1+ (build 251)
 
 ### Added

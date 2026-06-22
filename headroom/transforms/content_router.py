@@ -517,12 +517,24 @@ class ContentRouterConfig:
     # Set to None to use DEFAULT_EXCLUDE_TOOLS, or provide custom set
     exclude_tools: set[str] | None = None
 
+    # LLMLingua-2: opt-in ML compressor for plain text (replaces Kompress for
+    # TEXT/KOMPRESS strategies when enabled and the library is installed).
+    # Requires: pip install cutctx-ai[llmlingua]
+    # CLI: --llmlingua; env: HEADROOM_USE_LLMLINGUA=1.
+    use_llmlingua: bool = False
+
     # Read lifecycle management (stale/superseded detection)
     read_lifecycle: ReadLifecycleConfig = field(default_factory=ReadLifecycleConfig)
 
     # Per-tool compression profiles (tool_name → CompressionProfile)
     # Set to None to use DEFAULT_TOOL_PROFILES from config
     tool_profiles: dict[str, Any] | None = None
+
+    # Query-aware compression: adapt protect_recent and min_tokens_to_crush
+    # based on the detected task type from the last user message.
+    # CODE/DEBUG tasks protect more context; SUMMARIZE/LIST tasks compress harder.
+    # CLI: --query-aware; env: HEADROOM_QUERY_AWARE=1.
+    query_aware_compression: bool = False
 
 
 # Patterns for detecting mixed content
@@ -774,6 +786,7 @@ class ContentRouter(Transform):
         # Lazy-loaded compressors
         self._code_compressor: Any = None
         self._smart_crusher: Any = None
+        self._compact_table: Any = None
         self._search_compressor: Any = None
         self._log_compressor: Any = None
         self._diff_compressor: Any = None
@@ -1265,8 +1278,24 @@ class ContentRouter(Transform):
                     strategy_chain.append(CompressionStrategy.KOMPRESS.value)
 
             elif strategy == CompressionStrategy.SMART_CRUSHER:
+                # Try CompactTableCompressor first for tabular JSON arrays
+                # (homogeneous dicts -> pipe-delimited table, 30-60% smaller).
+                # Falls through to SmartCrusher for non-tabular JSON.
+                compact_table = self._get_compact_table()
+                if compact_table:
+                    try:
+                        ct_result = compact_table.compress(content)
+                        if ct_result is not None:
+                            compressed = ct_result.compressed
+                            compressed_tokens = len(compressed.split())
+                            compressor_name = "CompactTableCompressor"
+                            decision_reason = "compact_table"
+                            strategy_chain.insert(0, "compact_table")
+                    except Exception as _ct_exc:
+                        logger.debug("CompactTableCompressor failed (non-fatal): %s", _ct_exc)
+
                 # SmartCrusher handles its own TOIN recording
-                if self.config.enable_smart_crusher:
+                if compressed is None and self.config.enable_smart_crusher:
                     crusher = self._get_smart_crusher()
                     if crusher:
                         compressor_name = type(crusher).__name__
@@ -1507,8 +1536,25 @@ class ContentRouter(Transform):
         compressed: str | None = None
         compressed_tokens: int | None = None
 
+        # Primary (opt-in): LLMLingua-2 — use when config.use_llmlingua is True
+        # and the library is installed. Falls through to Kompress on failure.
+        if self.config.use_llmlingua:
+            llmlingua = self._get_llmlingua()
+            if llmlingua is not None:
+                try:
+                    result = llmlingua.compress(
+                        text_to_compress,
+                        context=context,
+                        question=question,
+                        target_ratio=getattr(self, "_runtime_target_ratio", None),
+                    )
+                    compressed = result.compressed
+                    compressed_tokens = result.compressed_tokens
+                except Exception as e:
+                    logger.warning("LLMLingua-2 failed, falling back to Kompress: %s", e)
+
         # Primary: Kompress — downloads from chopratejas/kompress-v2-base on first use
-        if self.config.enable_kompress:
+        if compressed is None and self.config.enable_kompress:
             compressor = self._get_kompress()
             if compressor:
                 try:
@@ -1602,6 +1648,17 @@ class ContentRouter(Transform):
             except ImportError:
                 logger.debug("SmartCrusher not available")
         return self._smart_crusher
+
+    def _get_compact_table(self) -> Any:
+        """Get CompactTableCompressor (lazy load)."""
+        if self._compact_table is None:
+            try:
+                from .compact_table import CompactTableCompressor
+
+                self._compact_table = CompactTableCompressor()
+            except ImportError:
+                logger.debug("CompactTableCompressor not available")
+        return self._compact_table
 
     def _get_search_compressor(self) -> Any:
         """Get SearchCompressor (lazy load)."""
@@ -1790,6 +1847,20 @@ class ContentRouter(Transform):
                 logger.debug("Kompress dependencies not available")
         return self._kompress
 
+    def _get_llmlingua(self) -> Any:
+        """Get LLMLinguaCompressor (lazy load). Returns None when not installed."""
+        if not hasattr(self, "_llmlingua_compressor"):
+            try:
+                from .llmlingua_compressor import LLMLinguaCompressor
+
+                if LLMLinguaCompressor.available():
+                    self._llmlingua_compressor = LLMLinguaCompressor()
+                else:
+                    self._llmlingua_compressor = None
+            except ImportError:
+                self._llmlingua_compressor = None
+        return self._llmlingua_compressor
+
     def _get_image_optimizer(self) -> Any:
         """Create an ImageCompressor for one optimization pass.
 
@@ -1964,6 +2035,43 @@ class ContentRouter(Transform):
         # pass a policy — ``_record_to_toin`` treats that as "no gate"
         # to preserve pre-F2.2 behaviour for non-proxy callers.
         self._runtime_compression_policy = kwargs.get("compression_policy")
+
+        # Query-aware compression: if enabled, detect the task type from the
+        # last user message and adjust protect_recent / min_tokens for this
+        # call only (does NOT mutate self.config).
+        if self.config.query_aware_compression:
+            _last_user_text = ""
+            for _msg in reversed(messages):
+                if _msg.get("role") == "user":
+                    _c = _msg.get("content", "")
+                    if isinstance(_c, str):
+                        _last_user_text = _c
+                    elif isinstance(_c, list):
+                        # Anthropic content-block format — gather text blocks
+                        _last_user_text = " ".join(
+                            b.get("text", "")
+                            for b in _c
+                            if isinstance(b, dict) and b.get("type") == "text"
+                        )
+                    break
+            if _last_user_text.strip():
+                try:
+                    from .query_adapter import detect_query_hint
+
+                    _hint = detect_query_hint(_last_user_text)
+                    # Only override if the caller did not supply explicit values
+                    if kwargs.get("protect_recent") is None:
+                        protect_recent = _hint.protect_recent
+                    if kwargs.get("min_tokens_to_compress") is None:
+                        min_tokens = _hint.min_tokens_to_crush
+                    logger.debug(
+                        "content_router query_aware: task=%s protect_recent=%d min_tokens=%d",
+                        _hint.label,
+                        protect_recent,
+                        min_tokens,
+                    )
+                except Exception as _qa_err:
+                    logger.debug("content_router query_aware detection failed (non-fatal): %s", _qa_err)
 
         tokens_before = tokenizer.count_messages(messages)
         context = kwargs.get("context", "")

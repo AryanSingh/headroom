@@ -11,8 +11,8 @@
 <p align="center"><strong>60–95% fewer tokens · library · proxy · MCP · 12 algorithms · local-first · reversible · intelligence layer</strong></p>
 
 <p align="center">
-  <a href="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml"><img src="https://github.com/AryanSingh/cutcxt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://app.codecov.io/gh/AryanSingh/cutcxt"><img src="https://codecov.io/gh/AryanSingh/cutcxt/graph/badge.svg" alt="codecov"></a>
+  <a href="https://github.com/cutctx/cutctx/actions/workflows/ci.yml"><img src="https://github.com/cutctx/cutctx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://app.codecov.io/gh/cutctx/cutctx"><img src="https://codecov.io/gh/cutctx/cutctx/graph/badge.svg" alt="codecov"></a>
   <a href="https://pypi.org/project/cutctx-ai/"><img src="https://img.shields.io/pypi/v/cutctx-ai.svg" alt="PyPI"></a>
   <a href="https://www.npmjs.com/package/cutctx-ai"><img src="https://img.shields.io/npm/v/cutctx-ai.svg" alt="npm"></a>
   <a href="https://huggingface.co/chopratejas/kompress-v2-base"><img src="https://img.shields.io/badge/model-Kompress--v2--base-yellow.svg" alt="Model: Kompress-v2-base"></a>
@@ -58,6 +58,7 @@ CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 - **Cross-agent memory** — shared store across Claude, Codex, Gemini, auto-dedup
 - **`cutctx learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session
 - **Reversible (CCR)** — originals are cached for retrieval on demand
+- **Image optimization** — images in tool outputs and messages compressed automatically, 40–90% reduction (JPEG quality routing + format conversion), zero config
 
 ## How it works (30 seconds)
 
@@ -104,6 +105,8 @@ cutctx proxy --port 8787              # drop-in proxy, zero code changes
 cutctx perf
 ```
 
+**Accuracy guard** — `--accuracy-guard strict` (default in agent profiles) verifies that compressed output preserves critical identifiers, function names, and references before forwarding. Use `HEADROOM_ACCURACY_GUARD=strict|balanced|off` to tune.
+
 Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
 
 ## Proof
@@ -128,9 +131,9 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 
 Reproduce: `python -m cutctx.evals suite --tier 1` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
 
-<a href="https://www.star-history.com/?repos=AryanSingh%2Fcutcxt&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=cutctx%2Fcutctx&type=date&legend=top-left">
  <picture>
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AryanSingh/cutcxt&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=cutctx/cutctx&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -367,7 +370,7 @@ CutCtx runs **locally**, covers **every** content type, works with every major f
 ## Contributing
 
 ```bash
-git clone https://github.com/AryanSingh/cutcxt.git && cd cutcxt
+git clone https://github.com/cutctx/cutctx.git && cd cutctx
 pip install -e ".[dev]" && pytest
 ```
 

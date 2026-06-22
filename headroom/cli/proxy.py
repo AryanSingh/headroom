@@ -368,6 +368,28 @@ def _selected_context_tool() -> str:
         "Env: HEADROOM_DISABLE_KOMPRESS=1."
     ),
 )
+@click.option(
+    "--llmlingua",
+    "use_llmlingua",
+    is_flag=True,
+    envvar="HEADROOM_USE_LLMLINGUA",
+    help=(
+        "Use LLMLingua-2 for plain-text compression instead of Kompress. "
+        "Requires: pip install cutctx-ai[llmlingua]. "
+        "Env: HEADROOM_USE_LLMLINGUA."
+    ),
+)
+@click.option(
+    "--query-aware",
+    "query_aware_compression",
+    is_flag=True,
+    envvar="HEADROOM_QUERY_AWARE",
+    help=(
+        "Adapt compression aggressiveness to detected query type. "
+        "CODE/DEBUG tasks protect more context; SEARCH/LIST tasks compress harder. "
+        "Env: HEADROOM_QUERY_AWARE."
+    ),
+)
 # Code graph: indexes project + watches files for live reindex via codebase-memory-mcp.
 # Only useful when the proxy is launched from a project root — it indexes the
 # current working directory.
@@ -635,6 +657,8 @@ def proxy(
     budget: float | None,
     code_aware_flag: bool | None,
     disable_kompress: bool,
+    use_llmlingua: bool,
+    query_aware_compression: bool,
     code_graph: bool,
     no_read_lifecycle: bool,
     memory: bool,
@@ -845,6 +869,8 @@ def proxy(
             in ("true", "1", "yes", "on")
         ),
         disable_kompress=disable_kompress,
+        use_llmlingua=use_llmlingua,
+        query_aware_compression=query_aware_compression,
         # Code graph: live file watcher for incremental reindexing
         code_graph_watcher=code_graph,
         # Read lifecycle: ON by default (use --no-read-lifecycle to disable)

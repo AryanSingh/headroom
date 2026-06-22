@@ -378,10 +378,13 @@ class CutctxProxy(
                 bool,
                 profile_kwargs.get("smart_crusher_with_compaction", True),
             ),
+            query_aware_compression=config.query_aware_compression,
         )
         if config.disable_kompress:
             router_config.enable_kompress = False
             router_config.fallback_strategy = CompressionStrategy.PASSTHROUGH
+        if config.use_llmlingua:
+            router_config.use_llmlingua = True
         # A non-None exclude_tools replaces DEFAULT_EXCLUDE_TOOLS in
         # ContentRouter, so merge rather than assign.
         if config.exclude_tools:
@@ -1974,6 +1977,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "cache": config.cache_enabled,
                 "rate_limit": config.rate_limit_enabled,
                 "disable_kompress": config.disable_kompress,
+                "use_llmlingua": config.use_llmlingua,
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
                 "code_graph": config.code_graph_watcher,
@@ -3893,6 +3897,7 @@ def _proxy_config_from_env() -> ProxyConfig:
         bedrock_profile=os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("HEADROOM_ANYLLM_PROVIDER", "openai"),
         disable_kompress=_get_env_bool("HEADROOM_DISABLE_KOMPRESS", False),
+        use_llmlingua=_get_env_bool("HEADROOM_USE_LLMLINGUA", False),
         max_connections=_get_env_int("HEADROOM_MAX_CONNECTIONS", 500),
         max_keepalive_connections=_get_env_int("HEADROOM_MAX_KEEPALIVE", 100),
         http2=_get_env_bool("HEADROOM_HTTP2", True),
@@ -4288,6 +4293,16 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--llmlingua",
+        action="store_true",
+        dest="use_llmlingua",
+        help=(
+            "Use LLMLingua-2 for plain-text compression instead of Kompress. "
+            "Requires: pip install cutctx-ai[llmlingua]. "
+            "Also settable via HEADROOM_USE_LLMLINGUA=1."
+        ),
+    )
+    parser.add_argument(
         "--exclude-tools",
         default=None,
         help="Comma-separated tool names whose output is never compressed, "
@@ -4549,6 +4564,9 @@ if __name__ == "__main__":
     cache_enabled = env_cache if not args.no_cache else False
     rate_limit_enabled = env_rate_limit if not args.no_rate_limit else False
     disable_kompress = args.disable_kompress or _get_env_bool("HEADROOM_DISABLE_KOMPRESS", False)
+    use_llmlingua = getattr(args, "use_llmlingua", False) or _get_env_bool(
+        "HEADROOM_USE_LLMLINGUA", False
+    )
 
     # Set OpenRouter API key from CLI if provided
     if hasattr(args, "openrouter_api_key") and args.openrouter_api_key:
@@ -4593,6 +4611,7 @@ if __name__ == "__main__":
         log_full_messages=args.log_messages or _get_env_bool("HEADROOM_LOG_MESSAGES", False),
         code_aware_enabled=code_aware_enabled,
         disable_kompress=disable_kompress,
+        use_llmlingua=use_llmlingua,
         # Connection pool settings
         max_connections=_get_env_int("HEADROOM_MAX_CONNECTIONS", args.max_connections),
         max_keepalive_connections=_get_env_int("HEADROOM_MAX_KEEPALIVE", args.max_keepalive),

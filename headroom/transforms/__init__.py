@@ -8,6 +8,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Expose concrete types to static analysis while keeping runtime imports lazy.
+    from headroom.transforms.llmlingua_compressor import (  # noqa: F401
+        LLMLinguaCompressor,
+        LLMLinguaConfig,
+        LLMLinguaResult,
+    )
     from headroom.transforms.anchor_selector import (  # noqa: F401
         AnchorSelector,
         AnchorStrategy,
@@ -61,8 +66,13 @@ if TYPE_CHECKING:
         SearchCompressorConfig,
     )
     from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig  # noqa: F401
+    from headroom.transforms.compact_table import (  # noqa: F401
+        CompactTableCompressor,
+        CompactTableResult,
+    )
 
 _HTML_EXTRACTOR_AVAILABLE = importlib.util.find_spec("trafilatura") is not None
+_LLMLINGUA_AVAILABLE = importlib.util.find_spec("llmlingua") is not None
 
 __all__ = [
     # Base
@@ -78,6 +88,8 @@ __all__ = [
     # JSON compression
     "SmartCrusher",
     "SmartCrusherConfig",
+    "CompactTableCompressor",
+    "CompactTableResult",
     # Text compression (coding tasks)
     "ContentType",
     "DetectionResult",
@@ -108,6 +120,8 @@ __all__ = [
     "CacheAligner",
     # HTML extraction (optional)
     "_HTML_EXTRACTOR_AVAILABLE",
+    # LLMLingua-2 (optional — requires pip install cutctx-ai[llmlingua])
+    "_LLMLINGUA_AVAILABLE",
 ]
 
 # Conditionally add HTML extractor exports
@@ -118,6 +132,16 @@ if _HTML_EXTRACTOR_AVAILABLE:
             "HTMLExtractorConfig",
             "HTMLExtractionResult",
             "is_html_content",
+        ]
+    )
+
+# Conditionally add LLMLingua-2 exports (optional — pip install cutctx-ai[llmlingua])
+if _LLMLINGUA_AVAILABLE:
+    __all__.extend(
+        [
+            "LLMLinguaCompressor",
+            "LLMLinguaConfig",
+            "LLMLinguaResult",
         ]
     )
 
@@ -138,6 +162,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # JSON compression
     "SmartCrusher": ("headroom.transforms.smart_crusher", "SmartCrusher"),
     "SmartCrusherConfig": ("headroom.transforms.smart_crusher", "SmartCrusherConfig"),
+    "CompactTableCompressor": ("headroom.transforms.compact_table", "CompactTableCompressor"),
+    "CompactTableResult": ("headroom.transforms.compact_table", "CompactTableResult"),
     # Text compression (coding tasks)
     "ContentType": ("headroom.transforms.content_detector", "ContentType"),
     "DetectionResult": ("headroom.transforms.content_detector", "DetectionResult"),
@@ -189,6 +215,13 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "HTMLExtractorConfig": ("headroom.transforms.html_extractor", "HTMLExtractorConfig"),
     "HTMLExtractionResult": ("headroom.transforms.html_extractor", "HTMLExtractionResult"),
     "is_html_content": ("headroom.transforms.html_extractor", "is_html_content"),
+    # LLMLingua-2 (optional dependency - requires pip install cutctx-ai[llmlingua])
+    "LLMLinguaCompressor": (
+        "headroom.transforms.llmlingua_compressor",
+        "LLMLinguaCompressor",
+    ),
+    "LLMLinguaConfig": ("headroom.transforms.llmlingua_compressor", "LLMLinguaConfig"),
+    "LLMLinguaResult": ("headroom.transforms.llmlingua_compressor", "LLMLinguaResult"),
 }
 
 
@@ -197,6 +230,8 @@ def __getattr__(name: str) -> object:
         raise AttributeError(name)
     if name == "_HTML_EXTRACTOR_AVAILABLE":
         return _HTML_EXTRACTOR_AVAILABLE
+    if name == "_LLMLINGUA_AVAILABLE":
+        return _LLMLINGUA_AVAILABLE
 
     try:
         module_name, attr_name = _LAZY_EXPORTS[name]

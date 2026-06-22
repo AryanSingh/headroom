@@ -94,9 +94,17 @@ proxy-prod = [
 code = [
     "tree-sitter-language-pack>=0.10.0",
 ]
+# LLMLingua-2 prompt compression (Microsoft). GPU optional — runs on CPU.
+# pip install cutctx-ai[llmlingua]
+llmlingua = [
+    "llmlingua>=0.2.0",
+    "torch>=2.0.0",
+    "transformers>=4.30.0,<6.0",
+]
 # ML-based compression with Kompress (ModernBERT).
 # (The legacy [llmlingua] extra was removed in 0.9.x — no live code path used it.
-# Use [ml] for the supported ML compression dependencies.)
+# Use [ml] for the supported ML compression dependencies, or [llmlingua] for
+# LLMLingua-2.)
 ml = [
     "torch>=2.0.0",
     "transformers>=4.30.0,<6.0",

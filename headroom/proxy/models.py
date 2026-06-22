@@ -158,6 +158,17 @@ class ProxyConfig:
     # CLI: --disable-kompress; env: HEADROOM_DISABLE_KOMPRESS=1.
     disable_kompress: bool = False
 
+    # Use LLMLingua-2 for plain-text compression instead of Kompress.
+    # Requires: pip install cutctx-ai[llmlingua]
+    # CLI: --llmlingua; env: HEADROOM_USE_LLMLINGUA=1.
+    use_llmlingua: bool = False
+
+    # Query-aware compression: adapt protect_recent and min_tokens_to_crush
+    # based on the detected task type from the last user message.
+    # CODE/DEBUG tasks protect more context; SUMMARIZE/LIST tasks compress harder.
+    # CLI: --query-aware; env: HEADROOM_QUERY_AWARE=1.
+    query_aware_compression: bool = False
+
     # Code graph live watcher (triggers incremental reindex on file changes)
     code_graph_watcher: bool = False
 
