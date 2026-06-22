@@ -17,6 +17,8 @@ from headroom.security.state_crypto import (
     write_encrypted_json,
     write_hmac_json,
 )
+from headroom.security.antidebug import guard_ee_entry
+from headroom.security.integrity import IntegrityError, verify_ee_manifest
 
 __all__ = [
     "FirewallConfig",
@@ -32,4 +34,7 @@ __all__ = [
     "read_encrypted_json",
     "write_hmac_json",
     "read_hmac_json",
+    "guard_ee_entry",
+    "IntegrityError",
+    "verify_ee_manifest",
 ]

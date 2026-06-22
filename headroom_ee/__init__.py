@@ -18,5 +18,38 @@ Do not redistribute.
 
 from __future__ import annotations
 
+# ---------------------------------------------------------------------------
+# Security guards — MUST run before any EE module is executed.
+#
+#  1. Anti-debug: deny debugger attachment (macOS ptrace PT_DENY_ATTACH) or
+#     abort if a debugger is already attached (Linux / Windows).
+#  2. Integrity: verify SHA-256 hashes of all compiled .so modules against
+#     the signed MANIFEST.sha256.json to detect tampered binaries.
+# ---------------------------------------------------------------------------
+
+def _run_security_guards() -> None:
+    """Execute all EE entry guards. Failures raise RuntimeError / IntegrityError."""
+    import logging
+    _log = logging.getLogger("headroom_ee")
+
+    # Guard 1: anti-debug
+    try:
+        from headroom.security.antidebug import guard_ee_entry
+        guard_ee_entry()
+    except ImportError:
+        _log.debug("headroom.security.antidebug not available — skipping anti-debug guard")
+
+    # Guard 2: binary integrity
+    try:
+        from headroom.security.integrity import verify_ee_manifest
+        verify_ee_manifest(strict=True)
+    except ImportError:
+        _log.debug("headroom.security.integrity not available — skipping integrity check")
+
+
+_run_security_guards()
+
+# ---------------------------------------------------------------------------
+
 __all__: list[str] = []
 __license__ = "LicenseRef-Headroom-Commercial"

@@ -40,6 +40,7 @@ use headroom_core::transforms::{
     SearchCompressionResult as RustSearchResult, SearchCompressor as RustSearchCompressor,
     SearchCompressorConfig as RustSearchConfig, SearchCompressorStats as RustSearchStats,
 };
+use headroom_core::antidebug::deny_debugger_attach as rust_deny_debugger_attach;
 use headroom_core::licensing::verify_license_signature as rust_verify_license_signature;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -53,6 +54,23 @@ fn hello() -> &'static str {
 #[pyfunction]
 fn verify_license_signature(tier: &str, random_id: &str, customer_id: &str, signature_hex: &str) -> bool {
     rust_verify_license_signature(tier, random_id, customer_id, signature_hex)
+}
+
+/// Attempt to deny debugger attachment and detect existing ones.
+///
+/// - macOS: calls `ptrace(PT_DENY_ATTACH)` — makes the process unattachable.
+///   Returns `False` (deny, not detect).
+/// - Linux: reads `/proc/self/status` for `TracerPid`. Returns `True` if
+///   a debugger is currently attached.
+/// - Windows: calls `IsDebuggerPresent()`. Returns `True` if debugged.
+/// - Other: returns `False` (no-op).
+///
+/// Call once at startup from `headroom_ee.__init__` before any EE code runs.
+/// If this returns `True` on Linux/Windows, the caller should abort loading
+/// EE modules.
+#[pyfunction]
+fn deny_debugger_attach() -> bool {
+    rust_deny_debugger_attach()
 }
 
 fn type_name(v: &serde_json::Value) -> &'static str {
@@ -1610,6 +1628,7 @@ fn compress_openai_responses_live_zone(
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hello, m)?)?;
     m.add_function(wrap_pyfunction!(verify_license_signature, m)?)?;
+    m.add_function(wrap_pyfunction!(deny_debugger_attach, m)?)?;
     m.add_class::<PyDiffCompressorConfig>()?;
     m.add_class::<PyDiffCompressionResult>()?;
     m.add_class::<PyDiffCompressorStats>()?;

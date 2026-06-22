@@ -21,6 +21,8 @@ import json
 import logging
 import os
 import platform
+import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
@@ -35,17 +37,79 @@ _FERNET_KEY_ENV = "HEADROOM_STATE_ENCRYPTION_KEY"
 _HMAC_SECRET_ENV = "HEADROOM_LICENSE_HMAC_SECRET"
 
 
+def _get_machine_id() -> str:
+    """Return a stable, hard-to-spoof OS-level machine identifier.
+
+    Priority:
+      1. Linux  — /etc/machine-id (set at OS install, root-only to change)
+      2. macOS  — IOPlatformUUID from ioreg (hardware UUID, root-only to change)
+      3. Windows— HKLM\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid
+      4. Fallback — MAC address integer (original behavior, spoofable)
+
+    The returned string is stripped of whitespace. Callers encode it to bytes.
+    """
+    if sys.platform.startswith("linux"):
+        for candidate in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+            try:
+                mid = Path(candidate).read_text().strip()
+                if mid:
+                    return mid
+            except OSError:
+                pass
+
+    elif sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            for line in result.stdout.splitlines():
+                if "IOPlatformUUID" in line:
+                    # Format: "IOPlatformUUID" = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                    parts = line.split('"')
+                    if len(parts) >= 4:
+                        return parts[-2]
+        except Exception:
+            pass
+
+    elif sys.platform == "win32":
+        try:
+            import winreg  # type: ignore[import]
+
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SOFTWARE\Microsoft\Cryptography",
+            )
+            value, _ = winreg.QueryValueEx(key, "MachineGuid")
+            winreg.CloseKey(key)
+            return str(value)
+        except Exception:
+            pass
+
+    # Universal fallback: MAC address as integer (spoofable, but always available)
+    logger.debug("_get_machine_id: using MAC address fallback (platform=%s)", sys.platform)
+    return str(uuid.getnode())
+
+
 def _machine_fingerprint() -> bytes:
     """Build a machine-specific fingerprint for key derivation.
 
-    Combines hostname, username, and MAC address into a single byte string.
-    This is deterministic per-machine but not portable — intentional: we want
-    state files to be bound to the machine.
+    Combines three independent factors:
+      1. OS-level machine ID (hardware-bound, root-only to change)
+      2. Hostname (network identity)
+      3. Username (per-user state isolation)
+
+    All three must match for decryption to succeed, binding state files
+    to both the machine AND the user account. Changing any one of hostname,
+    user, or OS machine ID will produce a different key and render existing
+    state files unreadable (correct behavior: prevents cross-machine copying).
     """
     parts = [
+        _get_machine_id().encode(),
         platform.node().encode(),
         os.environ.get("USER", os.environ.get("USERNAME", "")).encode(),
-        str(uuid.getnode()).encode(),  # MAC address as integer
     ]
     return b"|".join(parts)
 

@@ -147,6 +147,10 @@ redis = { version = "0.27", optional = true, default-features = false }
 # cycling through the proxy crate. Tiny crate (no I/O, just types).
 http = "1"
 tracing-opentelemetry = "0.33.0"
+# `libc` for ptrace(PT_DENY_ATTACH) on macOS in the antidebug module.
+# Already a transitive dep via many crates; pinning it here keeps the
+# type signature stable.
+libc = "0.2"
 
 [target.'cfg(not(windows))'.dependencies]
 fastembed = { version = "5", default-features = false, features = [

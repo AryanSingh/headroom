@@ -32,6 +32,13 @@ scripts/*
 !scripts/replay_codex_ws_load.py
 !scripts/export_kompress_v2_onnx.py
 !scripts/assert_oss_wheel_clean.py
+!scripts/build_ee_manifest.py
+!scripts/sign_artifacts.py
+!scripts/license_keygen.py
+!scripts/generate_license.py
+!scripts/compile_ee.py
+!scripts/sync-plugin-versions.py
+!scripts/verify-versions.py
 
 # Rust / Cargo build artifacts
 /target/

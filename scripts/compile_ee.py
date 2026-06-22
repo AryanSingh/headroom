@@ -300,12 +300,38 @@ def main():
         print("ERROR: Wheel build failed")
         sys.exit(1)
 
-    # Verify
+    # Verify no source
     if verify_no_source_in_wheel(output_dir):
         print("\nSP-3 verification PASSED: no .py source in wheel")
     else:
         print("\nSP-3 verification FAILED: source detected in wheel")
         sys.exit(1)
+
+    # Build signed integrity manifest from the compiled .so files.
+    # The manifest is written into the EE package dir so it ships inside
+    # the wheel and can be verified at runtime by headroom.security.integrity.
+    if not args.dev:
+        print("\nBuilding signed EE integrity manifest…")
+        manifest_script = ROOT / "scripts" / "build_ee_manifest.py"
+        # Point at the compiled .so directory (not the source tree) so we
+        # hash exactly what goes into the wheel.
+        pkg_dir_in_wheel = compile_dir / "_build_root" / "headroom_ee"
+        manifest_result = subprocess.run(
+            [
+                sys.executable,
+                str(manifest_script),
+                "--ee-dir", str(pkg_dir_in_wheel),
+                "--output", str(pkg_dir_in_wheel / "MANIFEST.sha256.json"),
+            ],
+            capture_output=False,
+            cwd=str(ROOT),
+        )
+        if manifest_result.returncode != 0:
+            print("WARNING: manifest build failed — wheel ships without integrity manifest")
+        else:
+            print("Integrity manifest built and included in wheel.")
+    else:
+        print("\nDev build — skipping signed manifest (use --unsigned for local testing)")
 
 
 if __name__ == "__main__":

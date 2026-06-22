@@ -72,13 +72,16 @@ def generate_license_key(
     if secret is None:
         return unsigned_key, None
 
-    # Sign with HMAC-SHA256
+    # Sign with HMAC-SHA256, use first 32 hex chars (128 bits).
+    # The Rust verifier (crates/headroom-core/src/licensing.rs) compares
+    # exactly SIG_HEX_LEN=32 chars with constant-time XOR fold.
+    _SIG_HEX_LEN = 32
     sig_bytes = hmac.new(
         secret.encode("utf-8"),
         unsigned_key.encode("utf-8"),
         hashlib.sha256,
     ).digest()
-    sig_hex = sig_bytes.hex()
+    sig_hex = sig_bytes.hex()[:_SIG_HEX_LEN]
 
     signed_key = f"{unsigned_key}.{sig_hex}"
     return unsigned_key, signed_key

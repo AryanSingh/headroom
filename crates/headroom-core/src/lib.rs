@@ -1,5 +1,6 @@
 //! headroom-core: foundation crate for the Rust port of Headroom.
 
+pub mod antidebug;
 pub mod auth_mode;
 pub mod licensing;
 pub mod cache_control;
