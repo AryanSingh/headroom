@@ -15,6 +15,10 @@ Agno (pip install agno):
     - CutctxPreHook/HeadroomPostHook: Agent-level hooks for tracking
     - create_headroom_hooks: Convenience function to create hook pairs
 
+LlamaIndex (pip install cutctx-ai[llamaindex]):
+    - CutCtxNodePostprocessor: drop-in NodePostprocessor for relevance filtering
+      and optional compression of retrieved nodes
+
 MCP (Model Context Protocol):
     - CutctxMCPCompressor: Compress MCP tool results
     - compress_tool_result: Simple function for tool compression
@@ -29,6 +33,9 @@ Example:
     from headroom.integrations.agno import CutctxAgnoModel
     # or explicitly:
     from headroom.integrations.agno import CutctxAgnoModel
+
+    # LlamaIndex integration
+    from headroom.integrations.llamaindex import CutCtxNodePostprocessor
 
     # MCP integration
     from headroom.integrations import compress_tool_result
@@ -103,6 +110,17 @@ try:
 except ImportError:
     _AGNO_AVAILABLE = False
 
+# Re-export from llamaindex subpackage (optional dependency - pip install cutctx-ai[llamaindex])
+try:
+    from .llamaindex import (
+        CutCtxNodePostprocessor,
+        NodeFilterMetrics,
+    )
+
+    _LLAMAINDEX_AVAILABLE = True
+except ImportError:
+    _LLAMAINDEX_AVAILABLE = False
+
 __all__ = [
     # LangChain Core
     "HeadroomChatModel",
@@ -156,4 +174,7 @@ __all__ = [
     "get_model_name_from_agno",
     "AgnoOptimizationMetrics",
     "optimize_agno_messages",
+    # LlamaIndex
+    "CutCtxNodePostprocessor",
+    "NodeFilterMetrics",
 ]

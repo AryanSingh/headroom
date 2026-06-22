@@ -70,6 +70,11 @@ if TYPE_CHECKING:
         CompactTableCompressor,
         CompactTableResult,
     )
+    from headroom.transforms.selective_filter import (  # noqa: F401
+        FilterResult,
+        SelectiveContextFilter,
+        SelectiveFilterConfig,
+    )
 
 _HTML_EXTRACTOR_AVAILABLE = importlib.util.find_spec("trafilatura") is not None
 _LLMLINGUA_AVAILABLE = importlib.util.find_spec("llmlingua") is not None
@@ -90,6 +95,10 @@ __all__ = [
     "SmartCrusherConfig",
     "CompactTableCompressor",
     "CompactTableResult",
+    # Selective context filter (pre-compression message pruning)
+    "SelectiveContextFilter",
+    "SelectiveFilterConfig",
+    "FilterResult",
     # Text compression (coding tasks)
     "ContentType",
     "DetectionResult",
@@ -164,6 +173,13 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "SmartCrusherConfig": ("headroom.transforms.smart_crusher", "SmartCrusherConfig"),
     "CompactTableCompressor": ("headroom.transforms.compact_table", "CompactTableCompressor"),
     "CompactTableResult": ("headroom.transforms.compact_table", "CompactTableResult"),
+    # Selective context filter
+    "SelectiveContextFilter": (
+        "headroom.transforms.selective_filter",
+        "SelectiveContextFilter",
+    ),
+    "SelectiveFilterConfig": ("headroom.transforms.selective_filter", "SelectiveFilterConfig"),
+    "FilterResult": ("headroom.transforms.selective_filter", "FilterResult"),
     # Text compression (coding tasks)
     "ContentType": ("headroom.transforms.content_detector", "ContentType"),
     "DetectionResult": ("headroom.transforms.content_detector", "DetectionResult"),

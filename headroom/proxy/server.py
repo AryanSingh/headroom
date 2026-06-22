@@ -385,6 +385,12 @@ class CutctxProxy(
             router_config.fallback_strategy = CompressionStrategy.PASSTHROUGH
         if config.use_llmlingua:
             router_config.use_llmlingua = True
+        # Selective filter: forward ProxyConfig toggle + threshold to ContentRouterConfig
+        if getattr(config, "selective_filter", False):
+            router_config.selective_filter = True
+            router_config.selective_filter_min_score = getattr(
+                config, "selective_filter_threshold", 0.15
+            )
         # A non-None exclude_tools replaces DEFAULT_EXCLUDE_TOOLS in
         # ContentRouter, so merge rather than assign.
         if config.exclude_tools:

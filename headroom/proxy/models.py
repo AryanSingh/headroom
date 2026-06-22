@@ -169,6 +169,13 @@ class ProxyConfig:
     # CLI: --query-aware; env: HEADROOM_QUERY_AWARE=1.
     query_aware_compression: bool = False
 
+    # Selective context filter: drop low-relevance messages before compression.
+    # Scores each turn against the most recent user query; turns below
+    # selective_filter_threshold are removed entirely. Disabled by default.
+    # CLI: --selective-filter; env: HEADROOM_SELECTIVE_FILTER=1.
+    selective_filter: bool = False
+    selective_filter_threshold: float = 0.15
+
     # Code graph live watcher (triggers incremental reindex on file changes)
     code_graph_watcher: bool = False
 

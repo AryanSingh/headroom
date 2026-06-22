@@ -390,6 +390,29 @@ def _selected_context_tool() -> str:
         "Env: HEADROOM_QUERY_AWARE."
     ),
 )
+@click.option(
+    "--selective-filter",
+    "selective_filter",
+    is_flag=True,
+    envvar="HEADROOM_SELECTIVE_FILTER",
+    help=(
+        "Drop low-relevance message turns before compression. "
+        "Scores each turn against the current user query; turns below "
+        "--selective-filter-threshold are removed entirely. "
+        "Env: HEADROOM_SELECTIVE_FILTER."
+    ),
+)
+@click.option(
+    "--selective-filter-threshold",
+    "selective_filter_threshold",
+    default=None,
+    type=click.FloatRange(min=0.0, max=1.0),
+    envvar="HEADROOM_SELECTIVE_FILTER_THRESHOLD",
+    help=(
+        "Minimum relevance score (0-1) for a message to survive selective filtering. "
+        "Default: 0.15. Env: HEADROOM_SELECTIVE_FILTER_THRESHOLD."
+    ),
+)
 # Code graph: indexes project + watches files for live reindex via codebase-memory-mcp.
 # Only useful when the proxy is launched from a project root — it indexes the
 # current working directory.
@@ -603,6 +626,38 @@ def _selected_context_tool() -> str:
     help="Disable anonymous usage telemetry (env: HEADROOM_TELEMETRY=off)",
 )
 @click.option(
+    "--langfuse",
+    "langfuse_enabled",
+    is_flag=True,
+    envvar="HEADROOM_LANGFUSE_ENABLED",
+    help=(
+        "Send compression traces to Langfuse. "
+        "Requires LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY env vars. "
+        "Env: HEADROOM_LANGFUSE_ENABLED."
+    ),
+)
+@click.option(
+    "--langfuse-public-key",
+    default=None,
+    envvar="LANGFUSE_PUBLIC_KEY",
+    help="Langfuse public key (env: LANGFUSE_PUBLIC_KEY).",
+)
+@click.option(
+    "--langfuse-secret-key",
+    default=None,
+    envvar="LANGFUSE_SECRET_KEY",
+    help="Langfuse secret key (env: LANGFUSE_SECRET_KEY).",
+)
+@click.option(
+    "--langfuse-url",
+    default=None,
+    envvar="LANGFUSE_BASE_URL",
+    help=(
+        "Langfuse base URL. Defaults to https://cloud.langfuse.com. "
+        "Override for self-hosted instances. Env: LANGFUSE_BASE_URL."
+    ),
+)
+@click.option(
     "--stateless",
     is_flag=True,
     help="Disable all filesystem writes — run purely in-memory. "
@@ -659,6 +714,8 @@ def proxy(
     disable_kompress: bool,
     use_llmlingua: bool,
     query_aware_compression: bool,
+    selective_filter: bool,
+    selective_filter_threshold: float | None,
     code_graph: bool,
     no_read_lifecycle: bool,
     memory: bool,
@@ -686,6 +743,10 @@ def proxy(
     bedrock_region: str | None,
     bedrock_profile: str | None,
     no_telemetry: bool,
+    langfuse_enabled: bool,
+    langfuse_public_key: str | None,
+    langfuse_secret_key: str | None,
+    langfuse_url: str | None,
     stateless: bool,
     embedding_server: bool,
     embedding_server_socket: str | None,
@@ -781,6 +842,16 @@ def proxy(
     if no_telemetry:
         os.environ["HEADROOM_TELEMETRY"] = "off"
 
+    # Langfuse: inject CLI flags into env so LangfuseTracingConfig.from_env() picks them up
+    if langfuse_enabled:
+        os.environ.setdefault("HEADROOM_LANGFUSE_ENABLED", "1")
+    if langfuse_public_key:
+        os.environ.setdefault("LANGFUSE_PUBLIC_KEY", langfuse_public_key)
+    if langfuse_secret_key:
+        os.environ.setdefault("LANGFUSE_SECRET_KEY", langfuse_secret_key)
+    if langfuse_url:
+        os.environ.setdefault("LANGFUSE_BASE_URL", langfuse_url)
+
     if codex_wire_debug or codex_wire_debug_dir:
         os.environ["HEADROOM_CODEX_WIRE_DEBUG"] = "1"
         os.environ["HEADROOM_CODEX_WIRE_DEBUG_DIR"] = codex_wire_debug_dir or str(
@@ -871,6 +942,10 @@ def proxy(
         disable_kompress=disable_kompress,
         use_llmlingua=use_llmlingua,
         query_aware_compression=query_aware_compression,
+        selective_filter=selective_filter,
+        selective_filter_threshold=(
+            selective_filter_threshold if selective_filter_threshold is not None else 0.15
+        ),
         # Code graph: live file watcher for incremental reindexing
         code_graph_watcher=code_graph,
         # Read lifecycle: ON by default (use --no-read-lifecycle to disable)
@@ -1000,6 +1075,13 @@ Memory (Multi-Provider):
     else:
         telemetry_line = "  Telemetry:    DISABLED"
 
+    # Langfuse status line for the startup banner
+    if os.environ.get("HEADROOM_LANGFUSE_ENABLED", "").lower() in ("1", "true", "yes", "on"):
+        _lf_url = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+        langfuse_line = f"  Langfuse:     ENABLED → {_lf_url}"
+    else:
+        langfuse_line = ""
+
     # Discover proxy extensions (third-party packages registered via the
     # `headroom.proxy_extension` entry-point group). Surfaced in the banner
     # so operators can see what's available + what's currently opted-in.
@@ -1081,6 +1163,7 @@ Starting proxy server...
 {context_tool_line}
 {extensions_line}
 {stateless_line}{telemetry_line}
+{langfuse_line}
 {backend_section}{tuning_section}
 
 Routing:

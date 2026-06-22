@@ -536,6 +536,15 @@ class ContentRouterConfig:
     # CLI: --query-aware; env: HEADROOM_QUERY_AWARE=1.
     query_aware_compression: bool = False
 
+    # Selective context filtering: drop low-relevance messages BEFORE compression.
+    # Scores each turn against the most recent user query; turns below
+    # selective_filter_min_score are removed entirely. Disabled by default.
+    # CLI: --selective-filter; env: HEADROOM_SELECTIVE_FILTER=1.
+    selective_filter: bool = False
+    selective_filter_min_score: float = 0.15
+    selective_filter_protect_recent: int = 6
+    selective_filter_scorer: str = "bm25"  # "bm25" or "hybrid"
+
 
 # Patterns for detecting mixed content
 _CODE_FENCE_PATTERN = re.compile(r"^```(\w*)\s*$", re.MULTILINE)
@@ -792,6 +801,7 @@ class ContentRouter(Transform):
         self._diff_compressor: Any = None
         self._html_extractor: Any = None
         self._kompress: Any = None
+        self._selective_filter: Any = None
 
         # TOIN integration for cross-strategy learning
         self._toin: Any = None
@@ -1861,6 +1871,24 @@ class ContentRouter(Transform):
                 self._llmlingua_compressor = None
         return self._llmlingua_compressor
 
+    def _get_selective_filter(self) -> Any:
+        """Get SelectiveContextFilter (lazy load). Returns None on error."""
+        if self._selective_filter is None:
+            try:
+                from .selective_filter import SelectiveContextFilter, SelectiveFilterConfig
+
+                self._selective_filter = SelectiveContextFilter(
+                    SelectiveFilterConfig(
+                        min_score=self.config.selective_filter_min_score,
+                        protect_recent=self.config.selective_filter_protect_recent,
+                        scorer=self.config.selective_filter_scorer,
+                    )
+                )
+            except Exception as _sf_exc:
+                logger.debug("SelectiveContextFilter init failed (non-fatal): %s", _sf_exc)
+                return None
+        return self._selective_filter
+
     def _get_image_optimizer(self) -> Any:
         """Create an ImageCompressor for one optimization pass.
 
@@ -1985,6 +2013,23 @@ class ContentRouter(Transform):
         Returns:
             TransformResult with routed and compressed messages.
         """
+        # Selective filtering: drop low-relevance turns before compression.
+        # Runs FIRST (before read_lifecycle and all compression logic).
+        if self.config.selective_filter and messages:
+            try:
+                sf = self._get_selective_filter()
+                if sf is not None:
+                    messages, _sf_result = sf.filter(messages)
+                    if _sf_result.messages_dropped > 0:
+                        logger.debug(
+                            "selective_filter: %d -> %d messages (%d dropped)",
+                            _sf_result.messages_in,
+                            _sf_result.messages_out,
+                            _sf_result.messages_dropped,
+                        )
+            except Exception as _sf_exc:
+                logger.warning("SelectiveContextFilter failed (non-fatal, skipping): %s", _sf_exc)
+
         # Pre-process: Read lifecycle management (stale/superseded detection)
         if self.config.read_lifecycle.enabled:
             from .read_lifecycle import ReadLifecycleManager
