@@ -642,6 +642,7 @@ class BatchHandlerMixin:
         headers.pop("host", None)
         client = classify_client(headers)
         tags = extract_tags(headers)
+        request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-headroom-* before forwarding upstream.
         from headroom.proxy.helpers import _strip_internal_headers, log_outbound_headers
 

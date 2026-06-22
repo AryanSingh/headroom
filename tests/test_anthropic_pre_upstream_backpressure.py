@@ -847,6 +847,7 @@ class _CacheHit:
     class _Entry:
         response_headers: dict = {}
         response_body: bytes = b'{"id":"cached","type":"message","role":"assistant","content":[{"type":"text","text":"hit"}]}'
+        tokens_saved_per_hit: int = 0
 
     def __init__(self) -> None:
         self._entry = self._Entry()

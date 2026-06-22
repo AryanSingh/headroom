@@ -76,11 +76,11 @@ def __getattr__(name: str) -> Any:
 
         return CutctxBundle
     # Backward-compat aliases (pre-db7f7a4 rebrand).
-    elif name in ("HeadroomHookProvider", "HeadroomStrandsModel"):
+    elif name in ("HeadroomHookProvider", "HeadroomStrandsModel", "CutctxHookProvider", "CutctxStrandsModel"):
         from . import hooks as _hooks_mod
         from . import model as _model_mod
 
-        if name == "HeadroomHookProvider":
+        if name in ("HeadroomHookProvider", "CutctxHookProvider"):
             return _hooks_mod.CutctxHookProvider
         return _model_mod.CutctxStrandsModel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

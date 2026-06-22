@@ -203,7 +203,7 @@ class TestContentRouterConfig:
         """Default config values are sensible."""
         config = ContentRouterConfig()
 
-        assert config.enable_code_aware is False  # Disabled by default; use code graph MCP instead
+        assert config.enable_code_aware is True  # Enabled by default
         assert config.enable_kompress is True
         assert config.enable_smart_crusher is True
         assert config.enable_search_compressor is True
@@ -375,7 +375,7 @@ class TestContentRouter:
         """Router initializes with default config."""
         router = ContentRouter()
         assert router.config is not None
-        assert router.config.enable_code_aware is False  # Disabled by default
+        assert router.config.enable_code_aware is True  # Enabled by default
 
     def test_init_with_custom_config(self, default_config):
         """Router initializes with custom config."""

@@ -68,10 +68,11 @@ class TestCCRRetrieveEndpoint:
         response = client.post("/v1/retrieve", json={"hash": "nonexistent123"})
         assert response.status_code == 404
         assert "Entry not found" in response.json()["detail"]
-        assert "CCR TTL: 300 seconds" in response.json()["detail"]
+        assert "CCR TTL: 1800 seconds" in response.json()["detail"]
 
     def test_retrieve_expired_hash_reports_expiration_detail(self, client):
         """Expired entries report expiration separately from missing hashes."""
+        reset_compression_store()
         store = get_compression_store(default_ttl=1)
         with patch("headroom.cache.compression_store.time.time", return_value=1000.0):
             hash_key = store.store(original="payload", compressed="payload")
@@ -264,7 +265,7 @@ class TestCCRStatsEndpoint:
         data = response.json()
         assert "store" in data
         assert data["store"]["entry_count"] == 0
-        assert data["store"]["default_ttl_seconds"] == 300
+        assert data["store"]["default_ttl_seconds"] == 1800
         assert "recent_retrievals" in data
 
     def test_stats_exposes_env_configured_ttl(self, client, monkeypatch):

@@ -201,25 +201,27 @@ class TestStripeWebhook:
 class TestLicenseDB:
     def test_upsert_and_get(self):
         from headroom.billing.license_db import LicenseDB
-        from headroom.billing.stripe_webhook import LicenseRecord
+        from headroom.billing.stripe_webhook import LicenseRecord, generate_license_key
 
-        with tempfile.NamedTemporaryFile(suffix=".db") as f:
-            db = LicenseDB(Path(f.name))
-            record = LicenseRecord(
-                license_key="team-abc-sig12345678",
-                tier="team",
-                customer_email="test@test.com",
-                seats=5,
-                stripe_customer_id="cus_1",
-                stripe_subscription_id="sub_1",
-                created_at=time.time(),
-                expires_at=time.time() + 86400,
-                active=True,
-            )
-            db.upsert(record)
-            result = db.validate("team-abc-sig12345678")
-            assert result["valid"] is True
-            assert result["tier"] == "team"
+        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret-1234"}):
+            with tempfile.NamedTemporaryFile(suffix=".db") as f:
+                db = LicenseDB(Path(f.name))
+                signed_key = generate_license_key("team", "cus_1")
+                record = LicenseRecord(
+                    license_key=signed_key,
+                    tier="team",
+                    customer_email="test@test.com",
+                    seats=5,
+                    stripe_customer_id="cus_1",
+                    stripe_subscription_id="sub_1",
+                    created_at=time.time(),
+                    expires_at=time.time() + 86400,
+                    active=True,
+                )
+                db.upsert(record)
+                result = db.validate(signed_key)
+                assert result["valid"] is True
+                assert result["tier"] == "team"
 
     def test_validate_not_found(self):
         from headroom.billing.license_db import LicenseDB
