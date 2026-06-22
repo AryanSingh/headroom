@@ -21,8 +21,12 @@ This module adds two endpoints behind admin auth + the
       Cascades the user_id out of every store that holds
       user-scoped data:
         - Memory (via ``MemoryHandler.delete_for_user``)
-        - Spend ledger (via ``headroom_ee.ledger.query.delete_spend_for_user``)
         - Audit log (via ``headroom_ee.audit.AuditLogger.delete_for_actor``)
+        - Spend ledger: NO-OP (SpendEvent has no user_id column;
+          only org_id / agent_id / workspace_id / project_id).
+          The response reports a note explaining the gap; production
+          deployments handling DSR for spend data must implement
+          tenant-scoped deletion by org_id.
 
 The response reports per-store counts. A failed deletion is
 logged but does not abort the cascade — DSR is best-effort and
@@ -177,18 +181,33 @@ def create_dsr_router(
             payload["store_errors"]["memory"] = "memory_handler not configured"
 
         # Spend ledger: query events for the user.
+        #
+        # The spend ledger (headroom_ee.ledger.models.SpendEvent) is
+        # keyed by org_id / agent_id / workspace_id / project_id —
+        # there is no ``user_id`` column. The DSR target user_id
+        # cannot be reliably linked to spend events, so the export
+        # path reports this honestly instead of pretending to export
+        # unrelated rows. The delete path is a no-op for the same
+        # reason; production deployments handling DSR for spend
+        # data must implement a tenant-scoped policy (e.g. require
+        # org_id in the request and delete by org_id).
         try:
-            from headroom_ee.ledger.query import query_spend
-            from headroom_ee.ledger.models import SpendQuery
+            from headroom_ee.ledger.api import query_spend  # noqa: F401
 
-            sq = SpendQuery(user_id=target, limit=1000)
-            events = await query_spend(sq) if callable(query_spend) else []
+            # query_spend is a FastAPI route handler (Request,
+            # Query, Depends), not a plain function. It is
+            # importable to confirm EE is installed, but it is not
+            # callable from this context — DSR cannot bridge the
+            # user_id → org_id gap.
             payload["stores"]["spend_ledger"] = {
-                "count": len(events) if events else 0,
-                # Audit-Deep-2026-06-21 P0 GDPR fix: pre-encode
-                # records to strip numpy/datetime objects that
-                # would otherwise 500 the response.
-                "records": jsonable_encoder(events) if events else [],
+                "count": 0,
+                "records": [],
+                "note": (
+                    "spend_ledger is keyed by org_id/agent_id, not "
+                    "user_id; DSR cannot map this user_id to spend "
+                    "events. Provide org_id in the body for tenant-"
+                    "scoped spend export."
+                ),
             }
         except ImportError:
             payload["store_errors"]["spend_ledger"] = "EE module not installed"
@@ -200,17 +219,14 @@ def create_dsr_router(
 
         # Audit log: query events for the actor == user_id.
         try:
-            from headroom_ee.audit import AuditLogger
+            from headroom_ee.audit import get_audit_logger
 
-            audit_logger = AuditLogger.instance() if hasattr(AuditLogger, "instance") else None
-            if audit_logger is not None:
-                events = audit_logger.query(actor=target, limit=1000)
-                payload["stores"]["audit"] = {
-                    "count": len(events) if events else 0,
-                    "records": jsonable_encoder(events) if events else [],
-                }
-            else:
-                payload["store_errors"]["audit"] = "AuditLogger.instance() not available"
+            audit_logger = get_audit_logger()
+            events = audit_logger.query(actor=target, limit=1000)
+            payload["stores"]["audit"] = {
+                "count": len(events) if events else 0,
+                "records": jsonable_encoder(events) if events else [],
+            }
         except ImportError:
             payload["store_errors"]["audit"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
@@ -259,11 +275,24 @@ def create_dsr_router(
             result["store_errors"]["memory"] = "memory_handler not configured"
 
         # Spend ledger: delete events for the user.
+        #
+        # The spend ledger has no user_id column. See the export
+        # branch for the full rationale. The delete path is
+        # therefore a no-op for spend data; production deployments
+        # handling DSR for spend must implement tenant-scoped
+        # deletion (by org_id).
         try:
-            from headroom_ee.ledger.query import delete_spend_for_user
+            from headroom_ee.ledger.api import query_spend  # noqa: F401
 
-            n = delete_spend_for_user(target)
-            result["stores"]["spend_ledger"] = {"deleted": n}
+            result["stores"]["spend_ledger"] = {
+                "deleted": 0,
+                "note": (
+                    "spend_ledger is keyed by org_id/agent_id, not "
+                    "user_id; DSR cannot map this user_id to spend "
+                    "events. Provide org_id for tenant-scoped spend "
+                    "deletion."
+                ),
+            }
         except ImportError:
             result["store_errors"]["spend_ledger"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
@@ -273,17 +302,15 @@ def create_dsr_router(
             result["store_errors"]["spend_ledger"] = str(exc)
 
         # Audit log: delete events for the actor == user_id.
+        # GDPR right-to-be-forgotten: delete_for_actor is a
+        # documented DSR exception to the audit log's append-only
+        # contract.
         try:
-            from headroom_ee.audit import AuditLogger
+            from headroom_ee.audit import get_audit_logger
 
-            audit_logger = AuditLogger.instance() if hasattr(AuditLogger, "instance") else None
-            if audit_logger is not None and hasattr(audit_logger, "delete_for_actor"):
-                n = audit_logger.delete_for_actor(target)
-                result["stores"]["audit"] = {"deleted": n}
-            else:
-                result["store_errors"]["audit"] = (
-                    "AuditLogger.instance() not available or delete_for_actor missing"
-                )
+            audit_logger = get_audit_logger()
+            n = audit_logger.delete_for_actor(target)
+            result["stores"]["audit"] = {"deleted": n}
         except ImportError:
             result["store_errors"]["audit"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001

@@ -319,6 +319,40 @@ class AuditLogger:
         ).fetchone()
         return row["cnt"] if row else 0
 
+    def delete_for_actor(self, actor: str) -> int:
+        """Delete every audit event for the supplied actor.
+
+        GDPR/CCPA right-to-be-forgotten carve-out: DSR (Data
+        Subject Request) processing is the only sanctioned path
+        to remove audit rows. The class docstring's "append-only"
+        statement is qualified by this DSR exception — the audit
+        log is append-only for the operational integrity surface
+        (tamper-evidence) but the DSR endpoint may purge rows
+        belonging to a specific actor.
+
+        Production deployments must additionally run a periodic
+        VACUUM after bulk DSR deletes to reclaim disk space.
+
+        Parameters
+        ----------
+        actor : str
+            The actor identifier (matches the ``actor`` column).
+
+        Returns
+        -------
+        int
+            Number of rows deleted.
+        """
+        if not actor:
+            return 0
+        with self._lock:
+            conn = self._get_conn()
+            cur = conn.execute(
+                "DELETE FROM audit_events WHERE actor = ?", (actor,)
+            )
+            conn.commit()
+            return cur.rowcount or 0
+
     def export_jsonl(self, *, limit: int = 1000, **kwargs: Any) -> str:
         """Export events as newline-delimited JSON."""
         events = self.query(limit=limit, **kwargs)

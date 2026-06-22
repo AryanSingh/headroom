@@ -80,10 +80,24 @@ def test_dsr_export_query_param_user_id(client: TestClient) -> None:
     assert "store_errors" in body
     # Memory subsystem is not configured in this test → reported as not_configured.
     assert "memory" in body["store_errors"]
+    # Audit log: get_audit_logger() singleton — succeeds even on a
+    # fresh DB. The response includes an empty audit store.
+    assert "audit" in body["stores"]
+    # Spend ledger: SpendEvent has no user_id column. The DSR
+    # endpoint reports a note explaining the user_id → org_id gap
+    # instead of pretending to query unrelated rows.
+    assert "spend_ledger" in body["stores"]
+    assert "note" in body["stores"]["spend_ledger"]
 
 
 def test_dsr_delete_body_user_id(client: TestClient) -> None:
-    """Authenticated with body user_id returns a structured payload."""
+    """Authenticated with body user_id returns a structured payload.
+
+    The cascade now actually deletes audit rows (via the new
+    ``AuditLogger.delete_for_actor`` DSR exception), reports
+    spend_ledger as a no-op (SpendEvent has no user_id column),
+    and reports memory as not configured.
+    """
     r = client.post(
         "/v1/me/delete", json={"user_id": "alice"}, headers=_auth_headers()
     )
@@ -95,6 +109,15 @@ def test_dsr_delete_body_user_id(client: TestClient) -> None:
     assert "store_errors" in body
     # Memory subsystem is not configured in this test → reported as not_configured.
     assert "memory" in body["store_errors"]
+    # Audit log deletion is now a real call (deletes 0 rows for a
+    # fresh DB).
+    assert "audit" in body["stores"]
+    assert "deleted" in body["stores"]["audit"]
+    # Spend ledger is a documented no-op (no user_id column).
+    assert "spend_ledger" in body["stores"]
+    assert "deleted" in body["stores"]["spend_ledger"]
+    assert body["stores"]["spend_ledger"]["deleted"] == 0
+    assert "note" in body["stores"]["spend_ledger"]
 
 
 def test_dsr_export_sso_user_id_from_state(client: TestClient) -> None:

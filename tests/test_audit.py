@@ -205,6 +205,52 @@ class TestAuditLogger:
         assert audit_logger.count() == 1
 
 
+class TestAuditLoggerDSR:
+    """GDPR/CCPA Data Subject Request (DSR) carve-out.
+
+    ``delete_for_actor`` is the only sanctioned path to remove
+    rows from the audit log; it is exercised by the
+    ``/v1/me/delete`` cascade (see ``headroom.proxy.routes.dsr``).
+    The audit log is otherwise append-only.
+    """
+
+    def test_delete_for_actor_removes_matching_rows(self, audit_logger):
+        audit_logger.log(AuditEvent(action="auth.login", actor="alice"))
+        audit_logger.log(AuditEvent(action="auth.login", actor="bob"))
+        audit_logger.log(AuditEvent(action="auth.login", actor="alice"))
+
+        n = audit_logger.delete_for_actor("alice")
+        assert n == 2
+        # Bob's row is preserved.
+        assert audit_logger.count() == 1
+        rows = audit_logger.query()
+        assert rows[0]["actor"] == "bob"
+
+    def test_delete_for_actor_no_match_returns_zero(self, audit_logger):
+        audit_logger.log(AuditEvent(action="test", actor="alice"))
+        n = audit_logger.delete_for_actor("nobody")
+        assert n == 0
+        assert audit_logger.count() == 1
+
+    def test_delete_for_actor_empty_string_no_op(self, audit_logger):
+        audit_logger.log(AuditEvent(action="test", actor="alice"))
+        n = audit_logger.delete_for_actor("")
+        assert n == 0
+        assert audit_logger.count() == 1
+
+    def test_delete_for_actor_does_not_touch_other_actors(self, audit_logger):
+        # Mix of actions and actors to ensure DELETE is scoped.
+        audit_logger.log(AuditEvent(action="auth.login", actor="alice"))
+        audit_logger.log(AuditEvent(action="data.read", actor="alice"))
+        audit_logger.log(AuditEvent(action="auth.login", actor="bob"))
+        audit_logger.log(AuditEvent(action="data.read", actor="carol"))
+
+        n = audit_logger.delete_for_actor("alice")
+        assert n == 2
+        remaining = {r["actor"] for r in audit_logger.query()}
+        assert remaining == {"bob", "carol"}
+
+
 class TestAuditEventEdgeCases:
     """Edge case tests."""
 
