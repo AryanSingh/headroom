@@ -3766,12 +3766,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except ImportError:
         pass
 
-    # Residency proof: kept unauthenticated by design (the attestation
-    # is itself signed). Documented exception to the auth gate.
+    # Residency proof: gated behind admin auth + residency.read RBAC.
+    # The route exposes the data-region list, egress blocklist, and audit
+    # chain tail hash — none of which should be world-readable (round-4 P0).
     try:
-        from headroom.proxy.routes.residency import router as residency_router
+        from headroom.proxy.routes.residency import create_residency_router
 
-        app.include_router(residency_router)
+        app.include_router(
+            create_residency_router(
+                require_admin_auth=_require_admin_auth,
+                require_rbac_permission=_require_rbac_permission,
+            )
+        )
         logger.debug("Residency proof route mounted at /v1/residency/proof")
     except ImportError:
         pass

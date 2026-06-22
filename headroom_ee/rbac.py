@@ -66,6 +66,7 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "reports.read": AdminRole.VIEWER,
     "fleet.read": AdminRole.VIEWER,
     "scim.read": AdminRole.VIEWER,
+    "residency.read": AdminRole.VIEWER,
     # Memory Curator
     "memory.curate": AdminRole.MEMORY_CURATOR,
     # Write (operator+)

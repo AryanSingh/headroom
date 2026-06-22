@@ -193,6 +193,78 @@ class TestStripeWebhook:
                     assert record.customer_email == "test@example.com"
                     assert record.active is True
 
+    def test_handle_checkout_ignores_metadata_tier_escalation(self):
+        """SECURITY: client-controlled metadata.tier MUST NOT escalate tier.
+
+        Attack: an attacker creates a Stripe Checkout session with
+        metadata.tier=enterprise, then completes checkout. If the
+        webhook reads tier from metadata, the attacker gets an
+        enterprise license for the price of a team seat.
+
+        Fix: tier is resolved from line_items[].price.id via the
+        PRICE_TO_TIER env-configured map. metadata.tier is ignored.
+        """
+        from headroom.billing.stripe_webhook import handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_evil",
+                "subscription": "sub_evil",
+                "metadata": {"tier": "enterprise", "seats": "1"},
+                "customer_details": {"email": "attacker@example.com"},
+                # line_items absent — no legitimate price ID present
+            }
+        }
+
+        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
+            with patch("headroom.billing.stripe_webhook._save_license"):
+                with patch("headroom.billing.stripe_webhook._send_license_email"):
+                    record = handle_checkout_completed(event_data)
+                    # tier must NOT be enterprise — it falls back to the
+                    # conservative default ("team") because no line_items
+                    # price ID matched any STRIPE_PRICE_* env var.
+                    assert record.tier != "enterprise", (
+                        "metadata.tier escalation succeeded — SECURITY REGRESSION"
+                    )
+                    assert record.tier == "team"
+
+    def test_handle_checkout_resolves_tier_from_price_id(self):
+        """Tier is resolved from line_items[].price.id when present."""
+        from headroom.billing.stripe_webhook import (
+            PRICE_TO_TIER,
+            handle_checkout_completed,
+        )
+
+        # Inject a known price -> enterprise mapping for the test
+        with patch.dict(
+            "os.environ",
+            {
+                "HEADROOM_LICENSE_HMAC_SECRET": "test-secret",
+                "STRIPE_PRICE_ENTERPRISE": "price_enterprise_xyz",
+            },
+        ):
+            # Re-resolve the env-derived PRICE_TO_TIER (it was captured
+            # at module import time)
+            with patch.dict(PRICE_TO_TIER, {"price_enterprise_xyz": "enterprise"}, clear=False):
+                event_data = {
+                    "object": {
+                        "customer": "cus_real",
+                        "subscription": "sub_real",
+                        "metadata": {"tier": "team"},  # attack: tries to downgrade
+                        "customer_details": {"email": "real@example.com"},
+                        "line_items": {
+                            "data": [
+                                {"price": {"id": "price_enterprise_xyz"}},
+                            ]
+                        },
+                    }
+                }
+                with patch("headroom.billing.stripe_webhook._save_license"):
+                    with patch("headroom.billing.stripe_webhook._send_license_email"):
+                        record = handle_checkout_completed(event_data)
+                        # price ID wins, metadata is ignored
+                        assert record.tier == "enterprise"
+
 
 # ---------------------------------------------------------------------------
 # Billing: License DB

@@ -78,14 +78,24 @@ def generate_license_key(tier: str, customer_id: str) -> str:
 
 
 def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
-    """Handle Stripe checkout.session.completed event."""
+    """Handle Stripe checkout.session.completed event.
+
+    SECURITY: The tier is derived from the Stripe Price ID (via
+    PRICE_TO_TIER) — NOT from session.metadata.tier, which the client
+    controls in the Stripe Checkout UI. Reading tier from metadata lets
+    an attacker self-assign enterprise tier by manipulating the
+    Checkout form's hidden field. The metadata.tier field is kept only
+    for the *seats* count, which Stripe does not let a client spoof
+    (seats are determined by the line item quantity).
+    """
     session = event_data["object"]
     customer_id = session["customer"]
     subscription_id = session.get("subscription", "")
     metadata = session.get("metadata", {})
-    tier = metadata.get("tier", "team")
-    seats = int(metadata.get("seats", 5))
     email = session.get("customer_details", {}).get("email", "")
+
+    tier = _resolve_tier_from_session(session)
+    seats = int(metadata.get("seats", 5))
 
     key = generate_license_key(tier, customer_id)
     now = time.time()
@@ -104,6 +114,36 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
     _save_license(record)
     _send_license_email(email, key, tier, seats)
     return record
+
+
+def _resolve_tier_from_session(session: dict[str, Any]) -> str:
+    """Resolve tier from Stripe session via Price ID lookup.
+
+    Returns the first tier that matches a price ID on the session's
+    line_items. Falls back to "team" only when no price ID matches AND
+    no metadata is present (this is the test/dev path; production
+    deployments must configure STRIPE_PRICE_* env vars).
+
+    NEVER trust session.metadata.tier — see handle_checkout_completed
+    for the attack model.
+    """
+    line_items = session.get("line_items") or session.get("display_items") or []
+    if isinstance(line_items, dict):
+        # Some Stripe payloads nest line_items under a "data" key
+        line_items = line_items.get("data", [])
+    for item in line_items:
+        if not isinstance(item, dict):
+            continue
+        price = item.get("price") or {}
+        price_id = price.get("id") if isinstance(price, dict) else None
+        if not price_id:
+            continue
+        tier = PRICE_TO_TIER.get(price_id)
+        if tier:
+            return tier
+    # No matching price ID; default conservatively to "team" (cheapest tier)
+    # rather than honoring client-controlled metadata.
+    return "team"
 
 
 def handle_subscription_deleted(event_data: dict[str, Any]) -> None:

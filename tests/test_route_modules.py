@@ -231,3 +231,51 @@ def test_create_sso_router_no_auth() -> None:
     paths = [r.path for r in router.routes]
     assert "/v1/sso/config" in paths
     assert "/v1/sso/validate" in paths
+
+
+# ── residency (round-4 P0 fix) ────────────────────────────────────
+import headroom.proxy.routes.residency as residency_module
+
+
+def test_residency_proof_requires_auth(client: TestClient) -> None:
+    """SECURITY: /v1/residency/proof MUST require auth (round-4 P0).
+
+    Prior to the fix this route was mounted unauthenticated and
+    leaked the data-region list, egress blocklist, and audit chain
+    tail hash to any caller.
+    """
+    r = client.get("/v1/residency/proof")
+    assert r.status_code in (401, 403), (
+        f"residency proof accepted unauthenticated request: {r.status_code} {r.text}"
+    )
+
+
+def test_residency_proof_authenticated_returns_attestation(
+    client: TestClient,
+) -> None:
+    """An authenticated admin can fetch the residency attestation."""
+    r = client.get("/v1/residency/proof?tenant_id=default", headers=_auth())
+    # 200 (prover available) or 503 (module missing) are both acceptable
+    # — what matters is that auth was enforced and the route is reachable.
+    assert r.status_code in (200, 503), r.text
+
+
+def test_create_residency_router() -> None:
+    """Factory exists and returns a router with the gated route."""
+    from fastapi import Depends
+
+    def _noop_admin() -> None:
+        return None
+
+    def _make_rbac_dep(perm: str):  # noqa: ARG001
+        def _dep() -> None:
+            return None
+
+        return _dep
+
+    router = residency_module.create_residency_router(
+        require_admin_auth=_noop_admin,
+        require_rbac_permission=_make_rbac_dep,
+    )
+    paths = [r.path for r in router.routes]
+    assert "/v1/residency/proof" in paths
