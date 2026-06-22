@@ -122,6 +122,10 @@ class LogCompressionResult:
     format_detected: LogFormat
     compression_ratio: float
     cache_key: str | None = None
+
+    @property
+    def tokens_saved(self) -> int:
+        return self.tokens_saved_estimate
     stats: dict[str, int] = field(default_factory=dict)
 
     @property

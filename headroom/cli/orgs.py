@@ -44,7 +44,7 @@ def list_orgs(admin_key: str | None) -> None:
 
 
 @orgs.command("create")
-@click.argument("name")
+@click.option("--name", "-n", required=True, prompt="Organization Name", help="Organization Name")
 @click.option("--email", prompt="Admin email", help="Admin email address")
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
 def create_org(name: str, email: str, admin_key: str | None) -> None:

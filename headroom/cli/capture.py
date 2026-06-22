@@ -24,7 +24,7 @@ def capture_group() -> None:
     help="JSONL capture from the direct Claude Code lane.",
 )
 @click.option(
-    "--headroom",
+    "--cutctx",
     "headroom_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),

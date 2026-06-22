@@ -55,6 +55,10 @@ class DiffCompressionResult:
     cache_key: str | None = None
 
     @property
+    def tokens_saved(self) -> int:
+        return self.tokens_saved_estimate
+
+    @property
     def compression_ratio(self) -> float:
         if self.original_line_count == 0:
             return 1.0

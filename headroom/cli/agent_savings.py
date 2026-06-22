@@ -58,6 +58,14 @@ from .main import main
     help="Comma-separated clients that must each meet the savings target.",
 )
 @click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["terminal", "json"], case_sensitive=False),
+    default="terminal",
+    show_default=True,
+    help="Output format. JSON is machine-readable.",
+)
+@click.option(
     "--min-accuracy",
     type=float,
     default=0.90,

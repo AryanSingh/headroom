@@ -76,7 +76,7 @@ def _rust_deny_attach() -> bool:
     """
     try:
         from headroom import _core  # type: ignore[import]
-        return _core.deny_debugger_attach()
+        return getattr(_core, "deny_debugger_attach", lambda: False)()
     except ImportError:
         return False
 

@@ -2981,6 +2981,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/v1/version")
+    async def get_v1_version():
+        return JSONResponse(status_code=200, content={"version": __version__})
+
+    @app.post("/v1/memory/search")
+    async def v1_memory_search():
+        return JSONResponse(status_code=501, content={"error": "Not implemented"})
+
     @app.get("/readyz")
     async def readyz():
         await _check_upstream()
@@ -3534,6 +3542,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return payload
 
     @app.get("/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
+    @app.get("/v1/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
     async def stats(cached: bool = False):
         """Get comprehensive proxy statistics.
 

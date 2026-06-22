@@ -673,11 +673,21 @@ Running evaluation...
     help="Directory of JSONL recordings written via HEADROOM_PROBE_RECORD_DIR.",
 )
 @click.option(
+    "--eval-dataset",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to custom evaluation JSONL dataset (overrides default).",
+)
+@click.option(
+    "--recordings",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help="Directory containing previous session recordings to probe.",
+)
+@click.option(
     "--json-output",
     type=click.Path(dir_okay=False, path_type=Path),
     help="Optional machine-readable JSON report output.",
 )
-def probes(recordings_dir: Path, json_output: Path | None) -> None:
+def run_probes(recordings_dir: Path, json_output: Path | None) -> None:
     """Score retention of recorded compression events (offline, no LLM).
 
     \b

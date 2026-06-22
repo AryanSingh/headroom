@@ -105,7 +105,7 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
 
     # ROI calculation: monthly plan cost is $49/mo
     plan_cost_monthly = 49.0
-    cost_saved_monthly = cost_saved if days == 30 else (cost_saved / days * 30)
+    cost_saved_monthly = cost_saved if days == 30 else (cost_saved / max(days, 1) * 30)
     roi = cost_saved_monthly / plan_cost_monthly if plan_cost_monthly > 0 else 0.0
 
     # Breakeven: tokens needed per month to offset plan cost
@@ -734,6 +734,9 @@ def savings(
             "No sessions recorded yet. Run `cutctx wrap claude` to "
             "start a session."
         )
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("<html><body><h1>No sessions recorded yet</h1></body></html>", encoding="utf-8")
         return
 
     # Print terminal summary

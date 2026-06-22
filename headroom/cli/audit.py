@@ -10,6 +10,14 @@ import httpx
 
 
 def _api_base() -> str:
+    from headroom.install.config import load_config
+    try:
+        cfg = load_config()
+        if cfg and cfg.get("proxy_bind"):
+            host, port = cfg["proxy_bind"].split(":")
+            return os.getenv("CUTCTX_PROXY_URL", f"http://{host}:{port}")
+    except Exception:
+        pass
     return os.getenv("CUTCTX_PROXY_URL", "http://127.0.0.1:8787")
 
 

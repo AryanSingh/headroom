@@ -59,6 +59,17 @@ Use 'auto' (default) to scan all detected agents."""
 
 @main.command()
 @click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print detailed reason for each unhandled failure.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Analyze without generating rule files.",
+)
+@click.option(
     "--project",
     type=click.Path(exists=True, path_type=Path),
     default=None,
@@ -103,6 +114,17 @@ Use 'auto' (default) to scan all detected agents."""
     is_flag=True,
     default=False,
     help="Watch for new sessions and auto-apply learnings.",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print detailed reason for each unhandled failure.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Analyze without generating rule files.",
 )
 @click.option(
     "--last",

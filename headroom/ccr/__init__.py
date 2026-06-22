@@ -34,6 +34,7 @@ from .batch_store import (
     get_batch_context_store,
     reset_batch_context_store,
 )
+CCRStore = BatchContextStore
 from .context_tracker import (
     CompressedContext,
     ContextTracker,

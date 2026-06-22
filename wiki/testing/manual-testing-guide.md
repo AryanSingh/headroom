@@ -952,7 +952,7 @@ echo "Signature length: ${#SIG} (expected: 32)"
 ### 21.3 Upgrade link
 
 ```bash
-CUTCTX_TEST_MODE=1 cutctx license upgrade
+cutctx license upgrade
 ```
 
 **PASS:** prints the upgrade URL; does not open browser in test mode (or opens it — both acceptable)

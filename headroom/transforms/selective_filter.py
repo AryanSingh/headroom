@@ -181,8 +181,9 @@ class SelectiveContextFilter:
 
             try:
                 result = scorer.score(text, effective_query)
-                scores[i] = result.score
-                keep.append(result.score >= self.config.min_score)
+                score_val = getattr(result, 'score', result) if not isinstance(result, float) else result
+                scores[i] = float(score_val)
+                keep.append(float(score_val) >= self.config.min_score)
             except Exception as exc:
                 logger.debug("Scoring failed for message %d (keeping): %s", i, exc)
                 keep.append(True)
@@ -193,7 +194,7 @@ class SelectiveContextFilter:
         result = FilterResult(
             messages_in=n,
             messages_out=len(filtered),
-            messages_dropped=len(dropped_indices),
+            messages_dropped=n - len(filtered),
             dropped_indices=dropped_indices,
             scores=scores,
         )

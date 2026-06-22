@@ -264,10 +264,9 @@ class CompactTableCompressor:
         compressed = "\n".join(lines)
 
         # 6. Only return the result if it's actually smaller
-        if len(compressed) >= len(content):
-            return None
-
         ratio = len(compressed) / len(content) if content else 1.0
+        if ratio > 1.0:
+            return None
 
         return CompactTableResult(
             compressed=compressed,
