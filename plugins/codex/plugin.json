@@ -4,10 +4,10 @@
   "description": "CutCtx context compression for OpenAI Codex — compress, retrieve, and observe token savings.",
   "author": {
     "name": "CutCtx Contributors",
-    "url": "https://github.com/AryanSingh/cutcxt"
+    "url": "https://github.com/cutctx/cutctx"
   },
-  "homepage": "https://github.com/AryanSingh/cutcxt",
-  "repository": "https://github.com/AryanSingh/cutcxt",
+  "homepage": "https://github.com/cutctx/cutctx",
+  "repository": "https://github.com/cutctx/cutctx",
   "keywords": [
     "cutctx",
     "context-compression",

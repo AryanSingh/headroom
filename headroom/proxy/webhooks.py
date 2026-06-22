@@ -212,9 +212,13 @@ class WebhookDispatcher:
         # keep working.
         env_url = os.environ.get("HEADROOM_WEBHOOK_URL", "").strip()
         if env_url:
-            env_secret = os.environ.get(
-                "HEADROOM_WEBHOOK_SECRET", "headroom-dev-secret"
-            )
+            env_secret = os.environ.get("HEADROOM_WEBHOOK_SECRET")
+            if not env_secret:
+                raise RuntimeError(
+                    "HEADROOM_WEBHOOK_SECRET environment variable is required when "
+                    "HEADROOM_WEBHOOK_URL is set. "
+                    "Generate one with: openssl rand -hex 32"
+                )
             sub = WebhookSubscription(
                 url=env_url,
                 secret=env_secret,

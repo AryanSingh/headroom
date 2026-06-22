@@ -4,10 +4,10 @@
   "description": "CutCtx startup hooks for Claude Code and GitHub Copilot CLI.",
   "author": {
     "name": "CutCtx Contributors",
-    "url": "https://github.com/chopratejas/headroom"
+    "url": "https://github.com/cutctx/cutctx"
   },
-  "homepage": "https://github.com/chopratejas/headroom",
-  "repository": "https://github.com/chopratejas/headroom",
+  "homepage": "https://github.com/cutctx/cutctx",
+  "repository": "https://github.com/cutctx/cutctx",
   "keywords": [
     "headroom",
     "hooks",

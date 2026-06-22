@@ -160,7 +160,7 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
 @click.option("--no-telemetry", is_flag=True, help="Disable anonymous telemetry in the runtime.")
 @click.option(
     "--image",
-    default="ghcr.io/chopratejas/headroom:latest",
+    default="ghcr.io/cutctx/cutctx:latest",
     show_default=True,
     help="Docker image to use when runtime=docker or preset=persistent-docker.",
 )

@@ -71,3 +71,6 @@ node-compile-cache/
 !e2e/init/**
 !.claude-plugin/
 !.claude-plugin/**
+target/
+extensions/
+compress.skill

@@ -8,7 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     author="CutCtx Labs",
     author_email="hello@cutctx.dev",
-    url="https://github.com/AryanSingh/cutcxt",
+    url="https://github.com/cutctx/cutctx",
     license="Apache-2.0",
     packages=find_packages(),
     python_requires=">=3.10",

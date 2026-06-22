@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: headroom-proxy
-  namespace: headroom
+  name: cutctx-proxy
+  namespace: cutctx
   labels:
-    app.kubernetes.io/name: headroom-proxy
+    app.kubernetes.io/name: cutctx-proxy
     app.kubernetes.io/component: proxy
     app.kubernetes.io/version: "0.26.0"
 spec:
@@ -16,19 +16,19 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app.kubernetes.io/name: headroom-proxy
+      app.kubernetes.io/name: cutctx-proxy
       app.kubernetes.io/component: proxy
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: headroom-proxy
+        app.kubernetes.io/name: cutctx-proxy
         app.kubernetes.io/component: proxy
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
-      serviceAccountName: headroom-proxy
+      serviceAccountName: cutctx-proxy
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
@@ -38,8 +38,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: headroom-proxy
-          image: ghcr.io/aryansingh/headroom:v0.26.0
+        - name: cutctx-proxy
+          image: ghcr.io/cutctx/cutctx:v0.26.0
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -51,9 +51,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: headroom-proxy-config
+                name: cutctx-proxy-config
             - secretRef:
-                name: headroom-proxy-secret
+                name: cutctx-proxy-secret
           args:
             - "--listen-addr"
             - "0.0.0.0:8080"

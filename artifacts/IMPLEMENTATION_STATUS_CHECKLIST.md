@@ -1,7 +1,7 @@
 # CutCtx Implementation Status Checklist
 
 **Date:** June 15, 2026
-**Brand:** CutCtx (repo: github.com/AryanSingh/cutcxt)
+**Brand:** CutCtx (repo: github.com/cutctx/cutctx)
 **Test Suite:** 7,840+ passing, 0 regressions
 
 ## Summary

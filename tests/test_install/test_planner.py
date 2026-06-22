@@ -31,7 +31,7 @@ def test_build_manifest_for_persistent_docker_sets_expected_defaults() -> None:
         proxy_mode="token",
         memory_enabled=True,
         telemetry_enabled=False,
-        image="ghcr.io/chopratejas/headroom:latest",
+        image="ghcr.io/cutctx/cutctx:latest",
     )
 
     assert manifest.supervisor_kind == "none"
@@ -59,7 +59,7 @@ def test_build_manifest_uses_provider_slice_env_builders_for_all_supported_targe
         proxy_mode="token",
         memory_enabled=False,
         telemetry_enabled=True,
-        image="ghcr.io/chopratejas/headroom:latest",
+        image="ghcr.io/cutctx/cutctx:latest",
     )
 
     assert manifest.tool_envs["claude"]["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9999"

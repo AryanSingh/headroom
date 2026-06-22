@@ -486,7 +486,7 @@ def _ensure_runtime_manifest(
         proxy_mode="token",
         memory_enabled=memory,
         telemetry_enabled=True,
-        image="ghcr.io/chopratejas/headroom:latest",
+        image="ghcr.io/cutctx/cutctx:latest",
     )
     manifest.supervisor_kind = SupervisorKind.NONE.value
     manifest.artifacts = []
@@ -522,7 +522,7 @@ def _env_manifest(values: dict[str, str], target: str) -> Any:
         proxy_mode="token",
         memory_enabled=False,
         telemetry_enabled=True,
-        image="ghcr.io/chopratejas/headroom:latest",
+        image="ghcr.io/cutctx/cutctx:latest",
     )
 
 
@@ -562,7 +562,7 @@ def _marketplace_source() -> str:
     repo_root = Path(__file__).resolve().parents[2]
     if (repo_root / ".claude-plugin" / "marketplace.json").exists():
         return str(repo_root)
-    return "chopratejas/headroom"
+    return "cutctx/cutctx"
 
 
 def _run_checked(command: list[str], *, action: str) -> None:

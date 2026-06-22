@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$ImageDefault = 'ghcr.io/chopratejas/headroom:latest'
+$ImageDefault = 'ghcr.io/cutctx/cutctx:latest'
 $InstallImage = if ($env:HEADROOM_DOCKER_IMAGE) { $env:HEADROOM_DOCKER_IMAGE } else { $ImageDefault }
 $InstallDir = Join-Path $HOME '.local\bin'
 if (-not (Test-Path (Join-Path $HOME '.local'))) {
@@ -618,7 +618,7 @@ function Show-InstallApplyHelp {
         '  --mode TEXT                   Proxy optimization mode.  [default: token]',
         '  --memory                      Enable persistent memory in the runtime.',
         '  --no-telemetry                Disable anonymous telemetry in the runtime.',
-        '  --image TEXT                  Docker image to use.  [default: HEADROOM_DOCKER_IMAGE or ghcr.io/chopratejas/headroom:latest]',
+        '  --image TEXT                  Docker image to use.  [default: HEADROOM_DOCKER_IMAGE or ghcr.io/cutctx/cutctx:latest]',
         '  -?, --help                    Show this message and exit.'
     )
     Write-Host ($lines -join [Environment]::NewLine)
@@ -1813,4 +1813,4 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Restart PowerShell"
 Write-Host "  2. Try: cutctx proxy"
-Write-Host "  3. Docs: https://github.com/AryanSingh/cutcxt/blob/main/docs/docker-install.md"
+Write-Host "  3. Docs: https://github.com/cutctx/cutctx/blob/main/docs/docker-install.md"

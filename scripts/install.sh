@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-IMAGE_DEFAULT="ghcr.io/chopratejas/headroom:latest"
+IMAGE_DEFAULT="ghcr.io/cutctx/cutctx:latest"
 INSTALL_IMAGE="${HEADROOM_DOCKER_IMAGE:-${IMAGE_DEFAULT}}"
 INSTALL_DIR="${HOME}/.local/bin"
 if [[ ! -d "${HOME}/.local" ]]; then
@@ -603,7 +603,7 @@ Options:
   --mode TEXT                   Proxy optimization mode.  [default: token]
   --memory                      Enable persistent memory in the runtime.
   --no-telemetry                Disable anonymous telemetry in the runtime.
-  --image TEXT                  Docker image to use.  [default: HEADROOM_DOCKER_IMAGE or ghcr.io/chopratejas/headroom:latest]
+  --image TEXT                  Docker image to use.  [default: HEADROOM_DOCKER_IMAGE or ghcr.io/cutctx/cutctx:latest]
   -?, --help                    Show this message and exit.
 EOF
 }
@@ -1670,7 +1670,7 @@ Installed wrappers:
 Next steps:
   1. Restart your shell or run: export PATH="${INSTALL_DIR}:\$PATH"
   2. Try: cutctx proxy
-  3. Docs: https://github.com/AryanSingh/cutcxt/blob/main/docs/docker-install.md
+  3. Docs: https://github.com/cutctx/cutctx/blob/main/docs/docker-install.md
 EOF
 }
 

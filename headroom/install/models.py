@@ -104,7 +104,7 @@ class DeploymentManifest:
     memory_enabled: bool = False
     memory_db_path: str = ""
     telemetry_enabled: bool = True
-    image: str = "ghcr.io/chopratejas/headroom:latest"
+    image: str = "ghcr.io/cutctx/cutctx:latest"
     service_name: str = "cutctx"
     container_name: str = "headroom-persistent"
     health_url: str = "http://127.0.0.1:8787/readyz"

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: headroom
+name: cutctx
 description: Headroom — open-source context compression proxy for AI agents
 type: application
 version: 0.1.0
@@ -10,9 +10,9 @@ keywords:
   - context-compression
   - proxy
   - cost-optimization
-home: https://headroom.dev
+home: https://cutctx.dev
 sources:
-  - https://github.com/AryanSingh/cutcxt
+  - https://github.com/cutctx/cutctx
 maintainers:
   - name: Headroom Contributors
-    email: hello@headroom.dev
+    email: hello@cutctx.dev

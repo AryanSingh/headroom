@@ -5,8 +5,8 @@ services:
     # canonical owner (aryansingh) used by the Helm chart and
     # the github container registry. The old chopratejas/headroom
     # reference is a stale pre-rebrand artifact; the new
-    # aryansingh/headroom reference matches helm/headroom/values.yaml.
-    image: ${HEADROOM_IMAGE:-ghcr.io/aryansingh/headroom:latest}
+    # cutctx/cutctx reference matches helm/headroom/values.yaml.
+    image: ${HEADROOM_IMAGE:-ghcr.io/cutctx/cutctx:latest}
     entrypoint: ["headroom"]
     working_dir: /workspace
     stdin_open: true
@@ -28,7 +28,7 @@ services:
     command: ["--help"]
 
   proxy:
-    image: ${HEADROOM_IMAGE:-ghcr.io/aryansingh/headroom:latest}
+    image: ${HEADROOM_IMAGE:-ghcr.io/cutctx/cutctx:latest}
     entrypoint: ["headroom", "proxy"]
     working_dir: /workspace
     restart: unless-stopped
