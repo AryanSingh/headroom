@@ -1955,6 +1955,7 @@ dependencies = [
  "hound",
  "http 1.4.0",
  "image",
+ "libc",
  "magika",
  "md-5",
  "memchr",

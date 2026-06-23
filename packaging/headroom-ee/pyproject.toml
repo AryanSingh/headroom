@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "headroom-ee"
-version = "0.26.0"
+version = "0.26.1"
 description = "CutCtx commercial (enterprise edition) components — proprietary, All Rights Reserved."
 readme = "README.md"
 requires-python = ">=3.10"

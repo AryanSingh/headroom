@@ -1,6 +1,6 @@
 {
   "name": "headroom",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "CutCtx startup hooks for Claude Code and GitHub Copilot CLI.",
   "author": {
     "name": "CutCtx Contributors",

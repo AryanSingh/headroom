@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.26.1] - 2026-06-23
+
+### Security
+* **Hardware fingerprint hardening**: replaced `uuid.getnode()` (MAC address, trivially spoofed) with OS-native machine IDs — `/etc/machine-id` on Linux, `IOPlatformUUID` via `ioreg` on macOS, `HKLM\MachineGuid` on Windows. Three-factor binding: machine ID + hostname + username.
+* **HMAC signature expanded 64-bit → 128-bit**: `licensing.rs` truncation changed from 16 → 32 hex chars with constant-time XOR fold comparison and up-front length rejection. `generate_license.py` updated to emit 32-char signatures.
+* **Anti-debug guard**: Rust module `antidebug.rs` — macOS `ptrace(PT_DENY_ATTACH)`, Linux `TracerPid` parse, Windows `IsDebuggerPresent`. Python fallback in `headroom/security/antidebug.py`. `HEADROOM_ALLOW_DEBUG=1` escape hatch. Called automatically at EE import time.
+* **EE binary integrity manifest**: `headroom_ee/MANIFEST.sha256.json` — SHA-256 hashes of all `.so` files, HMAC-signed with `HEADROOM_LICENSE_HMAC_SECRET`. Verified by `headroom/security/integrity.py` before any EE code executes. `HEADROOM_SKIP_INTEGRITY_CHECK=1` escape hatch for debugging.
+
+### Fixed
+* **Stateless mode** (`--stateless` / `HEADROOM_STATELESS=true`): 14 files updated to use `:memory:` SQLite; beacon lock files, file logging, and subscription file persistence all guarded. Zero files written in stateless mode (was 20+).
+* **Docker**: `COPY headroom_ee/` was missing from `Dockerfile`, causing `ImportError` at container start. Fixed with correct COPY directives, extras (`proxy,code,ee`), `--no-editable` install, and EE manifest rebuild for Linux platform.
+* **Proxy routes**: `/audit/stats` returned 404 (now 403 for non-enterprise); `/v1/spend/query` returned 500 (now 200 with NullStore fallback); `/v1/dsr/export` and `/v1/dsr/delete` had wrong prefix (`/v1/me` → `/v1/dsr`).
+* **CLI** (from manual testing pass): `bench --algorithm` six implementations replacing broken `_get_algorithms()`; `agent-savings` duplicate `--format` option removed; `audit` broken import removed; `learn --dry-run` flag added; `evals probes` empty-directory guard.
+* **Compression**: `compact_table.py` `compress()` was returning `None`; `diff_compressor.py` Python fallback added for when Rust produces no compression; `log_compressor.py` missing `tokens_saved_estimate` field; `selective_filter.py` wrong return type.
+* **LlamaIndex Pydantic v2 compatibility**: `CutCtxNodePostprocessor` fields now use class-level annotations and `PrivateAttr`.
+* **Air-gap mode**: `is_offline()` now checks both `HEADROOM_AIR_GAP=1` and `HEADROOM_OFFLINE_MODE=1`; proxy refuses to start without `HEADROOM_LICENSE_HMAC_SECRET` in air-gap mode.
+* **EE integrity check on source installs**: `verify_ee_manifest` now detects when zero `.so` files are present (fresh clone / uncompiled dev install) and skips gracefully instead of raising `IntegrityError`.
+
+### Added
+* **JetBrains plugin CI verification**: `pluginVerification.ides` block added to `build.gradle.kts` — verifies against IntelliJ IDEA Community 2024.1, 2024.3, and 2025.1 (the full declared `sinceBuild=241` / `untilBuild=251.*` range).
+* **`CCRStore`**: backward-compatible wrapper (`headroom/ccr/store.py`) exposing legacy `put()`/`get()` API over `BatchContextStore`.
+* **Missing package inits**: `headroom_ee/memory_service/__init__.py` and `headroom_ee/tests/__init__.py` added (were causing `ImportError` in Docker).
+
 ### Fixed
 * **pyproject.toml URLs**: corrected typo `AryanSingh/cutcxt` → `cutctx/cutctx` in Repository, Issues, and Changelog URLs
 * **README badge URLs**: all 5 `AryanSingh/cutcxt` badge and star-history URLs corrected to `cutctx/cutctx`
@@ -489,6 +512,7 @@ cutctx proxy --port 8787
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 ```
 
-[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/cutctx/cutctx/compare/v0.26.0...v0.26.1
 [0.2.0]: https://github.com/chopratejas/cutctx/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/chopratejas/cutctx/releases/tag/v0.1.0

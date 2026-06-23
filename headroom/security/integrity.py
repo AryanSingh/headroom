@@ -150,6 +150,23 @@ def verify_ee_manifest(strict: bool = True) -> None:
         logger.warning("EE integrity manifest has no file entries — skipping hash check.")
         return
 
+    # If NONE of the manifest entries exist on disk, this is a source/uncompiled
+    # install (e.g. a fresh clone before `scripts/compile_ee.py` has been run, or
+    # a developer running from the Python source tree on a different platform than
+    # the manifest was built on). Compiled .so files are gitignored and not shipped
+    # in the source tree, so an all-missing manifest is expected in this case.
+    # In this scenario the integrity check has nothing to verify, so we skip it
+    # rather than failing hard — the guard is only meaningful when compiled
+    # binaries are present.
+    present_count = sum(1 for p in files if (ee_dir / p).exists())
+    if present_count == 0:
+        logger.debug(
+            "EE integrity manifest references %d .so file(s) but none are present "
+            "on disk — source/uncompiled install detected, skipping hash check.",
+            len(files),
+        )
+        return
+
     failures: list[str] = []
     for rel_path, expected_hash in files.items():
         abs_path = ee_dir / rel_path

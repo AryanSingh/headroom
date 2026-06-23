@@ -1,6 +1,6 @@
 {
   "name": "cutctx",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "Automatic context compression and retrieval for Codex.",
   "author": {
     "name": "CutCtx Contributors",

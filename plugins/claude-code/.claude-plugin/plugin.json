@@ -1,6 +1,6 @@
 {
   "name": "cutctx",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "CutCtx context compression for Claude Code — compress, retrieve, and observe token savings in real-time.",
   "author": {
     "name": "CutCtx Contributors",
