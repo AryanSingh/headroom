@@ -4,6 +4,7 @@
 
 import csv
 import io
+import logging
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -13,13 +14,66 @@ from pydantic import BaseModel
 from headroom_ee.ledger.query import LedgerQuery
 from headroom_ee.ledger.store import LedgerStore
 
+logger = logging.getLogger(__name__)
+
 # A simple global store reference, typically initialized at startup.
 _store: LedgerStore | None = None
 
 
+def init_store(db_url: str = "sqlite:///spend_ledger.db") -> LedgerStore | None:
+    """Initialize the global ledger store (idempotent).
+
+    Called from the proxy startup path to ensure the ledger store
+    is ready before the first request arrives.  Safe to call
+    multiple times — subsequent calls are no-ops.
+
+    Returns the store on success, ``None`` if the store could not be
+    initialized (e.g. SQLAlchemy not installed).  When the store is
+    ``None`` the /v1/spend/query endpoint will return a 500 with
+    "Ledger store not initialized"; the proxy should catch this and
+    return empty data.
+    """
+    global _store
+    if _store is not None:
+        return _store
+    try:
+        _store = LedgerStore(db_url=db_url)
+        return _store
+    except Exception as exc:
+        logger.warning("Ledger store init failed: %s", exc)
+        return None
+
+
+class _NullSession:
+    """Minimal session-like context manager for the null store.
+
+    Returned by ``_NullStore.SessionLocal()`` so that
+    ``with store.SessionLocal() as session:`` succeeds.
+    """
+
+    def __enter__(self) -> "_NullSession":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
+
+class _NullStore:
+    """Graceful fallback when the real LedgerStore cannot be initialised.
+
+    Provides ``SessionLocal`` so the /v1/spend/query endpoint returns
+    ``[]`` (empty list) instead of raising a 500 error.
+    """
+
+    SessionLocal = _NullSession
+
+
 def get_store() -> LedgerStore:
     if _store is None:
-        raise HTTPException(status_code=500, detail="Ledger store not initialized")
+        init_store()
+    if _store is None:
+        logger.warning("Ledger store not initialized; using null store (empty results)")
+        return _NullStore()  # type: ignore[return-value]
     return _store
 
 

@@ -61,6 +61,9 @@ class CompactTableCompressor:
     MAX_CELL_LENGTH = 80
     # Minimum fraction of items that must be dicts with shared keys
     _TABULAR_OVERLAP_THRESHOLD = 0.6
+    # Fraction of rows that must share the same value for a column to be
+    # considered "near-constant" (e.g. 0.8 = 80%).
+    _NEAR_CONSTANT_THRESHOLD = 0.8
 
     def _is_tabular(self, data: Any) -> bool:
         """Return True if data is a list of dicts with >= 60% key overlap.
@@ -168,11 +171,16 @@ class CompactTableCompressor:
         data: list[dict[str, Any]],
         columns: list[str],
     ) -> tuple[list[str], dict[str, str]]:
-        """Identify constant columns and remove them from the display columns.
+        """Identify constant / near-constant columns and remove them.
 
         A column is "constant" if every row that has the key contains the
         same value (rows that are missing the key are treated as having
         the value ``None``).
+
+        A column is "near-constant" if >= ``_NEAR_CONSTANT_THRESHOLD``
+        (default 80%) of the rows share the same value.  Such columns
+        are collapsed into a header annotation with a ``~`` prefix to
+        signal approximate constancy.
 
         Args:
             data: List of row dicts.
@@ -192,11 +200,23 @@ class CompactTableCompressor:
         for col in columns:
             # Collect all values (None for missing)
             values = [row.get(col) if isinstance(row, dict) else None for row in data]
-            unique_vals: set[str] = {self._format_value(v) for v in values}
+            formatted = [self._format_value(v) for v in values]
+            unique_vals: set[str] = set(formatted)
             if len(unique_vals) == 1:
                 # Constant column
                 val_str = next(iter(unique_vals))
                 constant_annotations[col] = f"{col}={val_str} ×{row_count}"
+            elif len(unique_vals) >= 2:
+                # Check for near-constant: one value dominates
+                from collections import Counter
+                counts = Counter(formatted)
+                most_common_val, most_common_cnt = counts.most_common(1)[0]
+                if most_common_cnt / row_count >= self._NEAR_CONSTANT_THRESHOLD:
+                    constant_annotations[col] = (
+                        f"{col}~{most_common_val} ×{most_common_cnt}"
+                    )
+                else:
+                    columns_to_show.append(col)
             else:
                 columns_to_show.append(col)
 

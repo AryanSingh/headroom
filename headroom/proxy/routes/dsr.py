@@ -116,7 +116,7 @@ def create_dsr_router(
     require_admin_auth, require_rbac_permission : Callable | None
         Auth dependencies passed in by ``server.py``.
     """
-    router = APIRouter(prefix="/v1/me", tags=["Privacy"])
+    router = APIRouter(prefix="/v1/dsr", tags=["Privacy"])
 
     dependencies: list[Any] = []
     if require_admin_auth is not None:

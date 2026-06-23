@@ -678,16 +678,11 @@ Running evaluation...
     help="Path to custom evaluation JSONL dataset (overrides default).",
 )
 @click.option(
-    "--recordings",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory containing previous session recordings to probe.",
-)
-@click.option(
     "--json-output",
     type=click.Path(dir_okay=False, path_type=Path),
     help="Optional machine-readable JSON report output.",
 )
-def run_probes(recordings_dir: Path, json_output: Path | None) -> None:
+def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Path | None) -> None:
     """Score retention of recorded compression events (offline, no LLM).
 
     \b
@@ -698,6 +693,12 @@ def run_probes(recordings_dir: Path, json_output: Path | None) -> None:
     import json as json_module
 
     from headroom.evals.session_probes import render_report, run_probes
+
+    # Check for empty or no-valid-files directory before probing
+    recording_files = sorted(recordings_dir.glob("*.jsonl"))
+    if not recording_files:
+        click.echo(f"No recordings found in {recordings_dir}")
+        return
 
     report = run_probes(recordings_dir)
     click.echo(render_report(report))

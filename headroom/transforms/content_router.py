@@ -371,6 +371,17 @@ class RouterCompressionResult:
     cache_hit: bool = False
 
     @property
+    def strategy(self) -> CompressionStrategy:
+        """Backward-compatible alias for ``strategy_used``.
+
+        Some call-sites access ``result.strategy`` instead of
+        ``result.strategy_used`` (e.g. after routing image/base64
+        content). This property provides attribute-level compatibility
+        so both names work.
+        """
+        return self.strategy_used
+
+    @property
     def total_original_tokens(self) -> int:
         """Total tokens before compression."""
         return sum(r.original_tokens for r in self.routing_log)
@@ -391,6 +402,15 @@ class RouterCompressionResult:
     def tokens_saved(self) -> int:
         """Number of tokens saved."""
         return max(0, self.total_original_tokens - self.total_compressed_tokens)
+
+    @property
+    def tokens_saved_estimate(self) -> int:
+        """Backward-compatible alias for ``tokens_saved``.
+
+        Some call-sites (e.g. ``headroom.proxy.router`` consumers) access
+        ``result.tokens_saved_estimate`` instead of ``result.tokens_saved``.
+        """
+        return self.tokens_saved
 
     @property
     def savings_percentage(self) -> float:

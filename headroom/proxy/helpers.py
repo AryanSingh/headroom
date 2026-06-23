@@ -935,6 +935,24 @@ def _get_image_compressor():
 # Resolved lazily so HEADROOM_WORKSPACE_DIR env-var changes are honored.
 
 
+def is_stateless() -> bool:
+    """Return True when stateless mode is active (no filesystem writes).
+
+    Checks the ``HEADROOM_STATELESS`` env var. Used by components that don't
+    have access to ``ProxyConfig.stateless`` (e.g. webhook stores, RBAC store,
+    subscription tracker).
+
+    Callers that do have access to ``config.stateless`` should also check that
+    field for consistency.
+    """
+    return os.environ.get("HEADROOM_STATELESS", "").lower() in (
+        "true",
+        "1",
+        "yes",
+        "on",
+    )
+
+
 def _headroom_log_dir() -> Path:
     return _paths.log_dir()
 
@@ -945,7 +963,13 @@ def _setup_file_logging() -> None:
     Writes to ~/.headroom/logs/proxy.log with automatic rotation:
     - Rotates at 10 MB
     - Keeps 5 backups (~50 MB max)
+
+    Skipped entirely when HEADROOM_STATELESS=true (no filesystem writes).
     """
+    # Stateless mode: skip all filesystem logging
+    if is_stateless():
+        return
+
     from logging.handlers import RotatingFileHandler
 
     try:

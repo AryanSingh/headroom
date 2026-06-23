@@ -44,12 +44,25 @@ COPY pyproject.toml uv.lock README.md ./
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates/ crates/
 COPY headroom/ headroom/
+COPY headroom_ee/ headroom_ee/
+COPY packaging/headroom-ee/ packaging/headroom-ee/
+COPY scripts/ scripts/
 
-ARG HEADROOM_EXTRAS=proxy,code
+ARG HEADROOM_EXTRAS=proxy,code,ee
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/build/target \
-    uv pip install --system ".[${HEADROOM_EXTRAS}]"
+    uv pip install --system --no-editable ".[${HEADROOM_EXTRAS}]"
+
+# Rebuild EE integrity manifest for the Linux container (the source manifest
+# was built on macOS and lists darwin .so files that don't exist here).
+# Find the actual site-packages headroom_ee dir and rebuild the manifest there.
+RUN SP_DIR=$(python -c "import site; print(site.getsitepackages()[0])") && \
+    EE_DIR="$SP_DIR/headroom_ee" && \
+    python scripts/build_ee_manifest.py --unsigned \
+    --ee-dir "$EE_DIR" \
+    --output "$EE_DIR/MANIFEST.sha256.json" && \
+    ls -la "$EE_DIR/MANIFEST.sha256.json"
 
 # Build-stage smoke check: verify the extension loads end-to-end inside
 # the build image before we copy site-packages into the runtime image.

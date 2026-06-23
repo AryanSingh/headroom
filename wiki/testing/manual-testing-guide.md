@@ -247,8 +247,8 @@ crusher = SmartCrusher(SmartCrusherConfig())
 data = '[' + ','.join([f'{{"id":{i},"type":"event","status":"pending","value":null}}' for i in range(20)]) + ']'
 result = crusher.crush(data)
 print(f"IN:  {len(data)} chars")
-print(f"OUT: {len(result.kept_json)} chars")
-print(f"Ratio: {1 - len(result.kept_json)/len(data):.1%} saved")
+print(f"OUT: {len(result.compressed)} chars")
+print(f"Ratio: {1 - len(result.compressed)/len(data):.1%} saved")
 EOF
 ```
 
@@ -321,8 +321,8 @@ results = '\n'.join([
 result = SearchCompressor().compress(results)
 print(f"IN:  {len(results)}")
 print(f"OUT: {len(result.compressed)}")
-print(f"Saved: {result.tokens_saved} tokens")
-assert result.tokens_saved > 0
+print(f"Saved: {result.tokens_saved_estimate} tokens")
+assert result.tokens_saved_estimate > 0
 print("PASS")
 EOF
 ```
@@ -399,7 +399,7 @@ print(f"Log   → strategy: {result.strategy}, saved: {result.tokens_saved}")
 
 # Test 3: JSON array → SmartCrusher
 json_content = '[{"id":' + str(i) + ',"val":"x"},' for i in range(30)]
-json_content = '[' + ','.join([f'{{"id":{i},"val":"repeated-value"}}' for i in range(30)]) + ']'
+json_content = '[\n' + ',\n'.join([f'  {{"id":{i},"val":"repeated-value"}}' for i in range(30)]) + '\n]'
 result = router.compress(json_content)
 print(f"JSON  → strategy: {result.strategy}, saved: {result.tokens_saved}")
 
@@ -458,8 +458,8 @@ from headroom.transforms.llmlingua_compressor import LLMLinguaCompressor
 comp = LLMLinguaCompressor()
 text = "This is a test sentence that should be compressed. " * 20
 result = comp.compress(text)
-print(f"available: {comp.available}")
-if comp.available:
+print(f"available: {comp.available()}")
+if comp.available():
     print(f"Saved: {result.tokens_saved}")
 else:
     print("Gracefully falling back to no-op (expected when not installed)")
@@ -488,6 +488,8 @@ kill $PROXY_PID
 python3 - <<'EOF'
 from headroom.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig
 
+# Note: messages must be >= 80 chars (min_len_to_score default) to be scored by the filter.
+# Short messages like those below will all be kept (score=0), which is expected here.
 messages = [
     {"role": "user",      "content": "What is the capital of France?"},
     {"role": "assistant", "content": "Paris."},
@@ -500,7 +502,7 @@ messages = [
 
 cfg = SelectiveFilterConfig(min_score=0.15, protect_recent=2)
 filt = SelectiveContextFilter(cfg)
-result = filt.filter(messages)
+filtered_messages, result = filt.filter(messages)
 
 print(f"Messages in:  {result.messages_in}")
 print(f"Messages out: {result.messages_out}")
@@ -539,23 +541,23 @@ from headroom.transforms.query_adapter import detect_query_hint, CompressionHint
 
 # CODE task — should protect more context
 hint = detect_query_hint("Fix the bug in my authentication middleware")
-print(f"CODE task hint: rate={hint.compression_rate}, protect_recent={hint.protect_recent}")
+print(f"CODE task hint: label={hint.label}, protect_recent={hint.protect_recent}")
 
 # SEARCH task — should compress harder
 hint = detect_query_hint("List all the files in this directory")
-print(f"SEARCH task hint: rate={hint.compression_rate}, protect_recent={hint.protect_recent}")
+print(f"SEARCH task hint: label={hint.label}, protect_recent={hint.protect_recent}")
 
 # DEBUG task — protect most
 hint = detect_query_hint("Why is my program crashing with a segfault?")
-print(f"DEBUG task hint: rate={hint.compression_rate}, protect_recent={hint.protect_recent}")
+print(f"DEBUG task hint: label={hint.label}, protect_recent={hint.protect_recent}")
 
 print("PASS")
 EOF
 ```
 
 **PASS:** 
-- CODE/DEBUG hints have lower `compression_rate` (protect more)
-- SEARCH hints have higher `compression_rate` (compress harder)
+- CODE/DEBUG hints have `label` indicating code/debug type (protect more)
+- SEARCH hints have `label` indicating list/search type (compress harder)
 
 ```bash
 cutctx proxy --port 8793 --query-aware &
@@ -1024,20 +1026,16 @@ curl -s http://localhost:8830/v1/rbac/assignments \
   -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
 
 # Assign a role
-curl -s -X POST http://localhost:8830/v1/rbac/assign \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "user-001", "role": "viewer"}' | jq .
+curl -s -X POST "http://localhost:8830/v1/rbac/assignments/user-001?role=viewer" \
+  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
 
 # Verify assignment
 curl -s http://localhost:8830/v1/rbac/assignments \
   -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
 
 # Revoke the role
-curl -s -X POST http://localhost:8830/v1/rbac/revoke \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "user-001", "role": "viewer"}' | jq .
+curl -s -X DELETE "http://localhost:8830/v1/rbac/assignments/user-001" \
+  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
 ```
 
 **PASS:** assign returns 200; list shows the new assignment; revoke removes it; list shows it gone
@@ -1240,14 +1238,14 @@ EOF
 ```bash
 python3 - <<'EOF'
 try:
-    from headroom.integrations.langchain import CutCtxCallbackHandler
+    from headroom.integrations.langchain import CutctxCallbackHandler
     print("LangChain integration import OK")
 except ImportError as e:
     print(f"langchain not installed: {e} — expected if not installed")
 
 # Test graceful import
 try:
-    from headroom.integrations.langchain.memory import CutCtxChatMessageHistory
+    from headroom.integrations.langchain.memory import CutctxChatMessageHistory
     print("Memory integration import OK")
 except ImportError:
     print("langchain-core not installed — graceful skip PASS")
@@ -1473,7 +1471,7 @@ print("No crash — PASS")
 EOF
 ```
 
-**PASS:** no crash; compression ratio is 0; tokens_saved is 0
+**PASS:** no crash; compression ratio is 1.0 (0/0 division), tokens_saved is 0
 
 ### 34.3 Very large input
 
@@ -1924,7 +1922,7 @@ PROXY_PID=$!
 sleep 2
 
 # Rate limit statistics
-curl -s http://localhost:8921/v1/rate-limit/stats \
+curl -s http://localhost:8921/v1/rate_limit/stats \
   -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
 
 # Test that --no-rate-limit disables it

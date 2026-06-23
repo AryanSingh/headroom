@@ -16,6 +16,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from pydantic import PrivateAttr
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -86,27 +88,41 @@ class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
         top_n: Maximum nodes to return. None = no limit.
         min_score: Drop nodes below this BM25 relevance score (0–1). Default 0.0 (keep all).
         compress: If True, compress surviving node text with CutCtx ContentRouter. Default False.
-        scorer: Scoring backend. One of "bm25" (default, no deps), "hybrid" (needs [relevance]).
+        scorer_name: Scoring backend. One of "bm25" (default, no deps), "hybrid" (needs [relevance]).
     """
+
+    # Public Pydantic fields
+    top_n: int | None = 10
+    min_score: float = 0.0
+    compress: bool = False
+    scorer_name: str = "bm25"
+
+    # Private (non-field) attributes
+    _scorer: Any = PrivateAttr(default=None)
+    _router: Any = PrivateAttr(default=None)
+    _last_metrics: NodeFilterMetrics = PrivateAttr(default_factory=NodeFilterMetrics)
 
     def __init__(
         self,
         top_n: int | None = 10,
         min_score: float = 0.0,
         compress: bool = False,
-        scorer: str = "bm25",
+        scorer_name: str = "bm25",
+        **kwargs: Any,
     ) -> None:
         if not _check_llamaindex():
             raise ImportError(
                 "llama-index-core is required. Install with: pip install cutctx-ai[llamaindex]"
             )
-        self.top_n = top_n
-        self.min_score = min_score
-        self.compress = compress
-        self.scorer_name = scorer
-        self._scorer: Any = None
-        self._router: Any = None
-        self._last_metrics = NodeFilterMetrics()
+        # Pass both our fields and any parent fields (e.g., callback_manager, class_name)
+        # to Pydantic's super().__init__ for proper field validation
+        super().__init__(
+            top_n=top_n,
+            min_score=min_score,
+            compress=compress,
+            scorer_name=scorer_name,
+            **kwargs,
+        )
 
     # ------------------------------------------------------------------
     # LlamaIndex BaseNodePostprocessor protocol

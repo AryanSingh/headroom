@@ -253,19 +253,31 @@ class RbacAssignmentStore:
     CACHE_TTL_S = 60.0
 
     def __init__(self, db_path: str | os.PathLike[str] | None = None) -> None:
-        import os
-        from pathlib import Path
+        from headroom.proxy.helpers import is_stateless
 
-        path = Path(
-            os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH))
-        )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self._db_path = str(path)
+        self._stateless = is_stateless()
         self._lock = threading.RLock()
         self._cache: dict[str, tuple[float, AdminRole]] = {}
+        if self._stateless:
+            self._db_path = ":memory:"
+            self._memory_conn: sqlite3.Connection | None = None
+        else:
+            import os
+            from pathlib import Path
+
+            path = Path(
+                os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH))
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._db_path = str(path)
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
+        if self._stateless:
+            if self._memory_conn is None:
+                self._memory_conn = sqlite3.connect(":memory:", timeout=5.0)
+                self._memory_conn.row_factory = sqlite3.Row
+            return self._memory_conn
         conn = sqlite3.connect(self._db_path, timeout=5.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")

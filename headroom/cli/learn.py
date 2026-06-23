@@ -116,17 +116,6 @@ Use 'auto' (default) to scan all detected agents."""
     help="Watch for new sessions and auto-apply learnings.",
 )
 @click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="Print detailed reason for each unhandled failure.",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Analyze without generating rule files.",
-)
-@click.option(
     "--last",
     type=int,
     default=None,
@@ -141,6 +130,8 @@ def learn(
     workers: int | None,
     watch: bool,
     last: int | None,
+    dry_run: bool = False,
+    verbose: bool = False,
 ) -> None:
     """Learn from past tool call failures to prevent future ones.
 
@@ -178,8 +169,6 @@ def learn(
         click.echo(f"Error: {e}")
         raise SystemExit(1) from None
 
-    analyzer = SessionAnalyzer(model=resolved_model)
-
     # Determine which agents to scan
     agent_configs: list[tuple[str, LearnPlugin]] = []
 
@@ -193,6 +182,22 @@ def learn(
     else:
         selected = get_plugin(agent)
         agent_configs = [(selected.name, selected)]
+
+    # Dry-run: print plan and exit without making API calls or modifying files
+    if dry_run:
+        click.echo("=== Dry Run ===")
+        click.echo(f"Agent(s): {', '.join(name for name, _ in agent_configs)}")
+        click.echo(f"Model: {resolved_model}")
+        click.echo(f"Workers: {max_workers}")
+        click.echo(f"Watch mode: {watch}")
+        click.echo(f"Apply changes: {apply}")
+        click.echo(f"Analyze all projects: {analyze_all}")
+        click.echo(f"Project: {project or 'current directory'}")
+        click.echo()
+        click.echo("Dry run complete. Pass --apply to write recommendations.")
+        return
+
+    analyzer = SessionAnalyzer(model=resolved_model)
 
     total_projects = 0
     total_failures = 0

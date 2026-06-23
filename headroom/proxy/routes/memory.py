@@ -26,10 +26,39 @@ def _get_ee_router() -> APIRouter:
         return ee_router
     except ImportError as e:
         logger.error(f"Failed to import headroom_ee.memory_service.api: {e}")
+        raise ImportError(
+            "Team Memory Service is an Enterprise Edition feature. "
+            "Install the headroom_ee package to enable it."
+        ) from e
+
+
+def _build_stub_router(
+    dependencies: list[Any],
+) -> APIRouter:
+    """Build a stub router that returns 501 for every request under
+    ``/v1/memory/{path:path}``.
+
+    This is returned when the EE module is not installed so the
+    application can start without crashing.  The 501 is issued at
+    request time instead of at import/creation time.
+    """
+    router = APIRouter()
+
+    @router.api_route(
+        "/v1/memory/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+        dependencies=dependencies,
+    )
+    async def _memory_stub() -> None:
         raise HTTPException(
             status_code=501,
             detail="Team Memory Service is an Enterprise Edition feature.",
-        ) from e
+        )
+
+    logger.info(
+        "Enterprise memory module not available; mounted stub 501 router."
+    )
+    return router
 
 
 def create_memory_router(
@@ -50,8 +79,12 @@ def create_memory_router(
             "/v1/memory/* will be reachable without auth."
         )
 
-    ee_router = _get_ee_router()
-    router.include_router(ee_router, dependencies=dependencies)
+    try:
+        ee_router = _get_ee_router()
+        router.include_router(ee_router, dependencies=dependencies)
+    except ImportError:
+        stub = _build_stub_router(dependencies)
+        router.include_router(stub)
 
     return router
 

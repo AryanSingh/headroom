@@ -213,7 +213,10 @@ class SubscriptionTracker(QuotaTracker):
         self._last_on_demand_poll: float = 0.0
         self._on_demand_poll_floor_s: float = _DEFAULT_ON_DEMAND_POLL_FLOOR_S
 
-        self._load_persisted_state()
+        # Stateless mode: skip loading persisted state (no filesystem reads)
+        self._stateless = self._check_stateless()
+        if not self._stateless:
+            self._load_persisted_state()
 
     # ------------------------------------------------------------------
     # QuotaTracker interface
@@ -466,11 +469,18 @@ class SubscriptionTracker(QuotaTracker):
         lock is released in :meth:`_release_rtk_poll_lock`, called from
         :meth:`stop`.
 
+        In stateless mode, always succeeds without writing files.
+
         Mirrors the beacon's ``_try_acquire_beacon_lock`` pattern in
         ``headroom/proxy/server.py`` (fcntl.flock, LOCK_EX | LOCK_NB).
         """
         if self._rtk_poll_owner is not None:
             return self._rtk_poll_owner
+
+        # Stateless mode: skip filesystem lock entirely
+        if self._stateless:
+            self._rtk_poll_owner = True
+            return True
 
         try:
             import fcntl
@@ -776,7 +786,16 @@ class SubscriptionTracker(QuotaTracker):
     # Persistence
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _check_stateless() -> bool:
+        """Return whether stateless mode is active via env var."""
+        from headroom.proxy.helpers import is_stateless
+
+        return is_stateless()
+
     def _persist_state(self) -> None:
+        if self._stateless:
+            return
         try:
             self._persist_path.parent.mkdir(parents=True, exist_ok=True)
             with self._lock:

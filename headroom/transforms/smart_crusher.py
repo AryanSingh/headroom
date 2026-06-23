@@ -347,7 +347,16 @@ class SmartCrusher(Transform):
                 f"expected one of: {', '.join(_SUPPORTED_COMPACTION_FORMATS)}"
             )
         self._compaction_format = resolved_format if with_compaction else None
-        ccr_db_path = os.environ.get("HEADROOM_CCR_DB_PATH", os.path.expanduser("~/.headroom/ccr.db")) if self._ccr_config.enabled else None
+        ccr_db_path: str | None = None
+        if self._ccr_config.enabled:
+            from headroom.proxy.helpers import is_stateless
+
+            if is_stateless():
+                ccr_db_path = ":memory:"
+            else:
+                ccr_db_path = os.environ.get(
+                    "HEADROOM_CCR_DB_PATH", os.path.expanduser("~/.headroom/ccr.db")
+                )
         if not with_compaction:
             self._rust = _RustSmartCrusher.without_compaction(rust_cfg, ccr_db_path=ccr_db_path)
         elif resolved_format == "csv-schema":

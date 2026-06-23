@@ -858,8 +858,10 @@ def proxy(
             _paths.codex_wire_debug_dir()
         )
 
-    # Stateless mode: suppress TOIN filesystem persistence
+    # Stateless mode: propagate to env so is_stateless() in
+    # helpers.py works for all components (stores, logging, etc.).
     if is_stateless:
+        os.environ["HEADROOM_STATELESS"] = "true"
         os.environ["HEADROOM_TOIN_BACKEND"] = "none"
 
     # License key for managed/enterprise deployments (optional)

@@ -198,11 +198,17 @@ class AuditLogger:
         Args:
             db_path: Path to SQLite database. Defaults to
                 ~/.headroom/audit.db (or HEADROOM_AUDIT_DB_PATH env).
+                In stateless mode, uses :memory: (no filesystem writes).
         """
         if db_path is None:
             db_path = os.environ.get(AUDIT_DB_ENV, "")
         if not db_path:
-            db_path = str(_paths.workspace_dir() / "audit.db")
+            from headroom.proxy.helpers import is_stateless
+
+            if is_stateless():
+                db_path = ":memory:"
+            else:
+                db_path = str(_paths.workspace_dir() / "audit.db")
         self._db_path = str(db_path)
         self._lock = threading.Lock()
         self._local = threading.local()

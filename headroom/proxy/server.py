@@ -1494,6 +1494,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # to the user's live proxy.log.
     _setup_file_logging()
 
+    # Air-gap / offline mode validation: must have HEADROOM_LICENSE_HMAC_SECRET
+    # set when running without network connectivity.
+    from headroom.proxy.airgap import check_offline_compat
+
+    check_offline_compat()
+
     config = config or ProxyConfig()
     proxy = CutctxProxy(config)
 
@@ -1518,12 +1524,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     _beacon_lock_fd: list = [None]  # mutable holder for the lock file descriptor
     _beacon_is_owner: list = [False]
 
+    def _is_stateless() -> bool:
+        """Check if stateless mode is active (no filesystem writes)."""
+        return config.stateless or os.environ.get(
+            "HEADROOM_STATELESS", ""
+        ).lower() in ("true", "1", "yes", "on")
+
     def _try_acquire_beacon_lock() -> bool:
         """Try to acquire the beacon file lock (non-blocking).
 
         Returns True if this process is the beacon owner.
+        In stateless mode, always succeeds without writing files.
         """
-        if not HAS_FCNTL:
+        if not HAS_FCNTL or _is_stateless():
             return True
 
         fd = None

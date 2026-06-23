@@ -210,6 +210,16 @@ headroom_*.db
 !tests/fixtures/*.jsonl
 docker/differential-network-capture/captures/
 
+# Extension build artifacts
+extensions/vscode/node_modules/
+extensions/vscode/out/
+extensions/vscode/dist/
+extensions/vscode/package-lock.json
+extensions/vscode/*.vsix
+extensions/jetbrains/build/
+extensions/jetbrains/.gradle/
+extensions/jetbrains/.intellijPlatform/
+
 # Documentation build
 docs/_build/
 site/

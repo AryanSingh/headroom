@@ -19,11 +19,27 @@ class SqliteBackend:
     def __init__(self, db_path: str, default_ttl: int = 300, **kwargs: Any):
         self._db_path = db_path
         self._default_ttl = default_ttl
+        # When using :memory:, keep a single shared connection so all
+        # operations see the same database (each separate connect() call
+        # creates an independent in-memory database).
+        self._is_memory = db_path in (":memory:",) or db_path.startswith("file::memory:")
+        self._memory_conn: sqlite3.Connection | None = None
         # Ensure table exists (in case Python initializes before Rust)
         self._init_db()
 
+    def _get_conn(self) -> sqlite3.Connection:
+        """Return a connection, reusing the singleton for :memory: databases."""
+        if self._is_memory:
+            if self._memory_conn is None:
+                if self._db_path.startswith("file::"):
+                    self._memory_conn = sqlite3.connect(self._db_path, uri=True)
+                else:
+                    self._memory_conn = sqlite3.connect(self._db_path)
+            return self._memory_conn
+        return sqlite3.connect(self._db_path)
+
     def _init_db(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS ccr_entries (
@@ -37,7 +53,7 @@ class SqliteBackend:
             conn.commit()
 
     def get(self, hash_key: str) -> CompressionEntry | None:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT original, created_at, ttl_seconds FROM ccr_entries WHERE hash = ?",
@@ -68,7 +84,7 @@ class SqliteBackend:
             )
 
     def set(self, hash_key: str, entry: CompressionEntry) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute(
                 """
                 INSERT INTO ccr_entries (hash, original, created_at, ttl_seconds)
@@ -88,28 +104,28 @@ class SqliteBackend:
             conn.commit()
 
     def delete(self, hash_key: str) -> bool:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             cursor = conn.execute("DELETE FROM ccr_entries WHERE hash = ?", (hash_key,))
             conn.commit()
             return cursor.rowcount > 0
 
     def exists(self, hash_key: str) -> bool:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             row = conn.execute("SELECT 1 FROM ccr_entries WHERE hash = ?", (hash_key,)).fetchone()
             return row is not None
 
     def clear(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute("DELETE FROM ccr_entries")
             conn.commit()
 
     def count(self) -> int:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             row = conn.execute("SELECT COUNT(*) FROM ccr_entries").fetchone()
             return row[0] if row else 0
 
     def keys(self) -> list[str]:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             cursor = conn.execute("SELECT hash FROM ccr_entries")
             return [row[0] for row in cursor.fetchall()]
 
@@ -117,7 +133,7 @@ class SqliteBackend:
         return self.count()
 
     def items(self) -> list[tuple[str, CompressionEntry]]:
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT hash, original, created_at, ttl_seconds FROM ccr_entries").fetchall()
 

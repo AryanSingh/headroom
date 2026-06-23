@@ -140,8 +140,9 @@ class BatchContextStore:
                 # Remove oldest entries
                 await self._cleanup_oldest()
 
-            # Set expiration
-            context.expires_at = time.time() + self._ttl
+            # Set expiration (only if not already set by caller)
+            if context.expires_at == 0:
+                context.expires_at = time.time() + self._ttl
             self._contexts[context.batch_id] = context
 
             logger.debug(

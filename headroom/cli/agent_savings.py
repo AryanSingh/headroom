@@ -23,7 +23,7 @@ from .main import main
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["shell", "json"]),
+    type=click.Choice(["shell", "json", "terminal"]),
     default="shell",
     show_default=True,
     help="Output format for profile environment.",
@@ -56,14 +56,6 @@ from .main import main
     "--require-agents",
     default="",
     help="Comma-separated clients that must each meet the savings target.",
-)
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["terminal", "json"], case_sensitive=False),
-    default="terminal",
-    show_default=True,
-    help="Output format. JSON is machine-readable.",
 )
 @click.option(
     "--min-accuracy",

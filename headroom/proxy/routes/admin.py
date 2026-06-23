@@ -536,6 +536,41 @@ def create_admin_router(
             )
         return {"ok": True, "lightweight": light, "hash_chain": chain_result}
 
+    @router.get(
+        "/audit/stats",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("audit.read")),
+            _Dep(require_entitlement("audit_logs")),
+        ],
+    )
+    async def audit_stats():
+        """Return audit statistics (event counts, recent activity summary).
+
+        Returns a JSON object with:
+        - ``total_events``: total audit event count.
+        - ``by_action``: event counts grouped by action (top 20).
+        - ``recent_events``: last 10 events (most recent first).
+        """
+        if not _proxy.audit_logger:
+            raise HTTPException(status_code=503, detail="Audit logging not available")
+        total = _proxy.audit_logger.count()
+        # Aggregate action counts — query with a generous limit so
+        # we capture a realistic sample, then collapse by action.
+        recent = _proxy.audit_logger.query(limit=10)
+        events_sample = _proxy.audit_logger.query(limit=2000)
+        by_action: dict[str, int] = {}
+        for event in events_sample:
+            action = event.get("action", "unknown")
+            by_action[action] = by_action.get(action, 0) + 1
+        # Sort descending by count
+        sorted_actions = sorted(by_action.items(), key=lambda x: -x[1])[:20]
+        return {
+            "total_events": total,
+            "by_action": dict(sorted_actions),
+            "recent_events": recent,
+        }
+
     # ── Org / Workspace / Project Management ──────────────────────────
 
     @router.get(

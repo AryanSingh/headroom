@@ -8,9 +8,18 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def _env_truthy(name: str) -> bool:
+    """Check if an env var is set to a truthy value."""
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def is_offline() -> bool:
-    """Check if running in offline/air-gap mode."""
-    return os.environ.get("HEADROOM_OFFLINE_MODE", "0") == "1"
+    """Check if running in offline/air-gap mode.
+
+    Recognises HEADROOM_OFFLINE_MODE=1 (primary) and
+    HEADROOM_AIR_GAP=1 (alias for backward compatibility).
+    """
+    return _env_truthy("HEADROOM_OFFLINE_MODE") or _env_truthy("HEADROOM_AIR_GAP")
 
 
 def check_offline_compat() -> None:
@@ -19,12 +28,12 @@ def check_offline_compat() -> None:
         return
     if not os.environ.get("HF_HUB_OFFLINE"):
         logger.warning(
-            "HEADROOM_OFFLINE_MODE=1 but HF_HUB_OFFLINE not set. "
-            "Model downloads may fail."
+            "HEADROOM_OFFLINE_MODE / HEADROOM_AIR_GAP is set but HF_HUB_OFFLINE "
+            "not set. Model downloads may fail."
         )
     if not os.environ.get("HEADROOM_LICENSE_HMAC_SECRET"):
         raise RuntimeError(
-            "HEADROOM_OFFLINE_MODE=1 requires HEADROOM_LICENSE_HMAC_SECRET "
+            "HEADROOM_LICENSE_HMAC_SECRET is required in offline/air-gap mode "
             "for offline license validation."
         )
-    logger.info("Offline mode: external network calls disabled.")
+    logger.info("Offline/air-gap mode: external network calls disabled.")

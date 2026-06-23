@@ -51,6 +51,25 @@ def create_spend_router(
     try:
         from headroom_ee.ledger.api import router as spend_inner_router
 
+        # Initialize the ledger store so /v1/spend/query does not
+        # return 500 with "Ledger store not initialized" on first
+        # request.  The store is a global singleton in the EE module;
+        # init_store() is idempotent.
+        from headroom_ee.ledger.api import init_store as _init_ledger_store
+
+        try:
+            import os
+
+            _db_url = os.environ.get(
+                "HEADROOM_SPEND_DB_URL", "sqlite:///spend_ledger.db"
+            )
+            _init_ledger_store(db_url=_db_url)
+        except Exception as init_err:
+            logger.warning(
+                "Ledger store init failed (requests will return empty data): %s",
+                init_err,
+            )
+
         router.include_router(spend_inner_router, dependencies=dependencies)
         logger.info(
             "Spend ledger API routes loaded (auth_deps=%d).",

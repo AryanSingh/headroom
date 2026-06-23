@@ -44,7 +44,12 @@ class ScimStore:
         if db_path is None:
             db_path = os.environ.get(SCIM_DB_ENV, "")
         if not db_path:
-            db_path = str(_paths.workspace_dir() / "scim.db")
+            from headroom.proxy.helpers import is_stateless
+
+            if is_stateless():
+                db_path = ":memory:"
+            else:
+                db_path = str(_paths.workspace_dir() / "scim.db")
         self._db_path = str(db_path)
         self._lock = threading.Lock()
         self._local = threading.local()

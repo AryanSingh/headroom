@@ -1222,7 +1222,15 @@ def _create_default_ccr_backend() -> CompressionStoreBackend | None:
     Loads adapters via setuptools entry point 'headroom.ccr_backend'.
     If HEADROOM_CCR_BACKEND is empty or "sqlite", returns SqliteBackend pointing to ~/.headroom/ccr.db.
     Returns None to use InMemoryBackend if HEADROOM_CCR_BACKEND="memory".
+
+    In stateless mode (HEADROOM_STATELESS=true), always returns None so the
+    CompressionStore uses InMemoryBackend — no filesystem writes.
     """
+    # Stateless mode: never write CCR to disk
+    from headroom.proxy.helpers import is_stateless
+
+    if is_stateless():
+        return None
     backend_type = (os.environ.get("HEADROOM_CCR_BACKEND") or "sqlite").strip().lower()
     if backend_type == "memory":
         return None
