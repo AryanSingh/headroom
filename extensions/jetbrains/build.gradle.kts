@@ -49,9 +49,9 @@ intellijPlatform {
             // Verify against the full declared compatibility range (since 241 / until 251.*).
             // "recommended()" fetches JetBrains' canonical list for CI; explicit versions
             // pin the three major releases inside our declared support window.
-            ide(providers.gradleProperty("platformType"), "2024.1")
-            ide(providers.gradleProperty("platformType"), "2024.3")
-            ide(providers.gradleProperty("platformType"), "2025.1")
+            ide(providers.gradleProperty("platformType").get(), "2024.1")
+            ide(providers.gradleProperty("platformType").get(), "2024.3")
+            ide(providers.gradleProperty("platformType").get(), "2025.1")
         }
     }
 }
