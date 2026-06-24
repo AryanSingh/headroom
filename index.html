@@ -767,6 +767,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#ml-log-template-mining-drain3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Log Template Mining (Drain3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#knowledge-graph-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Knowledge Graph Compression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structural-diff-difftastic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structural Diff (Difftastic)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2525,6 +2558,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#ml-log-template-mining-drain3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Log Template Mining (Drain3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#knowledge-graph-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Knowledge Graph Compression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structural-diff-difftastic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structural Diff (Difftastic)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2793,8 +2859,18 @@
 </tr>
 <tr>
 <td>Git diffs</td>
-<td><strong>DiffCompressor</strong></td>
-<td>Preserves change hunks, drops unchanged context.</td>
+<td><strong>DiffCompressor</strong> / Difftastic</td>
+<td>Preserves change hunks or AST-aware structural diffs via <a href="difftastic/"><code>--difftastic</code></a>.</td>
+</tr>
+<tr>
+<td>Repetitive logs</td>
+<td><strong>Drain3LogCompressor</strong></td>
+<td>ML template mining via <a href="drain3/"><code>--drain3</code></a>. Groups repetitive lines by structural template.</td>
+</tr>
+<tr>
+<td>File reads / code queries</td>
+<td><strong>GraphifyInterceptor</strong></td>
+<td>Knowledge-graph subgraph via <a href="knowledge-graph/"><code>--knowledge-graph</code></a>. ~15 tokens/node vs ~800 tokens/file.</td>
 </tr>
 <tr>
 <td>HTML</td>
@@ -2964,6 +3040,21 @@
 <h3 id="metrics-observability">Metrics &amp; Observability<a class="headerlink" href="#metrics-observability" title="Permanent link">&para;</a></h3>
 <p>Prometheus endpoint, per-request logging, cost tracking, budget limits, pipeline timing breakdowns.
 <a href="metrics/">Learn more &rarr;</a></p>
+</div>
+<div class="grid-item">
+<h3 id="ml-log-template-mining-drain3">ML Log Template Mining (Drain3)<a class="headerlink" href="#ml-log-template-mining-drain3" title="Permanent link">&para;</a></h3>
+<p>ML clustering of repetitive log lines. 10–50× reduction on server/application logs vs the statistical sampler's 2–5×.
+<a href="drain3/">Learn more &rarr;</a></p>
+</div>
+<div class="grid-item">
+<h3 id="knowledge-graph-compression">Knowledge Graph Compression<a class="headerlink" href="#knowledge-graph-compression" title="Permanent link">&para;</a></h3>
+<p>Codebase-wide semantic graph via Tree-sitter + NetworkX. BFS subgraphs replace file reads with ~15-token node summaries.
+<a href="knowledge-graph/">Learn more &rarr;</a></p>
+</div>
+<div class="grid-item">
+<h3 id="structural-diff-difftastic">Structural Diff (Difftastic)<a class="headerlink" href="#structural-diff-difftastic" title="Permanent link">&para;</a></h3>
+<p>AST-aware git diff compression. Moved code = 0 lines, whitespace ignored, 60–95% reduction on large refactors.
+<a href="difftastic/">Learn more &rarr;</a></p>
 </div>
 </div>
 <hr />

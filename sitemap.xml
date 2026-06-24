@@ -2,154 +2,182 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://cutctx.dev/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/ARCHITECTURE/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/LATENCY_BENCHMARKS/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/LIMITATIONS/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/agno/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/api/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/benchmarks/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/ccr/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/cli/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/compression/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/configuration/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/difftastic/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/docker-install/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/drain3/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/errors/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/filesystem-contract/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/getting-started/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/image-compression/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/integration-guide/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/knowledge-graph/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/langchain/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/langfuse/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/learn/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/llamaindex/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/macos-deployment/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/mcp/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/memory/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/metrics/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/network-diff-capture/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/persistent-installs/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/proxy/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/quickstart/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/sdk/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/shared-context/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/strands/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/text-compression/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/transforms/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/troubleshooting/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/typescript-sdk/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/vertex/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/plans/2026-04-11-persistent-installs-design/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/plans/2026-04-17-fix-codex-proxy-resilience-plan/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/plans/2026-06-22-new-integrations-plan/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
     <url>
          <loc>https://cutctx.dev/plans/dynamic-smart-crusher/</loc>
-         <lastmod>2026-06-22</lastmod>
+         <lastmod>2026-06-24</lastmod>
+    </url>
+    <url>
+         <loc>https://cutctx.dev/testing/manual-testing-guide/</loc>
+         <lastmod>2026-06-24</lastmod>
     </url>
 </urlset>
