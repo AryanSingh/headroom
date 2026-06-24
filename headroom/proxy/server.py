@@ -295,14 +295,14 @@ from headroom.proxy.handlers import (  # noqa: E402
 )
 
 
-class CutctxProxy(
+class HeadroomProxy(
     StreamingMixin,
     AnthropicHandlerMixin,
     OpenAIHandlerMixin,
     GeminiHandlerMixin,
     BatchHandlerMixin,
 ):
-    """Production-ready Cutctx optimization proxy."""
+    """Production-ready Headroom optimization proxy."""
 
     ANTHROPIC_API_URL = DEFAULT_ANTHROPIC_API_URL
     OPENAI_API_URL = DEFAULT_OPENAI_API_URL
@@ -328,11 +328,11 @@ class CutctxProxy(
 
         # Preserve the long-standing proxy compatibility surface while keeping
         # provider_runtime as the source of truth for resolved upstream targets.
-        CutctxProxy.ANTHROPIC_API_URL = api_targets.anthropic
-        CutctxProxy.OPENAI_API_URL = api_targets.openai
-        CutctxProxy.GEMINI_API_URL = api_targets.gemini
-        CutctxProxy.CLOUDCODE_API_URL = api_targets.cloudcode
-        CutctxProxy.VERTEX_API_URL = api_targets.vertex
+        HeadroomProxy.ANTHROPIC_API_URL = api_targets.anthropic
+        HeadroomProxy.OPENAI_API_URL = api_targets.openai
+        HeadroomProxy.GEMINI_API_URL = api_targets.gemini
+        HeadroomProxy.CLOUDCODE_API_URL = api_targets.cloudcode
+        HeadroomProxy.VERTEX_API_URL = api_targets.vertex
         self.anthropic_provider = self.provider_runtime.pipeline_provider("anthropic")
         self.openai_provider = self.provider_runtime.pipeline_provider("openai")
 
@@ -391,6 +391,11 @@ class CutctxProxy(
             router_config.selective_filter_min_score = getattr(
                 config, "selective_filter_threshold", 0.15
             )
+        # Drain3: forward ProxyConfig toggle + config to ContentRouterConfig
+        if getattr(config, "drain3_enabled", False):
+            router_config.use_drain3 = True
+            router_config.drain3_max_clusters = getattr(config, "drain3_max_clusters", 1000)
+            router_config.drain3_sim_threshold = getattr(config, "drain3_sim_threshold", 0.4)
         # A non-None exclude_tools replaces DEFAULT_EXCLUDE_TOOLS in
         # ContentRouter, so merge rather than assign.
         if config.exclude_tools:
@@ -404,9 +409,15 @@ class CutctxProxy(
         # code/RAG context — see issue #454).
         if profile_kwargs.get("compress_user_messages"):
             router_config.skip_user_messages = False
+        content_router = ContentRouter(router_config, observer=self.metrics)
+        # Wire difftastic runtime flags so the router's _get_diff_compressor
+        # can branch to DifftasticBackend when enabled.
+        content_router._runtime_difftastic_enabled = config.difftastic_enabled
+        content_router._runtime_difftastic_binary = config.difftastic_binary
+        content_router._runtime_difftastic_context_lines = config.difftastic_context_lines
         transforms = [
             CacheAligner(CacheAlignerConfig(enabled=False)),
-            ContentRouter(router_config, observer=self.metrics),
+            content_router,
         ]
         self._code_aware_status = "lazy" if config.code_aware_enabled else "disabled"
 
@@ -807,6 +818,55 @@ class CutctxProxy(
             else:
                 self.code_graph_watcher = None
 
+        # Knowledge-graph compression (opt-in via --knowledge-graph)
+        self.knowledge_graph_indexer = None
+        if config.knowledge_graph_enabled:
+            from headroom.graph.graphify import GraphifyIndexer, set_global_indexer, graphify_available
+            from headroom.proxy.interceptors.graph_interceptor import GraphifyInterceptor
+            from headroom.proxy.interceptors import base as interceptors_base
+
+            if not graphify_available():
+                logger.warning("Knowledge graph requested (--knowledge-graph) but graphifyy not installed. Install: pip install headroom-ai[knowledge-graph]")
+            else:
+                indexer = GraphifyIndexer(
+                    project_dir=Path.cwd(),
+                    output_dir=config.knowledge_graph_output_dir,
+                )
+                indexer.start()
+                self.knowledge_graph_indexer = indexer
+                set_global_indexer(indexer)
+                interceptors_base.INTERCEPTORS.insert(
+                    0,
+                    GraphifyInterceptor(
+                        bfs_depth=config.knowledge_graph_bfs_depth,
+                        max_nodes=config.knowledge_graph_max_nodes,
+                        min_chars=config.knowledge_graph_min_chars,
+                    ),
+                )
+                logger.info("Knowledge graph: interceptor registered (bfs_depth=%d, max_nodes=%d)", config.knowledge_graph_bfs_depth, config.knowledge_graph_max_nodes)
+
+        # Difftastic structural diff interceptor (opt-in)
+        self._difftastic_enabled = config.difftastic_enabled
+        self._difftastic_binary = config.difftastic_binary
+        self._difftastic_context_lines = config.difftastic_context_lines
+        if config.difftastic_enabled:
+            from headroom.binaries import find_difftastic
+
+            difft_path = find_difftastic(config.difftastic_binary)
+            if difft_path is None:
+                logger.warning("Difftastic enabled but difft binary not found. Diff compression will fall back to DiffCompressor.")
+            else:
+                logger.info("Difftastic: difft resolved at %s", difft_path)
+                from headroom.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
+                from headroom.proxy.interceptors import base as interceptors_base
+
+                interceptor = DifftasticInterceptor(
+                    binary_path=str(difft_path),
+                    context_lines=config.difftastic_context_lines,
+                )
+                interceptors_base.register(interceptor)
+                logger.info("DifftasticInterceptor registered (context_lines=%d)", config.difftastic_context_lines)
+
         self.pipeline_extensions.emit(
             PipelineStage.SETUP,
             operation="proxy.setup",
@@ -996,7 +1056,7 @@ class CutctxProxy(
             http2=self.config.http2,
             verify=_ca_bundle if _ca_bundle is not None else True,
         )
-        logger.info("Cutctx Proxy started")
+        logger.info("Headroom Proxy started")
         logger.info(f"Optimization: {'ENABLED' if self.config.optimize else 'DISABLED'}")
         self.config.mode = normalize_proxy_mode(self.config.mode)
         logger.info(f"Mode: {self.config.mode}")
@@ -1103,6 +1163,28 @@ class CutctxProxy(
 
         if eager_status.get("magika") == "enabled":
             logger.info("Magika: ENABLED (ML content detection)")
+
+        # Drain3 log template mining status
+        if self.config.drain3_enabled:
+            try:
+                from headroom.transforms.drain3_compressor import drain3_available
+
+                if drain3_available():
+                    logger.info(
+                        "Drain3 log template mining: ENABLED "
+                        "(max_clusters=%d, sim_threshold=%.2f)",
+                        self.config.drain3_max_clusters,
+                        self.config.drain3_sim_threshold,
+                    )
+                else:
+                    logger.warning(
+                        "Drain3 log template mining: requested but drain3 package NOT installed. "
+                        "Falling back to standard LogCompressor."
+                    )
+            except ImportError:
+                logger.warning(
+                    "Drain3 log template mining: requested but module not found. Falling back."
+                )
 
         if self.memory_handler:
             if (
@@ -1443,13 +1525,13 @@ async def _log_toin_stats_periodically(interval_seconds: int = 300) -> None:
             logger.debug("Failed to log TOIN stats: %s", e)
 
 
-def _register_memory_components(proxy: CutctxProxy, tracker: MemoryTracker) -> None:
+def _register_memory_components(proxy: HeadroomProxy, tracker: MemoryTracker) -> None:
     """Register all memory-tracked components with the tracker.
 
     This function is idempotent - it checks if components are already registered.
 
     Args:
-        proxy: The CutctxProxy instance.
+        proxy: The HeadroomProxy instance.
         tracker: The MemoryTracker instance.
     """
     # Register compression store (global singleton)
@@ -1501,7 +1583,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     check_offline_compat()
 
     config = config or ProxyConfig()
-    proxy = CutctxProxy(config)
+    proxy = HeadroomProxy(config)
 
     # Telemetry beacon (anonymous aggregate stats).
     # With uvicorn workers > 1, each worker runs the lifespan independently.
@@ -1716,7 +1798,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 # Blocker-5 part 2: bind the model router to the
                 # proxy state so handlers can call it. The router
                 # is OFF by default unless the operator populates
-                # CUTCTX_MODEL_ROUTING.
+                # HEADROOM_MODEL_ROUTING.
                 try:
                     from headroom.proxy.model_router import ModelRouter
 
@@ -1810,12 +1892,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 pass
             if proxy.code_graph_watcher:
                 proxy.code_graph_watcher.stop()
+            if getattr(proxy, "knowledge_graph_indexer", None):
+                proxy.knowledge_graph_indexer.stop()
             await proxy.shutdown()
             shutdown_headroom_tracing()
             shutdown_otel_metrics()
 
     app = FastAPI(
-        title="Cutctx Proxy",
+        title="Headroom Proxy",
         description="Production-ready LLM optimization proxy",
         version=__version__,
         lifespan=lifespan,
@@ -2000,6 +2084,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
                 "code_graph": config.code_graph_watcher,
+                "drain3": config.drain3_enabled,
+                "drain3_max_clusters": config.drain3_max_clusters if config.drain3_enabled else None,
+                "drain3_sim_threshold": config.drain3_sim_threshold if config.drain3_enabled else None,
                 "anthropic_api_url": config.anthropic_api_url,
                 "openai_api_url": config.openai_api_url,
                 "gemini_api_url": config.gemini_api_url,
@@ -2186,14 +2273,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # boot, not per-request, so it does not pollute logs.
     if _firewall_scanner is None:
         import os as _os
-        if not _os.environ.get("CUTCTX_FIREWALL_OPT_OUT_WARNING") and not _os.environ.get("PYTEST_CURRENT_TEST"):
-            tier = _os.environ.get("CUTCTX_TIER", "self-hosted")
+        if not _os.environ.get("HEADROOM_FIREWALL_OPT_OUT_WARNING") and not _os.environ.get("PYTEST_CURRENT_TEST"):
+            tier = _os.environ.get("HEADROOM_TIER", "self-hosted")
             if tier in ("public-cloud", "business", "enterprise"):
                 logger.warning(
                     "LLM Firewall is DISABLED on a %s deployment. "
                     "Recommended: set HEADROOM_FIREWALL_ENABLED=1 to "
                     "enable prompt-injection + PII scanning. "
-                    "Set CUTCTX_FIREWALL_OPT_OUT_WARNING=1 to suppress.",
+                    "Set HEADROOM_FIREWALL_OPT_OUT_WARNING=1 to suppress.",
                     tier,
                 )
 
@@ -2374,7 +2461,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                                 "Get a license through PitchToShip."
                             ),
                             "upgrade_url": checkout_url("team"),
-                            "contact": "hello@cutctx.dev",
+                            "contact": "hello@headroom.dev",
                         }
                     },
                 )
@@ -2411,7 +2498,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         # operator can copy it from the server console. Never goes
         # through the Python logger.
         sys.stderr.write(
-            "\n[cutctx] Auto-generated admin API key (not logged):\n"
+            "\n[headroom] Auto-generated admin API key (not logged):\n"
             f"  HEADROOM_ADMIN_API_KEY={_admin_api_key}\n"
             "  Set this env var on next start to keep the same key.\n\n"
         )
@@ -2465,7 +2552,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         # as the RBAC store.
         from headroom.security.mfa import MfaStore, verify_totp
 
-        store_path = os.environ.get("CUTCTX_RBAC_DB_PATH") or "~/.cutctx/rbac.db"
+        store_path = os.environ.get("HEADROOM_RBAC_DB_PATH") or "~/.headroom/rbac.db"
         try:
             mfa_store = MfaStore(db_path=store_path)
         except Exception:
@@ -2864,7 +2951,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "required_tier": required.name.lower() if required else "unknown",
                         "current_tier": checker.plan_name,
                         "upgrade_url": upgrade_url(checker.plan_name),
-                        "contact": "hello@cutctx.dev",
+                        "contact": "hello@headroom.dev",
                     },
                 )
 
@@ -3051,7 +3138,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
     async def dashboard():
-        """Serve the Cutctx dashboard UI."""
+        """Serve the Headroom dashboard UI."""
         return get_dashboard_html()
 
     DASHBOARD_STATS_CACHE_TTL_SECONDS = 5.0
@@ -3081,7 +3168,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         max_latency_ms = round(m.latency_max_ms, 2) if m.latency_count > 0 else 0
 
-        # Calculate Cutctx overhead (optimization time only, excludes pass-through requests)
+        # Calculate Headroom overhead (optimization time only, excludes pass-through requests)
         avg_overhead_ms = (
             round(m.overhead_sum_ms / m.overhead_count, 2) if m.overhead_count > 0 else 0
         )
@@ -3138,7 +3225,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         rtk_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "rtk" else 0
         lean_ctx_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "lean-ctx" else 0
 
-        # Calculate total tokens before Cutctx-side reduction. Proxy
+        # Calculate total tokens before Headroom-side reduction. Proxy
         # compression and the configured context tool both remove tokens before
         # they reach model context, so dashboard-facing savings combines them.
         proxy_compression_tokens = m.tokens_saved_total
@@ -3210,7 +3297,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "summary": summary,
             # Phase 1.4: per-source attribution for the dashboard's
             # "Savings by Source" panel. The five canonical sources
-            # are: provider_prompt_cache, cutctx_compression,
+            # are: provider_prompt_cache, headroom_compression,
             # semantic_cache, prefix_cache_self_hosted,
             # model_routing. The dashboard reads this object at
             # ``stats.savings_by_source.{tokens,usd,total_tokens}``
@@ -3227,7 +3314,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     )
                     for src in (
                         "provider_prompt_cache",
-                        "cutctx_compression",
+                        "headroom_compression",
                         "semantic_cache",
                         "prefix_cache_self_hosted",
                         "model_routing",
@@ -3242,7 +3329,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     )
                     for src in (
                         "provider_prompt_cache",
-                        "cutctx_compression",
+                        "headroom_compression",
                         "semantic_cache",
                         "prefix_cache_self_hosted",
                         "model_routing",
@@ -3260,7 +3347,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     )
                     for src in (
                         "provider_prompt_cache",
-                        "cutctx_compression",
+                        "headroom_compression",
                         "semantic_cache",
                         "prefix_cache_self_hosted",
                         "model_routing",
@@ -3308,7 +3395,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "lean_ctx_tokens": lean_ctx_tokens_avoided,
                         "all_layers_tokens": all_layers_tokens_saved,
                         "description": (
-                            "Tokens removed by Cutctx proxy compression. "
+                            "Tokens removed by Headroom proxy compression. "
                             "Dashboard token savings also includes CLI context-tool filtering."
                         ),
                     },
@@ -3495,6 +3582,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "ccr_retrievals": compression_stats.get("total_retrievals", 0),
             },
             "compression_cache": compression_cache_stats,
+            "knowledge_graph": {
+                "enabled": bool(getattr(proxy, "knowledge_graph_indexer", None)),
+                **(proxy.knowledge_graph_indexer.stats if getattr(proxy, "knowledge_graph_indexer", None) else {}),
+            },
             "anon_telemetry_shipping": is_telemetry_enabled(),
             "telemetry": {
                 "enabled": telemetry_stats.get("enabled", False),
@@ -3940,12 +4031,12 @@ def _proxy_config_from_env() -> ProxyConfig:
 
 
 # Backward-compat alias (pre-db7f7a4 rebrand).
-# Audit-Deep-2026-06-21: the CutctxProxy class was renamed
+# Audit-Deep-2026-06-21: the HeadroomProxy class was renamed
 # from HeadroomProxy but ~8 test files still reference the
 # old name. The alias below keeps the rename and the test
 # suite green at the same time. Will be removed in the next
 # minor release.
-HeadroomProxy = CutctxProxy
+HeadroomProxy = HeadroomProxy
 
 
 def create_app_from_env() -> FastAPI:
@@ -4065,7 +4156,7 @@ def run_server(
         # See RUST_DEV.md -> "Multi-worker deployment -- CCR fragmentation".
         if os.environ.get("HEADROOM_CCR_BACKEND", "").strip():
             logger.warning(
-                "Cutctx is running with workers=%d. Compression cache, "
+                "Headroom is running with workers=%d. Compression cache, "
                 "prefix tracker, TOIN state, and CostTracker are all per-process; "
                 "multi-worker deployments produce avoidable cache busts and an "
                 "unstable dashboard 'Proxy $ Saved' hero tile (each /stats poll "
@@ -4077,7 +4168,7 @@ def run_server(
             )
         else:
             logger.warning(
-                "Cutctx is running with workers=%d. The in-memory CCR store, "
+                "Headroom is running with workers=%d. The in-memory CCR store, "
                 "compression cache, prefix tracker, TOIN state, and CostTracker are all "
                 "per-process; multi-worker deployments produce silent CCR retrieval "
                 "failures, avoidable cache busts, and an unstable dashboard 'Proxy $ Saved' "
@@ -4222,7 +4313,7 @@ def _parse_sso_role_mapping(raw: str | None) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cutctx Proxy Server")
+    parser = argparse.ArgumentParser(description="Headroom Proxy Server")
 
     # Server
     parser.add_argument("--host", default="127.0.0.1")
@@ -4332,7 +4423,7 @@ if __name__ == "__main__":
         dest="use_llmlingua",
         help=(
             "Use LLMLingua-2 for plain-text compression instead of Kompress. "
-            "Requires: pip install cutctx-ai[llmlingua]. "
+            "Requires: pip install headroom-ai[llmlingua]. "
             "Also settable via HEADROOM_USE_LLMLINGUA=1."
         ),
     )

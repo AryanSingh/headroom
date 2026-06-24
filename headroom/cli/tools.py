@@ -2,12 +2,12 @@
 
 Exposes:
 
-    cutctx sg …           ->  ast-grep (from the ast-grep-cli PyPI wheel)
-    cutctx diff A B …     ->  difftastic
-    cutctx loc [PATH] …   ->  scc
-    cutctx tools install  ->  pre-fetch all bundled binaries
-    cutctx tools doctor   ->  print a status table
-    cutctx tools list     ->  show the registry
+    headroom sg …           ->  ast-grep (from the ast-grep-cli PyPI wheel)
+    headroom diff A B …     ->  difftastic
+    headroom loc [PATH] …   ->  scc
+    headroom tools install  ->  pre-fetch all bundled binaries
+    headroom tools doctor   ->  print a status table
+    headroom tools list     ->  show the registry
 
 The passthrough commands forward every argument, stdin, stdout, stderr, and
 the exit code verbatim, so agents can invoke them via their existing shell
@@ -46,7 +46,7 @@ def _exec_tool(tool: str, argv: Sequence[str]) -> None:
         sys.exit(2)
     except binaries.OfflineError as e:
         click.secho(
-            f"error: {e}\nHint: run `cutctx tools install` on a networked machine, "
+            f"error: {e}\nHint: run `headroom tools install` on a networked machine, "
             f"or pass --from <bundle.tar.gz>.",
             fg="red",
             err=True,
@@ -178,6 +178,49 @@ def tools_doctor_cmd(emit_json: bool) -> None:
     sys.exit(1 if broken else 0)
 
 
+@tools_group.command("difft-check")
+@click.pass_context
+def tools_difft_check_cmd(ctx):
+    """Verify difftastic (difft) is available and working."""
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    import os as _os
+
+    from headroom.binaries import find_difftastic
+
+    path = find_difftastic()
+    if path is None:
+        click.secho("difft: NOT FOUND", fg="red")
+        click.echo("Install: brew install difftastic  OR  cargo install difftastic")
+        raise SystemExit(1)
+    click.secho(f"difft: found at {path}", fg="green")
+    with _tempfile.NamedTemporaryFile(suffix=".txt", mode="w", delete=False) as old:
+        old.write("hello world\n")
+        old_name = old.name
+    with _tempfile.NamedTemporaryFile(suffix=".txt", mode="w", delete=False) as new:
+        new.write("hello, world!\n")
+        new_name = new.name
+    try:
+        r = _subprocess.run(
+            [str(path), old_name, new_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if r.returncode in (0, 1):
+            click.secho("difft smoke test: PASSED", fg="green")
+        else:
+            click.secho(f"difft smoke test: FAILED (rc={r.returncode})", fg="red")
+            raise SystemExit(1)
+    except _subprocess.TimeoutExpired:
+        click.secho("difft smoke test: TIMED OUT", fg="red")
+        raise SystemExit(1)
+    finally:
+        _os.unlink(old_name)
+        _os.unlink(new_name)
+
+
 @tools_group.command("install")
 @click.option(
     "--tool",
@@ -206,7 +249,7 @@ def tools_install_cmd(tools: tuple[str, ...], force: bool) -> None:
                 click.echo(f"{name}: on PATH at {on_path} (pypi wheel)")
             else:
                 click.secho(
-                    f"{name}: not on PATH — `pip install cutctx-ai` should provide it",
+                    f"{name}: not on PATH — `pip install headroom-ai` should provide it",
                     fg="yellow",
                 )
                 exit_code = 1

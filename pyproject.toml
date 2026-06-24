@@ -243,6 +243,15 @@ bedrock = [
 html = [
     "trafilatura>=1.6.0",
 ]
+# Drain3 ML log template mining for repetitive build/test output
+log-ml = [
+    "drain3>=0.9.11",
+]
+# Knowledge-graph compression via Graphify
+knowledge-graph = [
+    "graphifyy>=0.8.0",
+    "networkx>=3.0",
+]
 # Comprehensive LLM benchmarks
 benchmark = [
     "lm-eval[api]>=0.4.0",

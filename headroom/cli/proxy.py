@@ -344,7 +344,7 @@ def _selected_context_tool() -> str:
         "Resets at midnight UTC. Env: HEADROOM_BUDGET."
     ),
 )
-# Code-aware compression (AST-based, requires `pip install cutctx-ai[code]`).
+# Code-aware compression (AST-based, requires `pip install headroom-ai[code]`).
 # Pair of flags so users can override the env-var default in either direction.
 # We resolve HEADROOM_CODE_AWARE_ENABLED in the body (not via Click's envvar=),
 # because Click's envvar handling for paired bool flags is brittle in older
@@ -355,7 +355,7 @@ def _selected_context_tool() -> str:
     default=None,
     help=(
         "Enable/disable AST-based code compression. Requires the optional "
-        "tree-sitter dependency: pip install cutctx-ai[code]. "
+        "tree-sitter dependency: pip install headroom-ai[code]. "
         "Default: disabled. Env: HEADROOM_CODE_AWARE_ENABLED=1 to enable."
     ),
 )
@@ -375,7 +375,7 @@ def _selected_context_tool() -> str:
     envvar="HEADROOM_USE_LLMLINGUA",
     help=(
         "Use LLMLingua-2 for plain-text compression instead of Kompress. "
-        "Requires: pip install cutctx-ai[llmlingua]. "
+        "Requires: pip install headroom-ai[llmlingua]. "
         "Env: HEADROOM_USE_LLMLINGUA."
     ),
 )
@@ -679,6 +679,105 @@ def _selected_context_tool() -> str:
     "Default: /tmp/headroom-embed-{port}.sock. "
     "(env: HEADROOM_EMBEDDING_SERVER_SOCKET)",
 )
+# Drain3 ML log template mining — groups repetitive log lines by template.
+# Requires: pip install headroom-ai[log-ml].
+# CLI: --drain3; env: HEADROOM_DRAIN3=1.
+@click.option(
+    "--drain3",
+    "drain3_enabled",
+    is_flag=True,
+    envvar="HEADROOM_DRAIN3",
+    help=(
+        "Enable Drain3 ML log template mining. Groups repetitive log lines by "
+        "template; emits one representative per cluster. "
+        "Requires: pip install headroom-ai[log-ml]. "
+        "Env: HEADROOM_DRAIN3."
+    ),
+)
+@click.option(
+    "--drain3-max-clusters",
+    default=None,
+    type=click.IntRange(min=10),
+    envvar="HEADROOM_DRAIN3_MAX_CLUSTERS",
+    help=(
+        "Maximum Drain3 log clusters to track (default: 1000). "
+        "Env: HEADROOM_DRAIN3_MAX_CLUSTERS."
+    ),
+)
+@click.option(
+    "--drain3-sim-threshold",
+    default=None,
+    type=click.FloatRange(min=0.0, max=1.0),
+    envvar="HEADROOM_DRAIN3_SIM_THRESHOLD",
+    help=(
+        "Drain3 similarity threshold 0.0–1.0 (default: 0.4). "
+        "Lower = merge more aggressively. "
+        "Env: HEADROOM_DRAIN3_SIM_THRESHOLD."
+    ),
+)
+@click.option(
+    "--knowledge-graph",
+    "knowledge_graph_enabled",
+    is_flag=True,
+    envvar="HEADROOM_KNOWLEDGE_GRAPH",
+    help=(
+        "Enable knowledge-graph compression (Graphify). "
+        "Requires: pip install headroom-ai[knowledge-graph]. "
+        "On first run, builds a graph of your codebase (~30s). "
+        "Env: HEADROOM_KNOWLEDGE_GRAPH=1."
+    ),
+)
+@click.option(
+    "--knowledge-graph-bfs-depth",
+    default=None,
+    type=click.IntRange(min=1, max=10),
+    envvar="HEADROOM_KG_BFS_DEPTH",
+    help=(
+        "BFS depth when querying the knowledge graph (default 2). "
+        "Env: HEADROOM_KG_BFS_DEPTH."
+    ),
+)
+@click.option(
+    "--knowledge-graph-max-nodes",
+    default=None,
+    type=click.IntRange(min=5, max=200),
+    envvar="HEADROOM_KG_MAX_NODES",
+    help=(
+        "Max graph nodes per response (default 40). "
+        "Env: HEADROOM_KG_MAX_NODES."
+    ),
+)
+@click.option(
+    "--difftastic",
+    "difftastic_enabled",
+    is_flag=True,
+    envvar="HEADROOM_DIFFTASTIC",
+    help=(
+        "Enable structural diff compression via difftastic (difft). "
+        "Rewrites Bash git diff outputs with AST-aware structural output. "
+        "Requires difft binary (auto-fetched or install via brew/cargo). "
+        "Env: HEADROOM_DIFFTASTIC=1."
+    ),
+)
+@click.option(
+    "--difftastic-binary",
+    default=None,
+    envvar="HEADROOM_DIFFTASTIC_BINARY",
+    help=(
+        "Path or name of the difft binary (default: auto-resolved via binary cache). "
+        "Env: HEADROOM_DIFFTASTIC_BINARY."
+    ),
+)
+@click.option(
+    "--difftastic-context-lines",
+    type=click.IntRange(min=0, max=20),
+    default=None,
+    envvar="HEADROOM_DIFFTASTIC_CONTEXT_LINES",
+    help=(
+        "Context lines around structural changes (0-20, default: 3). "
+        "Env: HEADROOM_DIFFTASTIC_CONTEXT_LINES."
+    ),
+)
 @click.pass_context
 def proxy(
     ctx: click.Context,
@@ -750,14 +849,23 @@ def proxy(
     stateless: bool,
     embedding_server: bool,
     embedding_server_socket: str | None,
+    drain3_enabled: bool,
+    drain3_max_clusters: int | None,
+    drain3_sim_threshold: float | None,
+    knowledge_graph_enabled: bool,
+    knowledge_graph_bfs_depth: int | None,
+    knowledge_graph_max_nodes: int | None,
+    difftastic_enabled: bool,
+    difftastic_binary: str | None,
+    difftastic_context_lines: int | None,
 ) -> None:
     """Start the optimization proxy server.
 
     \b
     Examples:
-        cutctx proxy                    Start proxy on port 8787
-        cutctx proxy --port 8080        Start proxy on port 8080
-        cutctx proxy --no-optimize      Passthrough mode (no optimization)
+        headroom proxy                    Start proxy on port 8787
+        headroom proxy --port 8080        Start proxy on port 8080
+        headroom proxy --no-optimize      Passthrough mode (no optimization)
 
     \b
     Usage with Claude Code:
@@ -772,7 +880,7 @@ def proxy(
         from headroom.proxy.server import ProxyConfig, run_server
     except ImportError as e:
         click.secho(
-            "Error: Proxy dependencies not installed. Run: pip install cutctx-ai[proxy]",
+            "Error: Proxy dependencies not installed. Run: pip install headroom-ai[proxy]",
             fg="red",
             err=True,
         )
@@ -805,7 +913,7 @@ def proxy(
             # installed, or drop the flag if they want pass-through behavior.
             click.secho(
                 f"error: --intercept-tool-results requires tool(s) that could not "
-                f"be installed: {missing}. Run `cutctx tools doctor` to diagnose, "
+                f"be installed: {missing}. Run `headroom tools doctor` to diagnose, "
                 "or omit the flag to start the proxy without interceptors.",
                 fg="red",
                 err=True,
@@ -948,6 +1056,29 @@ def proxy(
         selective_filter_threshold=(
             selective_filter_threshold if selective_filter_threshold is not None else 0.15
         ),
+        # Drain3 ML log template mining
+        drain3_enabled=drain3_enabled,
+        drain3_max_clusters=drain3_max_clusters if drain3_max_clusters is not None else 1000,
+        drain3_sim_threshold=drain3_sim_threshold
+        if drain3_sim_threshold is not None
+        else 0.4,
+        # Knowledge-graph compression via Graphify
+        knowledge_graph_enabled=knowledge_graph_enabled,
+        knowledge_graph_bfs_depth=(
+            knowledge_graph_bfs_depth if knowledge_graph_bfs_depth is not None else 2
+        ),
+        knowledge_graph_max_nodes=(
+            knowledge_graph_max_nodes if knowledge_graph_max_nodes is not None else 40
+        ),
+        # Difftastic structural diff compression
+        difftastic_enabled=difftastic_enabled
+        or _get_env_bool("HEADROOM_DIFFTASTIC", False),
+        difftastic_binary=difftastic_binary or os.environ.get("HEADROOM_DIFFTASTIC_BINARY", "difft"),
+        difftastic_context_lines=(
+            difftastic_context_lines
+            if difftastic_context_lines is not None
+            else int(os.environ.get("HEADROOM_DIFFTASTIC_CONTEXT_LINES", "3"))
+        ),
         # Code graph: live file watcher for incremental reindexing
         code_graph_watcher=code_graph,
         # Read lifecycle: ON by default (use --no-read-lifecycle to disable)
@@ -978,7 +1109,7 @@ def proxy(
         # Stateless mode: disable all filesystem writes
         stateless=is_stateless,
         # Unit 4: bounded pre-upstream concurrency on the Anthropic HTTP
-        # path. ``None`` -> CutctxProxy computes ``max(2, min(8,
+        # path. ``None`` -> HeadroomProxy computes ``max(2, min(8,
         # os.cpu_count() or 4))``; ``<= 0`` -> disabled (unbounded).
         # Precedence: CLI > env > auto-compute (click's ``envvar``
         # handles the env-var fallback).
@@ -1038,7 +1169,7 @@ def proxy(
 IMPORTANT for {provider_config.display_name} users:
   1. Set credentials: {env_vars_str}
   2. Set a dummy Anthropic key: ANTHROPIC_API_KEY="sk-ant-dummy"
-     (Cutctx ignores this - it uses your {provider_config.display_name} credentials)
+     (Headroom ignores this - it uses your {provider_config.display_name} credentials)
   3. Set base URL: ANTHROPIC_BASE_URL=http://{config.host}:{config.port}"""
         if provider_config.model_format_hint:
             backend_section += f"\n  4. Use model names: {provider_config.model_format_hint}"

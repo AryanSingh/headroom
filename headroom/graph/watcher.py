@@ -262,6 +262,16 @@ class CodeGraphWatcher:
         except Exception as e:
             logger.debug("Code graph: reindex error: %s", e)
 
+        # Also notify GraphifyIndexer if knowledge graph is enabled
+        try:
+            from headroom.graph.graphify import get_global_indexer
+
+            kg_indexer = get_global_indexer()
+            if kg_indexer:
+                kg_indexer.schedule_refresh()
+        except Exception:
+            logger.debug("Code graph: failed to notify KG indexer", exc_info=True)
+
     @property
     def stats(self) -> dict:
         """Return watcher statistics."""

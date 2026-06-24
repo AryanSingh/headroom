@@ -539,7 +539,7 @@ class ContentRouterConfig:
 
     # LLMLingua-2: opt-in ML compressor for plain text (replaces Kompress for
     # TEXT/KOMPRESS strategies when enabled and the library is installed).
-    # Requires: pip install cutctx-ai[llmlingua]
+    # Requires: pip install headroom-ai[llmlingua]
     # CLI: --llmlingua; env: HEADROOM_USE_LLMLINGUA=1.
     use_llmlingua: bool = False
 
@@ -555,6 +555,13 @@ class ContentRouterConfig:
     # CODE/DEBUG tasks protect more context; SUMMARIZE/LIST tasks compress harder.
     # CLI: --query-aware; env: HEADROOM_QUERY_AWARE=1.
     query_aware_compression: bool = False
+
+    # Drain3 ML log template mining for repetitive log lines.
+    # Requires: pip install headroom-ai[log-ml].
+    # CLI: --drain3; env: HEADROOM_DRAIN3=1.
+    use_drain3: bool = False
+    drain3_max_clusters: int = 1000
+    drain3_sim_threshold: float = 0.4
 
     # Selective context filtering: drop low-relevance messages BEFORE compression.
     # Scores each turn against the most recent user query; turns below
@@ -757,7 +764,7 @@ def _extract_json_block(lines: list[str], start: int) -> tuple[str | None, int]:
 class ContentRouter(Transform):
     """Intelligent router that selects optimal compression strategy.
 
-    ContentRouter is the recommended entry point for Cutctx's compression.
+    ContentRouter is the recommended entry point for Headroom's compression.
     It analyzes content and routes it to the most appropriate compressor,
     handling mixed content by splitting and reassembling.
 
@@ -822,6 +829,7 @@ class ContentRouter(Transform):
         self._html_extractor: Any = None
         self._kompress: Any = None
         self._selective_filter: Any = None
+        self._drain3_log_compressor: Any = None
 
         # TOIN integration for cross-strategy learning
         self._toin: Any = None
@@ -1308,47 +1316,63 @@ class ContentRouter(Transform):
                     strategy_chain.append(CompressionStrategy.KOMPRESS.value)
 
             elif strategy == CompressionStrategy.SMART_CRUSHER:
-                # Try CompactTableCompressor first for tabular JSON arrays
-                # (homogeneous dicts -> pipe-delimited table, 30-60% smaller).
-                # Falls through to SmartCrusher for non-tabular JSON.
-                compact_table = self._get_compact_table()
-                if compact_table:
-                    try:
-                        ct_result = compact_table.compress(content)
-                        if ct_result is not None:
-                            compressed = ct_result.compressed
-                            compressed_tokens = len(compressed.split())
-                            compressor_name = "CompactTableCompressor"
-                            decision_reason = "compact_table"
-                            strategy_chain.insert(0, "compact_table")
-                    except Exception as _ct_exc:
-                        logger.debug("CompactTableCompressor failed (non-fatal): %s", _ct_exc)
-
-                # SmartCrusher handles its own TOIN recording
-                if compressed is None and self.config.enable_smart_crusher:
+                if self.config.enable_smart_crusher:
                     crusher = self._get_smart_crusher()
                     if crusher:
                         compressor_name = type(crusher).__name__
                         result = crusher.crush(content, query=context, bias=bias)
-                        compressed, compressed_tokens = (
-                            result.compressed,
-                            len(result.compressed.split()),
-                        )
+                        compressed = result.compressed
+                        compressed_tokens = len(compressed.split())
+                        decision_reason = "smart_crusher"
                         smart_crusher_fallback = False
-                        if result.compressed == content:
-                            strategy_chain.append(CompressionStrategy.KOMPRESS.value)
-                            fallback_compressed, fallback_tokens = self._try_ml_compressor(
-                                content, context, question
-                            )
-                            if fallback_tokens < compressed_tokens:
-                                compressed = fallback_compressed
-                                compressed_tokens = fallback_tokens
-                                actual_strategy = CompressionStrategy.KOMPRESS
-                                compressor_name = "KompressCompressor"
-                                decision_reason = "smart_crusher_fallback_kompress_after_no_savings"
-                                smart_crusher_fallback = True
-                        if not smart_crusher_fallback:
-                            decision_reason = "smart_crusher"
+
+                        if result.strategy in ("lossless", "passthrough"):
+                            # Try CompactTableCompressor because it might provide better savings
+                            # than simple lossless minification.
+                            compact_table = self._get_compact_table()
+                            ct_succeeded = False
+                            if compact_table:
+                                try:
+                                    ct_result = compact_table.compress(content)
+                                    if ct_result is not None:
+                                        ct_compressed = ct_result.compressed
+
+                                        # Inject CCR marker if needed (SmartCrusher does this automatically,
+                                        # but CompactTable is a standalone Python compressor).
+                                        if self.config.ccr_enabled and self.config.ccr_inject_marker:
+                                            from .smart_crusher import compute_short_hash, create_tool_digest_marker
+                                            marker = create_tool_digest_marker(compute_short_hash(content))
+                                            ct_compressed = ct_compressed + "\n" + marker
+                                            from headroom.proxy.compression_store import get_compression_store
+                                            store = get_compression_store()
+                                            if store:
+                                                store.store(compute_short_hash(content), content)
+
+                                        ct_tokens = len(ct_compressed.split())
+                                        # Use CompactTable if it provides better savings
+                                        if ct_tokens < compressed_tokens:
+                                            compressed = ct_compressed
+                                            compressed_tokens = ct_tokens
+                                            compressor_name = "CompactTableCompressor"
+                                            decision_reason = "compact_table"
+                                            strategy_chain.insert(0, "compact_table")
+                                            ct_succeeded = True
+                                except Exception as _ct_exc:
+                                    logger.debug("CompactTableCompressor failed (non-fatal): %s", _ct_exc)
+
+                            if not ct_succeeded and result.strategy == "passthrough":
+                                # Both failed or passed through, fallback to Kompress
+                                strategy_chain.append(CompressionStrategy.KOMPRESS.value)
+                                fallback_compressed, fallback_tokens = self._try_ml_compressor(
+                                    content, context, question
+                                )
+                                if fallback_tokens < compressed_tokens:
+                                    compressed = fallback_compressed
+                                    compressed_tokens = fallback_tokens
+                                    actual_strategy = CompressionStrategy.KOMPRESS
+                                    compressor_name = "KompressCompressor"
+                                    decision_reason = "smart_crusher_fallback_kompress_after_no_savings"
+                                    smart_crusher_fallback = True
 
             elif strategy == CompressionStrategy.SEARCH:
                 if self.config.enable_search_compressor:
@@ -1364,19 +1388,34 @@ class ContentRouter(Transform):
 
             elif strategy == CompressionStrategy.LOG:
                 if self.config.enable_log_compressor:
-                    compressor = self._get_log_compressor()
-                    if compressor:
-                        compressor_name = type(compressor).__name__
-                        result = compressor.compress(content, bias=bias)
-                        # Use the same word-count metric the rest of the
-                        # router uses; `compressed_line_count` is in
-                        # lines, not tokens — recording it here made
-                        # ratios meaningless against `original_tokens`.
-                        compressed, compressed_tokens = (
-                            result.compressed,
-                            len(result.compressed.split()),
-                        )
-                        decision_reason = "log_compressor"
+                    # Drain3 path (runs before standard LogCompressor)
+                    if self.config.use_drain3:
+                        drain3_compressor = self._get_drain3_log_compressor()
+                        if drain3_compressor is not None:
+                            result = drain3_compressor.compress(content, bias=bias)
+                            compressed = result.compressed
+                            compressed_tokens = len(result.compressed.split())
+                            decision_reason = (
+                                "drain3_log_compressor"
+                                if result.drain3_used
+                                else "drain3_fallback_log_compressor"
+                            )
+
+                    # Standard path (when drain3 not used or unavailable)
+                    if compressed is None:
+                        compressor = self._get_log_compressor()
+                        if compressor:
+                            compressor_name = type(compressor).__name__
+                            result = compressor.compress(content, bias=bias)
+                            # Use the same word-count metric the rest of the
+                            # router uses; `compressed_line_count` is in
+                            # lines, not tokens — recording it here made
+                            # ratios meaningless against `original_tokens`.
+                            compressed, compressed_tokens = (
+                                result.compressed,
+                                len(result.compressed.split()),
+                            )
+                            decision_reason = "log_compressor"
 
             elif strategy == CompressionStrategy.DIFF:
                 compressor = self._get_diff_compressor()
@@ -1712,14 +1751,48 @@ class ContentRouter(Transform):
                 logger.debug("LogCompressor not available")
         return self._log_compressor
 
+    def _get_drain3_log_compressor(self) -> Any:
+        """Get Drain3LogCompressor (lazy load). Returns None if unavailable."""
+        if self._drain3_log_compressor is None:
+            try:
+                from .drain3_compressor import (
+                    Drain3CompressorConfig,
+                    Drain3LogCompressor,
+                    drain3_available,
+                )
+
+                if drain3_available():
+                    drain3_config = Drain3CompressorConfig(
+                        max_clusters=self.config.drain3_max_clusters,
+                        sim_threshold=self.config.drain3_sim_threshold,
+                    )
+                    self._drain3_log_compressor = Drain3LogCompressor(config=drain3_config)
+                    logger.debug("Drain3LogCompressor loaded")
+                else:
+                    logger.debug("drain3 not available")
+            except ImportError:
+                logger.debug("Drain3LogCompressor not available")
+        return self._drain3_log_compressor
+
     def _get_diff_compressor(self) -> Any:
-        """Get DiffCompressor (lazy load). Rust-only — Python implementation
-        retired in Stage 3b. The wheel (`headroom._core`) is a hard import.
+        """Get DiffCompressor or DifftasticBackend (lazy load).
+
+        When difftastic is enabled at runtime (via ``_runtime_difftastic_enabled``),
+        returns a ``DifftasticBackend`` that delegates to ``difft`` if available
+        and falls back to the standard ``DiffCompressor`` otherwise.
         """
         if self._diff_compressor is None:
-            from .diff_compressor import DiffCompressor
+            if getattr(self, "_runtime_difftastic_enabled", False):
+                from .diff_compressor import DifftasticBackend
 
-            self._diff_compressor = DiffCompressor()
+                self._diff_compressor = DifftasticBackend(
+                    binary_path=getattr(self, "_runtime_difftastic_binary", None),
+                    context_lines=getattr(self, "_runtime_difftastic_context_lines", 3),
+                )
+            else:
+                from .diff_compressor import DiffCompressor
+
+                self._diff_compressor = DiffCompressor()
         return self._diff_compressor
 
     def _get_html_extractor(self) -> Any:
@@ -1832,6 +1905,14 @@ class ContentRouter(Transform):
         smart_crusher = self._get_smart_crusher()
         if smart_crusher:
             status["smart_crusher"] = "ready"
+
+        # 5. Drain3 log compressor (pre-load import check)
+        if self.config.use_drain3:
+            drain3_compressor = self._get_drain3_log_compressor()
+            if drain3_compressor is not None:
+                status["drain3"] = "ready"
+            else:
+                status["drain3"] = "unavailable"
 
         return status
 

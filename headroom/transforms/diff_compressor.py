@@ -313,3 +313,47 @@ class DiffCompressor:
             cache_key=r.cache_key,
         )
         return result, stats
+
+
+class DifftasticBackend:
+    """Difftastic backend for DiffCompressor. Falls back to standard DiffCompressor if difft unavailable."""
+
+    def __init__(self, binary_path: str | None = None, context_lines: int = 3, fallback_config=None):
+        self._context_lines = context_lines
+        self._fallback = DiffCompressor(fallback_config)
+        self._interceptor = None
+        self._binary_path = binary_path
+
+    def _get_interceptor(self):
+        if self._interceptor is None:
+            from headroom.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
+
+            self._interceptor = DifftasticInterceptor(
+                binary_path=self._binary_path,
+                context_lines=self._context_lines,
+            )
+        return self._interceptor
+
+    def compress(self, content: str, context: str = "") -> DiffCompressionResult:
+        interceptor = self._get_interceptor()
+        exe = interceptor._get_exe()
+        if exe is None:
+            return self._fallback.compress(content, context)
+        try:
+            structural = interceptor._do_transform(exe, content)
+        except Exception:
+            structural = None
+        if structural is None or len(structural) >= len(content):
+            return self._fallback.compress(content, context)
+        original_line_count = len(content.splitlines())
+        compressed_line_count = len(structural.splitlines())
+        return DiffCompressionResult(
+            compressed=structural,
+            original_line_count=original_line_count,
+            compressed_line_count=compressed_line_count,
+            files_affected=content.count("diff --git"),
+            additions=content.count("\n+"),
+            deletions=content.count("\n-"),
+            hunks_kept=original_line_count - compressed_line_count,
+            hunks_removed=0,
+        )

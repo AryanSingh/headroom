@@ -267,7 +267,9 @@ graph LR
 | Plain text | **Kompress** | ModernBERT token classification. Removes redundant tokens while preserving meaning. |
 | Build/test logs | **LogCompressor** | Keeps failures, errors, warnings. Drops passing noise. |
 | Search results | **SearchCompressor** | Ranks by relevance to user query, keeps top matches. |
-| Git diffs | **DiffCompressor** | Preserves change hunks, drops unchanged context. |
+| Git diffs | **DiffCompressor** / Difftastic | Preserves change hunks or AST-aware structural diffs via [`--difftastic`](difftastic.md). |
+| Repetitive logs | **Drain3LogCompressor** | ML template mining via [`--drain3`](drain3.md). Groups repetitive lines by structural template. |
+| File reads / code queries | **GraphifyInterceptor** | Knowledge-graph subgraph via [`--knowledge-graph`](knowledge-graph.md). ~15 tokens/node vs ~800 tokens/file. |
 | HTML | **HTMLExtractor** | Strips markup, extracts readable content. |
 
 **Stage 3: IntelligentContext** — If the conversation still exceeds the model's context limit, scores each message by importance (recency, references, density) and drops the lowest-value ones.
@@ -367,6 +369,24 @@ summary = ctx.get("research")  # ~80% smaller
 ### Metrics & Observability
 Prometheus endpoint, per-request logging, cost tracking, budget limits, pipeline timing breakdowns.
 [Learn more &rarr;](metrics.md)
+</div>
+
+<div class="grid-item" markdown>
+### ML Log Template Mining (Drain3)
+ML clustering of repetitive log lines. 10–50× reduction on server/application logs vs the statistical sampler's 2–5×.
+[Learn more &rarr;](drain3.md)
+</div>
+
+<div class="grid-item" markdown>
+### Knowledge Graph Compression
+Codebase-wide semantic graph via Tree-sitter + NetworkX. BFS subgraphs replace file reads with ~15-token node summaries.
+[Learn more &rarr;](knowledge-graph.md)
+</div>
+
+<div class="grid-item" markdown>
+### Structural Diff (Difftastic)
+AST-aware git diff compression. Moved code = 0 lines, whitespace ignored, 60–95% reduction on large refactors.
+[Learn more &rarr;](difftastic.md)
 </div>
 
 </div>

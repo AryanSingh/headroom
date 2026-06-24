@@ -1,4 +1,4 @@
-"""Data models for the Cutctx proxy.
+"""Data models for the Headroom proxy.
 
 Contains configuration and data classes used across the proxy modules.
 Extracted from server.py to keep the codebase maintainable.
@@ -159,7 +159,7 @@ class ProxyConfig:
     disable_kompress: bool = False
 
     # Use LLMLingua-2 for plain-text compression instead of Kompress.
-    # Requires: pip install cutctx-ai[llmlingua]
+    # Requires: pip install headroom-ai[llmlingua]
     # CLI: --llmlingua; env: HEADROOM_USE_LLMLINGUA=1.
     use_llmlingua: bool = False
 
@@ -178,6 +178,23 @@ class ProxyConfig:
 
     # Code graph live watcher (triggers incremental reindex on file changes)
     code_graph_watcher: bool = False
+
+    # Drain3 ML log template mining
+    drain3_enabled: bool = False
+    drain3_max_clusters: int = 1000
+    drain3_sim_threshold: float = 0.4
+
+    # Knowledge-graph compression via Graphify (opt-in)
+    knowledge_graph_enabled: bool = False
+    knowledge_graph_bfs_depth: int = 2
+    knowledge_graph_max_nodes: int = 40
+    knowledge_graph_min_chars: int = 800
+    knowledge_graph_output_dir: str = "graphify-out"
+
+    # ---------- Difftastic structural diff (opt-in) ----------
+    difftastic_enabled: bool = False
+    difftastic_binary: str = "difft"
+    difftastic_context_lines: int = 3
 
     # Per-tool compression profiles
     tool_profiles: dict[str, Any] | None = None

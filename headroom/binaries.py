@@ -149,12 +149,12 @@ def cache_dir() -> Path:
         return Path(override).expanduser().resolve()
     if sys.platform.startswith("win"):
         base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-        return Path(base) / "cutctx" / "bin"
+        return Path(base) / "headroom" / "bin"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / "cutctx" / "bin"
+        return Path.home() / "Library" / "Caches" / "headroom" / "bin"
     xdg = os.environ.get("XDG_CACHE_HOME")
     base = Path(xdg) if xdg else Path.home() / ".cache"
-    return base / "cutctx" / "bin"
+    return base / "headroom" / "bin"
 
 
 # ---------- Registry ------------------------------------------------------ #
@@ -449,6 +449,38 @@ def resolve(tool: str) -> Path:
             # On Windows the .exe is already executable; elsewhere we logged.
         os.replace(tmp_final, binary_path)
     return binary_path
+
+
+def find_difftastic(binary_override: str = "difft") -> Path | None:
+    """Return a path to the difft binary, or None if unavailable.
+
+    Resolution order:
+    1. If binary_override is an absolute path and exists, use it.
+    2. If binary_override != "difft", treat as PATH name (shutil.which, no auto-fetch).
+    3. Fall through to which("difft") (PATH + cache, no network).
+    4. Finally attempt resolve("difft") (auto-fetch from GitHub releases).
+
+    Returns None instead of raising. Catches BinaryError, OSError, KeyError internally.
+    """
+    # Step 1: absolute path override
+    if binary_override and binary_override != "difft":
+        p = Path(binary_override)
+        if p.is_absolute():
+            return p if p.exists() else None
+        found = shutil.which(binary_override)
+        return Path(found) if found else None
+
+    # Step 2: PATH + cache
+    on_path = which("difft")
+    if on_path:
+        return on_path
+
+    # Step 3: auto-fetch
+    try:
+        return resolve("difft")
+    except (BinaryError, OSError, KeyError) as e:
+        logger.debug("difft not available: %s", e)
+        return None
 
 
 def ensure_tools(quiet: bool = False) -> dict[str, Path | None]:
