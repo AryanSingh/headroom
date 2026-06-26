@@ -10,22 +10,22 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import patch
 
-import headroom._version as version_module
+import cutctx._version as version_module
 
 
-def test_headroom_import_stays_lazy() -> None:
+def test_cutctx_import_stays_lazy() -> None:
     script = textwrap.dedent(
         """
         import json
         import sys
 
-        import headroom
+        import cutctx
 
         print(json.dumps({
-            "version": headroom.__version__,
-            "cache_loaded": "headroom.cache" in sys.modules,
-            "models_registry_loaded": "headroom.models.registry" in sys.modules,
-            "memory_loaded": "headroom.memory" in sys.modules,
+            "version": cutctx.__version__,
+            "cache_loaded": "cutctx.cache" in sys.modules,
+            "models_registry_loaded": "cutctx.models.registry" in sys.modules,
+            "memory_loaded": "cutctx.memory" in sys.modules,
         }))
         """
     )
@@ -52,7 +52,7 @@ def test_version_prefers_installed_distribution_metadata() -> None:
     ):
         assert version_module.get_version() == "9.8.7"
 
-    package_version.assert_called_once_with("headroom-ai")
+    package_version.assert_called_once_with("cutctx-ai")
 
 
 def test_version_reports_unknown_when_distribution_metadata_is_missing() -> None:
@@ -80,10 +80,10 @@ def test_proxy_package_import_does_not_eagerly_load_server() -> None:
         import json
         import sys
 
-        import headroom.proxy
+        import cutctx.proxy
 
         print(json.dumps({
-            "server_loaded": "headroom.proxy.server" in sys.modules,
+            "server_loaded": "cutctx.proxy.server" in sys.modules,
         }))
         """
     )
@@ -105,11 +105,11 @@ def test_proxy_server_import_skips_litellm_backend() -> None:
         import json
         import sys
 
-        import headroom.proxy.server
+        import cutctx.proxy.server
 
         print(json.dumps({
-            "litellm_backend_loaded": "headroom.backends.litellm" in sys.modules,
-            "anyllm_backend_loaded": "headroom.backends.anyllm" in sys.modules,
+            "litellm_backend_loaded": "cutctx.backends.litellm" in sys.modules,
+            "anyllm_backend_loaded": "cutctx.backends.anyllm" in sys.modules,
             "litellm_loaded": "litellm" in sys.modules,
         }))
         """

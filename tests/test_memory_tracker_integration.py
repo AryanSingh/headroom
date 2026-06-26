@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.memory.tracker import MemoryTracker
+from cutctx.memory.tracker import MemoryTracker
 
 # Check HNSW availability for skipping tests
 try:
-    from headroom.memory.adapters.hnsw import _check_hnswlib_available
+    from cutctx.memory.adapters.hnsw import _check_hnswlib_available
 
     HNSW_AVAILABLE = _check_hnswlib_available()
 except ImportError:
@@ -31,7 +31,7 @@ class TestCompressionStoreMemoryTracking:
 
     def test_compression_store_reports_memory_stats(self):
         """Test that CompressionStore correctly reports memory stats."""
-        from headroom.cache.compression_store import CompressionStore
+        from cutctx.cache.compression_store import CompressionStore
 
         store = CompressionStore(max_entries=100)
 
@@ -48,7 +48,7 @@ class TestCompressionStoreMemoryTracking:
 
     def test_compression_store_tracks_hits(self):
         """Test that CompressionStore tracks cache hits."""
-        from headroom.cache.compression_store import CompressionStore
+        from cutctx.cache.compression_store import CompressionStore
 
         store = CompressionStore(max_entries=100)
 
@@ -67,7 +67,7 @@ class TestCompressionStoreMemoryTracking:
 
     def test_compression_store_registers_with_tracker(self):
         """Test that CompressionStore can register with MemoryTracker."""
-        from headroom.cache.compression_store import CompressionStore
+        from cutctx.cache.compression_store import CompressionStore
 
         tracker = MemoryTracker.get()
         store = CompressionStore(max_entries=100)
@@ -96,7 +96,7 @@ class TestBatchContextStoreMemoryTracking:
 
     def test_batch_context_store_reports_memory_stats(self):
         """Test that BatchContextStore correctly reports memory stats."""
-        from headroom.ccr.batch_store import (
+        from cutctx.ccr.batch_store import (
             BatchContext,
             BatchContextStore,
             BatchRequestContext,
@@ -135,7 +135,7 @@ class TestBatchContextStoreMemoryTracking:
 
     def test_batch_context_store_registers_with_tracker(self):
         """Test that BatchContextStore can register with MemoryTracker."""
-        from headroom.ccr.batch_store import BatchContextStore
+        from cutctx.ccr.batch_store import BatchContextStore
 
         tracker = MemoryTracker.get()
         store = BatchContextStore()
@@ -160,8 +160,8 @@ class TestGraphStoreMemoryTracking:
     @pytest.mark.asyncio
     async def test_graph_store_reports_memory_stats(self):
         """Test that InMemoryGraphStore correctly reports memory stats."""
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity, Relationship
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity, Relationship
 
         store = InMemoryGraphStore()
 
@@ -192,8 +192,8 @@ class TestGraphStoreMemoryTracking:
     @pytest.mark.asyncio
     async def test_graph_store_size_grows_with_data(self):
         """Test that reported size grows as data is added."""
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity
 
         store = InMemoryGraphStore()
 
@@ -233,8 +233,8 @@ class TestHNSWVectorIndexMemoryTracking:
     @pytest.mark.asyncio
     async def test_hnsw_index_reports_memory_stats(self):
         """Test that HNSWVectorIndex correctly reports memory stats."""
-        from headroom.memory.adapters.hnsw import HNSWVectorIndex
-        from headroom.memory.models import Memory
+        from cutctx.memory.adapters.hnsw import HNSWVectorIndex
+        from cutctx.memory.models import Memory
 
         index = HNSWVectorIndex(dimension=128)
 
@@ -260,8 +260,8 @@ class TestHNSWVectorIndexMemoryTracking:
     @pytest.mark.asyncio
     async def test_hnsw_index_size_grows_with_vectors(self):
         """Test that reported size grows as vectors are added."""
-        from headroom.memory.adapters.hnsw import HNSWVectorIndex
-        from headroom.memory.models import Memory
+        from cutctx.memory.adapters.hnsw import HNSWVectorIndex
+        from cutctx.memory.models import Memory
 
         index = HNSWVectorIndex(dimension=256)
 
@@ -302,10 +302,10 @@ class TestTrackerIntegrationWithMultipleStores:
     @pytest.mark.asyncio
     async def test_tracker_aggregates_multiple_stores(self):
         """Test that tracker correctly aggregates stats from multiple stores."""
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.ccr.batch_store import BatchContextStore
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.ccr.batch_store import BatchContextStore
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity
 
         tracker = MemoryTracker.get()
 
@@ -338,9 +338,9 @@ class TestTrackerIntegrationWithMultipleStores:
     @pytest.mark.asyncio
     async def test_full_memory_report(self):
         """Test generating a full memory report with real stores."""
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity
 
         tracker = MemoryTracker.get(target_budget_mb=100.0)
 
@@ -393,7 +393,7 @@ class TestMemoryBudgetEnforcement:
 
     def test_under_budget(self):
         """Test that under-budget is correctly detected."""
-        from headroom.cache.compression_store import CompressionStore
+        from cutctx.cache.compression_store import CompressionStore
 
         tracker = MemoryTracker.get(target_budget_mb=100.0)  # 100 MB budget
 
@@ -412,7 +412,7 @@ class TestMemoryBudgetEnforcement:
         tracker = MemoryTracker.get(target_budget_mb=0.001)  # Very small budget (1 KB)
 
         # Create a component that reports large size
-        from headroom.memory.tracker import ComponentStats
+        from cutctx.memory.tracker import ComponentStats
 
         def large_component_stats() -> ComponentStats:
             return ComponentStats(

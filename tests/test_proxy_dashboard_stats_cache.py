@@ -8,8 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html
-from headroom.proxy import helpers as proxy_helpers
+from cutctx.dashboard import get_dashboard_html
+from cutctx.proxy import helpers as proxy_helpers
 
 
 class _StatsStub:
@@ -30,8 +30,8 @@ class _ToinStub:
 
 @pytest.fixture(autouse=True)
 def _reset_rtk_stats_cache(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
-    monkeypatch.setenv("HEADROOM_REQUIRE_RUST_CORE", "false")
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
+    monkeypatch.setenv("CUTCTX_REQUIRE_RUST_CORE", "false")
     proxy_helpers._rtk_stats_cache.update(
         {"expires_at": 0.0, "has_value": False, "tool": None, "value": None}
     )
@@ -50,7 +50,7 @@ def _reset_rtk_stats_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_get_rtk_stats_memoizes_subprocess_calls(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
     now = {"value": 100.0}
     calls = {"run": 0}
     totals = [
@@ -144,7 +144,7 @@ def test_get_rtk_stats_memoizes_subprocess_calls(monkeypatch: pytest.MonkeyPatch
 
 
 def test_get_context_tool_stats_reads_lean_ctx_gain(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_CONTEXT_TOOL", "lean-ctx")
+    monkeypatch.setenv("CUTCTX_CONTEXT_TOOL", "lean-ctx")
     now = {"value": 100.0}
     calls = {"run": 0}
     totals = [
@@ -172,7 +172,7 @@ def test_get_context_tool_stats_reads_lean_ctx_gain(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(proxy_helpers.time, "monotonic", lambda: now["value"])
     monkeypatch.setattr(
-        "headroom.lean_ctx.get_lean_ctx_path",
+        "cutctx.lean_ctx.get_lean_ctx_path",
         lambda: Path("/usr/bin/lean-ctx"),
     )
     monkeypatch.setattr(subprocess, "run", _fake_run)
@@ -217,8 +217,8 @@ def test_stats_cached_query_reuses_short_ttl_snapshot(monkeypatch: pytest.Monkey
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.server as server
-    from headroom.proxy.server import ProxyConfig, create_app
+    import cutctx.proxy.server as server
+    from cutctx.proxy.server import ProxyConfig, create_app
 
     calls = {"store": 0, "telemetry": 0, "feedback": 0, "context_tool": 0}
     now = {"value": 100.0}
@@ -227,17 +227,17 @@ def test_stats_cached_query_reuses_short_ttl_snapshot(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         server,
         "get_compression_store",
-        lambda: _StatsStub(calls, "store", {"entry_count": 1, "max_entries": 100}),
+        lambda **kwargs: _StatsStub(calls, "store", {"entry_count": 1, "max_entries": 100}),
     )
     monkeypatch.setattr(
         server,
         "get_telemetry_collector",
-        lambda: _StatsStub(calls, "telemetry", {"enabled": True}),
+        lambda **kwargs: _StatsStub(calls, "telemetry", {"enabled": True}),
     )
     monkeypatch.setattr(
         server,
         "get_compression_feedback",
-        lambda: _StatsStub(calls, "feedback", {}),
+        lambda **kwargs: _StatsStub(calls, "feedback", {}),
     )
 
     def _fake_context_tool_stats() -> dict[str, int | bool | float | str]:
@@ -304,23 +304,23 @@ def test_stats_reports_lean_ctx_as_selected_cli_filter(monkeypatch: pytest.Monke
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.server as server
-    from headroom.proxy.server import ProxyConfig, create_app
+    import cutctx.proxy.server as server
+    from cutctx.proxy.server import ProxyConfig, create_app
 
     monkeypatch.setattr(
         server,
         "get_compression_store",
-        lambda: _StatsStub({"store": 0}, "store", {}),
+        lambda **kwargs: _StatsStub({"store": 0}, "store", {}),
     )
     monkeypatch.setattr(
         server,
         "get_telemetry_collector",
-        lambda: _StatsStub({"telemetry": 0}, "telemetry", {}),
+        lambda **kwargs: _StatsStub({"telemetry": 0}, "telemetry", {}),
     )
     monkeypatch.setattr(
         server,
         "get_compression_feedback",
-        lambda: _StatsStub({"feedback": 0}, "feedback", {}),
+        lambda **kwargs: _StatsStub({"feedback": 0}, "feedback", {}),
     )
     monkeypatch.setattr(
         server,
@@ -364,7 +364,7 @@ def test_stats_reports_lean_ctx_as_selected_cli_filter(monkeypatch: pytest.Monke
 
 
 def test_cost_merge_uses_generic_cli_filtering_name() -> None:
-    from headroom.proxy.cost import merge_cost_stats
+    from cutctx.proxy.cost import merge_cost_stats
 
     payload = merge_cost_stats(
         {"savings_usd": 1.23456, "other": "kept"},
@@ -382,14 +382,14 @@ def test_cost_merge_uses_generic_cli_filtering_name() -> None:
 
 
 def test_session_summary_uses_generic_cli_filtering_keys() -> None:
-    from headroom.proxy.cost import build_session_summary
+    from cutctx.proxy.cost import build_session_summary
 
     proxy = SimpleNamespace(
         config=SimpleNamespace(mode="token"),
         logger=SimpleNamespace(_logs=[]),
         cost_tracker=SimpleNamespace(
             stats=lambda: {
-                "cost_with_headroom_usd": 2.0,
+                "cost_with_cutctx_usd": 2.0,
                 "savings_usd": 0.5,
             }
         ),
@@ -419,24 +419,24 @@ def test_stats_reset_clears_runtime_proxy_counters(monkeypatch: pytest.MonkeyPat
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.server as server
-    from headroom.proxy.loopback_guard import require_loopback
-    from headroom.proxy.server import ProxyConfig, create_app
+    import cutctx.proxy.server as server
+    from cutctx.proxy.loopback_guard import require_loopback
+    from cutctx.proxy.server import ProxyConfig, create_app
 
     monkeypatch.setattr(
         server,
         "get_compression_store",
-        lambda: _StatsStub({"store": 0}, "store", {}),
+        lambda **kwargs: _StatsStub({"store": 0}, "store", {}),
     )
     monkeypatch.setattr(
         server,
         "get_telemetry_collector",
-        lambda: _StatsStub({"telemetry": 0}, "telemetry", {}),
+        lambda **kwargs: _StatsStub({"telemetry": 0}, "telemetry", {}),
     )
     monkeypatch.setattr(
         server,
         "get_compression_feedback",
-        lambda: _StatsStub({"feedback": 0}, "feedback", {}),
+        lambda **kwargs: _StatsStub({"feedback": 0}, "feedback", {}),
     )
     monkeypatch.setattr(server, "_get_context_tool_stats", lambda: None)
     monkeypatch.setattr(server, "get_toin", lambda: _ToinStub())

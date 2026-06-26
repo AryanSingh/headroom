@@ -19,15 +19,15 @@ import hashlib
 
 import pytest
 
-from headroom.cache.compression_store import (
+from cutctx.cache.compression_store import (
     get_compression_store,
     reset_compression_store,
 )
-from headroom.transforms.diff_compressor import DiffCompressor
-from headroom.transforms.log_compressor import LogCompressor
-from headroom.transforms.search_compressor import SearchCompressor
+from cutctx.transforms.diff_compressor import DiffCompressor
+from cutctx.transforms.log_compressor import LogCompressor
+from cutctx.transforms.search_compressor import SearchCompressor
 
-pytest.importorskip("headroom._core", reason="Rust extension required")
+pytest.importorskip("cutctx._core", reason="Rust extension required")
 
 
 @pytest.fixture(autouse=True)

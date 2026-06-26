@@ -36,17 +36,17 @@ except ImportError:
 
 # Cutctx imports
 try:
-    from headroom.config import SmartCrusherConfig
-    from headroom.tokenizers import TiktokenCounter
-    from headroom.transforms.smart_crusher import SmartCrusher
+    from cutctx.config import SmartCrusherConfig
+    from cutctx.tokenizers import TiktokenCounter
+    from cutctx.transforms.smart_crusher import SmartCrusher
 
-    HEADROOM_AVAILABLE = True
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
+    CUTCTX_AVAILABLE = False
 
 # Kompress imports (ML baseline)
 try:
-    from headroom.transforms.kompress_compressor import KompressCompressor, is_kompress_available
+    from cutctx.transforms.kompress_compressor import KompressCompressor, is_kompress_available
 
     KOMPRESS_AVAILABLE = is_kompress_available()
 except ImportError:
@@ -433,7 +433,7 @@ def kompress_compress(data: list[dict]) -> tuple[str, dict]:
     Returns (compressed_text, metadata).
     """
     if not KOMPRESS_AVAILABLE:
-        raise RuntimeError("Kompress not available. Install with: pip install headroom-ai[ml]")
+        raise RuntimeError("Kompress not available. Install with: pip install cutctx-ai[ml]")
 
     compressor = KompressCompressor()
 
@@ -454,12 +454,12 @@ def kompress_compress(data: list[dict]) -> tuple[str, dict]:
     return result.compressed, metadata
 
 
-def headroom_compress(data: list[dict], query_context: str = "") -> tuple[list[dict], dict]:
+def cutctx_compress(data: list[dict], query_context: str = "") -> tuple[list[dict], dict]:
     """
     Use Cutctx's SmartCrusher for statistical compression.
     Returns (compressed_data, metadata).
     """
-    if not HEADROOM_AVAILABLE:
+    if not CUTCTX_AVAILABLE:
         raise RuntimeError("Cutctx not available")
 
     config = SmartCrusherConfig(
@@ -509,7 +509,7 @@ def headroom_compress(data: list[dict], query_context: str = "") -> tuple[list[d
 
 def count_tokens(text: str) -> int:
     """Count tokens using tiktoken."""
-    if HEADROOM_AVAILABLE:
+    if CUTCTX_AVAILABLE:
         counter = TiktokenCounter()
         return counter.count_text(text)
     else:
@@ -582,7 +582,7 @@ class BenchmarkConfig:
 
     model: str = "gpt-4o-mini"  # Model for queries (and summarization)
     max_truncate_items: int = 20
-    max_headroom_items: int = 20
+    max_cutctx_items: int = 20
     run_summarization: bool = True  # Can disable to save cost
     run_kompress: bool = True  # Run Kompress (ML baseline)
 
@@ -743,15 +743,15 @@ def run_scenario_benchmark(
             except Exception as e:
                 print(f"   Kompress failed: {e}")
         else:
-            print("   Kompress not available. Install with: pip install headroom-ai[ml]")
+            print("   Kompress not available. Install with: pip install cutctx-ai[ml]")
 
-    # --- HEADROOM ---
+    # --- CUTCTX ---
     print("\n[4/4] Running Cutctx...")
-    if HEADROOM_AVAILABLE:
+    if CUTCTX_AVAILABLE:
         try:
             # Use first question as query context (realistic usage)
             query_context = scenario.questions[0].text if scenario.questions else ""
-            compressed, metadata = headroom_compress(scenario.data, query_context)
+            compressed, metadata = cutctx_compress(scenario.data, query_context)
 
             hr_json = (
                 json.dumps(compressed, indent=2)
@@ -815,7 +815,7 @@ def run_full_benchmark(client: "OpenAI", config: BenchmarkConfig = None) -> dict
         config = BenchmarkConfig()
 
     print("\n" + "=" * 70)
-    print("TRUNCATION vs SUMMARIZATION vs LLMLINGUA-2 vs HEADROOM BENCHMARK")
+    print("TRUNCATION vs SUMMARIZATION vs LLMLINGUA-2 vs CUTCTX BENCHMARK")
     print("=" * 70)
 
     # Generate scenarios
@@ -957,7 +957,7 @@ if __name__ == "__main__":
     config = BenchmarkConfig(
         model="gpt-4o-mini",
         max_truncate_items=20,
-        max_headroom_items=20,
+        max_cutctx_items=20,
         run_summarization=True,
     )
 

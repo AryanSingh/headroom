@@ -23,7 +23,7 @@ vi.mock("../src/proxy-manager.js", () => ({
   defaultLogger: mocked.logger,
 }));
 
-import { CutCtxContextEngine } from "../src/engine.js";
+import { CutctxContextEngine } from "../src/engine.js";
 
 afterEach(() => {
   mocked.start.mockReset();
@@ -35,9 +35,9 @@ afterEach(() => {
   mocked.logger.warn.mockClear();
 });
 
-describe("CutCtxContextEngine proxy startup helpers", () => {
+describe("CutctxContextEngine proxy startup helpers", () => {
   it("bootstraps by scheduling proxy startup when enabled", async () => {
-    const engine = new CutCtxContextEngine();
+    const engine = new CutctxContextEngine();
 
     await expect(
       engine.bootstrap({
@@ -52,7 +52,7 @@ describe("CutCtxContextEngine proxy startup helpers", () => {
   });
 
   it("removes unsubscribed proxy listeners before notifying readiness", async () => {
-    const engine = new CutCtxContextEngine();
+    const engine = new CutctxContextEngine();
     const first = vi.fn();
     const second = vi.fn();
 
@@ -68,7 +68,7 @@ describe("CutCtxContextEngine proxy startup helpers", () => {
   });
 
   it("returns the existing proxy URL without starting again", async () => {
-    const engine = new CutCtxContextEngine();
+    const engine = new CutctxContextEngine();
 
     (engine as { proxyUrl: string | null }).proxyUrl = "http://127.0.0.1:8787";
 
@@ -77,14 +77,14 @@ describe("CutCtxContextEngine proxy startup helpers", () => {
   });
 
   it("throws when proxy startup is disabled", async () => {
-    const engine = new CutCtxContextEngine({ enabled: false });
+    const engine = new CutctxContextEngine({ enabled: false });
 
-    await expect(engine.ensureProxyUrl()).rejects.toThrow("CutCtx proxy startup is disabled");
+    await expect(engine.ensureProxyUrl()).rejects.toThrow("Cutctx proxy startup is disabled");
     expect(mocked.start).not.toHaveBeenCalled();
   });
 
   it("schedules startup and returns original messages when assembling before proxy readiness", async () => {
-    const engine = new CutCtxContextEngine();
+    const engine = new CutctxContextEngine();
     const messages = [{ role: "user", content: "hello" }];
 
     await expect(

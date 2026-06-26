@@ -39,8 +39,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 # Telemetry off so we don't pollute the user's metrics during replay.
-os.environ.setdefault("HEADROOM_DISABLE_TELEMETRY", "true")
-os.environ.setdefault("HEADROOM_REQUIRE_RUST_CORE", "false")
+os.environ.setdefault("CUTCTX_DISABLE_TELEMETRY", "true")
+os.environ.setdefault("CUTCTX_REQUIRE_RUST_CORE", "false")
 
 
 @dataclass
@@ -213,7 +213,7 @@ def boot_proxy():
     method we exercise — Kompress will lazy-load on first use, which we
     explicitly warm up below.
     """
-    from headroom.proxy.server import ProxyConfig, create_app
+    from cutctx.proxy.server import ProxyConfig, create_app
 
     config = ProxyConfig(
         optimize=True,

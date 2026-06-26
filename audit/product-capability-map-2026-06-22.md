@@ -2,7 +2,7 @@
 
 **Source:** Direct reads of source code on branch `moat-b1-team-memory-svc` @ `26866229`. Every claim has a file:line citation. No docs, audits, or marketing were trusted as primary sources.
 
-**Naming:** The product is **Cutctx** (Python package is still `headroom`; CLI is `cutctx`). The rebrand is a work-in-progress; the `cutctx/` directory is a half-migrated shell.
+**Naming:** The product is **Cutctx** (Python package is still `cutctx`; CLI is `cutctx`). The rebrand is a work-in-progress; the `cutctx/` directory is a half-migrated shell.
 
 **Bottom line:** Cutctx is a Rust-accelerated LLM proxy that does **compression + caching + memory + air-gap enforcement** end-to-end. Its unique differentiators are the **5-source savings model with self-hosted prefix cache as a first-class source**, **CCR reversible compression**, and **per-project memory isolation**. No open-source competitor matches the full feature set.
 
@@ -11,13 +11,13 @@
 ## 1. Core proxy (185 routes, 4 providers + 6 SDKs)
 
 ### Provider handlers
-- `headroom/proxy/handlers/anthropic.py:406` — Anthropic Messages (with cache_control injection, CCR tool injection)
-- `headroom/proxy/handlers/openai/{base,chat,responses,compress,passthrough}.py` — Chat Completions, Responses (HTTP + WebSocket), standalone `/v1/compress`, catchall passthrough
-- `headroom/proxy/handlers/gemini.py:32` — Gemini generate/stream/countTokens + Cloud Code Assist (`cloudcode.googleapis.com`)
-- `headroom/proxy/handlers/batch.py:25` — Anthropic + OpenAI + Google Batch API uniformly
-- `headroom/proxy/handlers/streaming.py:59` — SSE parser for all 3 providers with 5m/1h cache TTL split for cost attribution
+- `cutctx/proxy/handlers/anthropic.py:406` — Anthropic Messages (with cache_control injection, CCR tool injection)
+- `cutctx/proxy/handlers/openai/{base,chat,responses,compress,passthrough}.py` — Chat Completions, Responses (HTTP + WebSocket), standalone `/v1/compress`, catchall passthrough
+- `cutctx/proxy/handlers/gemini.py:32` — Gemini generate/stream/countTokens + Cloud Code Assist (`cloudcode.googleapis.com`)
+- `cutctx/proxy/handlers/batch.py:25` — Anthropic + OpenAI + Google Batch API uniformly
+- `cutctx/proxy/handlers/streaming.py:59` — SSE parser for all 3 providers with 5m/1h cache TTL split for cost attribution
 
-### Full route inventory (sampled from `headroom/providers/proxy_routes.py:316-762`)
+### Full route inventory (sampled from `cutctx/providers/proxy_routes.py:316-762`)
 
 | Provider | Routes |
 |---|---|
@@ -30,20 +30,20 @@
 **Distinctive:** WebSocket relay for `/v1/responses` (essential for OpenAI Codex CLI subscription auth) + catchall passthrough. No open-source competitor has both.
 
 ### SDKs (4 languages, the only product with all 4)
-- **Python** — `headroom/client.py:1049` (`CutctxClient` with `compress()`, `simulate()`, `chat.completions.create()`)
+- **Python** — `cutctx/client.py:1049` (`CutctxClient` with `compress()`, `simulate()`, `chat.completions.create()`)
 - **TypeScript** — `sdk/typescript/src/{client,compress,simulate,hooks,shared-context}.ts` + adapters
 - **Go** — `sdk/go/{cutctx,memory,middleware,proxy,shared,options,errors}.go`
-- **Java** — `sdks/java-headroom/`
+- **Java** — `sdks/java-cutctx/`
 
 ### Native binary (Rust, hard boot dep)
-- `crates/headroom-core/src/transforms/` — 18 Rust modules: `smart_crusher/`, `log_compressor.rs`, `search_compressor.rs`, `diff_compressor.rs`, `tag_protector.rs`, `anchor_selector.rs`, `adaptive_sizer.rs`, `audio_compressor.rs`, `image_compressor.rs`, `content_detector.rs`, `deletion_compaction.rs`, `detection.rs`, `live_zone.rs`, `magika_detector.rs`, `unidiff_detector.rs`, `safety.rs`, `recommendations.rs`, `pipeline/`
-- Exposed to Python as `headroom._core` (PyO3 via maturin). **The proxy refuses to start without it** (`server.py:198-209` — fail-closed at boot, not a crash)
+- `crates/cutctx-core/src/transforms/` — 18 Rust modules: `smart_crusher/`, `log_compressor.rs`, `search_compressor.rs`, `diff_compressor.rs`, `tag_protector.rs`, `anchor_selector.rs`, `adaptive_sizer.rs`, `audio_compressor.rs`, `image_compressor.rs`, `content_detector.rs`, `deletion_compaction.rs`, `detection.rs`, `live_zone.rs`, `magika_detector.rs`, `unidiff_detector.rs`, `safety.rs`, `recommendations.rs`, `pipeline/`
+- Exposed to Python as `cutctx._core` (PyO3 via maturin). **The proxy refuses to start without it** (`server.py:198-209` — fail-closed at boot, not a crash)
 
 ---
 
 ## 2. The 5-source savings model (the moat)
 
-Defined at `headroom/savings/types.py:23-30`:
+Defined at `cutctx/savings/types.py:23-30`:
 
 ```python
 class SavingsSource(str, Enum):
@@ -54,11 +54,11 @@ class SavingsSource(str, Enum):
     MODEL_ROUTING               # cost-based downgrade
 ```
 
-**Key invariant** (`headroom/savings/orchestrator.py:7-13`): "The combined total is the SUM of per-source tokens, never the difference between raw_input_tokens and post_cutctx_tokens. This prevents double-counting when CutCtx compression and provider cache both reduce the same input."
+**Key invariant** (`cutctx/savings/orchestrator.py:7-13`): "The combined total is the SUM of per-source tokens, never the difference between raw_input_tokens and post_cutctx_tokens. This prevents double-counting when Cutctx compression and provider cache both reduce the same input."
 
-**Why it's a moat:** No open-source competitor tracks self-hosted prefix cache as a first-class source. LiteLLM/Portkey/Helicone aggregate provider cache but treat model routing and prefix-cache as separate concerns, and **none let an external tool (vLLM, GPTCache) push savings into the funnel** via the `x-headroom-savings-metadata` header.
+**Why it's a moat:** No open-source competitor tracks self-hosted prefix cache as a first-class source. LiteLLM/Portkey/Helicone aggregate provider cache but treat model routing and prefix-cache as separate concerns, and **none let an external tool (vLLM, GPTCache) push savings into the funnel** via the `x-cutctx-savings-metadata` header.
 
-**Provider-cache-aware compression** (`headroom/savings/policy.py:104`): the `StrategyResolver` refuses to compress cache-friendly prefixes for providers with native prompt caching, because compressing would invalidate the bigger cache. **"No competitor does this. LiteLLM/Portkey/Helicone compress blindly."**
+**Provider-cache-aware compression** (`cutctx/savings/policy.py:104`): the `StrategyResolver` refuses to compress cache-friendly prefixes for providers with native prompt caching, because compressing would invalidate the bigger cache. **"No competitor does this. LiteLLM/Portkey/Helicone compress blindly."**
 
 ### Compression transforms (8 content-type-aware compressors)
 
@@ -80,21 +80,21 @@ Plus `ReadLifecycleTransform` (detects STALE / SUPERSEDED tool outputs — 75% o
 ## 3. Memory system (3 backends, per-project isolation)
 
 ### Backends
-- **`LocalBackend`** — `headroom/memory/backends/local.py` — 3 SQLite files per memory DB: `<name>.db` (memories), `<name>_graph.db` (entities/relationships), `<name>_vectors.db` (sqlite-vec) or `<name>_hnsw` (HNSW). Default embedder: `all-MiniLM-L6-v2` (384d, MPS/CUDA/CPU auto-detect).
+- **`LocalBackend`** — `cutctx/memory/backends/local.py` — 3 SQLite files per memory DB: `<name>.db` (memories), `<name>_graph.db` (entities/relationships), `<name>_vectors.db` (sqlite-vec) or `<name>_hnsw` (HNSW). Default embedder: `all-MiniLM-L6-v2` (384d, MPS/CUDA/CPU auto-detect).
 - **`Mem0Backend`** — wraps mem0 OSS
 - **`DirectMem0Adapter`** — direct Qdrant+Neo4j, skips the mem0 layer
 
 ### Storage router (the 2026-05-26 leak fix)
-`headroom/memory/storage_router.py` — three modes: **PROJECT** (one DB per workspace, default), **USER** (one DB per user), **GLOBAL** (legacy). LRU of open backends so opening N project DBs doesn't load the embedder N times. **No competitor has this.**
+`cutctx/memory/storage_router.py` — three modes: **PROJECT** (one DB per workspace, default), **USER** (one DB per user), **GLOBAL** (legacy). LRU of open backends so opening N project DBs doesn't load the embedder N times. **No competitor has this.**
 
 ### Native Anthropic memory tool integration
-`headroom/proxy/memory_handler.py:84-89` injects Anthropic's `memory_20250818` tool with the `context-management-2025-06-27` beta header. Means **Claude Code subscription auth** (which blocks custom tools) accepts the integration. **"Most memory systems only ship custom tools; this is unique."**
+`cutctx/proxy/memory_handler.py:84-89` injects Anthropic's `memory_20250818` tool with the `context-management-2025-06-27` beta header. Means **Claude Code subscription auth** (which blocks custom tools) accepts the integration. **"Most memory systems only ship custom tools; this is unique."**
 
 ### Team memory sync (EE)
-`headroom_ee/memory_service/api.py` — `POST /v1/memory/sync` (watermark-based bidirectional deltas) + `POST /v1/memory/review` (curator approve/deprecate/propose with audit). SQLAlchemy backend so it swaps to Postgres/MySQL for team scale.
+`cutctx_ee/memory_service/api.py` — `POST /v1/memory/sync` (watermark-based bidirectional deltas) + `POST /v1/memory/review` (curator approve/deprecate/propose with audit). SQLAlchemy backend so it swaps to Postgres/MySQL for team scale.
 
 ### Memory bridge (markdown ↔ memory)
-`headroom/memory/bridge.py:87` — `MemoryBridge` imports `MEMORY.md` from Claude Code / ChatGPT, exports back. Bidirectional sync with hash-based change detection. Cross-agent writers: `claude`, `codex`, `cursor`, `generic`.
+`cutctx/memory/bridge.py:87` — `MemoryBridge` imports `MEMORY.md` from Claude Code / ChatGPT, exports back. Bidirectional sync with hash-based change detection. Cross-agent writers: `claude`, `codex`, `cursor`, `generic`.
 
 ### Memory tools (OpenAI-compatible)
 `memory_save / memory_search / memory_update / memory_delete / memory_list` injected into the request, handled in the response (`memory_handler.py:1011-1140`).
@@ -103,9 +103,9 @@ Plus `ReadLifecycleTransform` (detects STALE / SUPERSEDED tool outputs — 75% o
 
 ## 4. CCR (Compress-Cache-Retrieve) — reversible compression
 
-`headroom/ccr/__init__.py:1-22`: **"REVERSIBLE compression beats irreversible compression. If the LLM needs data that was compressed away, it can retrieve it instantly."**
+`cutctx/ccr/__init__.py:1-22`: **"REVERSIBLE compression beats irreversible compression. If the LLM needs data that was compressed away, it can retrieve it instantly."**
 
-- `ccr/tool_injection.py:25` — `CCR_TOOL_NAME = "headroom_retrieve"`, provider-aware tool definition (Anthropic/OpenAI/Google)
+- `ccr/tool_injection.py:25` — `CCR_TOOL_NAME = "cutctx_retrieve"`, provider-aware tool definition (Anthropic/OpenAI/Google)
 - `ccr/response_handler.py:50` — `StreamingCCRHandler` intercepts responses, handles CCR tool calls automatically
 - `ccr/batch_processor.py:25` — handles CCR in Batch API results
 - `ccr/batch_store.py:86` — `BatchContextStore` (24h TTL)
@@ -119,7 +119,7 @@ Plus `ReadLifecycleTransform` (detects STALE / SUPERSEDED tool outputs — 75% o
 
 ## 5. Cache layer (8 components)
 
-`headroom/cache/__init__.py:1-149` — plugin-based registry:
+`cutctx/cache/__init__.py:1-149` — plugin-based registry:
 - `BaseCacheOptimizer` (`cache/base.py:36`) — abstract
 - `AnthropicCacheOptimizer` — inserts `cache_control: {type: "ephemeral"}` breakpoints (1h vs 5m TTL split for cost attribution)
 - `OpenAICacheOptimizer` — automatic prefix cache
@@ -131,13 +131,13 @@ Plus `ReadLifecycleTransform` (detects STALE / SUPERSEDED tool outputs — 75% o
 - `DynamicContentDetector` — detects UUIDs/JWTs/hex hashes/ISO timestamps in prefixes
 - `CompressionStore` — the CCR reversible compression store
 
-Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `messages + model` as key, 3600s TTL, LRU eviction.
+Plus the proxy's own `cutctx/proxy/semantic_cache.py:24-147` — SHA-256 of `messages + model` as key, 3600s TTL, LRU eviction.
 
 ---
 
 ## 6. LLM Firewall (regex + ONNX ML)
 
-`headroom/security/firewall.py:1-554` — `FirewallScanner` + `StreamingRedactor` + `FirewallConfig`:
+`cutctx/security/firewall.py:1-554` — `FirewallScanner` + `StreamingRedactor` + `FirewallConfig`:
 
 - **Prompt injection** (line 85-129): 7 regex patterns — `ignore_previous_instructions`, `dan_jailbreak`, `role_hijack`, `prompt_extraction`, `encoded_injection`, `dev_mode`, `markdown_injection`. Confidence 0.80-0.95.
 - **Jailbreak** (line 131-151): 4 patterns — `hypothetical_bypass`, `grandma_exploit`, `opposite_day`, `numbered_list_jailbreak`.
@@ -148,40 +148,40 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 
 **ML classifier** (`firewall_ml.py:26-117`): ONNX model, <20ms on CPU, falls back to heuristic if model missing.
 
-**Egress enforcer** (`headroom/proxy/egress.py:1-229`): per-tenant allowlist of domain patterns, loaded from `CUTCTX_EGRESS_POLICY` env var. **Empty allowlist + not allow_all = deny-all.** Host-based matching to avoid parser differentials. Pre-compiled regex with metacharacter detection.
+**Egress enforcer** (`cutctx/proxy/egress.py:1-229`): per-tenant allowlist of domain patterns, loaded from `CUTCTX_EGRESS_POLICY` env var. **Empty allowlist + not allow_all = deny-all.** Host-based matching to avoid parser differentials. Pre-compiled regex with metacharacter detection.
 
 ---
 
-## 7. Enterprise stack (all in `headroom_ee/`)
+## 7. Enterprise stack (all in `cutctx_ee/`)
 
 ### Auth
-- **SSO** (`headroom_ee/sso.py`) — OIDC + JWT + JWKS caching (1h TTL) + scope/audience/exp checks + introspection fallback
-- **MFA / TOTP** (`headroom/security/mfa.py`) — RFC 6238, replay protection via `last_used_counter`, ±30s clock-skew window
-- **RBAC** (`headroom_ee/rbac.py`) — 4 roles (`VIEWER`, `MEMORY_CURATOR`, `OPERATOR`, `ADMIN`), 32 named permissions, **SQLite-persistent** (Round 2 fix), `has_permission()` fails-closed for unknown SSO users
-- **SCIM 2.0** (`headroom_ee/scim.py:42-267`) — full User + Group CRUD, PATCH support, all 9 SCIM endpoints
+- **SSO** (`cutctx_ee/sso.py`) — OIDC + JWT + JWKS caching (1h TTL) + scope/audience/exp checks + introspection fallback
+- **MFA / TOTP** (`cutctx/security/mfa.py`) — RFC 6238, replay protection via `last_used_counter`, ±30s clock-skew window
+- **RBAC** (`cutctx_ee/rbac.py`) — 4 roles (`VIEWER`, `MEMORY_CURATOR`, `OPERATOR`, `ADMIN`), 32 named permissions, **SQLite-persistent** (Round 2 fix), `has_permission()` fails-closed for unknown SSO users
+- **SCIM 2.0** (`cutctx_ee/scim.py:42-267`) — full User + Group CRUD, PATCH support, all 9 SCIM endpoints
 
 ### Audit
-- **Tamper-evident chain** (`headroom_ee/audit/store.py`) — HMAC-SHA256 hash chain, **fail-closed on missing `HEADROOM_AUDIT_SECRET_KEY`** (refuses to start without it)
+- **Tamper-evident chain** (`cutctx_ee/audit/store.py`) — HMAC-SHA256 hash chain, **fail-closed on missing `CUTCTX_AUDIT_SECRET_KEY`** (refuses to start without it)
 - Endpoints: `/admin/audit/{events,export,verify}`
 
 ### Spend ledger + policy
-- **Ledger** (`headroom_ee/ledger/`) — SQLAlchemy (swappable to Postgres/MySQL for team scale)
+- **Ledger** (`cutctx_ee/ledger/`) — SQLAlchemy (swappable to Postgres/MySQL for team scale)
 - **Pricing** — model → USD/MTok map
 - **Query** with per-org/workspace/project filters; **cross-tenant requires explicit `spend.read.cross_tenant` permission**
-- **Policy** (`headroom_ee/policy/`) — Ed25519-signed (`hrp1.{kid}.{payload}.{sig}`)
+- **Policy** (`cutctx_ee/policy/`) — Ed25519-signed (`hrp1.{kid}.{payload}.{sig}`)
 
 ### Webhooks (HMAC + retry + persistent DLQ)
-- `headroom/proxy/webhooks.py:131-643` — `WebhookDispatcher` with 8 event types, **HMAC-SHA256 signing** (`X-Headroom-Signature`), **5 attempts with exponential backoff + ±50% jitter**, 10k queue
+- `cutctx/proxy/webhooks.py:131-643` — `WebhookDispatcher` with 8 event types, **HMAC-SHA256 signing** (`X-Cutctx-Signature`), **5 attempts with exponential backoff + ±50% jitter**, 10k queue
 - **Persistent** (Round 2): `WebhookSubscriptionStore` + `WebhookDeadLetterStore` in `webhook_stores.py` (SQLite-backed, bounded size, oldest-acknowledged purge first)
 - Boot: `server.py:1671-1686` starts the dispatcher when subscriptions exist
 
 ### Secrets (Fernet-encrypted SQLite)
-- `headroom/security/secrets_store.py:1-316` — `SecretsStore` with AES-128-CBC + HMAC-SHA256
+- `cutctx/security/secrets_store.py:1-316` — `SecretsStore` with AES-128-CBC + HMAC-SHA256
 - **Fail-closed** in production mode (`strict=True`) if no key is set
 - Endpoints: full CRUD under `secrets.read` / `secrets.write` RBAC
 
 ### Residency proof (Ed25519 attestation)
-- `headroom/security/residency_proof.py:1-344` — `ResidencyAttestation` + `ResidencyProver`
+- `cutctx/security/residency_proof.py:1-344` — `ResidencyAttestation` + `ResidencyProver`
 - Signs JSON payload with Ed25519: tenant_id, proxy_version, timestamp, audit_chain_tail_hash, data_regions, egress_domains_blocked
 - **Endpoint intentionally unauthenticated** — the attestation is itself signed, so anyone can verify offline
 - **All 5 competitors: No**
@@ -191,22 +191,22 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 - **All 5 competitors: No**
 
 ### License validation
-- `headroom_ee/billing/license_token.py:17-58` — `sign_license` produces `hrk1.{kid}.{payload}.{sig}` Ed25519 tokens (mirrors JWT format)
-- New in Round 2: **Rust port** at `crates/headroom-core/src/licensing.rs` (per the map's §14 "NEW things added recently")
+- `cutctx_ee/billing/license_token.py:17-58` — `sign_license` produces `hrk1.{kid}.{payload}.{sig}` Ed25519 tokens (mirrors JWT format)
+- New in Round 2: **Rust port** at `crates/cutctx-core/src/licensing.rs` (per the map's §14 "NEW things added recently")
 
 ### Stripe billing
-- `headroom_ee/billing/stripe_webhook.py:1-200` — full webhook handler with HMAC signature verification, **fail-closed on missing `STRIPE_WEBHOOK_SECRET` in strict mode** (Round 2 fix)
+- `cutctx_ee/billing/stripe_webhook.py:1-200` — full webhook handler with HMAC signature verification, **fail-closed on missing `STRIPE_WEBHOOK_SECRET` in strict mode** (Round 2 fix)
 
 ### DSR (GDPR/CCPA)
-- `headroom/proxy/routes/dsr.py` — `GET /v1/me/export`, `POST /v1/me/delete`
+- `cutctx/proxy/routes/dsr.py` — `GET /v1/me/export`, `POST /v1/me/delete`
 - **Status:** Round 2 fixed the local-backend delete cascade (`clear_scope` → `clear_user`) and the export 500 on numpy embeddings (`jsonable_encoder`). Spend ledger and audit log delete paths are documented gaps in `docs/security/SOC2_CONTROLS.md:24`.
 
 ### Retention
-- `headroom_ee/retention.py` — periodic cleanup of CCR / audit / episodic memory / WAL, entitlement-gated on TEAM tier, auto-started at boot (`server.py:1645-1665`)
+- `cutctx_ee/retention.py` — periodic cleanup of CCR / audit / episodic memory / WAL, entitlement-gated on TEAM tier, auto-started at boot (`server.py:1645-1665`)
 
 ### Trial + PitchToShip
-- `headroom/trial.py` — `TrialManager` enforces 14-day trial, middleware at `server.py:2294-2355` blocks LLM requests when expired
-- `headroom/checkout.py` — `checkout_url("team")` returns a PitchToShip URL
+- `cutctx/trial.py` — `TrialManager` enforces 14-day trial, middleware at `server.py:2294-2355` blocks LLM requests when expired
+- `cutctx/checkout.py` — `checkout_url("team")` returns a PitchToShip URL
 
 ---
 
@@ -214,19 +214,19 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 
 | Feature | File | Notes |
 |---|---|---|
-| Prometheus metrics | `headroom/proxy/prometheus_metrics.py:62-1298` | Per-provider, per-model, per-stack counters. 25+ named metrics |
-| OTel metrics | `headroom/observability/metrics.py:76-200+` | `CutctxOtelMetrics` with subscription utilization gauges |
-| OTel tracing | `headroom/observability/tracing.py:27-208+` | Langfuse integration, `CutctxTracer` |
-| Per-request cost tracking | `headroom/proxy/cost.py` | `CostTracker` per-model USD attribution |
-| Spend forecast | `headroom/cost_forecast.py:1-535` | `CostEstimator` + `PolicyEngine`. Pricing map for Opus 4, Sonnet 4.5, Haiku 3.5, GPT-4o, GPT-4.1, o3/o4-mini, Gemini 2.5-pro/flash, 1.5-pro/flash |
-| Telemetry beacon | `headroom/telemetry/beacon.py:1-358` | Local-first, **opt-in via `HEADROOM_TELEMETRY_EGRESS=1`**, Supabase backend (INSERT-only RLS), 5-min cadence |
-| Memory impact | `headroom/observability/memory_impact.py:10-35` | Team memory impact metrics |
+| Prometheus metrics | `cutctx/proxy/prometheus_metrics.py:62-1298` | Per-provider, per-model, per-stack counters. 25+ named metrics |
+| OTel metrics | `cutctx/observability/metrics.py:76-200+` | `CutctxOtelMetrics` with subscription utilization gauges |
+| OTel tracing | `cutctx/observability/tracing.py:27-208+` | Langfuse integration, `CutctxTracer` |
+| Per-request cost tracking | `cutctx/proxy/cost.py` | `CostTracker` per-model USD attribution |
+| Spend forecast | `cutctx/cost_forecast.py:1-535` | `CostEstimator` + `PolicyEngine`. Pricing map for Opus 4, Sonnet 4.5, Haiku 3.5, GPT-4o, GPT-4.1, o3/o4-mini, Gemini 2.5-pro/flash, 1.5-pro/flash |
+| Telemetry beacon | `cutctx/telemetry/beacon.py:1-358` | Local-first, **opt-in via `CUTCTX_TELEMETRY_EGRESS=1`**, Supabase backend (INSERT-only RLS), 5-min cadence |
+| Memory impact | `cutctx/observability/memory_impact.py:10-35` | Team memory impact metrics |
 
 ---
 
 ## 9. Dashboard (SSR + React)
 
-### SSR HTML (`headroom/dashboard/templates/dashboard.html`)
+### SSR HTML (`cutctx/dashboard/templates/dashboard.html`)
 - Tailwind + htmx + Alpine.js
 - Light/dark mode, live stats counter, per-provider savings, per-strategy compression, waste signals, compressed tokens viz, TTFB charts
 - **Round 2 added** (Blocker 4): real search/filter/sort/loading/error states on the Recent Requests table
@@ -242,7 +242,7 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 
 ## 10. CLI (70+ commands across 28+ subcommand groups)
 
-`headroom/cli/main.py:1-125`. Run `cutctx --help` to see all of them. Highlights:
+`cutctx/cli/main.py:1-125`. Run `cutctx --help` to see all of them. Highlights:
 
 | Command | Purpose |
 |---|---|
@@ -266,9 +266,9 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 ## 11. Plugin integrations + framework adapters
 
 ### Plugins (`plugins/`)
-- `claude-code/`, `codex/`, `openclaw/`, `headroom-agent-hooks/`, `headroom-oauth2/`, `hermes/`, `cutctx-plugin/`
+- `claude-code/`, `codex/`, `openclaw/`, `cutctx-agent-hooks/`, `cutctx-oauth2/`, `hermes/`, `cutctx-plugin/`
 
-### Framework integrations (`headroom/integrations/`)
+### Framework integrations (`cutctx/integrations/`)
 - **LangChain** (full — agents, memory, retriever, streaming, langgraph, langsmith) — only LiteLLM matches
 - **Agno** (hooks, model, providers)
 - **Strands** (bundle, hooks, model)
@@ -289,9 +289,9 @@ Plus the proxy's own `headroom/proxy/semantic_cache.py:24-147` — SHA-256 of `m
 | EE audit (separate) | `audit/store.py` | `audit_events` with HMAC chain |
 | `~/.cutctx/scim.db` | `scim.py:42-50` | scim_users / scim_groups |
 | `~/.cutctx/webhooks.db` | `webhook_stores.py` | webhook_subscriptions + webhook_dlq |
-| `headroom_memory.db` | `memory/adapters/sqlite.py:67` | memories |
-| `headroom_memory_graph.db` | `memory/backends/local.py:160-170` | entities + relationships |
-| `headroom_memory_vectors.db` | `memory/factory.py:275-282` | sqlite-vec (or HNSW dir) |
+| `cutctx_memory.db` | `memory/adapters/sqlite.py:67` | memories |
+| `cutctx_memory_graph.db` | `memory/backends/local.py:160-170` | entities + relationships |
+| `cutctx_memory_vectors.db` | `memory/factory.py:275-282` | sqlite-vec (or HNSW dir) |
 | `<root>/projects/<key>/memory.db` | `memory/storage_router.py` | per-project (PROJECT mode) |
 | `<root>/users/<key>/memory.db` | `memory/storage_router.py` | per-user (USER mode) |
 | `proxy_savings.json` | `savings_tracker.py:27-28` | JSON (not SQLite) |
@@ -307,7 +307,7 @@ From the commit log, the **most recent material additions** beyond the headline 
 | Commit | What | Why it matters |
 |---|---|---|
 | `c556e5bb` | GDPR DSR delete + export P0 fixes | Real cascade for local backend; numpy embeddings no longer 500 |
-| `7795ffb6` | HeadroomProxy alias + streaming var name | Fixes 115 rebrand-leftover test failures |
+| `7795ffb6` | CutctxProxy alias + streaming var name | Fixes 115 rebrand-leftover test failures |
 | `7f6875c5` | `has_permission` fail-closed for unknown SSO users | Closes a security gap in the spend tenant scoping |
 | `811931e7` | Persistent webhook subscriptions + DLQ | Subscriptions survive restart; failed deliveries recoverable |
 | `a3d2e7bc` | React dashboard real APIs + drawer Esc | Removes hardcoded mock data; a11y |
@@ -324,7 +324,7 @@ From the commit log, the **most recent material additions** beyond the headline 
 | `ccec64bd` | Release-path memory and telemetry gaps | Hotfixes for the release script |
 | `c211a4ac` | Auth gates + tests for 5 new route modules | RBAC on airgap/rate_limit/rbac/secrets/sso |
 
-**`crates/headroom-core/src/licensing.rs`** (per the map's §14): **new Rust port of license validation** — moves a hot path from Python to Rust.
+**`crates/cutctx-core/src/licensing.rs`** (per the map's §14): **new Rust port of license validation** — moves a hot path from Python to Rust.
 
 ---
 
@@ -335,14 +335,14 @@ From the commit log, the **most recent material additions** beyond the headline 
 ### What Cutctx has that no competitor matches
 
 1. **Provider-cache-aware compression** (StrategyResolver refuses to compress cache-friendly prefixes for providers with native prompt caching)
-2. **5-source savings model** with self-hosted prefix cache as a first-class source + external ingestion via `x-headroom-savings-metadata`
-3. **CCR reversible compression** — the LLM can call `headroom_retrieve` to fetch the original
+2. **5-source savings model** with self-hosted prefix cache as a first-class source + external ingestion via `x-cutctx-savings-metadata`
+3. **CCR reversible compression** — the LLM can call `cutctx_retrieve` to fetch the original
 4. **Per-workspace memory storage router** (PROJECT / USER / GLOBAL modes) with LRU backend cache
 5. **Native Anthropic memory tool injection** — Claude Code subscription auth accepts the integration
 6. **Ed25519-signed residency proof** — attestation only, no remote signature needed to verify
 7. **Tamper-evident audit log** with HMAC-SHA256 hash chain (fail-closed on missing key)
 8. **Air-gap mode** with deny-all default and host-based matching (no parser differentials)
-9. **5 SDKs in production** (Python + TS + Go + Java; **the only product with all 4** — and the older `sdks/go-headroom/` makes 5)
+9. **5 SDKs in production** (Python + TS + Go + Java; **the only product with all 4** — and the older `sdks/go-cutctx/` makes 5)
 10. **CLI with 70+ commands** (no competitor matches)
 11. **MCP server integration** (no competitor)
 12. **CCR tool injection + Anthropic beta header** (no competitor)
@@ -367,11 +367,11 @@ From the commit log, the **most recent material additions** beyond the headline 
 
 The competitive position is not "we compress tokens" (Helicone does that, LiteLLM does that, everyone does that). It is:
 
-1. **You can quantify per-source savings down to the dollar.** Provider cache vs. CutCtx compression vs. semantic cache vs. self-hosted vLLM APC vs. model routing — each is its own column in the per-org spend report. No competitor breaks these out independently.
+1. **You can quantify per-source savings down to the dollar.** Provider cache vs. Cutctx compression vs. semantic cache vs. self-hosted vLLM APC vs. model routing — each is its own column in the per-org spend report. No competitor breaks these out independently.
 
-2. **You can extend the funnel with external tools** (vLLM, GPTCache, LiteLLM) via the `x-headroom-savings-metadata` header. The proxy ingests the value but never double-counts. No competitor has this.
+2. **You can extend the funnel with external tools** (vLLM, GPTCache, LiteLLM) via the `x-cutctx-savings-metadata` header. The proxy ingests the value but never double-counts. No competitor has this.
 
-3. **You can reverse compression on demand.** The LLM calls `headroom_retrieve` and gets the full original. No competitor has this.
+3. **You can reverse compression on demand.** The LLM calls `cutctx_retrieve` and gets the full original. No competitor has this.
 
 4. **You can isolate memory by project.** The 2026-05-26 leak was caught and fixed with the storage router; competitors don't have this failure mode at all because they don't have memory.
 

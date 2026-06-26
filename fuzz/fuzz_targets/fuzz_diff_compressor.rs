@@ -9,7 +9,7 @@
 //! - Edge cases in line splitting (memchr path)
 
 use libfuzzer_sys::fuzz_target;
-use headroom_core::transforms::diff_compressor::{DiffCompressor, DiffCompressorConfig};
+use cutctx_core::transforms::diff_compressor::{DiffCompressor, DiffCompressorConfig};
 
 fuzz_target!(|data: &[u8]| {
     // Only fuzz valid UTF-8

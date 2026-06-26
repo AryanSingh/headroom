@@ -25,10 +25,10 @@ RUN apt-get update && \
 
 RUN python -m pip install --no-cache-dir uv==${UV_VERSION}
 
-# Rust toolchain for the headroom._core extension. With single-wheel
+# Rust toolchain for the cutctx._core extension. With single-wheel
 # architecture (post-#355), `pip install -e .` invokes maturin via
 # pyproject.toml's [build-system], which calls cargo. No more separate
-# headroom-core-py package.
+# cutctx-core-py package.
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:${PATH}
@@ -43,22 +43,22 @@ WORKDIR /build
 COPY pyproject.toml uv.lock README.md ./
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates/ crates/
-COPY headroom/ headroom/
-COPY headroom_ee/ headroom_ee/
-COPY packaging/headroom-ee/ packaging/headroom-ee/
+COPY cutctx/ cutctx/
+COPY cutctx_ee/ cutctx_ee/
+COPY packaging/cutctx-ee/ packaging/cutctx-ee/
 COPY scripts/ scripts/
 
-ARG HEADROOM_EXTRAS=proxy,code,ee
+ARG CUTCTX_EXTRAS=proxy,code,ee
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/build/target \
-    uv pip install --system --no-editable ".[${HEADROOM_EXTRAS}]"
+    uv pip install --system --no-editable ".[${CUTCTX_EXTRAS}]"
 
 # Rebuild EE integrity manifest for the Linux container (the source manifest
 # was built on macOS and lists darwin .so files that don't exist here).
-# Find the actual site-packages headroom_ee dir and rebuild the manifest there.
+# Find the actual site-packages cutctx_ee dir and rebuild the manifest there.
 RUN SP_DIR=$(python -c "import site; print(site.getsitepackages()[0])") && \
-    EE_DIR="$SP_DIR/headroom_ee" && \
+    EE_DIR="$SP_DIR/cutctx_ee" && \
     python scripts/build_ee_manifest.py --unsigned \
     --ee-dir "$EE_DIR" \
     --output "$EE_DIR/MANIFEST.sha256.json" && \
@@ -68,9 +68,9 @@ RUN SP_DIR=$(python -c "import site; print(site.getsitepackages()[0])") && \
 # the build image before we copy site-packages into the runtime image.
 # If this fails, the runtime image would fail Phase A0's fail-loud
 # startup check on every restart. Run from /tmp so cwd doesn't shadow
-# site-packages with /build/headroom/ (which has no _core.so since
+# site-packages with /build/cutctx/ (which has no _core.so since
 # maturin installed the .so into site-packages).
-RUN cd /tmp && python -c "from headroom._core import DiffCompressor, SmartCrusher; \
+RUN cd /tmp && python -c "from cutctx._core import DiffCompressor, SmartCrusher; \
     print(f'build-stage rust core verify OK: {DiffCompressor.__name__}, {SmartCrusher.__name__}')"
 
 # ---- Runtime stage (python-slim): supports root/nonroot via build arg ----
@@ -90,16 +90,16 @@ RUN mkdir -p /home/nonroot /data && \
     if [ "$RUNTIME_USER" = "nonroot" ]; then \
       groupadd --gid 1000 nonroot && \
       useradd --uid 1000 --gid nonroot --create-home nonroot && \
-      mkdir -p /home/nonroot/.headroom && \
+      mkdir -p /home/nonroot/.cutctx && \
       chown -R nonroot:nonroot /data /home/nonroot; \
     else \
-      mkdir -p /root/.headroom; \
+      mkdir -p /root/.cutctx; \
     fi
 
 USER ${RUNTIME_USER}
 WORKDIR /home/nonroot
 
-ENV HEADROOM_HOST=0.0.0.0 \
+ENV CUTCTX_HOST=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -121,7 +121,7 @@ COPY --from=builder ${PYTHON_SITE_PACKAGES} ${PYTHON_SITE_PACKAGES}
 USER ${RUNTIME_USER}
 WORKDIR /app
 
-ENV HEADROOM_HOST=0.0.0.0 \
+ENV CUTCTX_HOST=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=${PYTHON_SITE_PACKAGES}
@@ -131,7 +131,7 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/readyz', timeout=5)"]
 
-ENTRYPOINT ["python3", "-m", "headroom.cli", "proxy"]
+ENTRYPOINT ["python3", "-m", "cutctx.cli", "proxy"]
 CMD ["--host", "0.0.0.0", "--port", "8787"]
 
 # Default published image remains python-slim runtime

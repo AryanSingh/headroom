@@ -3,9 +3,9 @@
 
 Why this exists
 ---------------
-Headroom's ``[proxy]`` extra ships ``onnxruntime`` but **not** torch — the
+Cutctx's ``[proxy]`` extra ships ``onnxruntime`` but **not** torch — the
 proxy runs Kompress text compression on ONNX Runtime alone. The loader
-(``headroom/transforms/kompress_compressor.py``) downloads
+(``cutctx/transforms/kompress_compressor.py``) downloads
 ``onnx/kompress-int8.onnx`` from the model repo and runs it through
 ``_OnnxModel``, which expects a single graph output named ``final_scores``
 (per-token importance in ``[0, 1]``, kept when ``> 0.5``).
@@ -22,7 +22,7 @@ trace the real module from ``kompress_compressor._get_model_class()``.
 
 Requires
 --------
-    pip install headroom-ai[ml] onnxruntime    # torch + transformers + onnxruntime
+    pip install cutctx-ai[ml] onnxruntime    # torch + transformers + onnxruntime
 
 Usage
 -----
@@ -53,7 +53,7 @@ def _build_core(model_id: str):
 
     The v2 repo's ``model.safetensors`` is the *unmerged* PEFT structure
     (``encoder.base_model.model...`` with separate ``base_layer`` + LoRA
-    adapters), which does not map onto ``HeadroomCompressorModel``. The
+    adapters), which does not map onto ``CutctxCompressorModel``. The
     canonical artifact is ``merged.pt`` — a structured checkpoint with already
     LoRA-merged sub-state-dicts:
 
@@ -65,7 +65,7 @@ def _build_core(model_id: str):
     import torch
     from huggingface_hub import hf_hub_download
 
-    from headroom.transforms.kompress_compressor import _get_model_class
+    from cutctx.transforms.kompress_compressor import _get_model_class
 
     ckpt_path = hf_hub_download(model_id, "merged.pt")
     ckpt = torch.load(ckpt_path, map_location="cpu")

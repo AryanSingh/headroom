@@ -3,8 +3,8 @@
 import httpx
 from fastapi.testclient import TestClient
 
-from headroom.proxy.helpers import is_anthropic_auth
-from headroom.proxy.server import ProxyConfig, create_app
+from cutctx.proxy.helpers import is_anthropic_auth
+from cutctx.proxy.server import ProxyConfig, create_app
 
 # ---------------------------------------------------------------------------
 # Unit tests: is_anthropic_auth

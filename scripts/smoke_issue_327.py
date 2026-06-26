@@ -21,7 +21,7 @@ USAGE
     RUN_LIVE_API=1 .venv/bin/python scripts/smoke_issue_327.py
 
     # With local proxy running on :8787:
-    RUN_LIVE_API=1 HEADROOM_PROXY_URL=http://localhost:8787 \
+    RUN_LIVE_API=1 CUTCTX_PROXY_URL=http://localhost:8787 \
         .venv/bin/python scripts/smoke_issue_327.py
 """
 
@@ -53,7 +53,7 @@ if not KEY:
 
 import anthropic  # noqa: E402
 
-PROXY_URL = os.environ.get("HEADROOM_PROXY_URL")  # optional
+PROXY_URL = os.environ.get("CUTCTX_PROXY_URL")  # optional
 TOOLS = [
     {
         "name": "get_lines",

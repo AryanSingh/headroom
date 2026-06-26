@@ -1,5 +1,6 @@
-from headroom_ee.trial import TrialManager
 import json
+
+from cutctx_ee.trial import TrialManager
 
 try:
     info = TrialManager().check_trial()

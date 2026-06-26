@@ -72,12 +72,12 @@ def large_conversation():
 # ============================================================================
 
 
-class TestHeadroomStrandsModelInit:
+class TestCutctxStrandsModelInit:
     """Tests for CutctxStrandsModel initialization."""
 
     def test_init_with_defaults(self, mock_strands_model):
         """Initialize with default settings."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -88,8 +88,8 @@ class TestHeadroomStrandsModelInit:
 
     def test_init_with_custom_config(self, mock_strands_model):
         """Initialize with custom CutctxConfig."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         config = CutctxConfig()
         config.smart_crusher.min_tokens_to_crush = 100
@@ -100,12 +100,12 @@ class TestHeadroomStrandsModelInit:
             auto_detect_provider=False,
         )
 
-        assert model.headroom_config is config
+        assert model.cutctx_config is config
         assert model.auto_detect_provider is False
 
     def test_init_requires_wrapped_model(self):
         """Raises ValueError if wrapped_model is None."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         with pytest.raises(ValueError, match="wrapped_model cannot be None"):
             CutctxStrandsModel(wrapped_model=None)
@@ -116,7 +116,7 @@ class TestAttributeForwarding:
 
     def test_forwards_unknown_attributes(self, mock_strands_model):
         """Forwards unknown attributes to wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         mock_strands_model.custom_attr = "custom_value"
         mock_strands_model.another_attr = 42
@@ -128,7 +128,7 @@ class TestAttributeForwarding:
 
     def test_forwards_config_property(self, mock_strands_model):
         """Forwards config property to wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -137,7 +137,7 @@ class TestAttributeForwarding:
 
     def test_does_not_forward_internal_attrs(self, mock_strands_model):
         """Does not forward internal wrapper attributes."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -148,7 +148,7 @@ class TestAttributeForwarding:
 
     def test_get_config_delegates(self, mock_strands_model):
         """get_config() delegates to wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -157,7 +157,7 @@ class TestAttributeForwarding:
 
     def test_update_config_delegates(self, mock_strands_model):
         """update_config() delegates to wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -170,7 +170,7 @@ class TestMessageConversion:
 
     def test_convert_dict_messages(self, mock_strands_model, sample_messages):
         """Converts dict messages to OpenAI format."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -184,7 +184,7 @@ class TestMessageConversion:
 
     def test_convert_messages_with_tool_calls(self, mock_strands_model):
         """Converts messages with tool calls."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -213,7 +213,7 @@ class TestMessageConversion:
 
     def test_convert_message_objects(self, mock_strands_model):
         """Converts message objects with role/content attributes."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -242,7 +242,7 @@ class TestMessageConversion:
 
     def test_convert_handles_content_list(self, mock_strands_model):
         """Converts messages with content as list (content blocks)."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -268,11 +268,11 @@ class TestOptimizeMessages:
 
     def test_optimize_returns_metrics(self, mock_strands_model, sample_messages):
         """_optimize_messages returns messages and metrics."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
-        # Mock the pipeline by setting _pipeline directly and mocking _headroom_provider
+        # Mock the pipeline by setting _pipeline directly and mocking _cutctx_provider
         mock_pipeline = MagicMock()
         mock_result = MagicMock()
         mock_result.messages = sample_messages
@@ -282,8 +282,8 @@ class TestOptimizeMessages:
         mock_pipeline.apply.return_value = mock_result
 
         model._pipeline = mock_pipeline
-        model._headroom_provider = MagicMock()
-        model._headroom_provider.get_context_limit.return_value = 128000
+        model._cutctx_provider = MagicMock()
+        model._cutctx_provider.get_context_limit.return_value = 128000
 
         optimized, metrics = model._optimize_messages(sample_messages)
 
@@ -295,7 +295,7 @@ class TestOptimizeMessages:
 
     def test_optimize_handles_empty_messages(self, mock_strands_model):
         """_optimize_messages handles empty message list."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -308,7 +308,7 @@ class TestOptimizeMessages:
 
     def test_optimize_tracks_metrics(self, mock_strands_model, sample_messages):
         """_optimize_messages tracks metrics in history."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -322,8 +322,8 @@ class TestOptimizeMessages:
         mock_pipeline.apply.return_value = mock_result
 
         model._pipeline = mock_pipeline
-        model._headroom_provider = MagicMock()
-        model._headroom_provider.get_context_limit.return_value = 128000
+        model._cutctx_provider = MagicMock()
+        model._cutctx_provider.get_context_limit.return_value = 128000
 
         model._optimize_messages(sample_messages)
 
@@ -333,7 +333,7 @@ class TestOptimizeMessages:
 
     def test_optimize_handles_pipeline_errors(self, mock_strands_model, sample_messages):
         """_optimize_messages falls back on pipeline errors."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -342,8 +342,8 @@ class TestOptimizeMessages:
         mock_pipeline.apply.side_effect = ValueError("Pipeline error")
 
         model._pipeline = mock_pipeline
-        model._headroom_provider = MagicMock()
-        model._headroom_provider.get_context_limit.return_value = 128000
+        model._cutctx_provider = MagicMock()
+        model._cutctx_provider.get_context_limit.return_value = 128000
 
         # Should not raise, should fall back
         optimized, metrics = model._optimize_messages(sample_messages)
@@ -357,7 +357,7 @@ class TestPipelineLazyInit:
 
     def test_pipeline_is_lazily_initialized(self, mock_strands_model):
         """Pipeline is not created until first access."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -365,7 +365,7 @@ class TestPipelineLazyInit:
         assert model._pipeline is None
 
         # Access pipeline property
-        with patch("headroom.integrations.strands.model.TransformPipeline"):
+        with patch("cutctx.integrations.strands.model.TransformPipeline"):
             _ = model.pipeline
 
         # Now should be initialized
@@ -377,7 +377,7 @@ class TestGetSavingsSummary:
 
     def test_empty_summary(self, mock_strands_model):
         """Returns zero values when no metrics recorded."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
         summary = model.get_savings_summary()
@@ -388,8 +388,8 @@ class TestGetSavingsSummary:
 
     def test_summary_with_metrics(self, mock_strands_model):
         """Returns correct summary with recorded metrics."""
-        from headroom.integrations.strands import CutctxStrandsModel
-        from headroom.integrations.strands.model import OptimizationMetrics
+        from cutctx.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands.model import OptimizationMetrics
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -432,8 +432,8 @@ class TestReset:
 
     def test_reset_clears_all_state(self, mock_strands_model):
         """reset() clears all tracked state."""
-        from headroom.integrations.strands import CutctxStrandsModel
-        from headroom.integrations.strands.model import OptimizationMetrics
+        from cutctx.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands.model import OptimizationMetrics
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -471,8 +471,8 @@ class TestMetricsHistoryBound:
 
     def test_metrics_bounded_to_100(self, mock_strands_model):
         """Metrics history is bounded to 100 entries."""
-        from headroom.integrations.strands import CutctxStrandsModel
-        from headroom.integrations.strands.model import OptimizationMetrics
+        from cutctx.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands.model import OptimizationMetrics
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -506,14 +506,14 @@ class TestOptimizeMessagesFunction:
 
     def test_optimize_messages_basic(self):
         """optimize_messages processes messages and returns metrics."""
-        from headroom.integrations.strands import optimize_messages
+        from cutctx.integrations.strands import optimize_messages
 
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
         ]
 
-        with patch("headroom.integrations.strands.model.TransformPipeline") as MockPipeline:
+        with patch("cutctx.integrations.strands.model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
             mock_result = MagicMock()
             mock_result.messages = messages
@@ -531,13 +531,13 @@ class TestOptimizeMessagesFunction:
 
     def test_optimize_messages_with_custom_config(self):
         """optimize_messages uses custom config."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import optimize_messages
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import optimize_messages
 
         config = CutctxConfig()
         messages = [{"role": "user", "content": "Test"}]
 
-        with patch("headroom.integrations.strands.model.TransformPipeline") as MockPipeline:
+        with patch("cutctx.integrations.strands.model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
             mock_result = MagicMock()
             mock_result.messages = messages
@@ -561,7 +561,7 @@ class TestStreamMethod:
     @pytest.mark.asyncio
     async def test_stream_optimizes_messages(self, mock_strands_model, sample_messages):
         """stream() applies optimization before calling wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(wrapped_model=mock_strands_model)
 
@@ -593,7 +593,7 @@ class TestStrandsAvailableFunction:
 
     def test_strands_available_returns_bool(self):
         """strands_available() returns boolean."""
-        from headroom.integrations.strands import strands_available
+        from cutctx.integrations.strands import strands_available
 
         result = strands_available()
 
@@ -602,12 +602,12 @@ class TestStrandsAvailableFunction:
         assert result is True
 
 
-class TestRealHeadroomIntegration:
+class TestRealCutctxIntegration:
     """Integration tests with real Cutctx (no mocking)."""
 
     def test_real_optimization_with_mock_model(self, mock_strands_model, sample_messages):
         """Test with real Cutctx transforms (no API calls)."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(
             wrapped_model=mock_strands_model,
@@ -628,7 +628,7 @@ class TestRealHeadroomIntegration:
 
     def test_large_conversation_handling(self, mock_strands_model, large_conversation):
         """Large conversations are processed without errors."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         model = CutctxStrandsModel(
             wrapped_model=mock_strands_model,

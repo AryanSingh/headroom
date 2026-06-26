@@ -1,6 +1,6 @@
-# CutCtx Licensing Migration
+# Cutctx Licensing Migration
 
-With the release of CutCtx Enterprise, we have introduced a robust licensing mechanism based on Ed25519 tokens.
+With the release of Cutctx Enterprise, we have introduced a robust licensing mechanism based on Ed25519 tokens.
 
 ## Migration Steps for Existing Users
 

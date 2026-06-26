@@ -32,16 +32,16 @@ describe("normalizeAgentMessages", () => {
     const result = normalizeAgentMessages([
       {
         role: "assistant",
-        content: "hello from headroom",
+        content: "hello from cutctx",
       },
     ]);
 
     expect(result[0]).toMatchObject({
       role: "assistant",
-      content: [{ type: "text", text: "hello from headroom" }],
-      api: "headroom",
-      provider: "headroom",
-      model: "headroom",
+      content: [{ type: "text", text: "hello from cutctx" }],
+      api: "cutctx",
+      provider: "cutctx",
+      model: "cutctx",
       stopReason: "stop",
     });
   });
@@ -59,7 +59,7 @@ describe("normalizeAgentMessages", () => {
       content: [{ type: "text", text: "tool output" }],
       toolCallId: "unknown",
       tool_use_id: "unknown",
-      toolName: "headroom",
+      toolName: "cutctx",
       isError: false,
     });
   });
@@ -86,7 +86,7 @@ describe("agentToOpenAI", () => {
       },
     ]);
 
-    expect(result[0]._headroomMeta).toMatchObject({
+    expect(result[0]._cutctxMeta).toMatchObject({
       api: "anthropic-messages",
       provider: "anthropic",
       model: "claude-sonnet-4-5",

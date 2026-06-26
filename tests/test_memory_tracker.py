@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-from headroom.memory.tracker import (
+from cutctx.memory.tracker import (
     ComponentStats,
     MemoryReport,
     MemoryTracker,

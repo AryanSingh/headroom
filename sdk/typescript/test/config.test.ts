@@ -4,8 +4,8 @@
  */
 import { describe, it, expect } from "vitest";
 import type {
-  CutCtxMode,
-  CutCtxConfig,
+  CutctxMode,
+  CutctxConfig,
   SmartCrusherConfig,
   ToolCrusherConfig,
   CacheAlignerConfig,
@@ -21,9 +21,9 @@ import type {
   CompressionProfile,
 } from "../src/types/config.js";
 
-describe("CutCtxMode", () => {
+describe("CutctxMode", () => {
   it("accepts valid mode values", () => {
-    const modes: CutCtxMode[] = ["audit", "optimize", "simulate"];
+    const modes: CutctxMode[] = ["audit", "optimize", "simulate"];
     expect(modes).toEqual(["audit", "optimize", "simulate"]);
   });
 });
@@ -248,9 +248,9 @@ describe("CompressionProfile", () => {
   });
 });
 
-describe("CutCtxConfig", () => {
+describe("CutctxConfig", () => {
   it("accepts full config with all nested objects", () => {
-    const config: CutCtxConfig = {
+    const config: CutctxConfig = {
       defaultMode: "audit",
       modelContextLimits: { "gpt-4o": 128000 },
       smartCrusher: { enabled: true },
@@ -269,7 +269,7 @@ describe("CutCtxConfig", () => {
   });
 
   it("all fields are optional", () => {
-    const config: CutCtxConfig = {};
+    const config: CutctxConfig = {};
     expect(config.defaultMode).toBeUndefined();
   });
 });

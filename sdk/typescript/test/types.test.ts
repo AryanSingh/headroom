@@ -11,16 +11,16 @@ import type {
   OpenAIMessage,
   CompressOptions,
   CompressResult,
-  CutCtxClientOptions,
-  CutCtxClientInterface,
+  CutctxClientOptions,
+  CutctxClientInterface,
   ProxyCompressResponse,
   ProxyErrorResponse,
 } from "../src/types.js";
 import {
-  CutCtxError,
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
 } from "../src/types.js";
 
 describe("Message types", () => {
@@ -115,7 +115,7 @@ describe("CompressOptions", () => {
       number | undefined
     >();
     expectTypeOf<CompressOptions["client"]>().toEqualTypeOf<
-      CutCtxClientInterface | undefined
+      CutctxClientInterface | undefined
     >();
   });
 });
@@ -136,84 +136,84 @@ describe("CompressResult", () => {
   });
 });
 
-describe("CutCtxClientOptions", () => {
+describe("CutctxClientOptions", () => {
   it("all fields are optional", () => {
-    expectTypeOf<CutCtxClientOptions>().toMatchTypeOf<{}>();
+    expectTypeOf<CutctxClientOptions>().toMatchTypeOf<{}>();
   });
 
   it("has expected optional fields", () => {
-    expectTypeOf<CutCtxClientOptions["baseUrl"]>().toEqualTypeOf<
+    expectTypeOf<CutctxClientOptions["baseUrl"]>().toEqualTypeOf<
       string | undefined
     >();
-    expectTypeOf<CutCtxClientOptions["apiKey"]>().toEqualTypeOf<
+    expectTypeOf<CutctxClientOptions["apiKey"]>().toEqualTypeOf<
       string | undefined
     >();
-    expectTypeOf<CutCtxClientOptions["timeout"]>().toEqualTypeOf<
+    expectTypeOf<CutctxClientOptions["timeout"]>().toEqualTypeOf<
       number | undefined
     >();
-    expectTypeOf<CutCtxClientOptions["fallback"]>().toEqualTypeOf<
+    expectTypeOf<CutctxClientOptions["fallback"]>().toEqualTypeOf<
       boolean | undefined
     >();
-    expectTypeOf<CutCtxClientOptions["retries"]>().toEqualTypeOf<
+    expectTypeOf<CutctxClientOptions["retries"]>().toEqualTypeOf<
       number | undefined
     >();
   });
 });
 
-describe("CutCtxClientInterface", () => {
+describe("CutctxClientInterface", () => {
   it("has compress method", () => {
-    expectTypeOf<CutCtxClientInterface>().toHaveProperty("compress");
+    expectTypeOf<CutctxClientInterface>().toHaveProperty("compress");
   });
 
   it("compress returns Promise<CompressResult>", () => {
-    expectTypeOf<CutCtxClientInterface["compress"]>().returns.toEqualTypeOf<
+    expectTypeOf<CutctxClientInterface["compress"]>().returns.toEqualTypeOf<
       Promise<CompressResult>
     >();
   });
 
   it("compress accepts messages and optional options", () => {
-    expectTypeOf<CutCtxClientInterface["compress"]>().parameters.toEqualTypeOf<
+    expectTypeOf<CutctxClientInterface["compress"]>().parameters.toEqualTypeOf<
       [OpenAIMessage[], ({ model?: string } | undefined)?]
     >();
   });
 });
 
 describe("Error classes", () => {
-  it("CutCtxError extends Error", () => {
-    expectTypeOf<CutCtxError>().toMatchTypeOf<Error>();
+  it("CutctxError extends Error", () => {
+    expectTypeOf<CutctxError>().toMatchTypeOf<Error>();
   });
 
-  it("CutCtxConnectionError extends CutCtxError", () => {
-    expectTypeOf<CutCtxConnectionError>().toMatchTypeOf<CutCtxError>();
+  it("CutctxConnectionError extends CutctxError", () => {
+    expectTypeOf<CutctxConnectionError>().toMatchTypeOf<CutctxError>();
   });
 
-  it("CutCtxAuthError extends CutCtxError", () => {
-    expectTypeOf<CutCtxAuthError>().toMatchTypeOf<CutCtxError>();
+  it("CutctxAuthError extends CutctxError", () => {
+    expectTypeOf<CutctxAuthError>().toMatchTypeOf<CutctxError>();
   });
 
-  it("CutCtxCompressError extends CutCtxError", () => {
-    expectTypeOf<CutCtxCompressError>().toMatchTypeOf<CutCtxError>();
+  it("CutctxCompressError extends CutctxError", () => {
+    expectTypeOf<CutctxCompressError>().toMatchTypeOf<CutctxError>();
   });
 
-  it("CutCtxCompressError has statusCode and errorType", () => {
-    expectTypeOf<CutCtxCompressError>().toHaveProperty("statusCode");
-    expectTypeOf<CutCtxCompressError["statusCode"]>().toBeNumber();
-    expectTypeOf<CutCtxCompressError>().toHaveProperty("errorType");
-    expectTypeOf<CutCtxCompressError["errorType"]>().toBeString();
+  it("CutctxCompressError has statusCode and errorType", () => {
+    expectTypeOf<CutctxCompressError>().toHaveProperty("statusCode");
+    expectTypeOf<CutctxCompressError["statusCode"]>().toBeNumber();
+    expectTypeOf<CutctxCompressError>().toHaveProperty("errorType");
+    expectTypeOf<CutctxCompressError["errorType"]>().toBeString();
   });
 
   it("error classes are constructable", () => {
-    const err = new CutCtxError("test");
+    const err = new CutctxError("test");
     expectTypeOf(err).toMatchTypeOf<Error>();
 
-    const connErr = new CutCtxConnectionError("test");
-    expectTypeOf(connErr).toMatchTypeOf<CutCtxError>();
+    const connErr = new CutctxConnectionError("test");
+    expectTypeOf(connErr).toMatchTypeOf<CutctxError>();
 
-    const authErr = new CutCtxAuthError("test");
-    expectTypeOf(authErr).toMatchTypeOf<CutCtxError>();
+    const authErr = new CutctxAuthError("test");
+    expectTypeOf(authErr).toMatchTypeOf<CutctxError>();
 
-    const compressErr = new CutCtxCompressError(500, "server_error", "test");
-    expectTypeOf(compressErr).toMatchTypeOf<CutCtxError>();
+    const compressErr = new CutctxCompressError(500, "server_error", "test");
+    expectTypeOf(compressErr).toMatchTypeOf<CutctxError>();
     expectTypeOf(compressErr.statusCode).toBeNumber();
     expectTypeOf(compressErr.errorType).toBeString();
   });

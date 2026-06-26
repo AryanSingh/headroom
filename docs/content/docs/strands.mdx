@@ -3,7 +3,7 @@ title: Strands
 description: Context compression for Strands Agents via model wrapping and hook-based tool output compression.
 ---
 
-CutCtx integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) through two patterns: wrap the model for full conversation compression, or hook into tool calls for targeted tool output compression.
+Cutctx integrates with [Strands Agents](https://github.com/strands-agents/sdk-python) through two patterns: wrap the model for full conversation compression, or hook into tool calls for targeted tool output compression.
 
 ## Installation
 
@@ -16,10 +16,10 @@ pip install cutctx-ai strands-agents
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from cutctx.integrations.strands import CutCtxStrandsModel
+from cutctx.integrations.strands import CutctxStrandsModel
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-optimized = CutCtxStrandsModel(wrapped_model=model)
+optimized = CutctxStrandsModel(wrapped_model=model)
 
 agent = Agent(model=optimized)
 response = agent("Investigate the production incident")
@@ -32,12 +32,12 @@ print(f"Tokens saved: {optimized.total_tokens_saved}")
 Wraps the Strands `Model` interface. Every call to `stream()` compresses messages before they reach the provider:
 
 ```python
-from cutctx import CutCtxConfig
-from cutctx.integrations.strands import CutCtxStrandsModel
+from cutctx import CutctxConfig
+from cutctx.integrations.strands import CutctxStrandsModel
 
-optimized = CutCtxStrandsModel(
+optimized = CutctxStrandsModel(
     wrapped_model=model,
-    config=CutCtxConfig(),
+    config=CutctxConfig(),
 )
 
 agent = Agent(model=optimized)
@@ -51,10 +51,10 @@ Compresses tool call results via Strands' hook system. Uses SmartCrusher on JSON
 ```python
 from strands import Agent
 from strands.models.bedrock import BedrockModel
-from cutctx.integrations.strands import CutCtxHookProvider
+from cutctx.integrations.strands import CutctxHookProvider
 
 model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
-hooks = CutCtxHookProvider(
+hooks = CutctxHookProvider(
     compress_tool_outputs=True,
     min_tokens_to_compress=200,
     preserve_errors=True,
@@ -73,10 +73,10 @@ The hook preserves error items, anomalous values (statistical outliers), items m
 Model wrapping compresses conversation history. Hooks compress individual tool results. Use both for maximum savings:
 
 ```python
-from cutctx.integrations.strands import CutCtxStrandsModel, CutCtxHookProvider
+from cutctx.integrations.strands import CutctxStrandsModel, CutctxHookProvider
 
-optimized = CutCtxStrandsModel(wrapped_model=model)
-hooks = CutCtxHookProvider(compress_tool_outputs=True)
+optimized = CutctxStrandsModel(wrapped_model=model)
+hooks = CutctxHookProvider(compress_tool_outputs=True)
 
 agent = Agent(model=optimized, hooks=[hooks])
 ```
@@ -90,21 +90,21 @@ Agent decides to call tool
 Tool executes, returns result
     |
     v
-CutCtxHookProvider (optional)
+CutctxHookProvider (optional)
     compresses tool result JSON
     |
     v
 Agent builds next API request
     |
     v
-CutCtxStrandsModel.stream()
+CutctxStrandsModel.stream()
     compresses full message list
     |
     v
 Provider API (Bedrock, etc.)
 ```
 
-The model wrapper uses the full CutCtx pipeline (CacheAligner, ContentRouter, IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression.
+The model wrapper uses the full Cutctx pipeline (CacheAligner, ContentRouter, IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression.
 
 ## Structured output
 

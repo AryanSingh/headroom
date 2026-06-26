@@ -1,9 +1,9 @@
 ---
 title: LiteLLM
-description: Add CutCtx compression to LiteLLM with a single callback. Works with all 100+ supported providers.
+description: Add Cutctx compression to LiteLLM with a single callback. Works with all 100+ supported providers.
 ---
 
-CutCtx integrates with [LiteLLM](https://github.com/BerriAI/litellm) as a callback that compresses messages before they reach any provider. One line to enable, works with all 100+ LiteLLM-supported providers.
+Cutctx integrates with [LiteLLM](https://github.com/BerriAI/litellm) as a callback that compresses messages before they reach any provider. One line to enable, works with all 100+ LiteLLM-supported providers.
 
 ## Installation
 
@@ -15,9 +15,9 @@ pip install cutctx-ai litellm
 
 ```python
 import litellm
-from cutctx.integrations.litellm_callback import CutCtxCallback
+from cutctx.integrations.litellm_callback import CutctxCallback
 
-litellm.callbacks = [CutCtxCallback()]
+litellm.callbacks = [CutctxCallback()]
 
 # All calls now compressed automatically
 response = litellm.completion(model="gpt-4o", messages=[...])
@@ -30,7 +30,7 @@ The callback compresses messages in LiteLLM's `pre_call_hook` before they reach 
 ## How it works
 
 1. You call `litellm.completion()` with your messages
-2. `CutCtxCallback.pre_call_hook` compresses the messages
+2. `CutctxCallback.pre_call_hook` compresses the messages
 3. LiteLLM sends the compressed messages to the provider
 4. The response comes back unchanged
 
@@ -52,7 +52,7 @@ Or configure via YAML:
 ```yaml
 # litellm_config.yaml
 litellm_settings:
-  callbacks: ["headroom.integrations.litellm_callback.CutCtxCallback"]
+  callbacks: ["cutctx.integrations.litellm_callback.CutctxCallback"]
 ```
 
 ## Direct compress() with LiteLLM
@@ -86,4 +86,4 @@ app = FastAPI()
 app.add_middleware(CompressionMiddleware)
 ```
 
-Response headers include `x-headroom-compressed: true` and `x-headroom-tokens-saved: 1234`.
+Response headers include `x-cutctx-compressed: true` and `x-cutctx-tokens-saved: 1234`.

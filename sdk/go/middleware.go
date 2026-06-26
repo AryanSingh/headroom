@@ -6,7 +6,7 @@ import (
 )
 
 // Middleware returns an http.Handler that intercepts LLM API calls
-// and routes them through the CutCtx proxy.
+// and routes them through the Cutctx proxy.
 //
 // Usage:
 //
@@ -17,14 +17,14 @@ func Middleware(c *Client) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if shouldIntercept(r) {
 				r = r.Clone(r.Context())
-				r.Header.Set("X-CutCtx-Key", c.apiKey)
+				r.Header.Set("X-Cutctx-Key", c.apiKey)
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-// shouldIntercept determines if a request should be routed through CutCtx.
+// shouldIntercept determines if a request should be routed through Cutctx.
 func shouldIntercept(r *http.Request) bool {
 	host := r.URL.Hostname()
 	if strings.HasSuffix(host, "api.anthropic.com") ||

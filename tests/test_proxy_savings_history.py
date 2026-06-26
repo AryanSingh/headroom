@@ -14,9 +14,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-import headroom.proxy.savings_tracker as savings_tracker_module
-from headroom.proxy.savings_tracker import HEADROOM_SAVINGS_PATH_ENV_VAR, SavingsTracker
-from headroom.proxy.server import ProxyConfig, create_app
+import cutctx.proxy.savings_tracker as savings_tracker_module
+from cutctx.proxy.savings_tracker import CUTCTX_SAVINGS_PATH_ENV_VAR, SavingsTracker
+from cutctx.proxy.server import ProxyConfig, create_app
 
 
 def _record_request(
@@ -43,12 +43,12 @@ def _record_request(
 
 def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatch):
     override_path = tmp_path / "custom-savings.json"
-    monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(override_path))
+    monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(override_path))
     assert savings_tracker_module.get_default_savings_storage_path() == str(override_path)
 
-    monkeypatch.delenv(HEADROOM_SAVINGS_PATH_ENV_VAR, raising=False)
+    monkeypatch.delenv(CUTCTX_SAVINGS_PATH_ENV_VAR, raising=False)
     default_path = savings_tracker_module.get_default_savings_storage_path()
-    assert Path(default_path).as_posix().endswith(".headroom/proxy_savings.json")
+    assert Path(default_path).as_posix().endswith(".cutctx/proxy_savings.json")
 
     assert savings_tracker_module._parse_timestamp("") is None
     assert savings_tracker_module._parse_timestamp("not-a-timestamp") is None
@@ -427,7 +427,7 @@ def test_savings_tracker_rollups_preserve_spend_and_input_history(tmp_path, monk
         max_history_age_days=30,
     )
     monkeypatch.setattr(
-        "headroom.proxy.savings_tracker._estimate_compression_savings_usd",
+        "cutctx.proxy.savings_tracker._estimate_compression_savings_usd",
         lambda model, tokens_saved: tokens_saved / 1000.0,
     )
 
@@ -570,7 +570,7 @@ def test_savings_tracker_rollup_attributes_savings_per_provider(tmp_path, monkey
         max_history_age_days=30,
     )
     monkeypatch.setattr(
-        "headroom.proxy.savings_tracker._estimate_compression_savings_usd",
+        "cutctx.proxy.savings_tracker._estimate_compression_savings_usd",
         lambda model, tokens_saved: tokens_saved / 1000.0,
     )
 
@@ -648,7 +648,7 @@ def test_savings_tracker_rollup_attributes_savings_per_model(tmp_path, monkeypat
     )
 
     monkeypatch.setattr(
-        "headroom.proxy.savings_tracker._estimate_compression_savings_usd",
+        "cutctx.proxy.savings_tracker._estimate_compression_savings_usd",
         lambda model, tokens_saved: tokens_saved / 1000.0,
     )
 
@@ -711,7 +711,7 @@ def test_savings_tracker_rollup_attributes_savings_per_model(tmp_path, monkeypat
     assert set(second["by_model"]) == {"claude-sonnet-4-6"}
     assert second["by_model"]["claude-sonnet-4-6"]["tokens_saved"] == 25
 
-    # The expected no-headroom cost is derivable per bucket: actual input cost
+    # The expected no-cutctx cost is derivable per bucket: actual input cost
     # delta plus the compression savings delta.
     sonnet = first["by_model"]["claude-sonnet-4-6"]
     assert sonnet["total_input_cost_usd_delta"] + sonnet["compression_savings_usd_delta"] == (
@@ -763,7 +763,7 @@ def test_stats_history_defaults_to_compact_history_but_can_return_full_history(
         max_response_history_points=5,
     )
     monkeypatch.setattr(
-        "headroom.proxy.savings_tracker._estimate_compression_savings_usd",
+        "cutctx.proxy.savings_tracker._estimate_compression_savings_usd",
         lambda model, tokens_saved: tokens_saved / 1000.0,
     )
 
@@ -808,9 +808,9 @@ def test_stats_history_defaults_to_compact_history_but_can_return_full_history(
 
 def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
     monkeypatch.setattr(
-        "headroom.proxy.server.CostTracker._get_cache_prices",
+        "cutctx.proxy.server.CostTracker._get_cache_prices",
         lambda self, model: (0.001, 0.0015, 0.002),
     )
 
@@ -902,9 +902,9 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
 
 def test_stats_history_csv_export_is_frontend_friendly(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
     monkeypatch.setattr(
-        "headroom.proxy.server.CostTracker._get_cache_prices",
+        "cutctx.proxy.server.CostTracker._get_cache_prices",
         lambda self, model: (0.001, 0.0015, 0.002),
     )
 
@@ -922,7 +922,7 @@ def test_stats_history_csv_export_is_frontend_friendly(tmp_path, monkeypatch):
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/csv")
         assert (
-            'attachment; filename="headroom-stats-history-daily.csv"'
+            'attachment; filename="cutctx-stats-history-daily.csv"'
             == response.headers["content-disposition"]
         )
         lines = response.text.strip().splitlines()
@@ -939,7 +939,7 @@ def test_stats_history_csv_export_is_frontend_friendly(tmp_path, monkeypatch):
 def test_malformed_savings_state_is_ignored_safely(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
     savings_path.write_text("{not valid json", encoding="utf-8")
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
 
     config = ProxyConfig(
         cache_enabled=False,
@@ -957,7 +957,7 @@ def test_malformed_savings_state_is_ignored_safely(tmp_path, monkeypatch):
 
 def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
 
     config = ProxyConfig(
         cache_enabled=False,

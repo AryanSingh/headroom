@@ -1,6 +1,6 @@
 # Manual Testing Guide
 
-Step-by-step procedures for verifying CutCtx features that require manual or interactive testing.
+Step-by-step procedures for verifying Cutctx features that require manual or interactive testing.
 
 ---
 
@@ -48,7 +48,7 @@ curl -X POST http://localhost:8787/v1/chat/completions \
   }'
 ```
 
-**Verify:** Response headers include `X-CutCtx-Version`, `X-CutCtx-Tokens-Saved` (if compression applied).
+**Verify:** Response headers include `X-Cutctx-Version`, `X-Cutctx-Tokens-Saved` (if compression applied).
 
 ---
 
@@ -146,7 +146,7 @@ cutctx report export --format csv --days 30
 cutctx mcp serve
 
 # Test via Claude Code
-claude mcp add headroom -s user -- cutctx mcp serve
+claude mcp add cutctx -s user -- cutctx mcp serve
 # Then in Claude Code: use cutctx_retrieve, cutctx_status, cutctx_compress tools
 ```
 
@@ -156,13 +156,13 @@ claude mcp add headroom -s user -- cutctx mcp serve
 
 Enable via env vars:
 ```bash
-export HEADROOM_TASK_AWARE_ENABLED=1
-export HEADROOM_DEDUP_ENABLED=1
-export HEADROOM_CONTEXT_BUDGET_ENABLED=1
-export HEADROOM_CONTEXT_BUDGET_MAX_TOKENS=100000
-export HEADROOM_PROFILES_ENABLED=1
-export HEADROOM_SHARED_CONTEXT_ENABLED=1
-export HEADROOM_COST_FORECAST_ENABLED=1
+export CUTCTX_TASK_AWARE_ENABLED=1
+export CUTCTX_DEDUP_ENABLED=1
+export CUTCTX_CONTEXT_BUDGET_ENABLED=1
+export CUTCTX_CONTEXT_BUDGET_MAX_TOKENS=100000
+export CUTCTX_PROFILES_ENABLED=1
+export CUTCTX_SHARED_CONTEXT_ENABLED=1
+export CUTCTX_COST_FORECAST_ENABLED=1
 ```
 
 ```bash
@@ -185,7 +185,7 @@ curl -X POST http://localhost:8787/v1/messages \
     "max_tokens": 200,
     "messages": [{"role": "user", "content": "Return a JSON object with name and age fields"}]
   }'
-# Verify: x-headroom-schema-valid header in response
+# Verify: x-cutctx-schema-valid header in response
 ```
 
 ---
@@ -220,17 +220,17 @@ docker compose down
 ```bash
 minikube start
 kubectl apply -f k8s/
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=headroom-proxy
-kubectl port-forward svc/headroom-proxy 8787:80
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cutctx-proxy
+kubectl port-forward svc/cutctx-proxy 8787:80
 curl http://localhost:8787/livez
 ```
 
 ### Helm
 ```bash
-helm install headroom ./helm/headroom --set adminApiKey=test-key
-kubectl port-forward svc/headroom-proxy 8787:80
+helm install cutctx ./helm/cutctx --set adminApiKey=test-key
+kubectl port-forward svc/cutctx-proxy 8787:80
 curl http://localhost:8787/livez
-helm uninstall headroom
+helm uninstall cutctx
 ```
 
 ---
@@ -239,10 +239,10 @@ helm uninstall headroom
 
 ```bash
 # Test with mock JWKS
-export HEADROOM_SSO_ENABLED=1
-export HEADROOM_SSO_PROVIDER_TYPE=oidc
-export HEADROOM_SSO_DISCOVERY_URL=https://accounts.google.com/.well-known/openid-configuration
-export HEADROOM_SSO_AUDIENCE=test-audience
+export CUTCTX_SSO_ENABLED=1
+export CUTCTX_SSO_PROVIDER_TYPE=oidc
+export CUTCTX_SSO_DISCOVERY_URL=https://accounts.google.com/.well-known/openid-configuration
+export CUTCTX_SSO_AUDIENCE=test-audience
 
 # Validate SSO config
 cutctx sso-test
@@ -256,12 +256,12 @@ cutctx sso-test
 ```bash
 # Pre-fetch model
 git lfs install
-git clone https://huggingface.co/headroom/kompress-v2-base /opt/headroom/models
+git clone https://huggingface.co/cutctx/kompress-v2-base /opt/cutctx/models
 
 # Run offline
 export HF_HUB_OFFLINE=1
-export HEADROOM_MODEL_CACHE_DIR=/opt/headroom/models
-export HEADROOM_OTEL_EXPORT_ENABLED=false
+export CUTCTX_MODEL_CACHE_DIR=/opt/cutctx/models
+export CUTCTX_OTEL_EXPORT_ENABLED=false
 
 cutctx proxy --port 8787
 # Verify compression works without network
@@ -274,7 +274,7 @@ cutctx proxy --port 8787
 ### Claude Code
 ```bash
 bash plugins/claude-code/install.sh
-claude mcp list    # verify headroom entry exists
+claude mcp list    # verify cutctx entry exists
 ```
 
 ### Codex
@@ -289,8 +289,8 @@ cat ~/.codex/config.toml    # verify provider block exists
 
 After any code change, verify:
 
-- [ ] `cargo test --release -p headroom-core` passes
-- [ ] `cargo test --release -p headroom-proxy` passes
+- [ ] `cargo test --release -p cutctx-core` passes
+- [ ] `cargo test --release -p cutctx-proxy` passes
 - [ ] `pytest` full suite passes (6,991+ tests)
 - [ ] `go test -race ./...` in sdk/go passes
 - [ ] Proxy starts and `/livez` returns 200

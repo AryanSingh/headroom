@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from click.testing import CliRunner
 
-from headroom import binaries
-from headroom.cli import tools as cli_tools
-from headroom.cli.main import main
+from cutctx import binaries
+from cutctx.cli import tools as cli_tools
+from cutctx.cli.main import main
 
 
 @pytest.fixture

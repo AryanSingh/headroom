@@ -1,5 +1,5 @@
 """Quick smoke test for entitlement changes."""
-from headroom.entitlements import EntitlementChecker, EntitlementError
+from cutctx.entitlements import EntitlementChecker, EntitlementError
 
 c = EntitlementChecker("builder")
 assert not c.is_entitled("ccr"), "Builder should not be entitled to CCR"

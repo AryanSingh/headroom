@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install CutCtx via pip, npm, or Docker. Includes Python extras, TypeScript setup, Docker image tags, and environment variables.
+description: Install Cutctx via pip, npm, or Docker. Includes Python extras, TypeScript setup, Docker image tags, and environment variables.
 ---
 
 ---
@@ -9,11 +9,11 @@ description: Install CutCtx via pip, npm, or Docker. Includes Python extras, Typ
 
 **pip** - you're writing Python, or you need the CLI (`cutctx proxy`, `wrap`, `mcp`, `learn`, `perf`), regardless of what language your app is in.
 
-**npm** - you're writing TypeScript/Node and want inline `compress()`, SDK wrapping (`withCutCtx`), or Vercel AI SDK middleware.
+**npm** - you're writing TypeScript/Node and want inline `compress()`, SDK wrapping (`withCutctx`), or Vercel AI SDK middleware.
 
 ## Python
 
-CutCtx requires **Python 3.10+** and is published as `cutctx-ai` on PyPI.
+Cutctx requires **Python 3.10+** and is published as `cutctx-ai` on PyPI.
 Current release wheels are built for Python **3.10 through 3.13** on Linux
 (manylinux_2_28 x86_64 / aarch64) and macOS (Apple Silicon). Other targets —
 **Windows** and **Intel macOS** — fall back to building the Rust extension
@@ -48,10 +48,10 @@ pip install "cutctx-ai[all]"
 | `otel` | OpenTelemetry exporter (OTLP) | `pip install "cutctx-ai[otel]"` |
 | `voice` | Voice/audio support | `pip install "cutctx-ai[voice]"` |
 | `mcp` | MCP server tools (`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`) | `pip install "cutctx-ai[mcp]"` |
-| `langchain` | LangChain `CutCtxChatModel` wrapper | `pip install "cutctx-ai[langchain]"` |
-| `agno` | Agno `CutCtxAgnoModel` wrapper | `pip install "cutctx-ai[agno]"` |
+| `langchain` | LangChain `CutctxChatModel` wrapper | `pip install "cutctx-ai[langchain]"` |
+| `agno` | Agno `CutctxAgnoModel` wrapper | `pip install "cutctx-ai[agno]"` |
 | `evals` | Evaluation framework (GSM8K, SQuAD, BFCL benchmarks) | `pip install "cutctx-ai[evals]"` |
-| `pytorch-mps` | Apple-GPU (MPS) memory-embedder offload — **macOS only**, not in `[all]` (torch + sentence-transformers); opt in with `HEADROOM_EMBEDDER_RUNTIME=pytorch_mps` | `pip install "cutctx-ai[pytorch-mps]"` |
+| `pytorch-mps` | Apple-GPU (MPS) memory-embedder offload — **macOS only**, not in `[all]` (torch + sentence-transformers); opt in with `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps` | `pip install "cutctx-ai[pytorch-mps]"` |
 | `all` | Everything above | `pip install "cutctx-ai[all]"` |
 
 You can combine extras:
@@ -90,14 +90,14 @@ To install the prerequisites:
    pip install "cutctx-ai[all]"
    ```
 
-If you'd rather avoid the native toolchain entirely, run CutCtx
+If you'd rather avoid the native toolchain entirely, run Cutctx
 through Docker — see the [Docker](#docker) section below. Native
 Windows wheels are still being tracked for the rebranded package.
 
 ### pipx
 
 `pipx` creates one virtual environment per app. If that environment uses an
-unsupported Python version, `pipx` may resolve an older compatible CutCtx
+unsupported Python version, `pipx` may resolve an older compatible Cutctx
 release instead of the newest one.
 
 Use Python 3.13 explicitly:
@@ -140,7 +140,7 @@ yarn add cutctx-ai
 ```
 
 <Callout type="info" title="The TS SDK needs a running proxy">
-The TypeScript SDK sends messages to the CutCtx proxy over HTTP for compression. The proxy runs the full compression pipeline (Python). Start it before using the SDK:
+The TypeScript SDK sends messages to the Cutctx proxy over HTTP for compression. The proxy runs the full compression pipeline (Python). Start it before using the SDK:
 
 ```bash
 pip install "cutctx-ai[proxy]"
@@ -169,12 +169,12 @@ node -e "const h = require('cutctx-ai'); console.log('cutctx-ai loaded')"
 Pre-built images are published to GitHub Container Registry on every release.
 
 ```bash
-docker pull ghcr.io/chopratejas/headroom:latest
-docker run -p 8787:8787 ghcr.io/chopratejas/headroom:latest
+docker pull ghcr.io/chopratejas/cutctx:latest
+docker run -p 8787:8787 ghcr.io/chopratejas/cutctx:latest
 ```
 
-<Callout type="info" title="Running CutCtx without installing Python or Node?">
-If you want a host `cutctx` CLI that keeps CutCtx itself inside a container — with mounted state, a one-line installer, and a persistent Docker lifecycle — see [Docker-Native Install](/docs/docker-install).
+<Callout type="info" title="Running Cutctx without installing Python or Node?">
+If you want a host `cutctx` CLI that keeps Cutctx itself inside a container — with mounted state, a one-line installer, and a persistent Docker lifecycle — see [Docker-Native Install](/docs/docker-install).
 </Callout>
 
 ### Image tags
@@ -204,12 +204,12 @@ docker buildx bake runtime-default
 
 # Build a specific variant with custom registry
 docker buildx bake runtime-code-slim-nonroot \
-  --set '*.tags=my-registry/headroom:code-slim-nonroot'
+  --set '*.tags=my-registry/cutctx:code-slim-nonroot'
 ```
 
 ## Environment variables
 
-These variables configure CutCtx at runtime. Set them in your shell, `.env` file, or container environment.
+These variables configure Cutctx at runtime. Set them in your shell, `.env` file, or container environment.
 
 ### LLM provider keys
 
@@ -224,17 +224,17 @@ These variables configure CutCtx at runtime. Set them in your shell, `.env` file
 
 | Variable | Default | Description |
 |---|---|---|
-| `HEADROOM_PORT` | `8787` | Port the proxy listens on |
-| `HEADROOM_HOST` | `127.0.0.1` | Host the proxy binds to |
-| `HEADROOM_MODE` | `token` | Default optimization mode: `token` or `cache` |
-| `HEADROOM_TELEMETRY` | enabled | Set to `off` to disable anonymous telemetry |
+| `CUTCTX_PORT` | `8787` | Port the proxy listens on |
+| `CUTCTX_HOST` | `127.0.0.1` | Host the proxy binds to |
+| `CUTCTX_MODE` | `token` | Default optimization mode: `token` or `cache` |
+| `CUTCTX_TELEMETRY` | enabled | Set to `off` to disable anonymous telemetry |
 
 ### TypeScript SDK
 
 | Variable | Default | Description |
 |---|---|---|
-| `HEADROOM_BASE_URL` | `http://localhost:8787` | Proxy URL for the TypeScript SDK |
-| `HEADROOM_API_KEY` | _(none)_ | API key if the proxy requires auth |
+| `CUTCTX_BASE_URL` | `http://localhost:8787` | Proxy URL for the TypeScript SDK |
+| `CUTCTX_API_KEY` | _(none)_ | API key if the proxy requires auth |
 
 ## Troubleshooting
 

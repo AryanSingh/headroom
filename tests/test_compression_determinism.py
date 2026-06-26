@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import json
 
-from headroom.transforms.compression_units import (
+from cutctx.transforms.compression_units import (
     CompressionUnit,
     compress_unit_with_router,
 )
-from headroom.transforms.content_router import (
+from cutctx.transforms.content_router import (
     ContentRouter,
     ContentRouterConfig,
 )
@@ -44,10 +44,10 @@ _FIXTURES: dict[str, str] = {
         "Process exited with code 0\n"
         "Original token count: 1996\n"
         "Output:\n"
-        "headroom/proxy/handlers/openai.py | 12 ++++++++++++\n"
+        "cutctx/proxy/handlers/openai.py | 12 ++++++++++++\n"
         " 1 file changed, 12 insertions(+)\n\n"
         "--- Changes ---\n\n"
-        "diff --git a/headroom/proxy/handlers/openai.py b/headroom/proxy/handlers/openai.py\n"
+        "diff --git a/cutctx/proxy/handlers/openai.py b/cutctx/proxy/handlers/openai.py\n"
         "@@ -10,6 +10,18 @@\n"
         " def handle():\n"
         "+    # twelve lines of added context\n" * 6 + "     return None\n"

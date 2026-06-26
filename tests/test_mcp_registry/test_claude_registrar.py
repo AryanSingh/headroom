@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.mcp_registry.base import RegisterStatus, ServerSpec
-from headroom.mcp_registry.claude import ClaudeRegistrar
+from cutctx.mcp_registry.base import RegisterStatus, ServerSpec
+from cutctx.mcp_registry.claude import ClaudeRegistrar
 
 
 def _make_registrar(

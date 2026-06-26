@@ -202,10 +202,10 @@ benchmark_results/
 # DeepEval cache
 .deepeval/
 
-# Headroom specific
-.headroom/
-headroom.db
-headroom_*.db
+# CutCtx specific
+.cutctx/
+cutctx.db
+cutctx_*.db
 *.jsonl
 !tests/fixtures/*.jsonl
 docker/differential-network-capture/captures/
@@ -250,7 +250,7 @@ CLAUDE.md
 # docs/spec/           (lives in git - git-versioned living specification)
 
 # Managed platform (separate private repo)
-headroom-managed/
+cutctx-managed/
 
 # Local act testing (never commit test tokens)
 /.env.act
@@ -263,11 +263,11 @@ headroom-managed/
 uv.lock
 
 # Rust extension `.so` symlinks placed by `scripts/build_rust_extension.sh`
-# into the `headroom/` package dir for local development. The real binary
-# lives in `crates/headroom-py/python/headroom/`; this is the dev overlay
-# that lets `import headroom._core` resolve when the source `headroom/`
+# into the `cutctx/` package dir for local development. The real binary
+# lives in `crates/cutctx-py/python/cutctx/`; this is the dev overlay
+# that lets `import cutctx._core` resolve when the source `cutctx/`
 # package shadows the maturin overlay on sys.path.
-/headroom/_core.*.so
-/headroom/_core.so
+/cutctx/_core.*.so
+/cutctx/_core.so
 *.whl
 *.tar.gz

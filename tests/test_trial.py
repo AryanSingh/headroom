@@ -1,4 +1,4 @@
-"""Tests for headroom.trial — trial enforcement system."""
+"""Tests for cutctx.trial — trial enforcement system."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from headroom.trial import TRIAL_DAYS, TrialManager, TrialState
+from cutctx.trial import TRIAL_DAYS, TrialManager, TrialState
 
 
 class TestTrialState:

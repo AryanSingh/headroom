@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.proxy.model_router import (
+from cutctx.proxy.model_router import (
     ModelRoute,
     ModelRouter,
     ModelRouterConfig,

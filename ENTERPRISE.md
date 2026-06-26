@@ -1,10 +1,10 @@
-# CutCtx Enterprise
+# Cutctx Enterprise
 
 > **The context, cost, and governance layer for AI agents.**
 
-CutCtx is a self-hosted, local-first proxy that reduces waste in agent traffic while giving teams a governed admin plane for analytics, policy, identity, and auditability.
+Cutctx is a self-hosted, local-first proxy that reduces waste in agent traffic while giving teams a governed admin plane for analytics, policy, identity, and auditability.
 
-## Why Teams Buy CutCtx
+## Why Teams Buy Cutctx
 
 ### Local-first deployment
 - Runs in customer infrastructure
@@ -140,7 +140,7 @@ These are not code gaps, but business workstreams:
 | Multimodal compression (image + audio) | Available |
 | Stripe billing integration | Available |
 | Go SDK (full: Client, Memory, Proxy, SharedContext, Middleware) | Available |
-| Python SDK (CutCtxClient + SharedContext) | Available |
+| Python SDK (CutctxClient + SharedContext) | Available |
 | TypeScript SDK | Available |
 | Benchmark suite (vs LLMLingua-2) | Available |
 | React admin dashboard (Vite + React, dark mode, client-side routing) | Available |

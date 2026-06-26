@@ -96,14 +96,14 @@ cutctx proxy --drain3 --drain3-max-clusters 500 --drain3-sim-threshold 0.4
 ### Environment Variables
 
 ```bash
-HEADROOM_DRAIN3=1 cutctx proxy
-HEADROOM_DRAIN3_MAX_CLUSTERS=500 HEADROOM_DRAIN3_SIM_THRESHOLD=0.4 cutctx proxy
+CUTCTX_DRAIN3=1 cutctx proxy
+CUTCTX_DRAIN3_MAX_CLUSTERS=500 CUTCTX_DRAIN3_SIM_THRESHOLD=0.4 cutctx proxy
 ```
 
 ### Python API
 
 ```python
-from headroom.transforms.drain3_compressor import (
+from cutctx.transforms.drain3_compressor import (
     Drain3LogCompressor,
     Drain3CompressorConfig,
 )
@@ -131,14 +131,14 @@ print(f"Ratio: {result.compression_ratio:.2%}")  # e.g. 3.3%
 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
-| `--drain3` | `HEADROOM_DRAIN3` | — | Enable Drain3 template mining |
-| `--drain3-max-clusters` | `HEADROOM_DRAIN3_MAX_CLUSTERS` | `1000` | Max Drain3 clusters (min 10) |
-| `--drain3-sim-threshold` | `HEADROOM_DRAIN3_SIM_THRESHOLD` | `0.4` | Similarity threshold 0.0–1.0 |
+| `--drain3` | `CUTCTX_DRAIN3` | — | Enable Drain3 template mining |
+| `--drain3-max-clusters` | `CUTCTX_DRAIN3_MAX_CLUSTERS` | `1000` | Max Drain3 clusters (min 10) |
+| `--drain3-sim-threshold` | `CUTCTX_DRAIN3_SIM_THRESHOLD` | `0.4` | Similarity threshold 0.0–1.0 |
 
 ### Drain3CompressorConfig
 
 ```python
-from headroom.transforms.drain3_compressor import Drain3CompressorConfig
+from cutctx.transforms.drain3_compressor import Drain3CompressorConfig
 
 config = Drain3CompressorConfig(
     max_clusters=1000,        # Max clusters before LRU eviction
@@ -184,7 +184,7 @@ When Drain3 is **not installed**, `Drain3LogCompressor` is always constructable 
 ### Basic Example
 
 ```python
-from headroom.transforms.drain3_compressor import Drain3LogCompressor
+from cutctx.transforms.drain3_compressor import Drain3LogCompressor
 
 log = """
 2026-06-24 09:00:00 ERROR Database connection failed: timeout after 30s
@@ -234,7 +234,7 @@ print(result.compressed)
 ### Mixed Log Content
 
 ```python
-from headroom.transforms.drain3_compressor import Drain3LogCompressor
+from cutctx.transforms.drain3_compressor import Drain3LogCompressor
 
 # Mix of errors, warnings, and info
 log_text = """
@@ -259,7 +259,7 @@ print(result.compressed)
 ### Using with ContentRouter
 
 ```python
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
 
 config = ContentRouterConfig(
     use_drain3=True,
@@ -305,7 +305,7 @@ assert len(errors) == 0  # No deadlocks or races
 
 ```bash
 python -c "
-from headroom.transforms.drain3_compressor import drain3_available, Drain3LogCompressor
+from cutctx.transforms.drain3_compressor import drain3_available, Drain3LogCompressor
 print('drain3_available:', drain3_available())  # True or False
 c = Drain3LogCompressor()
 print('Compressor constructed OK')
@@ -316,7 +316,7 @@ print('Compressor constructed OK')
 
 ```bash
 python -c "
-from headroom.transforms.drain3_compressor import Drain3LogCompressor
+from cutctx.transforms.drain3_compressor import Drain3LogCompressor
 
 log = '\n'.join(
     f'2026-06-24 09:00:{i:02d} INFO  Request {1000+i} from 10.0.0.{i%10} processed in {10+i}ms'

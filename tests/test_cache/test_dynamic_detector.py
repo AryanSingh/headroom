@@ -2,7 +2,7 @@
 
 import pytest
 
-from headroom.cache.dynamic_detector import (
+from cutctx.cache.dynamic_detector import (
     DetectionResult,
     DetectorConfig,
     DynamicCategory,
@@ -254,7 +254,7 @@ class TestEntropyDetection:
 
     def test_high_entropy_string(self):
         """Test that high-entropy strings are detected."""
-        from headroom.cache.dynamic_detector import calculate_entropy
+        from cutctx.cache.dynamic_detector import calculate_entropy
 
         # High entropy strings (random-looking)
         assert calculate_entropy("abc123xyz789def") > 0.7
@@ -414,7 +414,7 @@ class TestNERDetector:
     @pytest.fixture
     def ner_detector(self):
         """Create detector with NER enabled."""
-        from headroom.cache.dynamic_detector import _SPACY_AVAILABLE, NERDetector
+        from cutctx.cache.dynamic_detector import _SPACY_AVAILABLE, NERDetector
 
         if not _SPACY_AVAILABLE:
             pytest.skip("spaCy not installed")
@@ -449,7 +449,7 @@ class TestSemanticDetector:
     @pytest.fixture
     def semantic_detector(self):
         """Create detector with semantic enabled."""
-        from headroom.cache.dynamic_detector import (
+        from cutctx.cache.dynamic_detector import (
             _SENTENCE_TRANSFORMERS_AVAILABLE,
             SemanticDetector,
         )

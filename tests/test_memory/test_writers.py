@@ -5,17 +5,17 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from headroom.memory.writers.base import (
+from cutctx.memory.writers.base import (
     MARKER_END,
     MARKER_START,
     MemoryEntry,
     _estimate_tokens,
     _merge_section,
 )
-from headroom.memory.writers.claude_writer import ClaudeCodeMemoryWriter
-from headroom.memory.writers.codex_writer import CodexMemoryWriter
-from headroom.memory.writers.cursor_writer import CursorMemoryWriter
-from headroom.memory.writers.generic_writer import GenericMemoryWriter
+from cutctx.memory.writers.claude_writer import ClaudeCodeMemoryWriter
+from cutctx.memory.writers.codex_writer import CodexMemoryWriter
+from cutctx.memory.writers.cursor_writer import CursorMemoryWriter
+from cutctx.memory.writers.generic_writer import GenericMemoryWriter
 
 # =============================================================================
 # Test Data
@@ -191,7 +191,7 @@ class TestClaudeCodeWriter:
         # Should produce topic files for categories with 2+ entries
         assert len(topics) > 0
         for filename, content in topics.items():
-            assert filename.startswith("headroom_")
+            assert filename.startswith("cutctx_")
             assert "---" in content  # YAML frontmatter
 
     def test_default_path_encodes_windows_user_with_dot(self):
@@ -221,7 +221,7 @@ class TestCursorWriter:
         entries = _make_entries(3)
         writer.export(entries, dry_run=False)
 
-        mdc_path = tmp_path / ".cursor" / "rules" / "headroom-memory.mdc"
+        mdc_path = tmp_path / ".cursor" / "rules" / "cutctx-memory.mdc"
         assert mdc_path.exists()
         content = mdc_path.read_text()
         assert "---" in content
@@ -232,7 +232,7 @@ class TestCursorWriter:
     def test_updates_existing_mdc(self, tmp_path: Path):
         mdc_dir = tmp_path / ".cursor" / "rules"
         mdc_dir.mkdir(parents=True)
-        mdc_file = mdc_dir / "headroom-memory.mdc"
+        mdc_file = mdc_dir / "cutctx-memory.mdc"
         mdc_file.write_text(
             "---\ndescription: test\nalwaysApply: true\n---\n\n"
             f"# Header\n\n{MARKER_START}\nold stuff\n{MARKER_END}\n"
@@ -290,5 +290,5 @@ class TestGenericWriter:
         entries = _make_entries(3)
         result = writer.export(entries, dry_run=False)
 
-        assert (tmp_path / "HEADROOM_MEMORY.md").exists()
+        assert (tmp_path / "CUTCTX_MEMORY.md").exists()
         assert result.memories_exported == 3

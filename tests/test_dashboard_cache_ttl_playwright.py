@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html
+from cutctx.dashboard import get_dashboard_html
 
 playwright = pytest.importorskip("playwright.sync_api")
 Page = playwright.Page
@@ -162,10 +162,10 @@ def _install_dashboard_routes(page: Page) -> None:
 
     def handler(route) -> None:  # type: ignore[no-untyped-def]
         url = route.request.url
-        if url.endswith("/dashboard") or url == "http://headroom.local/":
+        if url.endswith("/dashboard") or url == "http://cutctx.local/":
             route.fulfill(status=200, content_type="text/html", body=dashboard_html)
             return
-        if url.endswith("/stats"):
+        if "/stats" in url and "/stats-history" not in url:
             route.fulfill(status=200, content_type="application/json", body=json.dumps(stats))
             return
         if "/stats-history" in url:
@@ -184,13 +184,13 @@ def _install_dashboard_routes(page: Page) -> None:
 
 
 def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot() -> None:
-    artifact_dir = os.environ.get("HEADROOM_PLAYWRIGHT_ARTIFACT_DIR")
+    artifact_dir = os.environ.get("CUTCTX_PLAYWRIGHT_ARTIFACT_DIR")
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1720, "height": 1400}, color_scheme="dark")
         _install_dashboard_routes(page)
-        page.goto("http://headroom.local/dashboard", wait_until="load")
+        page.goto("http://cutctx.local/dashboard", wait_until="load")
 
         expect(page.get_by_text("Observed TTL Buckets")).to_be_visible()
         expect(page.get_by_text("Provider-reported cache write mix")).to_be_visible()

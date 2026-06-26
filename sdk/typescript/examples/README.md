@@ -5,7 +5,7 @@ Runnable examples showing how to use the Cutctx TypeScript SDK for context compr
 ## Prerequisites
 
 - Node.js 18+
-- A running CutCtx proxy (`pip install "cutctx-ai[proxy]" && cutctx proxy`)
+- A running Cutctx proxy (`pip install "cutctx-ai[proxy]" && cutctx proxy`)
 - `OPENAI_API_KEY` set in your environment (most examples use OpenAI)
 - Optional: `ANTHROPIC_API_KEY` for Anthropic examples
 

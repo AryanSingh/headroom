@@ -28,7 +28,7 @@ apply_dotenv = autouse_apply_env(_env_overrides)
 
 # Check HNSW availability for skipping tests
 try:
-    from headroom.memory.adapters.hnsw import _check_hnswlib_available
+    from cutctx.memory.adapters.hnsw import _check_hnswlib_available
 
     HNSW_AVAILABLE = _check_hnswlib_available()
 except ImportError:
@@ -44,7 +44,7 @@ def get_process_memory_mb() -> float:
 
 def get_tracked_memory() -> dict:
     """Get memory stats from the tracker."""
-    from headroom.memory.tracker import MemoryTracker
+    from cutctx.memory.tracker import MemoryTracker
 
     tracker = MemoryTracker.get()
     report = tracker.get_report()
@@ -57,7 +57,7 @@ class TestMemorySystemIntegration:
     @pytest.fixture(autouse=True)
     def reset_tracker(self):
         """Reset the tracker singleton before each test."""
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.tracker import MemoryTracker
 
         MemoryTracker.reset()
         yield
@@ -66,9 +66,9 @@ class TestMemorySystemIntegration:
     @pytest.mark.asyncio
     async def test_graph_store_memory_growth(self):
         """Test that graph store memory is tracked as entities are added."""
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity, Relationship
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity, Relationship
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
         store = InMemoryGraphStore()
@@ -138,9 +138,9 @@ class TestMemorySystemIntegration:
     @pytest.mark.asyncio
     async def test_hnsw_vector_index_memory_growth(self):
         """Test that HNSW vector index memory is tracked as vectors are added."""
-        from headroom.memory.adapters.hnsw import HNSWVectorIndex
-        from headroom.memory.models import Memory
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.adapters.hnsw import HNSWVectorIndex
+        from cutctx.memory.models import Memory
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
 
@@ -214,8 +214,8 @@ class TestCCRIntegration:
     @pytest.fixture(autouse=True)
     def reset_stores(self):
         """Reset stores before each test."""
-        from headroom.ccr.batch_store import reset_batch_context_store
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.ccr.batch_store import reset_batch_context_store
+        from cutctx.memory.tracker import MemoryTracker
 
         MemoryTracker.reset()
         reset_batch_context_store()
@@ -225,8 +225,8 @@ class TestCCRIntegration:
 
     def test_compression_store_memory_growth(self):
         """Test that compression store memory is tracked correctly."""
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
         store = CompressionStore(max_entries=1000, default_ttl=3600)
@@ -292,12 +292,12 @@ class TestCCRIntegration:
 
     def test_batch_context_store_memory_growth(self):
         """Test that batch context store memory is tracked correctly."""
-        from headroom.ccr.batch_store import (
+        from cutctx.ccr.batch_store import (
             BatchContext,
             BatchContextStore,
             BatchRequestContext,
         )
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
         store = BatchContextStore(ttl=3600, max_contexts=1000)
@@ -368,7 +368,7 @@ class TestProxyMemoryIntegration:
     @pytest.fixture(autouse=True)
     def reset_tracker(self):
         """Reset the tracker singleton before each test."""
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.tracker import MemoryTracker
 
         MemoryTracker.reset()
         yield
@@ -378,7 +378,7 @@ class TestProxyMemoryIntegration:
         """Test memory tracking with real API calls."""
         import httpx
 
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
 
@@ -388,8 +388,8 @@ class TestProxyMemoryIntegration:
         # We'll test the components directly instead
 
         # Create and register stores
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.ccr.batch_store import BatchContextStore
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.ccr.batch_store import BatchContextStore
 
         compression_store = CompressionStore(max_entries=100)
         batch_store = BatchContextStore()
@@ -452,8 +452,8 @@ class TestCombinedMemoryTracking:
     @pytest.fixture(autouse=True)
     def reset_all(self):
         """Reset all stores."""
-        from headroom.ccr.batch_store import reset_batch_context_store
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.ccr.batch_store import reset_batch_context_store
+        from cutctx.memory.tracker import MemoryTracker
 
         MemoryTracker.reset()
         reset_batch_context_store()
@@ -467,13 +467,13 @@ class TestCombinedMemoryTracking:
         """Test memory tracking with all components active."""
         import numpy as np
 
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.ccr.batch_store import BatchContext, BatchContextStore, BatchRequestContext
-        from headroom.memory.adapters.graph import InMemoryGraphStore
-        from headroom.memory.adapters.graph_models import Entity, Relationship
-        from headroom.memory.adapters.hnsw import HNSWVectorIndex
-        from headroom.memory.models import Memory
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.ccr.batch_store import BatchContext, BatchContextStore, BatchRequestContext
+        from cutctx.memory.adapters.graph import InMemoryGraphStore
+        from cutctx.memory.adapters.graph_models import Entity, Relationship
+        from cutctx.memory.adapters.hnsw import HNSWVectorIndex
+        from cutctx.memory.models import Memory
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get(target_budget_mb=50.0)  # Set a 50MB budget
 
@@ -581,9 +581,9 @@ class TestCombinedMemoryTracking:
         """Test that budget enforcement works correctly."""
         import numpy as np
 
-        from headroom.memory.adapters.hnsw import HNSWVectorIndex
-        from headroom.memory.models import Memory
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.adapters.hnsw import HNSWVectorIndex
+        from cutctx.memory.models import Memory
+        from cutctx.memory.tracker import MemoryTracker
 
         # Set a very small budget (1 MB)
         tracker = MemoryTracker.get(target_budget_mb=1.0)
@@ -629,7 +629,7 @@ class TestMemoryReportEndpoint:
     @pytest.fixture(autouse=True)
     def reset_tracker(self):
         """Reset the tracker singleton before each test."""
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.memory.tracker import MemoryTracker
 
         MemoryTracker.reset()
         yield
@@ -637,8 +637,8 @@ class TestMemoryReportEndpoint:
 
     def test_memory_report_serialization(self):
         """Test that memory report serializes correctly for API response."""
-        from headroom.cache.compression_store import CompressionStore
-        from headroom.memory.tracker import MemoryTracker
+        from cutctx.cache.compression_store import CompressionStore
+        from cutctx.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get(target_budget_mb=100.0)
 

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 
 name: SP-3: Compile EE (Nuitka)
 
-# SP-3: Compiles headroom_ee to native extensions for release.
+# SP-3: Compiles cutctx_ee to native extensions for release.
 # Produces a wheel with NO .py source — only .so/.pyd native modules.
 # Triggered on publish-ee.yml or manually for testing.
 
@@ -22,7 +22,7 @@ on:
 
 jobs:
   compile-ee:
-    name: Compile headroom_ee (Nuitka)
+    name: Compile cutctx_ee (Nuitka)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,16 +53,16 @@ jobs:
 
       - name: Scan for secrets (V-12)
         run: |
-          python scripts/sign_artifacts.py scan-secrets --path headroom_ee
+          python scripts/sign_artifacts.py scan-secrets --path cutctx_ee
 
       - name: Upload compiled wheel
         uses: actions/upload-artifact@v4
         with:
-          name: headroom-ee-compiled-wheel
+          name: cutctx-ee-compiled-wheel
           path: dist-ee-compiled/*.whl
 
       - name: Upload compiled extensions
         uses: actions/upload-artifact@v4
         with:
-          name: headroom-ee-compiled-extensions
+          name: cutctx-ee-compiled-extensions
           path: dist-ee-compiled/_compiled/**/*.so

@@ -12,12 +12,9 @@ behavior and the verify_integrity helper.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
-import pytest
-
-from headroom.proxy.savings_tracker import SavingsTracker
+from cutctx.proxy.savings_tracker import SavingsTracker
 
 
 def test_corrupt_json_is_quarantined(tmp_path: Path) -> None:

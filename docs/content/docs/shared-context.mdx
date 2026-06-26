@@ -3,7 +3,7 @@ title: SharedContext
 description: Compressed inter-agent context sharing. Reduce token usage by ~80% when agents hand off to each other.
 ---
 
-When agents hand off to each other, context gets replayed in full. SharedContext compresses what moves between agents using CutCtx's compression pipeline, typically saving **~80% of tokens** on agent handoffs.
+When agents hand off to each other, context gets replayed in full. SharedContext compresses what moves between agents using Cutctx's compression pipeline, typically saving **~80% of tokens** on agent handoffs.
 
 ## Quick Start
 
@@ -48,7 +48,7 @@ full = ctx.get("research", full=True)
 
 ### `put(key, content, agent?)`
 
-Store content under a key. Compresses automatically using CutCtx's full pipeline (SmartCrusher for JSON, CodeCompressor for code, Kompress for text).
+Store content under a key. Compresses automatically using Cutctx's full pipeline (SmartCrusher for JSON, CodeCompressor for code, Kompress for text).
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
@@ -218,7 +218,7 @@ handoff(agent=coder, input_filter=compress_handoff)
 
 ## How It Works
 
-Under the hood, `put()` calls `headroom.compress()` -- the same pipeline used by the CutCtx proxy -- and stores the original in memory. `get()` returns the compressed version. `get(full=True)` returns the original.
+Under the hood, `put()` calls `cutctx.compress()` -- the same pipeline used by the Cutctx proxy -- and stores the original in memory. `get()` returns the compressed version. `get(full=True)` returns the original.
 
 The compression pipeline routes content to the best compressor:
 

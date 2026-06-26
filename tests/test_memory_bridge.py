@@ -13,8 +13,8 @@ import uuid
 
 import pytest
 
-from headroom.memory.bridge_config import BridgeConfig, MarkdownFormat
-from headroom.memory.bridge_parsers import (
+from cutctx.memory.bridge_config import BridgeConfig, MarkdownFormat
+from cutctx.memory.bridge_parsers import (
     ParsedSection,
     detect_format,
     extract_entities_from_text,
@@ -30,8 +30,8 @@ CLAUDE_CODE_MEMORY = """\
 # Project Memory
 
 ## Project Overview
-- **Headroom**: Context optimization layer for LLM applications
-- **Repos**: OSS at ~/claude-projects/headroom
+- **Cutctx**: Context optimization layer for LLM applications
+- **Repos**: OSS at ~/claude-projects/cutctx
 
 ## Key Architecture
 - 186 Python files, 34 packages, 100K+ lines
@@ -206,8 +206,8 @@ class TestRelationshipExtraction:
         section = ParsedSection(
             heading="Test",
             heading_level=2,
-            content="- **Headroom**: Context optimization layer",
-            facts=["**Headroom**: Context optimization layer"],
+            content="- **Cutctx**: Context optimization layer",
+            facts=["**Cutctx**: Context optimization layer"],
         )
         rels = extract_relationships_from_section(section)
         assert len(rels) >= 1
@@ -256,7 +256,7 @@ def bridge_config(tmp_dir):
 @pytest.fixture
 async def backend(tmp_dir):
     """Create a LocalBackend with temp database."""
-    from headroom.memory.backends.local import LocalBackend, LocalBackendConfig
+    from cutctx.memory.backends.local import LocalBackend, LocalBackendConfig
 
     config = LocalBackendConfig(db_path=str(tmp_dir / "test_memory.db"))
     backend = LocalBackend(config)
@@ -268,7 +268,7 @@ async def backend(tmp_dir):
 @pytest.fixture
 def bridge(bridge_config, backend):
     """Create a MemoryBridge."""
-    from headroom.memory.bridge import MemoryBridge
+    from cutctx.memory.bridge import MemoryBridge
 
     return MemoryBridge(bridge_config, backend)
 
@@ -469,7 +469,7 @@ class TestSyncStatePersistence:
     @pytest.mark.asyncio
     async def test_state_saved_and_loaded(self, tmp_dir, backend):
         """Sync state should persist across bridge instances."""
-        from headroom.memory.bridge import MemoryBridge
+        from cutctx.memory.bridge import MemoryBridge
 
         state_path = tmp_dir / "state.json"
         config = BridgeConfig(

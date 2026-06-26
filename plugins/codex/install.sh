@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CutCtx Codex Plugin Installer
+# Cutctx Codex Plugin Installer
 # Usage: bash install.sh [--proxy-url URL] [--port PORT] [--no-mcp]
 
 set -euo pipefail
@@ -28,14 +28,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "CutCtx Codex Plugin Installer"
+echo "Cutctx Codex Plugin Installer"
 echo "=============================="
 
-# Determine CLI command (cutctx first, headroom fallback)
+# Determine CLI command (cutctx first, cutctx fallback)
 CLI="cutctx"
 if ! command -v cutctx &>/dev/null; then
-  if command -v headroom &>/dev/null; then
-    CLI="headroom"
+  if command -v cutctx &>/dev/null; then
+    CLI="cutctx"
   else
     echo "Error: cutctx CLI not found."
     echo "Install: pip install cutctx-ai"
@@ -43,62 +43,16 @@ if ! command -v cutctx &>/dev/null; then
   fi
 fi
 
-# 1. Configure Codex provider in ~/.codex/config.toml
-CODEX_CONFIG="${HOME}/.codex/config.toml"
+# 1. Configure Codex with the durable init path
 echo ""
-echo "1. Configuring Codex provider in ${CODEX_CONFIG}..."
+echo "1. Configuring Codex via durable Cutctx init..."
 
-MARKER_START="# --- CutCtx persistent provider ---"
-MARKER_END="# --- end CutCtx persistent provider ---"
-
-# Ensure directory exists
-mkdir -p "$(dirname "${CODEX_CONFIG}")"
-
-# Build the provider section
-PROVIDER_SECTION="${MARKER_START}
-model_provider = \"cutctx\"
-openai_base_url = \"${PROXY_URL}\"
-
-[model_providers.cutctx]
-name = \"CutCtx persistent proxy\"
-base_url = \"${PROXY_URL}\"
-supports_websockets = true
-${MARKER_END}
-"
-
-if [[ -f "${CODEX_CONFIG}" ]]; then
-  # Check if already installed
-  if grep -q "${MARKER_START}" "${CODEX_CONFIG}" 2>/dev/null; then
-    echo "   ✓ CutCtx provider already configured — updating"
-    # Remove old block and append new
-    if command -v python3 &>/dev/null; then
-      python3 -c "
-import re
-with open('${CODEX_CONFIG}') as f:
-    content = f.read()
-pattern = re.compile(r'${MARKER_START}.*?${MARKER_END}', re.DOTALL)
-content = pattern.sub('', content).rstrip()
-with open('${CODEX_CONFIG}', 'w') as f:
-    f.write(content + '\n\n${PROVIDER_SECTION}\n')
-"
-    else
-      # Fallback: sed-based replacement
-      sed -i.bak "/${MARKER_START//\//\\/}/,/${MARKER_END//\//\\/}/d" "${CODEX_CONFIG}"
-      rm -f "${CODEX_CONFIG}.bak"
-      echo "" >> "${CODEX_CONFIG}"
-      echo "${PROVIDER_SECTION}" >> "${CODEX_CONFIG}"
-    fi
-  else
-    # Append new block
-    echo "" >> "${CODEX_CONFIG}"
-    echo "${PROVIDER_SECTION}" >> "${CODEX_CONFIG}"
-  fi
+if ${CLI} init -g --port "${PORT}" codex; then
+  echo "   ✓ Codex provider and hooks configured"
 else
-  # Create new config
-  echo "${PROVIDER_SECTION}" > "${CODEX_CONFIG}"
+  echo "Error: durable Codex init failed"
+  exit 1
 fi
-
-echo "   ✓ Codex provider configured"
 
 # 2. Install MCP server
 if [[ $INSTALL_MCP -eq 1 ]]; then
@@ -115,12 +69,26 @@ else
 fi
 
 echo ""
+echo "3. Ensuring local Cutctx runtime is running..."
+if ${CLI} init hook ensure --profile init-user >/dev/null 2>&1; then
+  if command -v curl >/dev/null 2>&1 && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+    echo "   ✓ Cutctx proxy is healthy on http://127.0.0.1:${PORT}"
+  else
+    echo "   ⚠ Cutctx runtime was asked to start, but health could not be verified on http://127.0.0.1:${PORT}"
+    echo "     Codex will not save tokens until the local proxy is reachable."
+  fi
+else
+  echo "   ⚠ Could not auto-start the Cutctx runtime"
+  echo "     Run: ${CLI} init hook ensure --profile init-user"
+fi
+
+echo ""
 echo "=============================="
 echo "Installation complete!"
 echo ""
 echo "Next steps:"
-echo "  1. Start the proxy: ${CLI} proxy"
-echo "  2. Start Codex: codex"
-echo "  3. Codex will route through CutCtx proxy automatically"
+echo "  1. Restart Codex: codex"
+echo "  2. Verify the proxy: curl http://127.0.0.1:${PORT}/health"
+echo "  3. Codex will route through Cutctx automatically while the local proxy is running"
 echo ""
 echo "To uninstall: bash $(dirname "$0")/uninstall.sh"

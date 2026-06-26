@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "cutctx-ai"
-version = "0.26.1"
+version = "0.27.0"
 description = "The Context Optimization Layer for LLM Applications - Cut costs by 50-90%"
 readme = "README.md"
 # Open-core: this published package is the Apache-2.0 client surface.
@@ -13,10 +13,10 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
-    { name = "CutCtx Contributors" }
+    { name = "Cutctx Contributors" }
 ]
 maintainers = [
-    { name = "CutCtx Contributors" }
+    { name = "Cutctx Contributors" }
 ]
 keywords = [
     "llm",
@@ -64,20 +64,20 @@ dependencies = [
 
 [project.optional-dependencies]
 # Commercial ("enterprise edition") components — proprietary; see LICENSING.md.
-# Installs the `headroom-ee` workspace package (editable in dev via uv):
+# Installs the `cutctx-ee` workspace package (editable in dev via uv):
 #   uv sync --extra ee
-ee = ["headroom-ee"]
+ee = ["cutctx-ee"]
 # Proxy server (most common install: pip install cutctx-ai[proxy])
 proxy = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
     "openai>=2.14.0",             # OpenAI API format support
-    "mcp>=1.0.0",                 # MCP server (headroom_compress, retrieve, stats)
+    "mcp>=1.0.0",                 # MCP server (cutctx_compress, retrieve, stats)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
     "websockets>=13.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
-    "onnxruntime>=1.16.0",        # Kompress ONNX INT8 text compression (no torch needed)
+    "onnxruntime>=1.19.2",        # Kompress ONNX INT8 text compression (no torch needed)
     "transformers>=4.30.0,<6.0",  # Tokenizer only (for Kompress)
     "watchdog>=4.0.0",            # File watcher for live code graph reindexing (--code-graph)
     "sqlite-vec>=0.1.6",          # Vector index for memory (--memory). Lightweight, no torch.
@@ -127,7 +127,7 @@ memory-stack = [
     "neo4j>=5.20.0,<7.0",
 ]
 # Apple-Silicon GPU (MPS) offload for the memory embedder. Opt in at runtime with
-# HEADROOM_EMBEDDER_RUNTIME=pytorch_mps. macOS-only; intentionally excluded from [all].
+# CUTCTX_EMBEDDER_RUNTIME=pytorch_mps. macOS-only; intentionally excluded from [all].
 pytorch-mps = [
     "torch>=2.0.0; sys_platform == 'darwin'",
     "sentence-transformers>=2.2.0; sys_platform == 'darwin'",
@@ -154,7 +154,7 @@ relevance = [
 #     Returns a RapidOCROutput dataclass (txts, scores, boxes, ...).
 #     Needs `onnxruntime` installed separately to use the ORT backend.
 #
-# `headroom/image/compressor.py` adapts both API shapes at runtime via
+# `cutctx/image/compressor.py` adapts both API shapes at runtime via
 # a try/except cascade. See issue #372 for context.
 image = [
     "pillow>=10.0.0",
@@ -196,7 +196,7 @@ langchain = [
     "langchain-core>=1.3.3,<4.0",
     "langchain-openai>=1.1.14,<2.0",
 ]
-# LlamaIndex integration: CutCtxNodePostprocessor for RAG pipelines.
+# LlamaIndex integration: CutctxNodePostprocessor for RAG pipelines.
 # pip install cutctx-ai[llamaindex]
 llamaindex = [
     "llama-index-core>=0.10.0,<1.0",
@@ -216,7 +216,7 @@ mcp = [
 ]
 # Voice filler detection
 voice = [
-    "onnxruntime>=1.16.0",
+    "onnxruntime>=1.19.2",
     "transformers>=4.30.0,<6.0",
     "torch>=2.0.0",
 ]
@@ -297,7 +297,7 @@ all = [
 ]
 
 [project.scripts]
-cutctx = "headroom.cli:main"
+cutctx = "cutctx.cli:main"
 
 [project.urls]
 Homepage = "https://cutctx.dev"
@@ -311,9 +311,9 @@ Changelog = "https://github.com/cutctx/cutctx/blob/main/CHANGELOG.md"
 "AI / LLM Index" = "https://cutctx.dev/llms.txt"
 
 # Maturin builds a single wheel containing both the Python source under
-# `headroom/` AND the compiled Rust extension `headroom/_core.so` (cdylib
-# from `crates/headroom-py`). One `pip install cutctx-ai` ships everything
-# atomically — no separate `headroom-core-py` package, no chicken-and-egg,
+# `cutctx/` AND the compiled Rust extension `cutctx/_core.so` (cdylib
+# from `crates/cutctx-py`). One `pip install cutctx-ai` ships everything
+# atomically — no separate `cutctx-core-py` package, no chicken-and-egg,
 # no PIP_FIND_LINKS plumbing. Phase A0's runtime fail-loud check still
 # exists but only fires if someone forces an sdist install on a platform
 # without a wheel and the rust toolchain isn't available to compile it.
@@ -330,20 +330,20 @@ url = "https://pypi.org/simple/"
 default = true
 
 # Open-core workspace: the proprietary commercial distribution is a separate member
-# so `uv` installs it editable in dev. Its source is the repo-root `headroom_ee/`
-# package (symlinked into packaging/headroom-ee/). It is excluded from the OSS wheel
+# so `uv` installs it editable in dev. Its source is the repo-root `cutctx_ee/`
+# package (symlinked into packaging/cutctx-ee/). It is excluded from the OSS wheel
 # via [tool.maturin] exclude. See LICENSING.md.
 [tool.uv.workspace]
-members = ["packaging/headroom-ee"]
+members = ["packaging/cutctx-ee"]
 
 [tool.uv.sources]
-headroom-ee = { workspace = true }
+cutctx-ee = { workspace = true }
 cutctx-ai = { workspace = true }
 
 [tool.maturin]
 # Where the Python package lives. With `python-source = "."` and the
-# package directory `headroom/` at repo root, maturin includes every file
-# under `headroom/` in the wheel — that picks up the dashboard HTML
+# package directory `cutctx/` at repo root, maturin includes every file
+# under `cutctx/` in the wheel — that picks up the dashboard HTML
 # templates and bundled YAML configs. `LICENSE` and `NOTICE` are listed
 # explicitly because maturin sdists do not get the package-directory
 # treatment wheels do, and PEP 639 auto-discovery emits both files into
@@ -355,26 +355,26 @@ include = [
     { path = "NOTICE", format = "sdist" },
 ]
 python-source = "."
-# Open-core: keep the proprietary `headroom_ee` package and its build config OUT
-# of the Apache-2.0 OSS wheel/sdist. `headroom_ee` ships as a SEPARATE commercial
-# distribution (see packaging/headroom-ee/ and LICENSING.md). Without this exclude,
-# `python-source = "."` would sweep the sibling `headroom_ee/` package into the
+# Open-core: keep the proprietary `cutctx_ee` package and its build config OUT
+# of the Apache-2.0 OSS wheel/sdist. `cutctx_ee` ships as a SEPARATE commercial
+# distribution (see packaging/cutctx-ee/ and LICENSING.md). Without this exclude,
+# `python-source = "."` would sweep the sibling `cutctx_ee/` package into the
 # Apache wheel.
 exclude = [
-    "headroom_ee/**/*",
+    "cutctx_ee/**/*",
     "packaging/**/*",
     "target/**",
     "dist/**",
 ]
-module-name = "headroom._core"
-# The cdylib source lives under `crates/headroom-py`. Maturin invokes
+module-name = "cutctx._core"
+# The cdylib source lives under `crates/cutctx-py`. Maturin invokes
 # `cargo build` with this manifest to produce `_core.cdylib`, then injects
-# the resulting `.so` into the wheel at `headroom/_core.so`.
-manifest-path = "crates/headroom-py/Cargo.toml"
+# the resulting `.so` into the wheel at `cutctx/_core.so`.
+manifest-path = "crates/cutctx-py/Cargo.toml"
 features = ["extension-module"]
 # Forbid building without the cdylib feature — bare `cargo build` won't
 # produce a usable Python extension. Maturin's default `bindings` is "pyo3"
-# which is correct here (see `crates/headroom-py/src/`).
+# which is correct here (see `crates/cutctx-py/src/`).
 bindings = "pyo3"
 
 [tool.ruff]
@@ -398,7 +398,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["headroom"]
+known-first-party = ["cutctx"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -414,33 +414,33 @@ ignore_missing_imports = true
 # Per-module overrides for modules with dynamic typing patterns
 [[tool.mypy.overrides]]
 module = [
-    "headroom.proxy.server",
-    "headroom.proxy.cost",
-    "headroom.proxy.prometheus_metrics",
-    "headroom.proxy.semantic_cache",
-    "headroom.proxy.rate_limiter",
-    "headroom.proxy.request_logger",
-    "headroom.proxy.helpers",
-    "headroom.integrations.langchain",
-    "headroom.integrations.mcp",
-    "headroom.ccr.mcp_server",
-    "headroom.relevance.embedding",
-    "headroom.reporting.generator",
+    "cutctx.proxy.server",
+    "cutctx.proxy.cost",
+    "cutctx.proxy.prometheus_metrics",
+    "cutctx.proxy.semantic_cache",
+    "cutctx.proxy.rate_limiter",
+    "cutctx.proxy.request_logger",
+    "cutctx.proxy.helpers",
+    "cutctx.integrations.langchain",
+    "cutctx.integrations.mcp",
+    "cutctx.ccr.mcp_server",
+    "cutctx.relevance.embedding",
+    "cutctx.reporting.generator",
 ]
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
 module = [
-    "headroom.tokenizers.*",
-    "headroom.providers.litellm",
-    "headroom.providers.google",
+    "cutctx.tokenizers.*",
+    "cutctx.providers.litellm",
+    "cutctx.providers.google",
 ]
 disallow_untyped_defs = false
 warn_return_any = false
 
-# Handler mixins use self.* from HeadroomProxy via duck typing — mypy can't resolve these
+# Handler mixins use self.* from CutctxProxy via duck typing — mypy can't resolve these
 [[tool.mypy.overrides]]
-module = ["headroom.proxy.handlers.*"]
+module = ["cutctx.proxy.handlers.*"]
 disallow_untyped_defs = false
 ignore_errors = true
 
@@ -451,9 +451,9 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Put the repo root on sys.path so tests import BOTH the OSS `headroom` package and
-# the proprietary `headroom_ee` package (the Apache shims at headroom/<mod>.py rebind
-# to headroom_ee). Without this, CI that runs against an installed OSS-only wheel
+# Put the repo root on sys.path so tests import BOTH the OSS `cutctx` package and
+# the proprietary `cutctx_ee` package (the Apache shims at cutctx/<mod>.py rebind
+# to cutctx_ee). Without this, CI that runs against an installed OSS-only wheel
 # could not resolve the commercial implementations.
 pythonpath = ["."]
 python_files = ["test_*.py"]
@@ -474,10 +474,10 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["headroom"]
+source = ["cutctx"]
 branch = true
 omit = [
-    "headroom/cli.py",
+    "cutctx/cli.py",
     "*/tests/*",
 ]
 

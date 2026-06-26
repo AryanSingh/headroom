@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.models import (
+from cutctx.models import (
     ModelInfo,
     ModelRegistry,
     get_model_info,

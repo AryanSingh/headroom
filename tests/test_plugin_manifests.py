@@ -17,8 +17,8 @@ def test_marketplace_manifests_match() -> None:
 
 
 def test_plugin_manifests_share_core_metadata() -> None:
-    claude = _load_json("plugins/headroom-agent-hooks/.claude-plugin/plugin.json")
-    copilot = _load_json("plugins/headroom-agent-hooks/.github/plugin/plugin.json")
+    claude = _load_json("plugins/cutctx-agent-hooks/.claude-plugin/plugin.json")
+    copilot = _load_json("plugins/cutctx-agent-hooks/.github/plugin/plugin.json")
     assert isinstance(claude, dict)
     assert isinstance(copilot, dict)
     for key in ("name", "version", "description", "author", "homepage", "repository", "keywords"):
@@ -43,7 +43,7 @@ def test_marketplace_entry_points_to_plugin_root() -> None:
 def test_plugin_metadata_points_to_upstream_repo() -> None:
     expected_repo = "https://github.com/cutctx/cutctx"
     marketplace = _load_json(".claude-plugin/marketplace.json")
-    claude = _load_json("plugins/headroom-agent-hooks/.claude-plugin/plugin.json")
+    claude = _load_json("plugins/cutctx-agent-hooks/.claude-plugin/plugin.json")
     assert isinstance(marketplace, dict)
     assert isinstance(claude, dict)
     plugin = marketplace["plugins"][0]
@@ -59,5 +59,5 @@ def test_cutctx_codex_plugin_manifest_exists() -> None:
     plugin = _load_json("plugins/cutctx-plugin/.codex-plugin/plugin.json")
     assert isinstance(plugin, dict)
     assert plugin["name"] == "cutctx"
-    assert plugin["interface"]["displayName"] == "CutCtx"
+    assert plugin["interface"]["displayName"] == "Cutctx"
     assert plugin["repository"] == "https://github.com/cutctx/cutctx"

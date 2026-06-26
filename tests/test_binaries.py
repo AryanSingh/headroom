@@ -1,4 +1,4 @@
-"""Unit tests for headroom.binaries — the lazy fetcher for bundled CLI tools.
+"""Unit tests for cutctx.binaries — the lazy fetcher for bundled CLI tools.
 
 No network access. A fake urlopen serves bytes from an in-memory fixture.
 """
@@ -13,7 +13,7 @@ import zipfile
 
 import pytest
 
-from headroom import binaries
+from cutctx import binaries
 
 # -------- Fixtures -------------------------------------------------------- #
 
@@ -23,9 +23,9 @@ def _clear_caches(monkeypatch, tmp_path):
     """Isolate every test from global state: cache dir, platform lru_cache, env."""
     binaries.detect_platform.cache_clear()
     binaries._registry.cache_clear()
-    monkeypatch.setenv("HEADROOM_BINARIES_CACHE", str(tmp_path / "cache"))
-    monkeypatch.delenv("HEADROOM_BINARIES_MIRROR", raising=False)
-    monkeypatch.delenv("HEADROOM_BINARIES_OFFLINE", raising=False)
+    monkeypatch.setenv("CUTCTX_BINARIES_CACHE", str(tmp_path / "cache"))
+    monkeypatch.delenv("CUTCTX_BINARIES_MIRROR", raising=False)
+    monkeypatch.delenv("CUTCTX_BINARIES_OFFLINE", raising=False)
     yield
     binaries.detect_platform.cache_clear()
     binaries._registry.cache_clear()
@@ -80,7 +80,7 @@ def fake_urlopen(monkeypatch):
     """Install a fake urllib.request.urlopen that serves registered URLs."""
     served: dict[str, bytes] = {}
 
-    def fake(req, timeout=None):  # noqa: ARG001
+    def fake(req, timeout=None, **kwargs):  # noqa: ARG001
         url = req.full_url if hasattr(req, "full_url") else req
         if url not in served:
             raise AssertionError(f"unexpected fetch for {url}")
@@ -119,7 +119,7 @@ def test_detect_platform_windows_amd64(monkeypatch):
 
 
 def test_cache_dir_respects_env_override(monkeypatch, tmp_path):
-    monkeypatch.setenv("HEADROOM_BINARIES_CACHE", str(tmp_path / "custom"))
+    monkeypatch.setenv("CUTCTX_BINARIES_CACHE", str(tmp_path / "custom"))
     assert binaries.cache_dir() == (tmp_path / "custom").resolve()
 
 
@@ -136,7 +136,7 @@ def test_pypi_only_tool_raises_with_helpful_message(monkeypatch):
     _set_platform(monkeypatch, sys_plat="darwin", machine="arm64")
     with pytest.raises(binaries.PlatformNotSupported) as exc:
         binaries._asset_for_platform("ast-grep", binaries.detect_platform())
-    assert "pip install headroom-ai" in str(exc.value)
+    assert "pip install cutctx-ai" in str(exc.value)
 
 
 def test_unknown_tool_raises_key_error():
@@ -180,13 +180,13 @@ def test_resolve_honors_path(monkeypatch, tmp_path):
 def test_offline_error_when_fetch_required(monkeypatch):
     _set_platform(monkeypatch, sys_plat="darwin", machine="arm64")
     monkeypatch.setattr(binaries.shutil, "which", lambda _name: None)
-    monkeypatch.setenv("HEADROOM_BINARIES_OFFLINE", "1")
+    monkeypatch.setenv("CUTCTX_BINARIES_OFFLINE", "1")
     with pytest.raises(binaries.OfflineError):
         binaries.resolve("difft")
 
 
 def test_mirror_substitution(monkeypatch):
-    monkeypatch.setenv("HEADROOM_BINARIES_MIRROR", "https://mirror.example.com/gh")
+    monkeypatch.setenv("CUTCTX_BINARIES_MIRROR", "https://mirror.example.com/gh")
     out = binaries._mirror_url(
         "https://github.com/Wilfred/difftastic/releases/download/0.64.0/x.tar.gz"
     )
@@ -306,7 +306,7 @@ def test_ensure_tools_survives_readonly_cache_dir(monkeypatch, tmp_path):
     readonly_parent = tmp_path / "readonly"
     readonly_parent.mkdir()
     readonly_parent.chmod(0o500)  # r-x: can't create children
-    monkeypatch.setenv("HEADROOM_BINARIES_CACHE", str(readonly_parent / "cache"))
+    monkeypatch.setenv("CUTCTX_BINARIES_CACHE", str(readonly_parent / "cache"))
 
     try:
         # Must return a dict, not raise.
@@ -327,7 +327,7 @@ def test_ensure_tools_partial_failure_proxy_still_starts(monkeypatch):
     scc_asset = binaries._registry()["tools"]["scc"]["assets"]["darwin-aarch64"]
     scc_tar = _make_tar_gz({"scc": b"ok"})
 
-    def selective_urlopen(req, timeout=None):  # noqa: ARG001
+    def selective_urlopen(req, timeout=None, **kwargs):  # noqa: ARG001
         url = req.full_url if hasattr(req, "full_url") else req
         if url == scc_asset["url"]:
             return _FakeResponse(scc_tar)

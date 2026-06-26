@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap copilot` command."""
+"""Tests for `cutctx wrap copilot` command."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from headroom.copilot_auth import DEFAULT_API_URL
+from cutctx.copilot_auth import DEFAULT_API_URL
 
 
 def _expected_project_prefix() -> str:
@@ -29,44 +29,44 @@ def runner() -> CliRunner:
 
 @pytest.fixture
 def wrap_modules(monkeypatch: pytest.MonkeyPatch) -> tuple[types.ModuleType, click.Group]:
-    headroom_pkg = sys.modules.get("cutctx")
-    saved_headroom_cli_attr = (
-        headroom_pkg.cli if headroom_pkg is not None and hasattr(headroom_pkg, "cli") else None
+    cutctx_pkg = sys.modules.get("cutctx")
+    saved_cutctx_cli_attr = (
+        cutctx_pkg.cli if cutctx_pkg is not None and hasattr(cutctx_pkg, "cli") else None
     )
     saved_modules = {
         name: sys.modules.get(name)
-        for name in ("headroom.cli", "headroom.cli.main", "headroom.cli.wrap")
+        for name in ("cutctx.cli", "cutctx.cli.main", "cutctx.cli.wrap")
     }
 
-    fake_main_module = types.ModuleType("headroom.cli.main")
+    fake_main_module = types.ModuleType("cutctx.cli.main")
     fake_main_module.main = click.Group()
-    sys.modules["headroom.cli.main"] = fake_main_module
-    sys.modules.pop("headroom.cli", None)
-    sys.modules.pop("headroom.cli.wrap", None)
+    sys.modules["cutctx.cli.main"] = fake_main_module
+    sys.modules.pop("cutctx.cli", None)
+    sys.modules.pop("cutctx.cli.wrap", None)
 
-    wrap_cli = importlib.import_module("headroom.cli.wrap")
+    wrap_cli = importlib.import_module("cutctx.cli.wrap")
     monkeypatch.setattr(wrap_cli, "_check_proxy", lambda _port: False)
 
     try:
         yield wrap_cli, fake_main_module.main
     finally:
-        for name in ("headroom.cli.wrap", "headroom.cli.main", "headroom.cli"):
+        for name in ("cutctx.cli.wrap", "cutctx.cli.main", "cutctx.cli"):
             sys.modules.pop(name, None)
         for name, module in saved_modules.items():
             if module is not None:
                 sys.modules[name] = module
-        if saved_modules["headroom.cli"] is not None:
-            cli_pkg = saved_modules["headroom.cli"]
-            if saved_modules["headroom.cli.main"] is not None:
-                cli_pkg.main = saved_modules["headroom.cli.main"]
-            if saved_modules["headroom.cli.wrap"] is not None:
-                cli_pkg.wrap = saved_modules["headroom.cli.wrap"]
-        if headroom_pkg is not None:
-            if saved_headroom_cli_attr is None:
-                if hasattr(headroom_pkg, "cli"):
-                    delattr(headroom_pkg, "cli")
+        if saved_modules["cutctx.cli"] is not None:
+            cli_pkg = saved_modules["cutctx.cli"]
+            if saved_modules["cutctx.cli.main"] is not None:
+                cli_pkg.main = saved_modules["cutctx.cli.main"]
+            if saved_modules["cutctx.cli.wrap"] is not None:
+                cli_pkg.wrap = saved_modules["cutctx.cli.wrap"]
+        if cutctx_pkg is not None:
+            if saved_cutctx_cli_attr is None:
+                if hasattr(cutctx_pkg, "cli"):
+                    delattr(cutctx_pkg, "cli")
             else:
-                headroom_pkg.cli = saved_headroom_cli_attr
+                cutctx_pkg.cli = saved_cutctx_cli_attr
 
 
 def test_wrap_copilot_auto_anthropic_injects_instructions(
@@ -84,10 +84,10 @@ def test_wrap_copilot_auto_anthropic_injects_instructions(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._ensure_rtk_binary", return_value=Path("/tmp/rtk")),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=Path("/tmp/rtk")),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -124,9 +124,9 @@ def test_wrap_copilot_openai_backend_sets_completions_env(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -174,11 +174,11 @@ def test_wrap_copilot_auto_detects_running_proxy_backend(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._check_proxy", return_value=True),
-        patch("headroom.cli.wrap._detect_running_proxy_backend", return_value="anyllm"),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._check_proxy", return_value=True),
+        patch("cutctx.cli.wrap._detect_running_proxy_backend", return_value="anyllm"),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -207,10 +207,10 @@ def test_wrap_copilot_prefers_existing_oauth_session(
     def fake_launch_tool(**kwargs):  # noqa: ANN003
         captured.update(kwargs)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
-        with patch("headroom.cli.wrap.resolve_client_bearer_token", return_value="gho-existing"):
-            with patch("headroom.cli.wrap.has_oauth_auth", return_value=True):
-                with patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
+        with patch("cutctx.cli.wrap.resolve_client_bearer_token", return_value="gho-existing"):
+            with patch("cutctx.cli.wrap.has_oauth_auth", return_value=True):
+                with patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool):
                     result = runner.invoke(
                         main,
                         ["wrap", "copilot", "--no-rtk", "--", "--model", "claude-sonnet-4.6"],
@@ -246,10 +246,10 @@ def test_wrap_copilot_subscription_uses_github_auth_without_provider_key(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -283,10 +283,10 @@ def test_wrap_copilot_subscription_defaults_to_responses_for_reasoning_model(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -320,10 +320,10 @@ def test_wrap_copilot_subscription_keeps_gpt4_on_completions(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -350,10 +350,10 @@ def test_wrap_copilot_subscription_allows_explicit_responses_wire_api(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-existing"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -401,14 +401,14 @@ def test_wrap_copilot_subscription_pins_validated_token_for_proxy(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
         patch(
-            "headroom.cli.wrap.resolve_subscription_bearer_token",
+            "cutctx.cli.wrap.resolve_subscription_bearer_token",
             return_value="gho-validated",
         ),
-        patch("headroom.cli.wrap.resolve_copilot_api_url", return_value=business_api),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.resolve_copilot_api_url", return_value=business_api),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(main, ["wrap", "copilot", "--subscription", "--no-rtk"])
 
@@ -436,8 +436,8 @@ def test_wrap_copilot_subscription_requires_reusable_auth(
 ) -> None:
     _wrap_cli, main = wrap_modules
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value=None),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value=None),
     ):
         result = runner.invoke(main, ["wrap", "copilot", "--subscription", "--no-rtk"])
 
@@ -450,7 +450,7 @@ def test_wrap_copilot_subscription_rejects_translated_backend(
     wrap_modules: tuple[types.ModuleType, click.Group],
 ) -> None:
     _wrap_cli, main = wrap_modules
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
         result = runner.invoke(
             main,
             ["wrap", "copilot", "--subscription", "--backend", "anyllm", "--no-rtk"],
@@ -465,7 +465,7 @@ def test_wrap_copilot_subscription_rejects_anthropic_provider_type(
     wrap_modules: tuple[types.ModuleType, click.Group],
 ) -> None:
     _wrap_cli, main = wrap_modules
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
         result = runner.invoke(
             main,
             ["wrap", "copilot", "--subscription", "--provider-type", "anthropic", "--no-rtk"],
@@ -495,8 +495,8 @@ def test_wrap_copilot_translated_backend_still_requires_byok(
         "TOGETHER_API_KEY",
     ):
         monkeypatch.delenv(var, raising=False)
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
-        with patch("headroom.cli.wrap.has_oauth_auth", return_value=True):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
+        with patch("cutctx.cli.wrap.has_oauth_auth", return_value=True):
             result = runner.invoke(
                 main,
                 [
@@ -520,7 +520,7 @@ def test_wrap_copilot_rejects_wire_api_for_anthropic_provider(
     wrap_modules: tuple[types.ModuleType, click.Group],
 ) -> None:
     _wrap_cli, main = wrap_modules
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
         result = runner.invoke(
             main,
             [
@@ -543,7 +543,7 @@ def test_wrap_copilot_rejects_responses_for_translated_backends(
     wrap_modules: tuple[types.ModuleType, click.Group],
 ) -> None:
     _wrap_cli, main = wrap_modules
-    with patch("headroom.cli.wrap.shutil.which", return_value="copilot"):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="copilot"):
         result = runner.invoke(
             main,
             [
@@ -576,9 +576,9 @@ def test_wrap_copilot_clears_stale_wire_api_in_anthropic_mode(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -601,7 +601,7 @@ def test_wrap_copilot_fails_when_binary_missing(
     wrap_modules: tuple[types.ModuleType, click.Group],
 ) -> None:
     _wrap_cli, main = wrap_modules
-    with patch("headroom.cli.wrap.shutil.which", return_value=None):
+    with patch("cutctx.cli.wrap.shutil.which", return_value=None):
         result = runner.invoke(main, ["wrap", "copilot", "--", "--model", "gpt-4o"])
 
     assert result.exit_code == 1
@@ -661,11 +661,11 @@ def test_wrap_copilot_oauth_keeps_generic_endpoint_when_account_advertised(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_client_bearer_token", return_value="gho-oauth"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=True),
-        patch("headroom.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_client_bearer_token", return_value="gho-oauth"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=True),
+        patch("cutctx.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(main, ["wrap", "copilot", "--no-rtk", "--", "--model", "gpt-5.4"])
 
@@ -694,11 +694,11 @@ def test_wrap_copilot_oauth_honors_api_url_override(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_client_bearer_token", return_value="gho-oauth"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=True),
-        patch("headroom.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_client_bearer_token", return_value="gho-oauth"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=True),
+        patch("cutctx.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(main, ["wrap", "copilot", "--no-rtk", "--", "--model", "gpt-5.4"])
 
@@ -730,10 +730,10 @@ def test_wrap_copilot_byok_never_resolves_copilot_endpoint(
         raise AssertionError("BYOK must not resolve the Copilot hosted endpoint")
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=False),
-        patch("headroom.cli.wrap.resolve_copilot_api_url", side_effect=tripwire),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=False),
+        patch("cutctx.cli.wrap.resolve_copilot_api_url", side_effect=tripwire),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -764,11 +764,11 @@ def test_wrap_copilot_subscription_uses_generic_endpoint_not_account(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-sub"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=True),
-        patch("headroom.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-sub"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=True),
+        patch("cutctx.copilot_auth._fetch_copilot_user_info", return_value=_ACCOUNT_USER_INFO),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -799,10 +799,10 @@ def test_wrap_copilot_subscription_honors_api_url_override(
         captured.update(kwargs)
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="copilot"),
-        patch("headroom.cli.wrap.resolve_subscription_bearer_token", return_value="gho-sub"),
-        patch("headroom.cli.wrap.has_oauth_auth", return_value=True),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("cutctx.cli.wrap.shutil.which", return_value="copilot"),
+        patch("cutctx.cli.wrap.resolve_subscription_bearer_token", return_value="gho-sub"),
+        patch("cutctx.cli.wrap.has_oauth_auth", return_value=True),
+        patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(
             main,
@@ -819,7 +819,7 @@ def test_resolve_copilot_api_url_ignores_user_info_and_never_calls_network(
     """Unit lock for #610: routing is override -> generic and must NOT depend on a
     user-info lookup. Even with a token in hand and user-info advertising an
     account host, the generic host is returned and no network call is made."""
-    from headroom import copilot_auth
+    from cutctx import copilot_auth
 
     monkeypatch.delenv("GITHUB_COPILOT_API_URL", raising=False)
     with patch.object(copilot_auth, "_fetch_copilot_user_info") as fetch:

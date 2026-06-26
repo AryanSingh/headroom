@@ -4,13 +4,13 @@ const mocked = vi.hoisted(() => ({
   ensureProxyUrl: vi.fn(async () => "http://127.0.0.1:8787"),
   ensureProxyStarted: vi.fn(),
   getProxyUrl: vi.fn(() => null as string | null),
-  createCutCtxRetrieveTool: vi.fn(({ proxyUrl }: { proxyUrl: string }) => ({ proxyUrl })),
+  createCutctxRetrieveTool: vi.fn(({ proxyUrl }: { proxyUrl: string }) => ({ proxyUrl })),
 }));
 
 const proxyReadyListeners: Array<(proxyUrl: string) => void | Promise<void>> = [];
 
 vi.mock("../src/engine.js", () => ({
-  CutCtxContextEngine: class {
+  CutctxContextEngine: class {
     ensureProxyUrl = mocked.ensureProxyUrl;
     ensureProxyStarted = mocked.ensureProxyStarted;
     getProxyUrl = mocked.getProxyUrl;
@@ -21,21 +21,21 @@ vi.mock("../src/engine.js", () => ({
   },
 }));
 
-vi.mock("../src/tools/headroom-retrieve.js", () => ({
-  createCutCtxRetrieveTool: mocked.createCutCtxRetrieveTool,
+vi.mock("../src/tools/cutctx-retrieve.js", () => ({
+  createCutctxRetrieveTool: mocked.createCutctxRetrieveTool,
 }));
 
-import headroomPlugin from "../src/plugin/index.js";
+import cutctxPlugin from "../src/plugin/index.js";
 
 afterEach(() => {
   mocked.ensureProxyUrl.mockClear();
   mocked.ensureProxyStarted.mockClear();
   mocked.getProxyUrl.mockClear();
-  mocked.createCutCtxRetrieveTool.mockClear();
+  mocked.createCutctxRetrieveTool.mockClear();
   proxyReadyListeners.length = 0;
 });
 
-describe("headroomPlugin runtime routing", () => {
+describe("cutctxPlugin runtime routing", () => {
   it("routes configured providers in memory once the proxy becomes available", async () => {
     const gatewayHandlers = new Map<string, () => Promise<void>>();
     const writeConfigFile = vi.fn();
@@ -53,7 +53,7 @@ describe("headroomPlugin runtime routing", () => {
       config: {
         plugins: {
           entries: {
-            headroom: {
+            cutctx: {
               config: {
                 gatewayProviderIds: ["codex", "claude", "copilot", "gemini", "openrouter"],
               },
@@ -97,7 +97,7 @@ describe("headroomPlugin runtime routing", () => {
       },
     };
 
-    headroomPlugin(api);
+    cutctxPlugin(api);
     await Promise.resolve();
 
     expect(mocked.ensureProxyUrl).not.toHaveBeenCalled();

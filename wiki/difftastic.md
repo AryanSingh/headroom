@@ -82,9 +82,9 @@ cutctx proxy --difftastic --difftastic-binary /usr/local/bin/difft
 ### Environment Variables
 
 ```bash
-HEADROOM_DIFFTASTIC=1 cutctx proxy
-HEADROOM_DIFFTASTIC_CONTEXT_LINES=2 HEADROOM_DIFFTASTIC=1 cutctx proxy
-HEADROOM_DIFFTASTIC_BINARY=/usr/local/bin/difft HEADROOM_DIFFTASTIC=1 cutctx proxy
+CUTCTX_DIFFTASTIC=1 cutctx proxy
+CUTCTX_DIFFTASTIC_CONTEXT_LINES=2 CUTCTX_DIFFTASTIC=1 cutctx proxy
+CUTCTX_DIFFTASTIC_BINARY=/usr/local/bin/difft CUTCTX_DIFFTASTIC=1 cutctx proxy
 ```
 
 ## Configuration
@@ -101,22 +101,22 @@ HEADROOM_DIFFTASTIC_BINARY=/usr/local/bin/difft HEADROOM_DIFFTASTIC=1 cutctx pro
 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
-| `--difftastic` | `HEADROOM_DIFFTASTIC` | — | Enable structural diff compression |
-| `--difftastic-binary` | `HEADROOM_DIFFTASTIC_BINARY` | `auto` | Path or name of difft binary |
-| `--difftastic-context-lines` | `HEADROOM_DIFFTASTIC_CONTEXT_LINES` | `3` | Context lines (0–20) |
+| `--difftastic` | `CUTCTX_DIFFTASTIC` | — | Enable structural diff compression |
+| `--difftastic-binary` | `CUTCTX_DIFFTASTIC_BINARY` | `auto` | Path or name of difft binary |
+| `--difftastic-context-lines` | `CUTCTX_DIFFTASTIC_CONTEXT_LINES` | `3` | Context lines (0–20) |
 
 ### Finer-Grained Env Controls
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `HEADROOM_DIFFTASTIC_MIN_CHARS` | `200` | Minimum diff size (chars) before interception |
-| `HEADROOM_DIFFTASTIC_TIMEOUT` | `10` | Per-file subprocess timeout in seconds |
+| `CUTCTX_DIFFTASTIC_MIN_CHARS` | `200` | Minimum diff size (chars) before interception |
+| `CUTCTX_DIFFTASTIC_TIMEOUT` | `10` | Per-file subprocess timeout in seconds |
 
 ## Binary Management
 
 ### Auto-Fetch (Recommended)
 
-Difftastic (`difft`) is already registered in `headroom/tools.json` as v0.64.0. Cutctx auto-fetches it on first use:
+Difftastic (`difft`) is already registered in `cutctx/tools.json` as v0.64.0. Cutctx auto-fetches it on first use:
 
 ```bash
 # Pre-fetch all tools (including difft)
@@ -150,13 +150,13 @@ The `DifftasticInterceptor` resolves the binary in this order:
 
 1. **Explicit path** from `--difftastic-binary` (absolute path or name on PATH)
 2. **`shutil.which("difft")`** — PATH lookup
-3. **`headroom.binaries.resolve("difft")`** — auto-fetch from GitHub releases
+3. **`cutctx.binaries.resolve("difft")`** — auto-fetch from GitHub releases
 
 ## Requirements
 
 ### No Python Dependency
 
-Difftastic is a **standalone binary** — no Python package dependency. The binary is auto-fetched via `cutctx tools install` or `headroom.binaries.resolve("difft")`.
+Difftastic is a **standalone binary** — no Python package dependency. The binary is auto-fetched via `cutctx tools install` or `cutctx.binaries.resolve("difft")`.
 
 ### Graceful Degradation
 
@@ -169,7 +169,7 @@ When the `difft` binary is unavailable:
 ### Basic Interceptor Example
 
 ```python
-from headroom.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
+from cutctx.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
 
 interceptor = DifftasticInterceptor(binary_path="/path/to/difft", context_lines=3)
 
@@ -263,7 +263,7 @@ Each file is processed independently and tagged with `[cutctx: structural diff v
 ### DifftasticBackend (ContentRouter DIFF Strategy)
 
 ```python
-from headroom.transforms.diff_compressor import DifftasticBackend
+from cutctx.transforms.diff_compressor import DifftasticBackend
 
 backend = DifftasticBackend(
     binary_path="/path/to/difft",
@@ -278,7 +278,7 @@ print(f"Lines saved: {result.original_line_count - result.compressed_line_count}
 ### Checking Binary Availability
 
 ```python
-from headroom import binaries
+from cutctx import binaries
 
 # Check if already available
 exe = binaries.which("difft")
@@ -367,8 +367,8 @@ cutctx proxy --help | grep -A3 "difftastic"
 
 ```bash
 python - <<'EOF'
-from headroom.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
-from headroom import binaries
+from cutctx.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
+from cutctx import binaries
 
 exe = binaries.which("difft")
 if exe is None:
@@ -381,7 +381,7 @@ import subprocess
 git_diff = subprocess.run(
     ["git", "diff", "HEAD~1", "HEAD"],
     capture_output=True, text=True,
-    cwd="/Users/aryansingh/Documents/Claude/Projects/headroom"
+    cwd="/Users/aryansingh/Documents/Claude/Projects/cutctx"
 ).stdout
 
 if not git_diff.strip():
@@ -423,4 +423,4 @@ Difftastic supports 30+ languages including: Python, TypeScript, JavaScript, Go,
 
 - [Transforms Reference](transforms.md) — Other compression transforms
 - [Compression Overview](compression.md) — Universal compression
-- [diff_compressor.py](https://github.com/chopratejas/cutctx/blob/main/headroom/transforms/diff_compressor.py) — Source
+- [diff_compressor.py](https://github.com/chopratejas/cutctx/blob/main/cutctx/transforms/diff_compressor.py) — Source

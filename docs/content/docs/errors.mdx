@@ -1,9 +1,9 @@
 ---
 title: Error Handling
-description: How to catch and handle CutCtx errors in Python and TypeScript. Error hierarchy, proxy error mapping, and safety guarantees.
+description: How to catch and handle Cutctx errors in Python and TypeScript. Error hierarchy, proxy error mapping, and safety guarantees.
 ---
 
-CutCtx provides explicit exceptions for debugging, with a core safety guarantee: **compression failures never break your LLM calls**. If compression fails, the original content passes through unchanged.
+Cutctx provides explicit exceptions for debugging, with a core safety guarantee: **compression failures never break your LLM calls**. If compression fails, the original content passes through unchanged.
 
 ## Error Hierarchy
 
@@ -11,10 +11,10 @@ CutCtx provides explicit exceptions for debugging, with a core safety guarantee:
 <Tab value="TypeScript">
 
 ```
-CutCtxError (base class)
-  +-- CutCtxConnectionError   # Cannot reach proxy
-  +-- CutCtxAuthError         # 401 from proxy
-  +-- CutCtxCompressError     # Compression failed (with statusCode)
+CutctxError (base class)
+  +-- CutctxConnectionError   # Cannot reach proxy
+  +-- CutctxAuthError         # 401 from proxy
+  +-- CutctxCompressError     # Compression failed (with statusCode)
   +-- ConfigurationError        # Invalid configuration
   +-- ProviderError             # Provider issues
   +-- StorageError              # Storage failures
@@ -26,10 +26,10 @@ CutCtxError (base class)
 
 ```ts twoslash
 import {
-  CutCtxError,
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
   ConfigurationError,
   ProviderError,
   mapProxyError,
@@ -40,7 +40,7 @@ import {
 <Tab value="Python">
 
 ```
-CutCtxError (base class)
+CutctxError (base class)
   +-- ConfigurationError     # Invalid configuration
   +-- ProviderError          # Provider issues (unknown model, etc.)
   +-- StorageError           # Database/storage failures
@@ -50,7 +50,7 @@ CutCtxError (base class)
 
 ```python
 from cutctx import (
-    CutCtxError,
+    CutctxError,
     ConfigurationError,
     ProviderError,
     StorageError,
@@ -68,19 +68,19 @@ from cutctx import (
 <Tab value="TypeScript">
 
 ```ts twoslash
-import { compress, CutCtxConnectionError, CutCtxAuthError, CutCtxCompressError, CutCtxError } from 'cutctx-ai';
+import { compress, CutctxConnectionError, CutctxAuthError, CutctxCompressError, CutctxError } from 'cutctx-ai';
 
 try {
   const result = await compress(messages, { model: 'gpt-4o' });
 } catch (e) {
-  if (e instanceof CutCtxConnectionError) {
+  if (e instanceof CutctxConnectionError) {
     console.error('Cannot reach proxy:', e.message);
-  } else if (e instanceof CutCtxAuthError) {
+  } else if (e instanceof CutctxAuthError) {
     console.error('Auth failed:', e.message);
-  } else if (e instanceof CutCtxCompressError) {
+  } else if (e instanceof CutctxCompressError) {
     console.error(`Compress failed (${e.statusCode}):`, e.message);
-  } else if (e instanceof CutCtxError) {
-    console.error('CutCtx error:', e.message, e.details);
+  } else if (e instanceof CutctxError) {
+    console.error('Cutctx error:', e.message, e.details);
   }
 }
 ```
@@ -90,14 +90,14 @@ try {
 
 ```python
 from cutctx import (
-    CutCtxClient,
-    CutCtxError,
+    CutctxClient,
+    CutctxError,
     ConfigurationError,
     StorageError,
 )
 
 try:
-    client = CutCtxClient(...)
+    client = CutctxClient(...)
     response = client.chat.completions.create(...)
 
 except ConfigurationError as e:
@@ -106,10 +106,10 @@ except ConfigurationError as e:
 
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # CutCtx continues to work, just without metrics persistence
+    # Cutctx continues to work, just without metrics persistence
 
-except CutCtxError as e:
-    print(f"CutCtx error: {e}")
+except CutctxError as e:
+    print(f"Cutctx error: {e}")
 ```
 
 </Tab>
@@ -133,7 +133,7 @@ import { ConfigurationError } from 'cutctx-ai';
 <Tab value="Python">
 ```python
 try:
-    client = CutCtxClient(
+    client = CutctxClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         default_mode="invalid_mode",  # Will raise ConfigurationError
@@ -175,17 +175,17 @@ except StorageError as e:
 
 Raised when compression fails (rare). In practice, compression errors are caught internally and the original content passes through unchanged. This exception is only raised in strict mode.
 
-### CutCtxConnectionError (TypeScript)
+### CutctxConnectionError (TypeScript)
 
-Raised when the TypeScript SDK cannot connect to the CutCtx proxy.
+Raised when the TypeScript SDK cannot connect to the Cutctx proxy.
 
 ```ts twoslash
-import { compress, CutCtxConnectionError } from 'cutctx-ai';
+import { compress, CutctxConnectionError } from 'cutctx-ai';
 
 try {
   await compress(messages, { model: 'gpt-4o' });
 } catch (e) {
-  if (e instanceof CutCtxConnectionError) {
+  if (e instanceof CutctxConnectionError) {
     console.error('Is the proxy running? Start with: cutctx proxy');
   }
 }
@@ -197,14 +197,14 @@ The TypeScript SDK automatically maps proxy error responses to the correct error
 
 | HTTP Status | Proxy Error Type | TypeScript Class |
 |-------------|-----------------|-----------------|
-| 401 | -- | `CutCtxAuthError` |
+| 401 | -- | `CutctxAuthError` |
 | 4xx/5xx | `configuration_error` | `ConfigurationError` |
 | 4xx/5xx | `provider_error` | `ProviderError` |
 | 4xx/5xx | `storage_error` | `StorageError` |
 | 4xx/5xx | `tokenization_error` | `TokenizationError` |
 | 4xx/5xx | `validation_error` | `ValidationError` |
 | 4xx/5xx | `transform_error` | `TransformError` |
-| 4xx/5xx | (other) | `CutCtxCompressError` |
+| 4xx/5xx | (other) | `CutctxCompressError` |
 
 The `mapProxyError()` function handles this mapping:
 
@@ -217,22 +217,22 @@ const error = mapProxyError(400, 'configuration_error', 'Invalid mode');
 
 ## Error Details
 
-All CutCtx exceptions include a `details` dict/object with additional context:
+All Cutctx exceptions include a `details` dict/object with additional context:
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { CutCtxError } from 'cutctx-ai';
+import { CutctxError } from 'cutctx-ai';
 
-// CutCtxError.details is Record<string, any> | undefined
-// CutCtxCompressError also has .statusCode and .errorType
+// CutctxError.details is Record<string, any> | undefined
+// CutctxCompressError also has .statusCode and .errorType
 ```
 </Tab>
 <Tab value="Python">
 ```python
 try:
-    client = CutCtxClient(...)
-except CutCtxError as e:
+    client = CutctxClient(...)
+except CutctxError as e:
     print(f"Error: {e}")
     print(f"Type: {type(e).__name__}")
     print(f"Details: {e.details}")
@@ -247,7 +247,7 @@ except CutCtxError as e:
 
 ## Safety Guarantee
 
-If compression fails, the original content passes through unchanged. Your LLM calls never fail due to CutCtx:
+If compression fails, the original content passes through unchanged. Your LLM calls never fail due to Cutctx:
 
 ```python
 messages = [
@@ -272,5 +272,5 @@ response = client.chat.completions.create(
 ```python
 import logging
 logging.basicConfig(level=logging.WARNING)
-# WARNING:headroom.transforms.smart_crusher:Skipping compression: invalid JSON
+# WARNING:cutctx.transforms.smart_crusher:Skipping compression: invalid JSON
 ```

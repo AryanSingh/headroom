@@ -91,9 +91,9 @@ jobs:
       - name: "Build wheel (single-wheel architecture builds cutctx-ai)"
         uses: PyO3/maturin-action@v1
         # Maturin reads `[tool.maturin]` from the root `pyproject.toml`
-        # which points at `crates/headroom-py/Cargo.toml` for the cdylib.
+        # which points at `crates/cutctx-py/Cargo.toml` for the cdylib.
         # Output is `cutctx_ai-<ver>-<py>-<py>-<platform>.whl` containing
-        # both Python source and the compiled `headroom/_core.so`.
+        # both Python source and the compiled `cutctx/_core.so`.
         with:
           command: build
           args: --release --out dist

@@ -3,7 +3,7 @@ title: Code Compression
 description: AST-aware compression that preserves imports, signatures, and types while compressing function bodies. Powered by tree-sitter.
 ---
 
-CutCtx's CodeAwareCompressor uses tree-sitter to parse source code into an AST, then selectively compresses function bodies while preserving the structural elements that LLMs need -- imports, signatures, type annotations, and error handlers.
+Cutctx's CodeAwareCompressor uses tree-sitter to parse source code into an AST, then selectively compresses function bodies while preserving the structural elements that LLMs need -- imports, signatures, type annotations, and error handlers.
 
 ## Why AST-Aware Compression?
 
@@ -169,5 +169,5 @@ unload_tree_sitter()
 | Syntax validity | Guaranteed |
 
 <Callout type="info" title="Automatic routing">
-  When you use the CutCtx proxy or call `compress()`, source code is automatically detected and routed to CodeAwareCompressor. Direct usage gives you control over compression settings per language.
+  When you use the Cutctx proxy or call `compress()`, source code is automatically detected and routed to CodeAwareCompressor. Direct usage gives you control over compression settings per language.
 </Callout>

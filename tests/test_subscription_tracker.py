@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom.subscription.tracker as tracker_module
-from headroom.subscription.models import (
+import cutctx.subscription.tracker as tracker_module
+from cutctx.subscription.models import (
     CutctxContribution,
     RateLimitWindow,
     SubscriptionSnapshot,
@@ -16,7 +16,7 @@ from headroom.subscription.models import (
     WindowTokens,
     _utc_now,
 )
-from headroom.subscription.tracker import SubscriptionTracker
+from cutctx.subscription.tracker import SubscriptionTracker
 
 
 def _make_snapshot(
@@ -117,12 +117,12 @@ async def test_maybe_poll_handles_inactive_and_none_snapshot(
     monkeypatch.setattr(SubscriptionTracker, "_load_persisted_state", lambda self: None)
     tracker = SubscriptionTracker()
 
-    monkeypatch.setattr("headroom.subscription.client.read_cached_oauth_token", lambda: None)
+    monkeypatch.setattr("cutctx.subscription.client.read_cached_oauth_token", lambda: None)
     await tracker._maybe_poll()
     assert tracker._state.poll_count == 0
 
     monkeypatch.setattr(
-        "headroom.subscription.client.read_cached_oauth_token", lambda: "cached-token"
+        "cutctx.subscription.client.read_cached_oauth_token", lambda: "cached-token"
     )
 
     async def fetch_none(token: str | None):
@@ -160,7 +160,7 @@ async def test_maybe_poll_success_updates_state_and_metrics(
     )
     monkeypatch.setitem(
         sys.modules,
-        "headroom.observability.metrics",
+        "cutctx.observability.metrics",
         SimpleNamespace(
             get_otel_metrics=lambda: SimpleNamespace(
                 record_subscription_window=lambda state: metrics_calls.append(state)

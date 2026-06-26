@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Copyright (c) 2025-2026 Cutctx Labs.
 
-"""SP-3: Compile headroom_ee to native extensions using Nuitka.
+"""SP-3: Compile cutctx_ee to native extensions using Nuitka.
 
 Compiles the proprietary EE Python modules to C extensions (.so/.pyd),
 then ships ONLY the compiled artifacts — no .py source in the released wheel.
@@ -15,7 +15,6 @@ For dev: use `--dev` to compile with debug symbols for profiling.
 """
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
@@ -24,8 +23,8 @@ from pathlib import Path
 
 # Paths
 ROOT = Path(__file__).resolve().parent.parent
-EE_SOURCE = ROOT / "headroom_ee"
-EE_PACKAGING = ROOT / "packaging" / "headroom-ee"
+EE_SOURCE = ROOT / "cutctx_ee"
+EE_PACKAGING = ROOT / "packaging" / "cutctx-ee"
 
 
 def check_nuitka_installed() -> str:
@@ -69,7 +68,7 @@ def compile_ee_module(
     cmd = [
         sys.executable, "-m", "nuitka",
         "--module",  # Produce .so extension module, not standalone
-        "--module-name", f"headroom_ee.{module_name}",
+        "--module-name", f"cutctx_ee.{module_name}",
         f"--output-dir={output_dir}",
         "--assume-yes-for-downloads",
         # Strip docstrings and assertions in release
@@ -120,7 +119,7 @@ def compile_all_ee(
     output_dir: Path,
     dev: bool = False,
 ) -> dict[str, list[Path]]:
-    """Compile all headroom_ee modules to native extensions.
+    """Compile all cutctx_ee modules to native extensions.
 
     Returns dict mapping module name to output files.
     """
@@ -206,7 +205,7 @@ def build_ee_wheel(
     """Build a wheel from compiled extensions only (no .py source)."""
     # Create a temporary package structure with only .so/.pyd files
     build_dir = compile_dir / "_build_root"
-    pkg_dir = build_dir / "headroom_ee"
+    pkg_dir = build_dir / "cutctx_ee"
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy only compiled extensions
@@ -221,10 +220,10 @@ def build_ee_wheel(
 
     # Create minimal __init__.py that imports from compiled extensions
     init_content = textwrap.dedent(f'''\
-        # SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+        # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
         # Copyright (c) 2025-2026 Cutctx Labs.
         # Auto-generated stub for compiled extensions — no source shipped.
-        """CutCtx Enterprise Edition v{version} (compiled)."""
+        """Cutctx Enterprise Edition v{version} (compiled)."""
         __version__ = "{version}"
     ''')
     (pkg_dir / "__init__.py").write_text(init_content)
@@ -236,14 +235,14 @@ def build_ee_wheel(
         build-backend = "setuptools.backends._legacy:_Backend"
 
         [project]
-        name = "headroom-ee"
+        name = "cutctx-ee"
         version = "{version}"
-        description = "CutCtx Enterprise Edition — compiled extensions (no source)"
-        license = {{text = "LicenseRef-Headroom-Commercial"}}
+        description = "Cutctx Enterprise Edition — compiled extensions (no source)"
+        license = {{text = "LicenseRef-Cutctx-Commercial"}}
         requires-python = ">=3.10"
 
         [tool.setuptools.packages.find]
-        include = ["headroom_ee*"]
+        include = ["cutctx_ee*"]
     ''')
     (build_dir / "pyproject.toml").write_text(pyproject_content)
 
@@ -260,7 +259,7 @@ def build_ee_wheel(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SP-3: Compile headroom_ee to native extensions")
+    parser = argparse.ArgumentParser(description="SP-3: Compile cutctx_ee to native extensions")
     parser.add_argument("--output-dir", default=str(ROOT / "dist-ee"),
                         help="Output directory for compiled wheel")
     parser.add_argument("--dev", action="store_true",
@@ -309,13 +308,13 @@ def main():
 
     # Build signed integrity manifest from the compiled .so files.
     # The manifest is written into the EE package dir so it ships inside
-    # the wheel and can be verified at runtime by headroom.security.integrity.
+    # the wheel and can be verified at runtime by cutctx.security.integrity.
     if not args.dev:
         print("\nBuilding signed EE integrity manifest…")
         manifest_script = ROOT / "scripts" / "build_ee_manifest.py"
         # Point at the compiled .so directory (not the source tree) so we
         # hash exactly what goes into the wheel.
-        pkg_dir_in_wheel = compile_dir / "_build_root" / "headroom_ee"
+        pkg_dir_in_wheel = compile_dir / "_build_root" / "cutctx_ee"
         manifest_result = subprocess.run(
             [
                 sys.executable,

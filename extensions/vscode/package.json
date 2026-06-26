@@ -1,6 +1,6 @@
 {
   "name": "cutctx-ai",
-  "displayName": "CutCtx - AI Context Compression",
+  "displayName": "Cutctx - AI Context Compression",
   "description": "Compress LLM context automatically to save 60-90% of tokens. Works with Claude Code, Cursor, Cline, and Continue.",
   "version": "0.1.0",
   "publisher": "cutctx-ai",
@@ -11,13 +11,13 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {"command": "cutctx.startProxy", "title": "Start Proxy", "category": "CutCtx"},
-      {"command": "cutctx.stopProxy", "title": "Stop Proxy", "category": "CutCtx"},
-      {"command": "cutctx.showStats", "title": "Show Compression Stats", "category": "CutCtx"},
-      {"command": "cutctx.configureExtension", "title": "Configure Active AI Extension", "category": "CutCtx"}
+      {"command": "cutctx.startProxy", "title": "Start Proxy", "category": "Cutctx"},
+      {"command": "cutctx.stopProxy", "title": "Stop Proxy", "category": "Cutctx"},
+      {"command": "cutctx.showStats", "title": "Show Compression Stats", "category": "Cutctx"},
+      {"command": "cutctx.configureExtension", "title": "Configure Active AI Extension", "category": "Cutctx"}
     ],
     "configuration": {
-      "title": "CutCtx",
+      "title": "Cutctx",
       "properties": {
         "cutctx.port": {"type": "number", "default": 8787, "description": "Proxy port"},
         "cutctx.autoStart": {"type": "boolean", "default": true, "description": "Auto-start proxy on VS Code launch"},

@@ -5,7 +5,7 @@ description: Automated release pipeline with semantic versioning, multi-package 
 
 ## Overview
 
-CutCtx uses a unified GitHub Actions workflow (`.github/workflows/release.yml`) that automatically publishes all three packages, builds version-matched Docker images, generates changelogs from conventional commits, and creates GitHub Releases with package assets attached.
+Cutctx uses a unified GitHub Actions workflow (`.github/workflows/release.yml`) that automatically publishes all three packages, builds version-matched Docker images, generates changelogs from conventional commits, and creates GitHub Releases with package assets attached.
 
 The release workflow also calls `.github/workflows/docker.yml` as a reusable workflow so GHCR images are published in the same release run with the exact same synced version as PyPI, npm, and GitHub release assets.
 
@@ -18,9 +18,9 @@ The release workflow also calls `.github/workflows/docker.yml` as a reusable wor
 | `cutctx-openclaw` | TypeScript plugin | npmjs.org | `NPM_OPENCLAW_PACKAGE` |
 | `@{owner}/cutctx-ai` | TypeScript SDK | GitHub Package Registry | — |
 | `@{owner}/cutctx-openclaw` | TypeScript plugin | GitHub Package Registry | — |
-| `cutctx-ai-{version}.tar.gz` / `headroom_ai-{version}-py3-none-any.whl` | Python package distributions | GitHub Release (`{owner}/headroom`) | — |
-| `cutctx-ai-{version}.tgz` / `cutctx-openclaw-{version}.tgz` | Node release assets | GitHub Release (`{owner}/headroom`) | — |
-| `ghcr.io/{owner}/headroom` | Docker image | GitHub Container Registry | — |
+| `cutctx-ai-{version}.tar.gz` / `cutctx_ai-{version}-py3-none-any.whl` | Python package distributions | GitHub Release (`{owner}/cutctx`) | — |
+| `cutctx-ai-{version}.tgz` / `cutctx-openclaw-{version}.tgz` | Node release assets | GitHub Release (`{owner}/cutctx`) | — |
+| `ghcr.io/{owner}/cutctx` | Docker image | GitHub Container Registry | — |
 
 ## Version Strategy
 
@@ -34,7 +34,7 @@ The workflow uses a **canonical + commit-height** algorithm that eliminates infi
 ### Version Files
 
 - `pyproject.toml` — `[project].version` — **canonical** (set manually before merge)
-- `headroom/_version.py` — `__version__` — synced at build time
+- `cutctx/_version.py` — `__version__` — synced at build time
 - `plugins/openclaw/package.json` — `version` — synced at build time
 - `sdk/typescript/package.json` — `version` — synced at build time
 

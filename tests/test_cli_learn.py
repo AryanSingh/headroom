@@ -9,8 +9,8 @@ import click.shell_completion as click_shell_completion
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.learn import _AgentChoice
-from headroom.cli.main import main
+from cutctx.cli.learn import _AgentChoice
+from cutctx.cli.main import main
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ class FakeWriter:
         return SimpleNamespace(
             dry_run=dry_run,
             content_by_file={
-                Path(project.project_path) / "AGENTS.md": "<!-- headroom -->\nRule 1\nRule 2"
+                Path(project.project_path) / "AGENTS.md": "<!-- cutctx -->\nRule 1\nRule 2"
             },
         )
 
@@ -77,11 +77,11 @@ def test_agent_choice_convert_and_shell_complete(monkeypatch: pytest.MonkeyPatch
     choice = _AgentChoice()
     monkeypatch.setattr(click, "shell_completion", click_shell_completion)
     monkeypatch.setattr(
-        "headroom.learn.registry.get_registry",
+        "cutctx.learn.registry.get_registry",
         lambda: {"codex": object(), "claude": object()},
     )
     monkeypatch.setattr(
-        "headroom.learn.registry.available_agent_names",
+        "cutctx.learn.registry.available_agent_names",
         lambda: ["claude", "codex"],
     )
 
@@ -99,7 +99,7 @@ def test_learn_exits_cleanly_when_model_detection_fails(
     monkeypatch: pytest.MonkeyPatch, runner: CliRunner
 ) -> None:
     monkeypatch.setattr(
-        "headroom.learn.analyzer._detect_default_model",
+        "cutctx.learn.analyzer._detect_default_model",
         lambda: (_ for _ in ()).throw(RuntimeError("no model")),
     )
 
@@ -112,9 +112,9 @@ def test_learn_exits_cleanly_when_model_detection_fails(
 def test_learn_auto_agent_reports_no_detected_plugins(
     monkeypatch: pytest.MonkeyPatch, runner: CliRunner
 ) -> None:
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.auto_detect_plugins", lambda: [])
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.auto_detect_plugins", lambda: [])
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(main, ["learn"], catch_exceptions=False)
 
@@ -128,9 +128,9 @@ def test_learn_single_agent_shows_available_projects_when_cwd_missing(
     project = SimpleNamespace(name="demo", project_path=tmp_path / "demo")
     plugin = FakePlugin("codex", "Codex", [project])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(main, ["learn", "--agent", "codex"], catch_exceptions=False)
@@ -151,9 +151,9 @@ def test_learn_project_lookup_and_apply_flow(
     plugin = FakePlugin("codex", "Codex", [matched, unmatched])
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
     monkeypatch.setattr("os.cpu_count", lambda: 12)
 
     result = runner.invoke(
@@ -181,9 +181,9 @@ def test_learn_reports_missing_requested_project_and_lists_discovered(
     discovered = SimpleNamespace(name="project-a", project_path=tmp_path / "project-a")
     plugin = FakePlugin("claude", "Claude Code", [discovered])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(
         main,
@@ -206,12 +206,12 @@ def test_learn_analyze_all_uses_default_workers_and_prints_summary(
     plugin_b = FakePlugin("claude", "Claude Code", projects_b)
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
     monkeypatch.setattr(
-        "headroom.learn.registry.auto_detect_plugins",
+        "cutctx.learn.registry.auto_detect_plugins",
         lambda: [plugin_a, plugin_b],
     )
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
     monkeypatch.setattr("os.cpu_count", lambda: 12)
 
     result = runner.invoke(main, ["learn", "--all"], catch_exceptions=False)
@@ -232,9 +232,9 @@ def test_learn_analyze_all_continues_when_one_project_write_fails(
     plugin.writer.fail_for = blocked
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
 
     result = runner.invoke(
         main,
@@ -287,9 +287,9 @@ def test_learn_handles_empty_sessions_and_no_pattern_outputs(
     plugin = BranchingPlugin("codex", "Codex", [no_sessions, no_failures, no_actions])
     analyzer = BranchingAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("cutctx.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("cutctx.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
 
     result = runner.invoke(main, ["learn", "--agent", "codex", "--all"], catch_exceptions=False)
 

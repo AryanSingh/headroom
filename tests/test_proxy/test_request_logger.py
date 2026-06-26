@@ -9,8 +9,8 @@ stay in sync - it's pointless to store one without the other.
 
 from __future__ import annotations
 
-from headroom.proxy.models import RequestLog
-from headroom.proxy.request_logger import RequestLogger
+from cutctx.proxy.models import RequestLog
+from cutctx.proxy.request_logger import RequestLogger
 
 
 def _entry(**overrides) -> RequestLog:

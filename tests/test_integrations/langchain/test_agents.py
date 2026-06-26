@@ -4,7 +4,7 @@ Tests cover:
 1. ToolCompressionMetrics - Dataclass for tool compression metrics
 2. ToolMetricsCollector - Collector for compression metrics
 3. CutctxToolWrapper - Wrapper for LangChain tools with compression
-4. wrap_tools_with_headroom - Convenience function for wrapping multiple tools
+4. wrap_tools_with_cutctx - Convenience function for wrapping multiple tools
 5. get_tool_metrics / reset_tool_metrics - Global metrics access
 """
 
@@ -52,7 +52,7 @@ class TestToolCompressionMetrics:
 
     def test_create_metrics(self):
         """Create metrics with all fields."""
-        from headroom.integrations.langchain.agents import ToolCompressionMetrics
+        from cutctx.integrations.langchain.agents import ToolCompressionMetrics
 
         metrics = ToolCompressionMetrics(
             tool_name="search",
@@ -73,7 +73,7 @@ class TestToolCompressionMetrics:
 
     def test_metrics_defaults(self):
         """Verify no default values (all required)."""
-        from headroom.integrations.langchain.agents import ToolCompressionMetrics
+        from cutctx.integrations.langchain.agents import ToolCompressionMetrics
 
         # All fields are required, should raise TypeError if missing
         with pytest.raises(TypeError):
@@ -85,7 +85,7 @@ class TestToolMetricsCollector:
 
     def test_init_empty(self):
         """Initialize with empty metrics list."""
-        from headroom.integrations.langchain.agents import ToolMetricsCollector
+        from cutctx.integrations.langchain.agents import ToolMetricsCollector
 
         collector = ToolMetricsCollector()
 
@@ -93,7 +93,7 @@ class TestToolMetricsCollector:
 
     def test_add_metric(self):
         """Add a metric to the collector."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolCompressionMetrics,
             ToolMetricsCollector,
         )
@@ -116,7 +116,7 @@ class TestToolMetricsCollector:
 
     def test_add_metric_limits_to_1000(self):
         """Metrics list is limited to 1000 entries."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolCompressionMetrics,
             ToolMetricsCollector,
         )
@@ -143,7 +143,7 @@ class TestToolMetricsCollector:
 
     def test_get_summary_empty(self):
         """Get summary with no metrics."""
-        from headroom.integrations.langchain.agents import ToolMetricsCollector
+        from cutctx.integrations.langchain.agents import ToolMetricsCollector
 
         collector = ToolMetricsCollector()
         summary = collector.get_summary()
@@ -154,7 +154,7 @@ class TestToolMetricsCollector:
 
     def test_get_summary_with_data(self):
         """Get summary with metrics."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolCompressionMetrics,
             ToolMetricsCollector,
         )
@@ -196,7 +196,7 @@ class TestToolMetricsCollector:
 
     def test_get_summary_by_tool(self):
         """Get per-tool statistics."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolCompressionMetrics,
             ToolMetricsCollector,
         )
@@ -240,12 +240,12 @@ class TestToolMetricsCollector:
         assert summary["by_tool"]["database"]["compressions"] == 0
 
 
-class TestHeadroomToolWrapper:
+class TestCutctxToolWrapper:
     """Tests for CutctxToolWrapper."""
 
     def test_init_defaults(self, mock_tool):
         """Initialize with default settings."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         wrapper = CutctxToolWrapper(mock_tool)
 
@@ -256,7 +256,7 @@ class TestHeadroomToolWrapper:
 
     def test_init_custom_threshold(self, mock_tool):
         """Initialize with custom compression threshold."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             ToolMetricsCollector,
         )
@@ -273,7 +273,7 @@ class TestHeadroomToolWrapper:
 
     def test_call_small_output_no_compression(self, mock_tool):
         """Small outputs are not compressed."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             ToolMetricsCollector,
         )
@@ -293,7 +293,7 @@ class TestHeadroomToolWrapper:
 
     def test_call_large_output_triggers_compression(self, mock_tool_with_large_output):
         """Large outputs trigger compression."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             ToolMetricsCollector,
         )
@@ -306,7 +306,7 @@ class TestHeadroomToolWrapper:
         )
 
         # Mock compress_tool_result to return compressed output
-        with patch("headroom.integrations.langchain.agents.compress_tool_result") as mock_compress:
+        with patch("cutctx.integrations.langchain.agents.compress_tool_result") as mock_compress:
             mock_compress.return_value = '{"items": [...compressed...]}'
             wrapper("query")
 
@@ -316,7 +316,7 @@ class TestHeadroomToolWrapper:
 
     def test_call_converts_non_string_result(self, mock_tool):
         """Non-string results are converted to strings."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool.invoke.return_value = {"key": "value"}
 
@@ -328,7 +328,7 @@ class TestHeadroomToolWrapper:
 
     def test_invoke_alias(self, mock_tool):
         """invoke() is an alias for __call__()."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         wrapper = CutctxToolWrapper(mock_tool)
 
@@ -340,14 +340,14 @@ class TestHeadroomToolWrapper:
 
     def test_compression_failure_returns_original(self, mock_tool_with_large_output):
         """Compression failure returns original output."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         wrapper = CutctxToolWrapper(
             mock_tool_with_large_output,
             min_chars_to_compress=100,
         )
 
-        with patch("headroom.integrations.langchain.agents.compress_tool_result") as mock_compress:
+        with patch("cutctx.integrations.langchain.agents.compress_tool_result") as mock_compress:
             mock_compress.side_effect = Exception("Compression error")
             result = wrapper("query")
 
@@ -357,7 +357,7 @@ class TestHeadroomToolWrapper:
 
     def test_as_langchain_tool(self, mock_tool):
         """Convert wrapper to LangChain StructuredTool."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         wrapper = CutctxToolWrapper(mock_tool)
         lc_tool = wrapper.as_langchain_tool()
@@ -368,7 +368,7 @@ class TestHeadroomToolWrapper:
 
     def test_metrics_recorded_correctly(self, mock_tool_with_large_output):
         """Verify metrics are recorded correctly."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             ToolMetricsCollector,
         )
@@ -382,7 +382,7 @@ class TestHeadroomToolWrapper:
 
         original_len = len(mock_tool_with_large_output.invoke.return_value)
 
-        with patch("headroom.integrations.langchain.agents.compress_tool_result") as mock_compress:
+        with patch("cutctx.integrations.langchain.agents.compress_tool_result") as mock_compress:
             compressed_result = '{"items": [...]}'
             mock_compress.return_value = compressed_result
             wrapper("query")
@@ -394,14 +394,14 @@ class TestHeadroomToolWrapper:
             assert metric.chars_saved == original_len - len(compressed_result)
 
 
-class TestWrapToolsWithHeadroom:
-    """Tests for wrap_tools_with_headroom function."""
+class TestWrapToolsWithCutctx:
+    """Tests for wrap_tools_with_cutctx function."""
 
     def test_wrap_single_tool(self, mock_tool):
         """Wrap a single tool."""
-        from headroom.integrations.langchain.agents import wrap_tools_with_headroom
+        from cutctx.integrations.langchain.agents import wrap_tools_with_cutctx
 
-        wrapped = wrap_tools_with_headroom([mock_tool])
+        wrapped = wrap_tools_with_cutctx([mock_tool])
 
         assert len(wrapped) == 1
         assert isinstance(wrapped[0], StructuredTool)
@@ -409,14 +409,14 @@ class TestWrapToolsWithHeadroom:
 
     def test_wrap_multiple_tools(self, mock_tool):
         """Wrap multiple tools."""
-        from headroom.integrations.langchain.agents import wrap_tools_with_headroom
+        from cutctx.integrations.langchain.agents import wrap_tools_with_cutctx
 
         tool2 = MagicMock(spec=BaseTool)
         tool2.name = "tool_2"
         tool2.description = "Second tool"
         tool2.invoke = MagicMock(return_value="Result 2")
 
-        wrapped = wrap_tools_with_headroom([mock_tool, tool2])
+        wrapped = wrap_tools_with_cutctx([mock_tool, tool2])
 
         assert len(wrapped) == 2
         assert wrapped[0].name == "test_tool"
@@ -424,9 +424,9 @@ class TestWrapToolsWithHeadroom:
 
     def test_wrap_with_custom_threshold(self, mock_tool):
         """Wrap with custom compression threshold."""
-        from headroom.integrations.langchain.agents import wrap_tools_with_headroom
+        from cutctx.integrations.langchain.agents import wrap_tools_with_cutctx
 
-        wrapped = wrap_tools_with_headroom([mock_tool], min_chars_to_compress=500)
+        wrapped = wrap_tools_with_cutctx([mock_tool], min_chars_to_compress=500)
 
         assert len(wrapped) == 1
         # Invoke to verify wrapper is configured
@@ -435,9 +435,9 @@ class TestWrapToolsWithHeadroom:
 
     def test_wrap_with_shared_collector(self, mock_tool):
         """Wrap with shared metrics collector."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolMetricsCollector,
-            wrap_tools_with_headroom,
+            wrap_tools_with_cutctx,
         )
 
         collector = ToolMetricsCollector()
@@ -447,7 +447,7 @@ class TestWrapToolsWithHeadroom:
         tool2.description = "Second tool"
         tool2.invoke = MagicMock(return_value="Result 2")
 
-        wrapped = wrap_tools_with_headroom(
+        wrapped = wrap_tools_with_cutctx(
             [mock_tool, tool2],
             metrics_collector=collector,
         )
@@ -461,9 +461,9 @@ class TestWrapToolsWithHeadroom:
 
     def test_wrap_empty_list(self):
         """Wrap empty list returns empty list."""
-        from headroom.integrations.langchain.agents import wrap_tools_with_headroom
+        from cutctx.integrations.langchain.agents import wrap_tools_with_cutctx
 
-        wrapped = wrap_tools_with_headroom([])
+        wrapped = wrap_tools_with_cutctx([])
 
         assert wrapped == []
 
@@ -473,7 +473,7 @@ class TestGlobalMetrics:
 
     def test_get_tool_metrics(self):
         """get_tool_metrics returns the global collector."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolMetricsCollector,
             get_tool_metrics,
         )
@@ -484,7 +484,7 @@ class TestGlobalMetrics:
 
     def test_reset_tool_metrics(self):
         """reset_tool_metrics creates new collector."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             ToolCompressionMetrics,
             get_tool_metrics,
             reset_tool_metrics,
@@ -512,8 +512,8 @@ class TestGlobalMetrics:
         assert len(new_collector.metrics) == 0
 
     def test_wrapper_uses_global_metrics_by_default(self, mock_tool):
-        """HeadroomToolWrapper uses global metrics by default."""
-        from headroom.integrations.langchain.agents import (
+        """CutctxToolWrapper uses global metrics by default."""
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             get_tool_metrics,
             reset_tool_metrics,
@@ -534,7 +534,7 @@ class TestLangChainNotAvailable:
 
     def test_check_raises_import_error(self):
         """_check_langchain_available raises ImportError when not available."""
-        from headroom.integrations.langchain.agents import _check_langchain_available
+        from cutctx.integrations.langchain.agents import _check_langchain_available
 
         # When LangChain IS available, should not raise
         try:

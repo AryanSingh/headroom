@@ -1,4 +1,4 @@
-# Security Audit Report — CutCtx v0.26.0
+# Security Audit Report — Cutctx v0.26.0
 
 **Date:** 2026-06-19
 

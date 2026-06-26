@@ -20,7 +20,7 @@ importorskip_no_env_leak("litellm")
 
 def test_savings_at_list_price():
     """savings_usd = tokens_saved * model list input price."""
-    from headroom.proxy.server import CostTracker
+    from cutctx.proxy.server import CostTracker
 
     ct = CostTracker()
     model = "claude-sonnet-4-20250514"
@@ -38,7 +38,7 @@ def test_savings_at_list_price():
     # Savings should be 100k tokens * list input price (NOT affected by cache mix)
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
+    from cutctx.pricing.litellm_pricing import resolve_litellm_model
 
     resolved = resolve_litellm_model(model)
     info = litellm.model_cost.get(resolved, {})
@@ -51,7 +51,7 @@ def test_savings_at_list_price():
 
 def test_savings_monotonic():
     """Adding more saved tokens always increases savings_usd."""
-    from headroom.proxy.server import CostTracker
+    from cutctx.proxy.server import CostTracker
 
     ct = CostTracker()
     model = "claude-sonnet-4-20250514"
@@ -68,7 +68,7 @@ def test_savings_monotonic():
 
 def test_savings_zero_when_no_tokens_saved():
     """No tokens saved → savings_usd is 0."""
-    from headroom.proxy.server import CostTracker
+    from cutctx.proxy.server import CostTracker
 
     ct = CostTracker()
     model = "claude-sonnet-4-20250514"
@@ -82,7 +82,7 @@ def test_savings_zero_when_no_tokens_saved():
 
 def test_multi_model_savings():
     """Savings across multiple models use each model's own list price."""
-    from headroom.proxy.server import CostTracker
+    from cutctx.proxy.server import CostTracker
 
     ct = CostTracker()
 
@@ -99,12 +99,12 @@ def test_multi_model_savings():
     assert len(stats["per_model"]) == 2
 
 
-def test_no_cost_without_headroom_field():
-    """cost_without_headroom_usd should NOT be in stats (removed to avoid confusion)."""
-    from headroom.proxy.server import CostTracker
+def test_no_cost_without_cutctx_field():
+    """cost_without_cutctx_usd should NOT be in stats (removed to avoid confusion)."""
+    from cutctx.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens("claude-sonnet-4-20250514", tokens_saved=10_000, tokens_sent=5_000)
     stats = ct.stats()
 
-    assert "cost_without_headroom_usd" not in stats
+    assert "cost_without_cutctx_usd" not in stats

@@ -1,10 +1,10 @@
-"""Tests for headroom.seats — seat management system."""
+"""Tests for cutctx.seats — seat management system."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from headroom.seats import TIER_SEAT_LIMITS, SeatInfo, SeatManager, SeatState
+from cutctx.seats import TIER_SEAT_LIMITS, SeatInfo, SeatManager, SeatState
 
 
 class TestSeatInfo:

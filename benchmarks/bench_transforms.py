@@ -48,7 +48,7 @@ class TestSmartCrusherBenchmarks:
     @pytest.fixture
     def crusher(self, smart_crusher_config):
         """Create SmartCrusher instance."""
-        from headroom.transforms.smart_crusher import SmartCrusher
+        from cutctx.transforms.smart_crusher import SmartCrusher
 
         return SmartCrusher(config=smart_crusher_config)
 
@@ -242,7 +242,7 @@ class TestCacheAlignerBenchmarks:
     @pytest.fixture
     def aligner(self, cache_aligner_config):
         """Create CacheAligner instance."""
-        from headroom.transforms.cache_aligner import CacheAligner
+        from cutctx.transforms.cache_aligner import CacheAligner
 
         return CacheAligner(config=cache_aligner_config)
 
@@ -399,9 +399,9 @@ class TestTransformPipelineBenchmarks:
         runs CacheAligner → SmartCrusher (followed by ContentRouter
         in production, omitted here to keep the fixture pure-stage).
         """
-        from headroom.transforms.cache_aligner import CacheAligner
-        from headroom.transforms.pipeline import TransformPipeline
-        from headroom.transforms.smart_crusher import SmartCrusher
+        from cutctx.transforms.cache_aligner import CacheAligner
+        from cutctx.transforms.pipeline import TransformPipeline
+        from cutctx.transforms.smart_crusher import SmartCrusher
 
         return TransformPipeline(
             transforms=[

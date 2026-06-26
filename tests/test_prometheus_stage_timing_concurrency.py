@@ -14,7 +14,7 @@ import asyncio
 
 import pytest
 
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
+from cutctx.proxy.prometheus_metrics import PrometheusMetrics
 
 
 @pytest.mark.asyncio

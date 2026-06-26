@@ -1,4 +1,4 @@
-"""Tests for CutCtx SDK shared context."""
+"""Tests for Cutctx SDK shared context."""
 
 from __future__ import annotations
 

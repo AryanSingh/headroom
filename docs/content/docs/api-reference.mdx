@@ -1,21 +1,21 @@
 ---
 title: API Reference
-description: Complete API reference for the CutCtx Python and TypeScript SDKs. Core client, configuration types, result types, errors, and utilities.
+description: Complete API reference for the Cutctx Python and TypeScript SDKs. Core client, configuration types, result types, errors, and utilities.
 ---
 
-Complete API reference for the CutCtx Python and TypeScript SDKs.
+Complete API reference for the Cutctx Python and TypeScript SDKs.
 
 ## Core
 
-### CutCtxClient
+### CutctxClient
 
-The main entry point for the CutCtx SDK.
+The main entry point for the Cutctx SDK.
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 
 <TypeTable type={{
-  baseUrl: { type: 'string', description: 'Base URL for the CutCtx proxy' },
+  baseUrl: { type: 'string', description: 'Base URL for the Cutctx proxy' },
   apiKey: { type: 'string', description: 'API key for authentication' },
   timeout: { type: 'number', description: 'Request timeout in milliseconds' },
   fallback: { type: 'boolean', description: 'Return original messages on failure instead of throwing' },
@@ -23,9 +23,9 @@ The main entry point for the CutCtx SDK.
 }} />
 
 ```ts twoslash
-import { CutCtxClient } from 'cutctx-ai';
+import { CutctxClient } from 'cutctx-ai';
 
-const client = new CutCtxClient({
+const client = new CutctxClient({
   baseUrl: 'http://localhost:8787',
   apiKey: 'your-api-key',
   timeout: 30_000,
@@ -52,10 +52,10 @@ const client = new CutCtxClient({
 }} />
 
 ```python
-from cutctx import CutCtxClient, OpenAIProvider
+from cutctx import CutctxClient, OpenAIProvider
 from openai import OpenAI
 
-client = CutCtxClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",
@@ -88,23 +88,23 @@ const result = await compress(messages, {
 </Tab>
 <Tab value="Python">
 
-Accepts all standard OpenAI/Anthropic parameters plus CutCtx-specific overrides:
+Accepts all standard OpenAI/Anthropic parameters plus Cutctx-specific overrides:
 
 <TypeTable type={{
-  headroom_mode: { type: '"audit" | "optimize" | "simulate"', description: 'Override mode for this request', default: 'Client default' },
-  headroom_query: { type: 'str', description: 'Query for relevance scoring', default: 'None' },
-  headroom_output_buffer_tokens: { type: 'int', description: 'Reserve tokens for output', default: '4000' },
-  headroom_keep_turns: { type: 'int', description: 'Keep last N turns uncompressed', default: '2' },
-  headroom_tool_profiles: { type: 'dict', description: 'Per-tool compression overrides', default: '{}' },
+  cutctx_mode: { type: '"audit" | "optimize" | "simulate"', description: 'Override mode for this request', default: 'Client default' },
+  cutctx_query: { type: 'str', description: 'Query for relevance scoring', default: 'None' },
+  cutctx_output_buffer_tokens: { type: 'int', description: 'Reserve tokens for output', default: '4000' },
+  cutctx_keep_turns: { type: 'int', description: 'Keep last N turns uncompressed', default: '2' },
+  cutctx_tool_profiles: { type: 'dict', description: 'Per-tool compression overrides', default: '{}' },
 }} />
 
 ```python
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[...],
-    headroom_mode="optimize",
-    headroom_keep_turns=5,
-    headroom_tool_profiles={
+    cutctx_mode="optimize",
+    cutctx_keep_turns=5,
+    cutctx_tool_profiles={
         "important_tool": {"skip_compression": True},
     },
 )
@@ -132,16 +132,16 @@ print(f"Transforms: {plan.transforms_applied}")
 
 ### compress() (TypeScript)
 
-Top-level function to compress messages via the CutCtx proxy.
+Top-level function to compress messages via the Cutctx proxy.
 
 <TypeTable type={{
   model: { type: 'string', description: 'Model name for token counting and context limits' },
-  baseUrl: { type: 'string', description: 'Base URL for the CutCtx proxy' },
+  baseUrl: { type: 'string', description: 'Base URL for the Cutctx proxy' },
   apiKey: { type: 'string', description: 'API key for authentication' },
   timeout: { type: 'number', description: 'Request timeout in milliseconds' },
   fallback: { type: 'boolean', description: 'Return original messages on failure instead of throwing' },
   retries: { type: 'number', description: 'Number of retry attempts on failure' },
-  client: { type: 'CutCtxClientInterface', description: 'Pre-configured client instance to use' },
+  client: { type: 'CutctxClientInterface', description: 'Pre-configured client instance to use' },
   tokenBudget: { type: 'number', description: 'Token budget — compress to fit within this limit' },
   hooks: { type: 'CompressionHooks', description: 'Compression hooks for pre/post processing' },
 }} />
@@ -317,19 +317,19 @@ config = CacheAlignerConfig(
 </Tab>
 <Tab value="Python">
 
-Context management is now automatic. CutCtx handles rolling window behavior internally based on the model's context limit and the `headroom_keep_turns` / `headroom_output_buffer_tokens` per-request overrides. The `RollingWindowConfig`, `IntelligentContextConfig`, and `ScoringWeights` classes no longer exist as public API.
+Context management is now automatic. Cutctx handles rolling window behavior internally based on the model's context limit and the `cutctx_keep_turns` / `cutctx_output_buffer_tokens` per-request overrides. The `RollingWindowConfig`, `IntelligentContextConfig`, and `ScoringWeights` classes no longer exist as public API.
 
 </Tab>
 </Tabs>
 
-### CutCtxConfig
+### CutctxConfig
 
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 
 <TypeTable type={{
   storeUrl: { type: 'string', description: 'Storage URL for metrics database' },
-  defaultMode: { type: 'CutCtxMode', description: 'Default compression mode' },
+  defaultMode: { type: 'CutctxMode', description: 'Default compression mode' },
   modelContextLimits: { type: 'Record<string, number>', description: 'Override context limits per model' },
   toolCrusher: { type: 'ToolCrusherConfig', description: 'Tool crusher configuration' },
   smartCrusher: { type: 'SmartCrusherConfig', description: 'Smart crusher configuration' },
@@ -348,12 +348,12 @@ Context management is now automatic. CutCtx handles rolling window behavior inte
 The top-level config object that contains all sub-configurations:
 
 ```python
-from cutctx import CutCtxConfig
+from cutctx import CutctxConfig
 
-config = CutCtxConfig()
+config = CutctxConfig()
 config.smart_crusher.min_tokens_to_crush = 100
 config.cache_aligner.enabled = True
-# Note: rolling_window was removed in 0.9.x — use headroom_keep_turns per-request instead
+# Note: rolling_window was removed in 0.9.x — use cutctx_keep_turns per-request instead
 ```
 
 </Tab>
@@ -588,10 +588,10 @@ result = pipeline.transform(messages)
 
 | Exception | Meaning |
 |-----------|---------|
-| `CutCtxError` | Base class for all errors |
-| `CutCtxConnectionError` | Cannot reach proxy |
-| `CutCtxAuthError` | 401 from proxy |
-| `CutCtxCompressError` | Compression failed (includes `statusCode`, `errorType`) |
+| `CutctxError` | Base class for all errors |
+| `CutctxConnectionError` | Cannot reach proxy |
+| `CutctxAuthError` | 401 from proxy |
+| `CutctxCompressError` | Compression failed (includes `statusCode`, `errorType`) |
 | `ConfigurationError` | Invalid configuration |
 | `ProviderError` | Provider issues |
 | `StorageError` | Storage failures |
@@ -607,7 +607,7 @@ Use `mapProxyError(status, type, message)` to convert proxy error responses to t
 
 | Exception | Meaning |
 |-----------|---------|
-| `CutCtxError` | Base class for all CutCtx errors |
+| `CutctxError` | Base class for all Cutctx errors |
 | `ConfigurationError` | Invalid config values |
 | `ProviderError` | Provider issue (unknown model, etc.) |
 | `StorageError` | Database issue |
@@ -645,7 +645,7 @@ Generate HTML/Markdown reports from stored metrics:
 from cutctx import generate_report
 
 report = generate_report(
-    store_url="sqlite:///headroom.db",
+    store_url="sqlite:///cutctx.db",
     format="html",
     period="day",
 )

@@ -25,8 +25,8 @@ fuzz_target!(|data: &[u8]| {
     };
 
     // Fuzz with default config
-    let config = headroom_core::transforms::smart_crusher::crusher::SmartCrusherConfig::default();
-    let crusher = headroom_core::transforms::smart_crusher::crusher::SmartCrusher::new(config);
+    let config = cutctx_core::transforms::smart_crusher::crusher::SmartCrusherConfig::default();
+    let crusher = cutctx_core::transforms::smart_crusher::crusher::SmartCrusher::new(config);
 
     // process_value should never panic on valid JSON
     let _result = crusher.process_value(&val, "", 0.0);

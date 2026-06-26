@@ -3,12 +3,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-from headroom.proxy.handlers.openai import (
+from cutctx.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _compact_openai_responses_tools,
     _openai_responses_context_budget,
 )
-from headroom.transforms.content_router import (
+from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -335,7 +335,7 @@ def test_compression_pass_debug_logs_are_suppressed(caplog) -> None:
         ],
     }
 
-    caplog.set_level(_logging.INFO, logger="headroom.proxy")
+    caplog.set_level(_logging.INFO, logger="cutctx.proxy")
     handler._compress_openai_responses_payload(
         payload_a, model="gpt-5.5", request_id="hr_shared_request"
     )

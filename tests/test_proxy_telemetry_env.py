@@ -6,17 +6,17 @@ import pytest
 
 pytest.importorskip("fastapi")
 
-from headroom.proxy.server import ProxyConfig, create_app
+from cutctx.proxy.server import ProxyConfig, create_app
 
 
 class TestProxyTelemetrySDKEnv:
-    """Test HEADROOM_SDK handling when the proxy builds telemetry beacons."""
+    """Test CUTCTX_SDK handling when the proxy builds telemetry beacons."""
 
     def test_proxy_telemetry_sdk_defaults_to_proxy(self, monkeypatch):
         """Telemetry beacon uses the default SDK label when env var is unset."""
-        monkeypatch.delenv("HEADROOM_SDK", raising=False)
+        monkeypatch.delenv("CUTCTX_SDK", raising=False)
 
-        with patch("headroom.telemetry.beacon.TelemetryBeacon") as mock_beacon:
+        with patch("cutctx.telemetry.beacon.TelemetryBeacon") as mock_beacon:
             create_app(
                 ProxyConfig(
                     cache_enabled=False,
@@ -28,10 +28,10 @@ class TestProxyTelemetrySDKEnv:
         assert mock_beacon.call_args.kwargs["sdk"] == "proxy"
 
     def test_proxy_telemetry_sdk_uses_env_override(self, monkeypatch):
-        """Telemetry beacon uses HEADROOM_SDK when it is non-empty."""
-        monkeypatch.setenv("HEADROOM_SDK", "headroom-app")
+        """Telemetry beacon uses CUTCTX_SDK when it is non-empty."""
+        monkeypatch.setenv("CUTCTX_SDK", "cutctx-app")
 
-        with patch("headroom.telemetry.beacon.TelemetryBeacon") as mock_beacon:
+        with patch("cutctx.telemetry.beacon.TelemetryBeacon") as mock_beacon:
             create_app(
                 ProxyConfig(
                     cache_enabled=False,
@@ -40,13 +40,13 @@ class TestProxyTelemetrySDKEnv:
                 )
             )
 
-        assert mock_beacon.call_args.kwargs["sdk"] == "headroom-app"
+        assert mock_beacon.call_args.kwargs["sdk"] == "cutctx-app"
 
     def test_proxy_telemetry_sdk_empty_env_falls_back_to_proxy(self, monkeypatch):
-        """Telemetry beacon falls back to proxy when HEADROOM_SDK is blank."""
-        monkeypatch.setenv("HEADROOM_SDK", "   ")
+        """Telemetry beacon falls back to proxy when CUTCTX_SDK is blank."""
+        monkeypatch.setenv("CUTCTX_SDK", "   ")
 
-        with patch("headroom.telemetry.beacon.TelemetryBeacon") as mock_beacon:
+        with patch("cutctx.telemetry.beacon.TelemetryBeacon") as mock_beacon:
             create_app(
                 ProxyConfig(
                     cache_enabled=False,

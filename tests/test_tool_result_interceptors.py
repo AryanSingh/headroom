@@ -6,7 +6,7 @@ import textwrap
 
 import pytest
 
-from headroom.proxy.interceptors import (
+from cutctx.proxy.interceptors import (
     INTERCEPTORS,
     ToolResultInterceptor,
     ToolResultInterceptorTransform,
@@ -14,9 +14,9 @@ from headroom.proxy.interceptors import (
     interceptor_failure_counts,
     register,
 )
-from headroom.proxy.interceptors.astgrep import AstGrepReadOutline
-from headroom.proxy.interceptors.base import reset_interceptor_failure_counts
-from headroom.tokenizer import Tokenizer
+from cutctx.proxy.interceptors.astgrep import AstGrepReadOutline
+from cutctx.proxy.interceptors.base import reset_interceptor_failure_counts
+from cutctx.tokenizer import Tokenizer
 
 
 class _FakeTokenCounter:

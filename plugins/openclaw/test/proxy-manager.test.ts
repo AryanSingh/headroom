@@ -3,7 +3,7 @@ import {
   ProxyManager,
   normalizeAndValidateProxyUrl,
   isLocalProxyUrl,
-  probeCutCtxProxy,
+  probeCutctxProxy,
 } from "../src/proxy-manager.js";
 
 afterEach(() => {
@@ -19,7 +19,7 @@ function stubProbeSuccess() {
   return mock;
 }
 
-function stubProbeNonCutCtx() {
+function stubProbeNonCutctx() {
   const mock = vi.fn()
     .mockResolvedValueOnce({ ok: true, status: 200 })   // /health OK
     .mockResolvedValueOnce({ ok: false, status: 404 });  // /v1/retrieve/stats 404
@@ -41,8 +41,8 @@ describe("normalizeAndValidateProxyUrl", () => {
 
   it("accepts remote URLs", () => {
     expect(normalizeAndValidateProxyUrl("http://example.com:8787")).toBe("http://example.com:8787");
-    expect(normalizeAndValidateProxyUrl("https://headroom.example.com")).toBe("https://headroom.example.com");
-    expect(normalizeAndValidateProxyUrl("https://headroom.example.com:9090")).toBe("https://headroom.example.com:9090");
+    expect(normalizeAndValidateProxyUrl("https://cutctx.example.com")).toBe("https://cutctx.example.com");
+    expect(normalizeAndValidateProxyUrl("https://cutctx.example.com:9090")).toBe("https://cutctx.example.com:9090");
   });
 
   it("rejects malformed URLs", () => {
@@ -63,7 +63,7 @@ describe("isLocalProxyUrl", () => {
 
   it("returns false for remote addresses", () => {
     expect(isLocalProxyUrl("http://example.com:8787")).toBe(false);
-    expect(isLocalProxyUrl("https://headroom.example.com")).toBe(false);
+    expect(isLocalProxyUrl("https://cutctx.example.com")).toBe(false);
   });
 
   it("returns false for invalid URLs", () => {
@@ -71,26 +71,26 @@ describe("isLocalProxyUrl", () => {
   });
 });
 
-describe("probeCutCtxProxy", () => {
-  it("returns reachable+isCutCtx when both endpoints succeed", async () => {
+describe("probeCutctxProxy", () => {
+  it("returns reachable+isCutctx when both endpoints succeed", async () => {
     stubProbeSuccess();
-    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
-    expect(result).toEqual({ reachable: true, isCutCtx: true });
+    const result = await probeCutctxProxy("http://127.0.0.1:8787");
+    expect(result).toEqual({ reachable: true, isCutctx: true });
   });
 
-  it("returns reachable but non-headroom when retrieve endpoint fails", async () => {
-    stubProbeNonCutCtx();
-    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
+  it("returns reachable but non-cutctx when retrieve endpoint fails", async () => {
+    stubProbeNonCutctx();
+    const result = await probeCutctxProxy("http://127.0.0.1:8787");
     expect(result.reachable).toBe(true);
-    expect(result.isCutCtx).toBe(false);
+    expect(result.isCutctx).toBe(false);
     expect(result.reason).toMatch(/retrieve stats HTTP 404/);
   });
 
   it("returns unreachable when health check fails", async () => {
     stubProbeUnreachable();
-    const result = await probeCutCtxProxy("http://127.0.0.1:8787");
+    const result = await probeCutctxProxy("http://127.0.0.1:8787");
     expect(result.reachable).toBe(false);
-    expect(result.isCutCtx).toBe(false);
+    expect(result.isCutctx).toBe(false);
   });
 });
 
@@ -106,7 +106,7 @@ describe("ProxyManager.start", () => {
       .mockResolvedValueOnce({ ok: true, status: 200 });
     vi.stubGlobal("fetch", fetchMock);
 
-    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy");
+    const startSpy = vi.spyOn(manager as any, "startCutctxProxy");
     const url = await manager.start();
     expect(url).toBe("http://localhost:8787");
     expect(startSpy).not.toHaveBeenCalled();
@@ -126,15 +126,15 @@ describe("ProxyManager.start", () => {
     await expect(manager.start()).rejects.toThrow(/proxyPort must be an integer between 1 and 65535/);
   });
 
-  it("fails when explicit URL is reachable but not a headroom proxy", async () => {
+  it("fails when explicit URL is reachable but not a cutctx proxy", async () => {
     const manager = new ProxyManager({ proxyUrl: "http://127.0.0.1:8787" });
-    stubProbeNonCutCtx();
-    await expect(manager.start()).rejects.toThrow(/does not appear to be a CutCtx proxy/);
+    stubProbeNonCutctx();
+    await expect(manager.start()).rejects.toThrow(/does not appear to be a Cutctx proxy/);
   });
 
   it("applies default proxyPort when explicit proxyUrl omits port", async () => {
     const manager = new ProxyManager({ proxyUrl: "http://127.0.0.1", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutctxProxy").mockResolvedValue(undefined);
 
     const fetchMock = vi
       .fn()
@@ -149,35 +149,35 @@ describe("ProxyManager.start", () => {
   });
 
   it("connects to remote proxy without auto-start", async () => {
-    const manager = new ProxyManager({ proxyUrl: "http://headroom.remote.example:8787", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
+    const manager = new ProxyManager({ proxyUrl: "http://cutctx.remote.example:8787", autoStart: true });
+    const startSpy = vi.spyOn(manager as any, "startCutctxProxy").mockResolvedValue(undefined);
     stubProbeSuccess();
 
     const url = await manager.start();
-    expect(url).toBe("http://headroom.remote.example:8787");
+    expect(url).toBe("http://cutctx.remote.example:8787");
     expect(startSpy).not.toHaveBeenCalled();
   });
 
   it("does not apply proxyPort default to remote URLs", async () => {
-    const manager = new ProxyManager({ proxyUrl: "https://headroom.remote.example", proxyPort: 9999 });
+    const manager = new ProxyManager({ proxyUrl: "https://cutctx.remote.example", proxyPort: 9999 });
     stubProbeSuccess();
 
     const url = await manager.start();
-    expect(url).toBe("https://headroom.remote.example");
+    expect(url).toBe("https://cutctx.remote.example");
   });
 
   it("fails fast for unreachable remote proxy without attempting auto-start", async () => {
-    const manager = new ProxyManager({ proxyUrl: "https://headroom.remote.example:8787", autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
+    const manager = new ProxyManager({ proxyUrl: "https://cutctx.remote.example:8787", autoStart: true });
+    const startSpy = vi.spyOn(manager as any, "startCutctxProxy").mockResolvedValue(undefined);
     stubProbeUnreachable();
 
-    await expect(manager.start()).rejects.toThrow(/Remote CutCtx proxy not reachable/);
+    await expect(manager.start()).rejects.toThrow(/Remote Cutctx proxy not reachable/);
     expect(startSpy).not.toHaveBeenCalled();
   });
 
   it("auto-starts when nothing is detected", async () => {
     const manager = new ProxyManager({ autoStart: true });
-    const startSpy = vi.spyOn(manager as any, "startCutCtxProxy").mockResolvedValue(undefined);
+    const startSpy = vi.spyOn(manager as any, "startCutctxProxy").mockResolvedValue(undefined);
 
     // First two candidate probes fail (health only), then waitForHealthy probe succeeds.
     const fetchMock = vi
@@ -206,30 +206,30 @@ describe("ProxyManager launch internals", () => {
 
   it("prefers configured pythonPath ahead of PATH launchers", () => {
     const manager = new ProxyManager({ pythonPath: "C:\\Python311\\python.exe" });
-    vi.spyOn(manager as any, "getPyenvResolvedCutCtx").mockReturnValue(null);
+    vi.spyOn(manager as any, "getPyenvResolvedCutctx").mockReturnValue(null);
 
     const specs = (manager as any).buildLaunchSpecs("127.0.0.1", "8787") as Array<Record<string, unknown>>;
 
     expect(specs[0]?.label).toContain("Configured Python:");
     expect(specs[0]?.command).toBe("C:\\Python311\\python.exe");
-    expect(specs[0]?.args).toEqual(["-m", "headroom.cli", "proxy", "--host", "127.0.0.1", "--port", "8787"]);
+    expect(specs[0]?.args).toEqual(["-m", "cutctx.cli", "proxy", "--host", "127.0.0.1", "--port", "8787"]);
   });
 
-  it("uses lightweight PATH checks instead of booting the headroom CLI", () => {
+  it("uses lightweight PATH checks instead of booting the cutctx CLI", () => {
     const manager = new ProxyManager({});
     const specs = (manager as any).buildLaunchSpecs("127.0.0.1", "8787") as Array<Record<string, unknown>>;
-    const pathSpec = specs.find((spec) => spec.command === "headroom");
+    const pathSpec = specs.find((spec) => spec.command === "cutctx");
 
     expect(pathSpec).toBeDefined();
-    expect(pathSpec.command).toBe("headroom");
+    expect(pathSpec.command).toBe("cutctx");
     expect(pathSpec.args).toEqual(["proxy", "--host", "127.0.0.1", "--port", "8787"]);
     if (process.platform === "win32") {
       expect(pathSpec.checkCommand).toBe("where.exe");
-      expect(pathSpec.checkArgs).toEqual(["headroom"]);
+      expect(pathSpec.checkArgs).toEqual(["cutctx"]);
       expect(pathSpec.checkUseShell).toBe(false);
     } else {
       expect(pathSpec.checkCommand).toBe("sh");
-      expect(pathSpec.checkArgs).toEqual(["-lc", "command -v headroom >/dev/null 2>&1"]);
+      expect(pathSpec.checkArgs).toEqual(["-lc", "command -v cutctx >/dev/null 2>&1"]);
     }
   });
 
@@ -237,14 +237,14 @@ describe("ProxyManager launch internals", () => {
     if (process.platform !== "win32") return;
 
     const manager = new ProxyManager({});
-    vi.spyOn(manager as any, "getPyenvResolvedCutCtx").mockReturnValue("C:\\Python312\\Scripts\\headroom.exe");
+    vi.spyOn(manager as any, "getPyenvResolvedCutctx").mockReturnValue("C:\\Python312\\Scripts\\cutctx.exe");
 
     const specs = (manager as any).buildLaunchSpecs("127.0.0.1", "8787") as Array<Record<string, unknown>>;
 
     expect(specs[0]?.label).toContain("pyenv:");
-    expect(specs[0]?.command).toBe("C:\\Python312\\Scripts\\headroom.exe");
+    expect(specs[0]?.command).toBe("C:\\Python312\\Scripts\\cutctx.exe");
     expect(specs[0]?.useShell).toBe(false);
-    expect(specs[1]?.command).toBe("headroom");
+    expect(specs[1]?.command).toBe("cutctx");
   });
 
   it("passes through fast-fail launch flags when configured", () => {
@@ -273,7 +273,7 @@ describe("ProxyManager launch internals", () => {
     expect(pythonSpec).toBeDefined();
     expect(pythonSpec?.checkArgs).toEqual([
       "-c",
-      "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('headroom') else 1)",
+      "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('cutctx') else 1)",
     ]);
   });
 
@@ -297,7 +297,7 @@ describe("ProxyManager launch internals", () => {
     ];
     const infoSpy = vi.spyOn((manager as any).logger, "info");
 
-    await (manager as any).startCutCtxProxy("http://127.0.0.1:8787");
+    await (manager as any).startCutctxProxy("http://127.0.0.1:8787");
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Auto-start launcher selected"));
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("second-node"));
   });
@@ -317,7 +317,7 @@ describe("ProxyManager launch internals", () => {
     ];
     const infoSpy = vi.spyOn((manager as any).logger, "info");
 
-    await (manager as any).startCutCtxProxy("http://127.0.0.1:8787", 8787);
+    await (manager as any).startCutctxProxy("http://127.0.0.1:8787", 8787);
 
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("Auto-start launcher selected"));
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("shell-backed"));
@@ -336,8 +336,8 @@ describe("ProxyManager launch internals", () => {
     ];
     (manager as any).canExecute = () => false;
 
-    await expect((manager as any).startCutCtxProxy("http://127.0.0.1:8787")).rejects.toThrow(
-      /No usable CutCtx launcher found/,
+    await expect((manager as any).startCutctxProxy("http://127.0.0.1:8787")).rejects.toThrow(
+      /No usable Cutctx launcher found/,
     );
   });
 });

@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import json
+
 from click.testing import CliRunner
 
-import pytest
-
-from headroom.cli.integrations import integrations
-from headroom.proxy.savings_tracker import HEADROOM_SAVINGS_PATH_ENV_VAR, SavingsTracker
+from cutctx.proxy.savings_tracker import CUTCTX_SAVINGS_PATH_ENV_VAR, SavingsTracker
 
 
 class TestIntegrationsStatus:
     def test_status_terminal(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status"])
         # Either it ran successfully or integration wasn't registered.
@@ -24,7 +22,7 @@ class TestIntegrationsStatus:
         # We only assert structure when it ran.
 
     def test_status_json(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         if result.exit_code == 0:
@@ -54,9 +52,9 @@ class TestIntegrationsStatus:
                 "cutctx_compression": 0.27,
             },
         )
-        monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(state_path))
+        monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(state_path))
 
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         assert result.exit_code == 0, result.output
@@ -87,9 +85,9 @@ class TestIntegrationsStatus:
         payload = json.loads(state_path.read_text())
         payload["history"][-1].pop("savings_by_source_usd", None)
         state_path.write_text(json.dumps(payload))
-        monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(state_path))
+        monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(state_path))
 
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         assert result.exit_code == 0, result.output
@@ -101,7 +99,7 @@ class TestIntegrationsStatus:
 
 class TestIntegrationsTest:
     def test_openai(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "openai", "--format", "json"])
         if result.exit_code == 0:
@@ -111,7 +109,7 @@ class TestIntegrationsTest:
             assert payload["breakdown"]["by_source"]["tokens"]["provider_prompt_cache"] == 750
 
     def test_anthropic(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "anthropic", "--format", "json"])
         if result.exit_code == 0:
@@ -120,7 +118,7 @@ class TestIntegrationsTest:
             assert payload["breakdown"]["by_source"]["tokens"]["provider_prompt_cache"] == 900
 
     def test_gemini(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "gemini", "--format", "json"])
         if result.exit_code == 0:
@@ -128,7 +126,7 @@ class TestIntegrationsTest:
             assert payload["breakdown"]["by_source"]["tokens"]["provider_prompt_cache"] == 800
 
     def test_litellm(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "litellm", "--format", "json"])
         if result.exit_code == 0:
@@ -137,7 +135,7 @@ class TestIntegrationsTest:
             assert payload["breakdown"]["by_source"]["tokens"]["provider_prompt_cache"] == 500
 
     def test_vllm_apc(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "vllm_apc", "--format", "json"])
         if result.exit_code == 0:
@@ -147,7 +145,7 @@ class TestIntegrationsTest:
             assert payload["breakdown"]["by_source"]["tokens"].get("provider_prompt_cache", 0) == 0
 
     def test_unknown_provider(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "not-a-real-provider"])
         assert result.exit_code != 0
@@ -161,7 +159,7 @@ class TestIntegrationsTest:
 class TestSavingsBreakdownFlags:
     def test_savings_by_source_no_sessions(self):
         """Empty storage should still invoke the new breakdown helper safely."""
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["savings", "--by-source"])
         # Either runs fine or returns the empty-state message.
@@ -170,7 +168,7 @@ class TestSavingsBreakdownFlags:
         assert "no" in result.output.lower() or "error" in result.output.lower() or result.output == ""
 
     def test_savings_format_json_flag_accepted(self):
-        from headroom.cli.main import main as root
+        from cutctx.cli.main import main as root
         runner = CliRunner()
         result = runner.invoke(root, ["savings", "--format", "json"])
         # Just verify the flag is accepted (no click usage error).

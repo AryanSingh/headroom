@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# CutCtx Claude Code Plugin Uninstaller
+# Cutctx Claude Code Plugin Uninstaller
 # Usage: bash uninstall.sh
 
 set -euo pipefail
 
-echo "CutCtx Claude Code Plugin Uninstaller"
+echo "Cutctx Claude Code Plugin Uninstaller"
 echo "======================================"
 
 # 1. Remove MCP server from Claude Code
@@ -13,12 +13,12 @@ echo "1. Removing MCP server from Claude Code..."
 
 if command -v claude &>/dev/null; then
   if claude mcp remove cutctx -s user 2>&1; then
-    echo "   ✓ CutCtx MCP server removed"
+    echo "   ✓ Cutctx MCP server removed"
   else
-    echo "   CutCtx MCP not found or already removed"
+    echo "   Cutctx MCP not found or already removed"
   fi
-  # Also clean up legacy headroom registration
-  claude mcp remove headroom -s user 2>/dev/null || true
+  # Also clean up legacy cutctx registration
+  claude mcp remove cutctx -s user 2>/dev/null || true
 else
   echo "   ⚠ claude CLI not found — remove manually:"
   echo "     claude mcp remove cutctx -s user"
@@ -39,7 +39,7 @@ with open(path) as f:
     config = json.load(f)
 servers = config.get('mcpServers', {})
 changed = False
-for key in ('cutctx', 'headroom'):
+for key in ('cutctx', 'cutctx'):
     if key in servers:
         del servers[key]
         changed = True
@@ -49,7 +49,7 @@ if changed:
         f.write('\n')
     print('   ✓ Removed from mcp.json')
 else:
-    print('   No CutCtx entries in mcp.json')
+    print('   No Cutctx entries in mcp.json')
 "
   fi
 fi

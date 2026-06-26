@@ -3,8 +3,8 @@
 import json
 import stat
 
-from headroom.pipeline import PipelineEvent, PipelineStage
-from headroom.proxy.probe_recorder import (
+from cutctx.pipeline import PipelineEvent, PipelineStage
+from cutctx.proxy.probe_recorder import (
     RECORD_DIR_ENV,
     CompressionEventRecorder,
     probe_recorder_from_env,

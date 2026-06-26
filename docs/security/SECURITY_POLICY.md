@@ -1,19 +1,19 @@
-# CutCtx Security Policy
+# Cutctx Security Policy
 
 **Version:** 1.0
 **Effective Date:** 2026-06-15
-**Owner:** Security Engineering, CutCtx
+**Owner:** Security Engineering, Cutctx
 **Review Cycle:** Annual (or after any material architecture change)
 
 ---
 
 ## 1. Overview & Scope
 
-CutCtx is a local-first LLM context compression proxy. All compression, tokenization, and state management occur **in-process at the customer site**. No customer prompts, completions, or derived data are transmitted to CutCtx infrastructure under any operational condition.
+Cutctx is a local-first LLM context compression proxy. All compression, tokenization, and state management occur **in-process at the customer site**. No customer prompts, completions, or derived data are transmitted to Cutctx infrastructure under any operational condition.
 
 This policy governs:
 
-- The CutCtx proxy binary and Python package (`cutctx`)
+- The Cutctx proxy binary and Python package (`cutctx`)
 - License key issuance, validation, and revocation infrastructure
 - Encrypted state files written to disk by the proxy
 - CI/CD pipelines and release signing
@@ -29,16 +29,16 @@ For vulnerability reports, see Section 7 and `SECURITY.md` at the repository roo
 
 ## 2. Data Classification
 
-CutCtx recognizes four data classification tiers. All handling decisions must align with the most restrictive tier that applies to any piece of data in a given context.
+Cutctx recognizes four data classification tiers. All handling decisions must align with the most restrictive tier that applies to any piece of data in a given context.
 
 | Tier | Definition | Examples | Handling Requirements |
 |------|-----------|----------|----------------------|
 | **Public** | Information approved for unrestricted external distribution | Documentation, changelog, open-source code | No restrictions |
-| **Internal** | Non-sensitive operational data limited to CutCtx personnel and systems | Aggregate compression metrics (no content), build logs, issue tracker entries | Access limited to employees; not published externally without review |
+| **Internal** | Non-sensitive operational data limited to Cutctx personnel and systems | Aggregate compression metrics (no content), build logs, issue tracker entries | Access limited to employees; not published externally without review |
 | **Confidential** | Business-sensitive data that could cause competitive or financial harm if disclosed | License key HMAC secrets, customer billing records, employee PII | Encrypted at rest; access on need-to-know basis; not transmitted in plaintext |
-| **Restricted** | Highest sensitivity; regulatory or contractual obligations apply | Customer prompts and completions, PII within prompts | Must never leave customer infrastructure; no CutCtx system may receive or store this data |
+| **Restricted** | Highest sensitivity; regulatory or contractual obligations apply | Customer prompts and completions, PII within prompts | Must never leave customer infrastructure; no Cutctx system may receive or store this data |
 
-**Customer prompt data is classified as Restricted.** The local-first architecture enforces this by design: the proxy intercepts and compresses traffic entirely within the customer's process boundary. CutCtx employees have no technical pathway to access prompt content.
+**Customer prompt data is classified as Restricted.** The local-first architecture enforces this by design: the proxy intercepts and compresses traffic entirely within the customer's process boundary. Cutctx employees have no technical pathway to access prompt content.
 
 ---
 
@@ -50,7 +50,7 @@ License keys encode an `EntitlementTier` (BUILDER, TEAM, BUSINESS, or ENTERPRISE
 
 **Issuance process:**
 
-1. A CutCtx account holder completes purchase or trial activation via the customer portal.
+1. A Cutctx account holder completes purchase or trial activation via the customer portal.
 2. The billing system invokes `cutctx license generate` with the customer's tier and optional expiry timestamp.
 3. The resulting signed key is delivered to the customer over TLS; it is never transmitted in plaintext or logged.
 4. Keys are recorded in the license registry with issuance timestamp, tier, and customer account ID.
@@ -158,7 +158,7 @@ The following algorithms are **prohibited** in all new code and must not be intr
 
 ## 6. Incident Response
 
-CutCtx follows a five-phase incident response process:
+Cutctx follows a five-phase incident response process:
 
 ### Phase 1: Detect
 
@@ -203,25 +203,25 @@ CutCtx follows a five-phase incident response process:
 
 ## 7. Vulnerability Disclosure
 
-CutCtx operates a responsible disclosure program.
+Cutctx operates a responsible disclosure program.
 
 **To report a vulnerability:** Email security@cutctx.dev with the information described in `SECURITY.md`. Do not open a public GitHub issue for unpatched vulnerabilities.
 
 **Process:**
 
-1. CutCtx acknowledges receipt within 48 hours.
-2. CutCtx assesses severity and scope within 7 days.
+1. Cutctx acknowledges receipt within 48 hours.
+2. Cutctx assesses severity and scope within 7 days.
 3. Reporter is kept informed of remediation progress.
-4. CutCtx targets a fix within **90 days** of confirmed report. Critical issues (CVSS 9.0+) are prioritized for resolution within 7 days.
+4. Cutctx targets a fix within **90 days** of confirmed report. Critical issues (CVSS 9.0+) are prioritized for resolution within 7 days.
 5. A CVE is requested where applicable; the reporter is credited in the security advisory (with their permission).
 
-**Safe harbor:** CutCtx will not pursue legal action against researchers who report in good faith, avoid accessing customer data, and do not disrupt service availability.
+**Safe harbor:** Cutctx will not pursue legal action against researchers who report in good faith, avoid accessing customer data, and do not disrupt service availability.
 
 ---
 
 ## 8. Penetration Testing
 
-CutCtx conducts an annual penetration test covering the following scope:
+Cutctx conducts an annual penetration test covering the following scope:
 
 | Test Area | Description |
 |-----------|-------------|

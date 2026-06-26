@@ -1,0 +1,143 @@
+CUTCTX COMMERCIAL LICENSE
+All Rights Reserved
+
+Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
+
+    NOTE: This license has been reviewed and approved for distribution.
+    Legal entity: Payzli Inc. (operating as CutCtx Labs)
+
+This Commercial License ("License") governs the software components,
+files, models, model weights, services, and associated materials that
+are identified as "Commercial Components" in the LICENSING.md file at
+the root of this repository (collectively, the "Software").
+
+The Software is NOT open source. It is proprietary and confidential to
+CutCtx Labs and its licensors (the "Licensor"). The Apache License,
+Version 2.0 that applies to other parts of this repository does NOT
+apply to the Software.
+
+------------------------------------------------------------------------
+1. DEFINITIONS
+------------------------------------------------------------------------
+1.1 "Software" means the Commercial Components as defined in LICENSING.md,
+    including source code, object code, model weights and artifacts,
+    configuration, documentation, and any updates or modifications.
+1.2 "Commercial Agreement" means a separate written subscription, order
+    form, or enterprise agreement executed between you (or your
+    organization) and the Licensor.
+1.3 "Evaluation Use" means internal, non-production use solely to
+    evaluate the Software for a limited period, with no commercial,
+    revenue-generating, or production workload.
+
+------------------------------------------------------------------------
+2. OWNERSHIP
+------------------------------------------------------------------------
+The Software is licensed, not sold. The Licensor and its licensors retain
+all right, title, and interest in and to the Software, including all
+intellectual property rights. No rights are granted except as expressly
+set out in this License or a Commercial Agreement. All rights not
+expressly granted are reserved.
+
+------------------------------------------------------------------------
+3. LICENSE GRANT
+------------------------------------------------------------------------
+3.1 No grant by default. Absent a Commercial Agreement, you are granted
+    NO license to use, copy, run, modify, or distribute the Software,
+    other than the limited Evaluation Use in Section 3.2.
+3.2 Evaluation. Subject to this License, the Licensor grants you a
+    limited, non-exclusive, non-transferable, non-sublicensable,
+    revocable right to use the Software solely for Evaluation Use, for up
+    to thirty (30) days, unless extended in writing.
+3.3 Commercial use. Any use beyond Evaluation Use — including any
+    production, hosted, internal-business, or revenue-generating use —
+    requires a valid Commercial Agreement and a valid, unexpired license
+    key or entitlement issued by the Licensor.
+
+------------------------------------------------------------------------
+4. RESTRICTIONS
+------------------------------------------------------------------------
+You shall not, and shall not permit any third party to:
+(a) copy, distribute, sublicense, sell, rent, lease, or make the Software
+    available to any third party, except as expressly permitted by a
+    Commercial Agreement;
+(b) host, operate, or offer the Software (or any substantial portion of
+    its functionality) as a service, platform, or managed offering to
+    third parties;
+(c) reverse engineer, decompile, disassemble, or otherwise attempt to
+    derive source code, model weights, training data, or underlying
+    methods, except to the extent this restriction is prohibited by
+    applicable law;
+(d) modify, translate, or create derivative works of the Software, except
+    as expressly permitted by a Commercial Agreement;
+(e) use the Software to build, train, or improve a product or service
+    that competes with the Software or with the Licensor's offerings;
+(f) circumvent, disable, or tamper with any license key, entitlement
+    check, seat limit, trial limit, usage metering, telemetry control, or
+    other technical protection measure;
+(g) remove, alter, or obscure any proprietary notices, including
+    copyright, trademark, or this License's terms.
+
+------------------------------------------------------------------------
+5. CONFIDENTIALITY
+------------------------------------------------------------------------
+The Software, including its source code, architecture, model weights, and
+performance characteristics, is the confidential information of the
+Licensor. You shall protect it with at least the same degree of care you
+use for your own confidential information and no less than a reasonable
+degree of care, and shall not disclose it to third parties.
+
+------------------------------------------------------------------------
+6. DATA, TELEMETRY, AND MODELS
+------------------------------------------------------------------------
+6.1 Any models, model weights, fine-tuned artifacts, aggregated patterns,
+    or derived datasets produced or distributed by the Licensor as part
+    of the Software are Software under this License and may not be
+    extracted, redistributed, or used to train competing models.
+6.2 Use of telemetry or data-contribution features is governed by the
+    applicable Commercial Agreement and the Licensor's privacy terms. The
+    Software's privacy and opt-in controls must not be circumvented.
+
+------------------------------------------------------------------------
+7. TERMINATION
+------------------------------------------------------------------------
+This License and any Evaluation Use terminate automatically if you breach
+any term, and may be terminated as provided in a Commercial Agreement.
+Upon termination you must cease all use of the Software and destroy all
+copies in your possession or control. Sections 2, 4, 5, 6, 8, 9, and 10
+survive termination.
+
+------------------------------------------------------------------------
+8. DISCLAIMER OF WARRANTY
+------------------------------------------------------------------------
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE,
+AND NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE
+WILL BE UNINTERRUPTED OR ERROR-FREE.
+
+------------------------------------------------------------------------
+9. LIMITATION OF LIABILITY
+------------------------------------------------------------------------
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE
+FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY
+DAMAGES, OR FOR LOST PROFITS, REVENUE, DATA, OR GOODWILL. THE LICENSOR'S
+TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THE SOFTWARE
+SHALL NOT EXCEED THE GREATER OF (A) THE FEES PAID BY YOU TO THE LICENSOR
+FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR
+(B) ONE HUNDRED U.S. DOLLARS (USD $100).
+
+------------------------------------------------------------------------
+10. GENERAL
+------------------------------------------------------------------------
+10.1 Governing law and venue are as specified in the applicable
+     Commercial Agreement, or, absent one, the laws of the Licensor's
+     principal place of business [SET JURISDICTION], excluding conflict-
+     of-law rules.
+10.2 This License is the entire agreement regarding the Software absent a
+     Commercial Agreement, which controls in the event of a conflict.
+10.3 If any provision is held unenforceable, the remaining provisions
+     remain in effect.
+10.4 "CutCtx" and related names and logos are trademarks of the
+     Licensor; no trademark rights are granted by this License.
+
+For commercial licensing, use the PitchToShip portal: https://pitchtoship.com

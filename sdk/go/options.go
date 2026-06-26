@@ -5,12 +5,12 @@ import "time"
 // Option configures a Client
 type Option func(*Client)
 
-// WithProxyURL sets the CutCtx proxy base URL (default: http://localhost:8787)
+// WithProxyURL sets the Cutctx proxy base URL (default: http://localhost:8787)
 func WithProxyURL(url string) Option {
 	return func(c *Client) { c.proxyURL = url }
 }
 
-// WithAPIKey sets the CutCtx license key sent as X-CutCtx-Key header
+// WithAPIKey sets the Cutctx license key sent as X-Cutctx-Key header
 func WithAPIKey(key string) Option {
 	return func(c *Client) { c.apiKey = key }
 }

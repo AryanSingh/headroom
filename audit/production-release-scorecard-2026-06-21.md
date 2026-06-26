@@ -14,10 +14,10 @@ The blocking commercialization gap is now closed in the live proxy path:
 
 ## What Is Verified
 
-- `headroom/proxy/model_router.py` now exposes `prepare_model_routing(...)`, which attaches placeholder `model_routing` metadata when a route is applied.
-- `headroom/proxy/handlers/openai/chat.py` now prepares routing before the upstream call.
-- `headroom/proxy/handlers/openai/responses.py` now prepares routing for both the HTTP and websocket response paths.
-- `headroom/proxy/handlers/gemini.py` now prepares routing for:
+- `cutctx/proxy/model_router.py` now exposes `prepare_model_routing(...)`, which attaches placeholder `model_routing` metadata when a route is applied.
+- `cutctx/proxy/handlers/openai/chat.py` now prepares routing before the upstream call.
+- `cutctx/proxy/handlers/openai/responses.py` now prepares routing for both the HTTP and websocket response paths.
+- `cutctx/proxy/handlers/gemini.py` now prepares routing for:
   - `generateContent`
   - `streamGenerateContent`
   - `countTokens`
@@ -29,7 +29,7 @@ The blocking commercialization gap is now closed in the live proxy path:
 
 ## Verification Evidence
 
-- `ruff check headroom/proxy/model_router.py tests/test_model_router.py` passed.
+- `ruff check cutctx/proxy/model_router.py tests/test_model_router.py` passed.
 - `python3 -m compileall -q ...` passed for the touched proxy handlers and helper files.
 - A direct importlib-based runtime check of the routing helper passed.
 

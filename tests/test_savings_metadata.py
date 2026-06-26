@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from headroom.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
-from headroom.proxy.semantic_cache import SemanticCache
-from headroom.proxy.savings_tracker import HEADROOM_SAVINGS_PATH_ENV_VAR
-from headroom.savings import SavingsSource
+from cutctx.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
+from cutctx.proxy.savings_tracker import CUTCTX_SAVINGS_PATH_ENV_VAR
+from cutctx.proxy.semantic_cache import SemanticCache
+from cutctx.savings import SavingsSource
 
 
 def test_extract_savings_metadata_from_structured_header() -> None:
@@ -21,7 +21,7 @@ def test_extract_savings_metadata_from_structured_header() -> None:
     }
 
     metadata = extract_savings_metadata(
-        request_headers={"x-headroom-savings-metadata": json.dumps(payload)}
+        request_headers={"x-cutctx-savings-metadata": json.dumps(payload)}
     )
 
     assert metadata is not None
@@ -35,7 +35,7 @@ def test_extract_savings_metadata_from_structured_header() -> None:
 def test_extract_savings_metadata_from_integration_aliases() -> None:
     metadata = extract_savings_metadata(
         body={
-            "headroom_savings_metadata": {
+            "cutctx_savings_metadata": {
                 "litellm": {"cache_hit_tokens": 50},
                 "gptcache": {"saved_prompt_tokens": 60},
                 "vllm_apc": {"prefix_cache_hits": 70},
@@ -55,11 +55,11 @@ def test_extract_savings_metadata_from_integration_aliases() -> None:
 def test_extract_savings_metadata_from_dedicated_headers() -> None:
     metadata = extract_savings_metadata(
         response_headers={
-            "x-headroom-provider-cache-tokens": "10",
-            "x-headroom-semantic-cache-avoided-tokens": "20",
-            "x-headroom-prefix-cache-hits": "30",
-            "x-headroom-model-routing-tokens": "40",
-            "x-headroom-model-routing-usd": "0.12",
+            "x-cutctx-provider-cache-tokens": "10",
+            "x-cutctx-semantic-cache-avoided-tokens": "20",
+            "x-cutctx-prefix-cache-hits": "30",
+            "x-cutctx-model-routing-tokens": "40",
+            "x-cutctx-model-routing-usd": "0.12",
         }
     )
 
@@ -104,10 +104,10 @@ def test_live_proxy_persists_header_savings_metadata(tmp_path, monkeypatch) -> N
     assert fastapi is not None
     from fastapi.testclient import TestClient
 
-    from headroom.proxy.server import ProxyConfig, create_app
+    from cutctx.proxy.server import ProxyConfig, create_app
 
     state_path = tmp_path / "proxy_savings.json"
-    monkeypatch.setenv(HEADROOM_SAVINGS_PATH_ENV_VAR, str(state_path))
+    monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(state_path))
 
     async def fake_stream(body: dict, headers: dict) -> AsyncIterator[str]:
         yield (
@@ -137,14 +137,14 @@ def test_live_proxy_persists_header_savings_metadata(tmp_path, monkeypatch) -> N
         backend="anyllm",
         anyllm_provider="openai",
     )
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("cutctx.proxy.server.AnyLLMBackend", return_value=backend):
         app = create_app(config)
         with TestClient(app) as client:
             resp = client.post(
                 "/v1/chat/completions",
                 headers={
                     "Authorization": "Bearer test-key",
-                    "x-headroom-savings-metadata": json.dumps(telemetry),
+                    "x-cutctx-savings-metadata": json.dumps(telemetry),
                 },
                 json={
                     "model": "gpt-4o-mini",

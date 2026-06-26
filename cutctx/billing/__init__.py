@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025-2026 Cutctx Labs.
+"""Import-path shim (Apache-2.0).
+
+The billing package implementation moved to the proprietary ``cutctx_ee`` package
+under the Cutctx Commercial License (see LICENSING.md). This shim re-exports it at
+the historical ``cutctx.billing`` import path — including submodules such as
+``cutctx.billing.license_db`` and ``cutctx.billing.stripe_webhook`` — so existing
+call sites keep working when the commercial ``cutctx_ee`` distribution is installed.
+
+Rebinding this package to ``cutctx_ee.billing`` repoints its ``__path__`` at the
+commercial package, so ``from cutctx.billing.license_db import ...`` resolves to
+the implementation under ``cutctx_ee/billing/``.
+"""
+
+from __future__ import annotations
+
+import sys as _sys
+from typing import TYPE_CHECKING
+
+try:
+    import cutctx_ee.billing as _impl
+except ImportError as _e:  # commercial component not installed (community edition)
+    raise ImportError(
+        "cutctx.billing requires the proprietary 'cutctx_ee' distribution "
+        "(Cutctx Commercial License -- see LICENSING.md)."
+    ) from _e
+
+_sys.modules[__name__] = _impl  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    # Re-export the public API for static type-checkers (mypy/IDEs). At runtime the
+    # sys.modules rebind above makes `from cutctx.billing import X` resolve to
+    # cutctx_ee.billing; this makes the same names visible to static analysis.
+    from cutctx_ee.billing import *  # noqa: F401,F403

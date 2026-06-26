@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
-"""Build the headroom_ee integrity manifest.
+"""Build the cutctx_ee integrity manifest.
 
-Scans all compiled .so/.pyd extension modules in ``headroom_ee/``, computes
+Scans all compiled .so/.pyd extension modules in ``cutctx_ee/``, computes
 their SHA-256 hashes, and writes a signed manifest to
-``headroom_ee/MANIFEST.sha256.json``.
+``cutctx_ee/MANIFEST.sha256.json``.
 
-The manifest is HMAC-SHA256 signed with ``HEADROOM_LICENSE_HMAC_SECRET`` so it
+The manifest is HMAC-SHA256 signed with ``CUTCTX_LICENSE_HMAC_SECRET`` so it
 cannot be forged by an attacker who replaces a .so file. The signature is
-verified by ``headroom.security.integrity.verify_ee_manifest()`` at EE import
+verified by ``cutctx.security.integrity.verify_ee_manifest()`` at EE import
 time.
 
 Usage::
 
     # During CI/release (after compile_ee.py):
-    export HEADROOM_LICENSE_HMAC_SECRET=<production-secret>
+    export CUTCTX_LICENSE_HMAC_SECRET=<production-secret>
     python scripts/build_ee_manifest.py
 
     # Without a secret (generates unsigned manifest for development):
@@ -33,10 +33,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EE_DIR = ROOT / "headroom_ee"
+EE_DIR = ROOT / "cutctx_ee"
 MANIFEST_PATH = EE_DIR / "MANIFEST.sha256.json"
 MANIFEST_VERSION = "1"
-_HMAC_SECRET_ENV = "HEADROOM_LICENSE_HMAC_SECRET"
+_HMAC_SECRET_ENV = "CUTCTX_LICENSE_HMAC_SECRET"
 
 # Extension patterns that are compiled EE modules
 _SO_PATTERNS = ["*.cpython-*.so", "*.cpython-*.pyd", "*.abi3.so"]
@@ -125,7 +125,7 @@ def main() -> None:
         "--ee-dir",
         type=Path,
         default=EE_DIR,
-        help=f"Path to headroom_ee/ directory (default: {EE_DIR})",
+        help=f"Path to cutctx_ee/ directory (default: {EE_DIR})",
     )
     parser.add_argument(
         "--output",

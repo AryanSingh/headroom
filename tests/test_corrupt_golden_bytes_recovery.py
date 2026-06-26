@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.helpers import (
+from cutctx.proxy.helpers import (
     _reset_session_ccr_tracker_for_test,
     _reset_session_tool_tracker_for_test,
     apply_session_sticky_ccr_tool,
@@ -44,17 +44,17 @@ def _reset_trackers() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _enable_headroom_log_propagation() -> Iterator[None]:
-    """Re-enable propagation on the headroom loggers during tests.
+def _enable_cutctx_log_propagation() -> Iterator[None]:
+    """Re-enable propagation on the cutctx loggers during tests.
 
-    configure_proxy_logging() calls headroom_logger.propagate = False to prevent
+    configure_proxy_logging() calls cutctx_logger.propagate = False to prevent
     duplicate writes when the proxy redirects stderr to a log file. In CI the proxy
     may initialise its logging before the test suite runs, leaving propagation
     disabled. pytest's caplog attaches its handler to the root logger, so it only
     sees records that propagate all the way up. This fixture re-enables propagation
-    for the duration of each test so caplog captures headroom log records correctly.
+    for the duration of each test so caplog captures cutctx log records correctly.
     """
-    logger_names = ("cutctx", "headroom.proxy")
+    logger_names = ("cutctx", "cutctx.proxy")
     originals = {
         name: logging.getLogger(name).propagate
         for name in logger_names
@@ -129,7 +129,7 @@ class TestCorruptMemoryGoldenBytes:
         session_id = "sess-corrupt-mem-2"
         _seed_memory_tool("anthropic", session_id, "memory_search", b"\xff\xfe invalid")
 
-        with caplog.at_level(logging.ERROR, logger="headroom.proxy"):
+        with caplog.at_level(logging.ERROR, logger="cutctx.proxy"):
             apply_session_sticky_memory_tools(
                 provider="anthropic",
                 session_id=session_id,
@@ -176,7 +176,7 @@ class TestCorruptMemoryGoldenBytes:
         # Bytes that are not valid UTF-8.
         _seed_memory_tool("anthropic", session_id, "memory_save", b"\x80\x81\x82\x83")
 
-        with caplog.at_level(logging.ERROR, logger="headroom.proxy"):
+        with caplog.at_level(logging.ERROR, logger="cutctx.proxy"):
             # Must not raise RuntimeError or UnicodeDecodeError.
             apply_session_sticky_memory_tools(
                 provider="anthropic",
@@ -219,7 +219,7 @@ class TestCorruptCcrGoldenBytes:
         session_id = "sess-corrupt-ccr-2"
         _seed_ccr_done("anthropic", session_id, b"bad bytes {")
 
-        with caplog.at_level(logging.ERROR, logger="headroom.proxy"):
+        with caplog.at_level(logging.ERROR, logger="cutctx.proxy"):
             apply_session_sticky_ccr_tool(
                 provider="anthropic",
                 session_id=session_id,
@@ -273,8 +273,8 @@ class TestCorruptCcrGoldenBytes:
 
     def test_valid_golden_bytes_still_injected(self) -> None:
         """Sanity check: valid CCR golden bytes still work correctly after fix."""
-        from headroom.ccr.tool_injection import create_ccr_tool_definition
-        from headroom.proxy.helpers import serialize_tool_definition_canonical
+        from cutctx.ccr.tool_injection import create_ccr_tool_definition
+        from cutctx.proxy.helpers import serialize_tool_definition_canonical
 
         session_id = "sess-valid-ccr"
         valid_def = create_ccr_tool_definition("anthropic")

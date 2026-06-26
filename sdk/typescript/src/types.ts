@@ -1,5 +1,5 @@
 /**
- * Core types for the CutCtx TypeScript SDK.
+ * Core types for the Cutctx TypeScript SDK.
  * Error classes moved to errors.ts — re-exported here for backwards compatibility.
  */
 
@@ -62,12 +62,12 @@ export interface CompressOptions {
   timeout?: number;
   fallback?: boolean;
   retries?: number;
-  client?: CutCtxClientInterface;
+  client?: CutctxClientInterface;
   /** Token budget — compress to fit within this limit. Used for compaction. */
   tokenBudget?: number;
   /** Compression hooks for pre/post processing. */
   hooks?: CompressionHooks;
-  /** Integration slug sent as X-CutCtx-Stack (e.g. "adapter_ts_openai"). */
+  /** Integration slug sent as X-Cutctx-Stack (e.g. "adapter_ts_openai"). */
   stack?: string;
 }
 
@@ -85,17 +85,17 @@ export interface CompressResult {
 
 // --- Client ---
 
-export interface CutCtxClientOptions {
+export interface CutctxClientOptions {
   baseUrl?: string;
   apiKey?: string;
   timeout?: number;
   fallback?: boolean;
   retries?: number;
-  /** Integration slug sent as X-CutCtx-Stack on every request. */
+  /** Integration slug sent as X-Cutctx-Stack on every request. */
   stack?: string;
 }
 
-export interface CutCtxClientInterface {
+export interface CutctxClientInterface {
   compress(
     messages: OpenAIMessage[],
     options?: { model?: string; tokenBudget?: number },
@@ -105,10 +105,10 @@ export interface CutCtxClientInterface {
 // --- Re-export errors for backwards compatibility ---
 
 export {
-  CutCtxError,
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,

@@ -1,8 +1,8 @@
-"""Comprehensive tests for headroom.security.firewall — all 27 regex patterns."""
+"""Comprehensive tests for cutctx.security.firewall — all 27 regex patterns."""
 
 from __future__ import annotations
 
-from headroom.security.firewall import (
+from cutctx.security.firewall import (
     _EXFIL_PATTERNS,
     _INJECTION_PATTERNS,
     _JAILBREAK_PATTERNS,

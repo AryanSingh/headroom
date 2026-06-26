@@ -26,7 +26,7 @@ from pathlib import Path
 
 DEV_SECRET = "dev-secret-do-not-use-in-production"
 
-# Plan -> tier mapping (inverse of headroom/billing.py TIER_TO_PLAN)
+# Plan -> tier mapping (inverse of cutctx/billing.py TIER_TO_PLAN)
 PLAN_TO_TIER = {
     "starter": "team",
     "studio": "business",
@@ -158,22 +158,22 @@ def log_license(
 # Email delivery via Resend (stdlib urllib, no third-party deps)
 # ---------------------------------------------------------------------------
 
-EMAIL_SUBJECT = "Your CutCtx license key is ready"
+EMAIL_SUBJECT = "Your Cutctx license key is ready"
 
 
 def build_email_body(license_key: str, org: str) -> str:
     return (
         f"Hi {org},\n\n"
-        "Your CutCtx license key is ready. Here are your activation instructions:\n\n"
+        "Your Cutctx license key is ready. Here are your activation instructions:\n\n"
         f"License Key:\n  {license_key}\n\n"
-        "1. Install CutCtx:\n"
+        "1. Install Cutctx:\n"
         "   pip install cutctx-ai\n\n"
         "2. Activate your license:\n"
         f"   cutctx license activate {license_key}\n\n"
         "3. Full documentation:\n"
         "   https://cutctx.dev/docs\n\n"
         "If you have any questions, reply to this email or visit https://cutctx.dev/docs.\n\n"
-        "-- The CutCtx Team\n"
+        "-- The Cutctx Team\n"
     )
 
 
@@ -183,7 +183,7 @@ def send_email_resend(to_email: str, org: str, license_key: str, api_key: str) -
 
     payload = json.dumps(
         {
-            "from": "CutCtx <licenses@cutctx.dev>",
+            "from": "Cutctx <licenses@cutctx.dev>",
             "to": [to_email],
             "subject": EMAIL_SUBJECT,
             "text": build_email_body(license_key, org),
@@ -242,7 +242,7 @@ def deliver_license(to_email: str, org: str, license_key: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Issue a CutCtx license key (Stripe webhook handler / manual issuance)",
+        description="Issue a Cutctx license key (Stripe webhook handler / manual issuance)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -300,7 +300,7 @@ def main() -> None:
     # Check for Ed25519 Issuer Config
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from headroom_ee.billing.license_token import get_default_issuer_config, sign_license
+    from cutctx_ee.billing.license_token import get_default_issuer_config, sign_license
 
     kid, priv_hex = get_default_issuer_config()
 
@@ -319,12 +319,12 @@ def main() -> None:
             sys.exit(1)
     else:
         # Resolve HMAC secret
-        secret: str | None = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET") or ""
+        secret: str | None = os.environ.get("CUTCTX_LICENSE_HMAC_SECRET") or ""
         if not secret:
             if args.dry_run:
                 secret = None  # unsigned placeholder
                 print(
-                    "[warn] HEADROOM_LICENSE_HMAC_SECRET not set -- dry-run key is UNSIGNED",
+                    "[warn] CUTCTX_LICENSE_HMAC_SECRET not set -- dry-run key is UNSIGNED",
                     file=sys.stderr,
                 )
             else:

@@ -316,7 +316,7 @@ async def test_through_proxy(api_key, proxy_url: str = "http://localhost:8080"):
             return False
     except httpx.ConnectError:
         print("⚠️ Proxy not running - skipping proxy test")
-        print("   To test through proxy, start it with: uv run headroom-proxy")
+        print("   To test through proxy, start it with: uv run cutctx-proxy")
         return None
 
 

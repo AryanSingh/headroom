@@ -13,8 +13,8 @@ Tests covering:
 
 import json
 
-from headroom.config import ReadLifecycleConfig
-from headroom.transforms.read_lifecycle import (
+from cutctx.config import ReadLifecycleConfig
+from cutctx.transforms.read_lifecycle import (
     ReadLifecycleManager,
 )
 

@@ -3,7 +3,7 @@ title: MCP Tools
 description: Compression, retrieval, and stats as MCP tools for Claude Code, Cursor, and any MCP-compatible host.
 ---
 
-CutCtx's MCP server exposes compression, retrieval, and observability as tools that any MCP-compatible AI coding tool can call -- Claude Code, Cursor, Codex, and more. No proxy required.
+Cutctx's MCP server exposes compression, retrieval, and observability as tools that any MCP-compatible AI coding tool can call -- Claude Code, Cursor, Codex, and more. No proxy required.
 
 ## Installation
 
@@ -21,7 +21,7 @@ pip install "cutctx-ai[proxy]"
 # Register with Claude Code (one-time)
 cutctx mcp install
 
-# Start Claude Code — it now has CutCtx tools
+# Start Claude Code — it now has Cutctx tools
 claude
 ```
 
@@ -97,7 +97,7 @@ Session compression statistics.
 - `combined` -- main + sub-agent totals
 - `proxy` -- request count, cache hits, cost saved (if proxy is running)
 
-Sub-agent stats are aggregated via a shared stats file at `~/.headroom/session_stats.jsonl`.
+Sub-agent stats are aggregated via a shared stats file at `~/.cutctx/session_stats.jsonl`.
 
 ## CLI commands
 
@@ -183,18 +183,18 @@ The proxy compresses all traffic at the HTTP level (before the LLM sees content)
 
 **"Entry not found or expired"** -- Local content expires after 1 hour, proxy content after 5 minutes.
 
-**Claude doesn't see CutCtx tools** -- Run `cutctx mcp status`, restart Claude Code, and verify with `/mcp` inside Claude Code.
+**Claude doesn't see Cutctx tools** -- Run `cutctx mcp status`, restart Claude Code, and verify with `/mcp` inside Claude Code.
 
 ### Claude Code `/usage` attributes a large share to `cutctx` MCP
 
 Claude Code counts MCP tool calls and MCP tool results as session context. If a
 long-running workflow or a subagent-heavy command calls `cutctx_compress`,
 `cutctx_retrieve`, or `cutctx_stats` many times, `/usage` can show a visible
-share under the `cutctx` MCP server even when CutCtx is saving tokens inside
+share under the `cutctx` MCP server even when Cutctx is saving tokens inside
 individual tool results.
 
-That number is not a direct "CutCtx overhead" bill. It means Claude Code kept
-CutCtx MCP interactions in the conversation context. Deep research workflows
+That number is not a direct "Cutctx overhead" bill. It means Claude Code kept
+Cutctx MCP interactions in the conversation context. Deep research workflows
 can amplify this because each subagent has its own requests and may keep its own
 MCP results in context.
 

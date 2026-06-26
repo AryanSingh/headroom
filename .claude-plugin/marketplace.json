@@ -1,26 +1,26 @@
 {
-  "name": "headroom-marketplace",
+  "name": "cutctx-marketplace",
   "owner": {
-    "name": "Headroom Contributors"
+    "name": "Cutctx Contributors"
   },
   "metadata": {
-    "description": "Headroom marketplace for Claude Code and GitHub Copilot CLI plugins.",
+    "description": "Cutctx marketplace for Claude Code and GitHub Copilot CLI plugins.",
     "version": "0.26.1"
   },
   "plugins": [
     {
-      "name": "headroom",
-      "source": "./plugins/headroom-agent-hooks",
-      "description": "Headroom startup hooks for Claude Code and GitHub Copilot CLI.",
+      "name": "cutctx",
+      "source": "./plugins/cutctx-agent-hooks",
+      "description": "Cutctx startup hooks for Claude Code and GitHub Copilot CLI.",
       "version": "0.26.1",
       "author": {
-        "name": "Headroom Contributors",
+        "name": "Cutctx Contributors",
         "url": "https://github.com/cutctx/cutctx"
       },
       "homepage": "https://github.com/cutctx/cutctx",
       "repository": "https://github.com/cutctx/cutctx",
       "keywords": [
-        "headroom",
+        "cutctx",
         "hooks",
         "claude-code",
         "copilot-cli"

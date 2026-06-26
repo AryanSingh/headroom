@@ -1,23 +1,21 @@
 import os
-import requests
-import time
 import subprocess
-import signal
-import sys
-import json
+import time
+
+import requests
 
 
 # We will start the proxy via subprocess so it runs on port 8787
 def start_cutctx_proxy():
-    print("Starting CutCtx proxy on :8787...")
-    # Using python -m headroom.cli.proxy or cutctx proxy
+    print("Starting Cutctx proxy on :8787...")
+    # Using python -m cutctx.cli.proxy or cutctx proxy
     # For testing, we just run the CLI command
     env = os.environ.copy()
-    env["HEADROOM_TELEMETRY_DISABLED"] = "1"
+    env["CUTCTX_TELEMETRY_DISABLED"] = "1"
     env["CUTCTX_TELEMETRY_DISABLED"] = "1"
     # Ensure it's not overriding real keys if possible, though for proxy it might need them if forwarding.
-    # We will use "mock" upstream if possible. Wait, if it requires valid upstream, we'll get a 401. 
-    # But the proxy processes compression *before* sending upstream. 
+    # We will use "mock" upstream if possible. Wait, if it requires valid upstream, we'll get a 401.
+    # But the proxy processes compression *before* sending upstream.
     # So even if we get 401 from OpenAI, the proxy logs/compression should have triggered!
     proc = subprocess.Popen(
         [".venv/bin/cutctx", "proxy", "--port", "8787"],
@@ -44,14 +42,14 @@ def test_codex_openai_harness():
             {"role": "user", "content": f"Review this code:\\n```python\\n{massive_code}\\n```"}
         ]
     }
-    
+
     try:
         # We send it to localhost:8787 which should be intercepting OpenAI format
         resp = requests.post("http://localhost:8787/v1/chat/completions", headers=headers, json=payload, timeout=10)
-        # Even if 401, the proxy intercepted it. We check headers for headroom indicators.
+        # Even if 401, the proxy intercepted it. We check headers for cutctx indicators.
         print(f"Status Code: {resp.status_code}")
-        if "x-headroom-saved-tokens" in resp.headers or "x-cutctx-saved-tokens" in resp.headers:
-            print("✅ Proxy intercepted and returned CutCtx savings headers!")
+        if "x-cutctx-saved-tokens" in resp.headers or "x-cutctx-saved-tokens" in resp.headers:
+            print("✅ Proxy intercepted and returned Cutctx savings headers!")
         else:
             print("Response Headers:", resp.headers)
             print("Note: Proxy might not inject headers on 401, but the request was routed through.")

@@ -5,8 +5,8 @@ import threading
 from dataclasses import dataclass
 from types import MethodType, SimpleNamespace
 
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.transforms.content_router import (
+from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
+from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     RouterCompressionResult,
@@ -96,7 +96,7 @@ def _json_bytes(value: object) -> int:
 
 
 def test_t3_failed_size_responses_payload_parallelizes_uncached_tool_outputs(monkeypatch):
-    monkeypatch.setenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "4")
+    monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "4")
     case = T3_FAILED_CASES[0]
     router = ContentRouter()
     lock = threading.Lock()

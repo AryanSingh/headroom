@@ -528,7 +528,7 @@ def format_summary(result: dict[str, Any]) -> str:
         return (
             "Proxy unreachable at {url}.\n"
             "  {detail}\n"
-            "  Hint: start the proxy with `headroom proxy` and retry."
+            "  Hint: start the proxy with `cutctx proxy` and retry."
         ).format(**result)
 
     lines: list[str] = []

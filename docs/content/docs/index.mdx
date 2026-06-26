@@ -1,11 +1,11 @@
 ---
 title: Introduction
-description: CutCtx is the context optimization layer for LLM applications. Compress tool outputs, DB results, file reads, and RAG results before they reach the model. Same answers, fraction of the tokens.
+description: Cutctx is the context optimization layer for LLM applications. Compress tool outputs, DB results, file reads, and RAG results before they reach the model. Same answers, fraction of the tokens.
 ---
 
 <StatsSection />
 
-CutCtx compresses everything your AI agent reads -- tool outputs, database results, file reads, RAG retrievals, API responses -- before it reaches the LLM. The model sees less noise, responds faster, and costs less.
+Cutctx compresses everything your AI agent reads -- tool outputs, database results, file reads, RAG retrievals, API responses -- before it reaches the LLM. The model sees less noise, responds faster, and costs less.
 
 ## Quick preview
 
@@ -52,26 +52,26 @@ print(f"Saved {result.tokens_saved} tokens ({result.compression_ratio:.0%})")
 | Git diffs | Preserves change hunks, drops unchanged context | 40--60% |
 | Images | ML router selects optimal resize/quality tradeoff | 40--90% |
 
-## Where CutCtx fits
+## Where Cutctx fits
 
 ```
 Your Agent / App
     |
     |  tool outputs, logs, DB reads, RAG results, file reads, API responses
     v
- CutCtx  <-- proxy, Python library, TS SDK, or framework integration
+ Cutctx  <-- proxy, Python library, TS SDK, or framework integration
     |
     v
  LLM Provider  (OpenAI, Anthropic, Google, Bedrock, 100+ via LiteLLM)
 ```
 
-CutCtx works as a **transparent proxy** (zero code changes), a **Python function** (`compress()`), a **TypeScript function** (`compress()`), or a **framework integration** (LangChain, Agno, Strands, LiteLLM, Vercel AI SDK, MCP).
+Cutctx works as a **transparent proxy** (zero code changes), a **Python function** (`compress()`), a **TypeScript function** (`compress()`), or a **framework integration** (LangChain, Agno, Strands, LiteLLM, Vercel AI SDK, MCP).
 
 ## Real-world results
 
 **100 production log entries. One critical error buried at position 67.**
 
-| Metric | Baseline | CutCtx |
+| Metric | Baseline | Cutctx |
 |---|---|---|
 | Input tokens | 10,144 | 1,260 |
 | Correct answers | **4/4** | **4/4** |

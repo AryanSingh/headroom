@@ -9,8 +9,8 @@
 //! - Excessive allocation on adversarial inputs
 
 use libfuzzer_sys::fuzz_target;
-use headroom_core::auth_mode::AuthMode;
-use headroom_core::compression_policy::CompressionPolicy;
+use cutctx_core::auth_mode::AuthMode;
+use cutctx_core::compression_policy::CompressionPolicy;
 
 fuzz_target!(|data: &[u8]| {
     // Skip tiny inputs (< 10 bytes — can't form valid JSON)
@@ -26,7 +26,7 @@ fuzz_target!(|data: &[u8]| {
     // - Missing messages array → NoMessagesArray error
     // - Empty messages → NoChange
     // - Valid requests → compressed or NoChange
-    let _result = headroom_core::transforms::live_zone::compress_anthropic_live_zone(
+    let _result = cutctx_core::transforms::live_zone::compress_anthropic_live_zone(
         data,
         0, // frozen_message_count
         AuthMode::Payg,

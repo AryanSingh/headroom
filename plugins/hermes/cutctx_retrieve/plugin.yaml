@@ -1,0 +1,6 @@
+name: cutctx_retrieve
+version: 1.0.0
+description: "Retrieve original content compressed by the cutctx proxy (CCR markers)"
+author: akb4q
+provides_tools:
+  - cutctx_retrieve

@@ -12,14 +12,12 @@ Tests all configuration dataclasses, enums, and utility classes:
 from dataclasses import fields
 from datetime import datetime
 
-from headroom.config import (
+from cutctx.config import (
     Block,
     CacheAlignerConfig,
     CachePrefixMetrics,
     CutctxConfig,
     CutctxMode,
-    HeadroomConfig,
-    HeadroomMode,
     RelevanceScorerConfig,
     RequestMetrics,
     SmartCrusherConfig,
@@ -28,7 +26,7 @@ from headroom.config import (
 )
 
 
-class TestHeadroomMode:
+class TestCutctxMode:
     """Tests for CutctxMode enum."""
 
     def test_enum_values(self):
@@ -38,7 +36,7 @@ class TestHeadroomMode:
         assert CutctxMode.SIMULATE.value == "simulate"
 
     def test_string_conversion(self):
-        """HeadroomMode inherits from str for string compatibility."""
+        """CutctxMode inherits from str for string compatibility."""
         # Enum value access works as string
         assert CutctxMode.AUDIT.value == "audit"
         assert CutctxMode.OPTIMIZE.value == "optimize"
@@ -48,7 +46,7 @@ class TestHeadroomMode:
         assert CutctxMode.OPTIMIZE == "optimize"
         assert CutctxMode.SIMULATE == "simulate"
         # isinstance check confirms str inheritance
-        assert isinstance(HeadroomMode.AUDIT, str)
+        assert isinstance(CutctxMode.AUDIT, str)
 
 
 class TestCacheAlignerConfig:
@@ -147,13 +145,13 @@ class TestSmartCrusherConfig:
         assert config2.relevance.tier == "hybrid"
 
 
-class TestHeadroomConfig:
+class TestCutctxConfig:
     """Tests for CutctxConfig main configuration class."""
 
     def test_default_values(self):
         """Default values are correctly set."""
         config = CutctxConfig()
-        assert config.store_url == "sqlite:///headroom.db"
+        assert config.store_url == "sqlite:///cutctx.db"
         assert config.default_mode == CutctxMode.AUDIT
         assert config.generate_diff_artifact is False
         # Nested configs exist

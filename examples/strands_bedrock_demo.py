@@ -516,9 +516,10 @@ def run_hook_provider_demo(region: str = "us-west-2") -> dict[str, Any]:
 
     Returns metrics from the demo run.
     """
-    from cutctx.integrations.strands import CutctxHookProvider
     from strands import Agent, tool
     from strands.models import BedrockModel
+
+    from cutctx.integrations.strands import CutctxHookProvider
 
     print_box(
         "Demo 1: CutctxHookProvider",
@@ -698,11 +699,11 @@ def run_model_wrapper_demo(region: str = "us-west-2") -> dict[str, Any]:
 
     Returns metrics from the demo run.
     """
-    from cutctx.integrations.strands import CutctxStrandsModel
     from strands import Agent, tool
     from strands.models import BedrockModel
 
     from cutctx import CutctxConfig
+    from cutctx.integrations.strands import CutctxStrandsModel
 
     print_box(
         "Demo 2: CutctxStrandsModel",

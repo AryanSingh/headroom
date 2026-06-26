@@ -1,6 +1,6 @@
-# CutCtx Adversarial Test Report
+# Cutctx Adversarial Test Report
 **Date:** 2026-06-22  
-**Package tested:** `headroom-ai` v0.27.0  
+**Package tested:** `cutctx-ai` v0.27.0  
 **Tested against:** SKILL.md claims for `cutctx:compress`
 
 ---
@@ -17,12 +17,12 @@ The cutctx SKILL.md has **several materially wrong claims** and some **misleadin
 
 | Claim | Result | Verdict |
 |-------|--------|---------|
-| `pip install headroom-ai` installs the tool | ✅ Installs package | PASS |
-| `pip install "headroom-ai[all]"` works | ❌ Disk error in sandbox, but proxy deps install fine via `[proxy]` | PARTIAL |
-| CLI binary is `cutctx` | ❌ Binary installed is `headroom`, not `cutctx` | **FAIL** |
+| `pip install cutctx-ai` installs the tool | ✅ Installs package | PASS |
+| `pip install "cutctx-ai[all]"` works | ❌ Disk error in sandbox, but proxy deps install fine via `[proxy]` | PARTIAL |
+| CLI binary is `cutctx` | ❌ Binary installed is `cutctx`, not `cutctx` | **FAIL** |
 | `cutctx-ai` is available on PyPI | ❌ `pip install cutctx-ai` → "No matching distribution found" | **FAIL** |
 
-**Finding:** When installing from PyPI via `pip install headroom-ai`, only the `headroom` binary is installed. The `cutctx` binary only exists inside the project's own `.venv` (a Python wrapper calling `headroom.cli:main`) and as a macOS ARM64 compiled Rust binary in `target/debug/`. The `cutctx-ai` package name referenced in `pyproject.toml` is not on PyPI. **Every example in the SKILL.md uses `cutctx <command>` but the real CLI is `headroom <command>`.**
+**Finding:** When installing from PyPI via `pip install cutctx-ai`, only the `cutctx` binary is installed. The `cutctx` binary only exists inside the project's own `.venv` (a Python wrapper calling `cutctx.cli:main`) and as a macOS ARM64 compiled Rust binary in `target/debug/`. The `cutctx-ai` package name referenced in `pyproject.toml` is not on PyPI. **Every example in the SKILL.md uses `cutctx <command>` but the real CLI is `cutctx <command>`.**
 
 ---
 
@@ -30,13 +30,13 @@ The cutctx SKILL.md has **several materially wrong claims** and some **misleadin
 
 | Claim | Result | Verdict |
 |-------|--------|---------|
-| `echo "text" \| cutctx compress` | ❌ `headroom compress` → "No such command 'compress'" | **FAIL** |
+| `echo "text" \| cutctx compress` | ❌ `cutctx compress` → "No such command 'compress'" | **FAIL** |
 | `cutctx compress < file.txt` | ❌ Same — no compress subcommand | **FAIL** |
-| `cutctx stats` | ❌ `headroom stats` → "No such command 'stats'" | **FAIL** |
-| `cutctx proxy --port 8787` | ✅ `headroom proxy --port 8787` works | PASS (wrong name) |
-| `cutctx retrieve <hash>` | ❌ `headroom retrieve` → "No such command 'retrieve'" | **FAIL** |
+| `cutctx stats` | ❌ `cutctx stats` → "No such command 'stats'" | **FAIL** |
+| `cutctx proxy --port 8787` | ✅ `cutctx proxy --port 8787` works | PASS (wrong name) |
+| `cutctx retrieve <hash>` | ❌ `cutctx retrieve` → "No such command 'retrieve'" | **FAIL** |
 
-**Finding:** Of the 5 documented CLI commands, only the proxy command works (under the correct binary name). The `compress`, `stats`, and `retrieve` subcommands do not exist in the CLI. The correct equivalent to `stats` is the web endpoint `GET /stats` on the running proxy, or `headroom memory stats` (for memory only). Retrieval is only possible via Python API or SQLite directly.
+**Finding:** Of the 5 documented CLI commands, only the proxy command works (under the correct binary name). The `compress`, `stats`, and `retrieve` subcommands do not exist in the CLI. The correct equivalent to `stats` is the web endpoint `GET /stats` on the running proxy, or `cutctx memory stats` (for memory only). Retrieval is only possible via Python API or SQLite directly.
 
 ---
 
@@ -44,11 +44,11 @@ The cutctx SKILL.md has **several materially wrong claims** and some **misleadin
 
 | Claim | Result | Verdict |
 |-------|--------|---------|
-| "CutCtx proxy starts automatically when this plugin loads" | ❌ No auto-start. Proxy requires manual `headroom proxy` invocation | **FAIL** |
-| Proxy requires extra deps beyond base `pip install headroom-ai` | ❌ Yes: needs `fastapi`, `uvicorn`, `httpx[http2]`, `openai`, `socksio` — install with `pip install headroom-ai[proxy]` | MISLEADING |
+| "Cutctx proxy starts automatically when this plugin loads" | ❌ No auto-start. Proxy requires manual `cutctx proxy` invocation | **FAIL** |
+| Proxy requires extra deps beyond base `pip install cutctx-ai` | ❌ Yes: needs `fastapi`, `uvicorn`, `httpx[http2]`, `openai`, `socksio` — install with `pip install cutctx-ai[proxy]` | MISLEADING |
 | `curl http://127.0.0.1:8787/livez` works once proxy is running | ✅ Returns `{"status":"healthy","alive":true,...}` | PASS |
 
-**Finding:** The auto-start claim is false — the proxy is not started by loading the skill. Additionally, `pip install headroom-ai` alone fails to start the proxy (`No module named 'fastapi'`). You must install `headroom-ai[proxy]` separately.
+**Finding:** The auto-start claim is false — the proxy is not started by loading the skill. Additionally, `pip install cutctx-ai` alone fails to start the proxy (`No module named 'fastapi'`). You must install `cutctx-ai[proxy]` separately.
 
 ---
 
@@ -58,11 +58,11 @@ All 5 algorithms exist as real Python classes:
 
 | Algorithm | Class | Module |
 |-----------|-------|--------|
-| SmartCrusher | `SmartCrusher` | `headroom.transforms.smart_crusher` |
-| CodeCompressor | `CodeAwareCompressor` + `compress_code()` | `headroom.transforms.code_compressor` |
-| DiffCompressor | `DiffCompressor` | `headroom.transforms.diff_compressor` |
-| LogCompressor | `LogCompressor` | `headroom.transforms.log_compressor` |
-| SearchCompressor | `SearchCompressor` | `headroom.transforms.search_compressor` |
+| SmartCrusher | `SmartCrusher` | `cutctx.transforms.smart_crusher` |
+| CodeCompressor | `CodeAwareCompressor` + `compress_code()` | `cutctx.transforms.code_compressor` |
+| DiffCompressor | `DiffCompressor` | `cutctx.transforms.diff_compressor` |
+| LogCompressor | `LogCompressor` | `cutctx.transforms.log_compressor` |
+| SearchCompressor | `SearchCompressor` | `cutctx.transforms.search_compressor` |
 
 **Finding:** The naming in SKILL.md is mostly accurate (CodeCompressor is actually `CodeAwareCompressor`). All 5 are real.
 
@@ -70,7 +70,7 @@ All 5 algorithms exist as real Python classes:
 
 ### 5. Compression Ratios — Measured vs. Claimed
 
-All measurements use actual token counts via `headroom.compress()`.
+All measurements use actual token counts via `cutctx.compress()`.
 
 #### SmartCrusher — JSON/Structured Data (Claimed: 60–90%)
 | Test | Input Tokens | Output Tokens | Actual Savings |
@@ -84,7 +84,7 @@ All measurements use actual token counts via `headroom.compress()`.
 **Verdict:** Savings are **real but frequently below the claimed 60% floor** on character count. On token count with a proper conversation (prior assistant message), hits **~64%**, which is at the low end of the claimed range. The algorithm converts JSON arrays to a compact CSV-like format.
 
 #### CodeCompressor (Claimed: 40–70%)
-**Not testable without extra install:** requires `pip install headroom-ai[code]` (tree-sitter). The base `headroom-ai` install does not include this. The `compress_code()` function exists but throws an error on invocation without tree-sitter. SKILL.md does not mention this prerequisite.
+**Not testable without extra install:** requires `pip install cutctx-ai[code]` (tree-sitter). The base `cutctx-ai` install does not include this. The `compress_code()` function exists but throws an error on invocation without tree-sitter. SKILL.md does not mention this prerequisite.
 
 **Verdict:** ❌ **Not functional out of the box.** Requires undisclosed extra dependency.
 
@@ -123,7 +123,7 @@ All measurements use actual token counts via `headroom.compress()`.
 | Claim | Result | Verdict |
 |-------|--------|---------|
 | `cutctx retrieve <hash>` CLI command | ❌ Does not exist | **FAIL** |
-| Content stored for retrieval | ✅ SQLite at `~/.headroom/ccr_store.db` | PASS |
+| Content stored for retrieval | ✅ SQLite at `~/.cutctx/ccr_store.db` | PASS |
 | Content recoverable via Python API | ✅ `SmartCrusher.ccr_get(hash)` returns None for invalid hashes, original for valid | PASS |
 | SearchCompressor stores originals | ✅ Verified via DB query | PASS |
 | TTL on stored content | ⚠️ 1800 seconds (30 min) — not mentioned in SKILL.md | UNDISCLOSED |
@@ -154,11 +154,11 @@ All measurements use actual token counts via `headroom.compress()`.
 
 | Claim Category | Status |
 |---------------|--------|
-| CLI binary name (`cutctx`) | ❌ Wrong — binary is `headroom` |
+| CLI binary name (`cutctx`) | ❌ Wrong — binary is `cutctx` |
 | `cutctx compress` command | ❌ Does not exist |
 | `cutctx stats` command | ❌ Does not exist |
 | `cutctx retrieve` command | ❌ Does not exist |
-| `cutctx proxy` command | ✅ Works (as `headroom proxy`) |
+| `cutctx proxy` command | ✅ Works (as `cutctx proxy`) |
 | Proxy auto-start | ❌ False — manual only |
 | Proxy extra deps required | ❌ Not disclosed |
 | SmartCrusher savings (60–90%) | ⚠️ ~64% on tokens, can undershoot on chars |
@@ -175,10 +175,10 @@ All measurements use actual token counts via `headroom.compress()`.
 
 ## Recommendations
 
-1. **Rename all examples** from `cutctx` to `headroom` until the cutctx-ai package is published to PyPI.
-2. **Remove or rewrite the CLI compress/stats/retrieve examples** — these commands do not exist. The Python API (`headroom.compress()`) is the correct interface for direct compression.
-3. **Clarify proxy is not auto-started** and that `pip install headroom-ai[proxy]` is required.
-4. **Disclose CodeCompressor requires `headroom-ai[code]`** (tree-sitter).
+1. **Rename all examples** from `cutctx` to `cutctx` until the cutctx-ai package is published to PyPI.
+2. **Remove or rewrite the CLI compress/stats/retrieve examples** — these commands do not exist. The Python API (`cutctx.compress()`) is the correct interface for direct compression.
+3. **Clarify proxy is not auto-started** and that `pip install cutctx-ai[proxy]` is required.
+4. **Disclose CodeCompressor requires `cutctx-ai[code]`** (tree-sitter).
 5. **Correct the DiffCompressor claim** — 70–95% is only realistic for large repetitive multi-file diffs. Single-file diffs get <1%.
 6. **Add TTL warning to SearchCompressor** — 30-minute expiry on CCR hashes is a silent data loss risk in long-running agents.
 7. **Fix GitHub link typo**: `AryanSingh/cutcxt` → `AryanSingh/cutctx`.

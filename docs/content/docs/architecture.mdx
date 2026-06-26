@@ -1,9 +1,9 @@
 ---
 title: Architecture
-description: How CutCtx's three-stage compression pipeline works, from message parsing through transform execution to provider cache optimization.
+description: How Cutctx's three-stage compression pipeline works, from message parsing through transform execution to provider cache optimization.
 ---
 
-CutCtx sits between your application and the LLM provider. It intercepts messages, compresses them intelligently, and forwards the optimized request. The response comes back unchanged.
+Cutctx sits between your application and the LLM provider. It intercepts messages, compresses them intelligently, and forwards the optimized request. The response comes back unchanged.
 
 ## High-Level Flow
 
@@ -14,7 +14,7 @@ CutCtx sits between your application and the LLM provider. It intercepts message
                                |
                                v
 +---------------------------------------------------------------+
-|                      HEADROOM CLIENT                          |
+|                      CUTCTX CLIENT                          |
 |  +-----------+   +------------+   +---------+                 |
 |  |  ANALYZE  | > |  TRANSFORM | > |  CALL   |                 |
 |  |  (Parser) |   |  (Pipeline)|   |  (API)  |                 |
@@ -33,11 +33,11 @@ CutCtx sits between your application and the LLM provider. It intercepts message
 
 ## Entry Points
 
-CutCtx can be used in three ways, all feeding into the same pipeline:
+Cutctx can be used in three ways, all feeding into the same pipeline:
 
 | Entry Point | How It Works | Code Changes |
 |-------------|-------------|--------------|
-| **SDK Mode** | Wrap your LLM client with `CutCtxClient` | Minimal -- swap client constructor |
+| **SDK Mode** | Wrap your LLM client with `CutctxClient` | Minimal -- swap client constructor |
 | **Proxy Mode** | Run `cutctx proxy` and point your client at it | Zero -- just change the base URL |
 | **Integrations** | LangChain, Vercel AI SDK, Agno adapters | Framework-specific setup |
 
@@ -98,7 +98,7 @@ Overhead: sub-millisecond for Rolling Window; depends on scoring config for Inte
 
 ## Provider Cache Optimization
 
-After the pipeline, CutCtx applies provider-specific cache hints:
+After the pipeline, Cutctx applies provider-specific cache hints:
 
 | Provider | Mechanism | Savings |
 |----------|-----------|---------|
@@ -122,7 +122,7 @@ TOIN learns compression patterns across sessions and users. When a tool is used 
 
 Cold start: For new tool types, TOIN falls back to statistical heuristics. Patterns build up over time as tools are used.
 
-## What CutCtx Does NOT Touch
+## What Cutctx Does NOT Touch
 
 - **User messages**: Never compressed (the user's intent must be preserved exactly)
 - **System prompts**: Content preserved; only dynamic parts are relocated for caching

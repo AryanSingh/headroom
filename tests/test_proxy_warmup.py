@@ -18,7 +18,7 @@ import pytest
 
 pytest.importorskip("fastapi")
 
-from headroom.proxy.warmup import WarmupRegistry, WarmupSlot
+from cutctx.proxy.warmup import WarmupRegistry, WarmupSlot
 
 # -------------------------------------------------------------------
 # WarmupSlot / WarmupRegistry unit tests
@@ -111,7 +111,7 @@ def _stub_pipelines(monkeypatch):
     assertion that dedup prevents double-loading relies on that counter.
     """
     pytest.importorskip("httpx")
-    from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
 
     class SpyTransform:
         def __init__(self) -> None:
@@ -160,7 +160,7 @@ async def test_startup_runs_shared_transform_once(_stub_pipelines):
 @pytest.mark.asyncio
 async def test_startup_optimize_false_leaves_slots_null():
     pytest.importorskip("httpx")
-    from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
 
     config = ProxyConfig(
         optimize=False,
@@ -193,8 +193,8 @@ async def test_startup_optimize_false_leaves_slots_null():
 @pytest.mark.asyncio
 async def test_startup_memory_embedder_warmup_encodes_once(tmp_path, monkeypatch):
     pytest.importorskip("httpx")
-    from headroom.proxy.memory_handler import MemoryConfig, MemoryHandler
-    from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
+    from cutctx.proxy.memory_handler import MemoryConfig, MemoryHandler
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
 
     config = ProxyConfig(
         optimize=False,
@@ -241,8 +241,8 @@ async def test_startup_memory_embedder_warmup_encodes_once(tmp_path, monkeypatch
 @pytest.mark.asyncio
 async def test_startup_memory_backend_error_surfaced_and_health_degraded(tmp_path):
     pytest.importorskip("httpx")
-    from headroom.proxy.memory_handler import MemoryConfig, MemoryHandler
-    from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
+    from cutctx.proxy.memory_handler import MemoryConfig, MemoryHandler
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
 
     config = ProxyConfig(
         optimize=False,

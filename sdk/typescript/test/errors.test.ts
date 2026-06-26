@@ -3,10 +3,10 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  CutCtxError,
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,
@@ -17,47 +17,47 @@ import {
   mapProxyError,
 } from "../src/errors.js";
 
-describe("CutCtxError", () => {
+describe("CutctxError", () => {
   it("has correct name and message", () => {
-    const err = new CutCtxError("test error");
-    expect(err.name).toBe("CutCtxError");
+    const err = new CutctxError("test error");
+    expect(err.name).toBe("CutctxError");
     expect(err.message).toBe("test error");
     expect(err).toBeInstanceOf(Error);
   });
 
   it("supports details", () => {
-    const err = new CutCtxError("test", { key: "value" });
+    const err = new CutctxError("test", { key: "value" });
     expect(err.details).toEqual({ key: "value" });
   });
 
   it("details are optional", () => {
-    const err = new CutCtxError("test");
+    const err = new CutctxError("test");
     expect(err.details).toBeUndefined();
   });
 });
 
-describe("CutCtxConnectionError", () => {
-  it("inherits from CutCtxError", () => {
-    const err = new CutCtxConnectionError("connection failed");
-    expect(err).toBeInstanceOf(CutCtxError);
+describe("CutctxConnectionError", () => {
+  it("inherits from CutctxError", () => {
+    const err = new CutctxConnectionError("connection failed");
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err).toBeInstanceOf(Error);
-    expect(err.name).toBe("CutCtxConnectionError");
+    expect(err.name).toBe("CutctxConnectionError");
   });
 });
 
-describe("CutCtxAuthError", () => {
-  it("inherits from CutCtxError", () => {
-    const err = new CutCtxAuthError("unauthorized");
-    expect(err).toBeInstanceOf(CutCtxError);
-    expect(err.name).toBe("CutCtxAuthError");
+describe("CutctxAuthError", () => {
+  it("inherits from CutctxError", () => {
+    const err = new CutctxAuthError("unauthorized");
+    expect(err).toBeInstanceOf(CutctxError);
+    expect(err.name).toBe("CutctxAuthError");
   });
 });
 
-describe("CutCtxCompressError", () => {
+describe("CutctxCompressError", () => {
   it("includes statusCode and errorType", () => {
-    const err = new CutCtxCompressError(500, "compression_error", "failed");
-    expect(err).toBeInstanceOf(CutCtxError);
-    expect(err.name).toBe("CutCtxCompressError");
+    const err = new CutctxCompressError(500, "compression_error", "failed");
+    expect(err).toBeInstanceOf(CutctxError);
+    expect(err.name).toBe("CutctxCompressError");
     expect(err.statusCode).toBe(500);
     expect(err.errorType).toBe("compression_error");
     expect(err.message).toBe("failed");
@@ -65,65 +65,65 @@ describe("CutCtxCompressError", () => {
 });
 
 describe("ConfigurationError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new ConfigurationError("bad config");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("ConfigurationError");
   });
 });
 
 describe("ProviderError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new ProviderError("provider failed");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("ProviderError");
   });
 });
 
 describe("StorageError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new StorageError("db error");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("StorageError");
   });
 });
 
 describe("TokenizationError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new TokenizationError("token count failed");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("TokenizationError");
   });
 });
 
 describe("CacheError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new CacheError("cache miss");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("CacheError");
   });
 });
 
 describe("ValidationError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new ValidationError("invalid setup");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("ValidationError");
   });
 });
 
 describe("TransformError", () => {
-  it("inherits from CutCtxError", () => {
+  it("inherits from CutctxError", () => {
     const err = new TransformError("transform failed");
-    expect(err).toBeInstanceOf(CutCtxError);
+    expect(err).toBeInstanceOf(CutctxError);
     expect(err.name).toBe("TransformError");
   });
 });
 
 describe("mapProxyError", () => {
-  it("maps 401 to CutCtxAuthError", () => {
+  it("maps 401 to CutctxAuthError", () => {
     const err = mapProxyError(401, "auth_error", "unauthorized");
-    expect(err).toBeInstanceOf(CutCtxAuthError);
+    expect(err).toBeInstanceOf(CutctxAuthError);
     expect(err.message).toBe("unauthorized");
   });
 
@@ -162,8 +162,8 @@ describe("mapProxyError", () => {
     expect(err).toBeInstanceOf(TransformError);
   });
 
-  it("falls back to CutCtxCompressError for unknown types", () => {
+  it("falls back to CutctxCompressError for unknown types", () => {
     const err = mapProxyError(500, "unknown_error", "something broke");
-    expect(err).toBeInstanceOf(CutCtxCompressError);
+    expect(err).toBeInstanceOf(CutctxCompressError);
   });
 });

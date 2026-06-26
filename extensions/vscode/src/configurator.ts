@@ -22,7 +22,7 @@ export class AIExtensionConfigurator {
         }
 
         const choice = await vscode.window.showQuickPick(
-            detected.map(ext => ({ label: ext, description: `Configure ${ext} to use CutCtx proxy` })),
+            detected.map(ext => ({ label: ext, description: `Configure ${ext} to use Cutctx proxy` })),
             { placeHolder: 'Select AI extension to configure' }
         );
 
@@ -69,7 +69,7 @@ export class AIExtensionConfigurator {
 
             fs.mkdirSync(path.dirname(configPath), { recursive: true });
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
-            vscode.window.showInformationMessage(`Continue configured to use CutCtx proxy. Reload VS Code to apply.`);
+            vscode.window.showInformationMessage(`Continue configured to use Cutctx proxy. Reload VS Code to apply.`);
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to configure Continue: ${err}`);
         }

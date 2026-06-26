@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: headroom
+  name: cutctx
   labels:
-    app.kubernetes.io/name: headroom-proxy
+    app.kubernetes.io/name: cutctx-proxy
     app.kubernetes.io/component: proxy
     app.kubernetes.io/managed-by: kubectl

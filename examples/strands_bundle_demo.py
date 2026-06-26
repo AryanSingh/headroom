@@ -66,7 +66,7 @@ def _start_proxy() -> subprocess.Popen[bytes]:
         "--port",
         str(PROXY_PORT),
     ]
-    log_path = Path("/tmp/headroom_bundle_demo_proxy.log")
+    log_path = Path("/tmp/cutctx_bundle_demo_proxy.log")
     log = log_path.open("wb")
     proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)  # noqa: S603
     print(f"  → proxy started (pid={proc.pid}); log: {log_path}")
@@ -129,9 +129,10 @@ def _print_stats_panel() -> None:
 # construction call. The rest is vanilla Strands.
 # ============================================================================
 
-from cutctx.integrations.strands import CutctxBundle  # noqa: E402
 from strands import Agent, tool  # noqa: E402  (kept under USER CODE banner for readability)
 from strands.models.openai import OpenAIModel  # noqa: E402
+
+from cutctx.integrations.strands import CutctxBundle  # noqa: E402
 
 
 @tool
@@ -179,7 +180,7 @@ def run_agent_demo() -> None:
             "base_url": f"{PROXY_URL}/v1",
             "api_key": "dummy-bedrock-uses-aws-creds-at-proxy",
             "default_headers": {
-                "x-headroom-session-id": "demo-1",
+                "x-cutctx-session-id": "demo-1",
                 "X-Client": "strands",
             },
         },

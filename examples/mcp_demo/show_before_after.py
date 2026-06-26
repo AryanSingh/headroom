@@ -10,7 +10,7 @@ Run with:
 
 def main():
     print("\n" + "=" * 70)
-    print("HEADROOM MCP INTEGRATION - DEVELOPER EXPERIENCE")
+    print("CUTCTX MCP INTEGRATION - DEVELOPER EXPERIENCE")
     print("=" * 70)
 
     # =========================================================================

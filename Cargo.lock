@@ -1231,6 +1231,125 @@ dependencies = [
 ]
 
 [[package]]
+name = "cutctx-core"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "base64 0.22.1",
+ "blake3",
+ "bytes",
+ "criterion",
+ "dashmap",
+ "fastembed",
+ "flate2",
+ "hex",
+ "hf-hub 0.4.3",
+ "hmac 0.12.1",
+ "hound",
+ "http 1.4.0",
+ "image",
+ "libc",
+ "magika",
+ "md-5",
+ "memchr",
+ "proptest",
+ "rayon",
+ "redis",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "symphonia",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tiktoken-rs",
+ "tokenizers",
+ "toml",
+ "tracing",
+ "tracing-opentelemetry 0.33.0",
+ "unidiff",
+]
+
+[[package]]
+name = "cutctx-parity"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "cutctx-core",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cutctx-proxy"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sigv4",
+ "aws-smithy-runtime-api",
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "bytesize",
+ "clap",
+ "crc32fast",
+ "cutctx-core",
+ "ed25519-dalek",
+ "futures",
+ "futures-util",
+ "gcp_auth",
+ "hex",
+ "hmac 0.12.1",
+ "hostname",
+ "http 1.4.0",
+ "http-body-util",
+ "humantime",
+ "hyper",
+ "hyper-util",
+ "libc",
+ "lru",
+ "md-5",
+ "opentelemetry 0.27.1",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "pin-project-lite",
+ "prometheus",
+ "proptest",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tower 0.5.3",
+ "tower-http",
+ "tracing",
+ "tracing-opentelemetry 0.28.0",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
+name = "cutctx-py"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "cutctx-core",
+ "pyo3",
+ "serde_json",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1935,125 +2054,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
 dependencies = [
  "hashbrown 0.14.5",
-]
-
-[[package]]
-name = "headroom-core"
-version = "0.1.0"
-dependencies = [
- "aho-corasick",
- "base64 0.22.1",
- "blake3",
- "bytes",
- "criterion",
- "dashmap",
- "fastembed",
- "flate2",
- "hex",
- "hf-hub 0.4.3",
- "hmac 0.12.1",
- "hound",
- "http 1.4.0",
- "image",
- "libc",
- "magika",
- "md-5",
- "memchr",
- "proptest",
- "rayon",
- "redis",
- "regex",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "symphonia",
- "tempfile",
- "thiserror 1.0.69",
- "tiktoken-rs",
- "tokenizers",
- "toml",
- "tracing",
- "tracing-opentelemetry 0.33.0",
- "unidiff",
-]
-
-[[package]]
-name = "headroom-parity"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "headroom-core",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "headroom-proxy"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "aws-config",
- "aws-credential-types",
- "aws-sigv4",
- "aws-smithy-runtime-api",
- "axum",
- "base64 0.22.1",
- "bytes",
- "bytesize",
- "clap",
- "crc32fast",
- "ed25519-dalek",
- "futures",
- "futures-util",
- "gcp_auth",
- "headroom-core",
- "hex",
- "hmac 0.12.1",
- "hostname",
- "http 1.4.0",
- "http-body-util",
- "humantime",
- "hyper",
- "hyper-util",
- "libc",
- "lru",
- "md-5",
- "opentelemetry 0.27.1",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "pin-project-lite",
- "prometheus",
- "proptest",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tokio-util",
- "tower 0.5.3",
- "tower-http",
- "tracing",
- "tracing-opentelemetry 0.28.0",
- "tracing-subscriber",
- "url",
- "uuid",
- "wiremock",
-]
-
-[[package]]
-name = "headroom-py"
-version = "0.1.0"
-dependencies = [
- "cc",
- "headroom-core",
- "pyo3",
- "serde_json",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 # Data Residency & No-Egress Attestation
 
-CutCtx can produce a **cryptographically verifiable snapshot** that proves
+Cutctx can produce a **cryptographically verifiable snapshot** that proves
 what data regions are configured, which egress domains the firewall is
 blocking, and what the current tail hash of the tamper-evident audit chain is.
 
@@ -45,7 +45,7 @@ curl "http://localhost:4000/v1/residency/proof?tenant_id=acme-corp&sign=true"
 | Field | Type | Description |
 |---|---|---|
 | `tenant_id` | `string` | Tenant identifier. |
-| `proxy_version` | `string` | Semver of the running CutCtx proxy. |
+| `proxy_version` | `string` | Semver of the running Cutctx proxy. |
 | `timestamp_iso` | `string` | ISO-8601 UTC timestamp when the attestation was generated. |
 | `attested_at_ts` | `float` | Same instant as `timestamp_iso`, in Unix epoch seconds. |
 | `audit_chain_tail_hash` | `string \| null` | SHA-256 (hex) of the most-recent audit event for this tenant. `null` when the EE audit store is not installed or has no events yet. |

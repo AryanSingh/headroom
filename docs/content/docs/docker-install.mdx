@@ -1,22 +1,22 @@
 ---
 title: Docker-Native Install
-description: Run CutCtx without installing Python or Node.js on the host. A native `cutctx` wrapper keeps the proxy and CLI in Docker while your other tools run on the host OS.
+description: Run Cutctx without installing Python or Node.js on the host. A native `cutctx` wrapper keeps the proxy and CLI in Docker while your other tools run on the host OS.
 ---
 
-Run CutCtx without installing Python or Node.js on the host. The install scripts add a native `cutctx` wrapper that keeps **CutCtx itself** in Docker while orchestrating the rest of your workflow on the host OS.
+Run Cutctx without installing Python or Node.js on the host. The install scripts add a native `cutctx` wrapper that keeps **Cutctx itself** in Docker while orchestrating the rest of your workflow on the host OS.
 
 ## One-line install
 
 ### Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | bash
 ```
 
 ### macOS (bash 4.3+)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.sh | "$(brew --prefix bash)/bin/bash"
+curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | "$(brew --prefix bash)/bin/bash"
 ```
 
 Stock `/bin/bash` on macOS is 3.2, so install a newer bash first (for example via Homebrew) and run the installer with that shell. The installed wrapper pins that same bash interpreter so later invocations stay on the supported runtime.
@@ -24,31 +24,31 @@ Stock `/bin/bash` on macOS is 3.2, so install a newer bash first (for example vi
 ### Windows PowerShell
 
 ```powershell
-irm https://raw.githubusercontent.com/chopratejas/headroom/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.ps1 | iex
 ```
 
 ## What the installer does
 
 1. Verifies Docker is installed and available.
-2. Pulls `ghcr.io/chopratejas/headroom:latest` by default, or reuses / pulls `HEADROOM_DOCKER_IMAGE` when you set a custom image override.
-3. Installs `cutctx` and compatibility `headroom` wrappers into `~/.local/bin` or `~/bin`.
+2. Pulls `ghcr.io/chopratejas/cutctx:latest` by default, or reuses / pulls `CUTCTX_DOCKER_IMAGE` when you set a custom image override.
+3. Installs `cutctx` and compatibility `cutctx` wrappers into `~/.local/bin` or `~/bin`.
 4. Updates shell startup files so the wrapper directory is on `PATH`.
 
-The wrapper keeps CutCtx inside Docker and mounts host state back into the container so native behavior stays consistent:
+The wrapper keeps Cutctx inside Docker and mounts host state back into the container so native behavior stays consistent:
 
 - project workspace → `/workspace`
-- `~/.headroom`
+- `~/.cutctx`
 - `~/.claude`
 - `~/.codex`
 - `~/.gemini`
 
 Port `8787` stays the default, so `http://localhost:8787` works the same way as a native install.
 
-Published releases also push versioned GHCR tags such as `ghcr.io/chopratejas/headroom:0.5.26`, and those images are built with the same synced package version used for the matching PyPI and npm release.
+Published releases also push versioned GHCR tags such as `ghcr.io/chopratejas/cutctx:0.5.26`, and those images are built with the same synced package version used for the matching PyPI and npm release.
 
 ## How the wrapper behaves
 
-### Native CutCtx commands
+### Native Cutctx commands
 
 These run directly inside the container:
 
@@ -66,7 +66,7 @@ docker run --rm -it \
   -p 8787:8787 \
   -v "$PWD:/workspace" \
   -w /workspace \
-  ghcr.io/chopratejas/headroom:latest \
+  ghcr.io/chopratejas/cutctx:latest \
   cutctx proxy --host 0.0.0.0 --port 8787
 ```
 
@@ -74,8 +74,8 @@ docker run --rm -it \
 
 `wrap` is host-oriented in Docker-native mode:
 
-- the wrapper starts the CutCtx proxy in Docker
-- container-side prep writes CutCtx config, memory, and selected CLI context-tool setup into mounted host files
+- the wrapper starts the Cutctx proxy in Docker
+- container-side prep writes Cutctx config, memory, and selected CLI context-tool setup into mounted host files
 - the target CLI itself is launched on the host by the wrapper
 
 Supported host wrap flows:
@@ -91,8 +91,8 @@ Supported host wrap flows:
 OpenClaw remains host-native in Docker-native mode:
 
 - the host must already have the `openclaw` CLI installed
-- `cutctx wrap openclaw` installs/configures the CutCtx plugin through the host `openclaw` CLI
-- plugin auto-start still launches the installed host `cutctx` wrapper from `PATH`, which then runs CutCtx in Docker
+- `cutctx wrap openclaw` installs/configures the Cutctx plugin through the host `openclaw` CLI
+- plugin auto-start still launches the installed host `cutctx` wrapper from `PATH`, which then runs Cutctx in Docker
 - local plugin source mode (`--plugin-path`) is also supported, but it may require host `npm` when build steps are needed
 
 ## Persistent Docker lifecycle from the native wrapper
@@ -122,44 +122,44 @@ Use `docker/docker-compose.native.yml` when you want an explicit compose-managed
 
 ### Persistent Docker runtime
 
-The `proxy` service uses `restart: unless-stopped`, so compose can act as the always-on Docker runtime for CutCtx:
+The `proxy` service uses `restart: unless-stopped`, so compose can act as the always-on Docker runtime for Cutctx:
 
 ```bash
-export HEADROOM_HOST_HOME="$HOME"
-export HEADROOM_WORKSPACE="$PWD"
+export CUTCTX_HOST_HOME="$HOME"
+export CUTCTX_WORKSPACE="$PWD"
 docker compose -f docker/docker-compose.native.yml up -d proxy
 ```
 
 ```powershell
-$env:HEADROOM_HOST_HOME = $HOME
-$env:HEADROOM_WORKSPACE = (Get-Location).Path
+$env:CUTCTX_HOST_HOME = $HOME
+$env:CUTCTX_WORKSPACE = (Get-Location).Path
 docker compose -f docker/docker-compose.native.yml up -d proxy
 ```
 
 This is a supported persistent-Docker path when you want the proxy managed explicitly through Compose instead of the installed wrapper.
 
-<Callout type="info" title="HEADROOM_WORKSPACE vs HEADROOM_WORKSPACE_DIR">
+<Callout type="info" title="CUTCTX_WORKSPACE vs CUTCTX_WORKSPACE_DIR">
 These are two different variables — both are set by the compose file, and both are retained for backward compatibility:
 
-- **`HEADROOM_WORKSPACE`** (host-side) is the directory the compose file bind-mounts into the container as `/workspace`. It behaves like CWD in a native (non-Docker) run.
-- **`HEADROOM_WORKSPACE_DIR`** (inside the container) is the canonical CutCtx state root from the [filesystem contract](/docs/filesystem-contract). The compose file sets it to `/tmp/headroom-home/.headroom` so the proxy resolves savings, logs, TOIN, and memory under the bind-mounted `${HOME}/.headroom`.
+- **`CUTCTX_WORKSPACE`** (host-side) is the directory the compose file bind-mounts into the container as `/workspace`. It behaves like CWD in a native (non-Docker) run.
+- **`CUTCTX_WORKSPACE_DIR`** (inside the container) is the canonical Cutctx state root from the [filesystem contract](/docs/filesystem-contract). The compose file sets it to `/tmp/cutctx-home/.cutctx` so the proxy resolves savings, logs, TOIN, and memory under the bind-mounted `${HOME}/.cutctx`.
 
-You do not need to set `HEADROOM_WORKSPACE_DIR` manually when using the shipped compose file — it is already in the `environment:` block.
+You do not need to set `CUTCTX_WORKSPACE_DIR` manually when using the shipped compose file — it is already in the `environment:` block.
 </Callout>
 
 ### macOS / Linux
 
 ```bash
-export HEADROOM_HOST_HOME="$HOME"
-export HEADROOM_WORKSPACE="$PWD"
+export CUTCTX_HOST_HOME="$HOME"
+export CUTCTX_WORKSPACE="$PWD"
 docker compose -f docker/docker-compose.native.yml up proxy
 ```
 
 ### Windows PowerShell
 
 ```powershell
-$env:HEADROOM_HOST_HOME = $HOME
-$env:HEADROOM_WORKSPACE = (Get-Location).Path
+$env:CUTCTX_HOST_HOME = $HOME
+$env:CUTCTX_WORKSPACE = (Get-Location).Path
 docker compose -f docker/docker-compose.native.yml up proxy
 ```
 
@@ -172,9 +172,9 @@ docker compose -f docker/docker-compose.native.yml run --rm cli mcp install
 
 ## Environment passthrough
 
-The wrapper forwards CutCtx and provider environment variables into the container, including common prefixes such as:
+The wrapper forwards Cutctx and provider environment variables into the container, including common prefixes such as:
 
-- `HEADROOM_`
+- `CUTCTX_`
 - `ANTHROPIC_`
 - `OPENAI_`
 - `GEMINI_`
@@ -187,11 +187,11 @@ That keeps provider auth and runtime config working without maintaining a separa
 
 ## Notes
 
-- Docker is the only required CutCtx runtime dependency on the host.
+- Docker is the only required Cutctx runtime dependency on the host.
 - Wrapped tools like Claude Code, Codex CLI, Aider, and Cursor still run on the host when you use `cutctx wrap ...`.
 - The install scripts are idempotent: rerunning them refreshes the wrapper and image without duplicating shell profile blocks.
 - For persistent service and task installs, use the Python-native `cutctx install ...` workflow — see [Persistent Installs](/docs/persistent-installs).
-- For Docker-native `cutctx install ...`, the wrapper persists its profile manifest under `~/.headroom/deploy/<profile>/`.
+- For Docker-native `cutctx install ...`, the wrapper persists its profile manifest under `~/.cutctx/deploy/<profile>/`.
 
 ## Next steps
 

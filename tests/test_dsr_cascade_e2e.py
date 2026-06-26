@@ -14,7 +14,6 @@ records (no numpy), call delete, confirm the rows are gone.
 """
 from __future__ import annotations
 
-import tempfile
 import os
 import sqlite3
 from pathlib import Path
@@ -88,7 +87,7 @@ class TestDSRDeleteCascade:
         """Direct test of the LocalBackend.clear_user path that
         memory_handler.delete_for_user now finds.
         """
-        from headroom.memory.backends.local import (
+        from cutctx.memory.backends.local import (
             LocalBackend,
             LocalBackendConfig,
         )
@@ -111,11 +110,11 @@ class TestDSRDeleteCascade:
         """End-to-end: the handler must find `clear_user` (not
         require `clear_scope`) on the LocalBackend.
         """
-        from headroom.memory.backends.local import (
+        from cutctx.memory.backends.local import (
             LocalBackend,
             LocalBackendConfig,
         )
-        from headroom.proxy.memory_handler import MemoryHandler
+        from cutctx.proxy.memory_handler import MemoryHandler
 
         cfg = LocalBackendConfig(db_path=tmp_db, graph_persist=False)
         backend = LocalBackend(config=cfg)

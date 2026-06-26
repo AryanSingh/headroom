@@ -10,11 +10,11 @@ Format: {prefix}-{payload}.{signature}
   - signature: HMAC-SHA256 hex of {prefix}-{payload}
 
 Environment:
-  HEADROOM_LICENSE_HMAC_SECRET: The shared secret for signing (required unless --dry-run)
+  CUTCTX_LICENSE_HMAC_SECRET: The shared secret for signing (required unless --dry-run)
 
 Examples:
   # Generate a team license
-  export HEADROOM_LICENSE_HMAC_SECRET=my_secret
+  export CUTCTX_LICENSE_HMAC_SECRET=my_secret
   python scripts/generate_license.py --tier team --org acme --seats 10
 
   # Dry run without secret
@@ -28,10 +28,10 @@ import hmac
 import json
 import os
 import sys
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
-def encode_payload(org_name: str, seats: int, expiry: Optional[str] = None) -> str:
+
+def encode_payload(org_name: str, seats: int, expiry: str | None = None) -> str:
     """Encode org_name, seats, and optional expiry as base64url JSON."""
     payload = {
         "org": org_name,
@@ -61,8 +61,8 @@ def generate_license_key(
     tier: str,
     org_name: str,
     seats: int,
-    expiry: Optional[str] = None,
-    secret: Optional[str] = None,
+    expiry: str | None = None,
+    secret: str | None = None,
 ) -> tuple[str, str]:
     """Generate a signed HMAC license key."""
     prefix = tier_to_prefix(tier)
@@ -73,7 +73,7 @@ def generate_license_key(
         return unsigned_key, None
 
     # Sign with HMAC-SHA256, use first 32 hex chars (128 bits).
-    # The Rust verifier (crates/headroom-core/src/licensing.rs) compares
+    # The Rust verifier (crates/cutctx-core/src/licensing.rs) compares
     # exactly SIG_HEX_LEN=32 chars with constant-time XOR fold.
     _SIG_HEX_LEN = 32
     sig_bytes = hmac.new(
@@ -139,18 +139,18 @@ def main():
         if args.dry_run:
             print("Error: dry-run not supported for ed25519.", file=sys.stderr)
             sys.exit(1)
-            
-        kid = os.environ.get("HEADROOM_LICENSE_KID")
-        priv_hex = os.environ.get("HEADROOM_LICENSE_PRIVATE_KEY")
+
+        kid = os.environ.get("CUTCTX_LICENSE_KID")
+        priv_hex = os.environ.get("CUTCTX_LICENSE_PRIVATE_KEY")
         if not kid or not priv_hex:
-            print("Error: HEADROOM_LICENSE_KID and HEADROOM_LICENSE_PRIVATE_KEY must be set for ed25519.", file=sys.stderr)
+            print("Error: CUTCTX_LICENSE_KID and CUTCTX_LICENSE_PRIVATE_KEY must be set for ed25519.", file=sys.stderr)
             sys.exit(1)
-            
-        # Add headroom_ee path
+
+        # Add cutctx_ee path
         from pathlib import Path
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from headroom_ee.billing.license_token import sign_license
-        
+        from cutctx_ee.billing.license_token import sign_license
+
         try:
             extra = {"org": args.org, "seats": args.seats}
             if args.expiry:
@@ -164,10 +164,10 @@ def main():
         # HMAC
         secret = None
         if not args.dry_run:
-            secret = os.environ.get("HEADROOM_LICENSE_HMAC_SECRET")
+            secret = os.environ.get("CUTCTX_LICENSE_HMAC_SECRET")
             if not secret:
                 print(
-                    "Error: HEADROOM_LICENSE_HMAC_SECRET not set.\n"
+                    "Error: CUTCTX_LICENSE_HMAC_SECRET not set.\n"
                     "Set the env var or use --dry-run to generate unsigned keys.",
                     file=sys.stderr,
                 )
@@ -194,7 +194,7 @@ def main():
     if args.expiry:
         print(f"Expiry:             {args.expiry}")
     else:
-        print(f"Expiry:             (none)")
+        print("Expiry:             (none)")
     print()
 
     if args.dry_run:

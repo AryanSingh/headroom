@@ -15,5 +15,5 @@ ignore:
   - "scripts/tests/**"
   - ".github/**"
   - ".claude-plugin/**"
-  - "plugins/headroom-agent-hooks/.claude-plugin/**"
-  - "plugins/headroom-agent-hooks/.github/**"
+  - "plugins/cutctx-agent-hooks/.claude-plugin/**"
+  - "plugins/cutctx-agent-hooks/.github/**"

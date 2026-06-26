@@ -1,4 +1,4 @@
-# CutCtx — AI Context Compression
+# Cutctx — AI Context Compression
 
 Automatically compress LLM context to save 60–90% of tokens. Works transparently with Cursor, Cline, Continue, and any OpenAI-compatible AI tool in VS Code.
 
@@ -10,7 +10,7 @@ pip install "cutctx-ai[proxy]"
 
 ## Features
 
-- **Auto-start**: Starts the CutCtx proxy when VS Code launches
+- **Auto-start**: Starts the Cutctx proxy when VS Code launches
 - **Status bar**: Shows tokens saved and cost reduction in real time  
 - **One-click setup**: Configures Cline and Continue to route through the proxy
 
@@ -18,16 +18,16 @@ pip install "cutctx-ai[proxy]"
 
 1. Install: `pip install "cutctx-ai[proxy]"`
 2. Open VS Code — the proxy starts automatically
-3. Run **CutCtx: Configure Active AI Extension** to route Cline or Continue through the proxy
+3. Run **Cutctx: Configure Active AI Extension** to route Cline or Continue through the proxy
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `CutCtx: Start Proxy` | Start the compression proxy |
-| `CutCtx: Stop Proxy` | Stop the proxy |
-| `CutCtx: Show Compression Stats` | View tokens saved |
-| `CutCtx: Configure Active AI Extension` | Auto-configure Cline or Continue |
+| `Cutctx: Start Proxy` | Start the compression proxy |
+| `Cutctx: Stop Proxy` | Stop the proxy |
+| `Cutctx: Show Compression Stats` | View tokens saved |
+| `Cutctx: Configure Active AI Extension` | Auto-configure Cline or Continue |
 
 ## Settings
 

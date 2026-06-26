@@ -2,7 +2,7 @@
 
 **This Master Service Agreement** ("Agreement") is entered into as of [EFFECTIVE_DATE] ("Effective Date") by and between:
 
-**CutCtx, Inc.**, a [JURISDICTION] corporation, with its principal place of business at [CUTCTX_ADDRESS] ("CutCtx"), and
+**Cutctx, Inc.**, a [JURISDICTION] corporation, with its principal place of business at [CUTCTX_ADDRESS] ("Cutctx"), and
 
 **[CUSTOMER_NAME]**, a [JURISDICTION] entity, with its principal place of business at [CUSTOMER_ADDRESS] ("Customer").
 
@@ -12,29 +12,29 @@
 
 As used in this Agreement, the following terms have the meanings set forth below:
 
-**1.1 "CutCtx Software"** means the CutCtx context compression software, including all associated components (client application, local proxy, CLI tooling, browser extensions, and IDE plugins), documentation, updates, and upgrades made available to Customer under this Agreement.
+**1.1 "Cutctx Software"** means the Cutctx context compression software, including all associated components (client application, local proxy, CLI tooling, browser extensions, and IDE plugins), documentation, updates, and upgrades made available to Customer under this Agreement.
 
-**1.2 "Customer"** means the entity identified above and any subsidiaries or affiliates expressly authorized in writing by CutCtx to access the CutCtx Software under this Agreement.
+**1.2 "Customer"** means the entity identified above and any subsidiaries or affiliates expressly authorized in writing by Cutctx to access the Cutctx Software under this Agreement.
 
-**1.3 "Authorized Users"** means Customer's employees, contractors, or agents who are authorized by Customer to access and use the CutCtx Software solely on Customer's behalf, subject to the seat limits set forth in Section 2.2.
+**1.3 "Authorized Users"** means Customer's employees, contractors, or agents who are authorized by Customer to access and use the Cutctx Software solely on Customer's behalf, subject to the seat limits set forth in Section 2.2.
 
-**1.4 "Subscription Term"** means the period during which Customer is authorized to use the CutCtx Software, as specified in the applicable Order Form or Statement of Work, commencing on the Effective Date.
+**1.4 "Subscription Term"** means the period during which Customer is authorized to use the Cutctx Software, as specified in the applicable Order Form or Statement of Work, commencing on the Effective Date.
 
-**1.5 "Effective Date"** means the date first written above, or the date Customer first accesses or uses the CutCtx Software if earlier.
+**1.5 "Effective Date"** means the date first written above, or the date Customer first accesses or uses the Cutctx Software if earlier.
 
 **1.6 "Order Form"** means a mutually executed ordering document referencing this Agreement that specifies the subscription tier, number of seats, Subscription Term, and applicable fees.
 
-**1.7 "Documentation"** means the technical and user documentation for the CutCtx Software made available by CutCtx, as updated from time to time.
+**1.7 "Documentation"** means the technical and user documentation for the Cutctx Software made available by Cutctx, as updated from time to time.
 
-**1.8 "Customer Data"** means all data, content, and information submitted by Customer or Authorized Users through or in connection with the CutCtx Software.
+**1.8 "Customer Data"** means all data, content, and information submitted by Customer or Authorized Users through or in connection with the Cutctx Software.
 
 ---
 
 ## 2. GRANT OF LICENSE
 
-**2.1 License Grant.** Subject to the terms and conditions of this Agreement, CutCtx hereby grants to Customer a limited, non-exclusive, non-transferable, non-sublicensable license during the Subscription Term to: (a) install and use the CutCtx Software solely for Customer's internal business purposes; and (b) allow Authorized Users to access and use the CutCtx Software in accordance with this Agreement and the Documentation.
+**2.1 License Grant.** Subject to the terms and conditions of this Agreement, Cutctx hereby grants to Customer a limited, non-exclusive, non-transferable, non-sublicensable license during the Subscription Term to: (a) install and use the Cutctx Software solely for Customer's internal business purposes; and (b) allow Authorized Users to access and use the Cutctx Software in accordance with this Agreement and the Documentation.
 
-**2.2 Seat Limits by Subscription Tier.** The number of Authorized Users permitted to access the CutCtx Software is determined by Customer's subscription tier as follows:
+**2.2 Seat Limits by Subscription Tier.** The number of Authorized Users permitted to access the Cutctx Software is determined by Customer's subscription tier as follows:
 
 | Tier       | Maximum Authorized Users |
 |------------|--------------------------|
@@ -42,9 +42,9 @@ As used in this Agreement, the following terms have the meanings set forth below
 | Business   | 25                       |
 | Enterprise | Unlimited                |
 
-Customer shall not permit more Authorized Users to access the CutCtx Software than the seat limit applicable to Customer's subscription tier. Customer shall promptly notify CutCtx if its usage exceeds the applicable seat limit and shall purchase additional seats or upgrade to a higher tier.
+Customer shall not permit more Authorized Users to access the Cutctx Software than the seat limit applicable to Customer's subscription tier. Customer shall promptly notify Cutctx if its usage exceeds the applicable seat limit and shall purchase additional seats or upgrade to a higher tier.
 
-**2.3 Restrictions on Transfer.** The license granted herein is personal to Customer and may not be transferred, assigned, sublicensed, or otherwise conveyed to any third party without CutCtx's prior written consent.
+**2.3 Restrictions on Transfer.** The license granted herein is personal to Customer and may not be transferred, assigned, sublicensed, or otherwise conveyed to any third party without Cutctx's prior written consent.
 
 ---
 
@@ -52,23 +52,23 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **3.1 Prohibited Conduct.** Customer shall not, and shall ensure that Authorized Users do not:
 
-(a) **Reverse Engineer.** Decompile, disassemble, reverse engineer, or otherwise attempt to derive the source code, underlying algorithms, or non-public APIs of the CutCtx Software, except to the limited extent expressly permitted by applicable law notwithstanding this restriction;
+(a) **Reverse Engineer.** Decompile, disassemble, reverse engineer, or otherwise attempt to derive the source code, underlying algorithms, or non-public APIs of the Cutctx Software, except to the limited extent expressly permitted by applicable law notwithstanding this restriction;
 
-(b) **Competitive Benchmarking.** Use the CutCtx Software to conduct competitive benchmarking, performance comparisons, or similar analysis for the purpose of developing or marketing a competing product or service, without CutCtx's prior written consent;
+(b) **Competitive Benchmarking.** Use the Cutctx Software to conduct competitive benchmarking, performance comparisons, or similar analysis for the purpose of developing or marketing a competing product or service, without Cutctx's prior written consent;
 
-(c) **Resale or Distribution.** Resell, redistribute, sublicense, rent, lease, or otherwise make the CutCtx Software available to any third party other than Authorized Users;
+(c) **Resale or Distribution.** Resell, redistribute, sublicense, rent, lease, or otherwise make the Cutctx Software available to any third party other than Authorized Users;
 
-(d) **Modification.** Modify, adapt, translate, or create derivative works based upon the CutCtx Software;
+(d) **Modification.** Modify, adapt, translate, or create derivative works based upon the Cutctx Software;
 
-(e) **Circumvention.** Remove, alter, or obscure any proprietary notices, labels, or marks on the CutCtx Software; or circumvent or disable any security or access control mechanisms;
+(e) **Circumvention.** Remove, alter, or obscure any proprietary notices, labels, or marks on the Cutctx Software; or circumvent or disable any security or access control mechanisms;
 
-(f) **Unlawful Use.** Use the CutCtx Software in violation of any applicable law, regulation, or third-party rights.
+(f) **Unlawful Use.** Use the Cutctx Software in violation of any applicable law, regulation, or third-party rights.
 
 ---
 
 ## 4. FEES AND PAYMENT
 
-**4.1 Fees.** Customer agrees to pay CutCtx the fees specified in the applicable Order Form ("Fees") in accordance with this Section 4.
+**4.1 Fees.** Customer agrees to pay Cutctx the fees specified in the applicable Order Form ("Fees") in accordance with this Section 4.
 
 **4.2 Default Payment Schedule — Annual.** Unless otherwise specified in an Order Form, all Fees are due and payable annually in advance. Annual pricing is the default and standard billing cadence for this Agreement.
 
@@ -76,21 +76,21 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **4.4 Payment Terms.** All invoices are due and payable within thirty (30) days of the invoice date ("Net-30"). Customer shall pay all undisputed amounts by the due date. Amounts not paid by the due date shall accrue interest at the lesser of 1.5% per month or the maximum rate permitted by applicable law, calculated from the due date until the date of actual payment.
 
-**4.5 Taxes.** All Fees are exclusive of applicable taxes, levies, or duties. Customer is responsible for payment of all such taxes (excluding taxes based on CutCtx's net income), and shall pay or reimburse CutCtx for all such taxes.
+**4.5 Taxes.** All Fees are exclusive of applicable taxes, levies, or duties. Customer is responsible for payment of all such taxes (excluding taxes based on Cutctx's net income), and shall pay or reimburse Cutctx for all such taxes.
 
-**4.6 Auto-Renewal.** Unless either party provides the other with written notice of non-renewal at least sixty (60) days prior to the end of the then-current Subscription Term, this Agreement and the applicable Order Form will automatically renew for successive periods equal in duration to the initial Subscription Term, at CutCtx's then-current pricing. CutCtx will provide Customer with written notice of any pricing changes at least sixty (60) days prior to the renewal date.
+**4.6 Auto-Renewal.** Unless either party provides the other with written notice of non-renewal at least sixty (60) days prior to the end of the then-current Subscription Term, this Agreement and the applicable Order Form will automatically renew for successive periods equal in duration to the initial Subscription Term, at Cutctx's then-current pricing. Cutctx will provide Customer with written notice of any pricing changes at least sixty (60) days prior to the renewal date.
 
 ---
 
 ## 5. DATA PROCESSING
 
-**5.1 Local-First Architecture.** The CutCtx Software is designed and operated on a local-first basis. All context compression processing is performed locally within Customer's own infrastructure. Compressed context data processed by the CutCtx Software does not leave Customer's infrastructure and is not transmitted to or stored on CutCtx's servers.
+**5.1 Local-First Architecture.** The Cutctx Software is designed and operated on a local-first basis. All context compression processing is performed locally within Customer's own infrastructure. Compressed context data processed by the Cutctx Software does not leave Customer's infrastructure and is not transmitted to or stored on Cutctx's servers.
 
-**5.2 No Prompt Telemetry.** CutCtx does not collect, access, store, or process Customer's prompts, message content, or any data submitted to AI model APIs through or in connection with the CutCtx Software. CutCtx does not collect prompt telemetry of any kind.
+**5.2 No Prompt Telemetry.** Cutctx does not collect, access, store, or process Customer's prompts, message content, or any data submitted to AI model APIs through or in connection with the Cutctx Software. Cutctx does not collect prompt telemetry of any kind.
 
-**5.3 Limited Operational Data.** CutCtx may collect limited operational and diagnostic data (such as software version, crash reports, and feature usage metrics) solely to operate, maintain, and improve the CutCtx Software, to the extent described in CutCtx's Privacy Policy. No such data contains Customer Data or prompt content.
+**5.3 Limited Operational Data.** Cutctx may collect limited operational and diagnostic data (such as software version, crash reports, and feature usage metrics) solely to operate, maintain, and improve the Cutctx Software, to the extent described in Cutctx's Privacy Policy. No such data contains Customer Data or prompt content.
 
-**5.4 Data Processing Addendum.** To the extent Customer provides Personal Data (as defined under applicable data protection law) to CutCtx in connection with this Agreement, the parties shall execute CutCtx's Data Processing Addendum ("DPA"), which is incorporated herein by reference. In the event of a conflict between this Agreement and the DPA with respect to data protection obligations, the DPA shall control.
+**5.4 Data Processing Addendum.** To the extent Customer provides Personal Data (as defined under applicable data protection law) to Cutctx in connection with this Agreement, the parties shall execute Cutctx's Data Processing Addendum ("DPA"), which is incorporated herein by reference. In the event of a conflict between this Agreement and the DPA with respect to data protection obligations, the DPA shall control.
 
 ---
 
@@ -110,11 +110,11 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 ## 7. INTELLECTUAL PROPERTY
 
-**7.1 CutCtx Ownership.** As between the parties, CutCtx retains all right, title, and interest in and to the CutCtx Software, including all intellectual property rights therein (patents, copyrights, trademarks, trade secrets, and all other proprietary rights). No rights in the CutCtx Software are granted to Customer except as expressly set forth in this Agreement.
+**7.1 Cutctx Ownership.** As between the parties, Cutctx retains all right, title, and interest in and to the Cutctx Software, including all intellectual property rights therein (patents, copyrights, trademarks, trade secrets, and all other proprietary rights). No rights in the Cutctx Software are granted to Customer except as expressly set forth in this Agreement.
 
-**7.2 Customer Data Ownership.** As between the parties, Customer retains all right, title, and interest in and to all Customer Data. Customer grants CutCtx no rights in Customer Data except as minimally necessary to provide the CutCtx Software under this Agreement. Given the local-first architecture described in Section 5, CutCtx does not access, process, or store Customer Data on its infrastructure.
+**7.2 Customer Data Ownership.** As between the parties, Customer retains all right, title, and interest in and to all Customer Data. Customer grants Cutctx no rights in Customer Data except as minimally necessary to provide the Cutctx Software under this Agreement. Given the local-first architecture described in Section 5, Cutctx does not access, process, or store Customer Data on its infrastructure.
 
-**7.3 Feedback.** To the extent Customer or Authorized Users provide CutCtx with suggestions, feedback, or recommendations regarding the CutCtx Software ("Feedback"), Customer hereby grants CutCtx a perpetual, irrevocable, royalty-free, worldwide license to use, incorporate, and exploit such Feedback for any purpose without restriction or compensation to Customer.
+**7.3 Feedback.** To the extent Customer or Authorized Users provide Cutctx with suggestions, feedback, or recommendations regarding the Cutctx Software ("Feedback"), Customer hereby grants Cutctx a perpetual, irrevocable, royalty-free, worldwide license to use, incorporate, and exploit such Feedback for any purpose without restriction or compensation to Customer.
 
 ---
 
@@ -122,9 +122,9 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **8.1 Mutual Warranties.** Each party represents and warrants that: (a) it has the legal authority to enter into this Agreement; (b) this Agreement constitutes a valid and binding obligation enforceable against it; and (c) its execution of this Agreement does not violate any other agreement to which it is a party.
 
-**8.2 Software Warranty.** CutCtx warrants that the CutCtx Software will perform materially in accordance with the Documentation during the Subscription Term. Customer's exclusive remedy for a breach of this warranty is for CutCtx to use commercially reasonable efforts to correct the non-conformity, or, if CutCtx is unable to do so within thirty (30) days, to terminate the applicable Order Form and refund the pre-paid, unused Fees attributable to the period following the date of termination.
+**8.2 Software Warranty.** Cutctx warrants that the Cutctx Software will perform materially in accordance with the Documentation during the Subscription Term. Customer's exclusive remedy for a breach of this warranty is for Cutctx to use commercially reasonable efforts to correct the non-conformity, or, if Cutctx is unable to do so within thirty (30) days, to terminate the applicable Order Form and refund the pre-paid, unused Fees attributable to the period following the date of termination.
 
-**8.3 Enterprise SLA — Uptime.** For Enterprise tier subscribers only, CutCtx warrants that the CutCtx local proxy component will achieve at least 99.5% uptime availability on a monthly basis (excluding scheduled maintenance, force majeure events, and issues attributable to Customer's infrastructure). Service Level credits applicable to a breach of this SLA will be set forth in the applicable Order Form or a separate SLA addendum.
+**8.3 Enterprise SLA — Uptime.** For Enterprise tier subscribers only, Cutctx warrants that the Cutctx local proxy component will achieve at least 99.5% uptime availability on a monthly basis (excluding scheduled maintenance, force majeure events, and issues attributable to Customer's infrastructure). Service Level credits applicable to a breach of this SLA will be set forth in the applicable Order Form or a separate SLA addendum.
 
 **8.4 DISCLAIMER OF WARRANTIES.** EXCEPT AS EXPRESSLY SET FORTH IN SECTIONS 8.1, 8.2, AND 8.3, THE CUTCTX SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE." CUTCTX EXPRESSLY DISCLAIMS ALL OTHER WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. CUTCTX DOES NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE, UNINTERRUPTED, SECURE, OR FREE OF HARMFUL COMPONENTS.
 
@@ -132,9 +132,9 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 ## 9. INDEMNIFICATION
 
-**9.1 CutCtx Indemnification.** CutCtx shall defend, indemnify, and hold harmless Customer and its officers, directors, employees, and agents from and against any third-party claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or relating to an allegation that the CutCtx Software, as provided by CutCtx and used in accordance with this Agreement, infringes or misappropriates any third-party patent, copyright, trademark, or trade secret. This obligation does not apply to the extent the alleged infringement arises from: (a) Customer's modification of the CutCtx Software; (b) use of the CutCtx Software in combination with products or services not provided by CutCtx; (c) use of the CutCtx Software in a manner not authorized by this Agreement; or (d) Customer Data.
+**9.1 Cutctx Indemnification.** Cutctx shall defend, indemnify, and hold harmless Customer and its officers, directors, employees, and agents from and against any third-party claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or relating to an allegation that the Cutctx Software, as provided by Cutctx and used in accordance with this Agreement, infringes or misappropriates any third-party patent, copyright, trademark, or trade secret. This obligation does not apply to the extent the alleged infringement arises from: (a) Customer's modification of the Cutctx Software; (b) use of the Cutctx Software in combination with products or services not provided by Cutctx; (c) use of the Cutctx Software in a manner not authorized by this Agreement; or (d) Customer Data.
 
-**9.2 Customer Indemnification.** Customer shall defend, indemnify, and hold harmless CutCtx and its officers, directors, employees, and agents from and against any third-party claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or relating to: (a) Customer's or Authorized Users' use of the CutCtx Software in violation of this Agreement or applicable law; (b) an allegation that Customer Data infringes or misappropriates any third-party intellectual property right; or (c) Customer's breach of any representation, warranty, or obligation under this Agreement.
+**9.2 Customer Indemnification.** Customer shall defend, indemnify, and hold harmless Cutctx and its officers, directors, employees, and agents from and against any third-party claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or relating to: (a) Customer's or Authorized Users' use of the Cutctx Software in violation of this Agreement or applicable law; (b) an allegation that Customer Data infringes or misappropriates any third-party intellectual property right; or (c) Customer's breach of any representation, warranty, or obligation under this Agreement.
 
 **9.3 Indemnification Procedure.** The party seeking indemnification shall: (a) promptly notify the indemnifying party in writing of any claim; (b) grant the indemnifying party sole control of the defense and settlement of such claim (provided no settlement imposes any obligation or liability on the indemnified party without its consent); and (c) provide reasonable cooperation and assistance to the indemnifying party at the indemnifying party's expense.
 
@@ -160,7 +160,7 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **11.3 Termination for Insolvency.** Either party may terminate this Agreement immediately upon written notice if the other party: (a) becomes insolvent or unable to pay its debts as they become due; (b) makes a general assignment for the benefit of creditors; (c) has a receiver appointed; or (d) files or has filed against it a petition for bankruptcy, reorganization, or similar proceedings that is not dismissed within sixty (60) days.
 
-**11.4 Effect of Termination.** Upon expiration or termination of this Agreement: (a) all licenses granted to Customer shall immediately terminate; (b) Customer shall promptly uninstall and cease all use of the CutCtx Software; (c) each party shall promptly return or certify destruction of the other party's Confidential Information; and (d) all outstanding Fees accrued prior to the date of termination shall become immediately due and payable. CutCtx will not refund any pre-paid Fees except in the case of termination by Customer pursuant to Section 11.2 due to CutCtx's uncured material breach, in which case CutCtx will refund the pro-rated pre-paid Fees attributable to the period following the effective date of termination.
+**11.4 Effect of Termination.** Upon expiration or termination of this Agreement: (a) all licenses granted to Customer shall immediately terminate; (b) Customer shall promptly uninstall and cease all use of the Cutctx Software; (c) each party shall promptly return or certify destruction of the other party's Confidential Information; and (d) all outstanding Fees accrued prior to the date of termination shall become immediately due and payable. Cutctx will not refund any pre-paid Fees except in the case of termination by Customer pursuant to Section 11.2 due to Cutctx's uncured material breach, in which case Cutctx will refund the pro-rated pre-paid Fees attributable to the period following the effective date of termination.
 
 **11.5 Survival.** The following Sections shall survive expiration or termination of this Agreement: Section 1 (Definitions), Section 3 (Restrictions), Section 4 (Fees and Payment, with respect to amounts accrued prior to termination), Section 6 (Confidentiality), Section 7 (Intellectual Property), Section 9 (Indemnification), Section 10 (Limitation of Liability), Section 11.4 (Effect of Termination), Section 11.5 (Survival), and Section 13 (General).
 
@@ -188,9 +188,9 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **13.5 Force Majeure.** Neither party shall be liable for any failure or delay in performance (other than payment obligations) resulting from causes beyond its reasonable control, including acts of God, natural disasters, war, terrorism, civil unrest, government actions, pandemics, or failures of third-party internet infrastructure, provided the affected party promptly notifies the other party and uses commercially reasonable efforts to resume performance.
 
-**13.6 Notices.** All notices under this Agreement must be in writing and delivered by: (a) email to [NOTICE_EMAIL] (for CutCtx) or to the email address specified on the Order Form (for Customer), with confirmation of receipt; or (b) overnight courier or certified mail to the addresses set forth in the preamble of this Agreement. Notices are effective upon receipt.
+**13.6 Notices.** All notices under this Agreement must be in writing and delivered by: (a) email to [NOTICE_EMAIL] (for Cutctx) or to the email address specified on the Order Form (for Customer), with confirmation of receipt; or (b) overnight courier or certified mail to the addresses set forth in the preamble of this Agreement. Notices are effective upon receipt.
 
-**13.7 Assignment.** Neither party may assign this Agreement without the other party's prior written consent, except that CutCtx may assign this Agreement without consent in connection with a merger, acquisition, or sale of all or substantially all of its assets, provided CutCtx provides Customer with written notice of such assignment. Any purported assignment in violation of this Section shall be null and void.
+**13.7 Assignment.** Neither party may assign this Agreement without the other party's prior written consent, except that Cutctx may assign this Agreement without consent in connection with a merger, acquisition, or sale of all or substantially all of its assets, provided Cutctx provides Customer with written notice of such assignment. Any purported assignment in violation of this Section shall be null and void.
 
 **13.8 Independent Contractors.** The parties are independent contractors. Nothing in this Agreement creates a partnership, joint venture, agency, franchise, or employment relationship between the parties.
 
@@ -200,7 +200,7 @@ Customer shall not permit more Authorized Users to access the CutCtx Software th
 
 **IN WITNESS WHEREOF**, the parties have executed this Master Service Agreement as of the Effective Date.
 
-**CutCtx, Inc.**
+**Cutctx, Inc.**
 
 Signature: ___________________________
 Name: ___________________________

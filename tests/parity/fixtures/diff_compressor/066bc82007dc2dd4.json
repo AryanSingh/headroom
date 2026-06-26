@@ -13,14 +13,14 @@
   "output": {
     "additions": 0,
     "cache_key": null,
-    "compressed": "diff --combined merge_target.py\nindex abc..def..ghi 100644\n--- a/merge_target.py\n+++ b/merge_target.py\n@@@ -1,4 -1,4 +1,5 @@@\n  unchanged_a\n- old_branch_1\n -old_branch_2\n++new_in_merge\n +new_added\n  unchanged_b\n\n# bugfix:diff-combined",
-    "compressed_line_count": 13,
+    "compressed": "diff --combined merge_target.py\n--- a/merge_target.py\n+++ b/merge_target.py\n@@@ -1,4 -1,4 +1,5 @@@\n  unchanged_a\n- old_branch_1\n -old_branch_2\n++new_in_merge\n +new_added\n  unchanged_b\n\n# bugfix:diff-combined",
+    "compressed_line_count": 12,
     "deletions": 0,
     "files_affected": 0,
     "hunks_kept": 0,
     "hunks_removed": 0,
     "original_line_count": 13
   },
-  "recorded_at": "2026-04-26T04:02:31.295649+00:00",
+  "recorded_at": "2026-06-23T21:15:44.084770+00:00",
   "transform": "diff_compressor"
 }

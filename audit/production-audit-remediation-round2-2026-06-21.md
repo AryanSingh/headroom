@@ -34,7 +34,7 @@
 **Impact:** Closes the second-factor gap for regulated customers. A stolen admin key is no longer sufficient; the operator also needs the TOTP code from their authenticator app.
 
 ### 3. Audit event emission coverage
-The `AuditAction` enum at `headroom_ee/audit.py:46` defined 22 actions but the codebase emitted ~14 additional event strings as raw literals (e.g. `retention.cleanup`, `rbac.role_assigned`, `license.checkout_seat`, `memory.approve`, `webhook.delivered`, `secret.created`, etc.). The drift meant the audit ledger had no way to categorize these events and the export tooling could not filter them.
+The `AuditAction` enum at `cutctx_ee/audit.py:46` defined 22 actions but the codebase emitted ~14 additional event strings as raw literals (e.g. `retention.cleanup`, `rbac.role_assigned`, `license.checkout_seat`, `memory.approve`, `webhook.delivered`, `secret.created`, etc.). The drift meant the audit ledger had no way to categorize these events and the export tooling could not filter them.
 
 Expanded the enum to 47 actions covering every event actually emitted in the codebase. Categories added: license (2), policy (1), retention (1), data (1), rbac (3), scim (6), memory (3), fleet (3), spend (3), webhooks (4), secrets (4), system (1).
 
@@ -63,7 +63,7 @@ All three pages have `useEffect` with 5-30s polling, loading state (`—` placeh
 ### 6. Webhook subscription persistence + persistent DLQ
 **High-15.** The previous `WebhookDispatcher` held subscriptions in a process-local list. Subscriptions were lost on restart and not shared across replicas. Dropped events only went to `logger.error` (no recovery path).
 
-New `headroom/proxy/webhook_stores.py`:
+New `cutctx/proxy/webhook_stores.py`:
 
 - `WebhookSubscriptionStore` (SQLite): `upsert` / `delete` / `list_all` / `get` primitives. Idempotent on URL.
 - `WebhookDeadLetterStore` (SQLite): `add` / `list_all` / `list_unacknowledged` / `acknowledge` / `purge_acknowledged`. Bounded size (default 10,000 rows): oldest acknowledged rows are purged first; if still over, oldest unacknowledged rows are purged with a loud warning.
@@ -75,7 +75,7 @@ New `headroom/proxy/webhook_stores.py`:
 - Retry-exhausted (5xx, timeout) events write to the DLQ.
 - Queue-full drops write to the DLQ.
 
-`get_webhook_dispatcher()` singleton now defaults to the persistent stores. Set `HEADROOM_WEBHOOKS_IN_MEMORY=1` to opt out.
+`get_webhook_dispatcher()` singleton now defaults to the persistent stores. Set `CUTCTX_WEBHOOKS_IN_MEMORY=1` to opt out.
 
 10 new tests in `tests/test_webhook_persistence.py`. All 32 webhook tests pass (10 new + 22 existing).
 
@@ -86,7 +86,7 @@ The firewall is off by default for backward compatibility. Operators running on 
 
 ```
 LLM Firewall is DISABLED on a <tier> deployment.
-Recommended: set HEADROOM_FIREWALL_ENABLED=1 to enable prompt-injection + PII scanning.
+Recommended: set CUTCTX_FIREWALL_ENABLED=1 to enable prompt-injection + PII scanning.
 Set CUTCTX_FIREWALL_OPT_OUT_WARNING=1 to suppress.
 ```
 

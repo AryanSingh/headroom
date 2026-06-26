@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.transforms.code_compressor import (
+from cutctx.transforms.code_compressor import (
     CodeAwareCompressor,
     CodeCompressionResult,
     CodeCompressorConfig,
@@ -57,8 +57,8 @@ def compressor(default_config):
 @pytest.fixture
 def tokenizer():
     """Get a tokenizer for Transform interface tests."""
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from cutctx.providers import OpenAIProvider
+    from cutctx.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     token_counter = provider.get_token_counter("gpt-4o")
@@ -489,7 +489,7 @@ class TestFallbackCompression:
     def test_fallback_when_tree_sitter_unavailable(self, default_config):
         """Uses fallback compression when tree-sitter is not installed."""
         with patch(
-            "headroom.transforms.code_compressor._check_tree_sitter_available",
+            "cutctx.transforms.code_compressor._check_tree_sitter_available",
             return_value=False,
         ):
             compressor = CodeAwareCompressor(default_config)
@@ -511,11 +511,11 @@ class TestFallbackCompression:
         """
         with (
             patch(
-                "headroom.transforms.code_compressor._check_tree_sitter_available",
+                "cutctx.transforms.code_compressor._check_tree_sitter_available",
                 return_value=False,
             ),
             patch(
-                "headroom.transforms.kompress_compressor.is_kompress_available",
+                "cutctx.transforms.kompress_compressor.is_kompress_available",
                 return_value=False,
             ),
         ):

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { CutCtxClient } from "../src/client.js";
+import { CutctxClient } from "../src/client.js";
 import type { OpenAIMessage } from "../src/types.js";
 import {
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
 } from "../src/types.js";
 
 const mockFetch = vi.fn();
@@ -39,7 +39,7 @@ const sampleProxyResponse = {
   ccr_hashes: [],
 };
 
-describe("CutCtxClient", () => {
+describe("CutctxClient", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -47,7 +47,7 @@ describe("CutCtxClient", () => {
   it("sends POST to /v1/compress with messages and model", async () => {
     mockFetch.mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({ baseUrl: "http://localhost:8787" });
+    const client = new CutctxClient({ baseUrl: "http://localhost:8787" });
     await client.compress(sampleMessages, { model: "gpt-4o" });
 
     expect(mockFetch).toHaveBeenCalledOnce();
@@ -72,7 +72,7 @@ describe("CutCtxClient", () => {
       }),
     );
 
-    const client = new CutCtxClient({ baseUrl: "http://localhost:8787" });
+    const client = new CutctxClient({ baseUrl: "http://localhost:8787" });
     const result = await client.compress(sampleMessages, { model: "gpt-4o" });
 
     expect(result.tokensBefore).toBe(100);
@@ -87,7 +87,7 @@ describe("CutCtxClient", () => {
   it("sends apiKey as Authorization bearer header", async () => {
     mockFetch.mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       apiKey: "hr_test123",
     });
@@ -100,7 +100,7 @@ describe("CutCtxClient", () => {
   it("does not send Authorization header when no apiKey", async () => {
     mockFetch.mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({ baseUrl: "http://localhost:8787" });
+    const client = new CutctxClient({ baseUrl: "http://localhost:8787" });
     await client.compress(sampleMessages, { model: "gpt-4o" });
 
     const [, opts] = mockFetch.mock.calls[0];
@@ -110,7 +110,7 @@ describe("CutCtxClient", () => {
   it("strips trailing slashes from baseUrl", async () => {
     mockFetch.mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787///",
     });
     await client.compress(sampleMessages, { model: "gpt-4o" });
@@ -119,44 +119,44 @@ describe("CutCtxClient", () => {
     expect(url).toBe("http://localhost:8787/v1/compress");
   });
 
-  it("throws CutCtxAuthError on 401 (always, even with fallback)", async () => {
+  it("throws CutctxAuthError on 401 (always, even with fallback)", async () => {
     mockFetch.mockResolvedValueOnce(
       errorResponse(401, {
         error: { type: "authentication_error", message: "Invalid API key" },
       }),
     );
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       fallback: true, // fallback doesn't apply to auth errors
     });
 
     await expect(
       client.compress(sampleMessages, { model: "gpt-4o" }),
-    ).rejects.toThrow(CutCtxAuthError);
+    ).rejects.toThrow(CutctxAuthError);
   });
 
-  it("throws CutCtxCompressError on 400 (always, even with fallback)", async () => {
+  it("throws CutctxCompressError on 400 (always, even with fallback)", async () => {
     mockFetch.mockResolvedValueOnce(
       errorResponse(400, {
         error: { type: "invalid_request", message: "Missing model" },
       }),
     );
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       fallback: true, // fallback doesn't apply to client errors
     });
 
     await expect(
       client.compress(sampleMessages, { model: "gpt-4o" }),
-    ).rejects.toThrow(CutCtxCompressError);
+    ).rejects.toThrow(CutctxCompressError);
   });
 
   it("falls back to uncompressed on network error when fallback=true", async () => {
     mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       fallback: true,
     });
@@ -167,10 +167,10 @@ describe("CutCtxClient", () => {
     expect(result.tokensSaved).toBe(0);
   });
 
-  it("throws CutCtxConnectionError on network error when fallback=false", async () => {
+  it("throws CutctxConnectionError on network error when fallback=false", async () => {
     mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       fallback: false,
       retries: 0,
@@ -178,7 +178,7 @@ describe("CutCtxClient", () => {
 
     await expect(
       client.compress(sampleMessages, { model: "gpt-4o" }),
-    ).rejects.toThrow(CutCtxConnectionError);
+    ).rejects.toThrow(CutctxConnectionError);
   });
 
   it("falls back on 503 when fallback=true", async () => {
@@ -188,7 +188,7 @@ describe("CutCtxClient", () => {
       }),
     );
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       fallback: true,
       retries: 0,
@@ -204,7 +204,7 @@ describe("CutCtxClient", () => {
       .mockRejectedValueOnce(new TypeError("fetch failed"))
       .mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       retries: 1,
     });
@@ -223,7 +223,7 @@ describe("CutCtxClient", () => {
       )
       .mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       retries: 1,
       fallback: false,
@@ -241,7 +241,7 @@ describe("CutCtxClient", () => {
       }),
     );
 
-    const client = new CutCtxClient({
+    const client = new CutctxClient({
       baseUrl: "http://localhost:8787",
       retries: 3,
       fallback: false,
@@ -249,7 +249,7 @@ describe("CutCtxClient", () => {
 
     await expect(
       client.compress(sampleMessages, { model: "gpt-4o" }),
-    ).rejects.toThrow(CutCtxCompressError);
+    ).rejects.toThrow(CutctxCompressError);
 
     expect(mockFetch).toHaveBeenCalledTimes(1); // no retries
   });
@@ -257,7 +257,7 @@ describe("CutCtxClient", () => {
   it("defaults model to gpt-4o when not provided", async () => {
     mockFetch.mockResolvedValueOnce(okResponse(sampleProxyResponse));
 
-    const client = new CutCtxClient({ baseUrl: "http://localhost:8787" });
+    const client = new CutctxClient({ baseUrl: "http://localhost:8787" });
     await client.compress(sampleMessages); // no model option
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);

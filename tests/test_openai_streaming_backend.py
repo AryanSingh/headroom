@@ -1,6 +1,6 @@
-"""Test OpenAI /v1/chat/completions streaming through headroom proxy backends.
+"""Test OpenAI /v1/chat/completions streaming through cutctx proxy backends.
 
-Proves that streaming works end-to-end: client → headroom proxy → backend → OpenAI API.
+Proves that streaming works end-to-end: client → cutctx proxy → backend → OpenAI API.
 
 Two test modes:
 1. Real API test (requires OPENAI_API_KEY): hits actual OpenAI with gpt-4o-mini
@@ -20,8 +20,8 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.backends.base import BackendResponse  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from cutctx.backends.base import BackendResponse  # noqa: E402
+from cutctx.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 # =============================================================================
 # Real API test (requires OPENAI_API_KEY)
@@ -183,7 +183,7 @@ class TestOpenAIStreamingMock:
             )
         )
 
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=mock_backend):
+        with patch("cutctx.proxy.server.AnyLLMBackend", return_value=mock_backend):
             app = create_app(config)
 
             with TestClient(app) as client:
@@ -241,7 +241,7 @@ class TestOpenAIStreamingMock:
             )
         )
 
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=mock_backend):
+        with patch("cutctx.proxy.server.AnyLLMBackend", return_value=mock_backend):
             app = create_app(config)
 
             with TestClient(app) as client:

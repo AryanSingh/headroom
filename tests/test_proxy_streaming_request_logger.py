@@ -13,14 +13,14 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from headroom.proxy.request_logger import RequestLogger
-from headroom.proxy.server import HeadroomProxy, CutctxProxy
+from cutctx.proxy.request_logger import RequestLogger
+from cutctx.proxy.server import CutctxProxy
 
 
 def _build_proxy_with_real_logger(*, log_full_messages: bool) -> CutctxProxy:
     """Build a CutctxProxy with mocks for everything except the request logger,
     so we can assert what actually gets recorded."""
-    proxy = object.__new__(HeadroomProxy)
+    proxy = object.__new__(CutctxProxy)
     proxy.http_client = MagicMock(spec=httpx.AsyncClient)
     proxy.metrics = MagicMock()
     proxy.metrics.record_request = AsyncMock(return_value=None)

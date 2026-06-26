@@ -33,10 +33,10 @@ def main():
     print(f"Public Key (hex) : {pub_hex}")
     print(f"Private Key (hex): {priv_hex}")
     print("\nRust Proxy Configuration:")
-    print(f'export HEADROOM_LICENSE_PUBLIC_KEYS="{args.kid}:{pub_hex}"')
+    print(f'export CUTCTX_LICENSE_PUBLIC_KEYS="{args.kid}:{pub_hex}"')
     print("\nPython Issuer Configuration:")
-    print(f'export HEADROOM_LICENSE_PRIVATE_KEY="{priv_hex}"')
-    print(f'export HEADROOM_LICENSE_KID="{args.kid}"')
+    print(f'export CUTCTX_LICENSE_PRIVATE_KEY="{priv_hex}"')
+    print(f'export CUTCTX_LICENSE_KID="{args.kid}"')
 
 
 if __name__ == "__main__":

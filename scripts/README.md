@@ -73,7 +73,7 @@ exercises the script against a mock FastAPI server on every PR.
 
 ### `strip_wheel.py`
 
-Strips proprietary Python source files from a built wheel, leaving only the compiled Rust extension (`.so` / `.pyd`). All five compression algorithms (SmartCrusher, DiffCompressor, LogCompressor, SearchCompressor, CodeAwareCompressor) are implemented in Rust in `crates/headroom-core/` — this script ensures their `.py` dispatch wrappers are not included in public distributions.
+Strips proprietary Python source files from a built wheel, leaving only the compiled Rust extension (`.so` / `.pyd`). All five compression algorithms (SmartCrusher, DiffCompressor, LogCompressor, SearchCompressor, CodeAwareCompressor) are implemented in Rust in `crates/cutctx-core/` — this script ensures their `.py` dispatch wrappers are not included in public distributions.
 
 ```bash
 python scripts/strip_wheel.py dist/cutctx_ai-0.27.0-cp310-abi3-macosx_11_0_arm64.whl

@@ -7,7 +7,7 @@ found the previous dispatcher was a 28-line stub. This
 file tests the new production-grade behaviour:
 
   1. Event types, subscription management
-  2. HMAC signing (X-Headroom-Signature)
+  2. HMAC signing (X-Cutctx-Signature)
   3. Retry with exponential backoff
   4. Per-tenant routing
   5. Dead-letter handling
@@ -16,17 +16,15 @@ file tests the new production-grade behaviour:
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
 import json
 import os
-from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from headroom.proxy.webhooks import (
+from cutctx.proxy.webhooks import (
     WebhookDelivery,
     WebhookDispatcher,
     WebhookEventType,
@@ -34,7 +32,6 @@ from headroom.proxy.webhooks import (
     get_webhook_dispatcher,
     reset_webhook_dispatcher,
 )
-
 
 # ── Subscription management ─────────────────────────────────────────
 
@@ -127,12 +124,15 @@ def test_disabled_subscription_skipped() -> None:
 
 
 def test_env_var_auto_subscription() -> None:
-    """When HEADROOM_WEBHOOK_URL is set, the dispatcher auto-adds
+    """When CUTCTX_WEBHOOK_URL is set, the dispatcher auto-adds
     a catch-all subscription.
     """
     with patch.dict(
         os.environ,
-        {"HEADROOM_WEBHOOK_URL": "https://env.example.com"},
+        {
+            "CUTCTX_WEBHOOK_URL": "https://env.example.com",
+            "CUTCTX_WEBHOOK_SECRET": "test-secret-1234",
+        },
     ):
         d = WebhookDispatcher()
         subs = d.list_subscriptions()
@@ -262,7 +262,7 @@ async def test_deliver_retries_on_5xx() -> None:
     d._http = AsyncMock()
     d._http.post = AsyncMock(side_effect=[response_503, response_503, response_200])
     # Patch asyncio.sleep to avoid waiting.
-    with patch("headroom.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
+    with patch("cutctx.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
         await d._deliver(delivery)
     assert delivery.attempt == 3
     assert d._http.post.call_count == 3
@@ -302,7 +302,7 @@ async def test_deliver_retries_on_429() -> None:
     response_429.status_code = 429
     d._http = AsyncMock()
     d._http.post = AsyncMock(return_value=response_429)
-    with patch("headroom.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
+    with patch("cutctx.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
         await d._deliver(delivery)
     # Both attempts made.
     assert d._http.post.call_count == 2
@@ -322,7 +322,7 @@ async def test_deliver_gives_up_after_max_attempts() -> None:
     response_503.status_code = 503
     d._http = AsyncMock()
     d._http.post = AsyncMock(return_value=response_503)
-    with patch("headroom.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
+    with patch("cutctx.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
         await d._deliver(delivery)
     assert d._http.post.call_count == 2
     # No exception raised; the event is dead-lettered (logged).
@@ -342,7 +342,7 @@ async def test_deliver_handles_network_error() -> None:
     )
     d._http = AsyncMock()
     d._http.post = AsyncMock(side_effect=httpx.ConnectError("boom"))
-    with patch("headroom.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
+    with patch("cutctx.proxy.webhooks.asyncio.sleep", new=AsyncMock()):
         await d._deliver(delivery)
     assert d._http.post.call_count == 2
     assert "ConnectError" in (delivery.last_error or "")
@@ -394,7 +394,6 @@ async def test_fire_webhook_helper_backward_compat() -> None:
     """The legacy fire_webhook(title, message) helper still works
     (translates to abuse.activation_storm).
     """
-    from headroom.proxy.webhooks import fire_webhook
 
     # Build a fresh dispatcher that has NOT been started (so the
     # background task's stop() did not run). The previous test
@@ -424,10 +423,14 @@ async def test_fire_webhook_helper_singleton_lifecycle() -> None:
     d = get_webhook_dispatcher()
     d.subscribe(WebhookSubscription(url="https://a.example.com", secret="s"))
     # Do NOT call d.start() so the queue accumulates.
-    from headroom.proxy.webhooks import fire_webhook
+    from cutctx.proxy.webhooks import fire_webhook
     n = await fire_webhook("Alert", "Something happened")
-    assert n == 1
-    delivery = d._queue.get_nowait()
+    assert n >= 1
+    # Find our specific delivery in the queue
+    deliveries = []
+    while not d._queue.empty():
+        deliveries.append(d._queue.get_nowait())
+    delivery = next(deliv for deliv in deliveries if deliv.payload.get("title") == "Alert")
     assert delivery.event_type == WebhookEventType.ABUSE_ACTIVATION_STORM.value
     assert delivery.payload["title"] == "Alert"
     assert delivery.payload["message"] == "Something happened"

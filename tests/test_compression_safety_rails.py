@@ -10,7 +10,7 @@ Three rails, each of which only ever makes compression LESS aggressive:
 2. Pipeline circuit breaker — after N consecutive pipeline failures,
    ``TransformPipeline.apply`` passes messages through untouched for a
    cooldown window instead of re-running failing transforms.
-3. Library inflation guard — ``headroom.compress()`` reverts to the
+3. Library inflation guard — ``cutctx.compress()`` reverts to the
    original messages when "optimization" inflated tokens, mirroring the
    proxy handlers.
 """
@@ -23,17 +23,17 @@ from typing import Any
 
 import pytest
 
-from headroom import OpenAIProvider, Tokenizer
-from headroom.compress import compress
-from headroom.config import CutctxConfig, TransformResult
-from headroom.tokenizer import Tokenizer as TokenizerType
-from headroom.transforms.base import Transform
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.pipeline import TransformPipeline
+from cutctx import OpenAIProvider, Tokenizer
+from cutctx.compress import compress
+from cutctx.config import CutctxConfig, TransformResult
+from cutctx.tokenizer import Tokenizer as TokenizerType
+from cutctx.transforms.base import Transform
+from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
+from cutctx.transforms.pipeline import TransformPipeline
 
-# ``headroom.compress`` the submodule is shadowed by the function of the
-# same name re-exported in ``headroom/__init__.py``.
-compress_module = importlib.import_module("headroom.compress")
+# ``cutctx.compress`` the submodule is shadowed by the function of the
+# same name re-exported in ``cutctx/__init__.py``.
+compress_module = importlib.import_module("cutctx.compress")
 
 _provider = OpenAIProvider()
 
@@ -257,7 +257,7 @@ _MESSAGES = [{"role": "user", "content": "hello there, please summarize the buil
 
 class TestPipelineCircuitBreaker:
     def test_opens_after_threshold_and_passes_through(self) -> None:
-        pipeline = TransformPipeline(HeadroomConfig(), transforms=[_FailingTransform()])
+        pipeline = TransformPipeline(CutctxConfig(), transforms=[_FailingTransform()])
         for _ in range(3):
             with pytest.raises(RuntimeError):
                 pipeline.apply(_MESSAGES, model="gpt-4o", model_limit=1024)
@@ -268,7 +268,7 @@ class TestPipelineCircuitBreaker:
 
     def test_success_resets_consecutive_failures(self) -> None:
         flaky = _FlakyTransform(fail_times=2)
-        pipeline = TransformPipeline(HeadroomConfig(), transforms=[flaky])
+        pipeline = TransformPipeline(CutctxConfig(), transforms=[flaky])
         for _ in range(2):
             with pytest.raises(RuntimeError):
                 pipeline.apply(_MESSAGES, model="gpt-4o", model_limit=1024)
@@ -283,9 +283,9 @@ class TestPipelineCircuitBreaker:
         assert result.transforms_applied != ["pipeline:circuit_open"]
 
     def test_cooldown_expiry_closes_breaker(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("HEADROOM_PIPELINE_BREAKER_COOLDOWN_S", "0.05")
+        monkeypatch.setenv("CUTCTX_PIPELINE_BREAKER_COOLDOWN_S", "0.05")
         flaky = _FlakyTransform(fail_times=3)
-        pipeline = TransformPipeline(HeadroomConfig(), transforms=[flaky])
+        pipeline = TransformPipeline(CutctxConfig(), transforms=[flaky])
         for _ in range(3):
             with pytest.raises(RuntimeError):
                 pipeline.apply(_MESSAGES, model="gpt-4o", model_limit=1024)
@@ -300,15 +300,15 @@ class TestPipelineCircuitBreaker:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Typo'd breaker env vars must not crash proxy startup."""
-        monkeypatch.setenv("HEADROOM_PIPELINE_BREAKER_THRESHOLD", "three")
-        monkeypatch.setenv("HEADROOM_PIPELINE_BREAKER_COOLDOWN_S", "1m")
-        pipeline = TransformPipeline(HeadroomConfig(), transforms=[_FailingTransform()])
+        monkeypatch.setenv("CUTCTX_PIPELINE_BREAKER_THRESHOLD", "three")
+        monkeypatch.setenv("CUTCTX_PIPELINE_BREAKER_COOLDOWN_S", "1m")
+        pipeline = TransformPipeline(CutctxConfig(), transforms=[_FailingTransform()])
         assert pipeline._breaker_threshold == 3
         assert pipeline._breaker_cooldown_s == 60.0
 
     def test_disabled_via_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("HEADROOM_PIPELINE_BREAKER_THRESHOLD", "0")
-        pipeline = TransformPipeline(HeadroomConfig(), transforms=[_FailingTransform()])
+        monkeypatch.setenv("CUTCTX_PIPELINE_BREAKER_THRESHOLD", "0")
+        pipeline = TransformPipeline(CutctxConfig(), transforms=[_FailingTransform()])
         for _ in range(5):
             with pytest.raises(RuntimeError):
                 pipeline.apply(_MESSAGES, model="gpt-4o", model_limit=1024)

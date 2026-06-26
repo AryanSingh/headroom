@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.entitlements import (
+from cutctx.entitlements import (
     FEATURE_TIERS,
     EntitlementChecker,
     EntitlementError,

@@ -8,7 +8,7 @@
  * Run: npx tsx examples/08-shared-context-multi-agent.ts
  */
 import { SharedContext } from "cutctx-ai";
-import { withCutCtx } from "cutctx-ai/vercel-ai";
+import { withCutctx } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
@@ -26,7 +26,7 @@ const researchOutput = {
 
 async function main() {
   const ctx = new SharedContext({ model: "gpt-4o", maxEntries: 50 });
-  const model = withCutCtx(openai("gpt-4o"));
+  const model = withCutctx(openai("gpt-4o"));
 
   // === Agent A: Research Agent ===
   console.log("=== Agent A: Research ===");

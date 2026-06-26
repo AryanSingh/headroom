@@ -9,10 +9,7 @@ the SQLite-backed enrollment store.
 """
 from __future__ import annotations
 
-import time
-
 import pytest
-
 
 # ── HOTP / TOTP primitives ────────────────────────────────────────────────
 
@@ -20,7 +17,7 @@ import pytest
 class TestHotp:
     def test_hotp_rfc4226_test_vectors(self):
         """RFC 4226 Appendix D test vectors (truncated to 6 digits)."""
-        from headroom.security.mfa import _hotp, _base32_decode
+        from cutctx.security.mfa import _base32_decode, _hotp
 
         # RFC 4226: secret "12345678901234567890" (ASCII).
         secret = _base32_decode(
@@ -49,13 +46,13 @@ class TestHotp:
 
 class TestTotp:
     def test_generate_secret_is_unique(self):
-        from headroom.security.mfa import generate_secret
+        from cutctx.security.mfa import generate_secret
 
         secrets = {generate_secret() for _ in range(100)}
         assert len(secrets) == 100, "generate_secret must be unique"
 
     def test_secret_round_trip_via_base32(self):
-        from headroom.security.mfa import (
+        from cutctx.security.mfa import (
             _base32_decode,
             _base32_encode,
             generate_secret,
@@ -69,9 +66,9 @@ class TestTotp:
         assert _base32_encode(raw) == secret_b32
 
     def test_current_totp_matches_hmac_at_same_step(self):
-        from headroom.security.mfa import (
-            _hotp,
+        from cutctx.security.mfa import (
             _base32_decode,
+            _hotp,
             current_totp,
             generate_secret,
         )
@@ -86,7 +83,7 @@ class TestTotp:
         assert totp.code == expected
 
     def test_remaining_seconds(self):
-        from headroom.security.mfa import (
+        from cutctx.security.mfa import (
             TOTP_STEP_S,
             current_totp,
             generate_secret,
@@ -99,7 +96,7 @@ class TestTotp:
         assert totp.remaining_s == TOTP_STEP_S - (int(now) % TOTP_STEP_S)
 
     def test_verify_with_correct_code(self):
-        from headroom.security.mfa import (
+        from cutctx.security.mfa import (
             current_totp,
             generate_secret,
             verify_totp,
@@ -110,7 +107,7 @@ class TestTotp:
         assert verify_totp(secret, code) is True
 
     def test_verify_with_wrong_code(self):
-        from headroom.security.mfa import generate_secret, verify_totp
+        from cutctx.security.mfa import generate_secret, verify_totp
 
         secret = generate_secret()
         assert verify_totp(secret, "000000") is False
@@ -122,7 +119,7 @@ class TestTotp:
         """A successful verify consumes the counter so a
         second submit of the same code is rejected.
         """
-        from headroom.security.mfa import (
+        from cutctx.security.mfa import (
             TOTP_STEP_S,
             current_totp,
             generate_secret,
@@ -149,7 +146,7 @@ class TestTotp:
 
     def test_verify_clock_skew_window(self):
         """Codes one step in the past or future are accepted."""
-        from headroom.security.mfa import (
+        from cutctx.security.mfa import (
             TOTP_STEP_S,
             current_totp,
             generate_secret,
@@ -183,7 +180,7 @@ class TestTotp:
 
 @pytest.fixture
 def mfa_store(tmp_path):
-    from headroom.security.mfa import MfaStore
+    from cutctx.security.mfa import MfaStore
 
     db = tmp_path / "mfa.db"
     yield MfaStore(db_path=str(db))
@@ -194,7 +191,7 @@ class TestMfaStore:
         assert mfa_store.get("alice") is None
 
     def test_enroll_then_get(self, mfa_store):
-        from headroom.security.mfa import generate_secret
+        from cutctx.security.mfa import generate_secret
 
         secret = generate_secret()
         mfa_store.enroll("alice", secret)
@@ -205,7 +202,7 @@ class TestMfaStore:
         assert enrollment["last_used_counter"] == 0
 
     def test_enroll_overwrites(self, mfa_store):
-        from headroom.security.mfa import generate_secret
+        from cutctx.security.mfa import generate_secret
 
         mfa_store.enroll("alice", "OLD-SECRET")
         new = generate_secret()
@@ -216,7 +213,7 @@ class TestMfaStore:
         assert enrollment["last_used_counter"] == 0
 
     def test_revoke_returns_true_when_present(self, mfa_store):
-        from headroom.security.mfa import generate_secret
+        from cutctx.security.mfa import generate_secret
 
         mfa_store.enroll("alice", generate_secret())
         assert mfa_store.revoke("alice") is True
@@ -226,7 +223,7 @@ class TestMfaStore:
         assert mfa_store.revoke("missing") is False
 
     def test_consume_counter_advances(self, mfa_store):
-        from headroom.security.mfa import generate_secret
+        from cutctx.security.mfa import generate_secret
 
         mfa_store.enroll("alice", generate_secret())
         assert mfa_store.consume_counter("alice", 5) is True
@@ -242,7 +239,7 @@ class TestMfaStore:
         assert enrollment["last_used_counter"] == 7
 
     def test_persistence_across_instances(self, tmp_path):
-        from headroom.security.mfa import MfaStore, generate_secret
+        from cutctx.security.mfa import MfaStore, generate_secret
 
         db = str(tmp_path / "mfa.db")
         store_a = MfaStore(db_path=db)
@@ -261,7 +258,7 @@ class TestMfaStore:
 
 class TestEnrollVerifyRoundTrip:
     def test_enroll_code_verifies(self, mfa_store):
-        from headroom.security.mfa import current_totp, verify_totp
+        from cutctx.security.mfa import current_totp, verify_totp
 
         mfa_store.enroll("alice", "JBSWY3DPEHPK3PXP")
         enrollment = mfa_store.get("alice")
@@ -279,7 +276,7 @@ class TestEnrollVerifyRoundTrip:
         deterministic. This catches regressions where a
         refactor accidentally changes the truncation logic.
         """
-        from headroom.security.mfa import current_totp, verify_totp
+        from cutctx.security.mfa import current_totp, verify_totp
 
         # 16-byte zero-padded secret
         secret = "A" * 32  # base32 for 16 zero bytes

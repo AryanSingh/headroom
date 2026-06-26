@@ -17,8 +17,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from headroom.compression.detector import ContentType
-from headroom.compression.universal import (
+from cutctx.compression.detector import ContentType
+from cutctx.compression.universal import (
     CompressionResult,
     UniversalCompressor,
     UniversalCompressorConfig,
@@ -37,7 +37,7 @@ GITHUB_SEARCH_RESPONSE = json.dumps(
                 "id": 12345678,
                 "node_id": "MDEwOlJlcG9zaXRvcnkxMjM0NTY3OA==",
                 "name": "cutctx",
-                "full_name": "anthropic/headroom",
+                "full_name": "anthropic/cutctx",
                 "private": False,
                 "owner": {
                     "login": "anthropic",
@@ -47,7 +47,7 @@ GITHUB_SEARCH_RESPONSE = json.dumps(
                 },
                 "description": "Context optimization layer for LLM applications with intelligent compression and caching",
                 "fork": False,
-                "url": "https://api.github.com/repos/anthropic/headroom",
+                "url": "https://api.github.com/repos/anthropic/cutctx",
                 "created_at": "2024-01-15T10:30:00Z",
                 "updated_at": "2024-06-20T15:45:00Z",
                 "pushed_at": "2024-06-20T14:30:00Z",

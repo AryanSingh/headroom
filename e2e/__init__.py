@@ -2,6 +2,6 @@
 
 Subpackages:
     _lib — shared harness and helpers
-    init — ``headroom init`` coverage
-    wrap — ``headroom wrap`` coverage
+    init — ``cutctx init`` coverage
+    wrap — ``cutctx wrap`` coverage
 """

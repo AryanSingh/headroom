@@ -1,9 +1,9 @@
 {
   "name": "cutctx-codex",
   "version": "0.26.1",
-  "description": "CutCtx context compression for OpenAI Codex — compress, retrieve, and observe token savings.",
+  "description": "Cutctx context compression for OpenAI Codex — compress, retrieve, and observe token savings.",
   "author": {
-    "name": "CutCtx Contributors",
+    "name": "Cutctx Contributors",
     "url": "https://github.com/cutctx/cutctx"
   },
   "homepage": "https://github.com/cutctx/cutctx",
@@ -18,12 +18,12 @@
   "tools": [
     {
       "name": "cutctx_retrieve",
-      "description": "Retrieve original uncompressed content from a CutCtx compression marker",
+      "description": "Retrieve original uncompressed content from a Cutctx compression marker",
       "command": "cutctx mcp serve"
     },
     {
       "name": "cutctx_compress",
-      "description": "Compress content on demand using CutCtx algorithms",
+      "description": "Compress content on demand using Cutctx algorithms",
       "command": "cutctx mcp serve"
     },
     {

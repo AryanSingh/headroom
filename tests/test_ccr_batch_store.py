@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from headroom.ccr.batch_store import (
+from cutctx.ccr.batch_store import (
     BatchContext,
     BatchContextStore,
     BatchRequestContext,
@@ -13,7 +13,7 @@ from headroom.ccr.batch_store import (
 
 
 def test_batch_context_defaults_and_expiry(monkeypatch) -> None:
-    monkeypatch.setattr("headroom.ccr.batch_store.time.time", lambda: 100.0)
+    monkeypatch.setattr("cutctx.ccr.batch_store.time.time", lambda: 100.0)
     context = BatchContext(batch_id="batch-1", provider="anthropic", created_at=100.0)
     assert context.expires_at == 100.0 + 86400
     assert context.is_expired is False
@@ -30,13 +30,13 @@ def test_batch_context_defaults_and_expiry(monkeypatch) -> None:
     assert context.get_request("req-1") is request
     assert context.get_request("missing") is None
 
-    monkeypatch.setattr("headroom.ccr.batch_store.time.time", lambda: context.expires_at + 1)
+    monkeypatch.setattr("cutctx.ccr.batch_store.time.time", lambda: context.expires_at + 1)
     assert context.is_expired is True
 
 
 async def test_batch_context_store_core_operations(monkeypatch) -> None:
     now = {"value": 100.0}
-    monkeypatch.setattr("headroom.ccr.batch_store.time.time", lambda: now["value"])
+    monkeypatch.setattr("cutctx.ccr.batch_store.time.time", lambda: now["value"])
 
     store = BatchContextStore(ttl=10, max_contexts=2)
     first = BatchContext(batch_id="b1", provider="anthropic")
@@ -60,14 +60,14 @@ async def test_batch_context_store_core_operations(monkeypatch) -> None:
 
 async def test_batch_context_store_cleanup_stats_and_memory_stats(monkeypatch) -> None:
     now = {"value": 200.0}
-    monkeypatch.setattr("headroom.ccr.batch_store.time.time", lambda: now["value"])
+    monkeypatch.setattr("cutctx.ccr.batch_store.time.time", lambda: now["value"])
     store = BatchContextStore(ttl=5, max_contexts=10)
 
-    first = BatchContext(batch_id="b1", provider="anthropic")
+    first = BatchContext(batch_id="b1", provider="anthropic", created_at=now["value"])
     first.add_request(
         BatchRequestContext(custom_id="r1", messages=[{"content": "alpha"}], tools=[])
     )
-    second = BatchContext(batch_id="b2", provider="google")
+    second = BatchContext(batch_id="b2", provider="google", created_at=now["value"])
     second.add_request(
         BatchRequestContext(custom_id="r2", messages=[{"content": ["nested"]}], tools=[{}])
     )
@@ -81,7 +81,7 @@ async def test_batch_context_store_cleanup_stats_and_memory_stats(monkeypatch) -
         "providers": {"anthropic": 1, "google": 1},
     }
 
-    now["value"] = 210.0
+    now["value"] = 200.0 + 86400.0 + 10.0
     assert await store.cleanup_expired() == 2
     assert (await store.stats())["total_contexts"] == 0
 
@@ -97,7 +97,7 @@ async def test_batch_context_store_cleanup_stats_and_memory_stats(monkeypatch) -
 
     monkeypatch.setitem(
         sys.modules,
-        "headroom.memory.tracker",
+        "cutctx.memory.tracker",
         type("TrackerModule", (), {"ComponentStats": FakeComponentStats}),
     )
 

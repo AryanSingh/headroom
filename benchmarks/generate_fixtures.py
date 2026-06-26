@@ -20,8 +20,8 @@ def generate_code_fixture() -> str:
         "import time",
         "from typing import Optional, Dict, Any",
         "",
-        "from headroom.security import validate_token",
-        "from headroom.models import User, Session",
+        "from cutctx.security import validate_token",
+        "from cutctx.models import User, Session",
         "",
         "",
         "class AuthManager:",
@@ -144,10 +144,10 @@ def generate_json_fixture() -> str:
 def generate_markdown_fixture() -> str:
     """Simulate a large documentation file."""
     sections = []
-    sections.append("# CutCtx Documentation\n")
+    sections.append("# Cutctx Documentation\n")
     sections.append("## Overview\n")
     sections.append(
-        "CutCtx is an open-source context compression layer for AI agents. "
+        "Cutctx is an open-source context compression layer for AI agents. "
         "It reduces token usage by 60-95% while maintaining data integrity "
         "through reversible compression.\n"
     )
@@ -155,7 +155,7 @@ def generate_markdown_fixture() -> str:
     for i in range(20):
         sections.append(f"## Section {i + 1}: Feature Description\n")
         sections.append(
-            f"This section describes feature {i + 1} of CutCtx. "
+            f"This section describes feature {i + 1} of Cutctx. "
             f"The feature provides compression capabilities that reduce "
             f"token consumption for AI agent interactions. Key benefits include "
             f"cost reduction, latency improvement, and context window optimization. "

@@ -1,9 +1,9 @@
 ---
 title: Vercel AI SDK
-description: Compress LLM context with the Vercel AI SDK using middleware, withCutCtx(), or standalone compression.
+description: Compress LLM context with the Vercel AI SDK using middleware, withCutctx(), or standalone compression.
 ---
 
-CutCtx integrates with the [Vercel AI SDK](https://sdk.vercel.ai) through three patterns: a one-liner wrapper, composable middleware, and standalone message compression.
+Cutctx integrates with the [Vercel AI SDK](https://sdk.vercel.ai) through three patterns: a one-liner wrapper, composable middleware, and standalone message compression.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install cutctx-ai ai @ai-sdk/openai
 ```
 
 <Callout type="info" title="Proxy required">
-The TypeScript SDK sends messages to a local CutCtx proxy for compression. Start the proxy before using the SDK:
+The TypeScript SDK sends messages to a local Cutctx proxy for compression. Start the proxy before using the SDK:
 
 ```bash
 pip install "cutctx-ai[proxy]"
@@ -20,16 +20,16 @@ cutctx proxy
 ```
 </Callout>
 
-## withCutCtx() one-liner
+## withCutctx() one-liner
 
 The simplest integration. Wraps any Vercel AI SDK language model with automatic compression:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/vercel-ai';
+import { withCutctx } from 'cutctx-ai/vercel-ai';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 
-const model = withCutCtx(openai('gpt-4o'));
+const model = withCutctx(openai('gpt-4o'));
 
 const { text } = await generateText({
   model,
@@ -39,30 +39,30 @@ const { text } = await generateText({
 });
 ```
 
-`withCutCtx()` calls `wrapLanguageModel` + `headroomMiddleware()` under the hood. It works with any provider (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, etc.).
+`withCutctx()` calls `wrapLanguageModel` + `cutctxMiddleware()` under the hood. It works with any provider (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, etc.).
 
-## headroomMiddleware() for composition
+## cutctxMiddleware() for composition
 
 Use the middleware directly when you need to compose it with other middleware:
 
 ```ts twoslash
 // @noErrors
-import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
+import { cutctxMiddleware } from 'cutctx-ai/vercel-ai';
 import { wrapLanguageModel } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
 const model = wrapLanguageModel({
   model: openai('gpt-4o'),
-  middleware: headroomMiddleware(),
+  middleware: cutctxMiddleware(),
 });
 ```
 
 Pass options to control compression behavior:
 
 ```ts twoslash
-import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
+import { cutctxMiddleware } from 'cutctx-ai/vercel-ai';
 
-const middleware = headroomMiddleware({
+const middleware = cutctxMiddleware({
   model: 'gpt-4o',
   baseUrl: 'http://localhost:8787',
 });
@@ -88,11 +88,11 @@ console.log(`Saved ${result.tokensSaved} tokens`);
 Compression happens before the request. Streaming responses are unaffected:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/vercel-ai';
+import { withCutctx } from 'cutctx-ai/vercel-ai';
 import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 
-const model = withCutCtx(openai('gpt-4o'));
+const model = withCutctx(openai('gpt-4o'));
 
 const result = streamText({
   model,
@@ -110,12 +110,12 @@ Works with structured output:
 
 ```ts twoslash
 // @noErrors
-import { withCutCtx } from 'cutctx-ai/vercel-ai';
+import { withCutctx } from 'cutctx-ai/vercel-ai';
 import { openai } from '@ai-sdk/openai';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-const model = withCutCtx(openai('gpt-4o'));
+const model = withCutctx(openai('gpt-4o'));
 
 const { output } = await generateText({
   model,
@@ -132,7 +132,7 @@ const { output } = await generateText({
 ## How it works
 
 1. Messages are converted from Vercel format to OpenAI format
-2. CutCtx compresses them via the proxy's `/v1/compress` endpoint
+2. Cutctx compresses them via the proxy's `/v1/compress` endpoint
 3. Compressed messages are converted back to Vercel format
 4. The original model receives the smaller prompt
 

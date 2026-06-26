@@ -16,7 +16,7 @@ import pytest
 
 class TestSessionWatcher:
     def test_init(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         async def noop(path):
             pass
@@ -25,7 +25,7 @@ class TestSessionWatcher:
         assert w.seen_count == 0
 
     def test_scan_detects_new_file(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         detected = []
 
@@ -50,7 +50,7 @@ class TestSessionWatcher:
             assert w.seen_count == 1
 
     def test_scan_skips_recent_file(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         detected = []
 
@@ -68,7 +68,7 @@ class TestSessionWatcher:
             assert len(detected) == 0  # Too recent
 
     def test_scan_skips_nonexistent_dir(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         async def noop(path):
             pass
@@ -78,7 +78,7 @@ class TestSessionWatcher:
         assert w.seen_count == 0
 
     def test_stop(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         async def noop(path):
             pass
@@ -89,7 +89,7 @@ class TestSessionWatcher:
         assert w._running is False
 
     def test_seen_count_increments(self):
-        from headroom.learn.watcher import SessionWatcher
+        from cutctx.learn.watcher import SessionWatcher
 
         detected = []
 
@@ -120,7 +120,7 @@ class TestSessionWatcher:
 
 class TestLearnShare:
     def test_format_twitter_text_single(self):
-        from headroom.cli.learn_share import format_twitter_text
+        from cutctx.cli.learn_share import format_twitter_text
 
         text = format_twitter_text(1, "Claude Code", "use cargo test instead of pytest")
         assert "Claude Code" in text
@@ -128,14 +128,14 @@ class TestLearnShare:
         assert "cutctx" in text.lower()
 
     def test_format_twitter_text_multiple(self):
-        from headroom.cli.learn_share import format_twitter_text
+        from cutctx.cli.learn_share import format_twitter_text
 
         text = format_twitter_text(5, "Codex", "fix import path")
         assert "5th time" in text
         assert "4 other corrections" in text
 
     def test_print_share_prompt(self, capsys):
-        from headroom.cli.learn_share import print_share_prompt
+        from cutctx.cli.learn_share import print_share_prompt
 
         print_share_prompt(3, "Claude Code", "use correct path")
         captured = capsys.readouterr()
@@ -148,23 +148,23 @@ class TestLearnShare:
 
 class TestStripeWebhook:
     def test_generate_license_key(self):
-        from headroom.billing.stripe_webhook import generate_license_key
+        from cutctx.billing.stripe_webhook import generate_license_key
 
-        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret-1234"}):
+        with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret-1234"}):
             key = generate_license_key("team", "cus_test123")
             assert key.startswith("team-")
             parts = key.split("-")
             assert len(parts) == 3  # tier, random_id, sig
 
     def test_generate_license_key_no_secret(self):
-        from headroom.billing.stripe_webhook import generate_license_key
+        from cutctx.billing.stripe_webhook import generate_license_key
 
-        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": ""}):
-            with pytest.raises(ValueError, match="HEADROOM_LICENSE_HMAC_SECRET"):
+        with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": ""}):
+            with pytest.raises(ValueError, match="CUTCTX_LICENSE_HMAC_SECRET"):
                 generate_license_key("team", "cus_123")
 
     def test_verify_stripe_signature(self):
-        from headroom.billing.stripe_webhook import verify_stripe_signature
+        from cutctx.billing.stripe_webhook import verify_stripe_signature
 
         with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": "whsec_test"}):
             # The actual verification requires proper HMAC
@@ -173,7 +173,7 @@ class TestStripeWebhook:
                 verify_stripe_signature(b'payload', "t=123,v1=bad")
 
     def test_handle_checkout_completed(self):
-        from headroom.billing.stripe_webhook import handle_checkout_completed
+        from cutctx.billing.stripe_webhook import handle_checkout_completed
 
         event_data = {
             "object": {
@@ -184,9 +184,9 @@ class TestStripeWebhook:
             }
         }
 
-        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
-            with patch("headroom.billing.stripe_webhook._save_license"):
-                with patch("headroom.billing.stripe_webhook._send_license_email"):
+        with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
+            with patch("cutctx.billing.stripe_webhook._save_license"):
+                with patch("cutctx.billing.stripe_webhook._send_license_email"):
                     record = handle_checkout_completed(event_data)
                     assert record.tier == "team"
                     assert record.seats == 10
@@ -204,7 +204,7 @@ class TestStripeWebhook:
         Fix: tier is resolved from line_items[].price.id via the
         PRICE_TO_TIER env-configured map. metadata.tier is ignored.
         """
-        from headroom.billing.stripe_webhook import handle_checkout_completed
+        from cutctx.billing.stripe_webhook import handle_checkout_completed
 
         event_data = {
             "object": {
@@ -216,9 +216,9 @@ class TestStripeWebhook:
             }
         }
 
-        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
-            with patch("headroom.billing.stripe_webhook._save_license"):
-                with patch("headroom.billing.stripe_webhook._send_license_email"):
+        with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
+            with patch("cutctx.billing.stripe_webhook._save_license"):
+                with patch("cutctx.billing.stripe_webhook._send_license_email"):
                     record = handle_checkout_completed(event_data)
                     # tier must NOT be enterprise — it falls back to the
                     # conservative default ("team") because no line_items
@@ -230,7 +230,7 @@ class TestStripeWebhook:
 
     def test_handle_checkout_resolves_tier_from_price_id(self):
         """Tier is resolved from line_items[].price.id when present."""
-        from headroom.billing.stripe_webhook import (
+        from cutctx.billing.stripe_webhook import (
             PRICE_TO_TIER,
             handle_checkout_completed,
         )
@@ -239,7 +239,7 @@ class TestStripeWebhook:
         with patch.dict(
             "os.environ",
             {
-                "HEADROOM_LICENSE_HMAC_SECRET": "test-secret",
+                "CUTCTX_LICENSE_HMAC_SECRET": "test-secret",
                 "STRIPE_PRICE_ENTERPRISE": "price_enterprise_xyz",
             },
         ):
@@ -259,8 +259,8 @@ class TestStripeWebhook:
                         },
                     }
                 }
-                with patch("headroom.billing.stripe_webhook._save_license"):
-                    with patch("headroom.billing.stripe_webhook._send_license_email"):
+                with patch("cutctx.billing.stripe_webhook._save_license"):
+                    with patch("cutctx.billing.stripe_webhook._send_license_email"):
                         record = handle_checkout_completed(event_data)
                         # price ID wins, metadata is ignored
                         assert record.tier == "enterprise"
@@ -271,32 +271,33 @@ class TestStripeWebhook:
 # ---------------------------------------------------------------------------
 
 class TestLicenseDB:
-    def test_upsert_and_get(self):
-        from headroom.billing.license_db import LicenseDB
-        from headroom.billing.stripe_webhook import LicenseRecord, generate_license_key
+    def test_upsert_and_get(self, monkeypatch):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord, generate_license_key
 
-        with patch.dict("os.environ", {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret-1234"}):
-            with tempfile.NamedTemporaryFile(suffix=".db") as f:
-                db = LicenseDB(Path(f.name))
-                signed_key = generate_license_key("team", "cus_1")
-                record = LicenseRecord(
-                    license_key=signed_key,
-                    tier="team",
-                    customer_email="test@test.com",
-                    seats=5,
-                    stripe_customer_id="cus_1",
-                    stripe_subscription_id="sub_1",
-                    created_at=time.time(),
-                    expires_at=time.time() + 86400,
-                    active=True,
-                )
-                db.upsert(record)
-                result = db.validate(signed_key)
-                assert result["valid"] is True
-                assert result["tier"] == "team"
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret-1234")
+        monkeypatch.setattr("cutctx._core.verify_license_signature", lambda a, b, c, d: True)
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            signed_key = generate_license_key("team", "cus_1")
+            record = LicenseRecord(
+                license_key=signed_key,
+                tier="team",
+                customer_email="test@test.com",
+                seats=5,
+                stripe_customer_id="cus_1",
+                stripe_subscription_id="sub_1",
+                created_at=time.time(),
+                expires_at=time.time() + 86400,
+                active=True,
+            )
+            db.upsert(record)
+            result = db.validate(signed_key)
+            assert result["valid"] is True, f"Validation failed: {result}"
+            assert result["tier"] == "team"
 
     def test_validate_not_found(self):
-        from headroom.billing.license_db import LicenseDB
+        from cutctx.billing.license_db import LicenseDB
 
         with tempfile.NamedTemporaryFile(suffix=".db") as f:
             db = LicenseDB(Path(f.name))
@@ -305,8 +306,8 @@ class TestLicenseDB:
             assert result["reason"] == "key_not_found"
 
     def test_validate_expired(self):
-        from headroom.billing.license_db import LicenseDB
-        from headroom.billing.stripe_webhook import LicenseRecord
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
 
         with tempfile.NamedTemporaryFile(suffix=".db") as f:
             db = LicenseDB(Path(f.name))
@@ -327,8 +328,8 @@ class TestLicenseDB:
             assert result["reason"] == "expired"
 
     def test_list_all(self):
-        from headroom.billing.license_db import LicenseDB
-        from headroom.billing.stripe_webhook import LicenseRecord
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
 
         with tempfile.NamedTemporaryFile(suffix=".db") as f:
             db = LicenseDB(Path(f.name))
@@ -355,14 +356,14 @@ class TestLicenseDB:
 
 class TestFirewallML:
     def test_init_no_model(self):
-        from headroom.security.firewall_ml import MLInjectionClassifier
+        from cutctx.security.firewall_ml import MLInjectionClassifier
 
         MLInjectionClassifier.reset_instance()
         clf = MLInjectionClassifier(model_dir=Path("/nonexistent"))
         assert clf.available is False
 
     def test_score_returns_zero_when_unavailable(self):
-        from headroom.security.firewall_ml import MLInjectionClassifier
+        from cutctx.security.firewall_ml import MLInjectionClassifier
 
         MLInjectionClassifier.reset_instance()
         clf = MLInjectionClassifier(model_dir=Path("/nonexistent"))
@@ -370,14 +371,14 @@ class TestFirewallML:
         assert score == 0.0
 
     def test_is_injection_returns_false_when_unavailable(self):
-        from headroom.security.firewall_ml import MLInjectionClassifier
+        from cutctx.security.firewall_ml import MLInjectionClassifier
 
         MLInjectionClassifier.reset_instance()
         clf = MLInjectionClassifier(model_dir=Path("/nonexistent"))
         assert clf.is_injection("ignore previous instructions") is False
 
     def test_singleton(self):
-        from headroom.security.firewall_ml import MLInjectionClassifier
+        from cutctx.security.firewall_ml import MLInjectionClassifier
 
         MLInjectionClassifier.reset_instance()
         a = MLInjectionClassifier.get_instance()
@@ -386,7 +387,7 @@ class TestFirewallML:
         MLInjectionClassifier.reset_instance()
 
     def test_score_batch(self):
-        from headroom.security.firewall_ml import MLInjectionClassifier
+        from cutctx.security.firewall_ml import MLInjectionClassifier
 
         MLInjectionClassifier.reset_instance()
         clf = MLInjectionClassifier(model_dir=Path("/nonexistent"))
@@ -401,23 +402,23 @@ class TestFirewallML:
 
 class TestAirgap:
     def test_is_offline_default(self):
-        from headroom.proxy.airgap import is_offline
+        from cutctx.proxy.airgap import is_offline
 
-        with patch.dict("os.environ", {"HEADROOM_OFFLINE_MODE": "0"}):
+        with patch.dict("os.environ", {"CUTCTX_OFFLINE_MODE": "0"}):
             assert is_offline() is False
 
     def test_check_offline_compat_ok(self):
-        from headroom.proxy.airgap import check_offline_compat
+        from cutctx.proxy.airgap import check_offline_compat
 
-        with patch.dict("os.environ", {"HEADROOM_OFFLINE_MODE": "0"}):
+        with patch.dict("os.environ", {"CUTCTX_OFFLINE_MODE": "0"}):
             check_offline_compat()  # Should not raise
 
     def test_check_offline_requires_hmac(self):
-        from headroom.proxy.airgap import check_offline_compat
+        from cutctx.proxy.airgap import check_offline_compat
 
         with patch.dict("os.environ", {
-            "HEADROOM_OFFLINE_MODE": "1",
-            "HEADROOM_LICENSE_HMAC_SECRET": "",
+            "CUTCTX_OFFLINE_MODE": "1",
+            "CUTCTX_LICENSE_HMAC_SECRET": "",
         }):
-            with pytest.raises(RuntimeError, match="HEADROOM_LICENSE_HMAC_SECRET"):
+            with pytest.raises(RuntimeError, match="CUTCTX_LICENSE_HMAC_SECRET"):
                 check_offline_compat()

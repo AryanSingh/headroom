@@ -21,8 +21,7 @@ class TestStreamingRedactorWrapStream:
 
     @pytest.mark.asyncio
     async def test_wrap_stream_redacts_email(self):
-        from headroom.security.firewall import StreamingRedactor
-        from headroom.security.firewall import FirewallConfig
+        from cutctx.security.firewall import FirewallConfig, StreamingRedactor
 
         cfg = FirewallConfig(redact_streaming=True)
         redactor = StreamingRedactor(cfg, enabled=True)
@@ -45,8 +44,7 @@ class TestStreamingRedactorWrapStream:
 
     @pytest.mark.asyncio
     async def test_wrap_stream_passthrough_when_disabled(self):
-        from headroom.security.firewall import StreamingRedactor
-        from headroom.security.firewall import FirewallConfig
+        from cutctx.security.firewall import FirewallConfig, StreamingRedactor
 
         cfg = FirewallConfig(redact_streaming=False)
         redactor = StreamingRedactor(cfg, enabled=False)
@@ -69,8 +67,7 @@ class TestStreamingRedactorWrapStream:
 
     @pytest.mark.asyncio
     async def test_wrap_stream_handles_string_chunks(self):
-        from headroom.security.firewall import StreamingRedactor
-        from headroom.security.firewall import FirewallConfig
+        from cutctx.security.firewall import FirewallConfig, StreamingRedactor
 
         cfg = FirewallConfig(redact_streaming=True)
         redactor = StreamingRedactor(cfg, enabled=True)
@@ -91,8 +88,7 @@ class TestStreamingRedactorWrapStream:
 
     @pytest.mark.asyncio
     async def test_wrap_stream_passes_through_non_pii(self):
-        from headroom.security.firewall import StreamingRedactor
-        from headroom.security.firewall import FirewallConfig
+        from cutctx.security.firewall import FirewallConfig, StreamingRedactor
 
         cfg = FirewallConfig(redact_streaming=True)
         redactor = StreamingRedactor(cfg, enabled=True)
@@ -129,7 +125,7 @@ class TestStreamingRedactorWiring:
 
         streaming = (
             Path(__file__).parent.parent
-            / "headroom/proxy/handlers/streaming.py"
+            / "cutctx/proxy/handlers/streaming.py"
         )
         text = streaming.read_text()
         assert "_streaming_redactor" in text
@@ -141,7 +137,7 @@ class TestStreamingRedactorWiring:
 
         streaming = (
             Path(__file__).parent.parent
-            / "headroom/proxy/handlers/streaming.py"
+            / "cutctx/proxy/handlers/streaming.py"
         )
         text = streaming.read_text()
         # The handler must check both: redactor exists AND

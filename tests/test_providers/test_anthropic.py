@@ -6,7 +6,7 @@ import pytest
 class TestAnthropicTokenCounting:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from cutctx.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
@@ -31,7 +31,7 @@ class TestAnthropicTokenCounting:
 class TestAnthropicModelLimits:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from cutctx.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
@@ -53,7 +53,7 @@ class TestAnthropicModelLimits:
 class TestAnthropicCostEstimation:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from cutctx.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 

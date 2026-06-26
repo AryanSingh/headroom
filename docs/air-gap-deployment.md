@@ -1,10 +1,10 @@
-# CutCtx Air-Gap Deployment Guide
+# Cutctx Air-Gap Deployment Guide
 
-For defense, healthcare, and highly-regulated environments, CutCtx supports a full offline deployment mode with zero outbound internet connectivity requirements.
+For defense, healthcare, and highly-regulated environments, Cutctx supports a full offline deployment mode with zero outbound internet connectivity requirements.
 
 ## 1. Pre-fetching Machine Learning Weights
 
-CutCtx relies on ONNX weights for the AST/semantic compression engine. To run offline, these must be bundled inside the container or mounted to a persistent volume.
+Cutctx relies on ONNX weights for the AST/semantic compression engine. To run offline, these must be bundled inside the container or mounted to a persistent volume.
 
 1. On an internet-connected machine, download the `kompress-v2-base` model from HuggingFace:
 ```bash
@@ -22,14 +22,14 @@ CUTCTX_MODEL_CACHE_DIR=/opt/cutctx/models
 
 ## 2. Offline License Validation
 
-Because CutCtx cannot reach the PitchToShip servers for periodic license validation in an air-gapped environment, you must use an offline HMAC-signed license key.
+Because Cutctx cannot reach the PitchToShip servers for periodic license validation in an air-gapped environment, you must use an offline HMAC-signed license key.
 
 1. Generate your offline key in the PitchToShip vendor portal (Enterprise Tier only).
-2. Pass the key to the CutCtx proxy via the environment:
+2. Pass the key to the Cutctx proxy via the environment:
 ```env
 CUTCTX_EE_LICENSE_KEY="ptsk_off_..."
 ```
-*CutCtx uses Ed25519 signature verification (`cutctx_ee/billing/license_token.py`) to cryptographically guarantee the validity of the key and its embedded seat constraints without phoning home.*
+*Cutctx uses Ed25519 signature verification (`cutctx_ee/billing/license_token.py`) to cryptographically guarantee the validity of the key and its embedded seat constraints without phoning home.*
 
 ## 3. Container Images
 

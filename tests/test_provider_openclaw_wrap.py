@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from headroom.providers.openclaw.wrap import (
+from cutctx.providers.openclaw.wrap import (
     DEFAULT_GATEWAY_PROVIDER_IDS,
     build_plugin_entry,
     build_unwrap_entry,
@@ -122,7 +122,7 @@ def test_build_unwrap_entry_handles_non_mapping_input() -> None:
 def test_build_plugin_entry_strips_mcpServers_from_existing_entry() -> None:
     """Newer OpenClaw schemas reject `mcpServers` at the plugin-entry root.
 
-    `headroom init -g` was failing with `Config invalid: Unrecognized
+    `cutctx init -g` was failing with `Config invalid: Unrecognized
     key: "mcpServers"` because the prior plugin entry in the user's
     config still had that legacy field, and we were spreading it back in
     via `**existing_entry`. Pin the strip so we don't regress.

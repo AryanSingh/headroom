@@ -1,9 +1,9 @@
 ---
 title: Proxy Server
-description: Run the CutCtx proxy to compress LLM traffic for any client — Claude Code, Cursor, OpenAI SDK, or custom apps.
+description: Run the Cutctx proxy to compress LLM traffic for any client — Claude Code, Cursor, OpenAI SDK, or custom apps.
 ---
 
-The CutCtx proxy is a standalone HTTP server that compresses all LLM traffic passing through it. Point any client at the proxy and get automatic context optimization.
+The Cutctx proxy is a standalone HTTP server that compresses all LLM traffic passing through it. Point any client at the proxy and get automatic context optimization.
 
 ## Starting the proxy
 
@@ -20,7 +20,7 @@ cutctx proxy \
   --budget 100.0
 ```
 
-Telemetry is enabled by default. Opt out with `HEADROOM_TELEMETRY=off` or `--no-telemetry`.
+Telemetry is enabled by default. Opt out with `CUTCTX_TELEMETRY=off` or `--no-telemetry`.
 
 ## CLI options
 
@@ -74,7 +74,7 @@ cutctx proxy --mode cache
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--memory` | `false` | Enable persistent user memory and provider-appropriate memory tools |
-| `--memory-db-path` | `{cwd}/.headroom/memory.db` | Override the memory SQLite path |
+| `--memory-db-path` | `{cwd}/.cutctx/memory.db` | Override the memory SQLite path |
 | `--no-memory-tools` | `false` | Disable automatic memory tool injection |
 | `--no-memory-context` | `false` | Disable automatic memory context injection |
 | `--memory-top-k` | `10` | Number of memories to inject as context |
@@ -90,7 +90,7 @@ cutctx proxy --codex-wire-debug
 ```
 
 <Callout type="info" title="LLMLingua removed from the proxy CLI">
-The old LLMLingua proxy toggles are no longer part of the CLI. CutCtx's proxy compression path uses ContentRouter plus the current built-in compressors, including Kompress where applicable.
+The old LLMLingua proxy toggles are no longer part of the CLI. Cutctx's proxy compression path uses ContentRouter plus the current built-in compressors, including Kompress where applicable.
 </Callout>
 
 ## API endpoints
@@ -115,7 +115,7 @@ curl http://localhost:8787/health
 
 ### `GET /stats`
 
-Live session statistics plus durable `persistent_savings` totals. Stored at `~/.headroom/proxy_savings.json` (override with `HEADROOM_SAVINGS_PATH`).
+Live session statistics plus durable `persistent_savings` totals. Stored at `~/.cutctx/proxy_savings.json` (override with `CUTCTX_SAVINGS_PATH`).
 
 ```bash
 curl http://localhost:8787/stats
@@ -139,11 +139,11 @@ curl http://localhost:8787/metrics
 ```
 
 ```
-headroom_requests_total{mode="optimize"} 1234
-headroom_tokens_saved_total 5678900
+cutctx_requests_total{mode="optimize"} 1234
+cutctx_tokens_saved_total 5678900
 cutctx_compression_ratio_bucket{le="0.5"} 890
-headroom_latency_seconds_bucket{le="0.01"} 800
-headroom_cache_hits_total 456
+cutctx_latency_seconds_bucket{le="0.01"} 800
+cutctx_cache_hits_total 456
 ```
 
 ### `POST /v1/messages`
@@ -197,7 +197,7 @@ Compression-only endpoint. Compresses messages without calling any LLM. Used by 
 }
 ```
 
-Set `x-headroom-bypass: true` to skip compression.
+Set `x-cutctx-bypass: true` to skip compression.
 
 ## Agent wrapping
 
@@ -249,9 +249,9 @@ OPENROUTER_API_KEY=sk-or-... cutctx proxy --backend openrouter
 ## Environment variables
 
 ```bash
-export HEADROOM_HOST=0.0.0.0
-export HEADROOM_PORT=8787
-export HEADROOM_BUDGET=100.0
+export CUTCTX_HOST=0.0.0.0
+export CUTCTX_PORT=8787
+export CUTCTX_BUDGET=100.0
 
 # Route OpenAI passthrough requests to a custom endpoint
 export OPENAI_TARGET_API_URL=https://custom.openai.endpoint.com
@@ -269,7 +269,7 @@ cutctx proxy
 ```bash
 pip install gunicorn
 
-gunicorn headroom.proxy.server:app \
+gunicorn cutctx.proxy.server:app \
   --workers 4 \
   --bind 0.0.0.0:8787 \
   --worker-class uvicorn.workers.UvicornWorker
@@ -284,7 +284,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
     && apt-get purge -y build-essential && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 EXPOSE 8787
-CMD ["headroom", "proxy", "--host", "0.0.0.0"]
+CMD ["cutctx", "proxy", "--host", "0.0.0.0"]
 ```
 
 <Callout type="info" title="Build dependencies">

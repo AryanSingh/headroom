@@ -1,11 +1,11 @@
 # RTK architecture — why wrap-CLI only
 
 **Status:** decided. Locked at Phase G PR-G3 (2026-05).
-**Owner:** CutCtx realignment.
+**Owner:** Cutctx realignment.
 
 ## TL;DR
 
-**RTK is a wrap-CLI hook, not a proxy-side compressor.** The CutCtx
+**RTK is a wrap-CLI hook, not a proxy-side compressor.** The Cutctx
 proxy does NOT invoke RTK on tool-result content. Future contributors
 who consider moving RTK into the proxy hot path: read this doc first.
 

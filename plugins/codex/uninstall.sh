@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# CutCtx Codex Plugin Uninstaller
+# Cutctx Codex Plugin Uninstaller
 # Usage: bash uninstall.sh
 
 set -euo pipefail
 
-echo "CutCtx Codex Plugin Uninstaller"
+echo "Cutctx Codex Plugin Uninstaller"
 echo "================================"
 
 CODEX_CONFIG="${HOME}/.codex/config.toml"
-MARKER_START="# --- CutCtx persistent provider ---"
-MARKER_END="# --- end CutCtx persistent provider ---"
+MARKER_START="# --- Cutctx persistent provider ---"
+MARKER_END="# --- end Cutctx persistent provider ---"
 
 # 1. Remove provider from config
 echo ""
-echo "1. Removing CutCtx provider from ${CODEX_CONFIG}..."
+echo "1. Removing Cutctx provider from ${CODEX_CONFIG}..."
 
 if [[ -f "${CODEX_CONFIG}" ]] && grep -q "${MARKER_START}" "${CODEX_CONFIG}" 2>/dev/null; then
   if command -v python3 &>/dev/null; then
@@ -26,14 +26,14 @@ content = pattern.sub('', content).rstrip()
 with open('${CODEX_CONFIG}', 'w') as f:
     f.write(content + '\n')
 "
-    echo "   ✓ CutCtx provider removed"
+    echo "   ✓ Cutctx provider removed"
   else
     sed -i.bak "/${MARKER_START//\//\\/}/,/${MARKER_END//\//\\/}/d" "${CODEX_CONFIG}"
     rm -f "${CODEX_CONFIG}.bak"
-    echo "   ✓ CutCtx provider removed"
+    echo "   ✓ Cutctx provider removed"
   fi
 else
-  echo "   CutCtx provider not found — skipping"
+  echo "   Cutctx provider not found — skipping"
 fi
 
 # 2. Uninstall MCP server
@@ -41,7 +41,7 @@ echo ""
 echo "2. Removing MCP server..."
 CLI="cutctx"
 if ! command -v cutctx &>/dev/null; then
-  CLI="headroom"
+  CLI="cutctx"
 fi
 
 if command -v ${CLI} &>/dev/null; then

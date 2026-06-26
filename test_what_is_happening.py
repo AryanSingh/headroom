@@ -1,5 +1,5 @@
-from headroom.compress import compress
 import adversarial_test
+from cutctx.compress import compress
 
 print("Log test:")
 messages = [{"role": "user", "content": f"```log\n{adversarial_test.test_log_compression.__code__.co_consts[1]}\n```"}]

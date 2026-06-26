@@ -1,11 +1,11 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: headroom-alerts
-  namespace: headroom
+  name: cutctx-alerts
+  namespace: cutctx
 spec:
   groups:
-    - name: headroom.rules
+    - name: cutctx.rules
       rules:
         - alert: HighErrorRate
           expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05

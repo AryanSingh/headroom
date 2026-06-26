@@ -21,16 +21,16 @@ interface GeminiModelLike {
  *
  * @example
  * ```typescript
- * import { withCutCtx } from 'cutctx-ai/gemini';
+ * import { withCutctx } from 'cutctx-ai/gemini';
  * import { GoogleGenerativeAI } from '@google/generative-ai';
  *
  * const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
- * const model = withCutCtx(genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }));
+ * const model = withCutctx(genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }));
  *
  * const result = await model.generateContent({ contents: longConversation });
  * ```
  */
-export function withCutCtx<T extends GeminiModelLike>(
+export function withCutctx<T extends GeminiModelLike>(
   model: T,
   options: CompressOptions = {},
 ): T {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  headroomMiddleware,
+  cutctxMiddleware,
   compressVercelMessages,
-  withCutCtx,
+  withCutctx,
 } from "../../src/adapters/vercel-ai.js";
 
 const mockFetch = vi.fn();
@@ -27,13 +27,13 @@ function mockCompressResponse(
   );
 }
 
-describe("headroomMiddleware", () => {
+describe("cutctxMiddleware", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
 
   it("returns object with transformParams function", () => {
-    const mw = headroomMiddleware({ baseUrl: "http://localhost:8787" });
+    const mw = cutctxMiddleware({ baseUrl: "http://localhost:8787" });
     expect(mw.transformParams).toBeDefined();
     expect(typeof mw.transformParams).toBe("function");
   });
@@ -44,7 +44,7 @@ describe("headroomMiddleware", () => {
       mockCompressResponse([{ role: "user", content: "compressed" }]),
     );
 
-    const mw = headroomMiddleware({ baseUrl: "http://localhost:8787" });
+    const mw = cutctxMiddleware({ baseUrl: "http://localhost:8787" });
 
     const params = {
       prompt: [
@@ -69,7 +69,7 @@ describe("headroomMiddleware", () => {
   });
 
   it("passes through empty prompt unchanged", async () => {
-    const mw = headroomMiddleware({ baseUrl: "http://localhost:8787" });
+    const mw = cutctxMiddleware({ baseUrl: "http://localhost:8787" });
 
     const params = { prompt: [], modelId: "gpt-4o" };
     const result = await mw.transformParams!({
@@ -86,7 +86,7 @@ describe("headroomMiddleware", () => {
     // Simulate fallback (proxy unreachable)
     mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
 
-    const mw = headroomMiddleware({
+    const mw = cutctxMiddleware({
       baseUrl: "http://localhost:8787",
       fallback: true,
     });
@@ -114,7 +114,7 @@ describe("headroomMiddleware", () => {
       mockCompressResponse([{ role: "user", content: "x" }]),
     );
 
-    const mw = headroomMiddleware({
+    const mw = cutctxMiddleware({
       baseUrl: "http://localhost:8787",
       model: "claude-sonnet-4-5-20250929",
     });
@@ -173,7 +173,7 @@ describe("compressVercelMessages", () => {
   });
 });
 
-describe("withCutCtx", () => {
+describe("withCutctx", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -188,7 +188,7 @@ describe("withCutCtx", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withCutCtx(fakeModel as any, {
+    const wrapped = withCutctx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -216,7 +216,7 @@ describe("withCutCtx", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withCutCtx(fakeModel as any, {
+    const wrapped = withCutctx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -234,7 +234,7 @@ describe("withCutCtx", () => {
     expect(url).toContain("/v1/compress");
   });
 
-  it("passes options through to headroomMiddleware", async () => {
+  it("passes options through to cutctxMiddleware", async () => {
     mockFetch.mockResolvedValueOnce(
       mockCompressResponse([{ role: "user", content: "x" }]),
     );
@@ -253,7 +253,7 @@ describe("withCutCtx", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withCutCtx(fakeModel as any, {
+    const wrapped = withCutctx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
       model: "claude-sonnet-4-5-20250929",
     });
@@ -287,7 +287,7 @@ describe("withCutCtx", () => {
       doStream: vi.fn(),
     };
 
-    const wrapped = withCutCtx(fakeModel as any, {
+    const wrapped = withCutctx(fakeModel as any, {
       baseUrl: "http://localhost:8787",
       fallback: true,
     });

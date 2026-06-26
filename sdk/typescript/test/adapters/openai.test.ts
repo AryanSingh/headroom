@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { withCutCtx } from "../../src/adapters/openai.js";
+import { withCutctx } from "../../src/adapters/openai.js";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -21,7 +21,7 @@ function mockCompressSuccess(
   );
 }
 
-describe("withCutCtx (OpenAI)", () => {
+describe("withCutctx (OpenAI)", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -38,7 +38,7 @@ describe("withCutCtx (OpenAI)", () => {
       embeddings: { create: vi.fn() },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -69,7 +69,7 @@ describe("withCutCtx (OpenAI)", () => {
       images: { generate: vi.fn() },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -96,7 +96,7 @@ describe("withCutCtx (OpenAI)", () => {
       chat: { completions: { create: mockCreate } },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -115,7 +115,7 @@ describe("withCutCtx (OpenAI)", () => {
       chat: { completions: { create: vi.fn().mockResolvedValue({}) } },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
     });
 
@@ -135,7 +135,7 @@ describe("withCutCtx (OpenAI)", () => {
       chat: { completions: { create: vi.fn().mockResolvedValue({}) } },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
       model: "gpt-4o",
     });
@@ -157,7 +157,7 @@ describe("withCutCtx (OpenAI)", () => {
       chat: { completions: { create: mockCreate } },
     };
 
-    const wrapped = withCutCtx(fakeClient as any, {
+    const wrapped = withCutctx(fakeClient as any, {
       baseUrl: "http://localhost:8787",
       model: "gpt-4o", // compression model
     });

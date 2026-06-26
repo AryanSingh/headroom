@@ -5,17 +5,17 @@ Tool comparison benchmark.
 Compare compression quality and performance across Cutctx, LLMLingua2, Morph, and others.
 
 Usage:
-    # Compare headroom and llmlingua2 on ToolBench
-    python compare.py --tool headroom --tool llmlingua2 --corpus toolbench
+    # Compare cutctx and llmlingua2 on ToolBench
+    python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench
 
     # Dry run with synthetic data
-    python compare.py --tool headroom --tool llmlingua2 --dry-run
+    python compare.py --tool cutctx --tool llmlingua2 --dry-run
 
     # Multi-corpus comparison
-    python compare.py --tool headroom --corpus toolbench --corpus longbench
+    python compare.py --tool cutctx --corpus toolbench --corpus longbench
 
     # Save results
-    python compare.py --tool headroom --tool llmlingua2 --output results.json
+    python compare.py --tool cutctx --tool llmlingua2 --output results.json
 
 Available corpora:
     - synthetic: Generated data (no downloads)
@@ -24,7 +24,7 @@ Available corpora:
     - mixed: Combination of above
 
 Available tools:
-    - headroom: Content-aware compression
+    - cutctx: Content-aware compression
     - llmlingua2: LLM-based importance scoring
     - morph: Token-level deletion
 """
@@ -46,10 +46,10 @@ import tiktoken
 
 # Cutctx
 try:
-    from headroom import compress
-    HEADROOM_AVAILABLE = True
+    from cutctx import compress
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
+    CUTCTX_AVAILABLE = False
 
 # LLMLingua2
 try:
@@ -216,8 +216,8 @@ class CutctxTool(CompressionTool):
     """Wrapper for Cutctx compression."""
 
     def __init__(self):
-        if not HEADROOM_AVAILABLE:
-            raise ImportError("headroom not installed")
+        if not CUTCTX_AVAILABLE:
+            raise ImportError("cutctx not installed")
         self.compress_func = compress
 
     def compress(self, text: str) -> tuple[str, float]:
@@ -389,7 +389,7 @@ def main() -> int:
         "--tool",
         action="append",
         default=[],
-        help="Tools to compare (default: headroom). Can specify multiple times.",
+        help="Tools to compare (default: cutctx). Can specify multiple times.",
     )
 
     parser.add_argument(

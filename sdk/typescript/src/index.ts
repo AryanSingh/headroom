@@ -1,7 +1,7 @@
 // --- Core ---
 export { compress } from "./compress.js";
-export { CutCtxClient } from "./client.js";
-export type { ExtendedClientOptions, CutCtxParams } from "./client.js";
+export { CutctxClient } from "./client.js";
+export type { ExtendedClientOptions, CutctxParams } from "./client.js";
 export { simulate } from "./simulate.js";
 export type { SimulateOptions } from "./simulate.js";
 
@@ -28,16 +28,16 @@ export type {
   OpenAIMessage,
   CompressOptions,
   CompressResult,
-  CutCtxClientOptions,
-  CutCtxClientInterface,
+  CutctxClientOptions,
+  CutctxClientInterface,
 } from "./types.js";
 
 // --- Errors (full hierarchy) ---
 export {
-  CutCtxError,
-  CutCtxConnectionError,
-  CutCtxAuthError,
-  CutCtxCompressError,
+  CutctxError,
+  CutctxConnectionError,
+  CutctxAuthError,
+  CutctxCompressError,
   ConfigurationError,
   ProviderError,
   StorageError,
@@ -50,7 +50,7 @@ export {
 
 // --- Config types ---
 export type {
-  CutCtxMode,
+  CutctxMode,
   RelevanceTier,
   ContentType,
   BlockKind,
@@ -67,7 +67,7 @@ export type {
   PrefixFreezeConfig,
   ReadLifecycleConfig,
   CompressionProfile,
-  CutCtxConfig,
+  CutctxConfig,
 } from "./types/config.js";
 
 // --- Data models ---
@@ -109,13 +109,13 @@ export type {
   SharedContextOptions,
 } from "./shared-context.js";
 
-// --- Filesystem contract (parity shell with headroom.paths) ---
+// --- Filesystem contract (parity shell with cutctx.paths) ---
 export {
-  HEADROOM_CONFIG_DIR_ENV,
-  HEADROOM_WORKSPACE_DIR_ENV,
-  HEADROOM_SAVINGS_PATH_ENV,
-  HEADROOM_TOIN_PATH_ENV,
-  HEADROOM_SUBSCRIPTION_STATE_PATH_ENV,
+  CUTCTX_CONFIG_DIR_ENV,
+  CUTCTX_WORKSPACE_DIR_ENV,
+  CUTCTX_SAVINGS_PATH_ENV,
+  CUTCTX_TOIN_PATH_ENV,
+  CUTCTX_SUBSCRIPTION_STATE_PATH_ENV,
   configDir,
   workspaceDir,
   savingsPath,

@@ -8,11 +8,11 @@
 
 ## Background and constraints
 
-Internal Python package: `headroom`. Public CLI: `cutctx`. Public PyPI package: `cutctx-ai`.  
-All new files go under `headroom/` (package) or `headroom/integrations/` (third-party glue).  
+Internal Python package: `cutctx`. Public CLI: `cutctx`. Public PyPI package: `cutctx-ai`.  
+All new files go under `cutctx/` (package) or `cutctx/integrations/` (third-party glue).  
 All new optional extras go in `pyproject.toml` under `[project.optional-dependencies]`.  
-Pattern for lazy imports: look at `headroom/transforms/__init__.py` — use `_LAZY_EXPORTS` + `__getattr__`.  
-Pattern for new integrations: look at `headroom/integrations/langchain/` — same structure applies to LlamaIndex.
+Pattern for lazy imports: look at `cutctx/transforms/__init__.py` — use `_LAZY_EXPORTS` + `__getattr__`.  
+Pattern for new integrations: look at `cutctx/integrations/langchain/` — same structure applies to LlamaIndex.
 
 ---
 
@@ -20,13 +20,13 @@ Pattern for new integrations: look at `headroom/integrations/langchain/` — sam
 
 ### What already exists
 
-`headroom/observability/tracing.py` has a **complete, working** Langfuse OTEL integration:
-- `LangfuseTracingConfig` dataclass (reads `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`, `HEADROOM_LANGFUSE_ENABLED`)
+`cutctx/observability/tracing.py` has a **complete, working** Langfuse OTEL integration:
+- `LangfuseTracingConfig` dataclass (reads `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`, `CUTCTX_LANGFUSE_ENABLED`)
 - `configure_langfuse_tracing(config)` wires up an OTLP BatchSpanProcessor pointed at `{base_url}/api/public/otel/v1/traces`
 - `get_langfuse_tracing_status()` returns config status
 - `CutctxTracer` facade used by compression paths to emit spans
 
-`headroom/proxy/server.py` already calls `configure_langfuse_tracing(LangfuseTracingConfig.from_env(...))` at startup (line ~1567).
+`cutctx/proxy/server.py` already calls `configure_langfuse_tracing(LangfuseTracingConfig.from_env(...))` at startup (line ~1567).
 
 The `/stats` endpoint already includes `"langfuse": get_langfuse_tracing_status()`.
 
@@ -48,9 +48,9 @@ langfuse = [
 ]
 ```
 
-Note: `langfuse` the Python package is NOT strictly required for the OTEL path (CutCtx uses raw OTLP, not the Langfuse SDK). Include it anyway so users get the Langfuse decorator/observe API too. The CutCtx-internal tracing goes via OTLP regardless.
+Note: `langfuse` the Python package is NOT strictly required for the OTEL path (Cutctx uses raw OTLP, not the Langfuse SDK). Include it anyway so users get the Langfuse decorator/observe API too. The Cutctx-internal tracing goes via OTLP regardless.
 
-### A.2 — `headroom/cli/proxy.py`: add `--langfuse` flag group
+### A.2 — `cutctx/cli/proxy.py`: add `--langfuse` flag group
 
 Find the `--no-telemetry` option block (around line 601). After it, add three new options:
 
@@ -59,11 +59,11 @@ Find the `--no-telemetry` option block (around line 601). After it, add three ne
     "--langfuse",
     "langfuse_enabled",
     is_flag=True,
-    envvar="HEADROOM_LANGFUSE_ENABLED",
+    envvar="CUTCTX_LANGFUSE_ENABLED",
     help=(
         "Send compression traces to Langfuse. "
         "Requires LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY env vars. "
-        "Env: HEADROOM_LANGFUSE_ENABLED."
+        "Env: CUTCTX_LANGFUSE_ENABLED."
     ),
 )
 @click.option(
@@ -102,7 +102,7 @@ In the function body, before `ProxyConfig(...)` is built, inject the env vars fr
 ```python
 # Langfuse: if flags were passed, inject into env so LangfuseTracingConfig.from_env() picks them up
 if langfuse_enabled:
-    os.environ.setdefault("HEADROOM_LANGFUSE_ENABLED", "1")
+    os.environ.setdefault("CUTCTX_LANGFUSE_ENABLED", "1")
 if langfuse_public_key:
     os.environ.setdefault("LANGFUSE_PUBLIC_KEY", langfuse_public_key)
 if langfuse_secret_key:
@@ -115,11 +115,11 @@ Do this before `ProxyConfig(...)` is instantiated. Check that the existing `conf
 
 ### A.3 — Update the startup banner
 
-In `headroom/cli/proxy.py`, find the startup banner (the `║` box, around line 980–1083). Find the telemetry section. Add a Langfuse line after it:
+In `cutctx/cli/proxy.py`, find the startup banner (the `║` box, around line 980–1083). Find the telemetry section. Add a Langfuse line after it:
 
 ```python
 langfuse_line = ""
-if os.environ.get("HEADROOM_LANGFUSE_ENABLED", "").lower() in ("1", "true", "yes", "on"):
+if os.environ.get("CUTCTX_LANGFUSE_ENABLED", "").lower() in ("1", "true", "yes", "on"):
     lf_url = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
     langfuse_line = f"\n║  Langfuse:    ENABLED → {lf_url:<41}║"
 ```
@@ -128,12 +128,12 @@ Splice `langfuse_line` into the banner string just below the telemetry line.
 
 ### A.4 — Create `wiki/langfuse.md`
 
-Create `/Users/aryansingh/Documents/Claude/Projects/headroom/wiki/langfuse.md`:
+Create `/Users/aryansingh/Documents/Claude/Projects/cutctx/wiki/langfuse.md`:
 
 ```markdown
 # Langfuse Integration
 
-CutCtx emits OpenTelemetry traces to Langfuse for every compression decision,
+Cutctx emits OpenTelemetry traces to Langfuse for every compression decision,
 CCR operation, and proxy request. Zero code changes required — enable with two
 env vars.
 
@@ -166,11 +166,11 @@ cutctx proxy --langfuse
 
 | Variable | Default | Description |
 |---|---|---|
-| `HEADROOM_LANGFUSE_ENABLED` | `0` | Set to `1` to enable |
+| `CUTCTX_LANGFUSE_ENABLED` | `0` | Set to `1` to enable |
 | `LANGFUSE_PUBLIC_KEY` | — | Your Langfuse project public key |
 | `LANGFUSE_SECRET_KEY` | — | Your Langfuse project secret key |
 | `LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` | Override for self-hosted |
-| `HEADROOM_LANGFUSE_SERVICE_NAME` | `cutctx` | Service name in Langfuse traces |
+| `CUTCTX_LANGFUSE_SERVICE_NAME` | `cutctx` | Service name in Langfuse traces |
 
 ## Checking status
 
@@ -186,20 +186,20 @@ curl http://127.0.0.1:8787/stats | python3 -m json.tool | grep -A6 langfuse
 
 ### What needs to be built
 
-LlamaIndex uses `NodePostprocessor` classes to filter/compress `NodeWithScore` objects after retrieval but before they hit the LLM. We need a `CutCtxNodePostprocessor` that:
-1. Scores each retrieved node's relevance against the current query using CutCtx's existing BM25/hybrid scorer
+LlamaIndex uses `NodePostprocessor` classes to filter/compress `NodeWithScore` objects after retrieval but before they hit the LLM. We need a `CutctxNodePostprocessor` that:
+1. Scores each retrieved node's relevance against the current query using Cutctx's existing BM25/hybrid scorer
 2. Drops nodes below a threshold
-3. Optionally compresses the surviving nodes' text using CutCtx compression
+3. Optionally compresses the surviving nodes' text using Cutctx compression
 4. Returns the pruned, compressed list
 
-The LangChain equivalent (`CutctxDocumentCompressor` in `headroom/integrations/langchain/retriever.py`) is a direct model — read it fully before implementing.
+The LangChain equivalent (`CutctxDocumentCompressor` in `cutctx/integrations/langchain/retriever.py`) is a direct model — read it fully before implementing.
 
 ### B.1 — `pyproject.toml`: add `[llamaindex]` extra
 
 After the `[langchain]` extra, add:
 
 ```toml
-# LlamaIndex integration: CutCtxNodePostprocessor for RAG pipelines.
+# LlamaIndex integration: CutctxNodePostprocessor for RAG pipelines.
 # pip install cutctx-ai[llamaindex]
 llamaindex = [
     "llama-index-core>=0.10.0,<1.0",
@@ -208,29 +208,29 @@ llamaindex = [
 
 Note: `llama-index-core` is the lean core package (no heavy optional deps). Users who need specific readers install them separately. Do NOT require `llama-index` (the meta-package) — it pulls in too many transitive deps.
 
-### B.2 — Create `headroom/integrations/llamaindex/` directory
+### B.2 — Create `cutctx/integrations/llamaindex/` directory
 
 Create these files:
 
-#### `headroom/integrations/llamaindex/__init__.py`
+#### `cutctx/integrations/llamaindex/__init__.py`
 
 ```python
-"""LlamaIndex integration for CutCtx.
+"""LlamaIndex integration for Cutctx.
 
 Provides:
-- CutCtxNodePostprocessor: drop-in NodePostprocessor for any LlamaIndex pipeline.
+- CutctxNodePostprocessor: drop-in NodePostprocessor for any LlamaIndex pipeline.
   Filters retrieved nodes by relevance, then optionally compresses surviving content.
 
 Install: pip install cutctx-ai[llamaindex]
 
 Example:
     from llama_index.core import VectorStoreIndex
-    from headroom.integrations.llamaindex import CutCtxNodePostprocessor
+    from cutctx.integrations.llamaindex import CutctxNodePostprocessor
 
     index = VectorStoreIndex.from_documents(documents)
     query_engine = index.as_query_engine(
         node_postprocessors=[
-            CutCtxNodePostprocessor(
+            CutctxNodePostprocessor(
                 top_n=8,           # keep at most 8 nodes
                 min_score=0.25,    # drop nodes scoring below 0.25
                 compress=True,     # also compress surviving node text
@@ -240,17 +240,17 @@ Example:
     response = query_engine.query("How does authentication work?")
 """
 
-from .postprocessor import CutCtxNodePostprocessor, NodeFilterMetrics
+from .postprocessor import CutctxNodePostprocessor, NodeFilterMetrics
 
-__all__ = ["CutCtxNodePostprocessor", "NodeFilterMetrics"]
+__all__ = ["CutctxNodePostprocessor", "NodeFilterMetrics"]
 ```
 
-#### `headroom/integrations/llamaindex/postprocessor.py`
+#### `cutctx/integrations/llamaindex/postprocessor.py`
 
 Full implementation:
 
 ```python
-"""CutCtxNodePostprocessor — relevance filter + compression for LlamaIndex pipelines.
+"""CutctxNodePostprocessor — relevance filter + compression for LlamaIndex pipelines.
 
 Implements LlamaIndex's BaseNodePostprocessor protocol. Sits after retrieval
 and before LLM synthesis. Two operations in sequence:
@@ -258,7 +258,7 @@ and before LLM synthesis. Two operations in sequence:
 1. FILTER: score every node against the query using BM25 (fast, no deps).
    Drop nodes below min_score. Keep at most top_n.
 
-2. COMPRESS (opt-in): run surviving node text through CutCtx ContentRouter.
+2. COMPRESS (opt-in): run surviving node text through Cutctx ContentRouter.
    Useful when nodes are large tool outputs, logs, or code files.
 """
 
@@ -328,13 +328,13 @@ def _make_base_class() -> type:
     return object
 
 
-class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
+class CutctxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
     """LlamaIndex NodePostprocessor that filters by relevance and compresses text.
 
     Args:
         top_n: Maximum nodes to return. None = no limit.
         min_score: Drop nodes below this BM25 relevance score (0–1). Default 0.0 (keep all).
-        compress: If True, compress surviving node text with CutCtx ContentRouter. Default False.
+        compress: If True, compress surviving node text with Cutctx ContentRouter. Default False.
         scorer: Scoring backend. One of "bm25" (default, no deps), "hybrid" (needs [relevance]).
     """
 
@@ -407,7 +407,7 @@ class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
 
         self._last_metrics = metrics
         logger.debug(
-            "CutCtxNodePostprocessor: %d → %d nodes (dropped %d, compress=%s)",
+            "CutctxNodePostprocessor: %d → %d nodes (dropped %d, compress=%s)",
             metrics.nodes_in, metrics.nodes_out, metrics.nodes_dropped, self.compress,
         )
         return surviving
@@ -421,14 +421,14 @@ class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
         if self._scorer is None:
             if self.scorer_name == "hybrid":
                 try:
-                    from headroom.relevance.hybrid import HybridScorer
+                    from cutctx.relevance.hybrid import HybridScorer
                     self._scorer = HybridScorer()
                 except Exception:
                     logger.warning("HybridScorer unavailable, falling back to BM25")
-                    from headroom.relevance.bm25 import BM25Scorer
+                    from cutctx.relevance.bm25 import BM25Scorer
                     self._scorer = BM25Scorer()
             else:
-                from headroom.relevance.bm25 import BM25Scorer
+                from cutctx.relevance.bm25 import BM25Scorer
                 self._scorer = BM25Scorer()
         return self._scorer
 
@@ -458,16 +458,16 @@ class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
     # ------------------------------------------------------------------
 
     def _get_router(self) -> Any:
-        """Lazy-load CutCtx ContentRouter."""
+        """Lazy-load Cutctx ContentRouter."""
         if self._router is None:
-            from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+            from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
             self._router = ContentRouter(ContentRouterConfig())
         return self._router
 
     def _compress_nodes(
         self, nodes: list[NodeWithScore], metrics: NodeFilterMetrics
     ) -> tuple[list[NodeWithScore], NodeFilterMetrics]:
-        """Compress surviving node text using CutCtx ContentRouter."""
+        """Compress surviving node text using Cutctx ContentRouter."""
         try:
             from llama_index.core.schema import TextNode
 
@@ -519,14 +519,14 @@ class CutCtxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
 
 **Important:** LlamaIndex's `BaseNodePostprocessor` has a `_postprocess_nodes(nodes, query_bundle)` abstract method. The public API is `postprocess_nodes(nodes, query_bundle, ...)` which calls `_postprocess_nodes`. Do NOT override `postprocess_nodes` — only `_postprocess_nodes`. Read the actual `BaseNodePostprocessor` source to verify this before implementing.
 
-### B.3 — Register in `headroom/integrations/__init__.py`
+### B.3 — Register in `cutctx/integrations/__init__.py`
 
-Read `headroom/integrations/__init__.py`. Add a lazy export for `CutCtxNodePostprocessor`:
+Read `cutctx/integrations/__init__.py`. Add a lazy export for `CutctxNodePostprocessor`:
 
 ```python
 # In the _LAZY_EXPORTS dict (or equivalent lazy-load mechanism):
-"CutCtxNodePostprocessor": ("headroom.integrations.llamaindex", "CutCtxNodePostprocessor"),
-"NodeFilterMetrics": ("headroom.integrations.llamaindex", "NodeFilterMetrics"),
+"CutctxNodePostprocessor": ("cutctx.integrations.llamaindex", "CutctxNodePostprocessor"),
+"NodeFilterMetrics": ("cutctx.integrations.llamaindex", "NodeFilterMetrics"),
 ```
 
 Follow whatever pattern the existing integrations use — check if it uses a `_LAZY_EXPORTS` dict, a `__getattr__`, or explicit conditional imports.
@@ -536,7 +536,7 @@ Follow whatever pattern the existing integrations use — check if it uses a `_L
 ```markdown
 # LlamaIndex Integration
 
-`CutCtxNodePostprocessor` slots into any LlamaIndex retrieval pipeline as a
+`CutctxNodePostprocessor` slots into any LlamaIndex retrieval pipeline as a
 standard `NodePostprocessor`. It filters retrieved nodes by relevance (dropping
 off-topic results) and optionally compresses surviving node text before synthesis.
 
@@ -550,7 +550,7 @@ pip install cutctx-ai[llamaindex]
 
 \```python
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from headroom.integrations.llamaindex import CutCtxNodePostprocessor
+from cutctx.integrations.llamaindex import CutctxNodePostprocessor
 
 documents = SimpleDirectoryReader("./data").load_data()
 index = VectorStoreIndex.from_documents(documents)
@@ -558,7 +558,7 @@ index = VectorStoreIndex.from_documents(documents)
 query_engine = index.as_query_engine(
     similarity_top_k=20,                         # retrieve 20 candidates
     node_postprocessors=[
-        CutCtxNodePostprocessor(
+        CutctxNodePostprocessor(
             top_n=6,           # keep 6 most relevant
             min_score=0.2,     # drop anything < 0.2 relevance
             compress=True,     # compress surviving node text
@@ -575,13 +575,13 @@ response = query_engine.query("How does authentication work?")
 |---|---|---|
 | `top_n` | `10` | Max nodes to return |
 | `min_score` | `0.0` | Drop nodes below this relevance score (0–1) |
-| `compress` | `False` | Compress surviving node text with CutCtx |
+| `compress` | `False` | Compress surviving node text with Cutctx |
 | `scorer` | `"bm25"` | Scoring backend: `"bm25"` (default) or `"hybrid"` (needs `[relevance]`) |
 
 ## Metrics
 
 \```python
-postprocessor = CutCtxNodePostprocessor(top_n=8, compress=True)
+postprocessor = CutctxNodePostprocessor(top_n=8, compress=True)
 # ... run query ...
 m = postprocessor.last_metrics
 print(f"{m.nodes_in} → {m.nodes_out} nodes, {m.nodes_dropped} dropped")
@@ -595,7 +595,7 @@ pip install cutctx-ai[llamaindex,relevance]
 \```
 
 \```python
-postprocessor = CutCtxNodePostprocessor(top_n=8, scorer="hybrid")
+postprocessor = CutctxNodePostprocessor(top_n=8, scorer="hybrid")
 \```
 ```
 
@@ -611,13 +611,13 @@ Use case: a 50-turn conversation where turns 1–40 are about a different featur
 
 ### What already exists
 
-- `headroom/relevance/bm25.py`: `BM25Scorer` — fast, no deps
-- `headroom/relevance/embedding.py`: `EmbeddingScorer` — needs fastembed
-- `headroom/relevance/hybrid.py`: `HybridScorer` — combines both
-- `headroom/relevance/base.py`: `RelevanceScorer` ABC, `RelevanceScore` dataclass
-- `headroom/transforms/content_router.py`: `ContentRouter` — currently entry point for all compression
+- `cutctx/relevance/bm25.py`: `BM25Scorer` — fast, no deps
+- `cutctx/relevance/embedding.py`: `EmbeddingScorer` — needs fastembed
+- `cutctx/relevance/hybrid.py`: `HybridScorer` — combines both
+- `cutctx/relevance/base.py`: `RelevanceScorer` ABC, `RelevanceScore` dataclass
+- `cutctx/transforms/content_router.py`: `ContentRouter` — currently entry point for all compression
 
-### C.1 — Create `headroom/transforms/selective_filter.py`
+### C.1 — Create `cutctx/transforms/selective_filter.py`
 
 ```python
 """SelectiveContextFilter — drop low-relevance message blocks before compression.
@@ -693,12 +693,12 @@ class SelectiveContextFilter:
         if self._scorer is None:
             if self.config.scorer == "hybrid":
                 try:
-                    from headroom.relevance.hybrid import HybridScorer
+                    from cutctx.relevance.hybrid import HybridScorer
                     self._scorer = HybridScorer()
                     return self._scorer
                 except Exception:
                     logger.debug("HybridScorer unavailable, falling back to BM25")
-            from headroom.relevance.bm25 import BM25Scorer
+            from cutctx.relevance.bm25 import BM25Scorer
             self._scorer = BM25Scorer()
         return self._scorer
 
@@ -826,7 +826,7 @@ class SelectiveContextFilter:
         return filtered, result
 ```
 
-### C.2 — Wire into `headroom/transforms/content_router.py`
+### C.2 — Wire into `cutctx/transforms/content_router.py`
 
 **Step 1:** Add fields to `ContentRouterConfig` (around line 421–540):
 
@@ -880,7 +880,7 @@ if self.config.selective_filter and messages:
 
 You must read `content_router.py`'s `apply()` method in full to find the correct insertion point. Look for the method that takes a `messages: list[dict]` parameter and returns a modified `list[dict]`. The filter must run before ANY compression logic.
 
-### C.3 — Add `--selective-filter` flag to `headroom/cli/proxy.py`
+### C.3 — Add `--selective-filter` flag to `cutctx/cli/proxy.py`
 
 After `--query-aware`, add:
 
@@ -889,12 +889,12 @@ After `--query-aware`, add:
     "--selective-filter",
     "selective_filter",
     is_flag=True,
-    envvar="HEADROOM_SELECTIVE_FILTER",
+    envvar="CUTCTX_SELECTIVE_FILTER",
     help=(
         "Drop low-relevance message turns before compression. "
         "Scores each turn against the current user query; turns below "
         "--selective-filter-threshold are removed entirely. "
-        "Env: HEADROOM_SELECTIVE_FILTER."
+        "Env: CUTCTX_SELECTIVE_FILTER."
     ),
 )
 @click.option(
@@ -902,17 +902,17 @@ After `--query-aware`, add:
     "selective_filter_threshold",
     default=None,
     type=click.FloatRange(min=0.0, max=1.0),
-    envvar="HEADROOM_SELECTIVE_FILTER_THRESHOLD",
+    envvar="CUTCTX_SELECTIVE_FILTER_THRESHOLD",
     help=(
         "Minimum relevance score (0–1) for a message to survive selective filtering. "
-        "Default: 0.15. Env: HEADROOM_SELECTIVE_FILTER_THRESHOLD."
+        "Default: 0.15. Env: CUTCTX_SELECTIVE_FILTER_THRESHOLD."
     ),
 )
 ```
 
 Add to `proxy()` signature: `selective_filter: bool`, `selective_filter_threshold: float | None`.
 
-Add to `ProxyConfig` in `headroom/proxy/models.py`:
+Add to `ProxyConfig` in `cutctx/proxy/models.py`:
 ```python
 selective_filter: bool = False
 selective_filter_threshold: float = 0.15
@@ -924,19 +924,19 @@ selective_filter=selective_filter,
 selective_filter_threshold=selective_filter_threshold if selective_filter_threshold is not None else 0.15,
 ```
 
-In `headroom/proxy/server.py`, find where `ContentRouterConfig` is constructed and add:
+In `cutctx/proxy/server.py`, find where `ContentRouterConfig` is constructed and add:
 ```python
 selective_filter=config.selective_filter,
 selective_filter_min_score=config.selective_filter_threshold,
 ```
 
-### C.4 — Register in `headroom/transforms/__init__.py`
+### C.4 — Register in `cutctx/transforms/__init__.py`
 
 Add to `_LAZY_EXPORTS`:
 ```python
-"SelectiveContextFilter": ("headroom.transforms.selective_filter", "SelectiveContextFilter"),
-"SelectiveFilterConfig": ("headroom.transforms.selective_filter", "SelectiveFilterConfig"),
-"FilterResult": ("headroom.transforms.selective_filter", "FilterResult"),
+"SelectiveContextFilter": ("cutctx.transforms.selective_filter", "SelectiveContextFilter"),
+"SelectiveFilterConfig": ("cutctx.transforms.selective_filter", "SelectiveFilterConfig"),
+"FilterResult": ("cutctx.transforms.selective_filter", "FilterResult"),
 ```
 
 Add to `__all__`:
@@ -953,14 +953,14 @@ Add to `__all__`:
 At the top of `CHANGELOG.md`, append to the `[Unreleased]` section:
 
 ```markdown
-* **Langfuse integration surfaced**: `cutctx proxy --langfuse` (or `HEADROOM_LANGFUSE_ENABLED=1`) now
+* **Langfuse integration surfaced**: `cutctx proxy --langfuse` (or `CUTCTX_LANGFUSE_ENABLED=1`) now
   activates the built-in Langfuse OTEL tracing with visible CLI flag, startup banner line, and
   `[langfuse]` installable extra (`pip install cutctx-ai[langfuse]`). Added `wiki/langfuse.md`.
-* **LlamaIndex integration** (`pip install cutctx-ai[llamaindex]`): `CutCtxNodePostprocessor` —
+* **LlamaIndex integration** (`pip install cutctx-ai[llamaindex]`): `CutctxNodePostprocessor` —
   drop-in LlamaIndex `NodePostprocessor` that filters retrieved nodes by BM25/hybrid relevance
-  score and optionally compresses surviving node text via CutCtx ContentRouter.
+  score and optionally compresses surviving node text via Cutctx ContentRouter.
   Added `wiki/llamaindex.md`.
-* **Selective Context Filter** (`--selective-filter` / `HEADROOM_SELECTIVE_FILTER=1`):
+* **Selective Context Filter** (`--selective-filter` / `CUTCTX_SELECTIVE_FILTER=1`):
   new pre-compression transform that scores each conversation turn against the current
   user query and drops turns below `--selective-filter-threshold` (default 0.15).
   Uses existing BM25/hybrid relevance infrastructure. Wired into ContentRouterConfig.
@@ -972,18 +972,18 @@ At the top of `CHANGELOG.md`, append to the `[Unreleased]` section:
 
 ```bash
 # A: Langfuse syntax + wiring
-python3 -c "import ast; ast.parse(open('headroom/observability/tracing.py').read()); print('OK')"
-python3 -c "from headroom.observability.tracing import configure_langfuse_tracing; print('OK')"
-python3 -m headroom.cli proxy --help | grep -i langfuse
+python3 -c "import ast; ast.parse(open('cutctx/observability/tracing.py').read()); print('OK')"
+python3 -c "from cutctx.observability.tracing import configure_langfuse_tracing; print('OK')"
+python3 -m cutctx.cli proxy --help | grep -i langfuse
 
 # B: LlamaIndex
-python3 -c "import ast; ast.parse(open('headroom/integrations/llamaindex/postprocessor.py').read()); print('OK')"
-python3 -c "from headroom.integrations.llamaindex import CutCtxNodePostprocessor; print(CutCtxNodePostprocessor.available())"
+python3 -c "import ast; ast.parse(open('cutctx/integrations/llamaindex/postprocessor.py').read()); print('OK')"
+python3 -c "from cutctx.integrations.llamaindex import CutctxNodePostprocessor; print(CutctxNodePostprocessor.available())"
 
 # C: Selective filter
-python3 -c "import ast; ast.parse(open('headroom/transforms/selective_filter.py').read()); print('OK')"
+python3 -c "import ast; ast.parse(open('cutctx/transforms/selective_filter.py').read()); print('OK')"
 python3 -c "
-from headroom.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig
+from cutctx.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig
 f = SelectiveContextFilter(SelectiveFilterConfig(min_score=0.1, protect_recent=2))
 msgs = [
     {'role': 'user', 'content': 'how do I configure Redis?'},

@@ -3,10 +3,10 @@ from setuptools import find_packages, setup
 setup(
     name="cutctx-sdk",
     version="0.1.0",
-    description="Python SDK for CutCtx — AI context compression proxy",
+    description="Python SDK for Cutctx — AI context compression proxy",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    author="CutCtx Labs",
+    author="Cutctx Labs",
     author_email="hello@cutctx.dev",
     url="https://github.com/cutctx/cutctx",
     license="Apache-2.0",

@@ -18,7 +18,7 @@ Every AI coding agent session produces failures: wrong tool calls, misread file 
 cutctx learn [--session-dir ~/.cutctx/sessions] [--output CLAUDE.md]
 ```
 
-1. **Mines session logs** — reads compressed session records from the CutCtx proxy (every request/response pair is stored locally)
+1. **Mines session logs** — reads compressed session records from the Cutctx proxy (every request/response pair is stored locally)
 2. **Detects failure patterns** — looks for: repeated tool errors, retry loops, contradicted assumptions, explicit corrections from the user, and assistant backtracking
 3. **Extracts corrections** — uses an LLM call (configurable model) to summarize what went wrong and what the correct behavior should be
 4. **Writes to `CLAUDE.md` / `AGENTS.md`** — appends structured corrections in the format your agent reads on every session start
@@ -48,7 +48,7 @@ Found 3 correction candidates:
 
 3. [LOW] File path assumption
    Pattern: Agent looked for config in `~/.config/cutctx/` — not found, then found in `~/.cutctx/`
-   Correction: CutCtx config is at ~/.cutctx/, not ~/.config/cutctx/
+   Correction: Cutctx config is at ~/.cutctx/, not ~/.config/cutctx/
 
 Write these 3 corrections to CLAUDE.md? [Y/n]
 ```
@@ -60,7 +60,7 @@ After confirmation, `CLAUDE.md` gets:
 
 - Use `cargo test` to run tests. Do not use `pytest` — there are no Python tests in this repo.
 - Import the Rust core as `import cutctx_core` (underscore). `from cutctx.core import X` does not work.
-- CutCtx config is at `~/.cutctx/`. Do not look in `~/.config/cutctx/`.
+- Cutctx config is at `~/.cutctx/`. Do not look in `~/.config/cutctx/`.
 ```
 
 ---
@@ -124,7 +124,7 @@ Or schedule a weekly digest:
 cutctx learn --model ollama/llama3  # fully offline
 ```
 
-No session data is sent to CutCtx servers.
+No session data is sent to Cutctx servers.
 
 ---
 

@@ -66,16 +66,16 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 
 ## Positioning Against Native Provider Caching
 
-> "Provider-native caching helps inside a single provider. Cutctx works across providers, agent tools, and payload types — and adds observability, retrieval, and team policy control that no provider offers. The two are tracked independently: provider cache and CutCtx compression are separate line items in the buyer report, not netted into a single number."
+> "Provider-native caching helps inside a single provider. Cutctx works across providers, agent tools, and payload types — and adds observability, retrieval, and team policy control that no provider offers. The two are tracked independently: provider cache and Cutctx compression are separate line items in the buyer report, not netted into a single number."
 
 **Five savings sources, attributed independently:**
 1. **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`, Gemini `cachedContentTokenCount`. Observed on the upstream side.
-2. **CutCtx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
+2. **Cutctx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
 3. **Semantic cache** — tokens avoided by serving a prior near-duplicate request from the response cache. Cross-provider.
 4. **Self-hosted prefix cache** — tokens served by vLLM Automatic Prefix Caching. Reported separately from provider cache.
 5. **Model routing** — tokens served by a cheaper model than the user originally requested, plus the resulting dollar savings.
 
-**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema. A buyer who already has Anthropic prompt cache enabled sees that cache as the first line item, and CutCtx compression as the second — they are independent, not redundant.
+**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of Cutctx above and beyond their existing provider cache, in dollars, with a reproducible schema. A buyer who already has Anthropic prompt cache enabled sees that cache as the first line item, and Cutctx compression as the second — they are independent, not redundant.
 
 **Key differentiators:**
 - Works across Anthropic, OpenAI, Google, Bedrock, Vertex — native caching is provider-locked

@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: headroom-backup
-  namespace: headroom
+  name: cutctx-backup
+  namespace: cutctx
 spec:
   # Daily at 00:00 UTC. Override with --schedule if needed.
   schedule: "0 0 * * *"
@@ -28,9 +28,9 @@ spec:
               apk add --no-cache sqlite aws-cli
               TS=$(date +%s)
               # Memory database.
-              if [ -f /data/headroom_memory.db ]; then
-                sqlite3 /data/headroom_memory.db ".backup /tmp/memory-$$TS.db"
-                aws s3 cp /tmp/memory-$$TS.db s3://headroom-backups/memory-$$TS.db
+              if [ -f /data/cutctx_memory.db ]; then
+                sqlite3 /data/cutctx_memory.db ".backup /tmp/memory-$$TS.db"
+                aws s3 cp /tmp/memory-$$TS.db s3://cutctx-backups/memory-$$TS.db
                 echo "memory backup ok: memory-$$TS.db"
               else
                 echo "memory db not found, skipping"
@@ -42,7 +42,7 @@ spec:
                 if [ -f "$$db" ]; then
                   base=$$(basename $$db .db)
                   sqlite3 $$db ".backup /tmp/$$base-$$TS.db"
-                  aws s3 cp /tmp/$$base-$$TS.db s3://headroom-backups/$$base-$$TS.db
+                  aws s3 cp /tmp/$$base-$$TS.db s3://cutctx-backups/$$base-$$TS.db
                   echo "$$base backup ok: $$base-$$TS.db"
                 fi
               done
@@ -50,10 +50,10 @@ spec:
               # bound S3 storage costs. Runs in the same job so
               # there's no second CronJob to manage.
               CUTOFF=$(date -d "30 days ago" +%s)
-              aws s3api list-objects-v2 --bucket headroom-backups \
+              aws s3api list-objects-v2 --bucket cutctx-backups \
                 --query "Contents[?LastModified<='$$CUTOFF'].Key" \
                 --output text | while read key; do
-                  [ -n "$$key" ] && aws s3 rm "s3://headroom-backups/$$key"
+                  [ -n "$$key" ] && aws s3 rm "s3://cutctx-backups/$$key"
                 done
             resources:
               requests:
@@ -69,4 +69,4 @@ spec:
           volumes:
           - name: data-volume
             persistentVolumeClaim:
-              claimName: headroom-data
+              claimName: cutctx-data

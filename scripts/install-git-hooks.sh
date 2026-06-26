@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install git hooks for the Headroom repo:
+# Install git hooks for the Cutctx repo:
 #   1. pre-commit  — repo pre-commit checks (ruff, mypy, sync-plugin-versions)
 #   2. pre-push    — full ci-precheck (cargo fmt/clippy/test + python suite)
 #
@@ -28,7 +28,7 @@ HOOK_PATH=".git/hooks/pre-push"
 
 cat > "$HOOK_PATH" <<'HOOK_EOF'
 #!/usr/bin/env bash
-# Headroom pre-push hook — runs `make ci-precheck` so CI never finds a
+# Cutctx pre-push hook — runs `make ci-precheck` so CI never finds a
 # bug a local check could have caught.
 #
 # Skip with: `git push --no-verify`. Use sparingly — every skip is a roll

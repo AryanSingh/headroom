@@ -3,7 +3,7 @@ title: LangChain
 description: Automatic context compression for LangChain chat models, memory, retrievers, and agents.
 ---
 
-CutCtx integrates with LangChain to compress context across all LangChain patterns: chat models, memory, retrievers, agents, and streaming.
+Cutctx integrates with LangChain to compress context across all LangChain patterns: chat models, memory, retrievers, agents, and streaming.
 
 ## Installation
 
@@ -17,9 +17,9 @@ Wrap any chat model in one line:
 
 ```python
 from langchain_openai import ChatOpenAI
-from cutctx.integrations import CutCtxChatModel
+from cutctx.integrations import CutctxChatModel
 
-llm = CutCtxChatModel(ChatOpenAI(model="gpt-4o"))
+llm = CutctxChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Use exactly like before
 response = llm.invoke("Hello!")
@@ -34,20 +34,20 @@ Works with any provider:
 ```python
 from langchain_anthropic import ChatAnthropic
 
-llm = CutCtxChatModel(ChatAnthropic(model="claude-sonnet-4-20250514"))
+llm = CutctxChatModel(ChatAnthropic(model="claude-sonnet-4-20250514"))
 ```
 
 ## Memory integration
 
-`CutCtxChatMessageHistory` wraps any chat history with automatic compression. Long conversations stay under your token budget:
+`CutctxChatMessageHistory` wraps any chat history with automatic compression. Long conversations stay under your token budget:
 
 ```python
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import ChatMessageHistory
-from cutctx.integrations import CutCtxChatMessageHistory
+from cutctx.integrations import CutctxChatMessageHistory
 
 base_history = ChatMessageHistory()
-compressed_history = CutCtxChatMessageHistory(
+compressed_history = CutctxChatMessageHistory(
     base_history,
     compress_threshold_tokens=4000,  # Compress when over 4K tokens
     keep_recent_turns=5,             # Always keep last 5 turns
@@ -65,16 +65,16 @@ print(compressed_history.get_compression_stats())
 
 ## Retriever integration
 
-`CutCtxDocumentCompressor` filters retrieved documents by relevance. Retrieve many for recall, keep the best for precision:
+`CutctxDocumentCompressor` filters retrieved documents by relevance. Retrieve many for recall, keep the best for precision:
 
 ```python
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_community.vectorstores import FAISS
-from cutctx.integrations import CutCtxDocumentCompressor
+from cutctx.integrations import CutctxDocumentCompressor
 
 base_retriever = vectorstore.as_retriever(search_kwargs={"k": 50})
 
-compressor = CutCtxDocumentCompressor(
+compressor = CutctxDocumentCompressor(
     max_documents=10,
     min_relevance=0.3,
     prefer_diverse=True,  # MMR-style diversity
@@ -91,18 +91,18 @@ docs = retriever.invoke("What is Python?")
 
 ## Agent tool wrapping
 
-`wrap_tools_with_headroom` compresses tool outputs before they re-enter the agent's context:
+`wrap_tools_with_cutctx` compresses tool outputs before they re-enter the agent's context:
 
 ```python
 from langchain_core.tools import tool
-from cutctx.integrations import wrap_tools_with_headroom
+from cutctx.integrations import wrap_tools_with_cutctx
 
 @tool
 def search_database(query: str) -> str:
     """Search the database."""
     return json.dumps({"results": [...], "total": 1000})
 
-wrapped_tools = wrap_tools_with_headroom(
+wrapped_tools = wrap_tools_with_cutctx(
     [search_database],
     min_chars_to_compress=1000,
 )
@@ -126,10 +126,10 @@ print(metrics.get_summary())
 ```python
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
-from cutctx.integrations import CutCtxChatModel, wrap_tools_with_headroom
+from cutctx.integrations import CutctxChatModel, wrap_tools_with_cutctx
 
-llm = CutCtxChatModel(ChatOpenAI(model="gpt-4o"))
-tools = wrap_tools_with_headroom([search_web, query_database])
+llm = CutctxChatModel(ChatOpenAI(model="gpt-4o"))
+tools = wrap_tools_with_cutctx([search_web, query_database])
 
 agent = create_react_agent(llm, tools)
 result = agent.invoke({
@@ -174,15 +174,15 @@ async for chunk in llm.astream("Tell me a story"):
 ## Custom configuration
 
 ```python
-from cutctx import CutCtxConfig, CutCtxMode
+from cutctx import CutctxConfig, CutctxMode
 
-config = CutCtxConfig(
-    default_mode=CutCtxMode.OPTIMIZE,
+config = CutctxConfig(
+    default_mode=CutctxMode.OPTIMIZE,
     smart_crusher_target_ratio=0.3,
 )
 
-llm = CutCtxChatModel(
+llm = CutctxChatModel(
     ChatOpenAI(model="gpt-4o"),
-    headroom_config=config,
+    cutctx_config=config,
 )
 ```

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from headroom.mcp_registry.base import RegisterStatus, ServerSpec
-from headroom.mcp_registry.codex import CodexRegistrar
+from cutctx.mcp_registry.base import RegisterStatus, ServerSpec
+from cutctx.mcp_registry.codex import CodexRegistrar
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -143,7 +143,7 @@ def test_register_creates_config_when_missing(tmp_path: Path) -> None:
     cfg = _config_path(tmp_path)
     assert cfg.exists()
     text = cfg.read_text()
-    assert "# --- CutCtx MCP server ---" in text
+    assert "# --- Cutctx MCP server ---" in text
     assert "[mcp_servers.cutctx]" in text
     parsed = tomllib.loads(text)
     assert parsed["mcp_servers"]["cutctx"]["command"] == "cutctx"
@@ -189,8 +189,8 @@ def test_register_cutctx_and_serena_coexist(tmp_path: Path) -> None:
     text = _config_path(tmp_path).read_text()
     assert "[mcp_servers.cutctx]" in text
     assert "[mcp_servers.serena]" in text
-    assert "# --- CutCtx MCP server ---" in text
-    assert "# --- CutCtx MCP server: serena ---" in text
+    assert "# --- Cutctx MCP server ---" in text
+    assert "# --- Cutctx MCP server: serena ---" in text
 
     parsed = tomllib.loads(text)
     assert parsed["mcp_servers"]["cutctx"]["command"] == "cutctx"
@@ -283,7 +283,7 @@ def test_unregister_removes_marker_block(tmp_path: Path) -> None:
     assert reg.unregister_server("cutctx") is True
     text = cfg.read_text()
     assert "[mcp_servers.cutctx]" not in text
-    assert "# --- CutCtx MCP server ---" not in text
+    assert "# --- Cutctx MCP server ---" not in text
     # Surrounding content survives.
     assert "[other_section]" in text
 
@@ -297,8 +297,8 @@ def test_unregister_serena_preserves_cutctx_block(tmp_path: Path) -> None:
     text = _config_path(tmp_path).read_text()
     assert "[mcp_servers.cutctx]" in text
     assert "[mcp_servers.serena]" not in text
-    assert "# --- CutCtx MCP server ---" in text
-    assert "# --- CutCtx MCP server: serena ---" not in text
+    assert "# --- Cutctx MCP server ---" in text
+    assert "# --- Cutctx MCP server: serena ---" not in text
 
 
 def test_unregister_returns_false_when_no_block(tmp_path: Path) -> None:
@@ -309,13 +309,13 @@ def test_unregister_returns_false_when_no_block(tmp_path: Path) -> None:
 
 
 def test_unregister_preserves_user_managed_entry(tmp_path: Path) -> None:
-    """User-managed [mcp_servers.headroom] without our markers stays put."""
+    """User-managed [mcp_servers.cutctx] without our markers stays put."""
     cfg = _config_path(tmp_path)
     cfg.parent.mkdir()
-    cfg.write_text('[mcp_servers.headroom]\ncommand = "/custom/headroom"\n')
+    cfg.write_text('[mcp_servers.cutctx]\ncommand = "/custom/cutctx"\n')
     # No markers => unregister is a no-op.
     assert _make_registrar(tmp_path).unregister_server("cutctx") is False
-    assert "/custom/headroom" in cfg.read_text()
+    assert "/custom/cutctx" in cfg.read_text()
 
 
 # ----------------------------------------------------------------------

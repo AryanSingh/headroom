@@ -19,11 +19,11 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
 
-from headroom.cli import init as init_cli
-from headroom.install.models import ConfigScope, DeploymentManifest
-from headroom.providers.codex import build_launch_env, proxy_base_url
-from headroom.providers.codex.install import apply_provider_scope, build_install_env
-from headroom.proxy.server import ProxyConfig, create_app
+from cutctx.cli import init as init_cli
+from cutctx.install.models import ConfigScope, DeploymentManifest
+from cutctx.providers.codex import build_launch_env, proxy_base_url
+from cutctx.providers.codex.install import apply_provider_scope, build_install_env
+from cutctx.proxy.server import ProxyConfig, create_app
 
 
 def _free_port() -> int:
@@ -176,14 +176,14 @@ def codex_proxy_stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[_Cod
     previous_env = {
         name: os.environ.get(name)
         for name in (
-            "HEADROOM_REQUIRE_RUST_CORE",
+            "CUTCTX_REQUIRE_RUST_CORE",
             "HOME",
-            "HEADROOM_ADMIN_API_KEY",
+            "CUTCTX_ADMIN_API_KEY",
         )
     }
-    os.environ["HEADROOM_REQUIRE_RUST_CORE"] = "false"
+    os.environ["CUTCTX_REQUIRE_RUST_CORE"] = "false"
     os.environ["HOME"] = str(temp_home)
-    os.environ["HEADROOM_ADMIN_API_KEY"] = _PROXY_ADMIN_KEY
+    os.environ["CUTCTX_ADMIN_API_KEY"] = _PROXY_ADMIN_KEY
 
     upstream_port = _free_port()
     upstream = _MockOpenAIServer(("127.0.0.1", upstream_port))
@@ -307,7 +307,7 @@ def test_codex_proxy_base_url_and_launch_env() -> None:
     assert lines == ["OPENAI_BASE_URL=http://127.0.0.1:9999/v1"]
 
 
-def test_codex_launch_env_routes_messages_through_headroom(
+def test_codex_launch_env_routes_messages_through_cutctx(
     codex_proxy_stack: _CodexProxyStack,
 ) -> None:
     env, _ = build_launch_env(codex_proxy_stack.proxy_port, {"OPENAI_API_KEY": "sk-test"})
@@ -320,7 +320,7 @@ def test_codex_launch_env_routes_messages_through_headroom(
     )
 
 
-def test_codex_install_env_routes_messages_through_headroom(
+def test_codex_install_env_routes_messages_through_cutctx(
     codex_proxy_stack: _CodexProxyStack,
 ) -> None:
     env = build_install_env(port=codex_proxy_stack.proxy_port, backend="ignored")
@@ -334,7 +334,7 @@ def test_codex_install_env_routes_messages_through_headroom(
     )
 
 
-def test_init_codex_config_routes_messages_through_headroom(
+def test_init_codex_config_routes_messages_through_cutctx(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     codex_proxy_stack: _CodexProxyStack,
@@ -350,7 +350,7 @@ def test_init_codex_config_routes_messages_through_headroom(
     config_path = tmp_path / ".codex" / "config.toml"
     content = config_path.read_text(encoding="utf-8")
     assert 'env_key = "OPENAI_API_KEY"' not in content
-    # Bug 3 (#406): requires_openai_auth must be absent from headroom provider blocks.
+    # Bug 3 (#406): requires_openai_auth must be absent from cutctx provider blocks.
     assert "requires_openai_auth" not in content, (
         f"requires_openai_auth must not appear in init-generated Codex config:\n{content}"
     )
@@ -363,14 +363,14 @@ def test_init_codex_config_routes_messages_through_headroom(
     )
 
 
-def test_provider_scope_codex_config_routes_messages_through_headroom(
+def test_provider_scope_codex_config_routes_messages_through_cutctx(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     codex_proxy_stack: _CodexProxyStack,
 ) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text('model = "gpt-4o"\n', encoding="utf-8")
-    monkeypatch.setattr("headroom.providers.codex.install.codex_config_path", lambda: config_path)
+    monkeypatch.setattr("cutctx.providers.codex.install.codex_config_path", lambda: config_path)
 
     mutation = apply_provider_scope(_manifest(tmp_path, port=codex_proxy_stack.proxy_port))
 

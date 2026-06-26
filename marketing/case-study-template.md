@@ -1,6 +1,6 @@
 # [Company Name] Case Study
 
-## How [Company] Reduced AI Costs by 70% with CutCtx
+## How [Company] Reduced AI Costs by 70% with Cutctx
 
 ### Customer Overview
 
@@ -10,7 +10,7 @@
 | **Industry** | [Industry] |
 | **Size** | [Startup/Scaleup/Enterprise] |
 | **Use Case** | [AI agent platform / Developer tools / etc.] |
-| **CutCtx Tier** | [Team/Business/Enterprise] |
+| **Cutctx Tier** | [Team/Business/Enterprise] |
 
 ### The Challenge
 
@@ -22,7 +22,7 @@
 - No visibility into token consumption
 - Budget was being consumed by context, not intelligence
 
-**By the Numbers (Before CutCtx):**
+**By the Numbers (Before Cutctx):**
 | Metric | Value |
 |--------|-------|
 | Monthly tokens | [X]M |
@@ -32,7 +32,7 @@
 
 ### The Solution
 
-[Company] integrated CutCtx in [timeframe]:
+[Company] integrated Cutctx in [timeframe]:
 
 ```python
 # 3-line integration
@@ -51,7 +51,7 @@ response = llm.complete(compressed)
 
 ### The Results
 
-**After 3 months with CutCtx:**
+**After 3 months with Cutctx:**
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -67,7 +67,7 @@ response = llm.complete(compressed)
 
 ### Quote
 
-> "[Testimonial quote from customer about the impact of CutCtx]"
+> "[Testimonial quote from customer about the impact of Cutctx]"
 >
 > — [Name], [Title] at [Company]
 

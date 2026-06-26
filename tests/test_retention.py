@@ -1,4 +1,4 @@
-"""Tests for retention controls (headroom/retention.py)."""
+"""Tests for retention controls (cutctx/retention.py)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.retention import RetentionConfig, RetentionManager
+from cutctx.retention import RetentionConfig, RetentionManager
 
 # ---------------------------------------------------------------------------
 # RetentionConfig
@@ -30,16 +30,16 @@ class TestRetentionConfig:
         assert cfg.cleanup_interval_seconds == 3600
 
     def test_from_env(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_RETENTION_CCR_MAX_AGE_SECONDS", "3600")
-        monkeypatch.setenv("HEADROOM_RETENTION_AUDIT_MAX_AGE_DAYS", "30")
-        monkeypatch.setenv("HEADROOM_RETENTION_EPISODIC_MAX_AGE_DAYS", "7")
+        monkeypatch.setenv("CUTCTX_RETENTION_CCR_MAX_AGE_SECONDS", "3600")
+        monkeypatch.setenv("CUTCTX_RETENTION_AUDIT_MAX_AGE_DAYS", "30")
+        monkeypatch.setenv("CUTCTX_RETENTION_EPISODIC_MAX_AGE_DAYS", "7")
         cfg = RetentionConfig.from_env()
         assert cfg.ccr_max_age_seconds == 3600
         assert cfg.audit_max_age_days == 30
         assert cfg.episodic_max_age_days == 7
 
     def test_from_env_invalid_falls_back(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_RETENTION_CCR_MAX_AGE_SECONDS", "not_a_number")
+        monkeypatch.setenv("CUTCTX_RETENTION_CCR_MAX_AGE_SECONDS", "not_a_number")
         cfg = RetentionConfig.from_env()
         assert cfg.ccr_max_age_seconds == 86400 * 7  # default
 
@@ -117,7 +117,7 @@ class TestRetentionManager:
             conn.commit()
             conn.close()
 
-            monkeypatch.setenv("HEADROOM_AUDIT_DB_PATH", str(db_path))
+            monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(db_path))
             cfg = RetentionConfig(
                 ccr_enabled=False,
                 audit_enabled=True,
@@ -131,7 +131,7 @@ class TestRetentionManager:
     def test_cleanup_episodic_removes_old_files(self):
         """Test episodic memory cleanup with real files."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            memories_dir = Path(tmpdir) / ".headroom" / "memories"
+            memories_dir = Path(tmpdir) / ".cutctx" / "memories"
             memories_dir.mkdir(parents=True)
             # Create old file (set mtime to 100 days ago)
             old_file = memories_dir / "old.md"
@@ -150,7 +150,7 @@ class TestRetentionManager:
             )
             mgr = RetentionManager(config=cfg)
             # Patch Path.home to return our tmpdir
-            with patch("headroom.retention.Path") as MockPath:
+            with patch("cutctx.retention.Path") as MockPath:
                 MockPath.home.return_value = Path(tmpdir)
                 deleted = mgr._cleanup_episodic_memories()
                 assert deleted == 1
@@ -165,7 +165,7 @@ class TestRetentionManager:
 
 class TestGlobalSingleton:
     def test_get_creates_default(self):
-        from headroom.retention import get_retention_manager, reset_retention_manager
+        from cutctx.retention import get_retention_manager, reset_retention_manager
 
         reset_retention_manager()
         mgr = get_retention_manager()
@@ -173,7 +173,7 @@ class TestGlobalSingleton:
         reset_retention_manager()
 
     def test_reset_clears(self):
-        from headroom.retention import get_retention_manager, reset_retention_manager
+        from cutctx.retention import get_retention_manager, reset_retention_manager
 
         reset_retention_manager()
         mgr1 = get_retention_manager()

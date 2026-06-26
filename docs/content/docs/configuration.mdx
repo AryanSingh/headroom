@@ -1,18 +1,18 @@
 ---
 title: Configuration
-description: All configuration options for the CutCtx Python and TypeScript SDKs, proxy server, and per-request overrides.
+description: All configuration options for the Cutctx Python and TypeScript SDKs, proxy server, and per-request overrides.
 ---
 
-CutCtx can be configured via the SDK constructor, proxy command line, environment variables, or per-request overrides.
+Cutctx can be configured via the SDK constructor, proxy command line, environment variables, or per-request overrides.
 
 ## CLI Context Tool
 
 `cutctx wrap ...` uses RTK for local shell-output filtering by default.
-Set `HEADROOM_CONTEXT_TOOL=lean-ctx` to have wrap commands install or reuse
+Set `CUTCTX_CONTEXT_TOOL=lean-ctx` to have wrap commands install or reuse
 `lean-ctx` and run `lean-ctx init --agent <tool>` instead of RTK setup.
 
 ```bash
-export HEADROOM_CONTEXT_TOOL=lean-ctx
+export CUTCTX_CONTEXT_TOOL=lean-ctx
 cutctx wrap claude
 cutctx wrap codex --prepare-only
 cutctx wrap gemini --prepare-only
@@ -33,13 +33,13 @@ Supported values are `rtk` and `lean-ctx`; unset defaults to `rtk`.
 <Tabs groupId="lang" items={['TypeScript', 'Python']}>
 <Tab value="TypeScript">
 ```ts twoslash
-import { CutCtxClient } from 'cutctx-ai';
+import { CutctxClient } from 'cutctx-ai';
 
-// Reads from HEADROOM_BASE_URL and HEADROOM_API_KEY automatically
-const client = new CutCtxClient();
+// Reads from CUTCTX_BASE_URL and CUTCTX_API_KEY automatically
+const client = new CutctxClient();
 
 // Or configure explicitly
-const explicit = new CutCtxClient({
+const explicit = new CutctxClient({
   baseUrl: 'http://localhost:8787',
   apiKey: 'your-api-key',
   timeout: 30_000,
@@ -50,10 +50,10 @@ const explicit = new CutCtxClient({
 </Tab>
 <Tab value="Python">
 ```python
-from cutctx import CutCtxClient, OpenAIProvider
+from cutctx import CutctxClient, OpenAIProvider
 from openai import OpenAI
 
-client = CutCtxClient(
+client = CutctxClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
 
@@ -73,7 +73,7 @@ client = CutCtxClient(
     },
 
     # Database location (defaults to temp directory)
-    # store_url="sqlite:////absolute/path/to/headroom.db",
+    # store_url="sqlite:////absolute/path/to/cutctx.db",
 )
 ```
 </Tab>
@@ -102,16 +102,16 @@ response = client.chat.completions.create(
     messages=[...],
 
     # Override mode for this request
-    headroom_mode="audit",
+    cutctx_mode="audit",
 
     # Reserve more tokens for output
-    headroom_output_buffer_tokens=8000,
+    cutctx_output_buffer_tokens=8000,
 
     # Keep last N turns (don't compress)
-    headroom_keep_turns=5,
+    cutctx_keep_turns=5,
 
     # Skip compression for specific tools
-    headroom_tool_profiles={
+    cutctx_tool_profiles={
         "important_tool": {"skip_compression": True}
     },
 )
@@ -170,9 +170,9 @@ response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
     # Reserve tokens for model output
-    headroom_output_buffer_tokens=4000,
+    cutctx_output_buffer_tokens=4000,
     # Keep last N turns uncompressed
-    headroom_keep_turns=3,
+    cutctx_keep_turns=3,
 )
 ```
 
@@ -188,7 +188,7 @@ cutctx proxy \
   --host 0.0.0.0 \           # Host to bind to
   --mode token \             # token compression mode; use cache for prefix-cache stability
   --budget 10.00 \           # Daily budget limit in USD
-  --log-file headroom.jsonl  # Log file path
+  --log-file cutctx.jsonl  # Log file path
 ```
 
 ### Feature Flags
@@ -212,43 +212,43 @@ cutctx proxy --learn --min-evidence 3
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HEADROOM_HOST` | Proxy bind host | `127.0.0.1` |
-| `HEADROOM_PORT` | Proxy bind port | `8787` |
-| `HEADROOM_MODE` | Proxy optimization mode: `token` or `cache` | `token` |
-| `HEADROOM_WORKERS` | Uvicorn worker count | `1` |
-| `HEADROOM_LIMIT_CONCURRENCY` | Maximum concurrent connections before 503 | `1000` |
-| `HEADROOM_MAX_CONNECTIONS` | Maximum upstream HTTP connections | `500` |
-| `HEADROOM_MAX_KEEPALIVE` | Maximum upstream keep-alive connections | `100` |
-| `HEADROOM_BUDGET` | Daily budget limit in USD | -- |
-| `HEADROOM_TELEMETRY` | Set to `off` to disable anonymous telemetry | enabled |
-| `HEADROOM_STATELESS` | Set to `true` to disable filesystem writes | `false` |
-| `HEADROOM_MODEL_LIMITS` | Custom model config (JSON string or file path) | -- |
-| `HEADROOM_BASE_URL` | Base URL of the CutCtx proxy (TypeScript SDK) | `http://localhost:8787` |
-| `HEADROOM_API_KEY` | API key for CutCtx Cloud authentication | -- |
-| `HEADROOM_CONFIG_DIR` | Canonical config (read-mostly) root. Derives `models.json` and per-plugin config paths when set. | `~/.headroom/config` |
-| `HEADROOM_WORKSPACE_DIR` | Canonical workspace (read-write state) root. Derives savings, memory DB, logs, TOIN, subscription state, and more when set. | `~/.headroom` |
-| `HEADROOM_SAVINGS_PATH` | Override persistent savings file location. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_TOIN_PATH` | Override TOIN telemetry file location. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_SUBSCRIPTION_STATE_PATH` | Override subscription tracker state file. Always wins when set. | derived from `${HEADROOM_WORKSPACE_DIR}` |
-| `HEADROOM_TELEMETRY` | Set to `off` to disable anonymous telemetry | `on` |
-| `HEADROOM_MEMORY_INJECTION_MODE` | Memory-context routing mode: `live_zone_tail` (default) or `disabled`. The legacy `system_prompt` mode was retired by PR-A2; supplying it raises. | `live_zone_tail` |
-| `HEADROOM_PROXY_PYTHON_FORWARDER_MODE` | Python forwarder serialization mode. `byte_faithful` (default) forwards original request bytes verbatim when no transform mutated the body and re-serializes canonically only when needed — keeps Anthropic prompt-cache hit-rate intact. `legacy_json_kwarg` is an explicit operator opt-in for emergency rollback to the historical `httpx ... json=body` behavior. NOT a fallback — only flip on explicit operator decision. | `byte_faithful` |
-| `HEADROOM_STRIP_INTERNAL_HEADERS` | Python proxy: whether to strip internal `x-headroom-*` request headers (e.g. `x-headroom-bypass`, `x-headroom-mode`, `x-headroom-user-id`, `x-headroom-stack`, `x-headroom-base-url`) before every upstream forwarder call (PR-A5, fixes P5-49). `enabled` (default) stops fingerprinting / leakage. `disabled` is an explicit operator opt-in for diagnostic shadow tracing — NOT a fallback. Inbound reads of these headers (bypass gating, memory user-id resolution) are unaffected because they read `request.headers` directly. | `enabled` |
-| `HEADROOM_PROXY_STRIP_INTERNAL_HEADERS` | Rust proxy: same policy as `HEADROOM_STRIP_INTERNAL_HEADERS` but for the Rust transparent proxy. Stripping happens inside `build_forward_request_headers` so both HTTP and WebSocket upstream calls are gated by one flag. `enabled` default; `disabled` operator opt-in for diagnostic shadow tracing. Response-side `X-CutCtx-*` injection (e.g. `x-headroom-tokens-saved`) is unrelated and stays. | `enabled` |
-| `HEADROOM_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](/docs/memory#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
+| `CUTCTX_HOST` | Proxy bind host | `127.0.0.1` |
+| `CUTCTX_PORT` | Proxy bind port | `8787` |
+| `CUTCTX_MODE` | Proxy optimization mode: `token` or `cache` | `token` |
+| `CUTCTX_WORKERS` | Uvicorn worker count | `1` |
+| `CUTCTX_LIMIT_CONCURRENCY` | Maximum concurrent connections before 503 | `1000` |
+| `CUTCTX_MAX_CONNECTIONS` | Maximum upstream HTTP connections | `500` |
+| `CUTCTX_MAX_KEEPALIVE` | Maximum upstream keep-alive connections | `100` |
+| `CUTCTX_BUDGET` | Daily budget limit in USD | -- |
+| `CUTCTX_TELEMETRY` | Set to `off` to disable anonymous telemetry | enabled |
+| `CUTCTX_STATELESS` | Set to `true` to disable filesystem writes | `false` |
+| `CUTCTX_MODEL_LIMITS` | Custom model config (JSON string or file path) | -- |
+| `CUTCTX_BASE_URL` | Base URL of the Cutctx proxy (TypeScript SDK) | `http://localhost:8787` |
+| `CUTCTX_API_KEY` | API key for Cutctx Cloud authentication | -- |
+| `CUTCTX_CONFIG_DIR` | Canonical config (read-mostly) root. Derives `models.json` and per-plugin config paths when set. | `~/.cutctx/config` |
+| `CUTCTX_WORKSPACE_DIR` | Canonical workspace (read-write state) root. Derives savings, memory DB, logs, TOIN, subscription state, and more when set. | `~/.cutctx` |
+| `CUTCTX_SAVINGS_PATH` | Override persistent savings file location. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_TOIN_PATH` | Override TOIN telemetry file location. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_SUBSCRIPTION_STATE_PATH` | Override subscription tracker state file. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_TELEMETRY` | Set to `off` to disable anonymous telemetry | `on` |
+| `CUTCTX_MEMORY_INJECTION_MODE` | Memory-context routing mode: `live_zone_tail` (default) or `disabled`. The legacy `system_prompt` mode was retired by PR-A2; supplying it raises. | `live_zone_tail` |
+| `CUTCTX_PROXY_PYTHON_FORWARDER_MODE` | Python forwarder serialization mode. `byte_faithful` (default) forwards original request bytes verbatim when no transform mutated the body and re-serializes canonically only when needed — keeps Anthropic prompt-cache hit-rate intact. `legacy_json_kwarg` is an explicit operator opt-in for emergency rollback to the historical `httpx ... json=body` behavior. NOT a fallback — only flip on explicit operator decision. | `byte_faithful` |
+| `CUTCTX_STRIP_INTERNAL_HEADERS` | Python proxy: whether to strip internal `x-cutctx-*` request headers (e.g. `x-cutctx-bypass`, `x-cutctx-mode`, `x-cutctx-user-id`, `x-cutctx-stack`, `x-cutctx-base-url`) before every upstream forwarder call (PR-A5, fixes P5-49). `enabled` (default) stops fingerprinting / leakage. `disabled` is an explicit operator opt-in for diagnostic shadow tracing — NOT a fallback. Inbound reads of these headers (bypass gating, memory user-id resolution) are unaffected because they read `request.headers` directly. | `enabled` |
+| `CUTCTX_PROXY_STRIP_INTERNAL_HEADERS` | Rust proxy: same policy as `CUTCTX_STRIP_INTERNAL_HEADERS` but for the Rust transparent proxy. Stripping happens inside `build_forward_request_headers` so both HTTP and WebSocket upstream calls are gated by one flag. `enabled` default; `disabled` operator opt-in for diagnostic shadow tracing. Response-side `X-Cutctx-*` injection (e.g. `x-cutctx-tokens-saved`) is unrelated and stays. | `enabled` |
+| `CUTCTX_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](/docs/memory#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
 
 ### Filesystem Contract
 
-CutCtx resolves every on-disk resource through a two-root model
-(`HEADROOM_CONFIG_DIR` + `HEADROOM_WORKSPACE_DIR`) with additive
+Cutctx resolves every on-disk resource through a two-root model
+(`CUTCTX_CONFIG_DIR` + `CUTCTX_WORKSPACE_DIR`) with additive
 precedence rules: explicit argument > per-resource env var > derived
 from canonical root > default. Every legacy env var continues to work
 unchanged.
 
 See the **[Filesystem Contract](/docs/filesystem-contract)**
 page for the full bucket table, plugin-author guidance, and the Docker
-naming overlap note (`HEADROOM_WORKSPACE` is *not* the same as
-`HEADROOM_WORKSPACE_DIR`).
+naming overlap note (`CUTCTX_WORKSPACE` is *not* the same as
+`CUTCTX_WORKSPACE_DIR`).
 
 ## Custom Model Configuration
 
@@ -278,18 +278,18 @@ Configure context limits and pricing for new or custom models:
 }
 ```
 
-Save as `${HEADROOM_CONFIG_DIR}/models.json` (defaults to
-`~/.headroom/config/models.json`), or set `HEADROOM_MODEL_LIMITS` to a
+Save as `${CUTCTX_CONFIG_DIR}/models.json` (defaults to
+`~/.cutctx/config/models.json`), or set `CUTCTX_MODEL_LIMITS` to a
 JSON string or file path. Installs that still have
-`~/.headroom/models.json` (the legacy location) continue to work.
+`~/.cutctx/models.json` (the legacy location) continue to work.
 
 Settings are resolved in this order (later overrides earlier):
 
 1. Built-in defaults
-2. `${HEADROOM_CONFIG_DIR}/models.json` (new canonical location); falls
-   back to `~/.headroom/models.json` (legacy) when the canonical file
+2. `${CUTCTX_CONFIG_DIR}/models.json` (new canonical location); falls
+   back to `~/.cutctx/models.json` (legacy) when the canonical file
    is absent
-3. `HEADROOM_MODEL_LIMITS` environment variable
+3. `CUTCTX_MODEL_LIMITS` environment variable
 4. SDK constructor arguments
 
 ### Pattern-Based Inference
@@ -344,7 +344,7 @@ Skip or customize compression for specific tools:
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    headroom_tool_profiles={
+    cutctx_tool_profiles={
         "important_tool": {"skip_compression": True},
         "search_tool": {"max_items_after_crush": 25},
     },

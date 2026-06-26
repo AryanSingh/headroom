@@ -18,17 +18,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
-from headroom.savings import (
-    RequestSavingsBreakdown,
+from cutctx.proxy.outcome import RequestOutcome, emit_request_outcome
+from cutctx.savings import (
     SavingsSource,
 )
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome
 
 
 class FakeHandler:
@@ -40,7 +38,7 @@ class FakeHandler:
         self.logger = None
 
     # Outbound helper used by emit_request_outcome for project attribution.
-    # We don't need it in this test — headroom.proxy.outcome imports it
+    # We don't need it in this test — cutctx.proxy.outcome imports it
     # lazily and the import will succeed.
 
 
@@ -97,12 +95,12 @@ def _make_outcome(
 
 def test_outcome_funnel_writes_savings_breakdown_to_cost_tracker():
     """emit_request_outcome feeds the unified ledger on every request."""
-    from headroom.proxy.cost import CostTracker
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
 
-    # Provider cache hit + CutCtx compression: 200 cache + 400 compression.
+    # Provider cache hit + Cutctx compression: 200 cache + 400 compression.
     outcome = _make_outcome(
         original_tokens=1000,
         optimized_tokens=400,
@@ -122,8 +120,8 @@ def test_outcome_funnel_writes_savings_breakdown_to_cost_tracker():
 
 
 def test_outcome_funnel_no_double_counting():
-    """When tokens_saved equals cache_read_tokens, no CutCtx contribution is added."""
-    from headroom.proxy.cost import CostTracker
+    """When tokens_saved equals cache_read_tokens, no Cutctx contribution is added."""
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -138,7 +136,7 @@ def test_outcome_funnel_no_double_counting():
 
     stats = tracker.stats()
     by_source = stats["savings_by_source"]
-    # 600 cache, 0 CutCtx — the max(0, ...) guard prevents double-counting.
+    # 600 cache, 0 Cutctx — the max(0, ...) guard prevents double-counting.
     assert by_source["tokens"]["provider_prompt_cache"] == 600
     # By-source dict only includes non-zero entries.
     assert by_source["tokens"].get("cutctx_compression", 0) == 0
@@ -146,8 +144,8 @@ def test_outcome_funnel_no_double_counting():
 
 
 def test_outcome_funnel_pure_compression():
-    """When there is no provider cache, all savings are CutCtx compression."""
-    from headroom.proxy.cost import CostTracker
+    """When there is no provider cache, all savings are Cutctx compression."""
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -168,11 +166,11 @@ def test_outcome_funnel_pure_compression():
 
 def test_savings_tracker_persists_by_source_in_history(tmp_path):
     """The on-disk history row carries savings_by_source_tokens."""
-    from headroom.proxy.savings_tracker import SavingsTracker
+    from cutctx.proxy.savings_tracker import SavingsTracker
 
     path = tmp_path / "savings.json"
     with patch(
-        "headroom.proxy.savings_tracker.get_default_savings_storage_path",
+        "cutctx.proxy.savings_tracker.get_default_savings_storage_path",
         return_value=str(path),
     ):
         tracker = SavingsTracker()
@@ -207,12 +205,12 @@ def test_savings_tracker_persists_by_source_in_history(tmp_path):
 
 
 def test_savings_tracker_persists_provider_cache_only_row(tmp_path):
-    """A request with cache hits but no CutCtx savings still persists a row."""
-    from headroom.proxy.savings_tracker import SavingsTracker
+    """A request with cache hits but no Cutctx savings still persists a row."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
 
     path = tmp_path / "savings.json"
     with patch(
-        "headroom.proxy.savings_tracker.get_default_savings_storage_path",
+        "cutctx.proxy.savings_tracker.get_default_savings_storage_path",
         return_value=str(path),
     ):
         tracker = SavingsTracker()
@@ -237,11 +235,11 @@ def test_savings_tracker_persists_provider_cache_only_row(tmp_path):
 
 def test_report_buyer_reads_durable_savings_history(tmp_path, monkeypatch):
     """End-to-end: outcome -> tracker -> on-disk -> report buyer."""
-    from headroom.proxy.cost import CostTracker
-    from headroom.proxy.savings_tracker import SavingsTracker
+    from cutctx.proxy.cost import CostTracker
+    from cutctx.proxy.savings_tracker import SavingsTracker
 
     savings_path = tmp_path / "savings.json"
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
 
     # 1. Handler path: emit_request_outcome + CostTracker.
     tracker = CostTracker()
@@ -264,7 +262,7 @@ def test_report_buyer_reads_durable_savings_history(tmp_path, monkeypatch):
     )
 
     # 3. Report buyer reads the on-disk rows and attributes by source.
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     runner = CliRunner()
     result = runner.invoke(main, ["report", "buyer", "--format", "json"])
@@ -286,14 +284,14 @@ def test_report_buyer_reads_durable_savings_history(tmp_path, monkeypatch):
 
 def test_outcome_funnel_semantic_cache_only():
     """A semantic-cache-only request attributes all savings to SEMANTIC_CACHE."""
-    from headroom.proxy.cost import CostTracker
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
     outcome = _make_outcome(
         original_tokens=1000,
         optimized_tokens=1000,  # proxy did not touch the input
-        tokens_saved=0,  # no CutCtx compression either
+        tokens_saved=0,  # no Cutctx compression either
         cache_read_tokens=0,
         semantic_cache_hit=True,
         semantic_cache_avoided_tokens=500,  # the upstream call that did not happen
@@ -310,7 +308,7 @@ def test_outcome_funnel_semantic_cache_only():
 
 def test_outcome_funnel_self_hosted_prefix_cache_only():
     """A self-hosted prefix-cache hit attributes to PREFIX_CACHE_SELF_HOSTED."""
-    from headroom.proxy.cost import CostTracker
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -332,7 +330,7 @@ def test_outcome_funnel_self_hosted_prefix_cache_only():
 
 def test_outcome_funnel_model_routing_only_with_usd():
     """A model-routing-only request attributes to MODEL_ROUTING (tokens + USD)."""
-    from headroom.proxy.cost import CostTracker
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -359,7 +357,7 @@ def test_outcome_funnel_model_routing_only_with_usd():
 
 def test_outcome_funnel_mixed_sources_no_double_counting():
     """A request that hits every source at once must not double-count."""
-    from headroom.proxy.cost import CostTracker
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -368,7 +366,7 @@ def test_outcome_funnel_mixed_sources_no_double_counting():
     #   - 500 tokens served from semantic cache
     #   - 200 tokens served from a self-hosted prefix cache
     #   - 300 tokens because we routed to a cheaper model
-    #   - 400 tokens of pure CutCtx compression
+    #   - 400 tokens of pure Cutctx compression
     # The funnel must attribute every source independently and the
     # combined total must equal the SUM (never the difference between
     # original and optimized).
@@ -400,14 +398,14 @@ def test_outcome_funnel_mixed_sources_no_double_counting():
 
 
 def test_outcome_funnel_no_double_counting_when_tokens_saved_explained():
-    """When tokens_saved equals the sum of other sources, CutCtx bucket is 0."""
-    from headroom.proxy.cost import CostTracker
+    """When tokens_saved equals the sum of other sources, Cutctx bucket is 0."""
+    from cutctx.proxy.cost import CostTracker
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
     # A degenerate request where tokens_saved exactly equals
     # cache_read_tokens — the proxy will treat this as "explained by
-    # provider cache" and the CutCtx bucket must be empty.
+    # provider cache" and the Cutctx bucket must be empty.
     outcome = _make_outcome(
         original_tokens=1000,
         optimized_tokens=200,
@@ -426,11 +424,11 @@ def test_outcome_funnel_no_double_counting_when_tokens_saved_explained():
 def test_savings_tracker_persistence_with_all_five_sources(tmp_path):
     """All five sources are persisted in the on-disk history row and
     survive a tracker reload (restart-safety invariant)."""
-    from headroom.proxy.savings_tracker import SavingsTracker
+    from cutctx.proxy.savings_tracker import SavingsTracker
 
     path = tmp_path / "savings.json"
     with patch(
-        "headroom.proxy.savings_tracker.get_default_savings_storage_path",
+        "cutctx.proxy.savings_tracker.get_default_savings_storage_path",
         return_value=str(path),
     ):
         tracker = SavingsTracker()
@@ -465,7 +463,7 @@ def test_savings_tracker_persistence_with_all_five_sources(tmp_path):
     assert latest["savings_by_source_tokens"]["prefix_cache_self_hosted"] == 50
     # Round-trip via the normalizer: that is what ``_collect_savings_history``
     # uses, and it is the path the buyer report exercises.
-    from headroom.proxy.savings_tracker import _normalize_history_entry
+    from cutctx.proxy.savings_tracker import _normalize_history_entry
     normalized = _normalize_history_entry(latest)
     assert normalized is not None
     assert normalized["savings_by_source_tokens"]["provider_prompt_cache"] == 200
@@ -476,11 +474,11 @@ def test_savings_tracker_persistence_with_all_five_sources(tmp_path):
 def test_buyer_report_summarizes_all_five_sources(tmp_path, monkeypatch):
     """End-to-end: each source appears in the buyer report with the
     correct tokens and USD when persisted via the durable tracker."""
-    from headroom.proxy.cost import CostTracker
-    from headroom.proxy.savings_tracker import SavingsTracker
+    from cutctx.proxy.cost import CostTracker
+    from cutctx.proxy.savings_tracker import SavingsTracker
 
     savings_path = tmp_path / "savings.json"
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
 
     tracker = CostTracker()
     handler = FakeHandler(tracker)
@@ -515,7 +513,7 @@ def test_buyer_report_summarizes_all_five_sources(tmp_path, monkeypatch):
         },
     )
 
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     runner = CliRunner()
     result = runner.invoke(main, ["report", "buyer", "--format", "json"])

@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-// HeadroomTransport is an http.RoundTripper that routes LLM API calls
-// through the CutCtx proxy for automatic compression.
-type HeadroomTransport struct {
+// CutctxTransport is an http.RoundTripper that routes LLM API calls
+// through the Cutctx proxy for automatic compression.
+type CutctxTransport struct {
 	ProxyURL string
 	Wrapped  http.RoundTripper
 	APIKey   string
 }
 
 // RoundTrip implements http.RoundTripper.
-func (t *HeadroomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *CutctxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if isLLMRequest(req) {
 		req = req.Clone(req.Context())
 		proxyURL, err := url.Parse(t.ProxyURL)
@@ -24,7 +24,7 @@ func (t *HeadroomTransport) RoundTrip(req *http.Request) (*http.Response, error)
 			req.URL.Scheme = proxyURL.Scheme
 		}
 		if t.APIKey != "" {
-			req.Header.Set("X-CutCtx-Key", t.APIKey)
+			req.Header.Set("X-Cutctx-Key", t.APIKey)
 		}
 	}
 	if t.Wrapped != nil {
@@ -50,7 +50,7 @@ type ProxyConfig struct {
 
 // NewProxyClient creates an http.Client that routes LLM calls through the proxy.
 func NewProxyClient(cfg ProxyConfig) *http.Client {
-	transport := &HeadroomTransport{
+	transport := &CutctxTransport{
 		ProxyURL: cfg.ProxyURL,
 		Wrapped:  cfg.Wrapped,
 		APIKey:   cfg.APIKey,

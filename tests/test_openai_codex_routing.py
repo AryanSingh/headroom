@@ -8,7 +8,7 @@ import anyio
 import pytest
 from fastapi import Request
 
-from headroom.proxy.handlers.openai import (
+from cutctx.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _resolve_codex_routing_headers,
 )
@@ -171,7 +171,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
     async def _record_request_outcome(self, outcome) -> None:
         # Test stub: delegates to the production funnel so wire shape
         # matches CutctxProxy._record_request_outcome.
-        from headroom.proxy.outcome import emit_request_outcome
+        from cutctx.proxy.outcome import emit_request_outcome
 
         await emit_request_outcome(self, outcome)
 
@@ -240,7 +240,7 @@ def test_handle_openai_responses_routes_chatgpt_auth_to_backend_api(monkeypatch)
     )
     handler = _DummyOpenAIHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -260,7 +260,7 @@ def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatc
     )
     handler = _DummyOpenAIHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -295,7 +295,7 @@ def test_handle_openai_responses_stream_skips_python_compression(monkeypatch):
     handler = _DummyOpenAIHandler()
     handler.config.optimize = True
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -324,13 +324,13 @@ def test_handle_openai_responses_memory_timeout_fails_open(monkeypatch):
 
     request = _build_request(
         {"model": "gpt-5.4", "input": "hello"},
-        {"Authorization": "Bearer sk-test", "x-headroom-user-id": "user-1"},
+        {"Authorization": "Bearer sk-test", "x-cutctx-user-id": "user-1"},
     )
     handler = _DummyOpenAIHandler()
     handler.memory_handler = _SlowMemoryHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
-    monkeypatch.setattr("headroom.proxy.handlers.openai.asyncio.wait_for", _timeout_wait_for)
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("cutctx.proxy.handlers.openai.asyncio.wait_for", _timeout_wait_for)
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -358,7 +358,7 @@ def test_codex_responses_timeout_fails_open_in_standalone_proxy(monkeypatch):
     handler = _DummyOpenAIHandler()
     handler.config.optimize = True
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
     monkeypatch.setattr(
         handler,
         "_compress_openai_responses_payload",
@@ -392,7 +392,7 @@ def test_handle_openai_responses_ws_resolves_codex_routing_headers():
 
     with patch.dict(sys.modules, {"websockets": MagicMock()}):
         with patch(
-            "headroom.proxy.handlers.openai.responses._resolve_codex_routing_headers",
+            "cutctx.proxy.handlers.openai.responses._resolve_codex_routing_headers",
             side_effect=SentinelError("resolved"),
         ):
             with pytest.raises(SentinelError, match="resolved"):

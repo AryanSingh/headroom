@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap gemini` command."""
+"""Tests for `cutctx wrap gemini` command."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from urllib.parse import quote
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
+from cutctx.cli.main import main
 
 
 def _expected_project_prefix() -> str:
@@ -30,8 +30,8 @@ def test_wrap_gemini_sets_provider_envs(
     def fake_launch_tool(**kwargs):  # noqa: ANN003
         captured.update(kwargs)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value="gemini"):
-        with patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool):
+    with patch("cutctx.cli.wrap.shutil.which", return_value="gemini"):
+        with patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool):
             result = runner.invoke(main, ["wrap", "gemini", "--no-rtk", "--", "-p", "hello"])
 
     assert result.exit_code == 0, result.output

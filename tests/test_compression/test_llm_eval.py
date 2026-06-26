@@ -18,8 +18,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from headroom.compression.detector import ContentType
-from headroom.compression.universal import (
+from cutctx.compression.detector import ContentType
+from cutctx.compression.universal import (
     UniversalCompressor,
     UniversalCompressorConfig,
 )

@@ -1,9 +1,9 @@
 """Tests for CLI proxy env variable handling and backend validation.
 
 Verifies that:
-1. Provider target URL env vars are read by `headroom proxy`
+1. Provider target URL env vars are read by `cutctx proxy`
 2. litellm-* backends are accepted by both CLI and argparse paths
-3. HEADROOM_WRAP_PROXY_TIMEOUT controls `headroom wrap` proxy readiness waits
+3. CUTCTX_WRAP_PROXY_TIMEOUT controls `cutctx wrap` proxy readiness waits
 """
 
 import os
@@ -16,8 +16,8 @@ pytest.importorskip("fastapi")
 
 from click.testing import CliRunner  # noqa: E402
 
-from headroom.cli import wrap as wrap_mod  # noqa: E402
-from headroom.cli.main import main  # noqa: E402
+from cutctx.cli import wrap as wrap_mod  # noqa: E402
+from cutctx.cli.main import main  # noqa: E402
 
 
 @pytest.fixture
@@ -120,54 +120,54 @@ class TestCLIWrapProxyTimeout:
 class TestCLIProxyEnvVars:
     """Test that the CLI proxy command reads API URL env vars."""
 
-    def test_headroom_host_from_env(self, runner):
-        """HEADROOM_HOST env var should be passed to ProxyConfig."""
+    def test_cutctx_host_from_env(self, runner):
+        """CUTCTX_HOST env var should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_HOST": "0.0.0.0"},
+                env={"CUTCTX_HOST": "0.0.0.0"},
                 catch_exceptions=False,
             )
 
         assert result.exit_code == 0, result.output
         assert captured_config["config"].host == "0.0.0.0"
 
-    def test_headroom_port_from_env(self, runner):
-        """HEADROOM_PORT env var should be passed to ProxyConfig."""
+    def test_cutctx_port_from_env(self, runner):
+        """CUTCTX_PORT env var should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_PORT": "9797"},
+                env={"CUTCTX_PORT": "9797"},
                 catch_exceptions=False,
             )
 
         assert result.exit_code == 0, result.output
         assert captured_config["config"].port == 9797
 
-    def test_headroom_budget_from_env(self, runner):
-        """HEADROOM_BUDGET env var should be passed to ProxyConfig."""
+    def test_cutctx_budget_from_env(self, runner):
+        """CUTCTX_BUDGET env var should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_BUDGET": "100.5"},
+                env={"CUTCTX_BUDGET": "100.5"},
                 catch_exceptions=False,
             )
 
@@ -175,17 +175,17 @@ class TestCLIProxyEnvVars:
         assert captured_config["config"].budget_limit_usd == 100.5
 
     def test_code_aware_enabled_from_env(self, runner):
-        """HEADROOM_CODE_AWARE_ENABLED env var should be passed to ProxyConfig."""
+        """CUTCTX_CODE_AWARE_ENABLED env var should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_CODE_AWARE_ENABLED": "true"},
+                env={"CUTCTX_CODE_AWARE_ENABLED": "true"},
                 catch_exceptions=False,
             )
 
@@ -193,16 +193,16 @@ class TestCLIProxyEnvVars:
         assert captured_config["config"].code_aware_enabled is True
 
     def test_code_aware_enabled_defaults_false(self, runner):
-        """Without HEADROOM_CODE_AWARE_ENABLED, code-aware stays disabled in the wrapper."""
+        """Without CUTCTX_CODE_AWARE_ENABLED, code-aware stays disabled in the wrapper."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        env = {k: v for k, v in os.environ.items() if k != "HEADROOM_CODE_AWARE_ENABLED"}
+        env = {k: v for k, v in os.environ.items() if k != "CUTCTX_CODE_AWARE_ENABLED"}
 
         with (
-            patch("headroom.proxy.server.run_server", mock_run_server),
+            patch("cutctx.proxy.server.run_server", mock_run_server),
             patch.dict(os.environ, env, clear=True),
         ):
             result = runner.invoke(
@@ -221,24 +221,24 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(main, ["proxy", "--code-aware"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
         assert captured_config["config"].code_aware_enabled is True
 
     def test_disable_kompress_from_env(self, runner):
-        """HEADROOM_DISABLE_KOMPRESS should be passed to ProxyConfig."""
+        """CUTCTX_DISABLE_KOMPRESS should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_DISABLE_KOMPRESS": "1"},
+                env={"CUTCTX_DISABLE_KOMPRESS": "1"},
                 catch_exceptions=False,
             )
 
@@ -252,7 +252,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--disable-kompress"],
@@ -263,17 +263,17 @@ class TestCLIProxyEnvVars:
         assert captured_config["config"].disable_kompress is True
 
     def test_code_aware_flag_overrides_env_var(self, runner):
-        """--code-aware should win over HEADROOM_CODE_AWARE_ENABLED=false."""
+        """--code-aware should win over CUTCTX_CODE_AWARE_ENABLED=false."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--code-aware"],
-                env={"HEADROOM_CODE_AWARE_ENABLED": "false"},
+                env={"CUTCTX_CODE_AWARE_ENABLED": "false"},
                 catch_exceptions=False,
             )
 
@@ -287,7 +287,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
@@ -305,7 +305,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
@@ -323,7 +323,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
@@ -344,7 +344,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--openai-api-url", "http://from-cli:4000"],
@@ -361,7 +361,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--vertex-api-url", "https://us-east5-aiplatform.googleapis.com"],
@@ -380,7 +380,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--openai-api-url", "http://from-cli:4000"],
@@ -402,7 +402,7 @@ class TestCLIProxyEnvVars:
         env = {k: v for k, v in os.environ.items() if k != "OPENAI_TARGET_API_URL"}
 
         with (
-            patch("headroom.proxy.server.run_server", mock_run_server),
+            patch("cutctx.proxy.server.run_server", mock_run_server),
             patch.dict(os.environ, env, clear=True),
         ):
             result = runner.invoke(
@@ -421,7 +421,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
@@ -443,7 +443,7 @@ class TestCLIProxyEnvVars:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 [
@@ -467,15 +467,15 @@ class TestCLIProxyEnvVars:
             captured["config"] = config
             captured["kwargs"] = kwargs
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
                 env={
-                    "HEADROOM_WORKERS": "4",
-                    "HEADROOM_LIMIT_CONCURRENCY": "250",
-                    "HEADROOM_MAX_CONNECTIONS": "200",
-                    "HEADROOM_MAX_KEEPALIVE": "50",
+                    "CUTCTX_WORKERS": "4",
+                    "CUTCTX_LIMIT_CONCURRENCY": "250",
+                    "CUTCTX_MAX_CONNECTIONS": "200",
+                    "CUTCTX_MAX_KEEPALIVE": "50",
                 },
                 catch_exceptions=False,
             )
@@ -497,7 +497,7 @@ class TestCLIProxyEnvVars:
             captured["config"] = config
             captured["kwargs"] = kwargs
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 [
@@ -512,10 +512,10 @@ class TestCLIProxyEnvVars:
                     "25",
                 ],
                 env={
-                    "HEADROOM_WORKERS": "4",
-                    "HEADROOM_LIMIT_CONCURRENCY": "250",
-                    "HEADROOM_MAX_CONNECTIONS": "200",
-                    "HEADROOM_MAX_KEEPALIVE": "50",
+                    "CUTCTX_WORKERS": "4",
+                    "CUTCTX_LIMIT_CONCURRENCY": "250",
+                    "CUTCTX_MAX_CONNECTIONS": "200",
+                    "CUTCTX_MAX_KEEPALIVE": "50",
                 },
                 catch_exceptions=False,
             )
@@ -540,7 +540,7 @@ class TestCLIProxyBackend:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--backend", "litellm-hosted_vllm"],
@@ -557,7 +557,7 @@ class TestCLIProxyBackend:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--backend", "litellm-vertex"],
@@ -574,7 +574,7 @@ class TestCLIProxyBackend:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 [
@@ -593,20 +593,20 @@ class TestCLIProxyBackend:
 
 
 class TestCLIAnyllmProviderEnv:
-    """Test that HEADROOM_ANYLLM_PROVIDER env var is read by the CLI."""
+    """Test that CUTCTX_ANYLLM_PROVIDER env var is read by the CLI."""
 
     def test_anyllm_provider_from_env(self, runner):
-        """HEADROOM_ANYLLM_PROVIDER env var should override the default."""
+        """CUTCTX_ANYLLM_PROVIDER env var should override the default."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--backend", "anyllm"],
-                env={"HEADROOM_ANYLLM_PROVIDER": "llamacpp"},
+                env={"CUTCTX_ANYLLM_PROVIDER": "llamacpp"},
                 catch_exceptions=False,
             )
 
@@ -620,7 +620,7 @@ class TestCLIAnyllmProviderEnv:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy", "--backend", "anyllm", "--anyllm-provider", "groq"],
@@ -635,7 +635,7 @@ class TestCLICompressionOnlyFlags:
     """The CCR opt-out flags must flip the corresponding ProxyConfig fields.
 
     These enable a compression-only deployment for streaming / non-MCP clients
-    that can't resolve the injected headroom_retrieve tool (issue #645).
+    that can't resolve the injected cutctx_retrieve tool (issue #645).
     """
 
     def test_ccr_defaults_on(self, runner):
@@ -645,7 +645,7 @@ class TestCLICompressionOnlyFlags:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(main, ["proxy"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -661,7 +661,7 @@ class TestCLICompressionOnlyFlags:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(main, ["proxy", "--no-ccr-inject-tool"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -678,7 +678,7 @@ class TestCLICompressionOnlyFlags:
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 [
@@ -697,17 +697,17 @@ class TestCLICompressionOnlyFlags:
         assert cfg.ccr_proactive_expansion is False
 
     def test_no_ccr_marker_from_env(self, runner):
-        """HEADROOM_NO_CCR_MARKER env var disables marker injection."""
+        """CUTCTX_NO_CCR_MARKER env var disables marker injection."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
             captured_config["config"] = config
 
-        with patch("headroom.proxy.server.run_server", mock_run_server):
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"HEADROOM_NO_CCR_MARKER": "1"},
+                env={"CUTCTX_NO_CCR_MARKER": "1"},
                 catch_exceptions=False,
             )
 
@@ -716,7 +716,7 @@ class TestCLICompressionOnlyFlags:
 
 
 class TestArgparseBackendValidation:
-    """Test that the argparse path (python -m headroom.proxy.server) accepts litellm-* backends."""
+    """Test that the argparse path (python -m cutctx.proxy.server) accepts litellm-* backends."""
 
     def test_argparse_accepts_litellm_backend(self):
         """The argparse --backend should accept litellm-hosted_vllm (no choices restriction)."""
@@ -730,10 +730,10 @@ class TestArgparseBackendValidation:
         assert args.backend == "litellm-hosted_vllm"
 
     def test_proxy_config_from_env_reads_disable_kompress(self):
-        """The direct server env path should honor HEADROOM_DISABLE_KOMPRESS."""
-        from headroom.proxy.server import _proxy_config_from_env
+        """The direct server env path should honor CUTCTX_DISABLE_KOMPRESS."""
+        from cutctx.proxy.server import _proxy_config_from_env
 
-        with patch.dict(os.environ, {"HEADROOM_DISABLE_KOMPRESS": "1"}):
+        with patch.dict(os.environ, {"CUTCTX_DISABLE_KOMPRESS": "1"}):
             config = _proxy_config_from_env()
 
         assert config.disable_kompress is True

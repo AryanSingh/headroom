@@ -1,4 +1,4 @@
-"""CutCtx vs competitors — reproducible benchmark suite.
+"""Cutctx vs competitors — reproducible benchmark suite.
 
 Usage:
     python benchmarks/run_comparison.py [--output results/latest.json]
@@ -36,7 +36,7 @@ class CutctxCompressor:
     name = "cutctx"
 
     def compress(self, text: str) -> tuple[str, float]:
-        from headroom.compress import compress as _compress
+        from cutctx.compress import compress as _compress
 
         t0 = time.perf_counter()
         result = _compress(text)
@@ -96,7 +96,7 @@ def print_summary_table(all_results: list[BenchmarkResult]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="CutCtx benchmark suite")
+    parser = argparse.ArgumentParser(description="Cutctx benchmark suite")
     parser.add_argument(
         "--output",
         default="benchmarks/results/latest.json",
@@ -119,7 +119,7 @@ def main() -> None:
         print("Run: python benchmarks/generate_fixtures.py to create them")
         raise SystemExit(1)
 
-    compressors: list[Compressor] = [HeadroomCompressor()]
+    compressors: list[Compressor] = [CutctxCompressor()]
 
     # Try optional competitors
     try:

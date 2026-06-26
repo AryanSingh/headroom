@@ -261,13 +261,13 @@ def main() -> int:
     log_fp = open("/tmp/e2e_real_proxy.log", "w")
     proc = subprocess.Popen(
         [
-            str(REPO_ROOT / ".venv/bin/headroom"),
+            str(REPO_ROOT / ".venv/bin/cutctx"),
             "proxy",
             "--port",
             str(port),
             "--no-telemetry",
         ],
-        env={**os.environ, "HEADROOM_REQUIRE_RUST_CORE": "true"},
+        env={**os.environ, "CUTCTX_REQUIRE_RUST_CORE": "true"},
         stdout=log_fp,
         stderr=subprocess.STDOUT,
         cwd=str(REPO_ROOT),
@@ -330,7 +330,7 @@ def main() -> int:
 
         # ── Scrape proxy log for compression evidence ────────────
         time.sleep(1.5)
-        canonical_log = Path.home() / ".headroom" / "logs" / "proxy.log"
+        canonical_log = Path.home() / ".cutctx" / "logs" / "proxy.log"
         if canonical_log.exists():
             log_lines = canonical_log.read_text(errors="replace").splitlines()[-5000:]
         else:

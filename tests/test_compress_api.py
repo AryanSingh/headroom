@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from headroom.compress import CompressResult, compress
-from headroom.hooks import CompressionHooks
+from cutctx.compress import CompressResult, compress
+from cutctx.hooks import CompressionHooks
 
 try:
     from starlette.applications import Starlette
@@ -14,7 +14,7 @@ try:
     from starlette.routing import Route
     from starlette.testclient import TestClient
 
-    from headroom.integrations.asgi import CompressionMiddleware
+    from cutctx.integrations.asgi import CompressionMiddleware
 
     HAS_STARLETTE = True
 except ImportError:
@@ -236,7 +236,7 @@ class TestASGIMiddleware:
 class TestLiteLLMCallback:
     def test_callback_imports(self):
         """Verify the callback can be imported."""
-        from headroom.integrations.litellm_callback import CutctxCallback
+        from cutctx.integrations.litellm_callback import CutctxCallback
 
         callback = CutctxCallback()
         assert callback.total_tokens_saved == 0
@@ -245,7 +245,7 @@ class TestLiteLLMCallback:
         """Callback compresses messages in pre_call_hook."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import CutctxCallback
+        from cutctx.integrations.litellm_callback import CutctxCallback
 
         callback = CutctxCallback()
 
@@ -265,7 +265,7 @@ class TestLiteLLMCallback:
         """Non-completion calls are passed through."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import CutctxCallback
+        from cutctx.integrations.litellm_callback import CutctxCallback
 
         callback = CutctxCallback()
         data = {"messages": [{"role": "user", "content": "hi"}]}

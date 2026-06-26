@@ -3,14 +3,14 @@
  * Accepts messages in any format: OpenAI, Anthropic, Vercel AI SDK, or Google Gemini.
  */
 
-import { CutCtxClient } from "./client.js";
+import { CutctxClient } from "./client.js";
 import type { CompressResult, CompressOptions } from "./types.js";
 import { detectFormat, toOpenAI, fromOpenAI } from "./utils/format.js";
 import type { CompressionHooks, CompressContext, CompressEvent } from "./hooks.js";
 import { extractUserQuery, countTurns, extractToolCalls } from "./hooks.js";
 
 /**
- * Compress an array of messages using the CutCtx proxy.
+ * Compress an array of messages using the Cutctx proxy.
  *
  * Accepts messages in any format: OpenAI, Anthropic, Vercel AI SDK, or Google Gemini.
  * Detects the format automatically, compresses via the proxy, and returns
@@ -56,7 +56,7 @@ export async function compress(
   }
 
   // 5. Compress via proxy
-  const client = providedClient ?? new CutCtxClient(clientOptions);
+  const client = providedClient ?? new CutctxClient(clientOptions);
   const result = await client.compress(openaiMessages, { model, tokenBudget });
 
   // 6. Convert compressed messages back to original format

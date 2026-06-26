@@ -33,8 +33,8 @@ import pytest
 
 pytest.importorskip("fastapi")
 
-from headroom.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS  # noqa: F401
-from headroom.proxy.server import ProxyConfig, create_app
+from cutctx.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS  # noqa: F401
+from cutctx.proxy.server import ProxyConfig, create_app
 
 
 def _make_proxy(compression_max_workers: int | None = None):

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.backends import anyllm
-from headroom.backends.base import BackendResponse, StreamEvent
+from cutctx.backends import anyllm
+from cutctx.backends.base import BackendResponse, StreamEvent
 
 
 class FakeAsyncStream:

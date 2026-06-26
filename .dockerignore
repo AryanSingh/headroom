@@ -41,8 +41,8 @@ plugins/
 !plugins/
 !plugins/openclaw/
 !plugins/openclaw/**
-!plugins/headroom-agent-hooks/
-!plugins/headroom-agent-hooks/**
+!plugins/cutctx-agent-hooks/
+!plugins/cutctx-agent-hooks/**
 node_modules/
 *.tgz
 

@@ -1,9 +1,9 @@
 ---
 title: Anthropic SDK
-description: Auto-compress messages in the Anthropic TypeScript SDK with a single withCutCtx() wrapper.
+description: Auto-compress messages in the Anthropic TypeScript SDK with a single withCutctx() wrapper.
 ---
 
-CutCtx wraps the Anthropic TypeScript SDK to automatically compress messages before every `messages.create()` call. All other methods pass through unchanged.
+Cutctx wraps the Anthropic TypeScript SDK to automatically compress messages before every `messages.create()` call. All other methods pass through unchanged.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install cutctx-ai @anthropic-ai/sdk
 ```
 
 <Callout type="info" title="Proxy required">
-The TypeScript SDK sends messages to a local CutCtx proxy for compression. Start the proxy before using the SDK:
+The TypeScript SDK sends messages to a local Cutctx proxy for compression. Start the proxy before using the SDK:
 
 ```bash
 pip install "cutctx-ai[proxy]"
@@ -23,10 +23,10 @@ cutctx proxy
 ## Quick start
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/anthropic';
+import { withCutctx } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = withCutCtx(new Anthropic());
+const client = withCutctx(new Anthropic());
 
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
@@ -39,10 +39,10 @@ Every call to `client.messages.create()` compresses messages first. The response
 
 ## How it works
 
-`withCutCtx()` returns a proxy around your Anthropic client that intercepts `messages.create()`:
+`withCutctx()` returns a proxy around your Anthropic client that intercepts `messages.create()`:
 
 1. Converts Anthropic-format messages to OpenAI format (the compression engine's native format)
-2. Sends them to the CutCtx proxy's `/v1/compress` endpoint
+2. Sends them to the Cutctx proxy's `/v1/compress` endpoint
 3. Converts the compressed messages back to Anthropic format
 4. Forwards the request to Anthropic as normal
 
@@ -63,10 +63,10 @@ This conversion is lossless. Your request and response behave identically to an 
 Pass compression options as the second argument:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/anthropic';
+import { withCutctx } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = withCutCtx(new Anthropic(), {
+const client = withCutctx(new Anthropic(), {
   model: 'claude-sonnet-4-5-20250929',
   baseUrl: 'http://localhost:8787',
 });
@@ -77,10 +77,10 @@ const client = withCutCtx(new Anthropic(), {
 Streaming works normally. Compression happens before the request:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/anthropic';
+import { withCutctx } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = withCutCtx(new Anthropic());
+const client = withCutctx(new Anthropic());
 
 const stream = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',
@@ -95,10 +95,10 @@ const stream = await client.messages.create({
 Tool results are where compression has the biggest impact. Large JSON payloads from tool calls are compressed automatically:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/anthropic';
+import { withCutctx } from 'cutctx-ai/anthropic';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = withCutCtx(new Anthropic());
+const client = withCutctx(new Anthropic());
 
 const response = await client.messages.create({
   model: 'claude-sonnet-4-5-20250929',

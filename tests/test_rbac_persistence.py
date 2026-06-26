@@ -10,8 +10,6 @@ replacement.
 """
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -27,13 +25,13 @@ def tmp_db(tmp_path: Path):
 
 class TestRbacAssignmentStore:
     def test_empty_store_returns_none(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         assert store.get("alice") is None
 
     def test_set_then_get(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice", AdminRole.OPERATOR, assigned_by="admin")
@@ -41,7 +39,7 @@ class TestRbacAssignmentStore:
         assert result == AdminRole.OPERATOR
 
     def test_set_overwrites(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice", AdminRole.VIEWER)
@@ -49,7 +47,7 @@ class TestRbacAssignmentStore:
         assert store.get("alice") == AdminRole.ADMIN
 
     def test_delete_returns_true_when_present(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice", AdminRole.VIEWER)
@@ -57,13 +55,13 @@ class TestRbacAssignmentStore:
         assert store.get("alice") is None
 
     def test_delete_returns_false_when_absent(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore
+        from cutctx_ee.rbac import RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         assert store.delete("missing") is False
 
     def test_list_all(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice", AdminRole.OPERATOR, notes="first")
@@ -76,7 +74,7 @@ class TestRbacAssignmentStore:
 
     def test_persistence_across_instances(self, tmp_db):
         """The whole point: assignments survive a process restart."""
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store1 = RbacAssignmentStore(db_path=tmp_db)
         store1.set("alice", AdminRole.OPERATOR)
@@ -89,7 +87,7 @@ class TestRbacAssignmentStore:
         assert set(store2.list_all().keys()) == {"alice", "bob"}
 
     def test_cache_invalidates_on_write(self, tmp_db):
-        from headroom_ee.rbac import RbacAssignmentStore, AdminRole
+        from cutctx_ee.rbac import AdminRole, RbacAssignmentStore
 
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice", AdminRole.VIEWER)
@@ -111,7 +109,7 @@ class TestRbacAssignmentStore:
 
 class TestPersistentRbacChecker:
     def test_assign_role_persists(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             AdminRole,
             PersistentRbacChecker,
             RbacAssignmentStore,
@@ -126,7 +124,7 @@ class TestPersistentRbacChecker:
         assert fresh_store.get("alice") == AdminRole.OPERATOR
 
     def test_revoke_role_removes_from_store(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             AdminRole,
             PersistentRbacChecker,
             RbacAssignmentStore,
@@ -139,7 +137,7 @@ class TestPersistentRbacChecker:
         assert store.get("alice") is None
 
     def test_list_assignments_from_store(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             AdminRole,
             PersistentRbacChecker,
             RbacAssignmentStore,
@@ -153,7 +151,7 @@ class TestPersistentRbacChecker:
         assert listing == {"alice": "operator", "bob": "viewer"}
 
     def test_persistent_checker_survives_restart(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             AdminRole,
             PersistentRbacChecker,
             RbacAssignmentStore,
@@ -176,7 +174,7 @@ class TestPersistentRbacChecker:
 
 class TestHasPermissionHelper:
     def test_admin_key_actor_has_any_permission(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             PersistentRbacChecker,
             RbacAssignmentStore,
             has_permission,
@@ -186,7 +184,7 @@ class TestHasPermissionHelper:
         store = RbacAssignmentStore(db_path=tmp_db)
         reset_rbac_checker()
         # Inject a checker that has the store
-        import headroom_ee.rbac as rbac_mod
+        import cutctx_ee.rbac as rbac_mod
 
         old = rbac_mod._rbac_checker
         rbac_mod._rbac_checker = PersistentRbacChecker(store=store)
@@ -200,7 +198,7 @@ class TestHasPermissionHelper:
             reset_rbac_checker()
 
     def test_known_sso_user_resolves_role(self, tmp_db):
-        from headroom_ee.rbac import (
+        from cutctx_ee.rbac import (
             AdminRole,
             PersistentRbacChecker,
             RbacAssignmentStore,
@@ -211,7 +209,7 @@ class TestHasPermissionHelper:
         store = RbacAssignmentStore(db_path=tmp_db)
         store.set("alice@corp", AdminRole.OPERATOR)
         reset_rbac_checker()
-        import headroom_ee.rbac as rbac_mod
+        import cutctx_ee.rbac as rbac_mod
 
         old = rbac_mod._rbac_checker
         rbac_mod._rbac_checker = PersistentRbacChecker(store=store)

@@ -3,7 +3,7 @@
 ## Data Flow
 
 ```text
-AI Agent -> CutCtx Proxy -> Upstream LLM Provider
+AI Agent -> Cutctx Proxy -> Upstream LLM Provider
                |
                +-> Local CCR store
                +-> Local memory store
@@ -30,7 +30,7 @@ AI Agent -> CutCtx Proxy -> Upstream LLM Provider
 | Optional license validation and aggregate usage | When a license key is configured | No |
 | Initial runtime and model downloads | First-time setup unless pre-staged | No |
 
-## What CutCtx Does Not Claim To Collect
+## What Cutctx Does Not Claim To Collect
 
 - Prompt content for SaaS analytics
 - Tool results for hosted analysis
@@ -76,10 +76,10 @@ The repo now includes the technical controls needed for enterprise review. Forma
 
 ## Buyer FAQ
 
-**Does CutCtx store prompts by default?**
+**Does Cutctx store prompts by default?**
 No. Content is processed in memory. Local stores are customer-managed.
 
-**Can CutCtx run without outbound network dependencies after setup?**
+**Can Cutctx run without outbound network dependencies after setup?**
 Yes, with pre-staged dependencies and offline flags.
 
 **Can admins audit changes?**

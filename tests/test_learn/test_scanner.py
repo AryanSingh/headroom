@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 
-from headroom.learn.scanner import ClaudeCodeScanner, _decode_project_path, _greedy_path_decode
+from cutctx.learn.scanner import ClaudeCodeScanner, _decode_project_path, _greedy_path_decode
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -87,8 +87,8 @@ class TestGreedyPathDecode:
         assert result == tmp_path / "GitHub.nosync" / "my-cool-app"
 
     def test_multi_hyphen_dot_dir_containing_subproject(self, tmp_path: Path) -> None:
-        """Path like my-cool-project.nosync/headroom — hardest combination."""
-        _make_dirs(tmp_path, "my-cool-project.nosync/headroom")
+        """Path like my-cool-project.nosync/cutctx — hardest combination."""
+        _make_dirs(tmp_path, "my-cool-project.nosync/cutctx")
         result = _greedy_path_decode(tmp_path, ["my", "cool", "project.nosync", "cutctx"])
         assert result == tmp_path / "my-cool-project.nosync" / "cutctx"
 
@@ -100,7 +100,7 @@ class TestGreedyPathDecode:
 
     def test_hybrid_hyphen_and_dot_flattening(self, tmp_path: Path) -> None:
         """Flattened encoding should reconstruct mixed separators in one component."""
-        _make_dirs(tmp_path, "my-cool-project.nosync/headroom")
+        _make_dirs(tmp_path, "my-cool-project.nosync/cutctx")
         result = _greedy_path_decode(tmp_path, ["my", "cool", "project", "nosync", "cutctx"])
         assert result == tmp_path / "my-cool-project.nosync" / "cutctx"
 
@@ -203,7 +203,7 @@ class TestDecodeProjectPath:
 
         home = Path.home()
         if str(home).startswith("/Users/"):
-            base = home / ".pytest_headroom_tmp"
+            base = home / ".pytest_cutctx_tmp"
             try:
                 base.mkdir(exist_ok=True)
             except PermissionError:
@@ -354,7 +354,7 @@ class TestDecodeProjectPath:
         used to consume only the first token after ``Users``/``home`` as the
         home directory and walk from ``/Users/first`` (which does not exist), so
         it bailed out and callers fell back to the literal
-        ``/Users/first/last`` — causing ``headroom learn --apply`` to fail with
+        ``/Users/first/last`` — causing ``cutctx learn --apply`` to fail with
         ``PermissionError: '/Users/first'`` for usernames such as
         ``first.last``. This is the Unix counterpart of
         ``test_windows_username_with_dot_stays_single_component``.
@@ -369,7 +369,7 @@ class TestDecodeProjectPath:
         if len(home.parts) < 3 or home.parts[1] not in ("Users", "home"):
             pytest.skip("decoder branch only activates under /Users or /home")
 
-        base = home / f"pytest_headroom_{uuid4().hex}"
+        base = home / f"pytest_cutctx_{uuid4().hex}"
         try:
             base.mkdir()
         except (PermissionError, OSError):

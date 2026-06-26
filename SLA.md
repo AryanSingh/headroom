@@ -1,6 +1,6 @@
-# CutCtx Support Policy and SLA
+# Cutctx Support Policy and SLA
 
-This document captures the customer-facing support expectations for CutCtx. It is the published version of the support policy referenced during commercial onboarding and procurement.
+This document captures the customer-facing support expectations for Cutctx. It is the published version of the support policy referenced during commercial onboarding and procurement.
 
 ## Coverage By Tier
 

@@ -45,7 +45,7 @@ from benchmarks.scenarios.tool_outputs import (
 )
 
 # Cutctx imports
-from headroom.transforms.smart_crusher import SmartCrusherConfig, smart_crush_tool_output
+from cutctx.transforms.smart_crusher import SmartCrusherConfig, smart_crush_tool_output
 
 # =============================================================================
 # PRICING DATA (as of 2025)
@@ -247,7 +247,7 @@ def benchmark_cache_alignment() -> BenchmarkResult:
     Without alignment: 0% cache hits
     With alignment: 90%+ cache hits
     """
-    from headroom.cache import DetectorConfig, DynamicContentDetector
+    from cutctx.cache import DetectorConfig, DynamicContentDetector
 
     result = BenchmarkResult(
         name="Cache Alignment Impact",
@@ -600,7 +600,7 @@ def _generate_terminal_report(results: list[BenchmarkResult]) -> str:
 
     lines.append("")
     lines.append("=" * 80)
-    lines.append("  HEADROOM AGENT COST BENCHMARK")
+    lines.append("  CUTCTX AGENT COST BENCHMARK")
     lines.append("  The Context Optimization Layer for LLM Applications")
     lines.append("=" * 80)
 

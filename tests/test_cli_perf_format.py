@@ -1,4 +1,4 @@
-"""Tests for `headroom perf --format {text,json,csv}` (issue #595)."""
+"""Tests for `cutctx perf --format {text,json,csv}` (issue #595)."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.perf import analyzer
-from headroom.perf.analyzer import (
+from cutctx.cli.main import main
+from cutctx.perf import analyzer
+from cutctx.perf.analyzer import (
     PerfRecord,
     PerfReport,
     TransformRecord,

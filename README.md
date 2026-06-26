@@ -40,12 +40,12 @@
 ---
 <p align="center"><a href="https://trendshift.io/repositories/20881" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20881" alt="cutctx%2Fcutctx | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a></p>
 
-CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
+Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chunks, files, and conversation history — before it reaches the LLM. Same answers, fraction of the tokens.
 
-> Product naming: **CutCtx** is the public product brand. The historical Python module name `headroom` still exists for compatibility behind the `cutctx` alias, but end-user installs and commands are `cutctx` / `cutctx-ai`.
+> Product naming: **Cutctx** is the public product brand. The historical Python module name `cutctx` still exists for compatibility behind the `cutctx` alias, but end-user installs and commands are `cutctx` / `cutctx-ai`.
 
 <p align="center">
-  <img src="CutctxDemo-Fast.gif" alt="CutCtx in action" width="820">
+  <img src="CutctxDemo-Fast.gif" alt="Cutctx in action" width="820">
   <br/><sub>Live: 10,144 → 1,260 tokens — same FATAL found.</sub>
 </p>
 
@@ -68,7 +68,7 @@ CutCtx compresses everything your AI agent reads — tool outputs, logs, RAG chu
         │   prompts · tool outputs · logs · RAG results · files
         ▼
     ┌────────────────────────────────────────────────────┐
-    │  CutCtx    (runs locally — your data stays here)  │
+    │  Cutctx    (runs locally — your data stays here)  │
     │  ────────────────────────────────────────────────  │
     │  CacheAligner  →  ContentRouter  →  CCR            │
     │                    ├─ SmartCrusher   (JSON)        │
@@ -105,7 +105,7 @@ cutctx proxy --port 8787              # drop-in proxy, zero code changes
 cutctx perf
 ```
 
-**Accuracy guard** — `--accuracy-guard strict` (default in agent profiles) verifies that compressed output preserves critical identifiers, function names, and references before forwarding. Use `HEADROOM_ACCURACY_GUARD=strict|balanced|off` to tune.
+**Accuracy guard** — `--accuracy-guard strict` (default in agent profiles) verifies that compressed output preserves critical identifiers, function names, and references before forwarding. Use `CUTCTX_ACCURACY_GUARD=strict|balanced|off` to tune.
 
 Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
 
@@ -122,7 +122,7 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 
 **Accuracy preserved on standard benchmarks:**
 
-| Benchmark  | Category | N   | Baseline | CutCtx | Delta      |
+| Benchmark  | Category | N   | Baseline | Cutctx | Delta      |
 |------------|----------|----:|---------:|---------:|------------|
 | GSM8K      | Math     | 100 |    0.870 |    0.870 | **±0.000** |
 | TruthfulQA | Factual  | 100 |    0.530 |    0.560 | **+0.030** |
@@ -152,13 +152,13 @@ Any OpenAI-compatible client works via `cutctx proxy`. MCP-native: `cutctx mcp i
 
 ### GitHub Copilot CLI subscription mode
 
-CutCtx can route GitHub Copilot CLI subscription traffic through the local proxy:
+Cutctx can route GitHub Copilot CLI subscription traffic through the local proxy:
 
 ```bash
 cutctx wrap copilot --subscription -- --model gpt-4o
 ```
 
-This lets CutCtx intercept OpenAI-compatible Copilot CLI requests and apply the same proxy compression pipeline before forwarding to GitHub Copilot's hosted API. The wrapper resolves the account-specific Copilot API endpoint and prints it as `COPILOT_PROVIDER_API_URL=...` during launch.
+This lets Cutctx intercept OpenAI-compatible Copilot CLI requests and apply the same proxy compression pipeline before forwarding to GitHub Copilot's hosted API. The wrapper resolves the account-specific Copilot API endpoint and prints it as `COPILOT_PROVIDER_API_URL=...` during launch.
 
 Platform support note: macOS auth reuse via Copilot CLI Keychain storage has been smoke-tested. Windows Credential Manager, Linux Secret Service / `secret-tool`, and Docker/CI token-injection paths are implemented or planned as auth-discovery paths, but still need real OS validation before they should be considered fully vetted. For Docker and CI, prefer passing an explicit `GITHUB_COPILOT_TOKEN` or `GITHUB_COPILOT_GITHUB_TOKEN` rather than relying on host keychain access.
 
@@ -186,17 +186,17 @@ For buyers, operators, and security reviewers:
 - [Artifacts index](artifacts/README.md)
 
 <details>
-<summary><b>Integrations — drop CutCtx into any stack</b></summary>
+<summary><b>Integrations — drop Cutctx into any stack</b></summary>
 
 | Your setup             | Hook in with                                                     |
 |------------------------|------------------------------------------------------------------|
 | Any Python app         | `compress(messages, model=…)`                                    |
 | Any TypeScript app     | `await compress(messages, { model })`                            |
-| Anthropic / OpenAI SDK | CutCtx client wrappers for existing Anthropic and OpenAI SDK clients |
+| Anthropic / OpenAI SDK | Cutctx client wrappers for existing Anthropic and OpenAI SDK clients |
 | Vercel AI SDK          | `wrapLanguageModel({ model, middleware: cutctxMiddleware() })` |
-| LiteLLM                | CutCtx callback integration for LiteLLM                          |
-| LangChain              | CutCtx LangChain chat wrapper                                    |
-| Agno                   | CutCtx Agno model wrapper                                        |
+| LiteLLM                | Cutctx callback integration for LiteLLM                          |
+| LangChain              | Cutctx LangChain chat wrapper                                    |
+| Agno                   | Cutctx Agno model wrapper                                        |
 | Strands                | [Strands guide](https://cutctx.dev/docs/strands)  |
 | ASGI apps              | `app.add_middleware(CompressionMiddleware)`                      |
 | Multi-agent            | `SharedContext().put / .get`                                     |
@@ -240,12 +240,12 @@ For buyers, operators, and security reviewers:
 Every token saved is tagged with the source that produced it. The buyer report and the dashboard never double-count. The five sources:
 
 - **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`, Gemini `cachedContentTokenCount`. Observed on the upstream side.
-- **CutCtx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
+- **Cutctx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
 - **Semantic cache** — tokens avoided by serving a prior near-duplicate request from the response cache. Cross-provider.
 - **Self-hosted prefix cache** — tokens served by vLLM Automatic Prefix Caching. Reported separately from provider cache.
 - **Model routing** — tokens served by a cheaper model than the user originally requested, plus the resulting USD savings.
 
-**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema.
+**Attribution invariant:** the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of Cutctx above and beyond their existing provider cache, in dollars, with a reproducible schema.
 
 ```bash
 cutctx report buyer --format json   # full breakdown, machine-readable
@@ -272,7 +272,7 @@ cutctx integrations status         # which parsers are wired
 <details>
 <summary><b>Pipeline internals</b></summary>
 
-CutCtx exposes one stable request lifecycle across `compress()`, the SDK, and the proxy:
+Cutctx exposes one stable request lifecycle across `compress()`, the SDK, and the proxy:
 
 `Setup` → `Pre-Start` → `Post-Start` → `Input Received` → `Input Cached` → `Input Routed` → `Input Compressed` → `Input Remembered` → `Pre-Send` → `Post-Send` → `Response Received`
 
@@ -355,17 +355,17 @@ Running with compression disabled (pure gateway) requires neither asset.
 
 ## Compared to
 
-CutCtx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.
+Cutctx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.
 
 |                                                                              | Scope                                          | Deploy                             | Local | Reversible |
 |------------------------------------------------------------------------------|------------------------------------------------|------------------------------------|:-----:|:----------:|
-| **CutCtx**                                                                 | All context — tools, RAG, logs, files, history | Proxy · library · middleware · MCP | Yes   | Yes        |
+| **Cutctx**                                                                 | All context — tools, RAG, logs, files, history | Proxy · library · middleware · MCP | Yes   | Yes        |
 | [RTK](https://github.com/rtk-ai/rtk)                                        | CLI command outputs                            | CLI wrapper                        | Yes   | No         |
 | [lean-ctx](https://github.com/yvgude/lean-ctx)                               | CLI commands, MCP tools, editor rules          | CLI wrapper · MCP                  | Yes   | No         |
 | [Compresr](https://compresr.ai), [Token Co.](https://thetokencompany.ai)    | Text sent to their API                         | Hosted API call                    | No    | No         |
 | OpenAI Compaction                                                            | Conversation history                           | Provider-native                    | No    | No         |
 
-> **Attribution.** CutCtx ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and CutCtx compresses everything downstream of it. CutCtx can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `CUTCTX_CONTEXT_TOOL=lean-ctx` before running `cutctx wrap ...`.
+> **Attribution.** Cutctx ships with the excellent [RTK](https://github.com/rtk-ai/rtk) binary for shell-output rewriting — `git show --short`, scoped `ls`, summarized installers. Huge thanks to the RTK team; their tool is a first-class part of our stack, and Cutctx compresses everything downstream of it. Cutctx can also use [lean-ctx](https://github.com/yvgude/lean-ctx) as the selected CLI context tool; set `CUTCTX_CONTEXT_TOOL=lean-ctx` before running `cutctx wrap ...`.
 
 ## Contributing
 

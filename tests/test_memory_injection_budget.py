@@ -1,4 +1,4 @@
-"""Tests for :class:`headroom.proxy.memory_injection.MemoryInjectionBudget`.
+"""Tests for :class:`cutctx.proxy.memory_injection.MemoryInjectionBudget`.
 
 Pre-PR Cutctx had **no token cap on injected memory**: top_k=10
 candidates × ~400 tokens each = up to ~4000 tokens injected per
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 
-from headroom.proxy.memory_injection import MemoryInjectionBudget
+from cutctx.proxy.memory_injection import MemoryInjectionBudget
 
 # ── Value-type contract ───────────────────────────────────────────────
 

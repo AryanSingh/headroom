@@ -3,17 +3,17 @@
  * Matches Python client.simulate() behavior.
  */
 
-import { CutCtxClient } from "./client.js";
-import type { CutCtxClientOptions } from "./types.js";
+import { CutctxClient } from "./client.js";
+import type { CutctxClientOptions } from "./types.js";
 import type { SimulationResult } from "./types/models.js";
-import type { CutCtxConfig } from "./types/config.js";
+import type { CutctxConfig } from "./types/config.js";
 import { deepCamelCase, deepSnakeCase } from "./utils/case.js";
 import { detectFormat, toOpenAI } from "./utils/format.js";
 
-export interface SimulateOptions extends CutCtxClientOptions {
+export interface SimulateOptions extends CutctxClientOptions {
   model?: string;
-  config?: CutCtxConfig;
-  client?: CutCtxClient;
+  config?: CutctxConfig;
+  client?: CutctxClient;
 }
 
 /**
@@ -34,7 +34,7 @@ export async function simulate(
   const { client: providedClient, model, config, ...clientOptions } = options;
 
   const openaiMessages = toOpenAI(messages);
-  const client = providedClient ?? new CutCtxClient(clientOptions);
+  const client = providedClient ?? new CutctxClient(clientOptions);
 
   const body: Record<string, any> = {
     messages: openaiMessages,

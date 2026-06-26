@@ -1,9 +1,9 @@
 {
   "name": "cutctx",
   "version": "0.26.1",
-  "description": "CutCtx context compression for Claude Code — compress, retrieve, and observe token savings in real-time.",
+  "description": "Cutctx context compression for Claude Code — compress, retrieve, and observe token savings in real-time.",
   "author": {
-    "name": "CutCtx Contributors",
+    "name": "Cutctx Contributors",
     "url": "https://github.com/cutctx/cutctx"
   },
   "homepage": "https://github.com/cutctx/cutctx",
@@ -18,12 +18,12 @@
   "tools": [
     {
       "name": "cutctx_retrieve",
-      "description": "Retrieve original uncompressed content from a CutCtx compression marker",
+      "description": "Retrieve original uncompressed content from a Cutctx compression marker",
       "command": "cutctx mcp serve"
     },
     {
       "name": "cutctx_compress",
-      "description": "Compress content on demand using CutCtx algorithms",
+      "description": "Compress content on demand using Cutctx algorithms",
       "command": "cutctx mcp serve"
     },
     {

@@ -22,7 +22,7 @@ class TestTaskExtractor:
     """Tests for TaskExtractor."""
 
     def test_extract_from_imperative_verb(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         msgs = [{"role": "user", "content": "Fix the HTTP 500 error in the login endpoint"}]
         task = TaskExtractor.extract_task(msgs)
@@ -30,14 +30,14 @@ class TestTaskExtractor:
         assert "fix" in task.lower() or "HTTP" in task
 
     def test_extract_from_question_word(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         msgs = [{"role": "user", "content": "How do I implement a rate limiter for the API?"}]
         task = TaskExtractor.extract_task(msgs)
         assert task is not None
 
     def test_extract_from_special_keyword(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         msgs = [{"role": "user", "content": "There's a debug issue with the database connection pool timing out under load"}]
         task = TaskExtractor.extract_task(msgs)
@@ -45,20 +45,20 @@ class TestTaskExtractor:
         assert "debug" in task.lower()
 
     def test_extract_returns_none_for_short_content(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         msgs = [{"role": "user", "content": "ok"}]
         task = TaskExtractor.extract_task(msgs)
         assert task is None
 
     def test_extract_returns_none_for_empty_messages(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         assert TaskExtractor.extract_task([]) is None
         assert TaskExtractor.extract_task([{"role": "assistant", "content": "hello"}]) is None
 
     def test_extract_uses_most_recent_user_message(self):
-        from headroom.compression.task_aware import TaskExtractor
+        from cutctx.compression.task_aware import TaskExtractor
 
         msgs = [
             {"role": "user", "content": "What time is it? This is a simple question."},
@@ -74,7 +74,7 @@ class TestRelevanceModulator:
     """Tests for RelevanceModulator."""
 
     def test_high_relevance_match(self):
-        from headroom.compression.task_aware import RelevanceModulator
+        from cutctx.compression.task_aware import RelevanceModulator
 
         mod = RelevanceModulator(use_bm25=False)
         score = mod.score(
@@ -84,7 +84,7 @@ class TestRelevanceModulator:
         assert score >= 0.3  # Should match on "error", "500", "connection"
 
     def test_low_relevance(self):
-        from headroom.compression.task_aware import RelevanceModulator
+        from cutctx.compression.task_aware import RelevanceModulator
 
         mod = RelevanceModulator(use_bm25=False)
         score = mod.score(
@@ -94,14 +94,14 @@ class TestRelevanceModulator:
         assert score < 0.2
 
     def test_empty_content_returns_zero(self):
-        from headroom.compression.task_aware import RelevanceModulator
+        from cutctx.compression.task_aware import RelevanceModulator
 
         mod = RelevanceModulator(use_bm25=False)
         assert mod.score("", "some task") == 0.0
         assert mod.score("content", "") == 0.0
 
     def test_bm25_fallback_on_error(self):
-        from headroom.compression.task_aware import RelevanceModulator
+        from cutctx.compression.task_aware import RelevanceModulator
 
         mod = RelevanceModulator(use_bm25=True)
         # BM25 should be available, but test fallback path
@@ -114,7 +114,7 @@ class TestTaskAwareCompressor:
     """Tests for TaskAwareCompressor."""
 
     def test_compress_with_task(self):
-        from headroom.compression.task_aware import TaskAwareCompressor
+        from cutctx.compression.task_aware import TaskAwareCompressor
 
         comp = TaskAwareCompressor(task="debug error")
         result = comp.compress('{"error": "timeout", "code": 504, "message": "gateway timeout"}')
@@ -123,7 +123,7 @@ class TestTaskAwareCompressor:
         assert result.task_used == "debug error"
 
     def test_compress_without_task(self):
-        from headroom.compression.task_aware import TaskAwareCompressor
+        from cutctx.compression.task_aware import TaskAwareCompressor
 
         comp = TaskAwareCompressor(task=None)
         result = comp.compress("Some content to compress " * 20)
@@ -132,7 +132,7 @@ class TestTaskAwareCompressor:
         assert result.relevance_score == 1.0  # No task = fully relevant
 
     def test_set_task(self):
-        from headroom.compression.task_aware import TaskAwareCompressor
+        from cutctx.compression.task_aware import TaskAwareCompressor
 
         comp = TaskAwareCompressor()
         assert comp.task is None
@@ -140,7 +140,7 @@ class TestTaskAwareCompressor:
         assert comp.task == "implement feature"
 
     def test_tokens_saved_property(self):
-        from headroom.compression.task_aware import TaskAwareCompressor
+        from cutctx.compression.task_aware import TaskAwareCompressor
 
         comp = TaskAwareCompressor()
         result = comp.compress("Hello world")
@@ -155,7 +155,7 @@ class TestSessionDeduplicator:
     """Tests for SessionDeduplicator."""
 
     def test_first_occurrence_not_deduped(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         msgs = [{"role": "user", "content": "x" * 1000}]
@@ -164,7 +164,7 @@ class TestSessionDeduplicator:
         assert result.refs_created == 1
 
     def test_duplicate_content_deduped(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         content = "The quick brown fox jumps over the lazy dog. " * 30  # >200 tokens
@@ -177,10 +177,10 @@ class TestSessionDeduplicator:
         result2 = dedup.process(msgs)
         assert result2.dedup_count == 1
         assert result2.tokens_saved > 0
-        assert "[headroom:ref:" in result2.messages[0]["content"]
+        assert "[cutctx:ref:" in result2.messages[0]["content"]
 
     def test_system_messages_skipped(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         msgs = [
@@ -191,7 +191,7 @@ class TestSessionDeduplicator:
         assert result.chunk_count == 0  # System messages not counted
 
     def test_short_content_not_deduped(self):
-        from headroom.dedup import MIN_DEDUP_TOKENS, SessionDeduplicator
+        from cutctx.dedup import MIN_DEDUP_TOKENS, SessionDeduplicator
 
         dedup = SessionDeduplicator()
         short_content = "x" * (MIN_DEDUP_TOKENS * 2)  # 400 chars = ~100 tokens < 200
@@ -200,7 +200,7 @@ class TestSessionDeduplicator:
         assert result.chunk_count == 0
 
     def test_stats_tracking(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         content = "A" * 1000
@@ -213,7 +213,7 @@ class TestSessionDeduplicator:
         assert stats["current_turn"] == 2
 
     def test_reset_clears_state(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         content = "B" * 1000
@@ -224,7 +224,7 @@ class TestSessionDeduplicator:
         assert dedup.stats["tracked_hashes"] == 0
 
     def test_hash_stability(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         h1 = dedup._hash_content("test content")
@@ -233,7 +233,7 @@ class TestSessionDeduplicator:
         assert len(h1) == 16
 
     def test_multimodal_content_passthrough(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         msgs = [{"role": "user", "content": [{"type": "text", "text": "hello"}]}]
@@ -241,7 +241,7 @@ class TestSessionDeduplicator:
         assert result.dedup_count == 0
 
     def test_get_hash_metadata(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         content = "C" * 1000
@@ -260,7 +260,7 @@ class TestContextBudgetController:
     """Tests for ContextBudgetController."""
 
     def test_green_zone_no_compression(self):
-        from headroom.context_budget import BudgetZone, ContextBudgetController
+        from cutctx.context_budget import BudgetZone, ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=100_000)
         msgs = [{"role": "user", "content": "Hello"}] * 10
@@ -269,7 +269,7 @@ class TestContextBudgetController:
         assert ctrl.status.zone == BudgetZone.GREEN
 
     def test_status_tracks_usage(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=1000)
         ctrl._tokens_used = 500
@@ -279,7 +279,7 @@ class TestContextBudgetController:
         assert status.tokens_budget == 1000
 
     def test_percent_used(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=200)
         msgs = [{"role": "user", "content": "x" * 400}]  # ~100 tokens
@@ -288,7 +288,7 @@ class TestContextBudgetController:
         assert 0 < ctrl.percent_used <= 100.0
 
     def test_budget_policy_presets(self):
-        from headroom.context_budget import BudgetPolicy
+        from cutctx.context_budget import BudgetPolicy
 
         conservative = BudgetPolicy.from_env("conservative")
         assert conservative.green_threshold == 0.70
@@ -302,7 +302,7 @@ class TestContextBudgetController:
         assert balanced.green_threshold == 0.60
 
     def test_forecast_returns_metrics(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=100_000)
         msgs = [{"role": "user", "content": "test " * 100}] * 5
@@ -312,7 +312,7 @@ class TestContextBudgetController:
         assert "confidence_pct" in forecast
 
     def test_empty_messages(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         ctrl = ContextBudgetController(max_tokens=100_000)
         result = ctrl.apply([])
@@ -327,7 +327,7 @@ class TestCompressionProfile:
     """Tests for CompressionProfile."""
 
     def test_content_type_stats_update(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
 
         stats = ContentTypeStats(content_type="json")
         stats.update_from_session(100, 50, was_retrieved=False)
@@ -335,7 +335,7 @@ class TestCompressionProfile:
         assert stats.avg_compression_ratio == 0.5
 
     def test_retrieval_rate(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
 
         stats = ContentTypeStats(content_type="json")
         stats.update_from_session(100, 50, was_retrieved=True)
@@ -343,7 +343,7 @@ class TestCompressionProfile:
         assert stats.retrieval_rate == 0.5
 
     def test_recommendation_increases_on_retrieval(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
 
         stats = ContentTypeStats(content_type="json")
         # 3 compressions with high retrieval rate
@@ -353,7 +353,7 @@ class TestCompressionProfile:
         assert stats.recommended_ratio > 0.3
 
     def test_recommendation_stable_low_retrieval(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
 
         stats = ContentTypeStats(content_type="json")
         for _ in range(5):
@@ -362,7 +362,7 @@ class TestCompressionProfile:
         assert stats.recommended_ratio <= 0.5
 
     def test_profile_load_save_roundtrip(self):
-        from headroom.profiles import CompressionProfile, ContentTypeStats, _get_profile_path
+        from cutctx.profiles import CompressionProfile, ContentTypeStats, _get_profile_path
 
         profile = CompressionProfile("test-hash-123")
         profile.record_session("sess-1", [
@@ -385,7 +385,7 @@ class TestCompressionProfile:
         assert loaded_stats["json"].total_compressions == 1
 
     def test_profile_summary(self):
-        from headroom.profiles import CompressionProfile
+        from cutctx.profiles import CompressionProfile
 
         profile = CompressionProfile("test-hash")
         profile.record_session("s1", [
@@ -404,7 +404,7 @@ class TestSharedContext:
     """Tests for SharedContext."""
 
     def test_put_and_get(self):
-        from headroom.shared_context import SharedContext
+        from cutctx.shared_context import SharedContext
 
         ctx = SharedContext(ttl=3600)
         ctx.put("test-key", "Hello world content " * 100)
@@ -413,7 +413,7 @@ class TestSharedContext:
         assert len(result) > 0
 
     def test_get_full_content(self):
-        from headroom.shared_context import SharedContext
+        from cutctx.shared_context import SharedContext
 
         ctx = SharedContext(ttl=3600)
         original = "Original uncompressed content " * 50
@@ -424,7 +424,7 @@ class TestSharedContext:
         assert len(full) >= len(compressed)
 
     def test_ttl_expiry(self):
-        from headroom.shared_context import SharedContext
+        from cutctx.shared_context import SharedContext
 
         ctx = SharedContext(ttl=0)  # Immediate expiry
         ctx.put("expire-me", "content " * 100)
@@ -432,7 +432,7 @@ class TestSharedContext:
         assert ctx.get("expire-me") is None
 
     def test_stats(self):
-        from headroom.shared_context import SharedContext
+        from cutctx.shared_context import SharedContext
 
         ctx = SharedContext(ttl=3600)
         ctx.put("a", "content a " * 100)
@@ -442,7 +442,7 @@ class TestSharedContext:
         assert stats.total_tokens_saved >= 0
 
     def test_max_entries_eviction(self):
-        from headroom.shared_context import SharedContext
+        from cutctx.shared_context import SharedContext
 
         ctx = SharedContext(ttl=3600, max_entries=3)
         for i in range(5):
@@ -454,7 +454,7 @@ class TestSharedCompressionCache:
     """Tests for SharedCompressionCache."""
 
     def test_cache_hit(self):
-        from headroom.shared_context import SharedCompressionCache
+        from cutctx.shared_context import SharedCompressionCache
 
         cache = SharedCompressionCache(max_entries=100, ttl_seconds=3600)
         content = "Test content for caching " * 50
@@ -470,7 +470,7 @@ class TestSharedCompressionCache:
         assert result1 == result2
 
     def test_workspace_isolation(self):
-        from headroom.shared_context import SharedCompressionCache
+        from cutctx.shared_context import SharedCompressionCache
 
         cache = SharedCompressionCache()
         content1 = "Content for workspace 1 " * 100
@@ -490,7 +490,7 @@ class TestSharedCompressionCache:
         assert r_cross is None
 
     def test_stats(self):
-        from headroom.shared_context import SharedCompressionCache
+        from cutctx.shared_context import SharedCompressionCache
 
         cache = SharedCompressionCache()
         cache.get_or_compress("content1", lambda c: "c1", "a1")
@@ -506,7 +506,7 @@ class TestAgentRegistry:
     """Tests for AgentRegistry."""
 
     def test_register_unregister(self):
-        from headroom.shared_context import AgentRegistry
+        from cutctx.shared_context import AgentRegistry
 
         reg = AgentRegistry()
         reg.register("agent-1")
@@ -515,7 +515,7 @@ class TestAgentRegistry:
         assert "agent-1" not in reg.active_agents()
 
     def test_set_get_task(self):
-        from headroom.shared_context import AgentRegistry
+        from cutctx.shared_context import AgentRegistry
 
         reg = AgentRegistry()
         reg.register("agent-1")
@@ -527,7 +527,7 @@ class TestMultiAgentCoordinator:
     """Tests for MultiAgentCoordinator."""
 
     def test_compress_shared(self):
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         MultiAgentCoordinator.reset_instance()
         coord = MultiAgentCoordinator.get_instance()
@@ -549,7 +549,7 @@ class TestMultiAgentCoordinator:
         MultiAgentCoordinator.reset_instance()
 
     def test_get_agent_context(self):
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         MultiAgentCoordinator.reset_instance()
         coord = MultiAgentCoordinator.get_instance()
@@ -571,7 +571,7 @@ class TestCostEstimator:
     """Tests for CostEstimator."""
 
     def test_known_model_pricing(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         est = CostEstimator(model="claude-sonnet-4-5-20250929")
         estimate = est.estimate(input_tokens=100_000, output_tokens=5_000)
@@ -582,7 +582,7 @@ class TestCostEstimator:
         assert estimate.total_usd == pytest.approx(0.375, abs=0.001)
 
     def test_compression_savings(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         est = CostEstimator(model="claude-sonnet-4-5")
         estimate = est.estimate(input_tokens=100_000, compression_ratio=0.5)
@@ -590,7 +590,7 @@ class TestCostEstimator:
         assert estimate.compressed_input_tokens == 50_000
 
     def test_unknown_model_uses_default(self):
-        from headroom.cost_forecast import _DEFAULT_INPUT_PER_M, CostEstimator
+        from cutctx.cost_forecast import _DEFAULT_INPUT_PER_M, CostEstimator
 
         est = CostEstimator(model="unknown-model-xyz")
         estimate = est.estimate(input_tokens=1_000_000)
@@ -598,7 +598,7 @@ class TestCostEstimator:
         assert estimate.input_usd == pytest.approx(expected, abs=0.01)
 
     def test_estimate_messages(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         est = CostEstimator(model="gpt-4o")
         msgs = [{"role": "user", "content": "hello world " * 100}]
@@ -611,14 +611,14 @@ class TestPolicyEngine:
     """Tests for PolicyEngine."""
 
     def test_default_light_strategy(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine(model="claude-sonnet-4-5")
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=10_000)
         assert decision.strategy == CompressionStrategy.LIGHT
 
     def test_budget_critical_emergency(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=0.30, input_tokens=10_000)
@@ -626,28 +626,28 @@ class TestPolicyEngine:
         assert decision.compression_ratio <= 0.20
 
     def test_budget_low_aggressive(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=1.50, input_tokens=10_000)
         assert decision.strategy == CompressionStrategy.AGGRESSIVE
 
     def test_large_context_moderate(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=150_000)
         assert decision.strategy == CompressionStrategy.MODERATE
 
     def test_medium_context_light(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=50.0, input_tokens=75_000)
         assert decision.strategy == CompressionStrategy.LIGHT
 
     def test_budget_priority_over_context(self):
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine()
         # Large context but low budget — budget rule wins (higher priority)
@@ -655,7 +655,7 @@ class TestPolicyEngine:
         assert decision.strategy == CompressionStrategy.AGGRESSIVE
 
     def test_evaluate_with_messages(self):
-        from headroom.cost_forecast import PolicyEngine
+        from cutctx.cost_forecast import PolicyEngine
 
         engine = PolicyEngine()
         msgs = [{"role": "user", "content": "hello " * 5000}]
@@ -663,7 +663,7 @@ class TestPolicyEngine:
         assert decision.strategy is not None
 
     def test_estimated_savings(self):
-        from headroom.cost_forecast import PolicyEngine
+        from cutctx.cost_forecast import PolicyEngine
 
         engine = PolicyEngine()
         decision = engine.evaluate(budget_remaining_usd=1.0, input_tokens=50_000)
@@ -674,7 +674,7 @@ class TestSessionCostTracker:
     """Tests for SessionCostTracker."""
 
     def test_record_and_snapshot(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
 
         tracker = SessionCostTracker(model="claude-sonnet-4-5")
         tracker.record_request(input_tokens=10_000, output_tokens=1_000)
@@ -685,7 +685,7 @@ class TestSessionCostTracker:
         assert snap.total_output_usd > 0
 
     def test_compression_savings(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
 
         tracker = SessionCostTracker(model="claude-sonnet-4-5")
         tracker.record_request(
@@ -699,7 +699,7 @@ class TestSessionCostTracker:
         assert snap.usd_saved_by_compression > 0
 
     def test_budget_tracking(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
 
         tracker = SessionCostTracker(model="claude-sonnet-4-5", budget_usd=1.0)
         assert not tracker.is_budget_exceeded
@@ -714,7 +714,7 @@ class TestSessionCostTracker:
         assert snap.budget_remaining_usd < 0
 
     def test_reset(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
 
         tracker = SessionCostTracker()
         tracker.record_request(input_tokens=10_000)
@@ -728,7 +728,7 @@ class TestModelPricing:
     """Tests for pricing resolution."""
 
     def test_all_known_models_resolve(self):
-        from headroom.cost_forecast import MODEL_PRICING, _resolve_model_pricing
+        from cutctx.cost_forecast import MODEL_PRICING, _resolve_model_pricing
 
         for model in MODEL_PRICING:
             inp, out = _resolve_model_pricing(model)
@@ -736,14 +736,14 @@ class TestModelPricing:
             assert out > 0
 
     def test_fuzzy_match(self):
-        from headroom.cost_forecast import _resolve_model_pricing
+        from cutctx.cost_forecast import _resolve_model_pricing
 
         # "claude-sonnet-4-5-20250929-extra" should match "claude-sonnet-4-5"
         inp, out = _resolve_model_pricing("claude-sonnet-4-5-20250929-extra")
         assert inp == 3.0  # claude-sonnet-4-5 pricing
 
     def test_cost_estimate_savings_percent(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         est = CostEstimator(model="claude-sonnet-4-5")
         estimate = est.estimate(input_tokens=100_000, compression_ratio=0.5)

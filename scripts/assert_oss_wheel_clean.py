@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Leak guard: fail if OSS distribution artifacts contain proprietary code.
 
-The open-core split (see LICENSING.md) keeps the proprietary `headroom_ee`
+The open-core split (see LICENSING.md) keeps the proprietary `cutctx_ee`
 package and the `packaging/` commercial build config OUT of the Apache-2.0
 wheel and sdist. This script inspects built artifacts in a dist directory and
 exits non-zero if any forbidden path is present, so CI and the publish
@@ -18,8 +18,8 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-FORBIDDEN = ("headroom_ee/", "packaging/")
-EXPECT_PRESENT = "headroom/entitlements.py"  # an Apache shim that SHOULD ship
+FORBIDDEN = ("cutctx_ee/", "packaging/")
+EXPECT_PRESENT = "cutctx/entitlements.py"  # an Apache shim that SHOULD ship
 
 
 def _members(path: Path) -> list[str]:
@@ -49,7 +49,7 @@ def main(argv: list[str]) -> int:
         elif not any(EXPECT_PRESENT in n for n in names):
             print(f"::warning::{art.name}: expected Apache shim {EXPECT_PRESENT} missing")
         else:
-            print(f"OK: {art.name} — no headroom_ee/ or packaging/ paths")
+            print(f"OK: {art.name} — no cutctx_ee/ or packaging/ paths")
 
     if failed:
         print("LEAK GUARD FAILED: proprietary code present in an OSS artifact.", file=sys.stderr)

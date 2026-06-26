@@ -1,7 +1,7 @@
-# CutCtx Implementation Status Checklist
+# Cutctx Implementation Status Checklist
 
 **Date:** June 15, 2026
-**Brand:** CutCtx (repo: github.com/cutctx/cutctx)
+**Brand:** Cutctx (repo: github.com/cutctx/cutctx)
 **Test Suite:** 7,840+ passing, 0 regressions
 
 ## Summary
@@ -114,7 +114,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 | ML firewall classifier | security/firewall_ml.py | ONNX inference, graceful fallback | 5 |
 | Stripe billing | billing/stripe_webhook.py | webhook + license DB + routes | 8 |
 | Go SDK (complete) | sdk/go/ | Client + Memory + Proxy + Middleware | 19 |
-| Python SDK | sdk/python/ | CutCtxClient + SharedContext | 14 |
+| Python SDK | sdk/python/ | CutctxClient + SharedContext | 14 |
 | Air-gap mode | proxy/airgap.py | Dynamic offline check + runbook | 3 |
 | Pricing page | docs/pricing.html | Standalone dark-theme page | — |
 
@@ -141,7 +141,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 |--------|----------|--------|
 | Claude Code | plugins/claude-code/ | install.sh, hooks, plugin.json — cutctx MCP |
 | Codex | plugins/codex/ | install.sh, plugin.json — config.toml provider |
-| CutCtx Plugin (web UI) | plugins/cutctx-plugin/ | .claude-plugin + skills/compress |
+| Cutctx Plugin (web UI) | plugins/cutctx-plugin/ | .claude-plugin + skills/compress |
 | cutctx-agent-hooks | plugins/cutctx-agent-hooks/ | Legacy hooks |
 | cutctx-oauth2 | plugins/cutctx-oauth2/ | OAuth2 pip package |
 | hermes | plugins/hermes/ | Hermes agent plugin |
@@ -151,7 +151,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 | SDK | Location | Features | Tests |
 |-----|----------|----------|-------|
 | Go | sdk/go/ | Client, Compress/Retrieve/Stats, SharedContext, Memory, Proxy middleware | 19 |
-| Python | sdk/python/ | CutCtxClient, SharedContext | 14 |
+| Python | sdk/python/ | CutctxClient, SharedContext | 14 |
 
 ### Proxy Architecture
 | Component | Status | Notes |
@@ -209,7 +209,7 @@ All code-level implementation is complete. The codebase has a production-grade R
 - Design partner outreach — docs/gtm/DESIGN_PARTNER_OUTREACH.md
 - Upgrade prompt — cutctx/cli/upgrade_prompt.py
 - Billing webhook — scripts/issue_license_from_webhook.py
-- CutCtx rebrand — All CI/CD, Docker, K8s, Helm, pyproject.toml
+- Cutctx rebrand — All CI/CD, Docker, K8s, Helm, pyproject.toml
 
 ---
 
@@ -284,11 +284,11 @@ d61b134 fix: update Claude Code + Codex plugins — consistent cutctx branding
 74a3439 feat: capability extensions — viral launch, benchmarks, ML firewall, Stripe billing, Go SDK, air-gap
 b1a25c5 chore: commit remaining uncommitted changes — rebranding, Helm, Go SDK, docs
 494e75e feat: close all remaining product gaps — CLI bench/report, pricing page, enhanced dashboard, Go+Python SDKs
-0cc598e feat: close all PRODUCT_CAPABILITY_MATRIX gaps — enterprise admin UI, expanded MCP, CLI commands, rebrand to CutCtx
+0cc598e feat: close all PRODUCT_CAPABILITY_MATRIX gaps — enterprise admin UI, expanded MCP, CLI commands, rebrand to Cutctx
 386db7a docs: corrected product capability matrix — CLI has 14 subcommands, dashboard exists
 612637c docs: product capability matrix — 49 features mapped, 19 gaps identified
 6eeb468 fix: cutctx plugin — rename cutctx→cutctx CLI refs, add auto-start proxy
-d23c252 feat: CutCtx Claude.ai skill plugin — uploadable ZIP for web UI
+d23c252 feat: Cutctx Claude.ai skill plugin — uploadable ZIP for web UI
 6238a08 fix: Claude Code plugin — use claude mcp add for proper CLI registration
 8c31b18 feat: Claude Code + Codex plugins — install/uninstall, hooks, MCP integration
 d92107b docs: comprehensive status update — CHANGELOG with all v0.26.0 features

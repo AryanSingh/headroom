@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from headroom.providers.gemini import build_launch_env, proxy_base_url
-from headroom.providers.gemini.install import build_install_env
+from cutctx.providers.gemini import build_launch_env, proxy_base_url
+from cutctx.providers.gemini.install import build_install_env
 
 
 def test_gemini_proxy_base_url_uses_local_proxy_root() -> None:

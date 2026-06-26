@@ -3,15 +3,9 @@
 
 """SP-3/SP-5/SP-6/SP-7: Tests for software protection modules."""
 
-import base64
-import json
-import math
 import time
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # SP-3: compile_ee.py tests
@@ -31,23 +25,23 @@ class TestCompileEe:
         assert "nuitka" in content.lower()
 
     def test_compile_all_ee_module_structure(self):
-        """Verify headroom_ee modules exist for compilation."""
-        ee_dir = Path(__file__).resolve().parent.parent / "headroom_ee"
+        """Verify cutctx_ee modules exist for compilation."""
+        ee_dir = Path(__file__).resolve().parent.parent / "cutctx_ee"
         py_files = [f for f in ee_dir.rglob("*.py") if f.name != "__init__.py"]
         assert len(py_files) >= 5, f"Expected at least 5 EE modules, found {len(py_files)}"
 
     def test_verify_no_source_logic(self):
         """Verify the no-source check logic works with mock data."""
-        import zipfile
         import tempfile
+        import zipfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
             # Create a mock wheel with .py files
             wheel_path = tmpdir / "test-ee-0.1.0-py3-none-any.whl"
             with zipfile.ZipFile(wheel_path, "w") as zf:
-                zf.writestr("headroom_ee/__init__.py", "# source code")
-                zf.writestr("headroom_ee/module.so", b"\x7fELF")
+                zf.writestr("cutctx_ee/__init__.py", "# source code")
+                zf.writestr("cutctx_ee/module.so", b"\x7fELF")
 
             # Should find .py files
             with zipfile.ZipFile(wheel_path) as z:
@@ -65,7 +59,7 @@ class TestWatermark:
     """Tests for per-customer watermarking."""
 
     def test_watermark_roundtrip(self):
-        from headroom_ee.watermark import Watermark
+        from cutctx_ee.watermark import Watermark
 
         wm = Watermark(
             lic_id="lic_test123",
@@ -83,7 +77,7 @@ class TestWatermark:
         assert recovered.canary_token == wm.canary_token
 
     def test_watermark_unique_canary(self):
-        from headroom_ee.watermark import Watermark
+        from cutctx_ee.watermark import Watermark
 
         wm1 = Watermark(lic_id="lic_a", customer_id="c1", build_id="b1")
         wm2 = Watermark(lic_id="lic_a", customer_id="c1", build_id="b1")
@@ -91,24 +85,24 @@ class TestWatermark:
         assert wm1.canary_token != wm2.canary_token
 
     def test_watermark_from_invalid_marker(self):
-        from headroom_ee.watermark import Watermark
+        from cutctx_ee.watermark import Watermark
 
         assert Watermark.from_marker("invalid") is None
         assert Watermark.from_marker("CTXWM:invalid_base64!!!") is None
         assert Watermark.from_marker("") is None
 
     def test_generate_canary_strings(self):
-        from headroom_ee.watermark import generate_canary_strings
+        from cutctx_ee.watermark import generate_canary_strings
 
         canaries = generate_canary_strings("lic_test", count=3)
         assert len(canaries) == 3
-        assert all(c.startswith("HEADROOM_INTERNAL_") for c in canaries)
+        assert all(c.startswith("CUTCTX_INTERNAL_") for c in canaries)
         # Unique per lic_id
         canaries2 = generate_canary_strings("lic_other", count=3)
         assert canaries != canaries2
 
     def test_extract_watermark_from_source(self):
-        from headroom_ee.watermark import Watermark, extract_watermark_from_source
+        from cutctx_ee.watermark import Watermark, extract_watermark_from_source
 
         with patch("pathlib.Path.read_text") as mock_read:
             marker = Watermark(
@@ -132,7 +126,7 @@ class TestAbuseDetector:
     """Tests for server-side abuse detection."""
 
     def test_no_abuse_normal_activity(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector()
         # Normal: same fingerprint, same geo, infrequent
@@ -146,7 +140,7 @@ class TestAbuseDetector:
         assert len(alerts) == 0
 
     def test_impossible_travel(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector()
         detector.process_event(ActivationRecord(
@@ -168,7 +162,7 @@ class TestAbuseDetector:
         assert impossible[0].severity.value == "high"
 
     def test_too_many_fingerprints(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector(max_fingerprints=3)
         for i in range(5):
@@ -184,7 +178,7 @@ class TestAbuseDetector:
         assert len(fp_alerts) >= 1
 
     def test_too_many_ips(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector(max_ips=3)
         for i in range(5):
@@ -200,7 +194,7 @@ class TestAbuseDetector:
         assert len(ip_alerts) >= 1
 
     def test_activation_storm(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector(storm_window_secs=60, storm_max_count=3)
         now = time.time()
@@ -217,7 +211,7 @@ class TestAbuseDetector:
         assert len(storm_alerts) >= 1
 
     def test_seat_overuse(self):
-        from headroom_ee.abuse import check_seat_overuse
+        from cutctx_ee.abuse import check_seat_overuse
 
         alert = check_seat_overuse(current_seats=5, max_seats=3, lic_id="lic1")
         assert alert is not None
@@ -228,7 +222,7 @@ class TestAbuseDetector:
         assert alert is None
 
     def test_clear_history(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector()
         detector.process_event(ActivationRecord(
@@ -240,7 +234,7 @@ class TestAbuseDetector:
         assert detector.get_event_count("lic1") == 0
 
     def test_alert_to_dict(self):
-        from headroom_ee.abuse import AbuseAlert, AbuseFlag, Severity
+        from cutctx_ee.abuse import AbuseAlert, AbuseFlag, Severity
 
         alert = AbuseAlert(
             lic_id="lic1",
@@ -258,20 +252,20 @@ class TestHaversine:
     """Test the haversine distance calculation."""
 
     def test_same_point_zero_distance(self):
-        from headroom_ee.abuse import _haversine_km
+        from cutctx_ee.abuse import _haversine_km
 
         d = _haversine_km(39.8, -98.6, 39.8, -98.6)
         assert abs(d) < 0.01
 
     def test_known_distance(self):
-        from headroom_ee.abuse import _haversine_km
+        from cutctx_ee.abuse import _haversine_km
 
         # New York to London ≈ 5570 km
         d = _haversine_km(40.7, -74.0, 51.5, -0.1)
         assert 5500 < d < 5700
 
     def test_us_to_eu_flagged(self):
-        from headroom_ee.abuse import _haversine_km, GEO_COORDS
+        from cutctx_ee.abuse import GEO_COORDS, _haversine_km
 
         d = _haversine_km(
             GEO_COORDS["US"][0], GEO_COORDS["US"][1],
@@ -292,13 +286,14 @@ class TestSignArtifacts:
         assert script.exists()
 
     def test_secret_patterns_comprehensive(self):
-        from scripts.sign_artifacts import SECRET_PATTERNS, FORBIDDEN_PATHS
+        from scripts.sign_artifacts import FORBIDDEN_PATHS, SECRET_PATTERNS
         assert len(SECRET_PATTERNS) >= 5
         assert len(FORBIDDEN_PATHS) >= 4
 
     def test_compute_sha256(self):
-        from scripts.sign_artifacts import compute_sha256
         import tempfile
+
+        from scripts.sign_artifacts import compute_sha256
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("hello world")
@@ -307,8 +302,9 @@ class TestSignArtifacts:
             assert h == "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
 
     def test_generate_manifest(self):
-        from scripts.sign_artifacts import generate_manifest
         import tempfile
+
+        from scripts.sign_artifacts import generate_manifest
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -321,8 +317,9 @@ class TestSignArtifacts:
             assert all("sha256" in e for e in manifest["entries"])
 
     def test_scan_secrets_clean(self):
-        from scripts.sign_artifacts import scan_secrets
         import tempfile
+
+        from scripts.sign_artifacts import scan_secrets
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -331,8 +328,9 @@ class TestSignArtifacts:
             assert len(findings) == 0
 
     def test_scan_secrets_detects_api_key(self):
-        from scripts.sign_artifacts import scan_secrets
         import tempfile
+
+        from scripts.sign_artifacts import scan_secrets
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -342,8 +340,9 @@ class TestSignArtifacts:
             assert any("Anthropic" in f["description"] for f in findings)
 
     def test_scan_secrets_detects_forbidden_path(self):
-        from scripts.sign_artifacts import scan_secrets
         import tempfile
+
+        from scripts.sign_artifacts import scan_secrets
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -352,8 +351,9 @@ class TestSignArtifacts:
             assert any(f["type"] == "forbidden_path" for f in findings)
 
     def test_manifest_hash_verification(self):
-        from scripts.sign_artifacts import generate_manifest, verify_manifest_hashes
         import tempfile
+
+        from scripts.sign_artifacts import generate_manifest, verify_manifest_hashes
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

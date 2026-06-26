@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from headroom.transforms.compression_units import (
+from cutctx.transforms.compression_units import (
     CompressionUnit,
     RoutedCompressionUnit,
     compress_unit_with_router,
     compress_units_with_router,
 )
-from headroom.transforms.content_router import (
+from cutctx.transforms.content_router import (
     CompressionStrategy,
     RouterCompressionResult,
 )

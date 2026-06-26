@@ -614,7 +614,7 @@ class EvalResult:
     response: str
 
 
-def run_scenario_with_headroom(
+def run_scenario_with_cutctx(
     scenario: Scenario,
     model_id: str = "claude-sonnet-4-20250514",
 ) -> tuple[EvalResult, EvalResult]:
@@ -623,7 +623,7 @@ def run_scenario_with_headroom(
     from agno.models.anthropic import Claude
     from agno.tools import tool
 
-    from headroom.integrations.agno import CutctxAgnoModel
+    from cutctx.integrations.agno import CutctxAgnoModel
 
     # Create tools that return our scenario data
     tool_data = {t["tool"]: t["result"] for t in scenario.tool_outputs}
@@ -642,8 +642,8 @@ def run_scenario_with_headroom(
 
     # Run with Cutctx
     base_model = Claude(id=model_id)
-    headroom_model = CutctxAgnoModel(wrapped_model=base_model)
-    agent = Agent(model=headroom_model, tools=[search_tool], markdown=True)
+    cutctx_model = CutctxAgnoModel(wrapped_model=base_model)
+    agent = Agent(model=cutctx_model, tools=[search_tool], markdown=True)
 
     prompt = f"""Based on the following information from various tools:
 
@@ -659,7 +659,7 @@ Provide a clear, specific answer."""
     latency = (time.time() - start) * 1000
 
     # Get Cutctx stats
-    stats = headroom_model.get_savings_summary()
+    stats = cutctx_model.get_savings_summary()
     tokens_after = stats.get("total_tokens_after", baseline_tokens)
     tokens_before = stats.get("total_tokens_before", baseline_tokens)
 
@@ -689,7 +689,7 @@ Provide a clear, specific answer."""
         response="(baseline - not run separately)",
     )
 
-    headroom_result = EvalResult(
+    cutctx_result = EvalResult(
         scenario_name=scenario.name,
         mode="cutctx",
         tokens_before=tokens_before,
@@ -701,13 +701,13 @@ Provide a clear, specific answer."""
         response=response_text[:500],
     )
 
-    return baseline_result, headroom_result
+    return baseline_result, cutctx_result
 
 
 def main():
     """Run comprehensive evaluation."""
     print("\n" + "=" * 70)
-    print("  COMPREHENSIVE HEADROOM EVALUATION")
+    print("  COMPREHENSIVE CUTCTX EVALUATION")
     print("  Real Data | Real Accuracy | Mixed Content")
     print("=" * 70)
 
@@ -747,14 +747,14 @@ def main():
         print(f"    {scenario.description}")
 
         try:
-            baseline, headroom = run_scenario_with_headroom(scenario)
-            results.append((baseline, headroom))
+            baseline, cutctx = run_scenario_with_cutctx(scenario)
+            results.append((baseline, cutctx))
 
             print(
-                f"    Tokens: {headroom.tokens_before:,} → {headroom.tokens_after:,} ({headroom.compression_ratio:.1%} saved)"
+                f"    Tokens: {cutctx.tokens_before:,} → {cutctx.tokens_after:,} ({cutctx.compression_ratio:.1%} saved)"
             )
-            print(f"    Accuracy preserved: {'✓' if headroom.accuracy_preserved else '✗'}")
-            print(f"    F1 score: {headroom.f1_score:.2f}")
+            print(f"    Accuracy preserved: {'✓' if cutctx.accuracy_preserved else '✗'}")
+            print(f"    F1 score: {cutctx.f1_score:.2f}")
         except Exception as e:
             print(f"    ERROR: {e}")
 

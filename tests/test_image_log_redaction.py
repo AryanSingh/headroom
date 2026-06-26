@@ -22,8 +22,8 @@ import tempfile
 
 import pytest
 
-from headroom.proxy.models import RequestLog
-from headroom.proxy.request_logger import (
+from cutctx.proxy.models import RequestLog
+from cutctx.proxy.request_logger import (
     IMAGE_BASE64_REDACT_THRESHOLD_BYTES,
     IMAGE_BASE64_REPLACEMENT_TEMPLATE,
     RequestLogger,

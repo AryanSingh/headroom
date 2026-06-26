@@ -628,8 +628,8 @@ class ProfilingPipeline:
     """Wraps TransformPipeline to record per-transform timing."""
 
     def __init__(self) -> None:
-        from headroom.config import CutctxConfig
-        from headroom.transforms.pipeline import TransformPipeline
+        from cutctx.config import CutctxConfig
+        from cutctx.transforms.pipeline import TransformPipeline
 
         self.config = CutctxConfig()
         self.pipeline = TransformPipeline(config=self.config)
@@ -646,9 +646,9 @@ class ProfilingPipeline:
         Returns the TransformResult from the pipeline.
         Per-transform timings are stored in self.last_transform_timings.
         """
-        from headroom.tokenizer import Tokenizer
-        from headroom.tokenizers import get_tokenizer
-        from headroom.utils import deep_copy_messages
+        from cutctx.tokenizer import Tokenizer
+        from cutctx.tokenizers import get_tokenizer
+        from cutctx.utils import deep_copy_messages
 
         tokenizer = Tokenizer(get_tokenizer(model), model)
         current_messages = deep_copy_messages(messages)
@@ -825,7 +825,7 @@ def format_terminal_report(results: list[LatencyResult]) -> str:
 
     lines.append("")
     lines.append("=" * 100)
-    lines.append("  HEADROOM LATENCY BENCHMARK")
+    lines.append("  CUTCTX LATENCY BENCHMARK")
     lines.append("=" * 100)
     lines.append("")
 
@@ -963,7 +963,7 @@ def format_markdown_report(results: list[LatencyResult]) -> str:
     lines.append(f"- **Platform**: {platform.platform()}")
     lines.append(f"- **Processor**: {platform.processor() or platform.machine()}")
     lines.append(f"- **Python**: {platform.python_version()}")
-    lines.append("- **Headroom**: v0.3.7")
+    lines.append("- **Cutctx**: v0.3.7")
     lines.append("")
 
     # TL;DR

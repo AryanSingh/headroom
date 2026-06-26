@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import urllib.error
 
-from headroom.install.health import probe_json, probe_ready
+from cutctx.install.health import probe_json, probe_ready
 
 
 class _Response:
@@ -44,14 +44,14 @@ def test_probe_json_returns_none_for_invalid_payloads(monkeypatch) -> None:
 
 def test_probe_ready_accepts_ready_and_healthy(monkeypatch) -> None:
     monkeypatch.setattr(
-        "headroom.install.health.probe_json", lambda url, timeout=2.0: {"ready": True}
+        "cutctx.install.health.probe_json", lambda url, timeout=2.0: {"ready": True}
     )
     assert probe_ready("http://example.test")
 
     monkeypatch.setattr(
-        "headroom.install.health.probe_json", lambda url, timeout=2.0: {"status": "healthy"}
+        "cutctx.install.health.probe_json", lambda url, timeout=2.0: {"status": "healthy"}
     )
     assert probe_ready("http://example.test")
 
-    monkeypatch.setattr("headroom.install.health.probe_json", lambda url, timeout=2.0: None)
+    monkeypatch.setattr("cutctx.install.health.probe_json", lambda url, timeout=2.0: None)
     assert not probe_ready("http://example.test")

@@ -1,13 +1,13 @@
 # cutctx-sdk
 
-Python SDK for [CutCtx](https://cutctx.dev) — AI context compression proxy.
+Python SDK for [Cutctx](https://cutctx.dev) — AI context compression proxy.
 
 ## Quickstart
 
 ```python
-from cutctx_sdk import CutCtxClient
+from cutctx_sdk import CutctxClient
 
-client = CutCtxClient(api_key="your-license-key")
+client = CutctxClient(api_key="your-license-key")
 compressed = client.compress([
     {"role": "user", "content": "Explain quantum computing"}
 ])
@@ -22,17 +22,17 @@ pip install cutctx-sdk
 
 ## API
 
-### `CutCtxClient(proxy_url, api_key, model)`
+### `CutctxClient(proxy_url, api_key, model)`
 
 | Parameter | Default | Description |
 |---|---|---|
-| `proxy_url` | `http://localhost:8787` | CutCtx proxy base URL |
+| `proxy_url` | `http://localhost:8787` | Cutctx proxy base URL |
 | `api_key` | `None` | License key for authentication |
 | `model` | `claude-sonnet-4-5` | Target model for cost estimation |
 
 ### `compress(messages, model=None) → list[dict]`
 
-Send messages through CutCtx compression and return compressed messages.
+Send messages through Cutctx compression and return compressed messages.
 
 ### `retrieve(ref) → str`
 

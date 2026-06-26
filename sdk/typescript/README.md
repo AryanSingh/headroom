@@ -23,7 +23,7 @@ const response = await openai.chat.completions.create({
 });
 ```
 
-Requires a running CutCtx proxy (`cutctx proxy`) or CutCtx Cloud API key.
+Requires a running Cutctx proxy (`cutctx proxy`) or Cutctx Cloud API key.
 
 ## Framework Adapters
 

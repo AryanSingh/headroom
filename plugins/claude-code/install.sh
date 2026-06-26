@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CutCtx Claude Code Plugin Installer
+# Cutctx Claude Code Plugin Installer
 # Usage: bash install.sh [--proxy-url URL] [--no-mcp]
 
 set -euo pipefail
@@ -27,14 +27,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "CutCtx Claude Code Plugin Installer"
+echo "Cutctx Claude Code Plugin Installer"
 echo "===================================="
 
-# Determine CLI command (cutctx first, headroom fallback)
+# Determine CLI command (cutctx first, cutctx fallback)
 CLI="cutctx"
 if ! command -v cutctx &>/dev/null; then
-  if command -v headroom &>/dev/null; then
-    CLI="headroom"
+  if command -v cutctx &>/dev/null; then
+    CLI="cutctx"
   else
     echo "Error: cutctx CLI not found."
     echo "Install: pip install cutctx-ai"
@@ -49,7 +49,7 @@ if [[ $INSTALL_MCP -eq 1 ]]; then
 
   # Remove any existing registration first
   claude mcp remove cutctx -s user 2>/dev/null || true
-  claude mcp remove headroom -s user 2>/dev/null || true
+  claude mcp remove cutctx -s user 2>/dev/null || true
 
   # Register via claude mcp add (writes to ~/.claude.json)
   if claude mcp add cutctx -s user -- ${CLI} mcp serve 2>&1; then
@@ -88,7 +88,7 @@ print('   ✓ MCP server written to ~/.claude.json')
   echo ""
   echo "   Verifying..."
   if claude mcp get cutctx 2>&1 | grep -q "cutctx"; then
-    echo "   ✓ Verified: CutCtx MCP server is registered"
+    echo "   ✓ Verified: Cutctx MCP server is registered"
   else
     echo "   ⚠ Registration may need a Claude Code restart"
   fi

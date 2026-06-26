@@ -21,7 +21,7 @@ import httpx
 REPO_ROOT = Path("/workspace")
 PLUGIN_DIR = REPO_ROOT / "plugins" / "openclaw"
 SDK_DIR = REPO_ROOT / "sdk" / "typescript"
-RTK_MARKER = "<!-- headroom:rtk-instructions -->"
+RTK_MARKER = "<!-- cutctx:rtk-instructions -->"
 PROXY_PORT = 28887
 CODEX_PORT = 28888
 AIDER_PORT = 28889
@@ -220,7 +220,7 @@ def create_shims(shim_dir: Path) -> None:
         from pathlib import Path
 
         tool = Path(sys.argv[0]).name
-        log_dir = Path(os.environ["HEADROOM_E2E_LOG_DIR"])
+        log_dir = Path(os.environ["CUTCTX_E2E_LOG_DIR"])
         log_dir.mkdir(parents=True, exist_ok=True)
         record = {
             "tool": tool,
@@ -271,7 +271,7 @@ def create_shims(shim_dir: Path) -> None:
         from pathlib import Path
 
         tool = Path(sys.argv[0]).name
-        log_dir = Path(os.environ["HEADROOM_E2E_LOG_DIR"])
+        log_dir = Path(os.environ["CUTCTX_E2E_LOG_DIR"])
         log_dir.mkdir(parents=True, exist_ok=True)
         record = {
             "tool": tool,
@@ -310,7 +310,7 @@ def create_shims(shim_dir: Path) -> None:
             )
             probes.append({"url": f"{openai_base.rstrip('/')}/models", "status": models_status})
 
-            model_name = "headroom-wrap-e2e"
+            model_name = "cutctx-wrap-e2e"
             chat_status, chat_body = request_json(
                 f"{openai_base.rstrip('/')}/chat/completions",
                 payload={
@@ -336,10 +336,10 @@ def create_shims(shim_dir: Path) -> None:
             probes.append({"url": stats_url, "status": stats_status})
             requests = stats_body.get("requests", {})
             by_model = requests.get("by_model", {}) if isinstance(requests, dict) else {}
-            record["headroom_request_total"] = (
+            record["cutctx_request_total"] = (
                 requests.get("total") if isinstance(requests, dict) else None
             )
-            record["headroom_model_count"] = (
+            record["cutctx_model_count"] = (
                 by_model.get(model_name) if isinstance(by_model, dict) else None
             )
 
@@ -379,7 +379,7 @@ def start_mock_server(port: int) -> tuple[MockOpenAIServer, threading.Thread]:
 
 
 def start_proxy(port: int, env: dict[str, str]) -> subprocess.Popen[str]:
-    log(f"Starting headroom proxy on port {port}")
+    log(f"Starting cutctx proxy on port {port}")
     proc = subprocess.Popen(
         ["cutctx", "proxy", "--host", "127.0.0.1", "--port", str(port)],
         env=env,
@@ -494,7 +494,7 @@ def prepare_local_openclaw_plugin(base_env: dict[str, str], tmp_dir: Path) -> Pa
 
     package_json_path = plugin_dir / "package.json"
     package_json = json.loads(package_json_path.read_text(encoding="utf-8"))
-    package_json["dependencies"]["headroom-ai"] = f"file:{tarball_path.as_posix()}"
+    package_json["dependencies"]["cutctx-ai"] = f"file:{tarball_path.as_posix()}"
     package_json_path.write_text(f"{json.dumps(package_json, indent=2)}\n", encoding="utf-8")
 
     return plugin_dir
@@ -569,16 +569,16 @@ def verify_codex_wrap(
     )
     assert_true(
         f'base_url = "http://127.0.0.1:{port}/v1"' in config,
-        "Codex wrap should inject the headroom provider base_url",
+        "Codex wrap should inject the cutctx provider base_url",
     )
     assert_true(
         'env_key = "OPENAI_API_KEY"' not in config,
         "Codex wrap should preserve OAuth and never inject env_key",
     )
-    # Bug 3 (#406): requires_openai_auth must be absent from headroom provider blocks.
+    # Bug 3 (#406): requires_openai_auth must be absent from cutctx provider blocks.
     assert_true(
         "requires_openai_auth" not in config,
-        "Codex wrap must NOT inject requires_openai_auth into the headroom provider block",
+        "Codex wrap must NOT inject requires_openai_auth into the cutctx provider block",
     )
     assert_true(
         "supports_websockets = true" in config, "Codex wrap missing 'supports_websockets = true'"
@@ -605,14 +605,14 @@ def verify_codex_wrap(
         "Codex wrap should receive the mock upstream completion through Cutctx",
     )
     assert_true(
-        entries[-1].get("headroom_model_count", 0) >= 1,
+        entries[-1].get("cutctx_model_count", 0) >= 1,
         "Codex wrap should appear in Cutctx request stats",
     )
     assert_true(
         any(
             item["path"] == "/v1/chat/completions"
             and isinstance(item.get("body"), dict)
-            and item["body"].get("model") == "headroom-wrap-e2e"
+            and item["body"].get("model") == "cutctx-wrap-e2e"
             for item in mock_server.requests
         ),
         "Codex wrap should forward the wrapped message upstream through Cutctx",
@@ -923,7 +923,7 @@ def verify_openclaw_wrap(
 def main() -> None:
     verify_installs()
     with tempfile.TemporaryDirectory(
-        prefix="headroom-wrap-e2e-", ignore_cleanup_errors=True
+        prefix="cutctx-wrap-e2e-", ignore_cleanup_errors=True
     ) as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
         home_dir = tmp_dir / "home"
@@ -941,7 +941,7 @@ def main() -> None:
             {
                 "HOME": str(home_dir),
                 "PATH": f"{shim_dir}{os.pathsep}{base_env['PATH']}",
-                "HEADROOM_E2E_LOG_DIR": str(log_dir),
+                "CUTCTX_E2E_LOG_DIR": str(log_dir),
                 "OPENAI_TARGET_API_URL": "http://127.0.0.1:19001/v1",
             }
         )

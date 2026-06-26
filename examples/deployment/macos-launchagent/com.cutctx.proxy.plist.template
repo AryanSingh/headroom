@@ -21,7 +21,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <!-- Default port: 8787 (can be overridden by install script) -->
-        <key>HEADROOM_PROXY_PORT</key>
+        <key>CUTCTX_PROXY_PORT</key>
         <string>__PORT__</string>
 
         <!-- ANTHROPIC_API_KEY should be set in your shell environment -->
@@ -30,7 +30,7 @@
         <!-- <string>your-api-key-here</string> -->
 
         <!-- Optional: Enable LLMLingua compression (requires llmlingua extra) -->
-        <!-- <key>HEADROOM_COMPRESSION_PROVIDER</key> -->
+        <!-- <key>CUTCTX_COMPRESSION_PROVIDER</key> -->
         <!-- <string>llmlingua</string> -->
     </dict>
 

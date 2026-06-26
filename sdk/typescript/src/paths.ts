@@ -1,16 +1,16 @@
 /**
- * Canonical filesystem contract for CutCtx — parity shell for the npm SDK.
+ * Canonical filesystem contract for Cutctx — parity shell for the npm SDK.
  *
  * The TypeScript SDK is an HTTP client today and does not touch the
- * filesystem directly. This module mirrors `headroom/paths.py` so that
+ * filesystem directly. This module mirrors `cutctx/paths.py` so that
  * future local features (e.g. cache/log co-location with the Python
  * proxy) land on the same contract.
  *
  * Two canonical roots:
- *   - HEADROOM_CONFIG_DIR     — read-mostly configuration
- *                               (default: ~/.headroom/config)
- *   - HEADROOM_WORKSPACE_DIR  — read-write state
- *                               (default: ~/.headroom)
+ *   - CUTCTX_CONFIG_DIR     — read-mostly configuration
+ *                               (default: ~/.cutctx/config)
+ *   - CUTCTX_WORKSPACE_DIR  — read-write state
+ *                               (default: ~/.cutctx)
  *
  * Precedence for every per-resource helper is:
  *   explicit argument > per-resource env var > derived from canonical
@@ -19,20 +19,20 @@
  * Browser behavior: when `process` is not available (typeof process ===
  * "undefined"), all helpers return the empty string. Consumers running
  * in a browser should not call these helpers; they exist here so the
- * shape of the API matches Python's `headroom.paths` module.
+ * shape of the API matches Python's `cutctx.paths` module.
  */
 
 // ---------------------------------------------------------------------------
 // Env var names
 // ---------------------------------------------------------------------------
 
-export const HEADROOM_CONFIG_DIR_ENV = "HEADROOM_CONFIG_DIR";
-export const HEADROOM_WORKSPACE_DIR_ENV = "HEADROOM_WORKSPACE_DIR";
+export const CUTCTX_CONFIG_DIR_ENV = "CUTCTX_CONFIG_DIR";
+export const CUTCTX_WORKSPACE_DIR_ENV = "CUTCTX_WORKSPACE_DIR";
 
-export const HEADROOM_SAVINGS_PATH_ENV = "HEADROOM_SAVINGS_PATH";
-export const HEADROOM_TOIN_PATH_ENV = "HEADROOM_TOIN_PATH";
-export const HEADROOM_SUBSCRIPTION_STATE_PATH_ENV =
-  "HEADROOM_SUBSCRIPTION_STATE_PATH";
+export const CUTCTX_SAVINGS_PATH_ENV = "CUTCTX_SAVINGS_PATH";
+export const CUTCTX_TOIN_PATH_ENV = "CUTCTX_TOIN_PATH";
+export const CUTCTX_SUBSCRIPTION_STATE_PATH_ENV =
+  "CUTCTX_SUBSCRIPTION_STATE_PATH";
 
 // ---------------------------------------------------------------------------
 // Node / browser guard (mirrors the pattern in client.ts::getEnv)
@@ -126,24 +126,24 @@ function resolve(
 
 export function workspaceDir(): string {
   if (!isNode()) return "";
-  const envValue = getEnv(HEADROOM_WORKSPACE_DIR_ENV);
+  const envValue = getEnv(CUTCTX_WORKSPACE_DIR_ENV);
   if (envValue) return expandTilde(envValue);
   const home = homeDir();
   if (!home) return "";
-  return joinPath(home, ".headroom");
+  return joinPath(home, ".cutctx");
 }
 
 export function configDir(): string {
   if (!isNode()) return "";
-  const envValue = getEnv(HEADROOM_CONFIG_DIR_ENV);
+  const envValue = getEnv(CUTCTX_CONFIG_DIR_ENV);
   if (envValue) return expandTilde(envValue);
-  const workspaceEnv = getEnv(HEADROOM_WORKSPACE_DIR_ENV);
+  const workspaceEnv = getEnv(CUTCTX_WORKSPACE_DIR_ENV);
   if (workspaceEnv) {
     return joinPath(expandTilde(workspaceEnv), "config");
   }
   const home = homeDir();
   if (!home) return "";
-  return joinPath(home, ".headroom", "config");
+  return joinPath(home, ".cutctx", "config");
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ export function configDir(): string {
 export function savingsPath(explicit?: string): string {
   return resolve(
     explicit,
-    HEADROOM_SAVINGS_PATH_ENV,
+    CUTCTX_SAVINGS_PATH_ENV,
     joinPath(workspaceDir(), "proxy_savings.json"),
   );
 }
@@ -161,7 +161,7 @@ export function savingsPath(explicit?: string): string {
 export function toinPath(explicit?: string): string {
   return resolve(
     explicit,
-    HEADROOM_TOIN_PATH_ENV,
+    CUTCTX_TOIN_PATH_ENV,
     joinPath(workspaceDir(), "toin.json"),
   );
 }
@@ -169,7 +169,7 @@ export function toinPath(explicit?: string): string {
 export function subscriptionStatePath(explicit?: string): string {
   return resolve(
     explicit,
-    HEADROOM_SUBSCRIPTION_STATE_PATH_ENV,
+    CUTCTX_SUBSCRIPTION_STATE_PATH_ENV,
     joinPath(workspaceDir(), "subscription_state.json"),
   );
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: LicenseRef-Headroom-Commercial
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Copyright (c) 2025-2026 Cutctx Labs.
 
 """SP-7: Supply-chain signing and verification.

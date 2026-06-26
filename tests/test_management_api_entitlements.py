@@ -5,13 +5,13 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.audit import reset_audit_logger
-from headroom.fleet import reset_fleet_store
-from headroom.org import reset_org_store
-from headroom.proxy.server import ProxyConfig, create_app
-from headroom.rbac import reset_rbac_checker
-from headroom.scim import reset_scim_store
-from headroom.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
+from cutctx.audit import reset_audit_logger
+from cutctx.fleet import reset_fleet_store
+from cutctx.org import reset_org_store
+from cutctx.proxy.server import ProxyConfig, create_app
+from cutctx.rbac import reset_rbac_checker
+from cutctx.scim import reset_scim_store
+from cutctx.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
 
 
 def _make_client(tmp_path, *, tier: str) -> TestClient:
@@ -35,9 +35,9 @@ def _make_client(tmp_path, *, tier: str) -> TestClient:
 
 
 def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, tier="team") as client:
-        headers = {"X-Headroom-Admin-Key": "secret"}
+        headers = {"X-Cutctx-Admin-Key": "secret"}
 
         dashboard = client.get("/analytics/dashboard", headers=headers)
         assert dashboard.status_code == 200
@@ -55,9 +55,9 @@ def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tm
 
 
 def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, tier="business") as client:
-        headers = {"X-Headroom-Admin-Key": "secret"}
+        headers = {"X-Cutctx-Admin-Key": "secret"}
 
         orgs = client.get("/orgs", headers=headers)
         assert orgs.status_code == 200
@@ -84,9 +84,9 @@ def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
 
 
 def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, tier="enterprise") as client:
-        headers = {"X-Headroom-Admin-Key": "secret"}
+        headers = {"X-Cutctx-Admin-Key": "secret"}
 
         audit = client.get("/audit/events", headers=headers)
         assert audit.status_code == 200
@@ -132,9 +132,9 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
 
 
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, tier="builder") as client:
-        response = client.get("/license-status", headers={"X-Headroom-Admin-Key": "secret"})
+        response = client.get("/license-status", headers={"X-Cutctx-Admin-Key": "secret"})
         assert response.status_code == 200
         body = response.json()
         assert body["has_license_key"] is False
@@ -146,7 +146,7 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
         sso_provider_type="jwt",
         sso_jwks_uri="https://idp.example.com/jwks.json",
         sso_issuer="https://idp.example.com",
-        sso_audience="headroom-api",
+        sso_audience="cutctx-api",
         sso_role_mapping={"groups:value=platform-admin": "admin"},
         sso_default_role="operator",
     )
@@ -156,7 +156,7 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
     assert sso.provider_type == "jwt"
     assert sso.jwks_uri == "https://idp.example.com/jwks.json"
     assert sso.issuer == "https://idp.example.com"
-    assert sso.audience == "headroom-api"
+    assert sso.audience == "cutctx-api"
     assert sso.role_mapping == {"groups:value=platform-admin": "admin"}
     assert sso.default_role == "operator"
     assert sso.enabled is True
@@ -164,8 +164,8 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
 
 @pytest.mark.no_auto_admin
 def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_TELEMETRY", "off")
-    monkeypatch.delenv("HEADROOM_ADMIN_API_KEY", raising=False)
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
     reset_audit_logger()
     reset_fleet_store()
     reset_org_store()
@@ -184,7 +184,7 @@ def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch
         sso_provider_type="jwt",
         sso_jwks_uri="https://idp.example.com/jwks.json",
         sso_issuer="https://idp.example.com",
-        sso_audience="headroom-api",
+        sso_audience="cutctx-api",
         sso_default_role="viewer",
     )
 
@@ -194,7 +194,7 @@ def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch
         return SsoClaims(
             subject="admin@example.com",
             issuer="https://idp.example.com",
-            audience="headroom-api",
+            audience="cutctx-api",
             role="admin",
         )
 

@@ -1,4 +1,4 @@
-from headroom.compress import compress
+from cutctx.compress import compress
 
 messy_code = """
 \"\"\"

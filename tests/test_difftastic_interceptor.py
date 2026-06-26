@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from headroom.proxy.interceptors.difftastic_interceptor import (
-    MIN_CHARS_TO_TRANSFORM,
+from cutctx.proxy.interceptors.difftastic_interceptor import (
+    DifftasticInterceptor,
     _is_git_diff,
     _reconstruct_old_new,
     _run_difft,
     _split_into_file_diffs,
-    DifftasticInterceptor,
 )
 
 # ===========================================================================
@@ -31,12 +29,12 @@ index abc123..def456 100644
 -    print("Hello, " + name)
 +    print(f"Hello, {name}!")
 +
- 
+
  def farewell(name):
      print("Goodbye, " + name)
 +
 +
- """
+"""
 
 _MULTI_FILE_DIFF = """\
 diff --git a/src/main.py b/src/main.py
@@ -55,6 +53,54 @@ index a2..b2 100644
  def add(a, b):
 -    return a + b
 +    return a + b + 0
+"""
+
+_COMBINED_DIFF = """\
+diff --cc src/main.py
+index abc123,def456..789abc
+--- a/src/main.py
++++ b/src/main.py
+@@@ -1,5 -1,5 +1,9 @@@
+  def greet(name):
+-     print("Hello, " + name)
+ -    print("Goodbye, " + name)
+++    print(f"Hello, {name}!")
+++    print(f"Goodbye, {name}!")
+"""
+
+_NEW_FILE_DIFF = """\
+diff --git a/src/new.py b/src/new.py
+new file mode 100644
+index 0000000..abc123
+--- /dev/null
++++ b/src/new.py
+@@ -0,0 +1,3 @@
++def new_func():
++    pass
+"""
+
+_DELETED_FILE_DIFF = """\
+diff --git a/src/old.py b/src/old.py
+deleted file mode 100644
+index abc123..0000000
+--- a/src/old.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+-def old_func():
+-    pass
+"""
+
+_MODE_CHANGE_DIFF = """\
+diff --git a/src/main.py b/src/main.py
+old mode 100644
+new mode 100755
+"""
+
+_RENAME_DIFF = """\
+diff --git a/src/old.py b/src/new.py
+similarity index 100%
+rename from src/old.py
+rename to src/new.py
 """
 
 _GREP_OUTPUT = """\
@@ -103,6 +149,30 @@ class TestMatches:
         interceptor = DifftasticInterceptor()
         assert interceptor.matches("Bash", {}, _MULTI_FILE_DIFF) is True
 
+    def test_matches_combined_diff(self):
+        """H5: combined diff (diff --cc) should be detected."""
+        interceptor = DifftasticInterceptor()
+        assert interceptor.matches("Bash", {}, _COMBINED_DIFF) is True
+
+    def test_empty_diff_does_not_match(self):
+        """H5: empty diff string should not match."""
+        interceptor = DifftasticInterceptor()
+        assert interceptor.matches("Bash", {}, "") is False
+
+    def test_mode_change_diff_matches(self):
+        """H5: mode-only change diff should be detected as a diff."""
+        interceptor = DifftasticInterceptor()
+        # Pad to exceed MIN_CHARS_TO_TRANSFORM threshold
+        padded = _MODE_CHANGE_DIFF + "\n# " + "x" * 200
+        assert interceptor.matches("Bash", {}, padded) is True
+
+    def test_rename_diff_matches(self):
+        """H5: rename-only diff should be detected as a diff."""
+        interceptor = DifftasticInterceptor()
+        # Pad to exceed MIN_CHARS_TO_TRANSFORM threshold
+        padded = _RENAME_DIFF + "\n# " + "x" * 200
+        assert interceptor.matches("Bash", {}, padded) is True
+
 
 # ===========================================================================
 # TestIsGitDiff
@@ -121,6 +191,10 @@ class TestIsGitDiff:
 
     def test_rejects_grep_output(self):
         assert _is_git_diff(_GREP_OUTPUT) is False
+
+    def test_detects_diff_cc(self):
+        """H5: combined diff (diff --cc) should be detected."""
+        assert _is_git_diff("diff --cc src/main.py\n") is True
 
 
 # ===========================================================================
@@ -187,6 +261,95 @@ diff --git a/main.py b/main.py
         assert "new_line" in new
         assert ext == ".py"
 
+    def test_combined_diff_hunks(self):
+        """H2+H5: combined diff with @@@ headers and 2-space context."""
+        section = """\
+diff --cc src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@@ -1,5 -1,5 +1,9 @@@
+  def greet(name):
+-     print("Hello, " + name)
+ -    print("Goodbye, " + name)
+++    print(f"Hello, {name}!")
+++    print(f"Goodbye, {name}!")
+"""
+        old, new, ext = _reconstruct_old_new(section)
+        assert "def greet(name):" in old
+        assert "def greet(name):" in new
+        assert 'print("Hello, ' in old
+        assert 'print("Goodbye, ' in old
+        assert 'print(f"Hello, {name}!")' in new
+        assert 'print(f"Goodbye, {name}!")' in new
+        assert ext == ".py"
+
+    def test_new_file_extension(self):
+        """H3+H5: new file (--- /dev/null) should use +++ extension."""
+        old, new, ext = _reconstruct_old_new(NEW_FILE_DIFF_FIXTURE)
+        assert ext == ".py", f"Expected .py, got {ext!r}"
+        assert "def new_func():" in new
+        assert old.strip() == ""
+
+    def test_deleted_file_extension(self):
+        """H5: deleted file (+++ /dev/null) should use --- extension."""
+        section = """\
+diff --git a/src/old.py b/src/old.py
+deleted file mode 100644
+--- a/src/old.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+-def old_func():
+-    pass
+"""
+        old, new, ext = _reconstruct_old_new(section)
+        assert ext == ".py", f"Expected .py, got {ext!r}"
+        assert "def old_func():" in old
+        assert new.strip() == ""
+
+    def test_empty_diff_returns_empty(self):
+        """H5: empty diff section should produce empty content."""
+        section = ""
+        old, new, ext = _reconstruct_old_new(section)
+        assert old == ""
+        assert new == ""
+        assert ext == ".txt"
+
+    def test_mode_change_no_hunks(self):
+        """H5: mode-only change (no hunks) should produce empty content."""
+        section = """\
+diff --git a/src/main.py b/src/main.py
+old mode 100644
+new mode 100755
+"""
+        old, new, ext = _reconstruct_old_new(section)
+        assert old == ""
+        assert new == ""
+
+    def test_rename_no_hunks(self):
+        """H5: rename-only diff (no hunks) should produce empty content."""
+        section = """\
+diff --git a/src/old.py b/src/new.py
+similarity index 100%
+rename from src/old.py
+rename to src/new.py
+"""
+        old, new, ext = _reconstruct_old_new(section)
+        assert old == ""
+        assert new == ""
+
+
+# Need fixture for NEW_FILE_DIFF as a raw string
+NEW_FILE_DIFF_FIXTURE = """\
+diff --git a/src/new.py b/src/new.py
+new file mode 100644
+index 0000000..abc123
+--- /dev/null
++++ b/src/new.py
+@@ -0,0 +1,3 @@
++def new_func():
++    pass
+"""
+
 
 # ===========================================================================
 # TestSubprocessTimeout
@@ -196,7 +359,7 @@ diff --git a/main.py b/main.py
 class TestSubprocessTimeout:
     def test_timeout_returns_none(self):
         with patch(
-            "headroom.proxy.interceptors.difftastic_interceptor.subprocess.run",
+            "cutctx.proxy.interceptors.difftastic_interceptor.subprocess.run",
         ) as mock_run:
             from subprocess import TimeoutExpired
 
@@ -206,7 +369,7 @@ class TestSubprocessTimeout:
 
     def test_oserror_returns_none(self):
         with patch(
-            "headroom.proxy.interceptors.difftastic_interceptor.subprocess.run",
+            "cutctx.proxy.interceptors.difftastic_interceptor.subprocess.run",
         ) as mock_run:
             mock_run.side_effect = OSError("not found")
             result = _run_difft("difft", "old", "new", ".py")
@@ -214,7 +377,7 @@ class TestSubprocessTimeout:
 
     def test_nonzero_exit_returns_none(self):
         with patch(
-            "headroom.proxy.interceptors.difftastic_interceptor.subprocess.run",
+            "cutctx.proxy.interceptors.difftastic_interceptor.subprocess.run",
         ) as mock_run:
             mock_result = MagicMock()
             mock_result.returncode = 2
@@ -235,16 +398,16 @@ class TestTransformOutputQuality:
         interceptor = DifftasticInterceptor()
         # Simulate a resolved exe and a successful do_transform producing shorter output.
         with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
-            with patch.object(interceptor, "_do_transform", return_value="short"):
+            with patch.object(interceptor, "do_transform", return_value="short"):
                 result = interceptor.transform("Bash", {}, "very long content " * 100)
                 assert result == "short"
 
     def test_longer_difft_returns_none(self):
         interceptor = DifftasticInterceptor()
         with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
-            # _do_transform returns output that is longer than the original.
+            # do_transform returns output that is longer than the original.
             original = "short content"
-            with patch.object(interceptor, "_do_transform", return_value=original + " extra"):
+            with patch.object(interceptor, "do_transform", return_value=original + " extra"):
                 result = interceptor.transform("Bash", {}, original)
                 assert result is None
 
@@ -258,12 +421,12 @@ class TestTransformOutputQuality:
         interceptor = DifftasticInterceptor()
         with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
             # If exe is resolved but do_transform returns None (e.g. no file diffs).
-            with patch.object(interceptor, "_do_transform", return_value=None):
+            with patch.object(interceptor, "do_transform", return_value=None):
                 result = interceptor.transform("Bash", {}, _SINGLE_FILE_DIFF)
                 assert result is None
 
     def test_do_transform_shorter_output(self):
-        """Verify _do_transform can produce shorter output with mocked difft."""
+        """Verify do_transform can produce shorter output with mocked difft."""
         interceptor = DifftasticInterceptor()
         # Mock _run_difft to return a short structural diff
         with patch.object(
@@ -272,13 +435,35 @@ class TestTransformOutputQuality:
             lambda self: "/fake/difft",
         ):
             with patch(
-                "headroom.proxy.interceptors.difftastic_interceptor._run_difft",
+                "cutctx.proxy.interceptors.difftastic_interceptor._run_difft",
                 return_value="def greet(name): ...\n",
             ):
-                result = interceptor._do_transform("/fake/difft", _SINGLE_FILE_DIFF)
+                result = interceptor.do_transform("/fake/difft", _SINGLE_FILE_DIFF)
                 assert result is not None
-                assert "headroom: structural diff" in result
+                assert "cutctx: structural diff" in result
                 assert len(result) < len(_SINGLE_FILE_DIFF)
+
+    def test_never_enlarge_with_banner_overhead(self):
+        """H5: if difft output with banner is larger than original, return None."""
+        interceptor = DifftasticInterceptor()
+        orig = "very short content"
+        # do_transform returns content with banner that is larger than original
+        with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
+            with patch.object(interceptor, "do_transform", return_value="[cutctx: structural diff via difft for a -> b]\nshort"):
+                result = interceptor.transform("Bash", {}, orig)
+                assert result is None, "Should not enlarge content even with banner"
+
+    def test_new_file_difft_produces_output(self):
+        """H5: new file diff with mocked difft should produce structural output."""
+        interceptor = DifftasticInterceptor()
+        with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
+            with patch(
+                "cutctx.proxy.interceptors.difftastic_interceptor._run_difft",
+                return_value="def new_func(): ...\n",
+            ):
+                result = interceptor.do_transform("/fake/difft", NEW_FILE_DIFF_FIXTURE)
+                assert result is not None
+                assert "cutctx: structural diff" in result
 
 
 # ===========================================================================
@@ -331,7 +516,7 @@ class TestIntegration:
         interceptor = DifftasticInterceptor()
         exe = interceptor._get_exe()
         assert exe is not None, "difft should be resolvable"
-        result = interceptor._do_transform(exe, _SINGLE_FILE_DIFF)
+        result = interceptor.do_transform(exe, _SINGLE_FILE_DIFF)
         assert result is not None
         assert len(result) < len(_SINGLE_FILE_DIFF)
 
@@ -339,4 +524,4 @@ class TestIntegration:
         interceptor = DifftasticInterceptor()
         version = interceptor._get_difft_version()
         assert version is not None and version != "unknown"
-        assert "difft" in version.lower() or version
+        assert "difft" in version.lower()

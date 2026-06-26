@@ -1,6 +1,6 @@
 # Langfuse Integration
 
-CutCtx emits OpenTelemetry traces to Langfuse for every compression decision,
+Cutctx emits OpenTelemetry traces to Langfuse for every compression decision,
 CCR operation, and proxy request. Zero code changes required — enable with two
 env vars.
 
@@ -33,11 +33,11 @@ cutctx proxy --langfuse
 
 | Variable | Default | Description |
 |---|---|---|
-| `HEADROOM_LANGFUSE_ENABLED` | `0` | Set to `1` to enable |
+| `CUTCTX_LANGFUSE_ENABLED` | `0` | Set to `1` to enable |
 | `LANGFUSE_PUBLIC_KEY` | — | Your Langfuse project public key |
 | `LANGFUSE_SECRET_KEY` | — | Your Langfuse project secret key |
 | `LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` | Override for self-hosted |
-| `HEADROOM_LANGFUSE_SERVICE_NAME` | `cutctx` | Service name in Langfuse traces |
+| `CUTCTX_LANGFUSE_SERVICE_NAME` | `cutctx` | Service name in Langfuse traces |
 
 ## Checking status
 

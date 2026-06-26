@@ -2,27 +2,27 @@
 
 ## Architecture
 
-CutCtx uses a Rust core (`crates/headroom-core`) compiled to a native extension via
+Cutctx uses a Rust core (`crates/cutctx-core`) compiled to a native extension via
 [PyO3](https://pyo3.rs/) and [maturin](https://www.maturin.rs/). All five compression
 algorithms are implemented entirely in Rust:
 
 | Algorithm | Rust crate | Python wrapper |
 |---|---|---|
-| SmartCrusher | `crates/headroom-core` | `headroom/transforms/smart_crusher.py` |
-| DiffCompressor | `crates/headroom-core` | `headroom/transforms/diff_compressor.py` |
-| LogCompressor | `crates/headroom-core` | `headroom/transforms/log_compressor.py` |
-| SearchCompressor | `crates/headroom-core` | `headroom/transforms/search_compressor.py` |
-| CodeAwareCompressor | `crates/headroom-core` | `headroom/transforms/code_compressor.py` |
+| SmartCrusher | `crates/cutctx-core` | `cutctx/transforms/smart_crusher.py` |
+| DiffCompressor | `crates/cutctx-core` | `cutctx/transforms/diff_compressor.py` |
+| LogCompressor | `crates/cutctx-core` | `cutctx/transforms/log_compressor.py` |
+| SearchCompressor | `crates/cutctx-core` | `cutctx/transforms/search_compressor.py` |
+| CodeAwareCompressor | `crates/cutctx-core` | `cutctx/transforms/code_compressor.py` |
 
-The Python classes in `headroom/transforms/` are thin dispatch wrappers — they import
-the compiled extension (`headroom._core`) and forward calls into Rust. No proprietary
+The Python classes in `cutctx/transforms/` are thin dispatch wrappers — they import
+the compiled extension (`cutctx._core`) and forward calls into Rust. No proprietary
 algorithm logic lives in Python.
 
 ---
 
 ## What Is Protected
 
-The compiled Rust binary (`headroom_core.so` on Linux/macOS, `headroom_core.pyd` on
+The compiled Rust binary (`cutctx_core.so` on Linux/macOS, `cutctx_core.pyd` on
 Windows) is the artifact that ships:
 
 - **No symbol names.** When built with `strip = true` (see below), the binary contains
@@ -45,9 +45,9 @@ wheel by `scripts/strip_wheel.py`, so there is no Python-level entry point to re
 The following modules ship as Python source under the Apache-2.0 licence and contain
 no proprietary algorithm logic:
 
-- **CLI argument parsing** — `headroom/cli/`
-- **Proxy server routing** — `headroom/proxy/server.py` and related modules
-- **Provider integrations** — `headroom/providers/`
+- **CLI argument parsing** — `cutctx/cli/`
+- **Proxy server routing** — `cutctx/proxy/server.py` and related modules
+- **Provider integrations** — `cutctx/providers/`
 
 These are intentionally open so that users can inspect, fork, and extend them.
 
@@ -122,5 +122,5 @@ To verify the Rust extension is present and importable:
 
 ```bash
 pip install dist/cutctx_ai-*-stripped.whl
-python -c "from headroom._core import SmartCrusher; print('ok')"
+python -c "from cutctx._core import SmartCrusher; print('ok')"
 ```

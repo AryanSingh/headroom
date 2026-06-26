@@ -1,0 +1,17 @@
+{
+  "name": "cutctx",
+  "version": "0.26.1",
+  "description": "Cutctx startup hooks for Claude Code and GitHub Copilot CLI.",
+  "author": {
+    "name": "Cutctx Contributors",
+    "url": "https://github.com/cutctx/cutctx"
+  },
+  "homepage": "https://github.com/cutctx/cutctx",
+  "repository": "https://github.com/cutctx/cutctx",
+  "keywords": [
+    "cutctx",
+    "hooks",
+    "claude-code",
+    "copilot-cli"
+  ]
+}

@@ -238,7 +238,7 @@ def run_agent_baseline(scenario: dict, api_key: str) -> AgentRun:
     )
 
 
-def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
+def run_agent_cutctx(scenario: dict, api_key: str) -> AgentRun:
     """Run agent WITH Cutctx optimization."""
 
     # Import Cutctx integration
@@ -262,9 +262,9 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
         rolling_window=True,
     )
 
-    headroom_model = CutctxChatModel(
+    cutctx_model = CutctxChatModel(
         wrapped_model=base_model,
-        headroom_config=config,
+        cutctx_config=config,
     ).bind_tools(tools)
 
     # Build conversation
@@ -287,7 +287,7 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
         total_input_tokens += input_tokens
 
         # Call model (Cutctx optimizes internally)
-        response = headroom_model.invoke(messages)
+        response = cutctx_model.invoke(messages)
         messages.append(response)
 
         # Count output tokens
@@ -327,7 +327,7 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
     duration_ms = (time.time() - start_time) * 1000
 
     # Get Cutctx metrics
-    tokens_saved = headroom_model.get_total_tokens_saved()
+    tokens_saved = cutctx_model.get_total_tokens_saved()
 
     return AgentRun(
         scenario=scenario["name"],
@@ -342,15 +342,15 @@ def run_agent_headroom(scenario: dict, api_key: str) -> AgentRun:
     )
 
 
-def print_comparison(baseline: AgentRun, headroom: AgentRun):
-    """Print comparison between baseline and headroom runs."""
+def print_comparison(baseline: AgentRun, cutctx: AgentRun):
+    """Print comparison between baseline and cutctx runs."""
 
     print(f"\n{'=' * 70}")
     print(f"SCENARIO: {baseline.scenario}")
     print(f"{'=' * 70}")
 
     # Token comparison
-    input_saved = baseline.total_input_tokens - headroom.total_input_tokens
+    input_saved = baseline.total_input_tokens - cutctx.total_input_tokens
     input_pct = (
         (input_saved / baseline.total_input_tokens * 100) if baseline.total_input_tokens > 0 else 0
     )
@@ -358,18 +358,18 @@ def print_comparison(baseline: AgentRun, headroom: AgentRun):
     print(f"\n{'METRIC':<30} {'BASELINE':>15} {'CUTCTX':>15} {'SAVINGS':>15}")
     print("-" * 75)
     print(
-        f"{'Input Tokens':<30} {baseline.total_input_tokens:>15,} {headroom.total_input_tokens:>15,} {input_saved:>14,} ({input_pct:.1f}%)"
+        f"{'Input Tokens':<30} {baseline.total_input_tokens:>15,} {cutctx.total_input_tokens:>15,} {input_saved:>14,} ({input_pct:.1f}%)"
     )
     print(
-        f"{'Output Tokens':<30} {baseline.total_output_tokens:>15,} {headroom.total_output_tokens:>15,} {'N/A':>15}"
+        f"{'Output Tokens':<30} {baseline.total_output_tokens:>15,} {cutctx.total_output_tokens:>15,} {'N/A':>15}"
     )
     print(
-        f"{'Tool Output Tokens':<30} {baseline.tool_output_tokens:>15,} {headroom.tool_output_tokens:>15,} {'(raw)':>15}"
+        f"{'Tool Output Tokens':<30} {baseline.tool_output_tokens:>15,} {cutctx.tool_output_tokens:>15,} {'(raw)':>15}"
     )
-    print(f"{'Tool Calls':<30} {baseline.tool_calls:>15} {headroom.tool_calls:>15} {'':>15}")
-    print(f"{'Messages':<30} {baseline.messages_count:>15} {headroom.messages_count:>15} {'':>15}")
+    print(f"{'Tool Calls':<30} {baseline.tool_calls:>15} {cutctx.tool_calls:>15} {'':>15}")
+    print(f"{'Messages':<30} {baseline.messages_count:>15} {cutctx.messages_count:>15} {'':>15}")
     print(
-        f"{'Duration (ms)':<30} {baseline.duration_ms:>15.0f} {headroom.duration_ms:>15.0f} {'':>15}"
+        f"{'Duration (ms)':<30} {baseline.duration_ms:>15.0f} {cutctx.duration_ms:>15.0f} {'':>15}"
     )
 
     # Cost estimation (gpt-4o-mini pricing)
@@ -380,15 +380,15 @@ def print_comparison(baseline: AgentRun, headroom: AgentRun):
         baseline.total_input_tokens * input_cost_per_1m
         + baseline.total_output_tokens * output_cost_per_1m
     ) / 1_000_000
-    headroom_cost = (
-        headroom.total_input_tokens * input_cost_per_1m
-        + headroom.total_output_tokens * output_cost_per_1m
+    cutctx_cost = (
+        cutctx.total_input_tokens * input_cost_per_1m
+        + cutctx.total_output_tokens * output_cost_per_1m
     ) / 1_000_000
-    cost_saved = baseline_cost - headroom_cost
+    cost_saved = baseline_cost - cutctx_cost
     cost_pct = (cost_saved / baseline_cost * 100) if baseline_cost > 0 else 0
 
     print(
-        f"\n{'Estimated Cost (USD)':<30} ${baseline_cost:>14.6f} ${headroom_cost:>14.6f} ${cost_saved:>13.6f} ({cost_pct:.1f}%)"
+        f"\n{'Estimated Cost (USD)':<30} ${baseline_cost:>14.6f} ${cutctx_cost:>14.6f} ${cost_saved:>13.6f} ({cost_pct:.1f}%)"
     )
 
 
@@ -396,7 +396,7 @@ def main():
     """Run the before/after comparison."""
 
     print("\n" + "=" * 70)
-    print("LANGCHAIN AGENT: BEFORE/AFTER HEADROOM COMPARISON")
+    print("LANGCHAIN AGENT: BEFORE/AFTER CUTCTX COMPARISON")
     print("=" * 70)
 
     # Check for API key
@@ -412,7 +412,7 @@ def main():
     print("This will make actual OpenAI API calls and incur costs.\n")
 
     all_baseline = []
-    all_headroom = []
+    all_cutctx = []
 
     for scenario in SCENARIOS:
         print(f"\nRunning scenario: {scenario['name']}...")
@@ -424,14 +424,14 @@ def main():
 
         # Run with Cutctx
         print("  - Running with Cutctx optimization...")
-        headroom = run_agent_headroom(scenario, api_key)
-        all_headroom.append(headroom)
+        cutctx = run_agent_cutctx(scenario, api_key)
+        all_cutctx.append(cutctx)
 
         # Print comparison
-        print_comparison(baseline, headroom)
+        print_comparison(baseline, cutctx)
 
     # Print summary
-    print_summary(all_baseline, all_headroom)
+    print_summary(all_baseline, all_cutctx)
 
 
 def run_simulation():
@@ -462,7 +462,7 @@ def run_simulation():
         )
 
 
-def print_summary(baseline_runs: list[AgentRun], headroom_runs: list[AgentRun]):
+def print_summary(baseline_runs: list[AgentRun], cutctx_runs: list[AgentRun]):
     """Print overall summary."""
 
     print("\n" + "=" * 70)
@@ -470,25 +470,25 @@ def print_summary(baseline_runs: list[AgentRun], headroom_runs: list[AgentRun]):
     print("=" * 70)
 
     total_baseline_input = sum(r.total_input_tokens for r in baseline_runs)
-    total_headroom_input = sum(r.total_input_tokens for r in headroom_runs)
-    total_saved = total_baseline_input - total_headroom_input
+    total_cutctx_input = sum(r.total_input_tokens for r in cutctx_runs)
+    total_saved = total_baseline_input - total_cutctx_input
     pct_saved = (total_saved / total_baseline_input * 100) if total_baseline_input > 0 else 0
 
     print(f"\n{'Metric':<30} {'Baseline':>15} {'Cutctx':>15} {'Savings':>15}")
     print("-" * 75)
     print(
-        f"{'Total Input Tokens':<30} {total_baseline_input:>15,} {total_headroom_input:>15,} {total_saved:>14,}"
+        f"{'Total Input Tokens':<30} {total_baseline_input:>15,} {total_cutctx_input:>15,} {total_saved:>14,}"
     )
     print(f"{'Percentage Saved':<30} {'':>15} {'':>15} {pct_saved:>14.1f}%")
 
     # Cost
     input_cost = 0.15 / 1_000_000
     baseline_cost = total_baseline_input * input_cost
-    headroom_cost = total_headroom_input * input_cost
-    cost_saved = baseline_cost - headroom_cost
+    cutctx_cost = total_cutctx_input * input_cost
+    cost_saved = baseline_cost - cutctx_cost
 
     print(
-        f"\n{'Est. Input Cost (USD)':<30} ${baseline_cost:>14.4f} ${headroom_cost:>14.4f} ${cost_saved:>13.4f}"
+        f"\n{'Est. Input Cost (USD)':<30} ${baseline_cost:>14.4f} ${cutctx_cost:>14.4f} ${cost_saved:>13.4f}"
     )
 
     print("\n" + "=" * 70)

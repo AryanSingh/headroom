@@ -3,7 +3,7 @@
 Tests cover:
 1. CutctxPreHook - Pre-hook for tracking before LLM calls
 2. CutctxPostHook - Post-hook for tracking after LLM calls
-3. create_headroom_hooks - Convenience function
+3. create_cutctx_hooks - Convenience function
 """
 
 from datetime import datetime
@@ -19,18 +19,18 @@ try:
 except ImportError:
     AGNO_AVAILABLE = False
 
-from headroom import CutctxConfig, CutctxMode
+from cutctx import CutctxConfig, CutctxMode
 
 # Skip all tests if Agno not installed
 pytestmark = pytest.mark.skipif(not AGNO_AVAILABLE, reason="Agno not installed")
 
 
-class TestHeadroomPreHook:
+class TestCutctxPreHook:
     """Tests for CutctxPreHook."""
 
     def test_init_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
 
@@ -41,12 +41,12 @@ class TestHeadroomPreHook:
 
     def test_init_with_custom_config(self):
         """Initialize with custom config."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
-        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
+        config = CutctxConfig(default_mode=CutctxMode.AUDIT)
         hook = CutctxPreHook(
             config=config,
-            mode=HeadroomMode.SIMULATE,
+            mode=CutctxMode.SIMULATE,
             model="claude-3-5-sonnet-20241022",
         )
 
@@ -56,7 +56,7 @@ class TestHeadroomPreHook:
 
     def test_call_returns_input_unchanged(self):
         """Hook returns input unchanged (optimization at model level)."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
 
@@ -67,7 +67,7 @@ class TestHeadroomPreHook:
 
     def test_call_tracks_metrics(self):
         """Hook tracks metrics on each call."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
 
@@ -80,7 +80,7 @@ class TestHeadroomPreHook:
 
     def test_metrics_history_limited(self):
         """Metrics history is limited to 100 entries."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
 
@@ -92,7 +92,7 @@ class TestHeadroomPreHook:
 
     def test_get_savings_summary_empty(self):
         """get_savings_summary with no history."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
         summary = hook.get_savings_summary()
@@ -103,7 +103,7 @@ class TestHeadroomPreHook:
 
     def test_get_savings_summary_with_data(self):
         """get_savings_summary with metrics."""
-        from headroom.integrations.agno import CutctxPreHook
+        from cutctx.integrations.agno import CutctxPreHook
 
         hook = CutctxPreHook()
 
@@ -118,12 +118,12 @@ class TestHeadroomPreHook:
         assert summary["total_tokens_saved"] == 0
 
 
-class TestHeadroomPostHook:
+class TestCutctxPostHook:
     """Tests for CutctxPostHook."""
 
     def test_init_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -134,7 +134,7 @@ class TestHeadroomPostHook:
 
     def test_init_with_threshold(self):
         """Initialize with alert threshold."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook(
             log_level="DEBUG",
@@ -146,7 +146,7 @@ class TestHeadroomPostHook:
 
     def test_call_returns_output_unchanged(self):
         """Hook returns output unchanged."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -158,7 +158,7 @@ class TestHeadroomPostHook:
 
     def test_call_tracks_requests(self):
         """Hook tracks requests on each call."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -174,7 +174,7 @@ class TestHeadroomPostHook:
 
     def test_call_extracts_token_metrics(self):
         """Hook extracts token metrics from response."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -193,7 +193,7 @@ class TestHeadroomPostHook:
 
     def test_call_triggers_alert(self):
         """Hook triggers alert when threshold exceeded."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook(token_alert_threshold=50)
 
@@ -210,7 +210,7 @@ class TestHeadroomPostHook:
 
     def test_call_no_alert_below_threshold(self):
         """No alert when tokens below threshold."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook(token_alert_threshold=100)
 
@@ -225,7 +225,7 @@ class TestHeadroomPostHook:
 
     def test_requests_limited(self):
         """Request history is limited to 1000 entries."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -239,7 +239,7 @@ class TestHeadroomPostHook:
 
     def test_get_summary_empty(self):
         """get_summary with no requests."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
         summary = hook.get_summary()
@@ -250,7 +250,7 @@ class TestHeadroomPostHook:
 
     def test_get_summary_with_data(self):
         """get_summary with requests."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -269,7 +269,7 @@ class TestHeadroomPostHook:
 
     def test_reset(self):
         """reset() clears all state."""
-        from headroom.integrations.agno import CutctxPostHook
+        from cutctx.integrations.agno import CutctxPostHook
 
         hook = CutctxPostHook()
 
@@ -283,71 +283,71 @@ class TestHeadroomPostHook:
         assert hook._alerts == []
 
 
-class TestCreateHeadroomHooks:
-    """Tests for create_headroom_hooks convenience function."""
+class TestCreateCutctxHooks:
+    """Tests for create_cutctx_hooks convenience function."""
 
     def test_returns_tuple(self):
         """Returns tuple of (pre_hook, post_hook)."""
-        from headroom.integrations.agno import (
+        from cutctx.integrations.agno import (
             CutctxPostHook,
             CutctxPreHook,
-            create_headroom_hooks,
+            create_cutctx_hooks,
         )
 
-        pre_hook, post_hook = create_headroom_hooks()
+        pre_hook, post_hook = create_cutctx_hooks()
 
         assert isinstance(pre_hook, CutctxPreHook)
         assert isinstance(post_hook, CutctxPostHook)
 
     def test_passes_config_to_pre_hook(self):
         """Passes config to pre_hook."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
-        config = CutctxConfig(default_mode=HeadroomMode.AUDIT)
-        pre_hook, _ = create_headroom_hooks(config=config)
+        config = CutctxConfig(default_mode=CutctxMode.AUDIT)
+        pre_hook, _ = create_cutctx_hooks(config=config)
 
         assert pre_hook.config is config
 
     def test_passes_mode_to_pre_hook(self):
         """Passes mode to pre_hook."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
-        pre_hook, _ = create_headroom_hooks(mode=HeadroomMode.SIMULATE)
+        pre_hook, _ = create_cutctx_hooks(mode=CutctxMode.SIMULATE)
 
         assert pre_hook.mode == CutctxMode.SIMULATE
 
     def test_passes_model_to_pre_hook(self):
         """Passes model to pre_hook."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
-        pre_hook, _ = create_headroom_hooks(model="claude-3-5-sonnet-20241022")
+        pre_hook, _ = create_cutctx_hooks(model="claude-3-5-sonnet-20241022")
 
         assert pre_hook.model == "claude-3-5-sonnet-20241022"
 
     def test_passes_log_level_to_post_hook(self):
         """Passes log_level to post_hook."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
-        _, post_hook = create_headroom_hooks(log_level="DEBUG")
+        _, post_hook = create_cutctx_hooks(log_level="DEBUG")
 
         assert post_hook.log_level == "DEBUG"
 
     def test_passes_threshold_to_post_hook(self):
         """Passes token_alert_threshold to post_hook."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
-        _, post_hook = create_headroom_hooks(token_alert_threshold=5000)
+        _, post_hook = create_cutctx_hooks(token_alert_threshold=5000)
 
         assert post_hook.token_alert_threshold == 5000
 
     def test_all_parameters(self):
         """Test with all parameters."""
-        from headroom.integrations.agno import create_headroom_hooks
+        from cutctx.integrations.agno import create_cutctx_hooks
 
         config = CutctxConfig()
-        pre_hook, post_hook = create_headroom_hooks(
+        pre_hook, post_hook = create_cutctx_hooks(
             config=config,
-            mode=HeadroomMode.AUDIT,
+            mode=CutctxMode.AUDIT,
             model="gpt-4-turbo",
             log_level="WARNING",
             token_alert_threshold=8000,

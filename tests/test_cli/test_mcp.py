@@ -13,9 +13,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.cli.mcp import (
-    get_headroom_command,
+from cutctx.cli.main import main
+from cutctx.cli.mcp import (
+    get_cutctx_command,
     load_mcp_config,
     save_mcp_config,
 )
@@ -55,9 +55,9 @@ def mock_claude_config_path(temp_claude_dir):
             return None
         return _real_which(cmd)
 
-    with patch("headroom.cli.mcp.MCP_CONFIG_PATH", config_path):
-        with patch("headroom.cli.mcp.CLAUDE_CONFIG_DIR", temp_claude_dir):
-            with patch("headroom.cli.mcp.shutil.which", side_effect=which_no_claude):
+    with patch("cutctx.cli.mcp.MCP_CONFIG_PATH", config_path):
+        with patch("cutctx.cli.mcp.CLAUDE_CONFIG_DIR", temp_claude_dir):
+            with patch("cutctx.cli.mcp.shutil.which", side_effect=which_no_claude):
                 yield config_path
 
 
@@ -72,9 +72,9 @@ def mock_mcp_available():
 class TestMCPConfigFunctions:
     """Test config file handling functions."""
 
-    def test_get_headroom_command_returns_list(self):
+    def test_get_cutctx_command_returns_list(self):
         """Command should be a list suitable for subprocess."""
-        cmd = get_headroom_command()
+        cmd = get_cutctx_command()
         assert isinstance(cmd, list)
         assert len(cmd) >= 1
         # Should end with mcp serve args
@@ -109,8 +109,8 @@ class TestMCPConfigFunctions:
         claude_dir = tmp_path / "new_dir" / ".claude"
         config_path = claude_dir / "mcp.json"
 
-        with patch("headroom.cli.mcp.MCP_CONFIG_PATH", config_path):
-            with patch("headroom.cli.mcp.CLAUDE_CONFIG_DIR", claude_dir):
+        with patch("cutctx.cli.mcp.MCP_CONFIG_PATH", config_path):
+            with patch("cutctx.cli.mcp.CLAUDE_CONFIG_DIR", claude_dir):
                 save_mcp_config({"mcpServers": {}})
 
         assert config_path.exists()
@@ -147,7 +147,7 @@ class TestMCPUninstallCommand:
     """Test `cutctx mcp uninstall`."""
 
     def test_uninstall_removes_cutctx(self, mock_claude_config_path, mock_mcp_available):
-        """Uninstall removes CutCtx from the config file."""
+        """Uninstall removes Cutctx from the config file."""
         # Pre-populate the config directly rather than depending on
         # `mcp install` plumbing — keeps the test focused on uninstall.
         mock_claude_config_path.write_text(
@@ -270,7 +270,7 @@ class TestMCPServerInitialization:
 
     def test_mcp_server_can_be_created(self):
         """MCP server can be instantiated."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
+        from cutctx.ccr.mcp_server import create_ccr_mcp_server
 
         server = create_ccr_mcp_server()
         assert server is not None
@@ -278,14 +278,14 @@ class TestMCPServerInitialization:
 
     def test_mcp_server_with_custom_url(self):
         """MCP server accepts custom proxy URL."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
+        from cutctx.ccr.mcp_server import create_ccr_mcp_server
 
         server = create_ccr_mcp_server(proxy_url="http://custom:9000")
         assert server.proxy_url == "http://custom:9000"
 
     def test_mcp_server_has_correct_tool_name(self):
         """MCP server is configured for cutctx_retrieve."""
-        from headroom.ccr.mcp_server import CCR_TOOL_NAME, create_ccr_mcp_server
+        from cutctx.ccr.mcp_server import CCR_TOOL_NAME, create_ccr_mcp_server
 
         server = create_ccr_mcp_server()
 
@@ -315,8 +315,8 @@ class TestMCPUninstallWithClaudeCLI:
             return MagicMock(returncode=0, stderr="")
 
         runner = CliRunner()
-        with patch("headroom.cli.mcp.shutil.which", return_value="/usr/bin/claude"):
-            with patch("headroom.cli.mcp.subprocess.run", side_effect=capturing_run):
+        with patch("cutctx.cli.mcp.shutil.which", return_value="/usr/bin/claude"):
+            with patch("cutctx.cli.mcp.subprocess.run", side_effect=capturing_run):
                 result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
@@ -336,8 +336,8 @@ class TestMCPUninstallWithClaudeCLI:
             return MagicMock(returncode=0, stderr="")
 
         runner = CliRunner()
-        with patch("headroom.cli.mcp.shutil.which", return_value="/usr/bin/claude"):
-            with patch("headroom.cli.mcp.subprocess.run", side_effect=capturing_run):
+        with patch("cutctx.cli.mcp.shutil.which", return_value="/usr/bin/claude"):
+            with patch("cutctx.cli.mcp.subprocess.run", side_effect=capturing_run):
                 result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0

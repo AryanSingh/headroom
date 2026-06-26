@@ -34,11 +34,11 @@ import tiktoken
 
 # Cutctx compression API
 try:
-    from headroom import compress
-    HEADROOM_AVAILABLE = True
+    from cutctx import compress
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
-    print("WARNING: headroom not installed, skipping Cutctx benchmarks")
+    CUTCTX_AVAILABLE = False
+    print("WARNING: cutctx not installed, skipping Cutctx benchmarks")
 
 # Optional: Other compression tools
 try:
@@ -216,14 +216,14 @@ def load_real_corpus(corpus_name: str, corpus_dir: Path, limit: int | None = Non
 # COMPRESSION RUNNERS
 # =============================================================================
 
-def compress_with_headroom(text: str) -> tuple[str, float]:
+def compress_with_cutctx(text: str) -> tuple[str, float]:
     """Compress text using Cutctx.
 
     Returns:
         (compressed_text, latency_ms)
     """
-    if not HEADROOM_AVAILABLE:
-        raise ImportError("headroom not installed")
+    if not CUTCTX_AVAILABLE:
+        raise ImportError("cutctx not installed")
 
     start = time.perf_counter()
     result = compress(text)
@@ -266,9 +266,9 @@ def run_compression_benchmark(
     """
     # Select compression function
     if tool_name == "cutctx":
-        compress_func = compress_with_headroom
-        if not HEADROOM_AVAILABLE:
-            logger.warning("headroom not available, skipping")
+        compress_func = compress_with_cutctx
+        if not CUTCTX_AVAILABLE:
+            logger.warning("cutctx not available, skipping")
             return None
     elif tool_name == "llmlingua2":
         compress_func = compress_with_llmlingua2
@@ -379,7 +379,7 @@ def main() -> int:
         type=str,
         nargs="+",
         default=["cutctx"],
-        help="Tools to benchmark (default: headroom)",
+        help="Tools to benchmark (default: cutctx)",
     )
 
     parser.add_argument(

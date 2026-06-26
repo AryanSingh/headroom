@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import create_app
+from cutctx.proxy.server import create_app
 
 
 @pytest.fixture

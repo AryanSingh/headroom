@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2025-2026 Headroom Labs.
+# Copyright (c) 2025-2026 Cutctx Labs.
 
 name: SP-7: Supply Chain Signing
 
@@ -38,7 +38,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-          pattern: "headroom-*"
+          pattern: "cutctx-*"
 
       - name: Scan for secrets (V-12)
         run: |
@@ -82,7 +82,7 @@ jobs:
       - name: Verify EE wheel has no source (V-7)
         run: |
           # Check if compiled EE wheel exists and verify
-          EE_WHEEL=$(find artifacts/ -name "headroom_ee*.whl" | head -1)
+          EE_WHEEL=$(find artifacts/ -name "cutctx_ee*.whl" | head -1)
           if [ -n "$EE_WHEEL" ]; then
             python -c "
           import zipfile, sys

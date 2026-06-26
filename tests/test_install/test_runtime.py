@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from headroom.install.models import DeploymentManifest, InstallPreset
-from headroom.install.runtime import (
+from cutctx.install.models import DeploymentManifest, InstallPreset
+from cutctx.install.runtime import (
     _clear_pid,
     _deployment_env,
     _mount_source,
@@ -16,7 +16,7 @@ from headroom.install.runtime import (
     _write_pid,
     acquire_runtime_start_lock,
     build_runtime_command,
-    resolve_headroom_command,
+    resolve_cutctx_command,
     run_foreground,
     runtime_status,
     start_detached_agent,
@@ -42,7 +42,7 @@ def test_build_runtime_command_for_docker_includes_deployment_env(
         host="127.0.0.1",
         backend="anthropic",
         image="ghcr.io/cutctx/cutctx:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        base_env={"CUTCTX_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
@@ -50,14 +50,14 @@ def test_build_runtime_command_for_docker_includes_deployment_env(
 
     joined = " ".join(command)
     assert command[:3] == ["docker", "run", "--rm"]
-    assert "HEADROOM_DEPLOYMENT_PROFILE=default" in joined
-    assert "HEADROOM_DEPLOYMENT_PRESET=persistent-docker" in joined
+    assert "CUTCTX_DEPLOYMENT_PROFILE=default" in joined
+    assert "CUTCTX_DEPLOYMENT_PRESET=persistent-docker" in joined
     assert "127.0.0.1:8787:8787" in joined
     assert "ghcr.io/cutctx/cutctx:latest" in command
     # Canonical Cutctx filesystem contract (issue #175) forwarded into
     # the container.
-    assert "HEADROOM_WORKSPACE_DIR=/tmp/headroom-home/.headroom" in command
-    assert "HEADROOM_CONFIG_DIR=/tmp/headroom-home/.headroom/config" in command
+    assert "CUTCTX_WORKSPACE_DIR=/tmp/cutctx-home/.cutctx" in command
+    assert "CUTCTX_CONFIG_DIR=/tmp/cutctx-home/.cutctx/config" in command
 
 
 def test_build_runtime_command_for_docker_matches_wrapper_parity(
@@ -78,13 +78,13 @@ def test_build_runtime_command_for_docker_matches_wrapper_parity(
         host="127.0.0.1",
         backend="anthropic",
         image="ghcr.io/cutctx/cutctx:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        base_env={"CUTCTX_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
     command = build_runtime_command(manifest)
 
-    assert (tmp_path / ".headroom").is_dir()
+    assert (tmp_path / ".cutctx").is_dir()
     assert (tmp_path / ".claude").is_dir()
     assert (tmp_path / ".codex").is_dir()
     assert (tmp_path / ".gemini").is_dir()
@@ -94,18 +94,18 @@ def test_build_runtime_command_for_docker_matches_wrapper_parity(
     assert "OPENAI_API_KEY" in joined
 
 
-def test_resolve_headroom_command_prefers_headroom_binary(monkeypatch) -> None:
+def test_resolve_cutctx_command_prefers_cutctx_binary(monkeypatch) -> None:
     monkeypatch.setattr(
-        "shutil.which", lambda name: "/usr/bin/headroom" if name == "cutctx" else None
+        "shutil.which", lambda name: "/usr/bin/cutctx" if name == "cutctx" else None
     )
 
-    assert resolve_headroom_command() == ["/usr/bin/headroom"]
+    assert resolve_cutctx_command() == ["/usr/bin/cutctx"]
 
 
-def test_resolve_headroom_command_falls_back_to_python_module(monkeypatch) -> None:
+def test_resolve_cutctx_command_falls_back_to_python_module(monkeypatch) -> None:
     monkeypatch.setattr("shutil.which", lambda name: None)
-    monkeypatch.setattr("headroom.install.runtime.sys.executable", "/usr/bin/python")
-    assert resolve_headroom_command() == ["/usr/bin/python", "-m", "headroom.cli"]
+    monkeypatch.setattr("cutctx.install.runtime.sys.executable", "/usr/bin/python")
+    assert resolve_cutctx_command() == ["/usr/bin/python", "-m", "cutctx.cli"]
 
 
 def test_runtime_env_and_mount_source(monkeypatch) -> None:
@@ -122,27 +122,27 @@ def test_runtime_env_and_mount_source(monkeypatch) -> None:
         backend="anthropic",
         base_env={"EXTRA": "1"},
     )
-    monkeypatch.setattr("headroom.install.runtime.os.environ", {"BASE": "x"})
+    monkeypatch.setattr("cutctx.install.runtime.os.environ", {"BASE": "x"})
 
     assert _deployment_env(manifest) == {
-        "HEADROOM_DEPLOYMENT_PROFILE": "default",
-        "HEADROOM_DEPLOYMENT_PRESET": "persistent-service",
-        "HEADROOM_DEPLOYMENT_RUNTIME": "python",
-        "HEADROOM_DEPLOYMENT_SUPERVISOR": "service",
-        "HEADROOM_DEPLOYMENT_SCOPE": "user",
+        "CUTCTX_DEPLOYMENT_PROFILE": "default",
+        "CUTCTX_DEPLOYMENT_PRESET": "persistent-service",
+        "CUTCTX_DEPLOYMENT_RUNTIME": "python",
+        "CUTCTX_DEPLOYMENT_SUPERVISOR": "service",
+        "CUTCTX_DEPLOYMENT_SCOPE": "user",
     }
     assert _runtime_env(manifest)["BASE"] == "x"
     assert _runtime_env(manifest)["EXTRA"] == "1"
-    assert _runtime_env(manifest)["HEADROOM_DEPLOYMENT_PROFILE"] == "default"
+    assert _runtime_env(manifest)["CUTCTX_DEPLOYMENT_PROFILE"] == "default"
 
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "win32")
-    assert _mount_source("C:\\Users\\me", ".headroom") == "C:\\Users\\me\\.headroom"
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
-    assert _mount_source("/home/me", ".headroom") == "/home/me/.headroom"
+    monkeypatch.setattr("cutctx.install.runtime.sys.platform", "win32")
+    assert _mount_source("C:\\Users\\me", ".cutctx") == "C:\\Users\\me\\.cutctx"
+    monkeypatch.setattr("cutctx.install.runtime.sys.platform", "linux")
+    assert _mount_source("/home/me", ".cutctx") == "/home/me/.cutctx"
 
 
 def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("headroom.install.runtime.sys.executable", "/usr/bin/python")
+    monkeypatch.setattr("cutctx.install.runtime.sys.executable", "/usr/bin/python")
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",
@@ -159,7 +159,7 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
     assert build_runtime_command(manifest) == [
         "/usr/bin/python",
         "-m",
-        "headroom.cli",
+        "cutctx.cli",
         "proxy",
         "--host",
         "127.0.0.1",
@@ -168,9 +168,9 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
     ]
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
-    monkeypatch.setattr("headroom.install.runtime.os.getuid", lambda: 1000, raising=False)
-    monkeypatch.setattr("headroom.install.runtime.os.getgid", lambda: 1001, raising=False)
+    monkeypatch.setattr("cutctx.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("cutctx.install.runtime.os.getuid", lambda: 1000, raising=False)
+    monkeypatch.setattr("cutctx.install.runtime.os.getgid", lambda: 1001, raising=False)
     docker_manifest = DeploymentManifest(
         profile="default",
         preset="persistent-docker",
@@ -183,7 +183,7 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
         host="127.0.0.1",
         backend="anthropic",
         image="ghcr.io/cutctx/cutctx:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        base_env={"CUTCTX_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
     command = build_runtime_command(docker_manifest)
@@ -193,7 +193,7 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
 
 def test_read_pid_handles_invalid_content(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".cutctx" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("not-a-pid", encoding="utf-8")
 
@@ -225,7 +225,7 @@ def test_runtime_start_lock_is_nonblocking(monkeypatch, tmp_path: Path) -> None:
 def test_runtime_start_lock_blocks_another_process(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     script = (
-        "from headroom.install.runtime import acquire_runtime_start_lock\n"
+        "from cutctx.install.runtime import acquire_runtime_start_lock\n"
         "with acquire_runtime_start_lock('default') as acquired:\n"
         "    print(acquired)\n"
     )
@@ -247,12 +247,12 @@ def test_runtime_start_lock_blocks_another_process(monkeypatch, tmp_path: Path) 
 def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(
-        "headroom.install.runtime.build_runtime_command", lambda manifest: ["cutctx", "proxy"]
+        "cutctx.install.runtime.build_runtime_command", lambda manifest: ["cutctx", "proxy"]
     )
-    monkeypatch.setattr("headroom.install.runtime._runtime_env", lambda manifest: {"ENV": "1"})
+    monkeypatch.setattr("cutctx.install.runtime._runtime_env", lambda manifest: {"ENV": "1"})
     signal_calls: list[int] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.signal.signal", lambda sig, fn: signal_calls.append(sig)
+        "cutctx.install.runtime.signal.signal", lambda sig, fn: signal_calls.append(sig)
     )
 
     class FakeProc:
@@ -281,7 +281,7 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
         popen_calls.append((command, kwargs))
         return fake_proc
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("cutctx.install.runtime.subprocess.Popen", fake_popen)
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",
@@ -300,22 +300,22 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
     assert signal.SIGTERM in signal_calls
     assert _read_pid("default") is None
 
-    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["cutctx"])
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "win32")
-    monkeypatch.setattr("headroom.install.runtime.subprocess.DETACHED_PROCESS", 1, raising=False)
+    monkeypatch.setattr("cutctx.install.runtime.resolve_cutctx_command", lambda: ["cutctx"])
+    monkeypatch.setattr("cutctx.install.runtime.sys.platform", "win32")
+    monkeypatch.setattr("cutctx.install.runtime.subprocess.DETACHED_PROCESS", 1, raising=False)
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.CREATE_NEW_PROCESS_GROUP", 2, raising=False
+        "cutctx.install.runtime.subprocess.CREATE_NEW_PROCESS_GROUP", 2, raising=False
     )
     fake_proc_nt = FakeProc()
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_nt
+        "cutctx.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_nt
     )
     assert start_detached_agent("demo") is fake_proc_nt
 
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("cutctx.install.runtime.sys.platform", "linux")
     fake_proc_posix = FakeProc()
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_posix
+        "cutctx.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_posix
     )
     assert start_detached_agent("demo") is fake_proc_posix
 
@@ -323,11 +323,11 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
 def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "cutctx.install.runtime.subprocess.run",
         lambda command, **kwargs: calls.append(command) or type("Result", (), {"stdout": ""})(),
     )
     monkeypatch.setattr(
-        "headroom.install.runtime.build_runtime_command",
+        "cutctx.install.runtime.build_runtime_command",
         lambda manifest: [
             "docker",
             "run",
@@ -350,11 +350,11 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="cutctx-default",
     )
     start_persistent_docker(manifest)
     assert calls == [
-        ["docker", "rm", "-f", "headroom-default"],
+        ["docker", "rm", "-f", "cutctx-default"],
         [
             "docker",
             "run",
@@ -362,7 +362,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
             "--restart",
             "unless-stopped",
             "--name",
-            "headroom-default",
+            "cutctx-default",
             "-p",
             "127.0.0.1:8787:8787",
             "image",
@@ -386,7 +386,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
     _write_pid("default", 123)
     killed: list[tuple[int, int]] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.os.kill", lambda pid, sig: killed.append((pid, sig))
+        "cutctx.install.runtime.os.kill", lambda pid, sig: killed.append((pid, sig))
     )
     stop_runtime(python_manifest)
     assert killed == [(123, signal.SIGTERM)]
@@ -394,7 +394,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
 
     _write_pid("default", 124)
     monkeypatch.setattr(
-        "headroom.install.runtime.os.kill",
+        "cutctx.install.runtime.os.kill",
         lambda pid, sig: (_ for _ in ()).throw(OSError("gone")),
     )
     stop_runtime(python_manifest)
@@ -402,14 +402,14 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
 
     probe_results = iter([False, False, True])
     sleeps: list[int] = []
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: next(probe_results))
+    monkeypatch.setattr("cutctx.install.runtime.probe_ready", lambda url: next(probe_results))
     monkeypatch.setattr(
-        "headroom.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
+        "cutctx.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
     )
     assert wait_ready(python_manifest, timeout_seconds=3) is True
     assert sleeps == [1, 1]
 
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: False)
+    monkeypatch.setattr("cutctx.install.runtime.probe_ready", lambda url: False)
     sleeps.clear()
     assert wait_ready(python_manifest, timeout_seconds=2) is False
     assert sleeps == [1, 1]
@@ -419,7 +419,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
             self.stdout = stdout
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "cutctx.install.runtime.subprocess.run",
         lambda command, **kwargs: Result(stdout=""),
     )
     assert runtime_status(manifest) == "stopped"
@@ -427,7 +427,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
 
     _write_pid("default", 125)
     monkeypatch.setattr(
-        "headroom.install.runtime.os.kill", lambda pid, sig: (_ for _ in ()).throw(OSError())
+        "cutctx.install.runtime.os.kill", lambda pid, sig: (_ for _ in ()).throw(OSError())
     )
     assert runtime_status(python_manifest) == "stopped"
 
@@ -445,19 +445,19 @@ def test_stop_runtime_for_docker_stops_and_removes_container(monkeypatch) -> Non
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="cutctx-default",
     )
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "cutctx.install.runtime.subprocess.run",
         lambda command, **kwargs: calls.append(command),
     )
 
     stop_runtime(manifest)
 
     assert calls == [
-        ["docker", "stop", "headroom-default"],
-        ["docker", "rm", "-f", "headroom-default"],
+        ["docker", "stop", "cutctx-default"],
+        ["docker", "rm", "-f", "cutctx-default"],
     ]
 
 
@@ -473,7 +473,7 @@ def test_runtime_status_reads_container_and_pid_state(monkeypatch, tmp_path: Pat
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="cutctx-default",
     )
 
     class Result:
@@ -481,16 +481,16 @@ def test_runtime_status_reads_container_and_pid_state(monkeypatch, tmp_path: Pat
             self.stdout = stdout
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
-        lambda command, **kwargs: Result(stdout="headroom-default\n"),
+        "cutctx.install.runtime.subprocess.run",
+        lambda command, **kwargs: Result(stdout="cutctx-default\n"),
     )
     assert runtime_status(docker_manifest) == "running"
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".cutctx" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("123", encoding="utf-8")
-    monkeypatch.setattr("headroom.install.runtime.os.kill", lambda pid, sig: None)
+    monkeypatch.setattr("cutctx.install.runtime.os.kill", lambda pid, sig: None)
     python_manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",

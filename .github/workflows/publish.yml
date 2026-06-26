@@ -41,7 +41,7 @@ jobs:
           maturin sdist --out dist
           maturin build --release --out dist
 
-      - name: Leak guard — OSS wheel + sdist must not contain headroom_ee
+      - name: Leak guard — OSS wheel + sdist must not contain cutctx_ee
         run: python3 scripts/assert_oss_wheel_clean.py dist
 
       - name: Generate SBOM (CycloneDX)
@@ -49,12 +49,12 @@ jobs:
           pip install -e ".[proxy]"
           cyclonedx-py environment \
             --output-format json \
-            --outfile dist/headroom-sbom.cdx.json
+            --outfile dist/cutctx-sbom.cdx.json
 
       - name: Upload SBOM to release
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/headroom-sbom.cdx.json
+          files: dist/cutctx-sbom.cdx.json
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

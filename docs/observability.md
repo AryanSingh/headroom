@@ -1,6 +1,6 @@
 # Observability — proxy metrics
 
-The CutCtx Rust proxy exposes Prometheus-format metrics on the
+The Cutctx Rust proxy exposes Prometheus-format metrics on the
 `/metrics` endpoint of every running proxy instance. The metric
 catalogue below covers Phase D (Bedrock route instrumentation) and
 Phase G PR-G3 (per-invocation RTK + proxy-wide observability).
@@ -94,7 +94,7 @@ curl -s http://127.0.0.1:8787/metrics
 ## How to emit savings telemetry
 
 See [Savings Telemetry](./savings-telemetry.md) for the canonical
-`x-headroom-savings-metadata` contract, accepted aliases, dedicated headers,
+`x-cutctx-savings-metadata` contract, accepted aliases, dedicated headers,
 and the optional `cutctx-ai[proxy,demo-integrations]` install used for demo
 integrations.
 

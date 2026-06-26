@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize version across all CutCtx release manifests."""
+"""Synchronize version across all Cutctx release manifests."""
 
 from __future__ import annotations
 
@@ -79,10 +79,10 @@ def update_plugin_versions(root: Path, version: str) -> None:
     update_marketplace_manifest(root / ".claude-plugin" / "marketplace.json", version)
     update_marketplace_manifest(root / ".github" / "plugin" / "marketplace.json", version)
     update_plugin_manifest(
-        root / "plugins" / "headroom-agent-hooks" / ".claude-plugin" / "plugin.json", version
+        root / "plugins" / "cutctx-agent-hooks" / ".claude-plugin" / "plugin.json", version
     )
     update_plugin_manifest(
-        root / "plugins" / "headroom-agent-hooks" / ".github" / "plugin" / "plugin.json",
+        root / "plugins" / "cutctx-agent-hooks" / ".github" / "plugin" / "plugin.json",
         version,
     )
 
@@ -93,8 +93,8 @@ def update_openclaw_package_json(file_path: Path, version: str, sdk_version: str
         data = json.load(f)
     data["version"] = version
     dependencies = data.setdefault("dependencies", {})
-    if "headroom-ai" in dependencies:
-        del dependencies["headroom-ai"]
+    if "cutctx-ai" in dependencies:
+        del dependencies["cutctx-ai"]
     dependencies["cutctx-ai"] = f"^{sdk_version}"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
@@ -132,7 +132,7 @@ def write_release_metadata(root: Path, version: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Synchronize version across CutCtx packages")
+    parser = argparse.ArgumentParser(description="Synchronize version across Cutctx packages")
     parser.add_argument(
         "--root",
         type=Path,

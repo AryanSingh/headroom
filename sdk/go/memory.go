@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-// MemoryClient provides access to CutCtx's episodic memory system.
+// MemoryClient provides access to Cutctx's episodic memory system.
 type MemoryClient struct {
 	client *Client
 }
@@ -43,7 +43,7 @@ func (m *MemoryClient) Store(ctx context.Context, content, project string) error
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if m.client.apiKey != "" {
-		req.Header.Set("X-CutCtx-Key", m.client.apiKey)
+		req.Header.Set("X-Cutctx-Key", m.client.apiKey)
 	}
 	resp, err := m.client.httpClient.Do(req)
 	if err != nil {
@@ -51,7 +51,7 @@ func (m *MemoryClient) Store(ctx context.Context, content, project string) error
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return &HeadroomError{Code: resp.StatusCode, Path: "/v1/memory/store"}
+		return &CutctxError{Code: resp.StatusCode, Path: "/v1/memory/store"}
 	}
 	return nil
 }
@@ -72,7 +72,7 @@ func (m *MemoryClient) Search(ctx context.Context, query string, limit int) ([]M
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if m.client.apiKey != "" {
-		req.Header.Set("X-CutCtx-Key", m.client.apiKey)
+		req.Header.Set("X-Cutctx-Key", m.client.apiKey)
 	}
 	resp, err := m.client.httpClient.Do(req)
 	if err != nil {
@@ -80,7 +80,7 @@ func (m *MemoryClient) Search(ctx context.Context, query string, limit int) ([]M
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return nil, &HeadroomError{Code: resp.StatusCode, Path: "/v1/memory/search"}
+		return nil, &CutctxError{Code: resp.StatusCode, Path: "/v1/memory/search"}
 	}
 	var out struct {
 		Entries []MemoryEntry `json:"entries"`
@@ -98,7 +98,7 @@ func (m *MemoryClient) List(ctx context.Context) ([]MemoryEntry, error) {
 		return nil, fmt.Errorf("cutctx memory: new request: %w", err)
 	}
 	if m.client.apiKey != "" {
-		req.Header.Set("X-CutCtx-Key", m.client.apiKey)
+		req.Header.Set("X-Cutctx-Key", m.client.apiKey)
 	}
 	resp, err := m.client.httpClient.Do(req)
 	if err != nil {
@@ -106,7 +106,7 @@ func (m *MemoryClient) List(ctx context.Context) ([]MemoryEntry, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return nil, &HeadroomError{Code: resp.StatusCode, Path: "/v1/memory/list"}
+		return nil, &CutctxError{Code: resp.StatusCode, Path: "/v1/memory/list"}
 	}
 	var out struct {
 		Entries []MemoryEntry `json:"entries"`

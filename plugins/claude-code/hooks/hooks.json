@@ -1,5 +1,5 @@
 {
-  "description": "CutCtx plugin hooks — auto-start proxy and ensure MCP server is available.",
+  "description": "Cutctx plugin hooks — auto-start proxy and ensure MCP server is available.",
   "hooks": {
     "SessionStart": [
       {

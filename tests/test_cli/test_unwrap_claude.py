@@ -7,8 +7,8 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_cli
-from headroom.cli.main import main
+from cutctx.cli import wrap as wrap_cli
+from cutctx.cli.main import main
 
 
 @pytest.fixture
@@ -99,9 +99,9 @@ def test_unwrap_claude_removes_mcp_rtk_and_stops_proxy(
             return None
 
     with (
-        patch("headroom.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
+        patch("cutctx.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
         patch(
-            "headroom.cli.wrap._stop_local_proxy_for_unwrap",
+            "cutctx.cli.wrap._stop_local_proxy_for_unwrap",
             side_effect=lambda port: stopped.append(port) or "stopped",
         ),
     ):
@@ -110,7 +110,7 @@ def test_unwrap_claude_removes_mcp_rtk_and_stops_proxy(
     assert result.exit_code == 0, result.output
     assert unregistered == ["cutctx", "codebase-memory-mcp"]
     assert stopped == [9999]
-    assert "Stopped local CutCtx proxy on port 9999" in result.output
+    assert "Stopped local Cutctx proxy on port 9999" in result.output
     assert "hooks" not in json.loads(settings.read_text(encoding="utf-8"))
 
 
@@ -119,7 +119,7 @@ def test_unwrap_claude_preserves_user_managed_serena(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / ".headroom"))
+    monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(tmp_path / ".cutctx"))
     unregistered: list[str] = []
 
     class Registrar:
@@ -134,15 +134,15 @@ def test_unwrap_claude_preserves_user_managed_serena(
 
         def get_server(self, server_name: str):
             if server_name == "serena":
-                from headroom.mcp_registry.base import ServerSpec
+                from cutctx.mcp_registry.base import ServerSpec
 
                 return ServerSpec(name="serena", command="/usr/local/bin/custom-serena")
             return None
 
     with (
-        patch("headroom.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
-        patch("headroom.cli.wrap._remove_claude_rtk_hooks", return_value=False),
-        patch("headroom.cli.wrap._stop_local_proxy_for_unwrap"),
+        patch("cutctx.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
+        patch("cutctx.cli.wrap._remove_claude_rtk_hooks", return_value=False),
+        patch("cutctx.cli.wrap._stop_local_proxy_for_unwrap"),
     ):
         result = runner.invoke(main, ["unwrap", "claude"])
 
@@ -150,15 +150,15 @@ def test_unwrap_claude_preserves_user_managed_serena(
     assert unregistered == ["cutctx", "codebase-memory-mcp"]
 
 
-def test_unwrap_claude_removes_headroom_installed_serena(
+def test_unwrap_claude_removes_cutctx_installed_serena(
     runner: CliRunner,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / ".headroom"))
+    monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(tmp_path / ".cutctx"))
 
-    from headroom.mcp_registry import build_serena_spec
-    from headroom.mcp_registry.ledger import record_install
+    from cutctx.mcp_registry import build_serena_spec
+    from cutctx.mcp_registry.ledger import record_install
 
     serena_spec = build_serena_spec("claude-code")
     record_install("claude", serena_spec)
@@ -180,24 +180,24 @@ def test_unwrap_claude_removes_headroom_installed_serena(
             return None
 
     with (
-        patch("headroom.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
-        patch("headroom.cli.wrap._remove_claude_rtk_hooks", return_value=False),
-        patch("headroom.cli.wrap._stop_local_proxy_for_unwrap"),
+        patch("cutctx.mcp_registry.ClaudeRegistrar", return_value=Registrar()),
+        patch("cutctx.cli.wrap._remove_claude_rtk_hooks", return_value=False),
+        patch("cutctx.cli.wrap._stop_local_proxy_for_unwrap"),
     ):
         result = runner.invoke(main, ["unwrap", "claude"])
 
     assert result.exit_code == 0, result.output
     assert unregistered == ["cutctx", "codebase-memory-mcp", "serena"]
-    assert "Removed CutCtx-installed Serena MCP server" in result.output
+    assert "Removed Cutctx-installed Serena MCP server" in result.output
 
 
 def test_unwrap_claude_keep_flags_skip_cleanup(
     runner: CliRunner,
 ) -> None:
     with (
-        patch("headroom.mcp_registry.ClaudeRegistrar") as registrar,
-        patch("headroom.cli.wrap._remove_claude_rtk_hooks") as remove_rtk,
-        patch("headroom.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy,
+        patch("cutctx.mcp_registry.ClaudeRegistrar") as registrar,
+        patch("cutctx.cli.wrap._remove_claude_rtk_hooks") as remove_rtk,
+        patch("cutctx.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy,
     ):
         result = runner.invoke(
             main,

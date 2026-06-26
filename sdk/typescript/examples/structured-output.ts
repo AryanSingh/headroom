@@ -6,7 +6,7 @@
  *
  * Run: npx tsx examples/09-structured-output.ts
  */
-import { withCutCtx } from "cutctx-ai/vercel-ai";
+import { withCutctx } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -58,7 +58,7 @@ const IncidentReport = z.object({
 });
 
 async function main() {
-  const model = withCutCtx(openai("gpt-4o"));
+  const model = withCutctx(openai("gpt-4o"));
 
   console.log(`Input: ${incidentLogs.length} log entries (${JSON.stringify(incidentLogs).length} chars)`);
 

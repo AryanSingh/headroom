@@ -9,7 +9,7 @@ from urllib import error as urllib_error
 
 import pytest
 
-from headroom import copilot_auth
+from cutctx import copilot_auth
 
 
 def test_read_cached_oauth_token_prefers_env(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -12,24 +12,18 @@ response headers.
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
-import pytest
-
-from headroom.proxy.outcome import (
+from cutctx.proxy.outcome import (
     RequestOutcome,
     _build_savings_breakdown,
-    emit_request_outcome,
 )
-from headroom.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
+from cutctx.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
 
 
 def test_extract_from_response_headers_vllm_apc() -> None:
-    """vLLM APC upstream sets x-headroom-prefix-cache-hits; the
+    """vLLM APC upstream sets x-cutctx-prefix-cache-hits; the
     extractor must attribute to prefix_cache_self_hosted.
     """
-    headers = {"x-headroom-prefix-cache-hits": "1500"}
+    headers = {"x-cutctx-prefix-cache-hits": "1500"}
     result = extract_savings_metadata(response_headers=headers)
     assert result is not None
     assert "prefix_cache_self_hosted" in result
@@ -37,12 +31,12 @@ def test_extract_from_response_headers_vllm_apc() -> None:
 
 
 def test_extract_from_response_headers_model_routing() -> None:
-    """Model routing upstream sets x-headroom-model-routing-tokens and
+    """Model routing upstream sets x-cutctx-model-routing-tokens and
     -usd; the extractor attributes to model_routing.
     """
     headers = {
-        "x-headroom-model-routing-tokens": "2000",
-        "x-headroom-model-routing-usd": "0.05",
+        "x-cutctx-model-routing-tokens": "2000",
+        "x-cutctx-model-routing-usd": "0.05",
     }
     result = extract_savings_metadata(response_headers=headers)
     assert result is not None
@@ -56,10 +50,10 @@ def test_extract_combined() -> None:
     reports each in the right bucket.
     """
     headers = {
-        "x-headroom-provider-cache-tokens": "100",
-        "x-headroom-prefix-cache-hits": "200",
-        "x-headroom-model-routing-tokens": "300",
-        "x-headroom-model-routing-usd": "0.01",
+        "x-cutctx-provider-cache-tokens": "100",
+        "x-cutctx-prefix-cache-hits": "200",
+        "x-cutctx-model-routing-tokens": "300",
+        "x-cutctx-model-routing-usd": "0.01",
     }
     result = extract_savings_metadata(response_headers=headers)
     assert result is not None
@@ -81,7 +75,7 @@ def test_extract_returns_none_when_no_relevant_headers() -> None:
 
 def test_extract_handles_uppercase_headers() -> None:
     """Header lookups are case-insensitive (HTTP/1.1 RFC 7230)."""
-    headers = {"X-Headroom-Prefix-Cache-Hits": "777"}
+    headers = {"X-Cutctx-Prefix-Cache-Hits": "777"}
     result = extract_savings_metadata(response_headers=headers)
     assert result is not None
     assert result["prefix_cache_self_hosted"]["tokens"] == 777
@@ -90,8 +84,8 @@ def test_extract_handles_uppercase_headers() -> None:
 def test_extract_handles_malformed_values() -> None:
     """Malformed header values must not raise; they are coerced to 0."""
     headers = {
-        "x-headroom-prefix-cache-hits": "not-a-number",
-        "x-headroom-model-routing-usd": "NaN",
+        "x-cutctx-prefix-cache-hits": "not-a-number",
+        "x-cutctx-model-routing-usd": "NaN",
     }
     # Should not raise; should return empty buckets.
     result = extract_savings_metadata(response_headers=headers)
@@ -135,10 +129,10 @@ def test_merge_dedupes_duplicate_sources() -> None:
     merged result sums the values.
     """
     a = extract_savings_metadata(
-        request_headers={"x-headroom-prefix-cache-hits": "100"}
+        request_headers={"x-cutctx-prefix-cache-hits": "100"}
     )
     b = extract_savings_metadata(
-        response_headers={"x-headroom-prefix-cache-hits": "200"}
+        response_headers={"x-cutctx-prefix-cache-hits": "200"}
     )
     merged = merge_savings_metadata(a, b)
     assert merged is not None
@@ -147,8 +141,8 @@ def test_merge_dedupes_duplicate_sources() -> None:
 
 def test_extract_aliases_supported() -> None:
     """Legacy header aliases must still work."""
-    # x-headroom-vllm-apc-hits is an alias of x-headroom-prefix-cache-hits.
-    headers = {"x-headroom-vllm-apc-hits": "500"}
+    # x-cutctx-vllm-apc-hits is an alias of x-cutctx-prefix-cache-hits.
+    headers = {"x-cutctx-vllm-apc-hits": "500"}
     result = extract_savings_metadata(response_headers=headers)
     assert result is not None
     assert result["prefix_cache_self_hosted"]["tokens"] == 500

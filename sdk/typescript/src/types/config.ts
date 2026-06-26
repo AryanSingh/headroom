@@ -1,11 +1,11 @@
 /**
- * Configuration types matching Python headroom.config dataclasses.
+ * Configuration types matching Python cutctx.config dataclasses.
  * All fields are optional — the proxy uses defaults for omitted values.
  */
 
 // --- Enums ---
 
-export type CutCtxMode = "audit" | "optimize" | "simulate";
+export type CutctxMode = "audit" | "optimize" | "simulate";
 
 export type RelevanceTier = "bm25" | "embedding" | "hybrid";
 
@@ -166,9 +166,9 @@ export interface CompressionProfile {
   maxK?: number | null;
 }
 
-export interface CutCtxConfig {
+export interface CutctxConfig {
   storeUrl?: string;
-  defaultMode?: CutCtxMode;
+  defaultMode?: CutctxMode;
   modelContextLimits?: Record<string, number>;
   toolCrusher?: ToolCrusherConfig;
   smartCrusher?: SmartCrusherConfig;

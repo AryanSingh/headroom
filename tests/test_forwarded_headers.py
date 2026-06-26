@@ -1,9 +1,9 @@
-"""Tests for ``headroom.proxy.forwarded_headers`` — Phase F PR-F4.
+"""Tests for ``cutctx.proxy.forwarded_headers`` — Phase F PR-F4.
 
 Threat model: a malicious upstream client can forge any
 ``X-Forwarded-*`` header. The proxy must trust them ONLY when the
 connecting peer's IP is in the configured CIDR allow-list. Default
-(``HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS`` unset / empty) is
+(``CUTCTX_PROXY_TRUSTED_GATEWAY_CIDRS`` unset / empty) is
 strict-secure: every forwarded header is ignored.
 """
 
@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.datastructures import Headers, State
 
-from headroom.proxy.forwarded_headers import (
+from cutctx.proxy.forwarded_headers import (
     TRUSTED_GATEWAY_CIDRS_ENV,
     load_trusted_gateway_cidrs,
     peer_is_trusted_gateway,
@@ -32,11 +32,11 @@ def _enable_forwarded_headers_log_propagation() -> None:
     """Keep structured forwarded-header warnings visible to caplog.
 
     Other tests may initialize proxy logging and disable propagation on
-    ``headroom.proxy`` or this module-specific child logger. These tests assert
+    ``cutctx.proxy`` or this module-specific child logger. These tests assert
     on structured warning records, so force propagation on for the duration of
     each test regardless of execution order.
     """
-    logger_names = ("headroom.proxy", "headroom.proxy.forwarded_headers")
+    logger_names = ("cutctx.proxy", "cutctx.proxy.forwarded_headers")
     originals = {
         name: logging.getLogger(name).propagate
         for name in logger_names
@@ -241,7 +241,7 @@ def test_non_allowlisted_peer_ignores_forwarded_and_logs(
         forwarded_proto="https",
         forwarded_host="api.example.com",
     )
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy.forwarded_headers"):
+    with caplog.at_level(logging.WARNING, logger="cutctx.proxy.forwarded_headers"):
         ip = resolve_client_ip(req)
         fwd = trusted_forwarded_headers(req)
     assert ip == "8.8.8.8"
@@ -266,7 +266,7 @@ def test_no_forwarded_headers_no_rejection_log(
     """Direct client (no X-Forwarded-* at all) must NOT spam rejection logs."""
     monkeypatch.setenv(TRUSTED_GATEWAY_CIDRS_ENV, "10.0.0.0/8")
     req = _fake_request(peer_host="8.8.8.8")
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy.forwarded_headers"):
+    with caplog.at_level(logging.WARNING, logger="cutctx.proxy.forwarded_headers"):
         assert resolve_client_ip(req) == "8.8.8.8"
         assert trusted_forwarded_headers(req) == {"for": "", "proto": "", "host": ""}
     rejections = [r for r in caplog.records if r.message == "forwarded_headers_rejected"]

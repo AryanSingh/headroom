@@ -1,0 +1,53 @@
+"""Agno integration for Cutctx SDK.
+
+This module provides seamless integration with Agno (formerly Phidata),
+enabling automatic context optimization for Agno agents.
+
+Components:
+1. CutctxAgnoModel - Wraps any Agno model to apply Cutctx transforms
+2. create_cutctx_hooks - Creates pre/post hooks for Agno agents
+3. optimize_messages - Standalone function for manual optimization
+
+Example:
+    from agno.agent import Agent
+    from agno.models.openai import OpenAIChat
+    from cutctx.integrations.agno import CutctxAgnoModel
+
+    # Wrap any Agno model
+    model = OpenAIChat(id="gpt-4o")
+    optimized_model = CutctxAgnoModel(model)
+
+    # Use with agent
+    agent = Agent(model=optimized_model)
+    response = agent.run("Hello!")
+"""
+
+from .hooks import (
+    CutctxPostHook,
+    CutctxPreHook,
+    HookMetrics,
+    create_cutctx_hooks,
+)
+from .model import (
+    CutctxAgnoModel,
+    OptimizationMetrics,
+    agno_available,
+    optimize_messages,
+)
+from .providers import get_cutctx_provider, get_model_name_from_agno
+
+__all__ = [
+    # Model wrapper
+    "CutctxAgnoModel",
+    "OptimizationMetrics",
+    "agno_available",
+    "optimize_messages",
+    # Hooks
+    "create_cutctx_hooks",
+    "CutctxPreHook",
+    "CutctxPostHook",
+    "HookMetrics",
+    # Provider detection
+    "get_cutctx_provider",
+    "get_model_name_from_agno",
+]

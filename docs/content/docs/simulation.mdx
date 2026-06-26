@@ -3,7 +3,7 @@ title: Simulation
 description: Preview compression results without making an LLM call. Use simulation for cost estimation, debugging, and understanding waste signals.
 ---
 
-Simulation mode lets you preview what CutCtx would do to your messages without sending them to an LLM. This is useful for cost estimation, debugging compression behavior, and understanding where token waste comes from.
+Simulation mode lets you preview what Cutctx would do to your messages without sending them to an LLM. This is useful for cost estimation, debugging compression behavior, and understanding where token waste comes from.
 
 ## Basic Usage
 
@@ -124,7 +124,7 @@ else:
 Test different configurations to find the best settings for your workload:
 
 ```python
-from cutctx import CutCtxClient, OpenAIProvider
+from cutctx import CutctxClient, OpenAIProvider
 from cutctx.transforms import SmartCrusherConfig
 
 configs = [
@@ -134,7 +134,7 @@ configs = [
 ]
 
 for config in configs:
-    client = CutCtxClient(
+    client = CutctxClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         smart_crusher_config=config,

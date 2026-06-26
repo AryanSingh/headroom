@@ -22,7 +22,7 @@ Started from the audit-deep-2026-06-21 state (60/100 production, 45/100 enterpri
 | 4 | Dashboard no search/filter/sort/loading/error | Real input, 2 selects, spinner, error toast, filterAndSortRequests() | 8/8 in test_dashboard_filter |
 | 5 | 6 CLI commands unreachable | `_register_commands` discovers orphan groups/commands and adds them to main | `cutctx --help` lists all 6 |
 | 6 | Audit actor regression in server.py:3401 | Shared `_resolve_audit_actor(request)` helper used by all admin paths | existing tests pass |
-| 7 | `HeadroomMode` NameError regression | Backward-compat aliases in `headroom/config.py` + `__init__.py` + `client.py` + integrations/strands | test_config: 36/36 pass |
+| 7 | `CutctxMode` NameError regression | Backward-compat aliases in `cutctx/config.py` + `__init__.py` + `client.py` + integrations/strands | test_config: 36/36 pass |
 
 Plus polish: K8s image refs, .env.example expansion, SOC2 roadmap line 87, Stripe webhook secret enforcement, CRL fail-closed, spend ledger tenant scoping, streaming PII redactor wiring test, CLI --verify-integrity.
 
@@ -36,7 +36,7 @@ Before: 7046 passed / 154 failed / 256 skipped / 7451 collected
 Delta: +65 net passing, -21 fewer failures, +~135 new tests added
 ```
 
-The 133 remaining failures are concentrated in pre-existing rebrand-leftover / env-dep tests (e.g. `HeadroomMode` references in uncommitted test diffs, Playwright live-proxy tests, system-tools tests). They are unrelated to the fixes made in this session.
+The 133 remaining failures are concentrated in pre-existing rebrand-leftover / env-dep tests (e.g. `CutctxMode` references in uncommitted test diffs, Playwright live-proxy tests, system-tools tests). They are unrelated to the fixes made in this session.
 
 ---
 

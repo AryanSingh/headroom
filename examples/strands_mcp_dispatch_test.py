@@ -5,7 +5,7 @@ This is the focused 15-min test that proves the MCP-everywhere
 architecture for Path B works end-to-end:
 
   1. Cutctx proxy is running (started separately, port 8787).
-  2. Build a Strands MCPClient that stdio-spawns `headroom mcp serve`.
+  2. Build a Strands MCPClient that stdio-spawns `cutctx mcp serve`.
   3. List MCP tools — confirm `cutctx_retrieve` is exposed.
   4. Round-trip: stash content via the proxy's /v1/compress endpoint
      to get a hash, then call `cutctx_retrieve(hash)` via MCP,
@@ -57,9 +57,9 @@ def start_proxy() -> subprocess.Popen[bytes]:
         "--port",
         str(PROXY_PORT),
     ]
-    log = Path("/tmp/headroom_proxy_mcp_test.log").open("wb")
+    log = Path("/tmp/cutctx_proxy_mcp_test.log").open("wb")
     proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)  # noqa: S603
-    print(f"  proxy spawned (pid={proc.pid}); log → /tmp/headroom_proxy_mcp_test.log")
+    print(f"  proxy spawned (pid={proc.pid}); log → /tmp/cutctx_proxy_mcp_test.log")
     return proc
 
 
@@ -145,7 +145,7 @@ def main() -> int:
         )
         print(f"[2/5] Test payload prepared: {len(big)} chars of JSON")
 
-        print("\n[3/5] Building Strands MCPClient pointed at `headroom mcp serve` ...")
+        print("\n[3/5] Building Strands MCPClient pointed at `cutctx mcp serve` ...")
         server_params = StdioServerParameters(
             command="cutctx",
             args=["mcp", "serve", "--proxy-url", PROXY_URL],

@@ -10,8 +10,8 @@ These are the 4 required acceptance tests from the spec:
 
 import pytest
 
-from headroom import OpenAIProvider, Tokenizer
-from headroom.transforms import CacheAligner
+from cutctx import OpenAIProvider, Tokenizer
+from cutctx.transforms import CacheAligner
 
 # Create a shared provider for tests
 _provider = OpenAIProvider()
@@ -49,7 +49,7 @@ class TestDateTrap:
 
     def test_warning_surfaced_for_iso_date_in_system_prompt(self):
         """ISO 8601 dates should be surfaced as warnings, not extracted."""
-        from headroom.config import CacheAlignerConfig
+        from cutctx.config import CacheAlignerConfig
 
         messages = [
             {
@@ -170,7 +170,7 @@ class TestQueryAnchorExtraction:
         """If user asks for 'Alice', item with Alice should be preserved."""
         import json
 
-        from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+        from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
         # User is searching for 'Alice'
         messages = [
@@ -221,7 +221,7 @@ class TestQueryAnchorExtraction:
         """If user asks for a UUID, item with that UUID should be preserved."""
         import json
 
-        from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+        from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
         target_uuid = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -271,7 +271,7 @@ class TestTransformIntegration:
 
     def test_pipeline_preserves_message_order(self):
         """Transform pipeline should preserve message order."""
-        from headroom.transforms import TransformPipeline
+        from cutctx.transforms import TransformPipeline
 
         messages = [
             {"role": "system", "content": "You are helpful."},
@@ -291,7 +291,7 @@ class TestTransformIntegration:
 
     def test_pipeline_never_removes_user_content(self):
         """User message content should never be removed."""
-        from headroom.transforms import TransformPipeline
+        from cutctx.transforms import TransformPipeline
 
         user_content = "This is my important question that should never be modified!"
         messages = [

@@ -10,7 +10,7 @@ These tests exist as regression tests to ensure security fixes remain effective.
 
 import pytest
 
-from headroom.memory.adapters.sqlite import _validate_metadata_key
+from cutctx.memory.adapters.sqlite import _validate_metadata_key
 
 
 class TestSQLiteMetadataKeyValidation:
@@ -96,9 +96,9 @@ class TestSQLiteMetadataFilteringIntegration:
         import tempfile
         from pathlib import Path
 
-        from headroom.memory.adapters.sqlite import SQLiteMemoryStore
-        from headroom.memory.models import Memory
-        from headroom.memory.ports import MemoryFilter
+        from cutctx.memory.adapters.sqlite import SQLiteMemoryStore
+        from cutctx.memory.models import Memory
+        from cutctx.memory.ports import MemoryFilter
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             db_path = Path(f.name)

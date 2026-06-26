@@ -8,14 +8,10 @@ the new behavior.
 """
 from __future__ import annotations
 
-import os
-
-import pytest
-
 
 class TestEgressEnforcer:
     def test_empty_policy_denies_all(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(EgressPolicy(policy_id="empty"))
         d = enforcer.check("https://api.anthropic.com/v1/messages")
@@ -24,7 +20,7 @@ class TestEgressEnforcer:
         assert d.policy_id == "empty"
 
     def test_allow_all_passes(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(policy_id="allow-all", allow_all=True)
@@ -34,7 +30,7 @@ class TestEgressEnforcer:
         assert d.reason == "allow_all_policy"
 
     def test_substring_match(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
@@ -47,7 +43,7 @@ class TestEgressEnforcer:
         assert d.matched_pattern == "api.anthropic.com"
 
     def test_regex_match(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
@@ -60,7 +56,7 @@ class TestEgressEnforcer:
         assert d.matched_pattern == r".*\.anthropic\.com$"
 
     def test_no_match_denies(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
@@ -73,7 +69,7 @@ class TestEgressEnforcer:
         assert d.reason == "no_pattern_match"
 
     def test_unparseable_url_denies(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
@@ -88,7 +84,7 @@ class TestEgressEnforcer:
         assert d.allowed is False
 
     def test_case_insensitive_match(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
@@ -100,7 +96,7 @@ class TestEgressEnforcer:
         assert d.allowed is True
 
     def test_invalid_regex_pattern_is_skipped(self):
-        from headroom.proxy.egress import EgressEnforcer, EgressPolicy
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         # [unclosed bracket is invalid regex
         enforcer = EgressEnforcer(
@@ -118,7 +114,7 @@ class TestEgressEnforcer:
 
 class TestLoadPolicyFromEnv:
     def test_unset_returns_empty(self, monkeypatch):
-        from headroom.proxy.egress import load_policy_from_env
+        from cutctx.proxy.egress import load_policy_from_env
 
         monkeypatch.delenv("CUTCTX_EGRESS_POLICY", raising=False)
         p = load_policy_from_env()
@@ -127,21 +123,21 @@ class TestLoadPolicyFromEnv:
         assert p.allow_all is False
 
     def test_invalid_json_returns_invalid_marker(self, monkeypatch):
-        from headroom.proxy.egress import load_policy_from_env
+        from cutctx.proxy.egress import load_policy_from_env
 
         monkeypatch.setenv("CUTCTX_EGRESS_POLICY", "{not valid json")
         p = load_policy_from_env()
         assert p.policy_id == "default-invalid"
 
     def test_allow_all(self, monkeypatch):
-        from headroom.proxy.egress import load_policy_from_env
+        from cutctx.proxy.egress import load_policy_from_env
 
         monkeypatch.setenv("CUTCTX_EGRESS_POLICY", '{"allow_all": true}')
         p = load_policy_from_env()
         assert p.allow_all is True
 
     def test_patterns(self, monkeypatch):
-        from headroom.proxy.egress import load_policy_from_env
+        from cutctx.proxy.egress import load_policy_from_env
 
         monkeypatch.setenv(
             "CUTCTX_EGRESS_POLICY",
@@ -158,15 +154,15 @@ class TestAirgapStatusRoute:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from headroom.proxy.egress import reset_egress_enforcer
-        from headroom.proxy.routes.airgap import create_airgap_router
+        from cutctx.proxy.egress import reset_egress_enforcer
+        from cutctx.proxy.routes.airgap import create_airgap_router
 
         reset_egress_enforcer()
         monkeypatch.setenv(
             "CUTCTX_EGRESS_POLICY",
             '{"policy_id": "test", "allowed_patterns": ["api.anthropic.com"]}',
         )
-        monkeypatch.setenv("HEADROOM_OFFLINE_MODE", "1")
+        monkeypatch.setenv("CUTCTX_OFFLINE_MODE", "1")
         reset_egress_enforcer()
 
         app = FastAPI()
@@ -187,8 +183,8 @@ class TestAirgapStatusRoute:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from headroom.proxy.egress import reset_egress_enforcer
-        from headroom.proxy.routes.airgap import create_airgap_router
+        from cutctx.proxy.egress import reset_egress_enforcer
+        from cutctx.proxy.routes.airgap import create_airgap_router
 
         reset_egress_enforcer()
         monkeypatch.setenv(

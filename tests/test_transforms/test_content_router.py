@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.transforms.content_detector import ContentType
-from headroom.transforms.content_router import (
+from cutctx.transforms.content_detector import ContentType
+from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -43,8 +43,8 @@ def router(default_config):
 @pytest.fixture
 def tokenizer():
     """Get a tokenizer for Transform interface tests."""
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from cutctx.providers import OpenAIProvider
+    from cutctx.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     token_counter = provider.get_token_counter("gpt-4o")
@@ -602,8 +602,8 @@ class TestExcludeTools:
     @pytest.fixture
     def tokenizer(self):
         """Get a tokenizer for tests."""
-        from headroom.providers import OpenAIProvider
-        from headroom.tokenizer import Tokenizer
+        from cutctx.providers import OpenAIProvider
+        from cutctx.tokenizer import Tokenizer
 
         provider = OpenAIProvider()
         token_counter = provider.get_token_counter("gpt-4o")

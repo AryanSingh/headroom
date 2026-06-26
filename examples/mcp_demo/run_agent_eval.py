@@ -368,7 +368,7 @@ def main():
     tokenizer = provider.get_token_counter("gpt-4o")
 
     print("\n" + "=" * 70)
-    print("MCP AGENT EVALUATION: BEFORE vs AFTER HEADROOM COMPRESSION")
+    print("MCP AGENT EVALUATION: BEFORE vs AFTER CUTCTX COMPRESSION")
     print("=" * 70)
     print("\nThis eval tests whether an agent can still find critical information")
     print("after Cutctx compresses large MCP tool outputs.")

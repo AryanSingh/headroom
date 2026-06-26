@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from headroom.subscription.base import (
+from cutctx.subscription.base import (
     QuotaTracker,
     QuotaTrackerRegistry,
     get_quota_registry,

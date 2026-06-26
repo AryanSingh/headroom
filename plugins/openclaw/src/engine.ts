@@ -1,7 +1,7 @@
 /**
- * CutCtxContextEngine — ContextEngine implementation for OpenClaw.
+ * CutctxContextEngine — ContextEngine implementation for OpenClaw.
  *
- * Compresses tool outputs and conversation context using the CutCtx proxy.
+ * Compresses tool outputs and conversation context using the Cutctx proxy.
  * Zero LLM calls — all compression is algorithmic (SmartCrusher, ContentRouter, etc.)
  */
 
@@ -11,21 +11,21 @@ import { compress } from "cutctx-ai";
 import { ProxyManager, defaultLogger, type ProxyManagerConfig, type ProxyManagerLogger } from "./proxy-manager.js";
 import { agentToOpenAI, normalizeAgentMessages, openAIToAgent } from "./convert.js";
 
-export interface CutCtxEngineConfig extends ProxyManagerConfig {
+export interface CutctxEngineConfig extends ProxyManagerConfig {
   enabled?: boolean;
 }
 
-export class CutCtxContextEngine {
+export class CutctxContextEngine {
   readonly info = {
-    id: "headroom",
-    name: "CutCtx Context Compression",
+    id: "cutctx",
+    name: "Cutctx Context Compression",
     version: "0.1.0",
     ownsCompaction: true,
   };
 
   private proxyManager: ProxyManager;
   private proxyUrl: string | null = null;
-  private config: CutCtxEngineConfig;
+  private config: CutctxEngineConfig;
   private logger: ProxyManagerLogger;
   private proxyReadyListeners = new Set<(proxyUrl: string) => void | Promise<void>>();
   private proxyStartupPromise: Promise<string> | null = null;
@@ -36,7 +36,7 @@ export class CutCtxContextEngine {
     compactions: 0,
   };
 
-  constructor(config: CutCtxEngineConfig = {}, logger?: ProxyManagerLogger) {
+  constructor(config: CutctxEngineConfig = {}, logger?: ProxyManagerLogger) {
     this.config = config;
     this.logger = logger ?? defaultLogger;
     this.proxyManager = new ProxyManager(config, this.logger);
@@ -132,7 +132,7 @@ export class CutCtxContextEngine {
         estimatedTokens: result.tokensAfter,
         systemPromptAddition:
           result.tokensSaved > 100
-            ? `[Context compressed by CutCtx: ${result.tokensSaved} tokens saved. Use headroom_retrieve with the hash to get full details.]`
+            ? `[Context compressed by Cutctx: ${result.tokensSaved} tokens saved. Use cutctx_retrieve with the hash to get full details.]`
             : undefined,
       };
     } catch (error) {
@@ -149,7 +149,7 @@ export class CutCtxContextEngine {
    * - SmartCrusher: aggressive JSON compression (70-90% on tool outputs)
    * - Kompress: ModernBERT text compression (40-60% on assistant text)
    * - RollingWindow: drops oldest messages if still over budget
-   * - CCR: stores originals for retrieval via headroom_retrieve tool
+   * - CCR: stores originals for retrieval via cutctx_retrieve tool
    *
    * Zero LLM calls. All algorithmic.
    */
@@ -188,7 +188,7 @@ export class CutCtxContextEngine {
     return {
       ok: true,
       compacted: true,
-      reason: "CutCtx applies SmartCrusher + Kompress + RollingWindow on next assemble()",
+      reason: "Cutctx applies SmartCrusher + Kompress + RollingWindow on next assemble()",
     };
   }
 
@@ -245,11 +245,11 @@ export class CutCtxContextEngine {
       .then(async (proxyUrl) => {
         this.proxyUrl = proxyUrl;
         await this.notifyProxyReady(proxyUrl);
-        this.logger.info(`CutCtx proxy ready at ${proxyUrl}`);
+        this.logger.info(`Cutctx proxy ready at ${proxyUrl}`);
         return proxyUrl;
       })
       .catch((error) => {
-        this.logger.warn(`CutCtx proxy unavailable: ${error}`);
+        this.logger.warn(`Cutctx proxy unavailable: ${error}`);
         throw error;
       })
       .finally(() => {
@@ -271,7 +271,7 @@ export class CutCtxContextEngine {
 
     this.ensureProxyStarted();
     if (!this.proxyStartupPromise) {
-      throw new Error("CutCtx proxy startup is disabled");
+      throw new Error("Cutctx proxy startup is disabled");
     }
     return this.proxyStartupPromise;
   }

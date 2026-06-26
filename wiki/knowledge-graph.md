@@ -93,14 +93,14 @@ cutctx proxy --knowledge-graph --knowledge-graph-bfs-depth 3 --knowledge-graph-m
 ### Environment Variables
 
 ```bash
-HEADROOM_KNOWLEDGE_GRAPH=1 cutctx proxy
-HEADROOM_KG_BFS_DEPTH=3 HEADROOM_KG_MAX_NODES=60 cutctx proxy
+CUTCTX_KNOWLEDGE_GRAPH=1 cutctx proxy
+CUTCTX_KG_BFS_DEPTH=3 CUTCTX_KG_MAX_NODES=60 cutctx proxy
 ```
 
 ### Python API
 
 ```python
-from headroom.graph.graphify import GraphifyIndexer, GraphifyIndex
+from cutctx.graph.graphify import GraphifyIndexer, GraphifyIndex
 
 # Build or load the graph
 indexer = GraphifyIndexer(project_dir="/path/to/project")
@@ -133,14 +133,14 @@ if index:
 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
-| `--knowledge-graph` | `HEADROOM_KNOWLEDGE_GRAPH` | — | Enable knowledge-graph compression |
-| `--knowledge-graph-bfs-depth` | `HEADROOM_KG_BFS_DEPTH` | `2` | BFS depth (1–10) |
-| `--knowledge-graph-max-nodes` | `HEADROOM_KG_MAX_NODES` | `40` | Max nodes per response (5–200) |
+| `--knowledge-graph` | `CUTCTX_KNOWLEDGE_GRAPH` | — | Enable knowledge-graph compression |
+| `--knowledge-graph-bfs-depth` | `CUTCTX_KG_BFS_DEPTH` | `2` | BFS depth (1–10) |
+| `--knowledge-graph-max-nodes` | `CUTCTX_KG_MAX_NODES` | `40` | Max nodes per response (5–200) |
 
 ### GraphifyIndexer Configuration
 
 ```python
-from headroom.graph.graphify import GraphifyIndexer
+from cutctx.graph.graphify import GraphifyIndexer
 
 indexer = GraphifyIndexer(
     project_dir="/path/to/project",
@@ -253,7 +253,7 @@ Proxy intercepts → replaces with:
 
 ```python
 from pathlib import Path
-from headroom.graph.graphify import GraphifyIndexer, set_global_indexer
+from cutctx.graph.graphify import GraphifyIndexer, set_global_indexer
 
 # Create and start the indexer
 indexer = GraphifyIndexer(
@@ -282,7 +282,7 @@ indexer.stop()
 
 ```bash
 python -c "
-from headroom.graph.graphify import graphify_available, networkx_available
+from cutctx.graph.graphify import graphify_available, networkx_available
 print('graphifyy available:', graphify_available())
 print('networkx available:', networkx_available())
 "
@@ -294,7 +294,7 @@ print('networkx available:', networkx_available())
 python -c "
 import json
 from pathlib import Path
-from headroom.graph.graphify import GraphifyIndex
+from cutctx.graph.graphify import GraphifyIndex
 
 index = GraphifyIndex.load(Path('graphify-out/graph.json'))
 print(f'Graph: {index.node_count} nodes, {index.edge_count} edges')

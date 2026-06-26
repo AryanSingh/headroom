@@ -1,11 +1,11 @@
 ---
 title: Limitations
-description: When CutCtx helps, when it does not, and what to watch out for. Honest documentation of compression constraints and safety gates.
+description: When Cutctx helps, when it does not, and what to watch out for. Honest documentation of compression constraints and safety gates.
 ---
 
-CutCtx is designed to compress LLM context without losing accuracy. This page documents when it helps, when it does not, and the safety gates that prevent harmful compression.
+Cutctx is designed to compress LLM context without losing accuracy. This page documents when it helps, when it does not, and the safety gates that prevent harmful compression.
 
-## When CutCtx Helps vs. Does Not
+## When Cutctx Helps vs. Does Not
 
 | Content Type | Compression | Latency Impact | Best For |
 |---|---|---|---|
@@ -19,20 +19,20 @@ CutCtx is designed to compress LLM context without losing accuracy. This page do
 | **Code** | Passthrough | Minimal overhead | See below |
 | **RAG document contexts** | Passthrough | Minimal overhead | Not compressed |
 
-### Where CutCtx Adds the Most Value
+### Where Cutctx Adds the Most Value
 
 - Long agent sessions with accumulated tool outputs (40--80% compression)
 - JSON-heavy workflows -- API responses, database queries (83--94% compression)
 - Build and test output (85--94% compression)
 - Multi-tool agents (60--76% compression across tool results)
 
-### Where CutCtx Adds Little Value
+### Where Cutctx Adds Little Value
 
 - Short conversational exchanges (median 4.8% compression)
 - Code-only sessions (reading/writing files) -- code passes through
 - Single-turn requests with no accumulated context
 
-## What CutCtx Does NOT Compress
+## What Cutctx Does NOT Compress
 
 - **Short messages** (< 300 tokens) -- overhead exceeds savings
 - **Source code** -- passes through unchanged to preserve correctness
@@ -42,7 +42,7 @@ CutCtx is designed to compress LLM context without losing accuracy. This page do
 
 ## Code Compression
 
-CutCtx includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it is gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.
+Cutctx includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it is gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.
 
 **Why code mostly passes through:**
 

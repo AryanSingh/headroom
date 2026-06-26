@@ -6,8 +6,8 @@
  *
  * Run: npx tsx examples/11-openai-anthropic-adapters.ts
  */
-import { withCutCtx as withCutCtxOpenAI } from "cutctx-ai/openai";
-import { withCutCtx as withCutCtxAnthropic } from "cutctx-ai/anthropic";
+import { withCutctx as withCutctxOpenAI } from "cutctx-ai/openai";
+import { withCutctx as withCutctxAnthropic } from "cutctx-ai/anthropic";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -34,7 +34,7 @@ async function main() {
   // === OpenAI with compression ===
   if (process.env.OPENAI_API_KEY) {
     console.log("=== OpenAI (compressed) ===");
-    const openai = withCutCtxOpenAI(new OpenAI());
+    const openai = withCutctxOpenAI(new OpenAI());
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -50,7 +50,7 @@ async function main() {
   // === Anthropic with compression ===
   if (process.env.ANTHROPIC_API_KEY) {
     console.log("=== Anthropic (compressed) ===");
-    const anthropic = withCutCtxAnthropic(new Anthropic());
+    const anthropic = withCutctxAnthropic(new Anthropic());
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",

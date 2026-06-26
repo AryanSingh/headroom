@@ -14,15 +14,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from headroom.audit import (
+from cutctx.audit import (
     AuditEvent,
     AuditLogger,
 )
-from headroom.entitlements import FEATURE_TIERS, EntitlementChecker, EntitlementTier
-from headroom.org import OrgStore
-from headroom.rbac import AdminRole, RbacChecker, reset_rbac_checker
-from headroom.retention import RetentionConfig, RetentionManager
-from headroom.sso import SsoClaims, SsoConfig
+from cutctx.entitlements import FEATURE_TIERS, EntitlementChecker, EntitlementTier
+from cutctx.org import OrgStore
+from cutctx.rbac import AdminRole, RbacChecker, reset_rbac_checker
+from cutctx.retention import RetentionConfig, RetentionManager
+from cutctx.sso import SsoClaims, SsoConfig
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ def sso_config():
         provider_type="oidc",
         discovery_url="https://idp.example.com/.well-known/openid-configuration",
         issuer="https://idp.example.com",
-        audience="headroom-api",
+        audience="cutctx-api",
         role_mapping={"admin": "admin", "viewer": "viewer"},
         default_role="viewer",
     )
@@ -83,21 +83,21 @@ class TestSsoToRbacFlow:
         claims = SsoClaims(
             subject="user@example.com",
             issuer="https://idp.example.com",
-            audience="headroom-api",
+            audience="cutctx-api",
             expires_at=time.time() + 3600,
             scopes=["openid", "profile"],
             role="admin",
             raw_claims={"sub": "user@example.com", "role": "admin"},
         )
         assert claims.role == "admin"
-        # In real flow, server.py injects x-headroom-role from claims.role
+        # In real flow, server.py injects x-cutctx-role from claims.role
 
     def test_rbac_resolves_sso_role(self, rbac_checker):
         """RBAC checker resolves role from SSO-injected header."""
         request = MagicMock()
         request.headers = {
-            "x-headroom-role": "viewer",
-            "x-headroom-user-id": "user@example.com",
+            "x-cutctx-role": "viewer",
+            "x-cutctx-user-id": "user@example.com",
         }
         role = rbac_checker.resolve_role(request)
         assert role == AdminRole.VIEWER
@@ -120,7 +120,7 @@ class TestSsoToRbacFlow:
 
     def test_admin_can_do_everything(self, rbac_checker):
         """Admin role should have all permissions."""
-        from headroom.rbac import PERMISSION_MAP
+        from cutctx.rbac import PERMISSION_MAP
         for perm in PERMISSION_MAP:
             assert rbac_checker.has_permission(AdminRole.ADMIN, perm), f"Admin missing {perm}"
 
@@ -228,7 +228,7 @@ class TestOrgAuditFlow:
         """Full org hierarchy should include workspaces and projects."""
         org = org_db.create_org(name="Acme Corp")
         ws = org_db.create_workspace(org_id=org["id"], name="Engineering")
-        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/headroom")
+        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/cutctx")
         hierarchy = org_db.get_org_hierarchy(org["id"])
         assert hierarchy is not None
         assert len(hierarchy["workspaces"]) == 1
@@ -300,8 +300,8 @@ class TestFullEnterpriseWorkflow:
         rbac = RbacChecker()
         request = MagicMock()
         request.headers = {
-            "x-headroom-role": claims.role,
-            "x-headroom-user-id": claims.subject,
+            "x-cutctx-role": claims.role,
+            "x-cutctx-user-id": claims.subject,
         }
         role = rbac.resolve_role(request)
         assert role == AdminRole.OPERATOR
@@ -334,7 +334,7 @@ class TestFullEnterpriseWorkflow:
         # RBAC check
         rbac = RbacChecker()
         request = MagicMock()
-        request.headers = {"x-headroom-role": "viewer"}
+        request.headers = {"x-cutctx-role": "viewer"}
         role = rbac.resolve_role(request)
 
         # Permission check
@@ -375,7 +375,7 @@ class TestFullEnterpriseWorkflow:
         audit_db.log(AuditEvent(action="workspace.created", actor="admin@acme.com", detail={"workspace_id": ws["id"]}))
 
         # Create project
-        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/headroom")
+        proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/cutctx")
         audit_db.log(AuditEvent(action="project.created", actor="admin@acme.com", detail={"project_id": proj["id"]}))
 
         # Verify hierarchy

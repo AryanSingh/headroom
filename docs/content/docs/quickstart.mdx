@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Get CutCtx running in 5 minutes. Install, compress, and send to your LLM with fewer tokens.
+description: Get Cutctx running in 5 minutes. Install, compress, and send to your LLM with fewer tokens.
 ---
 
 This guide gets you from zero to compressed LLM calls in under 5 minutes.
@@ -21,7 +21,7 @@ pip install "cutctx-ai[all]"
 </Tabs>
 
 <Callout type="info" title="TypeScript SDK requires the proxy">
-The TypeScript SDK sends messages to a local CutCtx proxy for compression. Start the proxy before using the TS SDK:
+The TypeScript SDK sends messages to a local Cutctx proxy for compression. Start the proxy before using the TS SDK:
 
 ```bash
 pip install "cutctx-ai[proxy]"
@@ -198,7 +198,7 @@ Transforms:    ['smart_crusher', 'cache_aligner']
 
 ## Alternative: proxy mode (zero code changes)
 
-If you do not want to change any code, run CutCtx as a proxy and point your existing client at it:
+If you do not want to change any code, run Cutctx as a proxy and point your existing client at it:
 
 ```bash
 # Start the proxy
@@ -214,7 +214,7 @@ GOOGLE_GEMINI_BASE_URL=http://localhost:8787 gemini
 OPENAI_BASE_URL=http://localhost:8787/v1 your-app
 ```
 
-All requests flow through CutCtx automatically. Check savings at any time:
+All requests flow through Cutctx automatically. Check savings at any time:
 
 ```bash
 curl http://localhost:8787/stats
@@ -223,7 +223,7 @@ curl http://localhost:8787/stats
 
 ## What gets compressed
 
-The biggest savings come from tool outputs -- search results, database rows, log files, API responses. CutCtx auto-detects the content type and routes it to the best compressor. No configuration needed.
+The biggest savings come from tool outputs -- search results, database rows, log files, API responses. Cutctx auto-detects the content type and routes it to the best compressor. No configuration needed.
 
 | Content type | Compressor | Typical savings |
 |---|---|---|

@@ -46,7 +46,7 @@ jobs:
         with:
           filters: |
             code:
-              - 'headroom/**'
+              - 'cutctx/**'
               - 'crates/**'
               - '**/*.rs'
               - 'pyproject.toml'
@@ -56,7 +56,7 @@ jobs:
               - 'scripts/**'
               - '.github/workflows/ci.yml'
             e2e:
-              - 'headroom/**'
+              - 'cutctx/**'
               - 'crates/**'
               - 'docker/**'
               - 'Dockerfile'
@@ -88,7 +88,7 @@ jobs:
       - name: ruff format --check
         run: ruff format --check .
       - name: mypy
-        run: mypy headroom --ignore-missing-imports
+        run: mypy cutctx --ignore-missing-imports
 
   build-wheel:
     needs: changes
@@ -108,11 +108,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip maturin
           maturin build --profile ci --out dist --interpreter "python${PY_VERSION}"
-      - name: Leak guard — OSS wheel must not contain headroom_ee
+      - name: Leak guard — OSS wheel must not contain cutctx_ee
         run: python3 scripts/assert_oss_wheel_clean.py dist
       - uses: actions/upload-artifact@v7
         with:
-          name: headroom-wheel
+          name: cutctx-wheel
           path: dist/*.whl
           retention-days: 1
 
@@ -178,7 +178,7 @@ jobs:
       - name: Download prebuilt wheel
         uses: actions/download-artifact@v8
         with:
-          name: headroom-wheel
+          name: cutctx-wheel
           path: dist
 
       - name: Install (CPU torch + prebuilt wheel + dev deps, no cargo rebuild)
@@ -187,11 +187,11 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           WHEEL="$(ls dist/*.whl)"
           pip install "${WHEEL}[dev]" pytest-split
-          # cwd's ./headroom source tree shadows the installed wheel; copy the
+          # cwd's ./cutctx source tree shadows the installed wheel; copy the
           # compiled extension in so tests import it (no second cargo build).
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-          cp "${SITE}/headroom/"_core*.so headroom/
-          python -c "from headroom._core import DiffCompressor; print('headroom._core OK')"
+          cp "${SITE}/cutctx/"_core*.so cutctx/
+          python -c "from cutctx._core import DiffCompressor; print('cutctx._core OK')"
 
       - name: Run test shard ${{ matrix.shard }}/4
         run: |
@@ -225,7 +225,7 @@ jobs:
       - name: Download prebuilt wheel
         uses: actions/download-artifact@v8
         with:
-          name: headroom-wheel
+          name: cutctx-wheel
           path: dist
       - name: Install (CPU torch + wheel[dev,relevance])
         run: |
@@ -234,8 +234,8 @@ jobs:
           WHEEL="$(ls dist/*.whl)"
           pip install "${WHEEL}[dev,relevance]"
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-          cp "${SITE}/headroom/"_core*.so headroom/
-          python -c "from headroom._core import SmartCrusher; print('headroom._core OK')"
+          cp "${SITE}/cutctx/"_core*.so cutctx/
+          python -c "from cutctx._core import SmartCrusher; print('cutctx._core OK')"
       - name: Pre-fetch fastembed model (authenticated, resilient)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -267,7 +267,7 @@ jobs:
       - name: Download prebuilt wheel
         uses: actions/download-artifact@v8
         with:
-          name: headroom-wheel
+          name: cutctx-wheel
           path: dist
       - name: Install (CPU torch + wheel[dev,agno])
         run: |
@@ -276,7 +276,7 @@ jobs:
           WHEEL="$(ls dist/*.whl)"
           pip install "${WHEEL}[dev,agno]"
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
-          cp "${SITE}/headroom/"_core*.so headroom/
+          cp "${SITE}/cutctx/"_core*.so cutctx/
       - name: Run agno tests
         run: pytest tests/test_integrations/agno/ -v
 
@@ -368,19 +368,19 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Build local Headroom image
-        run: docker build -t headroom-native-e2e:latest .
+      - name: Build local Cutctx image
+        run: docker build -t cutctx-native-e2e:latest .
       - name: Run Docker-native installer e2e
         env:
-          HEADROOM_DOCKER_IMAGE: headroom-native-e2e:latest
+          CUTCTX_DOCKER_IMAGE: cutctx-native-e2e:latest
         run: bash e2e/docker-native-install.sh
       - name: Run Docker-native compose smoke test
         env:
-          HEADROOM_IMAGE: headroom-native-e2e:latest
-          HEADROOM_HOST_HOME: ${{ github.workspace }}
-          HEADROOM_WORKSPACE: ${{ github.workspace }}
+          CUTCTX_IMAGE: cutctx-native-e2e:latest
+          CUTCTX_HOST_HOME: ${{ github.workspace }}
+          CUTCTX_WORKSPACE: ${{ github.workspace }}
         run: |
-          mkdir -p .headroom .claude .codex .gemini
+          mkdir -p .cutctx .claude .codex .gemini
           trap 'docker compose -f docker/docker-compose.native.yml down -v' EXIT
           docker compose -f docker/docker-compose.native.yml up -d proxy
           for attempt in $(seq 1 30); do
@@ -395,12 +395,12 @@ jobs:
           done
       - name: Run Docker-native wrap e2e
         run: |
-          docker build -f e2e/wrap/Dockerfile -t headroom-wrap-e2e .
-          docker run --rm headroom-wrap-e2e
+          docker build -f e2e/wrap/Dockerfile -t cutctx-wrap-e2e .
+          docker run --rm cutctx-wrap-e2e
       - name: Run Docker-native init e2e
         run: |
-          docker build -f e2e/init/Dockerfile -t headroom-init-e2e .
-          docker run --rm headroom-init-e2e
+          docker build -f e2e/init/Dockerfile -t cutctx-init-e2e .
+          docker run --rm cutctx-init-e2e
 
   windows-native-wrapper:
     needs: changes

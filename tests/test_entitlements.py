@@ -1,10 +1,10 @@
-"""Tests for headroom.entitlements — feature gating by license tier."""
+"""Tests for cutctx.entitlements — feature gating by license tier."""
 
 from __future__ import annotations
 
 import pytest
 
-from headroom.entitlements import (
+from cutctx.entitlements import (
     FEATURE_TIERS,
     EntitlementChecker,
     EntitlementError,

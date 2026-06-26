@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from headroom.parser import (
+from cutctx.parser import (
     compute_hash,
     detect_waste_signals,
     find_tool_units,
@@ -525,7 +525,7 @@ class TestRereadDetection:
 
     def test_reread_in_total_and_dict(self):
         """reread_tokens participates in total() and to_dict()."""
-        from headroom.config import WasteSignals
+        from cutctx.config import WasteSignals
 
         ws = WasteSignals(reread_tokens=42)
         assert ws.total() == 42
@@ -830,7 +830,7 @@ def sample_messages_with_tools():
     ]
 
 
-# --- Anthropic tool_result content blocks (chopratejas/headroom#813) ---
+# --- Anthropic tool_result content blocks (chopratejas/cutctx#813) ---
 
 
 @pytest.fixture

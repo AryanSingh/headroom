@@ -1,10 +1,10 @@
-"""Unit tests for headroom.subscription.codex_rate_limits."""
+"""Unit tests for cutctx.subscription.codex_rate_limits."""
 
 from __future__ import annotations
 
 import time
 
-from headroom.subscription.codex_rate_limits import (
+from cutctx.subscription.codex_rate_limits import (
     CodexRateLimitState,
     CodexRateLimitWindow,
     parse_codex_rate_limits,

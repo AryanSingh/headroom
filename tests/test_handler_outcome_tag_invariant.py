@@ -28,13 +28,13 @@ from pathlib import Path
 import pytest
 
 HANDLER_FILES = [
-    Path("headroom/proxy/handlers/anthropic.py"),
-    Path("headroom/proxy/handlers/openai/chat.py"),
-    Path("headroom/proxy/handlers/openai/responses.py"),
-    Path("headroom/proxy/handlers/openai/passthrough.py"),
-    Path("headroom/proxy/handlers/openai/compress.py"),
-    Path("headroom/proxy/handlers/gemini.py"),
-    Path("headroom/proxy/handlers/batch.py"),
+    Path("cutctx/proxy/handlers/anthropic.py"),
+    Path("cutctx/proxy/handlers/openai/chat.py"),
+    Path("cutctx/proxy/handlers/openai/responses.py"),
+    Path("cutctx/proxy/handlers/openai/passthrough.py"),
+    Path("cutctx/proxy/handlers/openai/compress.py"),
+    Path("cutctx/proxy/handlers/gemini.py"),
+    Path("cutctx/proxy/handlers/batch.py"),
 ]
 
 
@@ -155,5 +155,5 @@ def test_no_raw_image_optimize_gate_in_handlers() -> None:
             f"{formatted}\n\n"
             "Replace with `ImageCompressionDecision.decide(...)` + "
             "`if _image_decision.should_compress:`. See "
-            "headroom/proxy/image_compression_decision.py for the pattern."
+            "cutctx/proxy/image_compression_decision.py for the pattern."
         )

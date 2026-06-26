@@ -5,11 +5,11 @@
 import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["HEADROOM_CCR_BACKEND"] = "memory"
+os.environ["CUTCTX_CCR_BACKEND"] = "memory"
 # Secure-by-default: tests need a known admin key for admin endpoints.
-# The test mode bypass (HEADROOM_TEST_MODE) has been REMOVED as a security
+# The test mode bypass (CUTCTX_TEST_MODE) has been REMOVED as a security
 # hardening measure. Tests authenticate via this key instead.
-os.environ.setdefault("HEADROOM_ADMIN_API_KEY", "test-admin-key-for-ci")
+os.environ.setdefault("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
 
 
 import json
@@ -55,7 +55,7 @@ def pytest_runtest_call(item):
 def _auto_admin_auth_header(request):
     """Auto-inject admin auth header into all httpx requests during tests.
 
-    Since we removed HEADROOM_TEST_MODE bypass for security, tests now need
+    Since we removed CUTCTX_TEST_MODE bypass for security, tests now need
     to authenticate with the admin key. Rather than modifying hundreds of
     individual test files, this fixture patches httpx to automatically include
     the Authorization header when none is provided.
@@ -70,7 +70,7 @@ def _auto_admin_auth_header(request):
         yield
         return
 
-    _admin_key = os.environ.get("HEADROOM_ADMIN_API_KEY", "")
+    _admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "")
     if not _admin_key:
         yield
         return
@@ -115,15 +115,15 @@ def _auto_admin_auth_header(request):
 
 
 @pytest.fixture(autouse=True)
-def _reset_headroom_logger_propagation():
-    """Keep `headroom.*` log records flowing to pytest's caplog handler.
+def _reset_cutctx_logger_propagation():
+    """Keep `cutctx.*` log records flowing to pytest's caplog handler.
 
-    `headroom.proxy.helpers._setup_file_logging` sets
+    `cutctx.proxy.helpers._setup_file_logging` sets
     ``logging.getLogger("cutctx").propagate = False`` once any test
     triggers a proxy startup with `--log-file`. After that, every
-    subsequent test's `caplog` fixture stops capturing `headroom.*`
+    subsequent test's `caplog` fixture stops capturing `cutctx.*`
     log records (caplog attaches to root, propagation is now blocked
-    at the headroom-logger boundary). Reset before every test so the
+    at the cutctx-logger boundary). Reset before every test so the
     capture is deterministic regardless of run order.
     """
     import logging as _logging
@@ -136,7 +136,7 @@ def _reset_headroom_logger_propagation():
 def _isolated_ccr_db(tmp_path):
     """Isolate the CCR database to a temporary directory for each test."""
     db_path = tmp_path / "ccr.db"
-    os.environ["HEADROOM_CCR_DB_PATH"] = str(db_path)
+    os.environ["CUTCTX_CCR_DB_PATH"] = str(db_path)
     yield
 
 
@@ -280,7 +280,7 @@ def temp_jsonl_file():
 @pytest.fixture
 def openai_provider():
     """OpenAI provider instance."""
-    from headroom.providers.openai import OpenAIProvider
+    from cutctx.providers.openai import OpenAIProvider
 
     return OpenAIProvider()
 
@@ -288,7 +288,7 @@ def openai_provider():
 @pytest.fixture
 def openai_tokenizer():
     """OpenAI token counter for gpt-4o."""
-    from headroom.providers.openai import OpenAITokenCounter
+    from cutctx.providers.openai import OpenAITokenCounter
 
     return OpenAITokenCounter("gpt-4o")
 
@@ -297,7 +297,7 @@ def openai_tokenizer():
 @pytest.fixture
 def default_config():
     """Default CutctxConfig."""
-    from headroom.config import CutctxConfig
+    from cutctx.config import CutctxConfig
 
     return CutctxConfig()
 
@@ -305,7 +305,7 @@ def default_config():
 @pytest.fixture
 def smart_crusher_config():
     """SmartCrusher config for testing."""
-    from headroom.config import SmartCrusherConfig
+    from cutctx.config import SmartCrusherConfig
 
     return SmartCrusherConfig(
         enabled=True,
@@ -319,7 +319,7 @@ def smart_crusher_config():
 @pytest.fixture
 def sample_request_metrics():
     """Sample RequestMetrics for storage tests."""
-    from headroom.config import RequestMetrics
+    from cutctx.config import RequestMetrics
 
     return RequestMetrics(
         request_id="test-123",

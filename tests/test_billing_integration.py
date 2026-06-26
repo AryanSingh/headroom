@@ -1,5 +1,5 @@
 """
-Tests for billing integration between pitchtoship and CutCtx.
+Tests for billing integration between pitchtoship and Cutctx.
 
 Tests the tier mapping, license key generation, and logging
 without making live API calls.
@@ -20,7 +20,7 @@ _scripts_dir = str(Path(__file__).resolve().parent.parent / "scripts")
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from issue_license_from_webhook import (
+from issue_license_from_webhook import (  # noqa: E402
     DEV_SECRET,
     PLAN_TO_TIER,
     TIER_TO_SEATS,

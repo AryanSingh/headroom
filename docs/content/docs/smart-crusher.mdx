@@ -3,7 +3,7 @@ title: SmartCrusher
 description: Statistical JSON and array compression that keeps important items and drops the rest, achieving 70-90% token reduction.
 ---
 
-SmartCrusher is CutCtx's compressor for JSON tool outputs. It analyzes arrays statistically, keeps the important items (errors, anomalies, relevant matches), and drops the rest. This is the compressor that fires automatically when ContentRouter detects JSON arrays.
+SmartCrusher is Cutctx's compressor for JSON tool outputs. It analyzes arrays statistically, keeps the important items (errors, anomalies, relevant matches), and drops the rest. This is the compressor that fires automatically when ContentRouter detects JSON arrays.
 
 ## How It Works
 
@@ -73,7 +73,7 @@ compressed = crusher.crush(tool_output, query="user's question")
 ```ts twoslash
 import { compress } from "cutctx-ai";
 
-// Configure via the CutCtx proxy or CutCtxClient
+// Configure via the Cutctx proxy or CutctxClient
 const result = await compress(messages, {
   model: "gpt-4o",
   tokenBudget: 10000, // SmartCrusher will reduce JSON to fit

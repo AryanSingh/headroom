@@ -30,7 +30,7 @@ type Stats struct {
 	CompressionRatio float64
 }
 
-// Client is the CutCtx compression client
+// Client is the Cutctx compression client
 type Client struct {
 	proxyURL   string
 	apiKey     string
@@ -53,7 +53,7 @@ func New(opts ...Option) *Client {
 	return c
 }
 
-// Compress sends messages through CutCtx and returns compressed messages.
+// Compress sends messages through Cutctx and returns compressed messages.
 // POST {proxyURL}/v1/compress
 func (c *Client) Compress(ctx context.Context, messages []Message) ([]Message, error) {
 	body, err := json.Marshal(CompressRequest{Messages: messages, Model: c.model})
@@ -66,7 +66,7 @@ func (c *Client) Compress(ctx context.Context, messages []Message) ([]Message, e
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("X-CutCtx-Key", c.apiKey)
+		req.Header.Set("X-Cutctx-Key", c.apiKey)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -86,7 +86,7 @@ func (c *Client) Compress(ctx context.Context, messages []Message) ([]Message, e
 	return out.Messages, nil
 }
 
-// Retrieve fetches original content for a [headroom:ref:HASH] pointer.
+// Retrieve fetches original content for a [cutctx:ref:HASH] pointer.
 // GET {proxyURL}/v1/retrieve/{ref}
 func (c *Client) Retrieve(ctx context.Context, ref string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.proxyURL+"/v1/retrieve/"+ref, nil)
@@ -94,7 +94,7 @@ func (c *Client) Retrieve(ctx context.Context, ref string) (string, error) {
 		return "", fmt.Errorf("cutctx: retrieve request: %w", err)
 	}
 	if c.apiKey != "" {
-		req.Header.Set("X-CutCtx-Key", c.apiKey)
+		req.Header.Set("X-Cutctx-Key", c.apiKey)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

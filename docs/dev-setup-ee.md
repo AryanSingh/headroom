@@ -1,4 +1,4 @@
-# CutCtx Enterprise Edition (EE) Dev Setup
+# Cutctx Enterprise Edition (EE) Dev Setup
 
 This guide details the bring-up process for the `cutctx_ee` commercial package.
 

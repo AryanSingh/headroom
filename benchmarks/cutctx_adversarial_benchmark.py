@@ -26,11 +26,11 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
-    from headroom import CutctxClient, OpenAIProvider
+    from cutctx import CutctxClient, OpenAIProvider
 
-    HEADROOM_AVAILABLE = True
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
+    CUTCTX_AVAILABLE = False
 
 
 # =============================================================================
@@ -468,7 +468,7 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
         raise ValueError("OPENAI_API_KEY required")
 
     print("=" * 70)
-    print("HEADROOM ADVERSARIAL BENCHMARK")
+    print("CUTCTX ADVERSARIAL BENCHMARK")
     print("Testing TRUE worst cases for compression")
     print("=" * 70)
 
@@ -478,16 +478,16 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
 
     baseline_client = OpenAI(api_key=api_key)
 
-    if HEADROOM_AVAILABLE:
-        db_path = os.path.join(tempfile.gettempdir(), "headroom_adversarial.db")
-        headroom_client = CutctxClient(
+    if CUTCTX_AVAILABLE:
+        db_path = os.path.join(tempfile.gettempdir(), "cutctx_adversarial.db")
+        cutctx_client = CutctxClient(
             original_client=OpenAI(api_key=api_key),
             provider=OpenAIProvider(),
             store_url=f"sqlite:///{db_path}",
             default_mode="optimize",
         )
     else:
-        headroom_client = None
+        cutctx_client = None
 
     scenarios = [
         create_research_synthesis_scenario(),
@@ -517,18 +517,18 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
         results.append(baseline)
 
         # Cutctx
-        if headroom_client:
-            print("\n[2/2] HEADROOM...")
-            headroom = run_scenario(headroom_client, scenario, "cutctx")
-            print(f"   Input tokens: {headroom.input_tokens:,}")
-            print(f"   Cost: ${headroom.cost_usd:.4f}")
-            results.append(headroom)
+        if cutctx_client:
+            print("\n[2/2] CUTCTX...")
+            cutctx = run_scenario(cutctx_client, scenario, "cutctx")
+            print(f"   Input tokens: {cutctx.input_tokens:,}")
+            print(f"   Cost: ${cutctx.cost_usd:.4f}")
+            results.append(cutctx)
 
             if baseline.input_tokens > 0:
-                change = (headroom.input_tokens - baseline.input_tokens) / baseline.input_tokens
+                change = (cutctx.input_tokens - baseline.input_tokens) / baseline.input_tokens
                 print(f"\n   📊 Token change: {change:+.1%}")
                 if change > 0:
-                    print("   ⚠️  HEADROOM INCREASED TOKENS (overhead > savings)")
+                    print("   ⚠️  CUTCTX INCREASED TOKENS (overhead > savings)")
                 elif change > -0.1:
                     print("   ⚡ Minimal compression (as expected for adversarial data)")
                 else:
@@ -543,10 +543,10 @@ def run_adversarial_benchmark(api_key: str = None) -> dict:
     print("-" * 66)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "cutctx"]
+    cutctx_results = [r for r in results if r.mode == "cutctx"]
 
     for br in baseline_results:
-        hr = next((r for r in headroom_results if r.scenario_name == br.scenario_name), None)
+        hr = next((r for r in cutctx_results if r.scenario_name == br.scenario_name), None)
         if hr and br.input_tokens > 0:
             change = (hr.input_tokens - br.input_tokens) / br.input_tokens
             print(

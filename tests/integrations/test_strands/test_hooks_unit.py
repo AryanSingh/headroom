@@ -28,12 +28,12 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not STRANDS_AVAILABLE, reason="strands-agents not installed")
 
 
-class TestHeadroomHookProviderInit:
+class TestCutctxHookProviderInit:
     """Tests for CutctxHookProvider initialization."""
 
     def test_init_with_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
 
@@ -45,8 +45,8 @@ class TestHeadroomHookProviderInit:
 
     def test_init_with_custom_config(self):
         """Initialize with custom configuration."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import CutctxHookProvider
 
         config = CutctxConfig()
         config.smart_crusher.min_tokens_to_crush = 200
@@ -66,8 +66,8 @@ class TestHeadroomHookProviderInit:
 
     def test_init_creates_default_config_if_none(self):
         """Initialize creates a default CutctxConfig if none provided."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
 
@@ -80,7 +80,7 @@ class TestRegisterHooks:
 
     def test_register_hooks_adds_callback_to_registry(self):
         """register_hooks adds AfterToolCallEvent callback to registry."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(compress_tool_outputs=True)
         mock_registry = MagicMock()
@@ -92,7 +92,7 @@ class TestRegisterHooks:
 
     def test_register_hooks_skips_when_compression_disabled(self):
         """register_hooks does not register callbacks when compression is disabled."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(compress_tool_outputs=False)
         mock_registry = MagicMock()
@@ -108,7 +108,7 @@ class TestCrusherLazyInit:
 
     def test_crusher_is_lazily_initialized(self):
         """SmartCrusher is not created until first access."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
 
@@ -124,7 +124,7 @@ class TestCrusherLazyInit:
 
     def test_crusher_uses_configured_min_tokens(self):
         """SmartCrusher uses min_tokens_to_compress from hook config."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(min_tokens_to_compress=250)
 
@@ -139,14 +139,14 @@ class TestTokenEstimation:
 
     def test_estimate_tokens_empty_string(self):
         """Estimate returns 0 for empty string."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         assert hook._estimate_tokens("") == 0
 
     def test_estimate_tokens_short_string(self):
         """Estimate uses ~4 chars per token heuristic."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
 
@@ -162,7 +162,7 @@ class TestExtractTextContent:
 
     def test_extract_from_text_content(self):
         """Extract text from content with text field."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": [{"text": "Hello world"}]}
@@ -172,7 +172,7 @@ class TestExtractTextContent:
 
     def test_extract_from_json_content(self):
         """Extract and serialize JSON content."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": [{"json": {"key": "value"}}]}
@@ -182,7 +182,7 @@ class TestExtractTextContent:
 
     def test_extract_empty_content(self):
         """Return empty string for empty content."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": []}
@@ -192,7 +192,7 @@ class TestExtractTextContent:
 
     def test_extract_missing_content(self):
         """Return empty string for missing content key."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {}
@@ -206,7 +206,7 @@ class TestShouldSkipCompression:
 
     def test_skip_when_compression_disabled(self):
         """Skip compression when compress_tool_outputs is False."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(compress_tool_outputs=False)
         result = {"content": [{"text": "data"}]}
@@ -216,7 +216,7 @@ class TestShouldSkipCompression:
 
     def test_skip_error_results_when_preserve_errors_true(self):
         """Skip error results when preserve_errors is True."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(preserve_errors=True)
         result = {"status": "error", "content": [{"text": "Error message"}]}
@@ -226,7 +226,7 @@ class TestShouldSkipCompression:
 
     def test_allow_error_results_when_preserve_errors_false(self):
         """Allow error results when preserve_errors is False."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(preserve_errors=False)
         result = {"status": "error", "content": [{"text": "Error message"}]}
@@ -236,7 +236,7 @@ class TestShouldSkipCompression:
 
     def test_skip_empty_content(self):
         """Skip results with empty content."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": []}
@@ -246,7 +246,7 @@ class TestShouldSkipCompression:
 
     def test_allow_valid_content(self):
         """Allow results with valid content."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": [{"text": "some data"}]}
@@ -260,7 +260,7 @@ class TestCompressToolResult:
 
     def test_compress_large_tool_output(self):
         """Compresses large tool output and tracks metrics."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(
             compress_tool_outputs=True,
@@ -286,7 +286,7 @@ class TestCompressToolResult:
 
     def test_skip_compression_below_threshold(self):
         """Does not compress output below token threshold."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(
             compress_tool_outputs=True,
@@ -307,7 +307,7 @@ class TestCompressToolResult:
 
     def test_skip_compression_when_disabled(self):
         """Does not compress when compression is disabled."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(compress_tool_outputs=False)
 
@@ -329,7 +329,7 @@ class TestMetricsTracking:
 
     def test_total_tokens_saved_accumulates(self):
         """total_tokens_saved accumulates across compressions."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(
             compress_tool_outputs=True,
@@ -352,7 +352,7 @@ class TestMetricsTracking:
 
     def test_metrics_history_bounded_to_100(self):
         """metrics_history keeps only last 100 entries."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider(
             compress_tool_outputs=True,
@@ -384,7 +384,7 @@ class TestGetSavingsSummary:
 
     def test_empty_summary(self):
         """Returns zero values when no metrics recorded."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         summary = hook.get_savings_summary()
@@ -396,8 +396,8 @@ class TestGetSavingsSummary:
 
     def test_summary_with_compressions(self):
         """Returns correct summary with recorded compressions."""
-        from headroom.integrations.strands import CutctxHookProvider
-        from headroom.integrations.strands.hooks import CompressionMetrics
+        from cutctx.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands.hooks import CompressionMetrics
 
         hook = CutctxHookProvider()
 
@@ -457,8 +457,8 @@ class TestReset:
 
     def test_reset_clears_all_state(self):
         """reset() clears all tracked state."""
-        from headroom.integrations.strands import CutctxHookProvider
-        from headroom.integrations.strands.hooks import CompressionMetrics
+        from cutctx.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands.hooks import CompressionMetrics
 
         hook = CutctxHookProvider()
 
@@ -493,7 +493,7 @@ class TestThreadSafety:
 
     def test_concurrent_metric_recording(self):
         """Metrics recording is thread-safe."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
 
@@ -529,7 +529,7 @@ class TestUpdateResultContent:
 
     def test_update_preserves_json_structure(self):
         """Updates preserve JSON structure when possible."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": [{"json": {"original": "data"}}]}
@@ -542,7 +542,7 @@ class TestUpdateResultContent:
 
     def test_update_uses_text_for_non_json(self):
         """Updates use text format for non-JSON content."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": [{"text": "original text"}]}
@@ -554,7 +554,7 @@ class TestUpdateResultContent:
 
     def test_update_creates_content_if_empty(self):
         """Creates content list if missing."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         hook = CutctxHookProvider()
         result = {"content": []}

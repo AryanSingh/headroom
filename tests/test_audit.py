@@ -1,4 +1,4 @@
-"""Tests for the audit event system (headroom/audit.py)."""
+"""Tests for the audit event system (cutctx/audit.py)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from headroom.audit import (
+from cutctx.audit import (
     AuditAction,
     AuditEvent,
     AuditLogger,
@@ -210,7 +210,7 @@ class TestAuditLoggerDSR:
 
     ``delete_for_actor`` is the only sanctioned path to remove
     rows from the audit log; it is exercised by the
-    ``/v1/me/delete`` cascade (see ``headroom.proxy.routes.dsr``).
+    ``/v1/me/delete`` cascade (see ``cutctx.proxy.routes.dsr``).
     The audit log is otherwise append-only.
     """
 

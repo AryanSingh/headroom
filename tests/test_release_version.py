@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from headroom.release_version import (
+from cutctx.release_version import (
     CommitInfo,
     classify_commit_bump,
     compute_release_version,
@@ -146,7 +146,7 @@ def test_list_release_commits_parses_empty_body_entries(
     run.return_value = Mock(
         stdout="feat: add capability\x1f\x1efix: patch bug\x1fbody text\x1e",
     )
-    monkeypatch.setattr("headroom.release_version.subprocess.run", run)
+    monkeypatch.setattr("cutctx.release_version.subprocess.run", run)
 
     commits = list_release_commits(ROOT, "")
 
@@ -156,7 +156,7 @@ def test_list_release_commits_parses_empty_body_entries(
     ]
 
 
-def test_release_version_script_runs_directly_without_importing_headroom_package(
+def test_release_version_script_runs_directly_without_importing_cutctx_package(
     tmp_path: Path,
 ) -> None:
     output_path = tmp_path / "github-output.txt"
@@ -167,13 +167,13 @@ def test_release_version_script_runs_directly_without_importing_headroom_package
 
     # Audit-Deep-2026-06-21: the cutctx/ directory was created
     # during the rebrand but no release_version.py was migrated
-    # into it. The implementation lives at headroom/release_version.py
+    # into it. The implementation lives at cutctx/release_version.py
     # (the canonical location for the build script that
     # release-please invokes). Update the path accordingly.
     release_version_py = (
         ROOT / "cutctx" / "release_version.py"
         if (ROOT / "cutctx" / "release_version.py").exists()
-        else ROOT / "headroom" / "release_version.py"
+        else ROOT / "cutctx" / "release_version.py"
     )
     result = subprocess.run(
         [sys.executable, str(release_version_py)],

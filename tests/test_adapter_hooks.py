@@ -20,18 +20,18 @@ from typing import Any
 
 import pytest
 
-from headroom.cache.backends import CompressionStoreBackend, InMemoryBackend
-from headroom.cache.compression_store import (
+from cutctx.cache.backends import CompressionStoreBackend, InMemoryBackend
+from cutctx.cache.compression_store import (
     CompressionStore,
     clear_request_compression_store,
     get_compression_store,
     reset_compression_store,
     set_request_compression_store,
 )
-from headroom.storage import Storage, create_storage
-from headroom.telemetry.backends import FileSystemTOINBackend, TOINBackend
-from headroom.telemetry.models import ToolSignature
-from headroom.telemetry.toin import (
+from cutctx.storage import Storage, create_storage
+from cutctx.telemetry.backends import FileSystemTOINBackend, TOINBackend
+from cutctx.telemetry.models import ToolSignature
+from cutctx.telemetry.toin import (
     TOINConfig,
     ToolIntelligenceNetwork,
     _create_default_toin_backend,
@@ -258,34 +258,34 @@ class TestTOINEntryPointLoading:
     """Verify _create_default_toin_backend() env-based loading."""
 
     def test_no_env_returns_none(self, monkeypatch):
-        """No HEADROOM_TOIN_BACKEND env → returns None (use default)."""
-        monkeypatch.delenv("HEADROOM_TOIN_BACKEND", raising=False)
+        """No CUTCTX_TOIN_BACKEND env → returns None (use default)."""
+        monkeypatch.delenv("CUTCTX_TOIN_BACKEND", raising=False)
         assert _create_default_toin_backend() is None
 
     def test_empty_env_returns_none(self, monkeypatch):
-        """Empty HEADROOM_TOIN_BACKEND → returns None."""
-        monkeypatch.setenv("HEADROOM_TOIN_BACKEND", "")
+        """Empty CUTCTX_TOIN_BACKEND → returns None."""
+        monkeypatch.setenv("CUTCTX_TOIN_BACKEND", "")
         assert _create_default_toin_backend() is None
 
     def test_filesystem_env_returns_none(self, monkeypatch):
-        """HEADROOM_TOIN_BACKEND=filesystem → returns None (use default)."""
-        monkeypatch.setenv("HEADROOM_TOIN_BACKEND", "filesystem")
+        """CUTCTX_TOIN_BACKEND=filesystem → returns None (use default)."""
+        monkeypatch.setenv("CUTCTX_TOIN_BACKEND", "filesystem")
         assert _create_default_toin_backend() is None
 
     def test_unknown_backend_returns_none(self, monkeypatch):
         """Unknown backend name with no entry point → returns None with warning."""
-        monkeypatch.setenv("HEADROOM_TOIN_BACKEND", "nonexistent_backend_xyz")
+        monkeypatch.setenv("CUTCTX_TOIN_BACKEND", "nonexistent_backend_xyz")
         result = _create_default_toin_backend()
         assert result is None
 
     def test_get_toin_respects_env_backend(self, monkeypatch, tmp_toin_path):
         """get_toin() uses _create_default_toin_backend() on first call."""
-        monkeypatch.delenv("HEADROOM_TOIN_BACKEND", raising=False)
-        monkeypatch.setenv("HEADROOM_TOIN_PATH", tmp_toin_path)
+        monkeypatch.delenv("CUTCTX_TOIN_BACKEND", raising=False)
+        monkeypatch.setenv("CUTCTX_TOIN_PATH", tmp_toin_path)
 
         toin = get_toin()
         assert toin is not None
-        # Should use FileSystemTOINBackend since no HEADROOM_TOIN_BACKEND set
+        # Should use FileSystemTOINBackend since no CUTCTX_TOIN_BACKEND set
         assert toin._backend is not None
 
 
@@ -386,24 +386,24 @@ class TestCCREntryPointLoading:
     """Verify _create_default_ccr_backend() env-based loading."""
 
     def test_no_env_returns_sqlite(self, monkeypatch):
-        """No HEADROOM_CCR_BACKEND → returns SqliteBackend."""
-        monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
-        from headroom.cache.backends.sqlite import SqliteBackend
-        from headroom.cache.compression_store import _create_default_ccr_backend
+        """No CUTCTX_CCR_BACKEND → returns SqliteBackend."""
+        monkeypatch.delenv("CUTCTX_CCR_BACKEND", raising=False)
+        from cutctx.cache.backends.sqlite import SqliteBackend
+        from cutctx.cache.compression_store import _create_default_ccr_backend
 
         assert isinstance(_create_default_ccr_backend(), SqliteBackend)
 
     def test_memory_env_returns_none(self, monkeypatch):
-        """HEADROOM_CCR_BACKEND=memory → returns None (use default)."""
-        monkeypatch.setenv("HEADROOM_CCR_BACKEND", "memory")
-        from headroom.cache.compression_store import _create_default_ccr_backend
+        """CUTCTX_CCR_BACKEND=memory → returns None (use default)."""
+        monkeypatch.setenv("CUTCTX_CCR_BACKEND", "memory")
+        from cutctx.cache.compression_store import _create_default_ccr_backend
 
         assert _create_default_ccr_backend() is None
 
     def test_unknown_backend_returns_none(self, monkeypatch):
         """Unknown backend with no entry point → returns None."""
-        monkeypatch.setenv("HEADROOM_CCR_BACKEND", "nonexistent_backend_xyz")
-        from headroom.cache.compression_store import _create_default_ccr_backend
+        monkeypatch.setenv("CUTCTX_CCR_BACKEND", "nonexistent_backend_xyz")
+        from cutctx.cache.compression_store import _create_default_ccr_backend
 
         assert _create_default_ccr_backend() is None
 
@@ -423,21 +423,21 @@ class TestStorageEntryPointLoading:
 
     def test_sqlite_scheme(self, tmp_path):
         """sqlite:// scheme creates SQLiteStorage."""
-        from headroom.storage.sqlite import SQLiteStorage
+        from cutctx.storage.sqlite import SQLiteStorage
 
         store = create_storage(f"sqlite:///{tmp_path}/test.db")
         assert isinstance(store, SQLiteStorage)
 
     def test_jsonl_scheme(self, tmp_path):
         """jsonl:// scheme creates JSONLStorage."""
-        from headroom.storage.jsonl import JSONLStorage
+        from cutctx.storage.jsonl import JSONLStorage
 
         store = create_storage(f"jsonl:///{tmp_path}/test.jsonl")
         assert isinstance(store, JSONLStorage)
 
     def test_unknown_scheme_without_entry_point(self, tmp_path):
         """Unknown scheme without entry point falls back to SQLiteStorage."""
-        from headroom.storage.sqlite import SQLiteStorage
+        from cutctx.storage.sqlite import SQLiteStorage
 
         # This should fall back to SQLite (legacy behavior)
         store = create_storage(str(tmp_path / "test.db"))

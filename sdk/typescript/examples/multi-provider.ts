@@ -1,12 +1,12 @@
 /**
  * Example 05: Multi-Provider Compression
  *
- * Use the same withCutCtx wrapper across different providers.
- * CutCtx compresses identically regardless of which LLM you use.
+ * Use the same withCutctx wrapper across different providers.
+ * Cutctx compresses identically regardless of which LLM you use.
  *
  * Run: npx tsx examples/05-multi-provider.ts
  */
-import { withCutCtx } from "cutctx-ai/vercel-ai";
+import { withCutctx } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
@@ -37,14 +37,14 @@ const messages = [
 async function main() {
   // GPT-4o with compression
   console.log("=== OpenAI GPT-4o ===");
-  const gpt = withCutCtx(openai("gpt-4o"));
+  const gpt = withCutctx(openai("gpt-4o"));
   const gptResult = await generateText({ model: gpt, messages });
   console.log(gptResult.text);
   console.log(`Tokens: ${gptResult.usage.promptTokens} prompt, ${gptResult.usage.completionTokens} completion\n`);
 
   // GPT-4o-mini with compression (cheaper, faster)
   console.log("=== OpenAI GPT-4o-mini ===");
-  const mini = withCutCtx(openai("gpt-4o-mini"));
+  const mini = withCutctx(openai("gpt-4o-mini"));
   const miniResult = await generateText({ model: mini, messages });
   console.log(miniResult.text);
   console.log(`Tokens: ${miniResult.usage.promptTokens} prompt, ${miniResult.usage.completionTokens} completion\n`);

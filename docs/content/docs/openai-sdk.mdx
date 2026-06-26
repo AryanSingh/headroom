@@ -1,9 +1,9 @@
 ---
 title: OpenAI SDK
-description: Auto-compress messages in the OpenAI Node.js SDK with a single withCutCtx() wrapper.
+description: Auto-compress messages in the OpenAI Node.js SDK with a single withCutctx() wrapper.
 ---
 
-CutCtx wraps the OpenAI Node.js SDK to automatically compress messages before every `chat.completions.create()` call. All other methods (embeddings, images, audio) pass through unchanged.
+Cutctx wraps the OpenAI Node.js SDK to automatically compress messages before every `chat.completions.create()` call. All other methods (embeddings, images, audio) pass through unchanged.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install cutctx-ai openai
 ```
 
 <Callout type="info" title="Proxy required">
-The TypeScript SDK sends messages to a local CutCtx proxy for compression. Start the proxy before using the SDK:
+The TypeScript SDK sends messages to a local Cutctx proxy for compression. Start the proxy before using the SDK:
 
 ```bash
 pip install "cutctx-ai[proxy]"
@@ -23,10 +23,10 @@ cutctx proxy
 ## Quick start
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withCutCtx(new OpenAI());
+const client = withCutctx(new OpenAI());
 
 // Messages are compressed automatically before sending
 const response = await client.chat.completions.create({
@@ -39,20 +39,20 @@ That's it. Every call to `client.chat.completions.create()` compresses the messa
 
 ## How it works
 
-`withCutCtx()` returns a proxy around your OpenAI client that intercepts `chat.completions.create()`:
+`withCutctx()` returns a proxy around your OpenAI client that intercepts `chat.completions.create()`:
 
 1. Extracts `messages` from the request params
-2. Sends them to the CutCtx proxy's `/v1/compress` endpoint
+2. Sends them to the Cutctx proxy's `/v1/compress` endpoint
 3. Replaces the original messages with the compressed result
 4. Forwards the request to OpenAI as normal
 
 All other client methods are untouched:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withCutCtx(new OpenAI());
+const client = withCutctx(new OpenAI());
 
 // These pass through unchanged
 const embedding = await client.embeddings.create({
@@ -66,10 +66,10 @@ const embedding = await client.embeddings.create({
 Pass compression options as the second argument:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withCutCtx(new OpenAI(), {
+const client = withCutctx(new OpenAI(), {
   model: 'gpt-4o',
   baseUrl: 'http://localhost:8787',
 });
@@ -80,10 +80,10 @@ const client = withCutCtx(new OpenAI(), {
 Streaming works normally. Compression happens before the request is sent:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withCutCtx(new OpenAI());
+const client = withCutctx(new OpenAI());
 
 const stream = await client.chat.completions.create({
   model: 'gpt-4o',
@@ -101,10 +101,10 @@ for await (const chunk of stream) {
 Tool call messages and tool results are compressed like any other message content. Large tool outputs (JSON arrays, logs) see the biggest savings:
 
 ```ts twoslash
-import { withCutCtx } from 'cutctx-ai/openai';
+import { withCutctx } from 'cutctx-ai/openai';
 import OpenAI from 'openai';
 
-const client = withCutCtx(new OpenAI());
+const client = withCutctx(new OpenAI());
 
 const response = await client.chat.completions.create({
   model: 'gpt-4o',

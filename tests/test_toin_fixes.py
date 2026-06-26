@@ -16,17 +16,17 @@ from pathlib import Path
 
 import pytest
 
-from headroom.cache.compression_feedback import (
+from cutctx.cache.compression_feedback import (
     get_compression_feedback,
     reset_compression_feedback,
 )
-from headroom.cache.compression_store import (
+from cutctx.cache.compression_store import (
     RetrievalEvent,
     get_compression_store,
     reset_compression_store,
 )
-from headroom.telemetry import ToolSignature
-from headroom.telemetry.toin import (
+from cutctx.telemetry import ToolSignature
+from cutctx.telemetry.toin import (
     TOINConfig,
     ToolIntelligenceNetwork,
     get_toin,

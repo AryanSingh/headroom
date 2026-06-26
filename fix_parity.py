@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from headroom._core import SmartCrusher, SmartCrusherConfig
+from cutctx._core import SmartCrusher, SmartCrusherConfig
 
 for p in Path('tests/parity/fixtures/smart_crusher').glob('*.json'):
     fixture = json.loads(p.read_text())

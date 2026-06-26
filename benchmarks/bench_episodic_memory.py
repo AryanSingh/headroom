@@ -28,13 +28,13 @@ _repo_root = Path(__file__).resolve().parent.parent
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from headroom.memory.extractor import (
+from cutctx.memory.extractor import (  # noqa: E402
     _filter_messages,
     _format_transcript,
     _heuristic_extract,
     format_memory_block,
 )
-from headroom.memory.store import EpisodicMemoryStore
+from cutctx.memory.store import EpisodicMemoryStore  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Data generators

@@ -24,7 +24,7 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
-from headroom.memory.store import EpisodicMemoryStore, compute_project_hash
+from cutctx.memory.store import EpisodicMemoryStore, compute_project_hash
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -33,7 +33,7 @@ from headroom.memory.store import EpisodicMemoryStore, compute_project_hash
 
 @pytest.fixture
 def tmp_memory_dir():
-    with tempfile.TemporaryDirectory(prefix="headroom_epi_integ_") as d:
+    with tempfile.TemporaryDirectory(prefix="cutctx_epi_integ_") as d:
         yield d
 
 
@@ -45,9 +45,9 @@ def episodic_store(tmp_memory_dir):
 @pytest.fixture
 def episodic_client(tmp_memory_dir):
     """Create a test client with episodic memory enabled."""
-    os.environ["HEADROOM_EPISODIC_MEMORY_DIR"] = tmp_memory_dir
+    os.environ["CUTCTX_EPISODIC_MEMORY_DIR"] = tmp_memory_dir
 
-    from headroom.proxy.models import ProxyConfig
+    from cutctx.proxy.models import ProxyConfig
 
     config = ProxyConfig(
         optimize=False,
@@ -57,19 +57,19 @@ def episodic_client(tmp_memory_dir):
         episodic_memory_enabled=True,
         episodic_idle_timeout_seconds=300,
     )
-    from headroom.proxy.server import create_app
+    from cutctx.proxy.server import create_app
 
     app = create_app(config)
     with TestClient(app) as client:
         yield client
 
-    del os.environ["HEADROOM_EPISODIC_MEMORY_DIR"]
+    del os.environ["CUTCTX_EPISODIC_MEMORY_DIR"]
 
 
 @pytest.fixture
 def no_episodic_client():
     """Create a test client with episodic memory disabled."""
-    from headroom.proxy.models import ProxyConfig
+    from cutctx.proxy.models import ProxyConfig
 
     config = ProxyConfig(
         optimize=False,
@@ -78,7 +78,7 @@ def no_episodic_client():
         cost_tracking_enabled=False,
         episodic_memory_enabled=False,
     )
-    from headroom.proxy.server import create_app
+    from cutctx.proxy.server import create_app
 
     app = create_app(config)
     with TestClient(app) as client:
@@ -92,7 +92,7 @@ def no_episodic_client():
 
 class TestEpisodicConfig:
     def test_config_defaults(self):
-        from headroom.proxy.models import ProxyConfig
+        from cutctx.proxy.models import ProxyConfig
 
         config = ProxyConfig()
         assert config.episodic_memory_enabled is False
@@ -100,7 +100,7 @@ class TestEpisodicConfig:
         assert "haiku" in config.episodic_extraction_model
 
     def test_config_overrides(self):
-        from headroom.proxy.models import ProxyConfig
+        from cutctx.proxy.models import ProxyConfig
 
         config = ProxyConfig(
             episodic_memory_enabled=True,
@@ -120,7 +120,7 @@ class TestEpisodicConfig:
 class TestMemoryBlockFormat:
     def test_memory_block_detected_by_rust_classifier_pattern(self):
         """The [SYSTEM: Past Session Memories] tag is what the Rust walker matches."""
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         block = format_memory_block(
             "## Session Insights\n- User prefers dark mode",
@@ -131,7 +131,7 @@ class TestMemoryBlockFormat:
         assert "/my/project" in block
 
     def test_empty_insights_produces_empty_block(self):
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         assert format_memory_block("") == ""
         assert format_memory_block("  \n  ") == ""
@@ -182,7 +182,7 @@ class TestSessionTrackerIntegration:
         assert "caching" in raw
         assert "race condition" in raw
 
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         formatted = format_memory_block(raw, project_path="/test/project")
         assert formatted.startswith("[SYSTEM: Past Session Memories]")

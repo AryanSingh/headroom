@@ -1,6 +1,6 @@
-# CutCtx Manual Testing Guide
+# Cutctx Manual Testing Guide
 
-**Product:** CutCtx (`cutctx` binary, `cutctx-ai` PyPI package, `headroom` internal Python package)  
+**Product:** Cutctx (`cutctx` binary, `cutctx-ai` PyPI package, `cutctx` internal Python package)  
 **Version:** 0.26.0  
 **Last updated:** 2026-06-22
 
@@ -97,7 +97,7 @@ pip install cutctx-ai
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...          # real key for live tests
 export OPENAI_API_KEY=sk-...                 # for OpenAI-backend tests
-export HEADROOM_ADMIN_API_KEY=test-admin-key # for admin API tests
+export CUTCTX_ADMIN_API_KEY=test-admin-key # for admin API tests
 export CUTCTX_TEST_MODE=1                    # suppresses browser-open in savings/report
 ```
 
@@ -113,15 +113,15 @@ cutctx --help
 
 **PASS:**
 - `which cutctx` returns a path inside the venv
-- `--version` prints `cutctx 0.26.0` (not `headroom`)
+- `--version` prints `cutctx 0.26.0` (not `cutctx`)
 - `--help` lists all commands: proxy, wrap, init, bench, savings, license, etc.
 
 ```bash
 # Verify the Rust core is linked
-python -c "from headroom import _core; print(_core.hello())"
+python -c "from cutctx import _core; print(_core.hello())"
 ```
 
-**PASS:** prints `headroom-core`  
+**PASS:** prints `cutctx-core`  
 **FAIL:** `ImportError` — the Rust `.so` isn't compiled for this platform
 
 ---
@@ -164,15 +164,15 @@ PROXY_PID=$!
 sleep 2
 curl -s http://localhost:8789/livez | jq .
 kill $PROXY_PID
-ls ~/.headroom/ 2>/dev/null && echo "files exist" || echo "no files written"
+ls ~/.cutctx/ 2>/dev/null && echo "files exist" || echo "no files written"
 ```
 
-**PASS:** proxy starts; `~/.headroom/` has no new files created during the run
+**PASS:** proxy starts; `~/.cutctx/` has no new files created during the run
 
 ### 3.4 Custom host/port via environment
 
 ```bash
-HEADROOM_PORT=8790 HEADROOM_HOST=127.0.0.1 cutctx proxy &
+CUTCTX_PORT=8790 CUTCTX_HOST=127.0.0.1 cutctx proxy &
 PROXY_PID=$!
 sleep 2
 curl -s http://127.0.0.1:8790/livez | jq .
@@ -211,7 +211,7 @@ curl -s http://localhost:8787/v1/version | jq .
 **PASS per endpoint:**
 - `/livez` → `{"status": "ok"}`
 - `/readyz` → `{"status": "ok"}` (may differ briefly on startup)
-- `/metrics` → lines starting with `# HELP` and `headroom_` metrics
+- `/metrics` → lines starting with `# HELP` and `cutctx_` metrics
 - `/v1/stats` → JSON with `requests_total`, `tokens_saved`, `compression_ratio` fields
 - `/v1/version` → JSON with `version: "0.26.0"`
 
@@ -241,7 +241,7 @@ cutctx bench --algorithm smart-crusher --size large --json | jq .
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
 crusher = SmartCrusher(SmartCrusherConfig())
 data = '[' + ','.join([f'{{"id":{i},"type":"event","status":"pending","value":null}}' for i in range(20)]) + ']'
@@ -258,7 +258,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.diff_compressor import DiffCompressor
+from cutctx.transforms.diff_compressor import DiffCompressor
 
 diff = """diff --git a/main.py b/main.py
 index abc..def 100644
@@ -286,7 +286,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.log_compressor import LogCompressor
+from cutctx.transforms.log_compressor import LogCompressor
 
 log = '\n'.join([
     '[2026-06-22 10:00:01] INFO  Server started on port 8787',
@@ -312,7 +312,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.search_compressor import SearchCompressor
+from cutctx.transforms.search_compressor import SearchCompressor
 
 results = '\n'.join([
     f"Result {i}: https://example.com/page{i}\nTitle: Example Page {i}\nSnippet: This is a very long snippet that contains the search term multiple times and includes a lot of boilerplate text that doesn't contribute to understanding. The page was published on 2026-01-{i:02d} and has been viewed 10000 times.\n"
@@ -333,7 +333,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.code_compressor import CodeAwareCompressor
+from cutctx.transforms.code_compressor import CodeAwareCompressor
 
 code = '''
 def calculate_fibonacci(n: int) -> int:
@@ -376,7 +376,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
 
 router = ContentRouter(ContentRouterConfig())
 
@@ -415,7 +415,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.compact_table import CompactTableCompressor
+from cutctx.transforms.compact_table import CompactTableCompressor
 
 data = '''[
   {"name": "Alice", "role": "engineer", "team": "backend", "status": "active"},
@@ -453,7 +453,7 @@ EOF
 ```bash
 # Check graceful fallback when NOT installed
 python3 - <<'EOF'
-from headroom.transforms.llmlingua_compressor import LLMLinguaCompressor
+from cutctx.transforms.llmlingua_compressor import LLMLinguaCompressor
 
 comp = LLMLinguaCompressor()
 text = "This is a test sentence that should be compressed. " * 20
@@ -486,7 +486,7 @@ kill $PROXY_PID
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig
+from cutctx.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig
 
 # Note: messages must be >= 80 chars (min_len_to_score default) to be scored by the filter.
 # Short messages like those below will all be kept (score=0), which is expected here.
@@ -537,7 +537,7 @@ kill $PROXY_PID
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.query_adapter import detect_query_hint, CompressionHint
+from cutctx.transforms.query_adapter import detect_query_hint, CompressionHint
 
 # CODE task — should protect more context
 hint = detect_query_hint("Fix the bug in my authentication middleware")
@@ -577,7 +577,7 @@ kill $PROXY_PID
 python3 - <<'EOF'
 import tempfile, os
 from pathlib import Path
-from headroom.ccr.store import CCRStore
+from cutctx.ccr.store import CCRStore
 
 with tempfile.TemporaryDirectory() as tmp:
     store = CCRStore(Path(tmp) / "ccr.db")
@@ -929,7 +929,7 @@ cutctx license status
 ### 21.2 Generate a test license key
 
 ```bash
-export HEADROOM_LICENSE_HMAC_SECRET=my-test-secret-for-manual-testing
+export CUTCTX_LICENSE_HMAC_SECRET=my-test-secret-for-manual-testing
 python scripts/generate_license.py \
   --tier team \
   --org "Test Corp" \
@@ -941,7 +941,7 @@ python scripts/generate_license.py \
 
 ```bash
 # Verify signature length
-KEY=$(HEADROOM_LICENSE_HMAC_SECRET=my-test-secret \
+KEY=$(CUTCTX_LICENSE_HMAC_SECRET=my-test-secret \
   python scripts/generate_license.py --tier team --org "Test" --seats 1 2>/dev/null | \
   grep "^Key:" | awk '{print $2}')
 SIG=$(echo $KEY | cut -d. -f2)
@@ -1023,19 +1023,19 @@ sleep 2
 ```bash
 # List role assignments
 curl -s http://localhost:8830/v1/rbac/assignments \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Assign a role
 curl -s -X POST "http://localhost:8830/v1/rbac/assignments/user-001?role=viewer" \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Verify assignment
 curl -s http://localhost:8830/v1/rbac/assignments \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Revoke the role
 curl -s -X DELETE "http://localhost:8830/v1/rbac/assignments/user-001" \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 ```
 
 **PASS:** assign returns 200; list shows the new assignment; revoke removes it; list shows it gone
@@ -1064,11 +1064,11 @@ sleep 2
 ```bash
 # List recent events
 curl -s http://localhost:8831/v1/audit/events \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Stats
 curl -s http://localhost:8831/v1/audit/stats \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 ```
 
 **PASS:** both return 200 with valid JSON; no 500 errors
@@ -1116,7 +1116,7 @@ docker build -t cutctx-test:local .
 
 # Run health check
 docker run -d --name cutctx-test -p 8840:8787 \
-  -e HEADROOM_ADMIN_API_KEY=test-key \
+  -e CUTCTX_ADMIN_API_KEY=test-key \
   cutctx-test:local
 sleep 5
 curl -s http://localhost:8840/livez | jq .
@@ -1130,7 +1130,7 @@ docker exec cutctx-test which cutctx
 docker exec cutctx-test cutctx --version
 ```
 
-**PASS:** binary is named `cutctx` (not `headroom`); version is `0.26.0`
+**PASS:** binary is named `cutctx` (not `cutctx`); version is `0.26.0`
 
 ```bash
 # Verify no debug keys in container
@@ -1149,23 +1149,23 @@ docker stop cutctx-test && docker rm cutctx-test
 
 ```bash
 # Lint the chart
-helm lint helm/headroom/
+helm lint helm/cutctx/
 
 # Render templates (dry-run)
-helm template cutctx-release helm/headroom/ \
+helm template cutctx-release helm/cutctx/ \
   --set image.tag=v0.26.0 \
   --set adminApiKey=test-key | head -60
 ```
 
 **PASS:**
 - `helm lint` reports no errors
-- Rendered templates reference `ghcr.io/cutctx/cutctx` (not `headroom`)
+- Rendered templates reference `ghcr.io/cutctx/cutctx` (not `cutctx`)
 - Service port is 8787
-- All template references are `cutctx.*` not `headroom.*`
+- All template references are `cutctx.*` not `cutctx.*`
 
 ```bash
 # Check specific values
-helm template cutctx-release helm/headroom/ | grep -E "image:|port:|namespace:" | head -10
+helm template cutctx-release helm/cutctx/ | grep -E "image:|port:|namespace:" | head -10
 ```
 
 **PASS:** image is `ghcr.io/cutctx/cutctx:*`; namespace is `cutctx`; port is `8787`
@@ -1181,7 +1181,7 @@ pip install cutctx-ai[llamaindex] 2>/dev/null || pip install llama-index-core
 ```bash
 python3 - <<'EOF'
 try:
-    from headroom.integrations.llamaindex import CutCtxNodePostprocessor, NodeFilterMetrics
+    from cutctx.integrations.llamaindex import CutctxNodePostprocessor, NodeFilterMetrics
     print("Import OK")
 except ImportError as e:
     print(f"Import error: {e} — llama-index may not be installed")
@@ -1192,7 +1192,7 @@ import sys
 import unittest.mock as mock
 with mock.patch.dict(sys.modules, {'llama_index': None, 'llama_index.core': None}):
     try:
-        from headroom.integrations.llamaindex.postprocessor import CutCtxNodePostprocessor
+        from cutctx.integrations.llamaindex.postprocessor import CutctxNodePostprocessor
         print("Graceful fallback PASS")
     except Exception as e:
         print(f"Graceful fallback: {e}")
@@ -1206,9 +1206,9 @@ EOF
 python3 - <<'EOF'
 try:
     from llama_index.core.schema import TextNode
-    from headroom.integrations.llamaindex import CutCtxNodePostprocessor
+    from cutctx.integrations.llamaindex import CutctxNodePostprocessor
     
-    postprocessor = CutCtxNodePostprocessor(top_n=3, min_score=0.1, compress=False)
+    postprocessor = CutctxNodePostprocessor(top_n=3, min_score=0.1, compress=False)
     nodes = [
         TextNode(text="Python is a programming language.", id_="n1"),
         TextNode(text="The weather today is sunny.", id_="n2"),
@@ -1238,14 +1238,14 @@ EOF
 ```bash
 python3 - <<'EOF'
 try:
-    from headroom.integrations.langchain import CutctxCallbackHandler
+    from cutctx.integrations.langchain import CutctxCallbackHandler
     print("LangChain integration import OK")
 except ImportError as e:
     print(f"langchain not installed: {e} — expected if not installed")
 
 # Test graceful import
 try:
-    from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+    from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
     print("Memory integration import OK")
 except ImportError:
     print("langchain-core not installed — graceful skip PASS")
@@ -1277,7 +1277,7 @@ timeout 3 cutctx mcp 2>&1 | head -5 || true
 
 ```bash
 python3 - <<'EOF'
-from headroom.security.state_crypto import _get_machine_id, _machine_fingerprint, encrypt_json, decrypt_json
+from cutctx.security.state_crypto import _get_machine_id, _machine_fingerprint, encrypt_json, decrypt_json
 
 # Test machine ID is non-empty
 mid = _get_machine_id()
@@ -1314,7 +1314,7 @@ EOF
 # Verify MAC address is NOT used as primary (platform-specific)
 python3 - <<'EOF'
 import sys, uuid
-from headroom.security.state_crypto import _get_machine_id
+from cutctx.security.state_crypto import _get_machine_id
 
 mid = _get_machine_id()
 mac_str = str(uuid.getnode())
@@ -1349,7 +1349,7 @@ EOF
 # Test manifest builder (unsigned, for testing)
 python3 scripts/build_ee_manifest.py \
   --unsigned \
-  --ee-dir headroom_ee \
+  --ee-dir cutctx_ee \
   --output /tmp/test-manifest.json
 cat /tmp/test-manifest.json | python3 -c "import json,sys; m=json.load(sys.stdin); print(f'Files: {len(m[\"files\"])}, Signed: {\"signature\" in m}')"
 ```
@@ -1358,9 +1358,9 @@ cat /tmp/test-manifest.json | python3 -c "import json,sys; m=json.load(sys.stdin
 
 ```bash
 # Test signed manifest
-export HEADROOM_LICENSE_HMAC_SECRET=test-integrity-secret
+export CUTCTX_LICENSE_HMAC_SECRET=test-integrity-secret
 python3 scripts/build_ee_manifest.py \
-  --ee-dir headroom_ee \
+  --ee-dir cutctx_ee \
   --output /tmp/test-manifest-signed.json
 cat /tmp/test-manifest-signed.json | python3 -c "import json,sys; m=json.load(sys.stdin); print(f'Signed: {\"signature\" in m}')"
 ```
@@ -1372,7 +1372,7 @@ cat /tmp/test-manifest-signed.json | python3 -c "import json,sys; m=json.load(sy
 python3 - <<'EOF'
 import os, json
 from pathlib import Path
-from headroom.security.integrity import verify_ee_manifest, IntegrityError
+from cutctx.security.integrity import verify_ee_manifest, IntegrityError
 
 # No manifest = no crash (EE not installed)
 try:
@@ -1395,13 +1395,13 @@ with tempfile.TemporaryDirectory() as tmp:
     Path(tmp).joinpath("fake.cpython-312-darwin.so").write_bytes(b"not a real so file")
     
     import sys
-    sys.modules.pop("headroom_ee", None)
+    sys.modules.pop("cutctx_ee", None)
     import unittest.mock as mock
     fake_ee = mock.MagicMock()
     fake_ee.__file__ = str(Path(tmp) / "__init__.py")
     Path(tmp).joinpath("__init__.py").write_text("")
     
-    with mock.patch.dict(sys.modules, {"headroom_ee": fake_ee}):
+    with mock.patch.dict(sys.modules, {"cutctx_ee": fake_ee}):
         try:
             verify_ee_manifest(strict=True)
             print("FAIL — should have raised IntegrityError")
@@ -1416,19 +1416,19 @@ EOF
 
 ```bash
 # Anti-debug guard (no debugger = no crash)
-HEADROOM_ALLOW_DEBUG=1 python3 - <<'EOF'
-from headroom.security.antidebug import guard_ee_entry
-guard_ee_entry()  # Should be a no-op with HEADROOM_ALLOW_DEBUG=1
+CUTCTX_ALLOW_DEBUG=1 python3 - <<'EOF'
+from cutctx.security.antidebug import guard_ee_entry
+guard_ee_entry()  # Should be a no-op with CUTCTX_ALLOW_DEBUG=1
 print("Anti-debug guard (debug allowed): PASS")
 EOF
 ```
 
-**PASS:** no exception when `HEADROOM_ALLOW_DEBUG=1`
+**PASS:** no exception when `CUTCTX_ALLOW_DEBUG=1`
 
 ```bash
 # Python-level detection (should be False in normal run — no debugger)
 python3 - <<'EOF'
-from headroom.security.antidebug import _python_fallback_is_debugged
+from cutctx.security.antidebug import _python_fallback_is_debugged
 result = _python_fallback_is_debugged()
 print(f"Debugger detected: {result}")
 assert result == False, "expected no debugger in normal pytest/shell run"
@@ -1462,7 +1462,7 @@ kill $BLOCKER_PID 2>/dev/null
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
 
 router = ContentRouter(ContentRouterConfig())
 result = router.compress("")
@@ -1477,7 +1477,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.log_compressor import LogCompressor
+from cutctx.transforms.log_compressor import LogCompressor
 
 big_log = "[INFO] Processing item 12345\n" * 10000
 result = LogCompressor().compress(big_log)
@@ -1493,7 +1493,7 @@ EOF
 
 ```bash
 python3 - <<'EOF'
-from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
 crusher = SmartCrusher(SmartCrusherConfig())
 # Not valid JSON array
@@ -1528,10 +1528,10 @@ kill $PROXY_PID
 ```bash
 python3 - <<'EOF'
 import os
-os.environ["HEADROOM_LICENSE_HMAC_SECRET"] = "test-secret"
+os.environ["CUTCTX_LICENSE_HMAC_SECRET"] = "test-secret"
 
 try:
-    from headroom import _core
+    from cutctx import _core
     # Too-short signature (8 chars, below 32-char minimum)
     result = _core.verify_license_signature("team", "abc123", "cust456", "deadbeef")
     assert result == False, "short signature should be rejected"
@@ -1783,7 +1783,7 @@ cutctx perf --raw 2>&1 | head -10
 cutctx agent-savings --profile agent-90 --format shell
 ```
 
-**PASS:** prints a set of `export HEADROOM_*=...` shell lines; no crash
+**PASS:** prints a set of `export CUTCTX_*=...` shell lines; no crash
 
 ```bash
 # JSON format
@@ -1858,14 +1858,14 @@ PROXY_PID=$!
 sleep 2
 
 # List orgs (empty on fresh install)
-cutctx orgs list --admin-key "$HEADROOM_ADMIN_API_KEY" 2>&1 | head -10
+cutctx orgs list --admin-key "$CUTCTX_ADMIN_API_KEY" 2>&1 | head -10
 
 # Create an org
-cutctx orgs create --admin-key "$HEADROOM_ADMIN_API_KEY" \
+cutctx orgs create --admin-key "$CUTCTX_ADMIN_API_KEY" \
   --name "Test Org" --slug "test-org" 2>&1 | head -5
 
 # List again — should show the new org
-cutctx orgs list --admin-key "$HEADROOM_ADMIN_API_KEY" 2>&1 | head -10
+cutctx orgs list --admin-key "$CUTCTX_ADMIN_API_KEY" 2>&1 | head -10
 
 kill $PROXY_PID
 ```
@@ -1901,11 +1901,11 @@ sleep 2
 
 # Get spend summary
 curl -s http://localhost:8920/v1/spend \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Get per-org spend
 curl -s "http://localhost:8920/v1/spend?org=default" \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 kill $PROXY_PID
 ```
@@ -1923,7 +1923,7 @@ sleep 2
 
 # Rate limit statistics
 curl -s http://localhost:8921/v1/rate_limit/stats \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Test that --no-rate-limit disables it
 kill $PROXY_PID
@@ -1947,21 +1947,21 @@ sleep 2
 
 # List secrets (should be empty)
 curl -s http://localhost:8923/v1/secrets \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Write a secret
 curl -s -X POST http://localhost:8923/v1/secrets \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" \
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "MY_TEST_SECRET", "value": "secret-value-123"}' | jq .
 
 # Read it back
 curl -s http://localhost:8923/v1/secrets \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Update it
 curl -s -X PUT http://localhost:8923/v1/secrets/MY_TEST_SECRET \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" \
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"value": "updated-value-456"}' | jq .
 
@@ -1981,11 +1981,11 @@ sleep 2
 
 # Data export request
 curl -s http://localhost:8924/v1/dsr/export?user_id=user-001 \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" | jq .
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" | jq .
 
 # Data deletion request
 curl -s -X POST http://localhost:8924/v1/dsr/delete \
-  -H "X-Admin-API-Key: $HEADROOM_ADMIN_API_KEY" \
+  -H "X-Admin-API-Key: $CUTCTX_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"user_id": "user-001"}' | jq .
 
@@ -2086,11 +2086,11 @@ ls *.vsix
 1. Open VS Code
 2. Press `Cmd+Shift+P` → "Extensions: Install from VSIX"
 3. Select the `.vsix` file
-4. Verify "CutCtx" appears in the Extensions list
-5. Open the CutCtx panel (sidebar icon)
+4. Verify "Cutctx" appears in the Extensions list
+5. Open the Cutctx panel (sidebar icon)
 6. Start proxy from the extension UI
-7. Verify the status bar shows "CutCtx: Running"
-8. Stop proxy; status bar should update to "CutCtx: Stopped"
+7. Verify the status bar shows "Cutctx: Running"
+8. Stop proxy; status bar should update to "Cutctx: Stopped"
 
 **PASS:** all 8 steps complete without VS Code crash or error dialogs
 
@@ -2113,10 +2113,10 @@ ls build/distributions/*.zip
 2. Click gear icon → "Install Plugin from Disk"
 3. Select the `.zip` from `build/distributions/`
 4. Restart IDE
-5. Verify "CutCtx" entry appears in Settings → Tools
-6. Open a project; verify the CutCtx toolbar button is present
+5. Verify "Cutctx" entry appears in Settings → Tools
+6. Open a project; verify the Cutctx toolbar button is present
 7. Enable proxy from plugin settings; verify proxy starts
-8. Check the CutCtx tool window shows savings stats
+8. Check the Cutctx tool window shows savings stats
 
 **PASS:** plugin installs without errors; proxy starts from within IDE
 
@@ -2126,8 +2126,8 @@ ls build/distributions/*.zip
 
 ```bash
 # Start in offline/airgap mode
-HEADROOM_OFFLINE_MODE=1 \
-HEADROOM_LICENSE_HMAC_SECRET=test-airgap-secret \
+CUTCTX_OFFLINE_MODE=1 \
+CUTCTX_LICENSE_HMAC_SECRET=test-airgap-secret \
   cutctx proxy --port 8930 2>&1 | head -10 &
 PROXY_PID=$!
 sleep 2
@@ -2139,10 +2139,10 @@ kill $PROXY_PID
 
 ```bash
 # Without the secret, OFFLINE_MODE should refuse to start
-HEADROOM_OFFLINE_MODE=1 cutctx proxy --port 8931 2>&1 | head -5
+CUTCTX_OFFLINE_MODE=1 cutctx proxy --port 8931 2>&1 | head -5
 ```
 
-**PASS:** clear error about `HEADROOM_LICENSE_HMAC_SECRET` being required; proxy does not start
+**PASS:** clear error about `CUTCTX_LICENSE_HMAC_SECRET` being required; proxy does not start
 
 ---
 
@@ -2195,7 +2195,7 @@ b64_image = base64.b64encode(PNG_1x1).decode()
 data_uri = f"data:image/png;base64,{b64_image}"
 
 try:
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
     router = ContentRouter(ContentRouterConfig())
     # Image-only content — router should handle gracefully
     result = router.compress(data_uri)
@@ -2212,7 +2212,7 @@ EOF
 python3 - <<'EOF'
 # Test image compressor directly if available
 try:
-    from headroom._core import ImageCompressor
+    from cutctx._core import ImageCompressor
     print("ImageCompressor available in Rust core")
 except (ImportError, AttributeError):
     print("ImageCompressor: checked via content router path — PASS")
@@ -2228,7 +2228,7 @@ EOF
 ```bash
 # Verify stateless mode leaves no files
 TMPDIR=$(mktemp -d)
-HOME=$TMPDIR HEADROOM_STATELESS=true cutctx proxy --port 8940 --stateless &
+HOME=$TMPDIR CUTCTX_STATELESS=true cutctx proxy --port 8940 --stateless &
 PROXY_PID=$!
 sleep 2
 
@@ -2245,13 +2245,13 @@ find $TMPDIR -name "*.db" -o -name "*.json" | grep -v ".npm" | head -10
 echo "Files found in HOME: $(find $TMPDIR -type f | wc -l | tr -d ' ')"
 ```
 
-**PASS:** zero or very few files in `$TMPDIR`; specifically no `.db` or state `.json` files from CutCtx
+**PASS:** zero or very few files in `$TMPDIR`; specifically no `.db` or state `.json` files from Cutctx
 
 ```bash
 # Docker stateless run
 docker run --rm \
-  -e HEADROOM_STATELESS=true \
-  -e HEADROOM_ADMIN_API_KEY=test \
+  -e CUTCTX_STATELESS=true \
+  -e CUTCTX_ADMIN_API_KEY=test \
   -p 8941:8787 \
   ghcr.io/cutctx/cutctx:0.26.0 &
 sleep 5
@@ -2287,10 +2287,10 @@ cutctx config-check
 cutctx license status
 
 # 7. Rust core linked
-python3 -c "from headroom import _core; assert _core.hello() == 'headroom-core'; print('Rust core OK')"
+python3 -c "from cutctx import _core; assert _core.hello() == 'cutctx-core'; print('Rust core OK')"
 
 # 8. State crypto round-trip
-python3 -c "from headroom.security.state_crypto import encrypt_json, decrypt_json; d={'x':1}; assert decrypt_json(encrypt_json(d)) == d; print('Crypto OK')"
+python3 -c "from cutctx.security.state_crypto import encrypt_json, decrypt_json; d={'x':1}; assert decrypt_json(encrypt_json(d)) == d; print('Crypto OK')"
 ```
 
 All 8 should pass in under 30 seconds on a healthy build.

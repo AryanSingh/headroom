@@ -1,12 +1,12 @@
 /**
  * Example 03: Streaming Chat with Compression
  *
- * Use withCutCtx with streamText for real-time streaming responses.
+ * Use withCutctx with streamText for real-time streaming responses.
  * Compression happens before the stream starts — the LLM sees fewer tokens.
  *
  * Run: npx tsx examples/03-streaming-chat.ts
  */
-import { withCutCtx } from "cutctx-ai/vercel-ai";
+import { withCutctx } from "cutctx-ai/vercel-ai";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
@@ -54,7 +54,7 @@ function generateLargeDiff(): string {
 }
 
 async function main() {
-  const model = withCutCtx(openai("gpt-4o"));
+  const model = withCutctx(openai("gpt-4o"));
 
   const result = streamText({
     model,

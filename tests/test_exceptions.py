@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from headroom.exceptions import (
+from cutctx.exceptions import (
     CacheError,
     CompressionError,
     ConfigurationError,
@@ -13,7 +13,7 @@ from headroom.exceptions import (
 )
 
 
-def test_headroom_error_formats_details() -> None:
+def test_cutctx_error_formats_details() -> None:
     err = CutctxError("bad config", details={"mode": "foo", "valid": "bar"})
     assert err.message == "bad config"
     assert err.details == {"mode": "foo", "valid": "bar"}
@@ -24,7 +24,7 @@ def test_headroom_error_formats_details() -> None:
     assert str(plain) == "just bad"
 
 
-def test_specialized_exceptions_inherit_headroom_error() -> None:
+def test_specialized_exceptions_inherit_cutctx_error() -> None:
     for exc_type in (
         ConfigurationError,
         ProviderError,

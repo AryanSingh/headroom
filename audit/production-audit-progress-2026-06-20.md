@@ -30,14 +30,14 @@
 **Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
 ### High-19: Helm chart image tag pinned
-**Audit finding:** `helm/headroom/values.yaml:9` had `tag: "latest"` despite the audit claim of being pinned to v0.26.0. Any chart install would pull `latest`, which is unsafe for production.
+**Audit finding:** `helm/cutctx/values.yaml:9` had `tag: "latest"` despite the audit claim of being pinned to v0.26.0. Any chart install would pull `latest`, which is unsafe for production.
 
 **Fix:** Pinned to `0.26.0` to match the canonical `pyproject.toml` version. The README comment explains how to opt in to floating tags with `--set image.tag=latest`.
 
 **Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
 ### High-16: Spend ledger automated backup
-**Audit finding:** `k8s/backup-cronjob.yaml` only covered `headroom_memory.db`. The spend ledger SQLite had no backup. A disk failure would lose the customer's spend history.
+**Audit finding:** `k8s/backup-cronjob.yaml` only covered `cutctx_memory.db`. The spend ledger SQLite had no backup. A disk failure would lose the customer's spend history.
 
 **Fix:** Extended the backup CronJob to also back up `spend_ledger.db` and `audit.db`, and to prune backups older than 30 days via `aws s3api list-objects-v2` to bound S3 storage costs. Added `successfulJobsHistoryLimit=7`, `failedJobsHistoryLimit=3` for audit retention.
 
@@ -50,8 +50,8 @@
 
 **Commit:** `58c3226e fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s`
 
-### High-20: Tests for `headroom.savings/` module
-**Audit finding:** The new moat-b1 code on this branch — `headroom/savings/{__init__,integrations,orchestrator,parsers,policy,types}.py` — had 0 test imports. 799 lines of new code, untested.
+### High-20: Tests for `cutctx.savings/` module
+**Audit finding:** The new moat-b1 code on this branch — `cutctx/savings/{__init__,integrations,orchestrator,parsers,policy,types}.py` — had 0 test imports. 799 lines of new code, untested.
 
 **Fix:** 27 new tests in `tests/test_savings_module.py` cover all five submodules:
 
@@ -61,7 +61,7 @@
 - `policy.py` (3 tests): PolicyDecision defaults, StrategyResolver coding_agent, invalid-input safety
 - `orchestrator.py` (4 tests): record_request accumulation, per-provider breakdown, to_dict round-trip, reset
 
-**Commit:** `51735eb1 test(savings): add 27 tests for headroom.savings/ module (High-20)`
+**Commit:** `51735eb1 test(savings): add 27 tests for cutctx.savings/ module (High-20)`
 
 ### Medium-26: Corruption recovery for new savings store
 **Audit finding:** The savings store had no corruption-recovery path. The previous code silently fell back to an empty state on a parse error, leaving no forensic record.
@@ -103,8 +103,8 @@ Wrapped in try/except so an audit failure cannot cause an auth failure to be mis
 
 **Commit:** `01ce9efa feat(security): add /audit/verify endpoint with lightweight integrity check`
 
-### Medium-33: Replace `X-Headroom-User-Id` as audit-actor source
-**Audit finding:** Audit actor was taken from a client-controllable `X-Headroom-User-Id` header when no SSO state was set. A caller with a valid admin key could forge audit attribution.
+### Medium-33: Replace `X-Cutctx-User-Id` as audit-actor source
+**Audit finding:** Audit actor was taken from a client-controllable `X-Cutctx-User-Id` header when no SSO state was set. A caller with a valid admin key could forge audit attribution.
 
 **Fix:** New hierarchy in `_audit_admin_action` (server.py):
 
@@ -115,9 +115,9 @@ Wrapped in try/except so an audit failure cannot cause an auth failure to be mis
 **Commit:** `54e6bb03 fix(security): harden audit-actor source — SSO > key fingerprint > 'admin'`
 
 ### Medium-35: Align Helm + Docker ownership metadata
-**Audit finding:** `docker/docker-compose.native.yml:3` used `ghcr.io/chopratejas/headroom` (the pre-rebrand owner) while `helm/headroom/values.yaml:8` used `ghcr.io/aryansingh/headroom` (the current owner).
+**Audit finding:** `docker/docker-compose.native.yml:3` used `ghcr.io/chopratejas/cutctx` (the pre-rebrand owner) while `helm/cutctx/values.yaml:8` used `ghcr.io/aryansingh/cutctx` (the current owner).
 
-**Fix:** Aligned `docker-compose.native.yml` to `aryansingh/headroom`. The `HEADROOM_IMAGE` env var override is preserved.
+**Fix:** Aligned `docker-compose.native.yml` to `aryansingh/cutctx`. The `CUTCTX_IMAGE` env var override is preserved.
 
 **Commit:** `684a7e90 fix(ops): align docker-compose.native.yml image to canonical owner (Medium-35)`
 
@@ -136,7 +136,7 @@ Wrapped in try/except so an audit failure cannot cause an auth failure to be mis
 **Commit:** `87f03ca3 fix(dashboard): dynamic version + clean savings_by_source x-if guard`
 
 ### Low-46: `cutctx learn_share` orphaned CLI command
-**Audit finding:** `headroom/cli/learn_share.py` exists but is not registered in `_register_commands()`.
+**Audit finding:** `cutctx/cli/learn_share.py` exists but is not registered in `_register_commands()`.
 
 **Resolution:** Audit finding was incorrect on close inspection. `learn_share.py` is a helper module imported by `learn.py` (line `from .learn_share import print_share_prompt`), not a CLI command. No code change needed.
 
@@ -149,9 +149,9 @@ Wrapped in try/except so an audit failure cannot cause an auth failure to be mis
 - **Blocker-10**: Streaming PII redactor wired (Blocker-10 actually closed in this update via 58c3226e; the audit's claim that wrap_stream had zero callsites is now false).
 
 Wait — let me re-verify. The audit said:
-> `headroom/security/firewall.py:510-528` defines `wrap_stream`, but no handler in the request path actually wraps the upstream response generator with it (grep for `wrap_stream` in `headroom/proxy/handlers/` returns zero results).
+> `cutctx/security/firewall.py:510-528` defines `wrap_stream`, but no handler in the request path actually wraps the upstream response generator with it (grep for `wrap_stream` in `cutctx/proxy/handlers/` returns zero results).
 
-After the 58c3226e commit, `headroom/proxy/handlers/streaming.py:1166-1178` now wraps the `response.aiter_bytes()` iterator with `_streaming_redactor.wrap_stream(chunk_iter)`. **Blocker-10 is closed.**
+After the 58c3226e commit, `cutctx/proxy/handlers/streaming.py:1166-1178` now wraps the `response.aiter_bytes()` iterator with `_streaming_redactor.wrap_stream(chunk_iter)`. **Blocker-10 is closed.**
 
 ### High
 - High-11: SAML SSO
@@ -159,7 +159,7 @@ After the 58c3226e commit, `headroom/proxy/handlers/streaming.py:1166-1178` now 
 - High-13: End-user API key issuance
 - High-14: Per-identity rate limiting (the per-identity key is now built; the limiter itself keys on user/identity; needs hookup in middleware — actually closed in 27320cd8 as a partial close; the audit's concern was that callsites pass IP only; the fix changes the key composition to prefer SSO user_id)
 - High-15: Outbound webhooks with retry + signing + event types
-- High-21: Tests for `headroom/proxy/routes/{airgap,rate_limit,rbac,secrets,sso}.py`
+- High-21: Tests for `cutctx/proxy/routes/{airgap,rate_limit,rbac,secrets,sso}.py`
 - High-22: Add dashboard search/filter/sort/pagination/loading/error states
 - High-24: Commit the rebrand atomically
 
@@ -194,7 +194,7 @@ After the 58c3226e commit, `headroom/proxy/handlers/streaming.py:1166-1178` now 
 | `58c3226e` | fix(prod+security): wire streaming PII redactor, from_stream per-source, audit events, k8s |
 | `01ce9efa` | feat(security): add /audit/verify endpoint with lightweight integrity check |
 | `27320cd8` | fix(reliability+security): per-identity rate limit + savings corruption recovery |
-| `51735eb1` | test(savings): add 27 tests for headroom.savings/ module (High-20) |
+| `51735eb1` | test(savings): add 27 tests for cutctx.savings/ module (High-20) |
 | `54e6bb03` | fix(security): harden audit-actor source — SSO > key fingerprint > 'admin' |
 | `684a7e90` | fix(ops): align docker-compose.native.yml image to canonical owner (Medium-35) |
 | `87f03ca3` | fix(dashboard): dynamic version + clean savings_by_source x-if guard |

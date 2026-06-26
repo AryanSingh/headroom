@@ -1,4 +1,4 @@
-"""CutCtx Python SDK client."""
+"""Cutctx Python SDK client."""
 
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ except ImportError:
     _requests = None  # type: ignore[assignment]
 
 
-class CutCtxClient:
-    """Client for the CutCtx compression proxy.
+class CutctxClient:
+    """Client for the Cutctx compression proxy.
 
     Args:
-        proxy_url: Base URL of the CutCtx proxy (default: http://localhost:8787).
-        api_key: License key sent as X-CutCtx-Key header.
+        proxy_url: Base URL of the Cutctx proxy (default: http://localhost:8787).
+        api_key: License key sent as X-Cutctx-Key header.
         model: Target model name for cost estimation.
     """
 
@@ -38,11 +38,11 @@ class CutCtxClient:
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
-            headers["X-CutCtx-Key"] = self._api_key
+            headers["X-Cutctx-Key"] = self._api_key
         return headers
 
     def compress(self, messages: list[dict[str, Any]], model: str | None = None) -> list[dict[str, Any]]:
-        """Compress messages through the CutCtx proxy.
+        """Compress messages through the Cutctx proxy.
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys.

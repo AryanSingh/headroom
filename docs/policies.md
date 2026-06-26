@@ -1,6 +1,6 @@
 # Policy Engine
 
-The CutCtx Policy Engine allows you to enforce centralized controls on AI usage across your entire infrastructure.
+The Cutctx Policy Engine allows you to enforce centralized controls on AI usage across your entire infrastructure.
 
 ## Configuration
 Policies are defined at the Organization level and can be overridden per-Workspace.

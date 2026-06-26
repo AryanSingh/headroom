@@ -23,8 +23,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from headroom import paths as paths_mod
-from headroom.cli import wrap as wrap_mod
+from cutctx import paths as paths_mod
+from cutctx.cli import wrap as wrap_mod
 
 # ---------------------------------------------------------------------------
 # _print_wrap_banner — centering math + box drawing.
@@ -104,8 +104,8 @@ def test_print_wrap_banner_title_is_centered_or_near_centered() -> None:
 
 
 def test_setup_context_tool_lean_ctx_calls_lean_ctx_setup(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When HEADROOM_CONTEXT_TOOL=lean-ctx, helper calls _setup_lean_ctx_agent."""
-    monkeypatch.setenv("HEADROOM_CONTEXT_TOOL", "lean-ctx")
+    """When CUTCTX_CONTEXT_TOOL=lean-ctx, helper calls _setup_lean_ctx_agent."""
+    monkeypatch.setenv("CUTCTX_CONTEXT_TOOL", "lean-ctx")
     called_with: dict[str, Any] = {}
 
     def fake_lean_ctx(agent: str, verbose: bool = False) -> Path | None:
@@ -135,7 +135,7 @@ def test_setup_context_tool_rtk_success_calls_on_rtk_ready(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """rtk install success → on_rtk_ready receives the rtk binary path."""
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
     fake_rtk = Path("/tmp/rtk-fake")
     received: list[Path] = []
 
@@ -162,7 +162,7 @@ def test_setup_context_tool_rtk_failure_with_not_required_returns_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """rtk install failure + rtk_required=False → silent fall-through, None."""
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
     monkeypatch.setattr(wrap_mod, "_ensure_rtk_binary", lambda verbose=False: None)
 
     on_rtk_called = False
@@ -193,7 +193,7 @@ def test_setup_context_tool_rtk_failure_with_required_exits_1(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """rtk install failure + rtk_required=True → SystemExit(1) with refusal message."""
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
     monkeypatch.setattr(wrap_mod, "_ensure_rtk_binary", lambda verbose=False: None)
 
     runner = CliRunner()
@@ -217,7 +217,7 @@ def test_setup_context_tool_keyboardinterrupt_emits_interrupted_and_exits_130(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """KeyboardInterrupt during setup → _emit_wrap_interrupted, SystemExit(130)."""
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("CUTCTX_CONTEXT_TOOL", raising=False)
 
     marker = tmp_path / ".clinerules"
     marker.write_text("pre-existing")
@@ -414,12 +414,12 @@ def test_run_proxy_only_watcher_calls_cleanup_on_finally(
 
 # ---------------------------------------------------------------------------
 # _project_name_from_cwd / _apply_project_header_env — per-project savings
-# header injection for `headroom wrap claude` (issue: per-project savings).
+# header injection for `cutctx wrap claude` (issue: per-project savings).
 # ---------------------------------------------------------------------------
 
 
 class TestApplyProjectHeaderEnv:
-    """X-Headroom-Project injection into ANTHROPIC_CUSTOM_HEADERS."""
+    """X-Cutctx-Project injection into ANTHROPIC_CUSTOM_HEADERS."""
 
     def test_sets_header_from_cwd_basename(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -431,7 +431,7 @@ class TestApplyProjectHeaderEnv:
         env: dict[str, str] = {}
         wrap_mod._apply_project_header_env(env)
 
-        assert env["ANTHROPIC_CUSTOM_HEADERS"] == "X-Headroom-Project: my-project"
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == "X-Cutctx-Project: my-project"
 
     def test_appends_to_existing_custom_headers(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -445,16 +445,16 @@ class TestApplyProjectHeaderEnv:
 
         # User header preserved verbatim, ours appended on a new line.
         assert env["ANTHROPIC_CUSTOM_HEADERS"] == (
-            "X-Custom-Trace: abc123\nX-Headroom-Project: proj"
+            "X-Custom-Trace: abc123\nX-Cutctx-Project: proj"
         )
 
     @pytest.mark.parametrize(
         "user_value",
         [
-            "X-Headroom-Project: their-name",
-            "x-headroom-project: their-name",
-            "X-HEADROOM-PROJECT: their-name",
-            "X-Other: 1\nx-Headroom-Project: their-name",
+            "X-Cutctx-Project: their-name",
+            "x-cutctx-project: their-name",
+            "X-CUTCTX-PROJECT: their-name",
+            "X-Other: 1\nx-Cutctx-Project: their-name",
         ],
     )
     def test_existing_project_header_wins_case_insensitive(
@@ -476,8 +476,8 @@ class TestApplyProjectHeaderEnv:
     @pytest.mark.parametrize(
         "user_value",
         [
-            "X-Headroom-Project-Id: other",
-            "X-Trace: mentions x-headroom-project in the value",
+            "X-Cutctx-Project-Id: other",
+            "X-Trace: mentions x-cutctx-project in the value",
         ],
     )
     def test_similar_header_names_do_not_suppress_injection(
@@ -494,7 +494,7 @@ class TestApplyProjectHeaderEnv:
         wrap_mod._apply_project_header_env(env)
 
         # Only an exact header-name match counts as a user override.
-        assert env["ANTHROPIC_CUSTOM_HEADERS"] == (f"{user_value}\nX-Headroom-Project: proj")
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == (f"{user_value}\nX-Cutctx-Project: proj")
 
     def test_empty_cwd_name_sets_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A degenerate cwd (e.g. filesystem root → empty basename) is a no-op."""
@@ -516,11 +516,11 @@ class TestApplyProjectHeaderEnv:
     def test_project_name_from_cwd_returns_basename(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        project_dir = tmp_path / "vibe-headroom"
+        project_dir = tmp_path / "vibe-cutctx"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
 
-        assert wrap_mod._project_name_from_cwd() == "vibe-headroom"
+        assert wrap_mod._project_name_from_cwd() == "vibe-cutctx"
 
 
 # ---------------------------------------------------------------------------

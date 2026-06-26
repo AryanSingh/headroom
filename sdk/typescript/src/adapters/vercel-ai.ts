@@ -26,17 +26,17 @@ type VercelMessage = any;
  *
  * @example
  * ```typescript
- * import { headroomMiddleware } from 'cutctx-ai/vercel-ai';
+ * import { cutctxMiddleware } from 'cutctx-ai/vercel-ai';
  * import { wrapLanguageModel } from 'ai';
  * import { openai } from '@ai-sdk/openai';
  *
  * const model = wrapLanguageModel({
  *   model: openai('gpt-4o'),
- *   middleware: headroomMiddleware(),
+ *   middleware: cutctxMiddleware(),
  * });
  * ```
  */
-export function headroomMiddleware(options: CompressOptions = {}) {
+export function cutctxMiddleware(options: CompressOptions = {}) {
   return {
     transformParams: async ({
       params,
@@ -53,7 +53,7 @@ export function headroomMiddleware(options: CompressOptions = {}) {
       // Convert Vercel format → OpenAI format
       const openaiMessages = vercelToOpenAI(prompt);
 
-      // Compress via CutCtx
+      // Compress via Cutctx
       const result = await compress(openaiMessages, {
         stack: "adapter_ts_vercel_ai",
         ...options,
@@ -92,20 +92,20 @@ export async function compressVercelMessages(
 }
 
 /**
- * Wrap a Vercel AI SDK language model with CutCtx compression.
- * Convenience wrapper around `wrapLanguageModel` + `headroomMiddleware`.
+ * Wrap a Vercel AI SDK language model with Cutctx compression.
+ * Convenience wrapper around `wrapLanguageModel` + `cutctxMiddleware`.
  *
  * @example
  * ```typescript
- * import { withCutCtx } from 'cutctx-ai/vercel-ai';
+ * import { withCutctx } from 'cutctx-ai/vercel-ai';
  * import { openai } from '@ai-sdk/openai';
  * import { generateText } from 'ai';
  *
- * const model = withCutCtx(openai('gpt-4o'));
+ * const model = withCutctx(openai('gpt-4o'));
  * const { text } = await generateText({ model, messages });
  * ```
  */
-export function withCutCtx<T extends LanguageModel>(
+export function withCutctx<T extends LanguageModel>(
   model: T,
   options: CompressOptions = {},
 ): T {
@@ -120,12 +120,12 @@ export function withCutCtx<T extends LanguageModel>(
     wrapLanguageModel = ai.wrapLanguageModel;
   } catch {
     throw new Error(
-      'withCutCtx() requires the "ai" package. Install it with: npm install ai',
+      'withCutctx() requires the "ai" package. Install it with: npm install ai',
     );
   }
 
   return wrapLanguageModel({
     model,
-    middleware: headroomMiddleware(options),
+    middleware: cutctxMiddleware(options),
   });
 }

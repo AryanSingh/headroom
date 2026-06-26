@@ -12,12 +12,12 @@
 
 The remediation series (commits `db7f7a45`..`fb73887b`, ~20 commits) closed 19 of 46 audit items. The headline 5-source savings model is now wired end-to-end at the data layer, EE routes are gated, SSO is fixed, DSR endpoints exist, audit has actor hierarchy + secret-key enforcement, and the deployment artifacts are correctly branded. **However, deep verification uncovered three HIGH-severity commercial blockers that the previous audits missed or mis-classified:**
 
-1. **Model router is dead code** — the entire `headroom/proxy/model_router.py` (300 lines, the headline moat-b1 differentiator) is bound to `proxy._model_router` at server boot but **zero handlers call it**. The `model_routing_tokens_saved` and `model_routing_usd_saved` fields are hardcoded to 0 at all 9 live handler sites. The same is true for `self_hosted_prefix_cache_hits`. The 5-source savings model's two differentiating sources are structurally zero end-to-end.
-2. **Residency `verify()` is broken** — the signer signs `SHA-256(payload).digest()` (`headroom/security/residency_proof.py:319-324`); the verifier passes `payload` raw (line 226). The in-process `verify()` method returns `False` for an attestation the prover itself just produced. Third-party verifiers (per docs) work; the in-process path does not.
+1. **Model router is dead code** — the entire `cutctx/proxy/model_router.py` (300 lines, the headline moat-b1 differentiator) is bound to `proxy._model_router` at server boot but **zero handlers call it**. The `model_routing_tokens_saved` and `model_routing_usd_saved` fields are hardcoded to 0 at all 9 live handler sites. The same is true for `self_hosted_prefix_cache_hits`. The 5-source savings model's two differentiating sources are structurally zero end-to-end.
+2. **Residency `verify()` is broken** — the signer signs `SHA-256(payload).digest()` (`cutctx/security/residency_proof.py:319-324`); the verifier passes `payload` raw (line 226). The in-process `verify()` method returns `False` for an attestation the prover itself just produced. Third-party verifiers (per docs) work; the in-process path does not.
 3. **Three "high-severity" EE modules are pure stubs** despite the audit-claimed factory-pattern fix:
-   - `headroom/proxy/routes/secrets.py` — `list_secrets()` returns `[]` (line 46); `create_secret()` returns success-without-storage (line 54). No vault/AWS/GCP integration.
-   - `headroom/proxy/routes/airgap.py` — `get_airgap_status()` returns hardcoded `{"status": "active", "limits_enforced": True}` (line 44). No actual egress enforcement; the airgap module (`headroom/proxy/airgap.py:11-29`) only logs warnings and is never called from the proxy runtime.
-   - `headroom_ee/memory_service/api.py:65-75` — explicit TODO comments admitting no auth/audit are still in place. The review endpoint is dead code.
+   - `cutctx/proxy/routes/secrets.py` — `list_secrets()` returns `[]` (line 46); `create_secret()` returns success-without-storage (line 54). No vault/AWS/GCP integration.
+   - `cutctx/proxy/routes/airgap.py` — `get_airgap_status()` returns hardcoded `{"status": "active", "limits_enforced": True}` (line 44). No actual egress enforcement; the airgap module (`cutctx/proxy/airgap.py:11-29`) only logs warnings and is never called from the proxy runtime.
+   - `cutctx_ee/memory_service/api.py:65-75` — explicit TODO comments admitting no auth/audit are still in place. The review endpoint is dead code.
 
 **Production readiness: 60/100** (down from the 80/100 claimed by the 2026-06-21 final-status doc, because the model-router dead code is a critical commercial-claim failure).
 
@@ -31,46 +31,46 @@ The remediation series (commits `db7f7a45`..`fb73887b`, ~20 commits) closed 19 o
 
 ## 1. Verified Feature Inventory (code-confirmed)
 
-### 1.1 Core proxy (OSS, `headroom/proxy/`)
+### 1.1 Core proxy (OSS, `cutctx/proxy/`)
 
 | Feature | Status | Evidence |
 |---|---|---|
-| LLM request proxy (Anthropic, OpenAI Chat, OpenAI Responses, OpenAI Codex, Gemini, Bedrock, Vertex) | **Implemented** | `headroom/proxy/server.py` lifespan + `headroom/proxy/handlers/{anthropic,openai,google,vertex,bedrock,codex}` |
-| Compression pipeline (CCR, SmartCrusher, LiveZone, Markdown-KV, etc.) | **Implemented** | `headroom/transforms/pipeline.py:36-49,89-97` |
-| Per-provider cache compatibility | **Implemented** | `headroom/proxy/handlers/anthropic.py:2516-2520` |
-| Response cache (semantic cache, in-memory) | **Implemented** | `headroom/proxy/semantic_cache.py`; wired in `anthropic.py`, `openai/chat.py` |
-| LLM Firewall (regex-based prompt injection + PII scanner) | **Implemented** | `headroom/security/firewall.py:1-534` |
-| Streaming PII redactor | **Implemented (wired)** | `headroom/proxy/handlers/streaming.py:1175-1180` calls `wrap_stream()`; `proxy._streaming_redactor` set at `server.py:2146` |
-| Upstream circuit breaker | **Implemented** | `headroom/proxy/routing/failover.py:78-204` |
-| Pipeline circuit breaker | **Implemented** | `headroom/transforms/pipeline.py:36-49` |
-| Health endpoints (`/livez`, `/readyz`, `/health`) | **Implemented** | `headroom/proxy/server.py` |
-| Prometheus `/metrics` | **Implemented** | `headroom/proxy/prometheus_metrics.py` |
-| Spend ledger | **Implemented** | `headroom_ee/ledger/` |
-| CLI (20 top-level commands, not 28) | **Implemented** | `headroom/cli/main.py:43-66` — 6 documented commands are unreachable (see §3) |
-| Helm chart, Docker, Docker Compose, npm wrapper | **Implemented** | `helm/headroom/`, `Dockerfile`, `docker-compose.yml`, `sdk/typescript/` |
+| LLM request proxy (Anthropic, OpenAI Chat, OpenAI Responses, OpenAI Codex, Gemini, Bedrock, Vertex) | **Implemented** | `cutctx/proxy/server.py` lifespan + `cutctx/proxy/handlers/{anthropic,openai,google,vertex,bedrock,codex}` |
+| Compression pipeline (CCR, SmartCrusher, LiveZone, Markdown-KV, etc.) | **Implemented** | `cutctx/transforms/pipeline.py:36-49,89-97` |
+| Per-provider cache compatibility | **Implemented** | `cutctx/proxy/handlers/anthropic.py:2516-2520` |
+| Response cache (semantic cache, in-memory) | **Implemented** | `cutctx/proxy/semantic_cache.py`; wired in `anthropic.py`, `openai/chat.py` |
+| LLM Firewall (regex-based prompt injection + PII scanner) | **Implemented** | `cutctx/security/firewall.py:1-534` |
+| Streaming PII redactor | **Implemented (wired)** | `cutctx/proxy/handlers/streaming.py:1175-1180` calls `wrap_stream()`; `proxy._streaming_redactor` set at `server.py:2146` |
+| Upstream circuit breaker | **Implemented** | `cutctx/proxy/routing/failover.py:78-204` |
+| Pipeline circuit breaker | **Implemented** | `cutctx/transforms/pipeline.py:36-49` |
+| Health endpoints (`/livez`, `/readyz`, `/health`) | **Implemented** | `cutctx/proxy/server.py` |
+| Prometheus `/metrics` | **Implemented** | `cutctx/proxy/prometheus_metrics.py` |
+| Spend ledger | **Implemented** | `cutctx_ee/ledger/` |
+| CLI (20 top-level commands, not 28) | **Implemented** | `cutctx/cli/main.py:43-66` — 6 documented commands are unreachable (see §3) |
+| Helm chart, Docker, Docker Compose, npm wrapper | **Implemented** | `helm/cutctx/`, `Dockerfile`, `docker-compose.yml`, `sdk/typescript/` |
 
-### 1.2 Enterprise layer (`headroom_ee/`)
+### 1.2 Enterprise layer (`cutctx_ee/`)
 
 | Feature | Status | Evidence |
 |---|---|---|
-| RBAC (4 roles, 38 permissions) | **Implemented (in-memory)** | `headroom_ee/rbac.py:50-92` |
-| Admin auth + RBAC on EE routes | **Implemented** | `headroom/proxy/server.py:3486-3657` — 14 factory calls |
-| SSO (OIDC + JWT) | **Implemented (after fb73887b fix)** | `headroom_ee/sso.py:263-642` — class boundary restored, 27/27 tests pass |
-| DSR endpoints | **Implemented** | `headroom/proxy/routes/dsr.py` — `/v1/me/export`, `/v1/me/delete` |
-| Audit log (SQLite) | **Implemented** | `headroom_ee/audit.py:88-360` |
-| Audit log (HMAC hash chain + /audit/verify) | **Implemented** | `headroom_ee/audit/store.py:174-203`; `/audit/verify` at `routes/admin.py:472-509` |
-| Audit secret key enforcement | **Implemented** | `headroom_ee/audit/store.py:40-73` — refuses to start without `HEADROOM_AUDIT_SECRET_KEY` |
-| Audit actor hierarchy | **Implemented** | `headroom/proxy/routes/admin.py:59-82` — `sso: > key:fp > admin` |
-| Admin key not logged in plaintext | **Implemented** | `headroom/proxy/server.py` — admin key printed to stderr only |
-| SCIM 2.0 | **Implemented** | `headroom_ee/scim.py:42-264`; 14 endpoints in `routes/admin.py:1020-1310` |
-| Webhook dispatcher (HMAC-signed, retried, 8 event types) | **Implemented** | `headroom/proxy/webhooks.py:68-83, 355-366, 367-425`; 22 tests pass |
-| Per-identity rate limit | **Implemented** | `headroom/proxy/rate_limiter.py:35-79`; `server.py:2236-2248` |
-| Model router (config-driven) | **BOUND BUT NEVER CALLED** | `headroom/proxy/model_router.py` (300 lines); `server.py:1692-1703` binds it; **0 callsites in handlers** |
-| Billing / Stripe webhooks | **Implemented (with gaps)** | `headroom_ee/billing/stripe_webhook.py` |
-| License validation (Ed25519) | **Implemented (with caveat)** | `headroom_ee/billing/license_token.py` is Ed25519; `pitchtoship_client.py` is ECDSA P-256 — two systems coexist |
-| Air-gap mode | **NOT IMPLEMENTED** | `headroom/proxy/airgap.py:11-29` only logs warnings; `routes/airgap.py:38-44` returns hardcoded payload |
-| Secrets management | **NOT IMPLEMENTED** | `headroom/proxy/routes/secrets.py:46, 54` — pure stub |
-| Memory service auth/audit (EE module) | **NOT IMPLEMENTED** | `headroom_ee/memory_service/api.py:65-75` — explicit TODOs unchanged |
+| RBAC (4 roles, 38 permissions) | **Implemented (in-memory)** | `cutctx_ee/rbac.py:50-92` |
+| Admin auth + RBAC on EE routes | **Implemented** | `cutctx/proxy/server.py:3486-3657` — 14 factory calls |
+| SSO (OIDC + JWT) | **Implemented (after fb73887b fix)** | `cutctx_ee/sso.py:263-642` — class boundary restored, 27/27 tests pass |
+| DSR endpoints | **Implemented** | `cutctx/proxy/routes/dsr.py` — `/v1/me/export`, `/v1/me/delete` |
+| Audit log (SQLite) | **Implemented** | `cutctx_ee/audit.py:88-360` |
+| Audit log (HMAC hash chain + /audit/verify) | **Implemented** | `cutctx_ee/audit/store.py:174-203`; `/audit/verify` at `routes/admin.py:472-509` |
+| Audit secret key enforcement | **Implemented** | `cutctx_ee/audit/store.py:40-73` — refuses to start without `CUTCTX_AUDIT_SECRET_KEY` |
+| Audit actor hierarchy | **Implemented** | `cutctx/proxy/routes/admin.py:59-82` — `sso: > key:fp > admin` |
+| Admin key not logged in plaintext | **Implemented** | `cutctx/proxy/server.py` — admin key printed to stderr only |
+| SCIM 2.0 | **Implemented** | `cutctx_ee/scim.py:42-264`; 14 endpoints in `routes/admin.py:1020-1310` |
+| Webhook dispatcher (HMAC-signed, retried, 8 event types) | **Implemented** | `cutctx/proxy/webhooks.py:68-83, 355-366, 367-425`; 22 tests pass |
+| Per-identity rate limit | **Implemented** | `cutctx/proxy/rate_limiter.py:35-79`; `server.py:2236-2248` |
+| Model router (config-driven) | **BOUND BUT NEVER CALLED** | `cutctx/proxy/model_router.py` (300 lines); `server.py:1692-1703` binds it; **0 callsites in handlers** |
+| Billing / Stripe webhooks | **Implemented (with gaps)** | `cutctx_ee/billing/stripe_webhook.py` |
+| License validation (Ed25519) | **Implemented (with caveat)** | `cutctx_ee/billing/license_token.py` is Ed25519; `pitchtoship_client.py` is ECDSA P-256 — two systems coexist |
+| Air-gap mode | **NOT IMPLEMENTED** | `cutctx/proxy/airgap.py:11-29` only logs warnings; `routes/airgap.py:38-44` returns hardcoded payload |
+| Secrets management | **NOT IMPLEMENTED** | `cutctx/proxy/routes/secrets.py:46, 54` — pure stub |
+| Memory service auth/audit (EE module) | **NOT IMPLEMENTED** | `cutctx_ee/memory_service/api.py:65-75` — explicit TODOs unchanged |
 | Residency proof (Ed25519) | **PARTIALLY BROKEN** | Signer signs `SHA256(payload)`; verifier passes `payload` raw — `verify()` returns False for valid signatures |
 
 ### 1.3 5-source savings model
@@ -91,21 +91,21 @@ The remediation series (commits `db7f7a45`..`fb73887b`, ~20 commits) closed 19 o
 
 | # | Feature | Severity | Evidence |
 |---|---|---|---|
-| 1 | **Live detection of vLLM APC prefix-cache hits** | **Critical** | All 9 handler sites hardcode `self_hosted_prefix_cache_hits=0` (`anthropic.py:830/1983/2532/2950/3086/3276`, `openai/chat.py:309/1023/1359`). Only fires from `x-headroom-prefix-cache-hits` request header opt-in. |
-| 2 | **Live model routing policy (downgrade opus→sonnet)** | **Critical** | `headroom/proxy/model_router.py` is bound at boot (`server.py:1692-1703`) but **0 handler calls it** (grep for `_model_router` in `handlers/` returns 0 results). All 9 sites hardcode `model_routing_tokens_saved=0, model_routing_usd_saved=0.0`. |
-| 3 | **Residency proof `verify()` method works** | **Critical** | `headroom/security/residency_proof.py:226` calls `public_key.verify(sig_bytes, payload)` but line 324 signs `SHA256(payload).digest()`. Verified in-process: prover.sign → prover.verify returns False. |
-| 4 | **Air-gap mode actually enforced** | **Critical** | `headroom/proxy/airgap.py:11-29` only logs warnings; never called from `server.py`. `/v1/airgap/status` returns hardcoded `{"status": "active", "limits_enforced": True}`. |
-| 5 | **Secret management backend** | **Critical** | `headroom/proxy/routes/secrets.py:46, 54` — `list_secrets()` returns `[]`; `create_secret()` returns success-without-storage. No vault/AWS/GCP. |
-| 6 | **EE memory service auth + audit** | **High** | `headroom_ee/memory_service/api.py:65-75` — explicit TODOs unchanged. The `/v1/memory/review` endpoint is dead code. |
-| 7 | **SAML SSO** | **High** | `headroom_ee/sso.py` only handles JWT/JWKS/OIDC. |
+| 1 | **Live detection of vLLM APC prefix-cache hits** | **Critical** | All 9 handler sites hardcode `self_hosted_prefix_cache_hits=0` (`anthropic.py:830/1983/2532/2950/3086/3276`, `openai/chat.py:309/1023/1359`). Only fires from `x-cutctx-prefix-cache-hits` request header opt-in. |
+| 2 | **Live model routing policy (downgrade opus→sonnet)** | **Critical** | `cutctx/proxy/model_router.py` is bound at boot (`server.py:1692-1703`) but **0 handler calls it** (grep for `_model_router` in `handlers/` returns 0 results). All 9 sites hardcode `model_routing_tokens_saved=0, model_routing_usd_saved=0.0`. |
+| 3 | **Residency proof `verify()` method works** | **Critical** | `cutctx/security/residency_proof.py:226` calls `public_key.verify(sig_bytes, payload)` but line 324 signs `SHA256(payload).digest()`. Verified in-process: prover.sign → prover.verify returns False. |
+| 4 | **Air-gap mode actually enforced** | **Critical** | `cutctx/proxy/airgap.py:11-29` only logs warnings; never called from `server.py`. `/v1/airgap/status` returns hardcoded `{"status": "active", "limits_enforced": True}`. |
+| 5 | **Secret management backend** | **Critical** | `cutctx/proxy/routes/secrets.py:46, 54` — `list_secrets()` returns `[]`; `create_secret()` returns success-without-storage. No vault/AWS/GCP. |
+| 6 | **EE memory service auth + audit** | **High** | `cutctx_ee/memory_service/api.py:65-75` — explicit TODOs unchanged. The `/v1/memory/review` endpoint is dead code. |
+| 7 | **SAML SSO** | **High** | `cutctx_ee/sso.py` only handles JWT/JWKS/OIDC. |
 | 8 | **MFA on admin** | **High** | No second-factor path in `server.py:2280-2343`. |
 | 9 | **Per-source savings dashboard UI** | **High** | `dashboard/src/pages/Overview.jsx:55-71` has hardcoded "Compression Savings: 68.4%". No `Savings.jsx` page. Per-source fields never read. |
 | 10 | **Dashboard search/filter/sort/loading/error states** | **High** | Zero `<input>`, `<select>`, `<textarea>`, `spinner`, `toast` elements in `dashboard.html`. |
-| 11 | **6 documented CLI commands are unreachable** | **High** | `audit, orgs, rbac, sso-test, config-check, bench` — `python -m headroom.cli <cmd>` returns "No such command". Help text in `main.py:24-36` lies. |
+| 11 | **6 documented CLI commands are unreachable** | **High** | `audit, orgs, rbac, sso-test, config-check, bench` — `python -m cutctx.cli <cmd>` returns "No such command". Help text in `main.py:24-36` lies. |
 | 12 | **Dashboard per-source savings cards in React** | **Medium** | SSR dashboard `dashboard.html:276-320` has them. React dashboard Overview.jsx does not. |
 | 13 | **`.env.example` documentation** | **Medium** | 3 lines total (`NEO4J_AUTH=neo4j/CHANGEME`). Does not document any `CUTCTX_*` env var. |
 | 14 | **Tests for streaming.py** | **Medium** | 3 streaming tests fail with connection errors. The streaming PII redactor wiring is unverified. |
-| 15 | **Rebrand cleanup in working tree** | **Medium** | `headroom/__init__.py:101-102` exports `HeadroomConfig, HeadroomMode` (renamed to Cutctx elsewhere); `headroom/client.py:938` references `HeadroomMode.AUDIT` which no longer exists; `dashboard/src/App.jsx:14` shows "Headroom" branding. |
+| 15 | **Rebrand cleanup in working tree** | **Medium** | `cutctx/__init__.py:101-102` exports `CutctxConfig, CutctxMode` (renamed to Cutctx elsewhere); `cutctx/client.py:938` references `CutctxMode.AUDIT` which no longer exists; `dashboard/src/App.jsx:14` shows "Cutctx" branding. |
 
 ---
 
@@ -114,20 +114,20 @@ The remediation series (commits `db7f7a45`..`fb73887b`, ~20 commits) closed 19 o
 | # | Feature | Implemented | Missing | Evidence |
 |---|---|---|---|---|
 | 1 | **5-source savings model** | Parser + funnel + persistence + CLI surfacing | 2 of 5 sources (`prefix_cache_self_hosted`, `model_routing`) never fire from live traffic; dashboard has no per-source view | Handler sites (cited in §1.3); `dashboard/src/pages/` |
-| 2 | **RBAC persistence** | 38 permissions, 4 roles, factory pattern enforced | In-memory only (`headroom_ee/rbac.py:184`); default-ADMIN fail-open when no SSO configured | `rbac.py:114-160` |
+| 2 | **RBAC persistence** | 38 permissions, 4 roles, factory pattern enforced | In-memory only (`cutctx_ee/rbac.py:184`); default-ADMIN fail-open when no SSO configured | `rbac.py:114-160` |
 | 3 | **Webhooks** | HMAC, retry, 8 event types, admin API | Subscriptions in-memory only (`webhooks.py:174`); no persistent dead-letter queue | `webhooks.py:43-47, 174, 419-425` |
-| 4 | **Audit logging** | Hash chain, /audit/verify, actor hierarchy, secret key enforcement | 14 of 22 enum events never emitted; production code emits 11+ string literals not in enum (`retention.cleanup`, `rbac.*`, etc.) — contract drift | `headroom_ee/audit.py` (enum) vs `headroom/proxy/server.py`, `routes/admin.py` |
-| 5 | **Model routing** | Config-driven router with workload classifier + LiteLLM cost lookup + negative-delta protection | Bound at boot but never invoked; commercial claim is structurally false | `headroom/proxy/model_router.py`; `server.py:1692-1703`; 0 callsites in handlers |
-| 6 | **License validation** | Ed25519 hrk1 tokens (`license_token.py`); ECDSA P-256 in `pitchtoship_client.py` | Two crypto systems coexist; new Ed25519 tokens not verified anywhere in runtime | `headroom_ee/billing/license_token.py` vs `pitchtoship_client.py` |
-| 7 | **Spend ledger tenant isolation** | Auth-gated, per-org/workspace/project filters | `?group_by=org_id` with no filter returns all orgs to any authenticated admin | `headroom_ee/ledger/query.py:18-103` |
-| 8 | **Air-gap mode** | `HEADROOM_OFFLINE_MODE` env var; `/v1/airgap/status` endpoint | No egress blocking, no firewall rule, no domain blocklist; status is hardcoded | `headroom/proxy/airgap.py:11-29`; `routes/airgap.py:38-44` |
-| 9 | **Secrets management** | RBAC-permissioned `/v1/secrets/*` endpoints | `list_secrets()` returns `[]`; `create_secret()` returns success without storage | `headroom/proxy/routes/secrets.py:46, 54` |
-| 10 | **Streaming PII redactor** | `wrap_stream` defined; `proxy._streaming_redactor` set; `streaming.py:1175-1180` calls it | 3 streaming tests fail; not verified end-to-end | `headroom/proxy/handlers/streaming.py` |
-| 11 | **Audit actor in `server.py:3401`** | Hierarchy hardened in `routes/admin.py:59-82` | `server.py:3401` still uses `request.headers.get("x-headroom-user-id", "admin")` for `/stats/reset` | `headroom/proxy/server.py:3401` |
-| 12 | **License DB EE tests** | `headroom_ee/tests/test_license_e2e.py` exists | 5 of 6 tests FAIL — they predate Blocker-1 auth gate and were not updated to send admin auth headers | `headroom_ee/tests/test_license_e2e.py` |
-| 13 | **CLI surface** | 20 top-level commands registered | 6 documented commands unreachable (`audit, orgs, rbac, sso-test, config-check, bench`) | `headroom/cli/main.py:43-66` |
-| 14 | **CRL revocation check** | License token verification via PitchToShip | CRL/activation/seat/trial checks fail-open on network errors — attacker who isolates the proxy bypasses revocation | `headroom_ee/billing/client.py:26, 36, 53, 67, 85, 98` |
-| 15 | **Stripe webhook signature** | HMAC-SHA256 with `hmac.compare_digest()` | Skips verification if `STRIPE_WEBHOOK_SECRET` is empty — production must set explicitly | `headroom_ee/billing/stripe_webhook.py:201-203` |
+| 4 | **Audit logging** | Hash chain, /audit/verify, actor hierarchy, secret key enforcement | 14 of 22 enum events never emitted; production code emits 11+ string literals not in enum (`retention.cleanup`, `rbac.*`, etc.) — contract drift | `cutctx_ee/audit.py` (enum) vs `cutctx/proxy/server.py`, `routes/admin.py` |
+| 5 | **Model routing** | Config-driven router with workload classifier + LiteLLM cost lookup + negative-delta protection | Bound at boot but never invoked; commercial claim is structurally false | `cutctx/proxy/model_router.py`; `server.py:1692-1703`; 0 callsites in handlers |
+| 6 | **License validation** | Ed25519 hrk1 tokens (`license_token.py`); ECDSA P-256 in `pitchtoship_client.py` | Two crypto systems coexist; new Ed25519 tokens not verified anywhere in runtime | `cutctx_ee/billing/license_token.py` vs `pitchtoship_client.py` |
+| 7 | **Spend ledger tenant isolation** | Auth-gated, per-org/workspace/project filters | `?group_by=org_id` with no filter returns all orgs to any authenticated admin | `cutctx_ee/ledger/query.py:18-103` |
+| 8 | **Air-gap mode** | `CUTCTX_OFFLINE_MODE` env var; `/v1/airgap/status` endpoint | No egress blocking, no firewall rule, no domain blocklist; status is hardcoded | `cutctx/proxy/airgap.py:11-29`; `routes/airgap.py:38-44` |
+| 9 | **Secrets management** | RBAC-permissioned `/v1/secrets/*` endpoints | `list_secrets()` returns `[]`; `create_secret()` returns success without storage | `cutctx/proxy/routes/secrets.py:46, 54` |
+| 10 | **Streaming PII redactor** | `wrap_stream` defined; `proxy._streaming_redactor` set; `streaming.py:1175-1180` calls it | 3 streaming tests fail; not verified end-to-end | `cutctx/proxy/handlers/streaming.py` |
+| 11 | **Audit actor in `server.py:3401`** | Hierarchy hardened in `routes/admin.py:59-82` | `server.py:3401` still uses `request.headers.get("x-cutctx-user-id", "admin")` for `/stats/reset` | `cutctx/proxy/server.py:3401` |
+| 12 | **License DB EE tests** | `cutctx_ee/tests/test_license_e2e.py` exists | 5 of 6 tests FAIL — they predate Blocker-1 auth gate and were not updated to send admin auth headers | `cutctx_ee/tests/test_license_e2e.py` |
+| 13 | **CLI surface** | 20 top-level commands registered | 6 documented commands unreachable (`audit, orgs, rbac, sso-test, config-check, bench`) | `cutctx/cli/main.py:43-66` |
+| 14 | **CRL revocation check** | License token verification via PitchToShip | CRL/activation/seat/trial checks fail-open on network errors — attacker who isolates the proxy bypasses revocation | `cutctx_ee/billing/client.py:26, 36, 53, 67, 85, 98` |
+| 15 | **Stripe webhook signature** | HMAC-SHA256 with `hmac.compare_digest()` | Skips verification if `STRIPE_WEBHOOK_SECRET` is empty — production must set explicitly | `cutctx_ee/billing/stripe_webhook.py:201-203` |
 | 16 | **SOC2 roadmap line 87** | Marks spend-ledger backup as `⚠️ Partial` | Claim is outdated: k8s/backup-cronjob.yaml now covers `spend_ledger.db` + `audit.db` | `gtm/soc2-roadmap.md:87` |
 
 ---
@@ -138,13 +138,13 @@ The remediation series (commits `db7f7a45`..`fb73887b`, ~20 commits) closed 19 o
 |---|---|---|---|
 | 1 | **Residency `verify()` returns False for valid signatures** | **Critical (Security)** | `residency_proof.py:319-324` signs `SHA256(payload).digest()`; `:226` verifier passes `payload` raw. In-process `prover.verify(prover.sign(attest))` returns False. |
 | 2 | **Model router is dead code — moat-b1 claim is half-built** | **Critical (Commercial)** | `proxy._model_router` bound at `server.py:1695`; 0 callsites in handlers. All 9 handler sites hardcode `model_routing_*=0`. |
-| 3 | **CLI help text lies — 6 commands documented but unreachable** | **High (UX)** | `headroom/cli/main.py:24-36` lists `cutctx audit, orgs, rbac, sso-test, config-check, bench`. `python -m headroom.cli audit` → `Error: No such command 'audit'`. |
-| 4 | **`HeadroomMode` NameError regression** | **High (Functional)** | `headroom/__init__.py:101-102` exports `HeadroomConfig, HeadroomMode` (old names); `headroom/client.py:938` references `HeadroomMode.AUDIT` (the enum that no longer exists in `headroom/config.py:13`, which now defines `CutctxMode`). Test fails: `NameError: name 'HeadroomMode' is not defined`. |
+| 3 | **CLI help text lies — 6 commands documented but unreachable** | **High (UX)** | `cutctx/cli/main.py:24-36` lists `cutctx audit, orgs, rbac, sso-test, config-check, bench`. `python -m cutctx.cli audit` → `Error: No such command 'audit'`. |
+| 4 | **`CutctxMode` NameError regression** | **High (Functional)** | `cutctx/__init__.py:101-102` exports `CutctxConfig, CutctxMode` (old names); `cutctx/client.py:938` references `CutctxMode.AUDIT` (the enum that no longer exists in `cutctx/config.py:13`, which now defines `CutctxMode`). Test fails: `NameError: name 'CutctxMode' is not defined`. |
 | 5 | **`/admin` route serves static React mockup with hardcoded values** | **High (UX)** | The React dashboard pages (Overview.jsx, Firewall.jsx, Memory.jsx) have hardcoded mock data: "4,289 Requests / min", "68.4% Compression Savings", "27 Active Patterns", "143 Blocks Today". The SSR dashboard at `/dashboard` shows real data — `/admin` is now a soft regression. |
-| 6 | **Reactor: `headroom/proxy/server.py:3401` still uses client-controllable `X-Headroom-User-Id` header** | **High (Security)** | The Medium-33 fix hardened `routes/admin.py:59-82` to use `sso: > key: > admin` hierarchy, but `server.py:3401` for `/stats/reset` still uses `request.headers.get("x-headroom-user-id", "admin")`. |
-| 7 | **K8s `deployment.yaml:42` uses `headroom-proxy:v0.26.0` (local docker tag)** | **Medium (Ops)** | For production, image should be `ghcr.io/aryansingh/headroom:0.26.0` to match Helm. |
+| 6 | **Reactor: `cutctx/proxy/server.py:3401` still uses client-controllable `X-Cutctx-User-Id` header** | **High (Security)** | The Medium-33 fix hardened `routes/admin.py:59-82` to use `sso: > key: > admin` hierarchy, but `server.py:3401` for `/stats/reset` still uses `request.headers.get("x-cutctx-user-id", "admin")`. |
+| 7 | **K8s `deployment.yaml:42` uses `cutctx-proxy:v0.26.0` (local docker tag)** | **Medium (Ops)** | For production, image should be `ghcr.io/aryansingh/cutctx:0.26.0` to match Helm. |
 | 8 | **K8s `backup-cronjob.yaml:22` uses `alpine:latest`** | **Medium (Ops)** | The backup cron job itself uses `:latest`. |
-| 9 | **K8s `secret.yaml:11` references `hello@headroom.dev`** | **Low (Branding)** | Pre-rebrand email. |
+| 9 | **K8s `secret.yaml:11` references `hello@cutctx.dev`** | **Low (Branding)** | Pre-rebrand email. |
 | 10 | **`savings_tracker.verify_integrity` is not exposed via CLI** | **Low** | Method exists (`savings_tracker.py:1135`) but `cutctx savings` has no `--verify-integrity` flag. Operators must write Python. |
 | 11 | **Dashboard React pages are static mockups** | **High (UX)** | 3 of 4 pages (Overview, Firewall, Memory) have hardcoded data with no API integration. Only Playground has real client-side logic. |
 | 12 | **Dashboard `dashboard.html` has no loading spinners / toast / error UI** | **Medium (UX)** | Zero `animate-spin`, `aria-busy`, `aria-live`, `toast` elements. Silent failures on poll errors. |
@@ -212,20 +212,20 @@ These items will block a paid enterprise customer from signing.
 
 **Severity: Critical (will fail commercial due-diligence on the headline feature)**
 
-`headroom/proxy/model_router.py` (300 lines, config-driven, with workload classifier, LiteLLM cost lookup, negative-delta protection, 16 passing tests) is bound to `proxy._model_router` at server boot (`server.py:1692-1703`) but **zero handlers call it**. The 9 live handler sites hardcode `model_routing_tokens_saved=0, model_routing_usd_saved=0.0`. The 5-source savings dashboard will show zero for the `model_routing` source for any production deployment that doesn't opt in to header-based telemetry. **The commercial claim of "5 savings sources" is only 3 sources in production.**
+`cutctx/proxy/model_router.py` (300 lines, config-driven, with workload classifier, LiteLLM cost lookup, negative-delta protection, 16 passing tests) is bound to `proxy._model_router` at server boot (`server.py:1692-1703`) but **zero handlers call it**. The 9 live handler sites hardcode `model_routing_tokens_saved=0, model_routing_usd_saved=0.0`. The 5-source savings dashboard will show zero for the `model_routing` source for any production deployment that doesn't opt in to header-based telemetry. **The commercial claim of "5 savings sources" is only 3 sources in production.**
 
 **Same issue applies to `self_hosted_prefix_cache_hits`** — also hardcoded 0 at all 9 sites.
 
 **Fix:**
 - Option A: Wire `proxy._model_router.maybe_route(model, request)` into the request path at the earliest point (after the cache miss, before the upstream call). Update the model name in-place if the router says downgrade.
-- Option B: Add a real vLLM APC integration that reads upstream response headers (`x-headroom-prefix-cache-hits` or similar from the vLLM sidecar) and populates `self_hosted_prefix_cache_hits`.
+- Option B: Add a real vLLM APC integration that reads upstream response headers (`x-cutctx-prefix-cache-hits` or similar from the vLLM sidecar) and populates `self_hosted_prefix_cache_hits`.
 - Option C: Remove the `prefix_cache_self_hosted` and `model_routing` sources from the funnel until they're real.
 
 ### 6.2 Blocker 2 — Residency `verify()` is broken
 
 **Severity: Critical (will fail any enterprise security review)**
 
-`headroom/security/residency_proof.py:319-324` (signer) signs `SHA-256(canonical_payload).digest()`. Line 226 (verifier) calls `public_key.verify(sig_bytes, payload)` — passing `payload` raw, not the digest. **In-process `prover.verify(prover.sign(attest))` returns False even for a signature the prover just produced.**
+`cutctx/security/residency_proof.py:319-324` (signer) signs `SHA-256(canonical_payload).digest()`. Line 226 (verifier) calls `public_key.verify(sig_bytes, payload)` — passing `payload` raw, not the digest. **In-process `prover.verify(prover.sign(attest))` returns False even for a signature the prover just produced.**
 
 The documentation at `docs/data-residency.md` describes the digest-hash protocol (which matches the signer), so a third-party verifier reading the docs would work — but the in-process verify() function does not match.
 
@@ -235,9 +235,9 @@ The documentation at `docs/data-residency.md` describes the digest-hash protocol
 
 **Severity: Critical (regulated-industry customers cannot deploy)**
 
-- `headroom/proxy/airgap.py:11-29` — only logs warnings; never called from `server.py`. `/v1/airgap/status` returns hardcoded payload (`routes/airgap.py:38-44`).
-- `headroom/proxy/routes/secrets.py:46, 54` — `list_secrets()` returns `[]`; `create_secret()` returns success-without-storage. No vault/AWS/GCP integration.
-- `headroom_ee/memory_service/api.py:65-75` — explicit TODOs unchanged. The `/v1/memory/review` endpoint is dead code.
+- `cutctx/proxy/airgap.py:11-29` — only logs warnings; never called from `server.py`. `/v1/airgap/status` returns hardcoded payload (`routes/airgap.py:38-44`).
+- `cutctx/proxy/routes/secrets.py:46, 54` — `list_secrets()` returns `[]`; `create_secret()` returns success-without-storage. No vault/AWS/GCP integration.
+- `cutctx_ee/memory_service/api.py:65-75` — explicit TODOs unchanged. The `/v1/memory/review` endpoint is dead code.
 
 **Fix:** Either implement these (significant work) or remove the routes and update the marketing/documentation to not claim these features.
 
@@ -257,25 +257,25 @@ The documentation at `docs/data-residency.md` describes the digest-hash protocol
 
 **Severity: High (operators following the help text get "No such command")**
 
-`headroom/cli/main.py:24-36` documents `cutctx audit, orgs, rbac, sso-test, config-check, bench` as top-level commands. `python -m headroom.cli audit` returns `Error: No such command 'audit'`. The 6 files have orphan click decorators (`@click.group()` or `@click.command(...)` without `@main.group()`).
+`cutctx/cli/main.py:24-36` documents `cutctx audit, orgs, rbac, sso-test, config-check, bench` as top-level commands. `python -m cutctx.cli audit` returns `Error: No such command 'audit'`. The 6 files have orphan click decorators (`@click.group()` or `@click.command(...)` without `@main.group()`).
 
-**Fix:** Add `@main.group()` to the top-level decorator in each of: `headroom/cli/audit.py:24`, `orgs.py:23`, `rbac.py:23`, `sso_test.py:9`, `config_check.py:32`, `bench.py:70`.
+**Fix:** Add `@main.group()` to the top-level decorator in each of: `cutctx/cli/audit.py:24`, `orgs.py:23`, `rbac.py:23`, `sso_test.py:9`, `config_check.py:32`, `bench.py:70`.
 
 ### 6.6 Blocker 6 — Audit actor regression in `server.py:3401`
 
 **Severity: High (audit attribution can still be forged)**
 
-The Medium-33 fix (`54e6bb03`) hardened `headroom/proxy/routes/admin.py:59-82` to use the `sso: > key: > admin` hierarchy, but `headroom/proxy/server.py:3401` for `/stats/reset` still uses `request.headers.get("x-headroom-user-id", "admin")` — the same client-controllable header the fix was meant to eliminate.
+The Medium-33 fix (`54e6bb03`) hardened `cutctx/proxy/routes/admin.py:59-82` to use the `sso: > key: > admin` hierarchy, but `cutctx/proxy/server.py:3401` for `/stats/reset` still uses `request.headers.get("x-cutctx-user-id", "admin")` — the same client-controllable header the fix was meant to eliminate.
 
 **Fix:** Apply the same `sso: > key: > admin` hierarchy from `routes/admin.py:59-82` to `server.py:3401`.
 
-### 6.7 Blocker 7 — `HeadroomMode` NameError regression (uncommitted rebrand work)
+### 6.7 Blocker 7 — `CutctxMode` NameError regression (uncommitted rebrand work)
 
 **Severity: High (test fails, code is broken at runtime)**
 
-`headroom/__init__.py:101-102` still exports `HeadroomConfig, HeadroomMode` (old names). `headroom/client.py:938` references `HeadroomMode.AUDIT` which no longer exists in `headroom/config.py:13` (renamed to `CutctxMode`). `tests/test_config.py:TestHeadroomMode::test_string_conversion` fails with `NameError`.
+`cutctx/__init__.py:101-102` still exports `CutctxConfig, CutctxMode` (old names). `cutctx/client.py:938` references `CutctxMode.AUDIT` which no longer exists in `cutctx/config.py:13` (renamed to `CutctxMode`). `tests/test_config.py:TestCutctxMode::test_string_conversion` fails with `NameError`.
 
-**Fix:** Either commit the rebrand atomically (rename `HeadroomMode` → `CutctxMode` in `client.py:938`, `__init__.py:101-102`, and update the 2 untracked test files) or revert the uncommitted rebrand.
+**Fix:** Either commit the rebrand atomically (rename `CutctxMode` → `CutctxMode` in `client.py:938`, `__init__.py:101-102`, and update the 2 untracked test files) or revert the uncommitted rebrand.
 
 ---
 
@@ -285,12 +285,12 @@ The Medium-33 fix (`54e6bb03`) hardened `headroom/proxy/routes/admin.py:59-82` t
 
 1. **Wire ModelRouter into the request path** (Blocker 1). Add `proxy._model_router.maybe_route(model, request)` call at the earliest point in the upstream-call flow. **Estimated 1-2 weeks.**
 2. **Fix Residency `verify()` method** (Blocker 2). Change `residency_proof.py:226` to pass `SHA256(payload).digest()`. **Estimated 1 hour + tests.**
-3. **Implement air-gap egress enforcement** (Blocker 3a). Add a domain blocklist + firewall interceptor that respects `HEADROOM_OFFLINE_MODE=1`. **Estimated 2-3 weeks.**
+3. **Implement air-gap egress enforcement** (Blocker 3a). Add a domain blocklist + firewall interceptor that respects `CUTCTX_OFFLINE_MODE=1`. **Estimated 2-3 weeks.**
 4. **Implement secrets management** (Blocker 3b). Either integrate HashiCorp Vault or AWS Secrets Manager SDK. **Estimated 2-3 weeks.**
-5. **Remove TODOs from `headroom_ee/memory_service/api.py:65-75`** (Blocker 3c). Either add real auth/audit or remove the `/v1/memory/review` endpoint. **Estimated 1 day.**
+5. **Remove TODOs from `cutctx_ee/memory_service/api.py:65-75`** (Blocker 3c). Either add real auth/audit or remove the `/v1/memory/review` endpoint. **Estimated 1 day.**
 6. **Make dashboard interactive** (Blocker 4). Add search/filter/sort/loading/error states. Replace hardcoded React page values with real API calls. **Estimated 2-3 weeks.**
 7. **Fix audit actor in `server.py:3401`** (Blocker 6). Apply the `sso: > key: > admin` hierarchy. **Estimated 1 hour + tests.**
-8. **Commit rebrand atomically** (Blocker 7). Fix `HeadroomMode` → `CutctxMode` references in `__init__.py:101-102`, `client.py:938`, plus the uncommitted `test_config.py` rebrand. **Estimated 1 day.**
+8. **Commit rebrand atomically** (Blocker 7). Fix `CutctxMode` → `CutctxMode` references in `__init__.py:101-102`, `client.py:938`, plus the uncommitted `test_config.py` rebrand. **Estimated 1 day.**
 9. **Fix the 6 unreachable CLI commands** (Blocker 5). Add `@main.group()` to the 6 orphan files. **Estimated 1 hour.**
 
 ### High (must close before public beta)
@@ -308,9 +308,9 @@ The Medium-33 fix (`54e6bb03`) hardened `headroom/proxy/routes/admin.py:59-82` t
 20. Add per-source savings dashboard UI (consume the data that's already in the funnel).
 21. Add tests for streaming.py (verify the PII redactor wiring end-to-end).
 22. Update `.env.example` to document all `CUTCTX_*` env vars.
-23. Update K8s `deployment.yaml:42` to use `ghcr.io/aryansingh/headroom:0.26.0` (or whatever the canonical image is).
+23. Update K8s `deployment.yaml:42` to use `ghcr.io/aryansingh/cutctx:0.26.0` (or whatever the canonical image is).
 24. Update K8s `backup-cronjob.yaml:22` to pin alpine version (not `latest`).
-25. Update K8s `secret.yaml:11` to use `hello@cutctx.dev` (not `hello@headroom.dev`).
+25. Update K8s `secret.yaml:11` to use `hello@cutctx.dev` (not `hello@cutctx.dev`).
 26. Update `gtm/soc2-roadmap.md:87` to remove the outdated "spend ledger has no backup" claim.
 27. Expose `savings_tracker.verify_integrity` via CLI.
 
@@ -326,9 +326,9 @@ The Medium-33 fix (`54e6bb03`) hardened `headroom/proxy/routes/admin.py:59-82` t
 35. Add failover router tests (currently 0 dedicated tests).
 36. Add admin endpoints integration tests (the 50+ admin routes in `admin.py` are mostly untested; only auth-gate smoke tests exist).
 37. Re-enable LLM firewall by default for at least the public cloud tier.
-38. Rebrand Go + Java SDKs (still use old "headroom" name).
+38. Rebrand Go + Java SDKs (still use old "cutctx" name).
 39. Add onboarding "Welcome" state for zero-traffic users.
-40. Update `docs/spec/013-disaster-recovery.md:42` to use `headroom_memory.db` (or the canonical filename).
+40. Update `docs/spec/013-disaster-recovery.md:42` to use `cutctx_memory.db` (or the canonical filename).
 41. Make the live feed drawer closable via Esc key.
 
 ### Low (close when bandwidth allows)
@@ -364,7 +364,7 @@ The Medium-33 fix (`54e6bb03`) hardened `headroom/proxy/routes/admin.py:59-82` t
 - Air-gap + secrets + EE memory TODOs unimplemented (-3)
 - 154 test failures (mostly pre-existing, but includes NameError regression) (-2)
 - Audit actor regression in server.py:3401 (-1)
-- Rebrand leftovers (HeadroomMode, etc.) (-1)
+- Rebrand leftovers (CutctxMode, etc.) (-1)
 - K8s image refs / alpine:latest (-1)
 
 ---
@@ -459,13 +459,13 @@ If a customer asks "is Cutctx production-ready?" the honest answer today is:
 
 1. **The compression pipeline is real and working.** 5 sources tracked, USD attribution is buyer-grade accurate, dashboard shows per-source cards (in the SSR dashboard), durable history survives restart, CLI reports JSON always. **Verified end-to-end for 3 of 5 sources.**
 
-2. **2 of the 5 savings sources are bound but not firing.** Provider cache, semantic cache, and CutCtx compression fire from real traffic. Self-hosted prefix cache and model routing are bound to the proxy but not invoked by any handler — they show 0 unless a client sets the `x-headroom-*` opt-in headers. **The model router code exists (300 lines, 16 tests) but is not called from the request path. This is the next thing we need to ship.**
+2. **2 of the 5 savings sources are bound but not firing.** Provider cache, semantic cache, and Cutctx compression fire from real traffic. Self-hosted prefix cache and model routing are bound to the proxy but not invoked by any handler — they show 0 unless a client sets the `x-cutctx-*` opt-in headers. **The model router code exists (300 lines, 16 tests) but is not called from the request path. This is the next thing we need to ship.**
 
 3. **The enterprise security surface has known gaps.** SSO OIDC is now working (after the 06-21 class-boundary fix). All EE routes are gated. DSR endpoints exist. Audit has actor hierarchy + secret key enforcement. **However, the residency `verify()` method is broken (signer hashes, verifier doesn't), air-gap mode is a no-op, secrets management is a stub, and the SOC2 roadmap still has unimplemented items marked honestly.** A serious enterprise security review will surface these.
 
 4. **The admin UI is mixed.** The SSR dashboard at `/dashboard` shows real per-source stats. The React dashboard at `/admin` serves static mockups with hardcoded values (4,289 req/min, 68.4% compression). 6 of 26 documented CLI commands are unreachable.
 
-5. **Backups are complete for spend + audit.** The `k8s/backup-cronjob.yaml` now backs up `headroom_memory.db`, `spend_ledger.db`, and `audit.db` with 30-day retention. The memory store has corruption-recovery tests; the new savings store does.
+5. **Backups are complete for spend + audit.** The `k8s/backup-cronjob.yaml` now backs up `cutctx_memory.db`, `spend_ledger.db`, and `audit.db` with 30-day retention. The memory store has corruption-recovery tests; the new savings store does.
 
 **For a private design partner with disclosure, the proxy is usable today.** **For paid enterprise, the timeline is 3.5-5 months of focused work.** **For public OSS, the product is ready with a clearly-documented "2 of 5 sources require integration" caveat.**
 
@@ -482,17 +482,17 @@ If a customer asks "is Cutctx production-ready?" the honest answer today is:
 | Blocker-5 (3 of 5 sources don't fire) | High | "Closed" | **FALSE — Model router is dead code; only 3 of 5 sources actually fire** |
 | Blocker-6 (/admin 404) | High | "Closed" | **PARTIALLY FIXED — 200 OK, but serves static mockup; soft regression vs SSR dashboard** |
 | Blocker-7 (admin key logged) | High | (not in reconciliation) | **VERIFIED FIXED** — admin key printed to stderr only |
-| Blocker-8 (audit secret) | High | (not in reconciliation) | **VERIFIED FIXED** — refuses to start without `HEADROOM_AUDIT_SECRET_KEY` |
+| Blocker-8 (audit secret) | High | (not in reconciliation) | **VERIFIED FIXED** — refuses to start without `CUTCTX_AUDIT_SECRET_KEY` |
 | Blocker-9 (audit secret default) | High | (not in reconciliation) | **VERIFIED FIXED** — same as Blocker-8 |
 | Blocker-10 (PII redactor unwired) | High | "FALSIFIED — re-auditor misread" | **VERIFIED WIRED** — `streaming.py:1175-1180` calls `wrap_stream()`; `server.py:2146` sets `proxy._streaming_redactor`; **but** 3 streaming tests fail with connection errors, so end-to-end behavior is unverified |
-| Medium-33 (audit actor) | High | "FALSIFIED — re-auditor searched literal string" | **PARTIALLY FIXED — `routes/admin.py:59-82` uses `sso: > key: > admin`; but `server.py:3401` still uses `X-Headroom-User-Id` header for `/stats/reset` audit event** |
-| Medium-35 (docker-compose) | Low | "TRUE" | **VERIFIED FIXED** — both `docker-compose.native.yml:9, 31` now use `aryansingh/headroom` |
+| Medium-33 (audit actor) | High | "FALSIFIED — re-auditor searched literal string" | **PARTIALLY FIXED — `routes/admin.py:59-82` uses `sso: > key: > admin`; but `server.py:3401` still uses `X-Cutctx-User-Id` header for `/stats/reset` audit event** |
+| Medium-35 (docker-compose) | Low | "TRUE" | **VERIFIED FIXED** — both `docker-compose.native.yml:9, 31` now use `aryansingh/cutctx` |
 | **NEW: Residency `verify()` broken** | (not detected) | (not detected) | **CRITICAL — confirmed broken in this audit** |
 | **NEW: Model router dead code** | (not detected) | (closed in 61b5196a) | **CRITICAL — confirmed dead code in this audit** |
 | **NEW: Air-gap, secrets, EE memory TODOs** | (not detected) | (not detected) | **CRITICAL — confirmed stubs in this audit** |
 | **NEW: 6 CLI commands unreachable** | (not detected) | (not detected) | **HIGH — confirmed in this audit** |
-| **NEW: `HeadroomMode` NameError regression** | (not detected) | (not detected) | **HIGH — confirmed in this audit** |
+| **NEW: `CutctxMode` NameError regression** | (not detected) | (not detected) | **HIGH — confirmed in this audit** |
 | Production readiness score | 62 | 80 | **60** (down from 80 because model router dead code is a critical moat-b1 failure) |
 | Enterprise readiness score | 38 | (not stated) | **45** |
 
-**Bottom line:** The remediation series closed 19 of 46 audit items correctly. Three of the items the 2026-06-21 reconciliation claimed "closed" are actually **partially closed** (Blocker-5 model router, Medium-33 audit actor, Blocker-6 /admin serves mockup). Three new high-severity items were found that the prior audits missed entirely (Residency verify broken, Air-gap/secrets/EE memory stubs, 6 CLI commands unreachable, `HeadroomMode` regression). The 2026-06-21 reconciliation's score of 80/100 was **too optimistic** because it trusted commit messages without verifying the live code paths.
+**Bottom line:** The remediation series closed 19 of 46 audit items correctly. Three of the items the 2026-06-21 reconciliation claimed "closed" are actually **partially closed** (Blocker-5 model router, Medium-33 audit actor, Blocker-6 /admin serves mockup). Three new high-severity items were found that the prior audits missed entirely (Residency verify broken, Air-gap/secrets/EE memory stubs, 6 CLI commands unreachable, `CutctxMode` regression). The 2026-06-21 reconciliation's score of 80/100 was **too optimistic** because it trusted commit messages without verifying the live code paths.

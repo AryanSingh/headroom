@@ -8,7 +8,7 @@ introduce the bug classes this PR fixed:
     must be gated by ``MemoryDecision``, not by an inline
     ``if self.memory_handler and memory_user_id`` conjunction. The
     raw conjunction is what allowed sites 1/2/3 to silently ignore
-    ``x-headroom-bypass: true``.
+    ``x-cutctx-bypass: true``.
 
 (b) **No memory writes to system/instructions**: memory injection
     must target user-message-tail / body["input"] / messages, never
@@ -29,13 +29,13 @@ from pathlib import Path
 import pytest
 
 HANDLER_FILES = [
-    Path("headroom/proxy/handlers/anthropic.py"),
-    Path("headroom/proxy/handlers/openai/chat.py"),
-    Path("headroom/proxy/handlers/openai/responses.py"),
-    Path("headroom/proxy/handlers/openai/passthrough.py"),
-    Path("headroom/proxy/handlers/openai/compress.py"),
-    Path("headroom/proxy/handlers/gemini.py"),
-    Path("headroom/proxy/handlers/batch.py"),
+    Path("cutctx/proxy/handlers/anthropic.py"),
+    Path("cutctx/proxy/handlers/openai/chat.py"),
+    Path("cutctx/proxy/handlers/openai/responses.py"),
+    Path("cutctx/proxy/handlers/openai/passthrough.py"),
+    Path("cutctx/proxy/handlers/openai/compress.py"),
+    Path("cutctx/proxy/handlers/gemini.py"),
+    Path("cutctx/proxy/handlers/batch.py"),
 ]
 
 
@@ -197,5 +197,5 @@ def test_every_search_and_format_context_call_passes_query_kwarg() -> None:
             f"{len(offenders)} search_and_format_context call(s) miss `query=`:\n"
             f"{formatted}\n\n"
             "Pass `query=MemoryQuery.from_messages(...)` — the multi-source, "
-            "untruncated query value type. See headroom/proxy/memory_query.py."
+            "untruncated query value type. See cutctx/proxy/memory_query.py."
         )

@@ -26,16 +26,16 @@ export class StatusBarManager implements vscode.Disposable {
         const latest = this.stats.getLatestStats();
         if (running && latest && latest.tokensSaved > 0) {
             const k = latest.tokensSaved >= 1000 ? `${(latest.tokensSaved / 1000).toFixed(1)}K` : String(latest.tokensSaved);
-            this.item.text = `$(check) CutCtx: ${k} tokens saved`;
+            this.item.text = `$(check) Cutctx: ${k} tokens saved`;
             this.item.tooltip = `$${latest.dollarsSaved.toFixed(4)} saved across ${latest.requestsCompressed} requests\nClick for details`;
             this.item.backgroundColor = undefined;
         } else if (running) {
-            this.item.text = `$(check) CutCtx: Active`;
+            this.item.text = `$(check) Cutctx: Active`;
             this.item.tooltip = `Proxy running on port ${this.port}`;
             this.item.backgroundColor = undefined;
         } else {
-            this.item.text = `$(circle-slash) CutCtx: Off`;
-            this.item.tooltip = `Click: CutCtx.showStats | Run 'CutCtx: Start Proxy' to enable`;
+            this.item.text = `$(circle-slash) Cutctx: Off`;
+            this.item.tooltip = `Click: Cutctx.showStats | Run 'Cutctx: Start Proxy' to enable`;
             this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
         }
     }

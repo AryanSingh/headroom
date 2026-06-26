@@ -1,8 +1,8 @@
 /**
- * Tests for Gemini adapter — withCutCtx for Google Generative AI.
+ * Tests for Gemini adapter — withCutctx for Google Generative AI.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { withCutCtx } from "../../src/adapters/gemini.js";
+import { withCutctx } from "../../src/adapters/gemini.js";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -22,7 +22,7 @@ function mockCompressResponse(messages: any[]) {
   };
 }
 
-describe("Gemini withCutCtx", () => {
+describe("Gemini withCutctx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -35,7 +35,7 @@ describe("Gemini withCutCtx", () => {
 
     mockFetch.mockResolvedValue(mockCompressResponse([]));
 
-    const wrapped = withCutCtx(mockModel, { baseUrl: "http://test:8787" });
+    const wrapped = withCutctx(mockModel, { baseUrl: "http://test:8787" });
 
     const result = await wrapped.generateContent({
       contents: [
@@ -60,7 +60,7 @@ describe("Gemini withCutCtx", () => {
 
     mockFetch.mockResolvedValue(mockCompressResponse([]));
 
-    const wrapped = withCutCtx(mockModel, { baseUrl: "http://test:8787" });
+    const wrapped = withCutctx(mockModel, { baseUrl: "http://test:8787" });
 
     const result = await wrapped.generateContentStream({
       contents: [{ role: "user", parts: [{ text: "Stream test" }] }],
@@ -76,7 +76,7 @@ describe("Gemini withCutCtx", () => {
       countTokens: vi.fn().mockReturnValue(42),
     };
 
-    const wrapped = withCutCtx(mockModel, { baseUrl: "http://test:8787" });
+    const wrapped = withCutctx(mockModel, { baseUrl: "http://test:8787" });
     expect(wrapped.countTokens()).toBe(42);
   });
 
@@ -87,7 +87,7 @@ describe("Gemini withCutCtx", () => {
 
     mockFetch.mockResolvedValue(mockCompressResponse([]));
 
-    const wrapped = withCutCtx(mockModel, {
+    const wrapped = withCutctx(mockModel, {
       baseUrl: "http://test:8787",
       model: "gemini-2.0-flash",
     });
@@ -121,7 +121,7 @@ describe("Gemini withCutCtx", () => {
       }),
     });
 
-    const wrapped = withCutCtx(mockModel, { baseUrl: "http://test:8787" });
+    const wrapped = withCutctx(mockModel, { baseUrl: "http://test:8787" });
     const result = await wrapped.generateContent({
       contents: [{ role: "user", parts: [{ text: "Hello Gemini" }] }],
     });

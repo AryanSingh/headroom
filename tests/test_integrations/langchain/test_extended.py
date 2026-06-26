@@ -33,7 +33,7 @@ class TestProviderDetection:
 
     def test_detect_openai_provider(self):
         """Detect OpenAI from ChatOpenAI class."""
-        from headroom.integrations.langchain.providers import detect_provider
+        from cutctx.integrations.langchain.providers import detect_provider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "ChatOpenAI"
@@ -44,7 +44,7 @@ class TestProviderDetection:
 
     def test_detect_anthropic_provider(self):
         """Detect Anthropic from ChatAnthropic class."""
-        from headroom.integrations.langchain.providers import detect_provider
+        from cutctx.integrations.langchain.providers import detect_provider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "ChatAnthropic"
@@ -55,7 +55,7 @@ class TestProviderDetection:
 
     def test_detect_google_provider(self):
         """Detect Google from ChatGoogleGenerativeAI class."""
-        from headroom.integrations.langchain.providers import detect_provider
+        from cutctx.integrations.langchain.providers import detect_provider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "ChatGoogleGenerativeAI"
@@ -66,7 +66,7 @@ class TestProviderDetection:
 
     def test_detect_fallback_to_openai(self):
         """Fall back to OpenAI for unknown models."""
-        from headroom.integrations.langchain.providers import detect_provider
+        from cutctx.integrations.langchain.providers import detect_provider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "CustomChatModel"
@@ -77,7 +77,7 @@ class TestProviderDetection:
 
     def test_detect_from_model_name_claude(self):
         """Detect Anthropic from model name containing 'claude'."""
-        from headroom.integrations.langchain.providers import detect_provider
+        from cutctx.integrations.langchain.providers import detect_provider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "CustomModel"
@@ -87,33 +87,33 @@ class TestProviderDetection:
         provider = detect_provider(mock_model)
         assert provider == "anthropic"
 
-    def test_get_headroom_provider_openai(self):
+    def test_get_cutctx_provider_openai(self):
         """Get OpenAIProvider for OpenAI model."""
-        from headroom.integrations.langchain.providers import get_headroom_provider
-        from headroom.providers import OpenAIProvider
+        from cutctx.integrations.langchain.providers import get_cutctx_provider
+        from cutctx.providers import OpenAIProvider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "ChatOpenAI"
         mock_model.__class__.__module__ = "langchain_openai"
 
-        provider = get_headroom_provider(mock_model)
+        provider = get_cutctx_provider(mock_model)
         assert isinstance(provider, OpenAIProvider)
 
-    def test_get_headroom_provider_anthropic(self):
+    def test_get_cutctx_provider_anthropic(self):
         """Get AnthropicProvider for Anthropic model."""
-        from headroom.integrations.langchain.providers import get_headroom_provider
-        from headroom.providers import AnthropicProvider
+        from cutctx.integrations.langchain.providers import get_cutctx_provider
+        from cutctx.providers import AnthropicProvider
 
         mock_model = MagicMock()
         mock_model.__class__.__name__ = "ChatAnthropic"
         mock_model.__class__.__module__ = "langchain_anthropic"
 
-        provider = get_headroom_provider(mock_model)
+        provider = get_cutctx_provider(mock_model)
         assert isinstance(provider, AnthropicProvider)
 
     def test_get_model_name_from_langchain(self):
         """Extract model name from LangChain model."""
-        from headroom.integrations.langchain.providers import get_model_name_from_langchain
+        from cutctx.integrations.langchain.providers import get_model_name_from_langchain
 
         mock_model = MagicMock()
         mock_model.model_name = "gpt-4o"
@@ -123,7 +123,7 @@ class TestProviderDetection:
 
     def test_get_model_name_fallback(self):
         """Fall back when model name not available."""
-        from headroom.integrations.langchain.providers import get_model_name_from_langchain
+        from cutctx.integrations.langchain.providers import get_model_name_from_langchain
 
         mock_model = MagicMock(spec=[])
         mock_model.__class__.__name__ = "ChatOpenAI"
@@ -132,12 +132,12 @@ class TestProviderDetection:
         assert name == "gpt-4o"  # Default for OpenAI
 
 
-class TestHeadroomChatMessageHistory:
+class TestCutctxChatMessageHistory:
     """Tests for CutctxChatMessageHistory memory wrapper."""
 
     def test_init(self):
         """Initialize with base history."""
-        from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+        from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
 
         mock_history = MagicMock()
         mock_history.messages = []
@@ -154,7 +154,7 @@ class TestHeadroomChatMessageHistory:
 
     def test_messages_passthrough_under_threshold(self):
         """Messages pass through when under threshold."""
-        from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+        from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
 
         mock_history = MagicMock()
         mock_history.messages = [
@@ -173,7 +173,7 @@ class TestHeadroomChatMessageHistory:
 
     def test_add_message_delegates(self):
         """add_message delegates to base history."""
-        from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+        from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
 
         mock_history = MagicMock()
         mock_history.messages = []
@@ -186,7 +186,7 @@ class TestHeadroomChatMessageHistory:
 
     def test_clear_delegates(self):
         """clear delegates to base history."""
-        from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+        from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
 
         mock_history = MagicMock()
         mock_history.messages = []
@@ -198,7 +198,7 @@ class TestHeadroomChatMessageHistory:
 
     def test_get_compression_stats(self):
         """Get compression statistics."""
-        from headroom.integrations.langchain.memory import CutctxChatMessageHistory
+        from cutctx.integrations.langchain.memory import CutctxChatMessageHistory
 
         mock_history = MagicMock()
         mock_history.messages = []
@@ -211,12 +211,12 @@ class TestHeadroomChatMessageHistory:
         assert stats["compression_count"] == 0
 
 
-class TestHeadroomDocumentCompressor:
+class TestCutctxDocumentCompressor:
     """Tests for CutctxDocumentCompressor retriever integration."""
 
     def test_init(self):
         """Initialize with defaults."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -226,7 +226,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_init_custom(self):
         """Initialize with custom settings."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(
             max_documents=5,
@@ -240,7 +240,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_compress_passthrough_under_limit(self):
         """Pass through when under max_documents."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=10)
 
@@ -255,7 +255,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_compress_reduces_to_max(self):
         """Compress when over max_documents."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=2)
 
@@ -272,7 +272,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_compress_prefers_relevant(self):
         """Keep most relevant documents."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=1)
 
@@ -289,7 +289,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_metrics_tracked(self):
         """Compression metrics are tracked."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=2)
 
@@ -309,7 +309,7 @@ class TestHeadroomDocumentCompressor:
 
     def test_get_compression_stats(self):
         """Get compression statistics."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=1)
         docs = [Document(page_content="A"), Document(page_content="B")]
@@ -322,12 +322,12 @@ class TestHeadroomDocumentCompressor:
         assert "average_relevance" in stats
 
 
-class TestHeadroomToolWrapper:
+class TestCutctxToolWrapper:
     """Tests for CutctxToolWrapper agent integration."""
 
     def test_init(self):
         """Initialize wrapper."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool = MagicMock()
         mock_tool.name = "test_tool"
@@ -340,7 +340,7 @@ class TestHeadroomToolWrapper:
 
     def test_call_passthrough_small_output(self):
         """Small outputs pass through without compression."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool = MagicMock()
         mock_tool.name = "test"
@@ -354,7 +354,7 @@ class TestHeadroomToolWrapper:
 
     def test_call_compresses_large_json(self):
         """Large JSON outputs get compressed."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool = MagicMock()
         mock_tool.name = "search"
@@ -372,7 +372,7 @@ class TestHeadroomToolWrapper:
 
     def test_as_langchain_tool(self):
         """Convert to LangChain tool."""
-        from headroom.integrations.langchain.agents import CutctxToolWrapper
+        from cutctx.integrations.langchain.agents import CutctxToolWrapper
 
         mock_tool = MagicMock()
         mock_tool.name = "test"
@@ -385,9 +385,9 @@ class TestHeadroomToolWrapper:
         assert isinstance(lc_tool, StructuredTool)
         assert lc_tool.name == "test"
 
-    def test_wrap_tools_with_headroom(self):
+    def test_wrap_tools_with_cutctx(self):
         """Wrap multiple tools at once."""
-        from headroom.integrations.langchain.agents import wrap_tools_with_headroom
+        from cutctx.integrations.langchain.agents import wrap_tools_with_cutctx
 
         tools = []
         for i in range(3):
@@ -397,14 +397,14 @@ class TestHeadroomToolWrapper:
             mock.invoke.return_value = "result"
             tools.append(mock)
 
-        wrapped = wrap_tools_with_headroom(tools)
+        wrapped = wrap_tools_with_cutctx(tools)
 
         assert len(wrapped) == 3
         assert all(isinstance(t, StructuredTool) for t in wrapped)
 
     def test_metrics_collector(self):
         """Tool metrics are collected."""
-        from headroom.integrations.langchain.agents import (
+        from cutctx.integrations.langchain.agents import (
             CutctxToolWrapper,
             ToolMetricsCollector,
         )
@@ -423,12 +423,12 @@ class TestHeadroomToolWrapper:
         assert collector.metrics[0].tool_name == "test"
 
 
-class TestHeadroomLangSmithCallbackHandler:
+class TestCutctxLangSmithCallbackHandler:
     """Tests for LangSmith integration."""
 
     def test_init(self):
         """Initialize handler."""
-        from headroom.integrations.langchain.langsmith import (
+        from cutctx.integrations.langchain.langsmith import (
             CutctxLangSmithCallbackHandler,
         )
 
@@ -437,15 +437,15 @@ class TestHeadroomLangSmithCallbackHandler:
         assert handler._auto_update is False
         assert handler._pending_metrics == {}
 
-    def test_set_headroom_metrics(self):
+    def test_set_cutctx_metrics(self):
         """Set metrics for a run."""
-        from headroom.integrations.langchain.langsmith import (
+        from cutctx.integrations.langchain.langsmith import (
             CutctxLangSmithCallbackHandler,
         )
 
         handler = CutctxLangSmithCallbackHandler(auto_update_runs=False)
 
-        handler.set_headroom_metrics(
+        handler.set_cutctx_metrics(
             run_id="test-run-123",
             tokens_before=1000,
             tokens_after=800,
@@ -461,26 +461,26 @@ class TestHeadroomLangSmithCallbackHandler:
 
     def test_get_run_metrics(self):
         """Get metrics for a specific run."""
-        from headroom.integrations.langchain.langsmith import (
+        from cutctx.integrations.langchain.langsmith import (
             CutctxLangSmithCallbackHandler,
         )
 
         handler = CutctxLangSmithCallbackHandler(auto_update_runs=False)
-        handler._run_metrics["run-1"] = {"headroom.tokens_saved": 100}
+        handler._run_metrics["run-1"] = {"cutctx.tokens_saved": 100}
 
         metrics = handler.get_run_metrics("run-1")
-        assert metrics["headroom.tokens_saved"] == 100
+        assert metrics["cutctx.tokens_saved"] == 100
 
     def test_get_summary(self):
         """Get summary statistics."""
-        from headroom.integrations.langchain.langsmith import (
+        from cutctx.integrations.langchain.langsmith import (
             CutctxLangSmithCallbackHandler,
         )
 
         handler = CutctxLangSmithCallbackHandler(auto_update_runs=False)
         handler._run_metrics = {
-            "run-1": {"headroom.tokens_saved": 100, "headroom.savings_percent": 20},
-            "run-2": {"headroom.tokens_saved": 200, "headroom.savings_percent": 30},
+            "run-1": {"cutctx.tokens_saved": 100, "cutctx.savings_percent": 20},
+            "run-2": {"cutctx.tokens_saved": 200, "cutctx.savings_percent": 30},
         }
 
         summary = handler.get_summary()
@@ -490,7 +490,7 @@ class TestHeadroomLangSmithCallbackHandler:
 
     def test_reset(self):
         """Reset clears all metrics."""
-        from headroom.integrations.langchain.langsmith import (
+        from cutctx.integrations.langchain.langsmith import (
             CutctxLangSmithCallbackHandler,
         )
 
@@ -509,7 +509,7 @@ class TestStreamingMetricsTracker:
 
     def test_init(self):
         """Initialize tracker."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker(model="gpt-4o")
 
@@ -519,7 +519,7 @@ class TestStreamingMetricsTracker:
 
     def test_add_chunk_string(self):
         """Add string chunks."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker()
         tracker.add_chunk("Hello ")
@@ -530,7 +530,7 @@ class TestStreamingMetricsTracker:
 
     def test_add_chunk_with_content_attr(self):
         """Add chunks with content attribute."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker()
 
@@ -546,7 +546,7 @@ class TestStreamingMetricsTracker:
 
     def test_output_tokens(self):
         """Count output tokens."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker(model="gpt-4o")
         tracker.add_chunk("Hello world, this is a test message.")
@@ -556,7 +556,7 @@ class TestStreamingMetricsTracker:
 
     def test_finish(self):
         """Finish tracking and get metrics."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker()
         tracker.add_chunk("Test content")
@@ -569,7 +569,7 @@ class TestStreamingMetricsTracker:
 
     def test_reset(self):
         """Reset tracker for reuse."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsTracker
+        from cutctx.integrations.langchain.streaming import StreamingMetricsTracker
 
         tracker = StreamingMetricsTracker()
         tracker.add_chunk("Content")
@@ -582,7 +582,7 @@ class TestStreamingMetricsTracker:
 
     def test_streaming_metrics_callback(self):
         """Test context manager interface."""
-        from headroom.integrations.langchain.streaming import StreamingMetricsCallback
+        from cutctx.integrations.langchain.streaming import StreamingMetricsCallback
 
         with StreamingMetricsCallback(model="gpt-4o") as tracker:
             tracker.add_chunk("Hello")
@@ -593,7 +593,7 @@ class TestStreamingMetricsTracker:
 
     def test_track_streaming_response(self):
         """Track a complete streaming response."""
-        from headroom.integrations.langchain.streaming import track_streaming_response
+        from cutctx.integrations.langchain.streaming import track_streaming_response
 
         chunks = ["Hello ", "world", "!"]
         content, metrics = track_streaming_response(iter(chunks), model="gpt-4o")
@@ -607,7 +607,7 @@ class TestAutoDetectProviderInChatModel:
 
     def test_auto_detect_enabled_by_default(self):
         """auto_detect_provider is True by default."""
-        from headroom.integrations import CutctxChatModel
+        from cutctx.integrations import CutctxChatModel
 
         mock_model = MagicMock()
         mock_model._llm_type = "test"
@@ -620,7 +620,7 @@ class TestAutoDetectProviderInChatModel:
 
     def test_auto_detect_can_be_disabled(self):
         """auto_detect_provider can be set to False."""
-        from headroom.integrations import CutctxChatModel
+        from cutctx.integrations import CutctxChatModel
 
         mock_model = MagicMock()
         mock_model._llm_type = "test"
@@ -631,8 +631,8 @@ class TestAutoDetectProviderInChatModel:
 
     def test_pipeline_uses_detected_provider(self):
         """Pipeline uses auto-detected provider."""
-        from headroom.integrations import CutctxChatModel
-        from headroom.providers import AnthropicProvider
+        from cutctx.integrations import CutctxChatModel
+        from cutctx.providers import AnthropicProvider
 
         mock_model = MagicMock()
         mock_model._llm_type = "test"

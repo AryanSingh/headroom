@@ -1,5 +1,5 @@
 /**
- * CutCtxClient — HTTP client for the CutCtx compression proxy.
+ * CutctxClient — HTTP client for the Cutctx compression proxy.
  *
  * Supports:
  * - compress() — direct compression via /v1/compress
@@ -11,15 +11,15 @@
 import type {
   OpenAIMessage,
   CompressResult,
-  CutCtxClientOptions,
-  CutCtxClientInterface,
+  CutctxClientOptions,
+  CutctxClientInterface,
   ProxyCompressResponse,
   ProxyErrorResponse,
 } from "./types.js";
-import { mapProxyError, CutCtxConnectionError, CutCtxAuthError, CutCtxCompressError } from "./errors.js";
+import { mapProxyError, CutctxConnectionError, CutctxAuthError, CutctxCompressError } from "./errors.js";
 import { deepCamelCase, deepSnakeCase } from "./utils/case.js";
 import { parseSSE } from "./utils/stream.js";
-import type { CutCtxConfig, CutCtxMode } from "./types/config.js";
+import type { CutctxConfig, CutctxMode } from "./types/config.js";
 import type {
   SimulationResult,
   RequestMetrics,
@@ -65,32 +65,32 @@ function makeFallbackResult(messages: OpenAIMessage[]): CompressResult {
   };
 }
 
-// --- CutCtx request params ---
+// --- Cutctx request params ---
 
-export interface CutCtxParams {
-  headroomMode?: CutCtxMode;
-  headroomCachePrefixTokens?: number;
-  headroomOutputBufferTokens?: number;
-  headroomKeepTurns?: number;
-  headroomToolProfiles?: Record<string, Record<string, any>>;
+export interface CutctxParams {
+  cutctxMode?: CutctxMode;
+  cutctxCachePrefixTokens?: number;
+  cutctxOutputBufferTokens?: number;
+  cutctxKeepTurns?: number;
+  cutctxToolProfiles?: Record<string, Record<string, any>>;
 }
 
 // --- Sub-clients ---
 
 class ChatCompletions {
-  constructor(private client: CutCtxClient) {}
+  constructor(private client: CutctxClient) {}
 
   /**
    * Create a chat completion with automatic compression.
    * Routes through proxy's POST /v1/chat/completions.
    */
   async create(
-    params: { model: string; messages: OpenAIMessage[]; stream?: boolean; [key: string]: any } & CutCtxParams,
+    params: { model: string; messages: OpenAIMessage[]; stream?: boolean; [key: string]: any } & CutctxParams,
   ): Promise<any> {
-    const { headroomMode, headroomCachePrefixTokens, headroomOutputBufferTokens, headroomKeepTurns, headroomToolProfiles, ...apiParams } = params;
+    const { cutctxMode, cutctxCachePrefixTokens, cutctxOutputBufferTokens, cutctxKeepTurns, cutctxToolProfiles, ...apiParams } = params;
 
     const headers: Record<string, string> = {};
-    if (headroomMode) headers["x-headroom-mode"] = headroomMode;
+    if (cutctxMode) headers["x-cutctx-mode"] = cutctxMode;
 
     const providerKey = this.client.providerApiKey ?? getEnv("OPENAI_API_KEY");
     if (providerKey) headers["Authorization"] = `Bearer ${providerKey}`;
@@ -113,7 +113,7 @@ class ChatCompletions {
    * Simulate compression without calling the LLM.
    */
   async simulate(
-    params: { model: string; messages: OpenAIMessage[] } & CutCtxParams,
+    params: { model: string; messages: OpenAIMessage[] } & CutctxParams,
   ): Promise<SimulationResult> {
     const body = {
       messages: params.messages,
@@ -126,21 +126,21 @@ class ChatCompletions {
 }
 
 class Messages {
-  constructor(private client: CutCtxClient) {}
+  constructor(private client: CutctxClient) {}
 
   /**
    * Create a message with automatic compression.
    * Routes through proxy's POST /v1/messages (Anthropic).
    */
   async create(
-    params: { model: string; messages: any[]; max_tokens?: number; system?: string | any[]; stream?: boolean; [key: string]: any } & CutCtxParams,
+    params: { model: string; messages: any[]; max_tokens?: number; system?: string | any[]; stream?: boolean; [key: string]: any } & CutctxParams,
   ): Promise<any> {
-    const { headroomMode, headroomCachePrefixTokens, headroomOutputBufferTokens, headroomKeepTurns, headroomToolProfiles, ...apiParams } = params;
+    const { cutctxMode, cutctxCachePrefixTokens, cutctxOutputBufferTokens, cutctxKeepTurns, cutctxToolProfiles, ...apiParams } = params;
 
     const headers: Record<string, string> = {
       "anthropic-version": "2023-06-01",
     };
-    if (headroomMode) headers["x-headroom-mode"] = headroomMode;
+    if (cutctxMode) headers["x-cutctx-mode"] = cutctxMode;
 
     const providerKey = this.client.providerApiKey ?? getEnv("ANTHROPIC_API_KEY");
     if (providerKey) headers["x-api-key"] = providerKey;
@@ -165,7 +165,7 @@ class Messages {
    * Stream a message with automatic compression.
    */
   stream(
-    params: { model: string; messages: any[]; max_tokens?: number; system?: string | any[]; [key: string]: any } & CutCtxParams,
+    params: { model: string; messages: any[]; max_tokens?: number; system?: string | any[]; [key: string]: any } & CutctxParams,
   ): Promise<AsyncGenerator<any>> {
     return this.create({ ...params, stream: true }) as Promise<AsyncGenerator<any>>;
   }
@@ -174,7 +174,7 @@ class Messages {
    * Simulate compression without calling the LLM.
    */
   async simulate(
-    params: { model: string; messages: any[] } & CutCtxParams,
+    params: { model: string; messages: any[] } & CutctxParams,
   ): Promise<SimulationResult> {
     const body = {
       messages: params.messages,
@@ -188,19 +188,19 @@ class Messages {
 
 // --- Main client ---
 
-export interface ExtendedClientOptions extends CutCtxClientOptions {
+export interface ExtendedClientOptions extends CutctxClientOptions {
   providerApiKey?: string;
-  defaultMode?: CutCtxMode;
-  config?: CutCtxConfig;
+  defaultMode?: CutctxMode;
+  config?: CutctxConfig;
 }
 
-export class CutCtxClient implements CutCtxClientInterface {
+export class CutctxClient implements CutctxClientInterface {
   private baseUrl: string;
   private apiKey: string | undefined;
   private timeout: number;
   private fallback: boolean;
   private retries: number;
-  private config: CutCtxConfig | undefined;
+  private config: CutctxConfig | undefined;
   private stack: string | undefined;
 
   /** @internal */ providerApiKey: string | undefined;
@@ -213,10 +213,10 @@ export class CutCtxClient implements CutCtxClientInterface {
   constructor(options: ExtendedClientOptions = {}) {
     this.baseUrl = (
       options.baseUrl ??
-      getEnv("HEADROOM_BASE_URL") ??
+      getEnv("CUTCTX_BASE_URL") ??
       DEFAULT_BASE_URL
     ).replace(/\/+$/, "");
-    this.apiKey = options.apiKey ?? getEnv("HEADROOM_API_KEY");
+    this.apiKey = options.apiKey ?? getEnv("CUTCTX_API_KEY");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.fallback = options.fallback ?? true;
     this.retries = options.retries ?? DEFAULT_RETRIES;
@@ -246,9 +246,9 @@ export class CutCtxClient implements CutCtxClientInterface {
         return await this._doCompress(messages, model, options.tokenBudget);
       } catch (error) {
         lastError = error;
-        if (error instanceof CutCtxAuthError) throw error;
+        if (error instanceof CutctxAuthError) throw error;
         if (
-          error instanceof CutCtxCompressError &&
+          error instanceof CutctxCompressError &&
           error.statusCode < 500
         ) {
           throw error;
@@ -259,9 +259,9 @@ export class CutCtxClient implements CutCtxClientInterface {
     if (this.fallback) {
       return makeFallbackResult(messages);
     }
-    if (lastError instanceof CutCtxConnectionError) throw lastError;
-    if (lastError instanceof CutCtxCompressError) throw lastError;
-    throw new CutCtxConnectionError(
+    if (lastError instanceof CutctxConnectionError) throw lastError;
+    if (lastError instanceof CutctxCompressError) throw lastError;
+    throw new CutctxConnectionError(
       `Failed after ${maxAttempts} attempts: ${lastError}`,
     );
   }
@@ -414,7 +414,7 @@ export class CutCtxClient implements CutCtxClientInterface {
     return deepCamelCase<CCRStats>(await resp.json());
   }
 
-  /** Handle an LLM tool call for headroom_retrieve. */
+  /** Handle an LLM tool call for cutctx_retrieve. */
   async handleToolCall(request: {
     toolCall: any;
     provider?: "anthropic" | "openai";
@@ -515,8 +515,8 @@ export class CutCtxClient implements CutCtxClientInterface {
         headers["Authorization"] = `Bearer ${this.apiKey}`;
       }
     }
-    if (this.stack && !headers["X-CutCtx-Stack"]) {
-      headers["X-CutCtx-Stack"] = this.stack;
+    if (this.stack && !headers["X-Cutctx-Stack"]) {
+      headers["X-Cutctx-Stack"] = this.stack;
     }
 
     let response: Response;
@@ -528,8 +528,8 @@ export class CutCtxClient implements CutCtxClientInterface {
         signal: AbortSignal.timeout(this.timeout),
       });
     } catch (error) {
-      throw new CutCtxConnectionError(
-        `Failed to connect to CutCtx at ${this.baseUrl}: ${error}`,
+      throw new CutctxConnectionError(
+        `Failed to connect to Cutctx at ${this.baseUrl}: ${error}`,
       );
     }
 
@@ -563,8 +563,8 @@ export class CutCtxClient implements CutCtxClientInterface {
     if (this.apiKey) {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
-    if (this.stack && !headers["X-CutCtx-Stack"]) {
-      headers["X-CutCtx-Stack"] = this.stack;
+    if (this.stack && !headers["X-Cutctx-Stack"]) {
+      headers["X-Cutctx-Stack"] = this.stack;
     }
 
     let response: Response;
@@ -576,8 +576,8 @@ export class CutCtxClient implements CutCtxClientInterface {
         signal: AbortSignal.timeout(this.timeout),
       });
     } catch (error) {
-      throw new CutCtxConnectionError(
-        `Failed to connect to CutCtx at ${this.baseUrl}: ${error}`,
+      throw new CutctxConnectionError(
+        `Failed to connect to Cutctx at ${this.baseUrl}: ${error}`,
       );
     }
 

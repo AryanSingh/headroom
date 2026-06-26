@@ -9,9 +9,9 @@ import pytest
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 
-from headroom.observability import CutctxOtelMetrics, reset_otel_metrics, set_otel_metrics
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
-from headroom.transforms.pipeline import TransformPipeline
+from cutctx.observability import CutctxOtelMetrics, reset_otel_metrics, set_otel_metrics
+from cutctx.proxy.prometheus_metrics import PrometheusMetrics
+from cutctx.transforms.pipeline import TransformPipeline
 
 
 def _collect_metrics(reader: InMemoryMetricReader) -> dict[str, Any]:
@@ -33,7 +33,7 @@ def _find_point(metric: Any, **expected_attributes: Any) -> Any:
     raise AssertionError(f"No datapoint matched attributes: {expected_attributes}")
 
 
-def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
+def test_cutctx_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
     otel_metrics = CutctxOtelMetrics(meter_provider=provider)
@@ -68,7 +68,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
 
     metrics = _collect_metrics(reader)
 
-    requests = metrics["headroom.proxy.requests"]
+    requests = metrics["cutctx.proxy.requests"]
     request_point = _find_point(
         requests,
         provider="anthropic",
@@ -77,7 +77,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert request_point.value == 1
 
-    latency = metrics["headroom.proxy.request.duration"]
+    latency = metrics["cutctx.proxy.request.duration"]
     latency_point = _find_point(
         latency,
         provider="anthropic",
@@ -87,7 +87,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     assert latency_point.count == 1
     assert latency_point.sum == pytest.approx(0.0185)
 
-    ttl_tokens = metrics["headroom.proxy.cache.write_ttl_tokens"]
+    ttl_tokens = metrics["cutctx.proxy.cache.write_ttl_tokens"]
     five_minute_ttl = _find_point(
         ttl_tokens,
         provider="anthropic",
@@ -96,7 +96,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert five_minute_ttl.value == 10
 
-    compression_runs = metrics["headroom.compression.runs"]
+    compression_runs = metrics["cutctx.compression.runs"]
     compression_point = _find_point(
         compression_runs,
         provider="anthropic",
@@ -104,7 +104,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert compression_point.value == 1
 
-    stage_duration = metrics["headroom.compression.stage.duration"]
+    stage_duration = metrics["cutctx.compression.stage.duration"]
     router_stage = _find_point(
         stage_duration,
         provider="anthropic",
@@ -116,7 +116,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
 
     assert len(stage_duration.data.data_points) == 1
 
-    waste_tokens = metrics["headroom.compression.waste.tokens"]
+    waste_tokens = metrics["cutctx.compression.waste.tokens"]
     waste_point = _find_point(
         waste_tokens,
         provider="anthropic",
@@ -173,11 +173,11 @@ def test_proxy_failure_and_rate_limit_metrics_include_provider_labels() -> None:
 
     metrics = _collect_metrics(reader)
 
-    failed_point = _find_point(metrics["headroom.proxy.requests.failed"], provider="openai")
+    failed_point = _find_point(metrics["cutctx.proxy.requests.failed"], provider="openai")
     assert failed_point.value == 1
 
     rate_limited_point = _find_point(
-        metrics["headroom.proxy.requests.rate_limited"],
+        metrics["cutctx.proxy.requests.rate_limited"],
         provider="anthropic",
         model="claude-sonnet",
     )

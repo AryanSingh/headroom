@@ -20,17 +20,17 @@ interface OpenAILike {
  *
  * @example
  * ```typescript
- * import { withCutCtx } from 'cutctx-ai/openai';
+ * import { withCutctx } from 'cutctx-ai/openai';
  * import OpenAI from 'openai';
  *
- * const client = withCutCtx(new OpenAI());
+ * const client = withCutctx(new OpenAI());
  * const response = await client.chat.completions.create({
  *   model: 'gpt-4o',
  *   messages: longConversation,
  * });
  * ```
  */
-export function withCutCtx<T extends OpenAILike>(
+export function withCutctx<T extends OpenAILike>(
   client: T,
   options: CompressOptions = {},
 ): T {

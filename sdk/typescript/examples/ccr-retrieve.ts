@@ -1,13 +1,13 @@
 /**
  * Example 12: CCR Retrieve — Lossless Compression
  *
- * CutCtx compresses aggressively but stores originals.
- * When the LLM needs full details, it calls headroom_retrieve.
+ * Cutctx compresses aggressively but stores originals.
+ * When the LLM needs full details, it calls cutctx_retrieve.
  * Nothing is ever thrown away.
  *
  * Run: npx tsx examples/12-ccr-retrieve.ts
  */
-import { CutCtxClient } from "cutctx-ai";
+import { CutctxClient } from "cutctx-ai";
 
 // Large dataset that will trigger CCR (Compress-Cache-Retrieve)
 const auditLog = Array.from({ length: 200 }, (_, i) => ({
@@ -25,7 +25,7 @@ const auditLog = Array.from({ length: 200 }, (_, i) => ({
 }));
 
 async function main() {
-  const client = new CutCtxClient();
+  const client = new CutctxClient();
 
   // Compress the large audit log
   const result = await client.compress(

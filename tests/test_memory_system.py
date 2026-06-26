@@ -25,23 +25,23 @@ import pytest
 
 # Check if hnswlib is available for LocalBackend tests
 try:
-    from headroom.memory.adapters.hnsw import _check_hnswlib_available
+    from cutctx.memory.adapters.hnsw import _check_hnswlib_available
 
     HNSW_AVAILABLE = _check_hnswlib_available()
 except ImportError:
     HNSW_AVAILABLE = False
 
-from headroom.memory.adapters.graph import InMemoryGraphStore
-from headroom.memory.adapters.graph_models import (
+from cutctx.memory.adapters.graph import InMemoryGraphStore
+from cutctx.memory.adapters.graph_models import (
     Entity,
     Relationship,
     RelationshipDirection,
     Subgraph,
 )
-from headroom.memory.models import Memory
-from headroom.memory.ports import MemorySearchResult as PortsMemorySearchResult
-from headroom.memory.system import MemorySearchResult, MemorySystem
-from headroom.memory.tools import MEMORY_TOOLS, get_memory_tools, get_tool_names
+from cutctx.memory.models import Memory
+from cutctx.memory.ports import MemorySearchResult as PortsMemorySearchResult
+from cutctx.memory.system import MemorySearchResult, MemorySystem
+from cutctx.memory.tools import MEMORY_TOOLS, get_memory_tools, get_tool_names
 
 # =============================================================================
 # Fixtures
@@ -315,7 +315,7 @@ class TestSubgraphToContext:
 
     def test_to_context_empty_subgraph(self):
         """Test to_context with empty subgraph."""
-        from headroom.memory.ports import Subgraph as PortsSubgraph
+        from cutctx.memory.ports import Subgraph as PortsSubgraph
 
         subgraph = PortsSubgraph()
         context = subgraph.to_context()
@@ -323,8 +323,8 @@ class TestSubgraphToContext:
 
     def test_to_context_entities_only(self):
         """Test to_context with only entities."""
-        from headroom.memory.ports import Entity as PortsEntity
-        from headroom.memory.ports import Subgraph as PortsSubgraph
+        from cutctx.memory.ports import Entity as PortsEntity
+        from cutctx.memory.ports import Subgraph as PortsSubgraph
 
         entities = [
             PortsEntity(id="e1", name="Alice", entity_type="person", user_id="user1"),
@@ -347,9 +347,9 @@ class TestSubgraphToContext:
 
     def test_to_context_with_relationships(self):
         """Test to_context with entities and relationships."""
-        from headroom.memory.ports import Entity as PortsEntity
-        from headroom.memory.ports import Relationship as PortsRel
-        from headroom.memory.ports import Subgraph as PortsSubgraph
+        from cutctx.memory.ports import Entity as PortsEntity
+        from cutctx.memory.ports import Relationship as PortsRel
+        from cutctx.memory.ports import Subgraph as PortsSubgraph
 
         entities = [
             PortsEntity(id="e1", name="Alice", entity_type="person", user_id="user1"),
@@ -374,9 +374,9 @@ class TestSubgraphToContext:
 
     def test_to_context_with_weighted_relationships(self):
         """Test to_context with weighted relationships."""
-        from headroom.memory.ports import Entity as PortsEntity
-        from headroom.memory.ports import Relationship as PortsRel
-        from headroom.memory.ports import Subgraph as PortsSubgraph
+        from cutctx.memory.ports import Entity as PortsEntity
+        from cutctx.memory.ports import Relationship as PortsRel
+        from cutctx.memory.ports import Subgraph as PortsSubgraph
 
         entities = [
             PortsEntity(id="e1", name="Alice", entity_type="person", user_id="user1"),
@@ -1385,7 +1385,7 @@ class TestLocalBackend:
     @pytest.fixture
     def backend_config(self, temp_db_path):
         """Create backend config with temp database."""
-        from headroom.memory.backends.local import LocalBackendConfig
+        from cutctx.memory.backends.local import LocalBackendConfig
 
         return LocalBackendConfig(
             db_path=str(temp_db_path),
@@ -1396,7 +1396,7 @@ class TestLocalBackend:
     @pytest.fixture
     def backend(self, backend_config):
         """Create LocalBackend instance."""
-        from headroom.memory.backends.local import LocalBackend
+        from cutctx.memory.backends.local import LocalBackend
 
         return LocalBackend(backend_config)
 

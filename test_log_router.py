@@ -1,4 +1,4 @@
-from headroom.compress import compress
+from cutctx.compress import compress
 
 messy_log = """
 [2023-10-27T10:00:00.000Z] INFO [main] com.example.MyClass - Starting up...

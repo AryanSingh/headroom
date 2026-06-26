@@ -2,7 +2,7 @@
  * CCR (Compress-Cache-Retrieve) tool for OpenClaw.
  *
  * Allows the agent to retrieve original uncompressed content
- * from the CutCtx proxy's compression store.
+ * from the Cutctx proxy's compression store.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -12,13 +12,13 @@ export interface RetrieveToolConfig {
   proxyUrl: string;
 }
 
-export function createCutCtxRetrieveTool(config: RetrieveToolConfig) {
+export function createCutctxRetrieveTool(config: RetrieveToolConfig) {
   const proxyOrigin = normalizeAndValidateProxyUrl(config.proxyUrl);
 
   return {
-    name: "headroom_retrieve",
+    name: "cutctx_retrieve",
     description:
-      "Retrieve original uncompressed content from CutCtx's compression store. " +
+      "Retrieve original uncompressed content from Cutctx's compression store. " +
       "Use when compressed context mentions a hash and you need the full details. " +
       "Pass the hash from the compression marker (24 hex characters). " +
       "Optionally pass a query to search within the original content.",

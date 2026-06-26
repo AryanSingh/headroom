@@ -1,6 +1,6 @@
 # cutctx-go
 
-Go SDK for [CutCtx](https://cutctx.dev) — AI context compression proxy.
+Go SDK for [Cutctx](https://cutctx.dev) — AI context compression proxy.
 
 ## Quickstart
 
@@ -24,8 +24,8 @@ go get github.com/cutctx/cutctx-go
 
 | Option | Default | Description |
 |---|---|---|
-| `WithProxyURL(url)` | `http://localhost:8787` | CutCtx proxy base URL |
-| `WithAPIKey(key)` | `""` | License key sent as `X-CutCtx-Key` header |
+| `WithProxyURL(url)` | `http://localhost:8787` | Cutctx proxy base URL |
+| `WithAPIKey(key)` | `""` | License key sent as `X-Cutctx-Key` header |
 | `WithModel(model)` | `claude-sonnet-4-6` | Target model for cost estimation |
 | `WithTimeout(d)` | `30s` | HTTP client timeout |
 

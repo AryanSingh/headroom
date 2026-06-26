@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from headroom.security.state_crypto import (
+from cutctx.security.state_crypto import (
     _ENCRYPTED_MARKER,
     decrypt_json,
     derive_fernet_key,
@@ -33,7 +33,7 @@ class TestFernetKey:
         assert key1 == key2
 
     def test_derive_fernet_key_from_env(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_STATE_ENCRYPTION_KEY", "test-key-12345678901234567890")
+        monkeypatch.setenv("CUTCTX_STATE_ENCRYPTION_KEY", "test-key-12345678901234567890")
         key = derive_fernet_key()
         assert key == b"test-key-12345678901234567890"
 
@@ -182,7 +182,7 @@ class TestHMACFileIO:
     """HMAC-signed file write/read tests."""
 
     def test_write_read_roundtrip(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("HEADROOM_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
         path = tmp_path / "license.json"
         data = {"plan": "business", "expires": "2025-12-31"}
         write_hmac_json(path, data)
@@ -190,7 +190,7 @@ class TestHMACFileIO:
         assert result == data
 
     def test_file_format(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("HEADROOM_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
         path = tmp_path / "license.json"
         write_hmac_json(path, {"plan": "team"})
         content = json.loads(path.read_text())
@@ -203,7 +203,7 @@ class TestHMACFileIO:
         assert result is None
 
     def test_tampered_file_returns_none(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("HEADROOM_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret-key-for-testing")
         path = tmp_path / "tampered.json"
         data = {"plan": "team"}
         write_hmac_json(path, data)

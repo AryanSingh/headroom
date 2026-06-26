@@ -25,8 +25,8 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 - [x] Logical access controls (SSO/OIDC, RBAC)
 - [x] Network security (firewalls, encryption in transit)
 - [x] Data encryption (Fernet AES-128-CBC + HMAC-SHA256 at rest, TLS 1.3 in transit)
-- [x] Tamper-evident audit log (HMAC hash chain) — see `headroom_ee/audit/store.py`
-- [x] Admin API key handling (no plaintext log on auto-generation) — see `headroom/proxy/server.py:2252-2278`
+- [x] Tamper-evident audit log (HMAC hash chain) — see `cutctx_ee/audit/store.py`
+- [x] Admin API key handling (no plaintext log on auto-generation) — see `cutctx/proxy/server.py:2252-2278`
 - [x] EE route surface behind admin auth + RBAC (Blocker-1 fix in commit `2b49ee76`)
 - [ ] Vulnerability management program
 - [ ] MFA on admin access
@@ -38,8 +38,8 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 - [x] Uptime monitoring (99.9% SLA target)
 - [x] Backup and recovery procedures (memory DB daily, spend ledger TODO)
 - [x] Health endpoints (`/livez`, `/readyz`, `/health`)
-- [x] Per-provider circuit breaker (`headroom/proxy/routing/failover.py`)
-- [x] Pipeline circuit breaker (`headroom/transforms/pipeline.py`)
+- [x] Per-provider circuit breaker (`cutctx/proxy/routing/failover.py`)
+- [x] Pipeline circuit breaker (`cutctx/transforms/pipeline.py`)
 - [ ] Disaster recovery plan
 - [ ] Capacity planning
 - [ ] Performance monitoring
@@ -66,9 +66,9 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 ### Data Protection
 | Control | Status | Owner | Notes |
 |---------|--------|-------|-------|
-| Encryption at rest (AES-256) | ⚠️ Partial | Engineering | **Fernet = AES-128-CBC + HMAC-SHA256** (NOT AES-256). See `headroom/security/state_crypto.py` |
+| Encryption at rest (AES-256) | ⚠️ Partial | Engineering | **Fernet = AES-128-CBC + HMAC-SHA256** (NOT AES-256). See `cutctx/security/state_crypto.py` |
 | Encryption in transit (TLS 1.3) | ✅ Implemented | Engineering | Mitigated by deployment (uTLS/ingress) |
-| Key management (rotation) | ⚠️ Partial | Security | `HEADROOM_AUDIT_SECRET_KEY` enforced (Blocker-9 fix); admin key rotation is manual |
+| Key management (rotation) | ⚠️ Partial | Security | `CUTCTX_AUDIT_SECRET_KEY` enforced (Blocker-9 fix); admin key rotation is manual |
 | Data classification | ✅ Implemented | Security | |
 | Secure deletion procedures | ⚠️ Partial | Engineering | DSR endpoints added (Blocker-2 fix); VACUUM pass is post-DSR follow-up |
 
@@ -77,14 +77,14 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 |---------|--------|-------|-------|
 | Audit logging | ✅ Implemented | Engineering | Hash-chain store (Blocker-9 fix); 8+ enum events defined but not all emitted |
 | Centralized log aggregation | 📋 To implement | DevOps | No SIEM integration; logs are local files |
-| Security alerting | 📋 To implement | Security | `headroom_ee/abuse.py` generates alerts but does not deliver them |
+| Security alerting | 📋 To implement | Security | `cutctx_ee/abuse.py` generates alerts but does not deliver them |
 | Incident response plan | 📋 To implement | Security | |
 | Regular security scans | 📋 To implement | Security | |
 
 ### Business Continuity
 | Control | Status | Owner | Notes |
 |---------|--------|-------|-------|
-| Automated backups | ✅ Implemented | DevOps | `k8s/backup-cronjob.yaml` covers `headroom_memory.db`, `spend_ledger.db`, and `audit.db`; 30-day retention in S3; pruned via `aws s3api list-objects-v2` |
+| Automated backups | ✅ Implemented | DevOps | `k8s/backup-cronjob.yaml` covers `cutctx_memory.db`, `spend_ledger.db`, and `audit.db`; 30-day retention in S3; pruned via `aws s3api list-objects-v2` |
 | Recovery procedures | 📋 To implement | DevOps | |
 | DR plan documentation | 📋 To implement | DevOps | |
 | Regular DR testing | 📋 To implement | DevOps | |

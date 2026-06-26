@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from headroom.integrations.mcp import (
+from cutctx.integrations.mcp import (
     CutctxMCPClientWrapper,
     CutctxMCPCompressor,
     MCPCompressionResult,
@@ -18,8 +18,8 @@ from headroom.integrations.mcp import (
     compress_tool_result,
     compress_tool_result_with_metrics,
 )
-from headroom.providers import OpenAIProvider
-from headroom.transforms.smart_crusher import strip_ccr_sentinels
+from cutctx.providers import OpenAIProvider
+from cutctx.transforms.smart_crusher import strip_ccr_sentinels
 
 # ============================================================================
 # Test Fixtures

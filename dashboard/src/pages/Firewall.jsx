@@ -92,7 +92,7 @@ export default function Firewall() {
           <div className="text-sm text-secondary mt-4">
             {stats?.enabled
               ? 'PII + injection + jailbreak scanning'
-              : 'Set HEADROOM_FIREWALL_ENABLED=1 to enable'}
+              : 'Set CUTCTX_FIREWALL_ENABLED=1 to enable'}
           </div>
         </div>
       </div>

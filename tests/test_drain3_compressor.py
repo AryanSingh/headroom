@@ -7,17 +7,14 @@ passes whether or not the optional dependency is installed.
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
-from headroom.transforms.drain3_compressor import (
+from cutctx.transforms.drain3_compressor import (
     Drain3CompressionResult,
     Drain3CompressorConfig,
     Drain3LogCompressor,
     drain3_available,
 )
-
 
 # =========================================================================
 # Test 1: drain3_available() returns bool without crashing
@@ -327,8 +324,8 @@ class TestFallbackOnError:
     ) -> None:
         """Even if both drain3 and fallback fail, compress returns a valid result."""
         # Force drain3_available to return False
-        monkeypatch.setattr("headroom.transforms.drain3_compressor.drain3_available", lambda: False)
-        
+        monkeypatch.setattr("cutctx.transforms.drain3_compressor.drain3_available", lambda: False)
+
         compressor = Drain3LogCompressor()
 
         # Make _get_fallback return None (no LogCompressor available)
@@ -353,7 +350,6 @@ class TestThreadSafety:
     def test_concurrent_calls_no_deadlock(self) -> None:
         """Call compress from multiple threads; must not deadlock."""
         import concurrent.futures
-        import time
 
         compressor = Drain3LogCompressor()
         content = "\n".join(["test line"] * 20)

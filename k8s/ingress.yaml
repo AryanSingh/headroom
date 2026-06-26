@@ -1,10 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: headroom-proxy
-  namespace: headroom
+  name: cutctx-proxy
+  namespace: cutctx
   labels:
-    app.kubernetes.io/name: headroom-proxy
+    app.kubernetes.io/name: cutctx-proxy
     app.kubernetes.io/component: proxy
   annotations:
     # Replace with your ingress controller annotations
@@ -17,16 +17,16 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - headroom.example.com
-      secretName: headroom-tls
+        - cutctx.example.com
+      secretName: cutctx-tls
   rules:
-    - host: headroom.example.com
+    - host: cutctx.example.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: headroom-proxy
+                name: cutctx-proxy
                 port:
                   number: 80

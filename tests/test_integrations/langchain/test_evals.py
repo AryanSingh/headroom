@@ -15,10 +15,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from headroom.config import SmartCrusherConfig
-from headroom.providers import OpenAIProvider
-from headroom.transforms import SmartCrusher
-from headroom.transforms.smart_crusher import strip_ccr_sentinels
+from cutctx.config import SmartCrusherConfig
+from cutctx.providers import OpenAIProvider
+from cutctx.transforms import SmartCrusher
+from cutctx.transforms.smart_crusher import strip_ccr_sentinels
 
 
 # Test fixtures for realistic data

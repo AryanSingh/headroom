@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.savings import SavingsSource
+from cutctx.savings import SavingsSource
 
 
 def _fake_collect_data(rows):
@@ -19,7 +19,7 @@ def _fake_collect_data(rows):
 
 def test_buyer_report_text_renders_all_sources():
     """The buyer report renders all five savings sources by label."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -36,13 +36,13 @@ def test_buyer_report_text_renders_all_sources():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer"])
     assert result.exit_code == 0
     out = result.output
     assert "Provider Prompt Cache" in out
-    assert "CutCtx Compression" in out
+    assert "Cutctx Compression" in out
     assert "Semantic Cache" in out
     # Sources with zero tokens are not rendered (sparse mode).
     assert "Self-Hosted Prefix Cache" not in out
@@ -50,7 +50,7 @@ def test_buyer_report_text_renders_all_sources():
 
 def test_buyer_report_json_no_double_counting():
     """Combined total in JSON output is the sum of per-source values."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -66,8 +66,8 @@ def test_buyer_report_json_no_double_counting():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -77,8 +77,8 @@ def test_buyer_report_json_no_double_counting():
 
 
 def test_buyer_report_json_independent_tracking():
-    """Provider cache and CutCtx compression tracked independently."""
-    from headroom.cli.main import main
+    """Provider cache and Cutctx compression tracked independently."""
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -94,8 +94,8 @@ def test_buyer_report_json_independent_tracking():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     payload = json.loads(result.output)
     assert payload["savings_by_source"][SavingsSource.PROVIDER_PROMPT_CACHE.value] == 600
@@ -107,7 +107,7 @@ def test_buyer_report_json_independent_tracking():
 
 def test_buyer_report_json_includes_source_usd_totals():
     """The USD total should include source-attributed savings beyond legacy buckets."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -129,8 +129,8 @@ def test_buyer_report_json_includes_source_usd_totals():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -141,7 +141,7 @@ def test_buyer_report_json_includes_source_usd_totals():
 
 
 def test_buyer_report_markdown_renders_table():
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -156,25 +156,25 @@ def test_buyer_report_markdown_renders_table():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "markdown"])
     assert result.exit_code == 0
     out = result.output
-    assert "# CutCtx ROI Report" in out
+    assert "# Cutctx ROI Report" in out
     assert "| Source | Tokens |" in out
-    assert "| CutCtx Compression | 500 |" in out
+    assert "| Cutctx Compression | 500 |" in out
     assert "Attribution" in out
 
 
 def test_buyer_report_handles_empty_storage():
     """Empty storage produces a zero-state report, not a crash."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=[]
-    ), patch("headroom.cli.report._collect_data", return_value=[]):
+        "cutctx.cli.report._collect_savings_history", return_value=[]
+    ), patch("cutctx.cli.report._collect_data", return_value=[]):
         result = runner.invoke(main, ["report", "buyer"])
     if result.exit_code == 0:
         assert "Total tokens saved" in result.output or result.output == ""
@@ -182,7 +182,7 @@ def test_buyer_report_handles_empty_storage():
 
 def test_buyer_report_output_to_file(tmp_path):
     """Writing the report to a file works and the file is non-empty."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -198,15 +198,15 @@ def test_buyer_report_output_to_file(tmp_path):
     output_path = tmp_path / "roi.md"
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(
             main, ["report", "buyer", "--format", "markdown", "-o", str(output_path)]
         )
     if result.exit_code == 0:
         assert output_path.exists()
         content = output_path.read_text()
-        assert "# CutCtx ROI Report" in content
+        assert "# Cutctx ROI Report" in content
 
 
 # ---------------------------------------------------------------------------
@@ -220,10 +220,10 @@ def test_buyer_report_output_to_file(tmp_path):
 def test_savings_by_source_empty_state_emits_valid_json():
     """Empty sessions must produce machine-readable JSON, not a
     'No sessions recorded' string that breaks downstream tooling."""
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     runner = CliRunner()
-    with patch("headroom.cli.savings._load_storage") as load_storage:
+    with patch("cutctx.cli.savings._load_storage") as load_storage:
         class _EmptyStorage:
             def get_summary_stats(self, **_kwargs):
                 return {
@@ -261,11 +261,10 @@ def test_buyer_report_attributed_usd_matches_total_for_legacy_rows():
     The acceptance criterion is: the sum of by_source_usd must equal
     total_usd_saved. A row that only carries the legacy
     compression_savings_usd column should be credited entirely to the
-    CutCtx Compression bucket (which is what that legacy column
+    Cutctx Compression bucket (which is what that legacy column
     measured).
     """
-    from headroom.savings import SavingsSource
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -278,14 +277,14 @@ def test_buyer_report_attributed_usd_matches_total_for_legacy_rows():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
     # Total matches the legacy compression value.
     assert payload["total_usd_saved"] == pytest.approx(0.10, abs=1e-6)
-    # The legacy compression value lands in the CutCtx bucket.
+    # The legacy compression value lands in the Cutctx bucket.
     assert payload["savings_by_source_usd"]["cutctx_compression"] == pytest.approx(
         0.10, abs=1e-6
     )
@@ -299,9 +298,9 @@ def test_buyer_report_split_legacy_compression_and_cache_usd():
     """When a row carries separate compression_savings_usd and
     cache_savings_usd columns (Phase 1.3 half-state), the report must
     credit each bucket independently rather than everything to
-    CutCtx compression.
+    Cutctx compression.
     """
-    from headroom.cli.main import main
+    from cutctx.cli.main import main
 
     fake_rows = [
         {
@@ -313,8 +312,8 @@ def test_buyer_report_split_legacy_compression_and_cache_usd():
     ]
     runner = CliRunner()
     with patch(
-        "headroom.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("headroom.cli.report._collect_data", return_value=fake_rows):
+        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
+    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     payload = json.loads(result.output)
     by_source = payload["savings_by_source_usd"]

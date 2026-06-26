@@ -6,10 +6,10 @@ from datetime import UTC, datetime
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import headroom_ee.memory_service.api as memory_api
-from headroom.proxy.routes.memory import create_memory_router
-from headroom_ee.memory_service.models import MemoryRecord
-from headroom_ee.memory_service.store import MemoryStore
+import cutctx_ee.memory_service.api as memory_api
+from cutctx.proxy.routes.memory import create_memory_router
+from cutctx_ee.memory_service.models import MemoryRecord
+from cutctx_ee.memory_service.store import MemoryStore
 
 
 def _allow_admin_auth() -> None:

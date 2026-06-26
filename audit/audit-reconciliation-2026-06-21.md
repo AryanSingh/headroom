@@ -30,8 +30,8 @@ Two additional release-path issues were closed after the reconciliation pass:
 **Verdict:** FALSE. The re-auditor misread the code.
 
 **Verification:**
-- `headroom/proxy/server.py:2146` sets `proxy._streaming_redactor = _streaming_redactor`
-- `headroom/proxy/handlers/streaming.py:1176` reads `getattr(self, "_streaming_redactor", None)` and on line 1180 invokes `_streaming_redactor.wrap_stream(chunk_iter)`
+- `cutctx/proxy/server.py:2146` sets `proxy._streaming_redactor = _streaming_redactor`
+- `cutctx/proxy/handlers/streaming.py:1176` reads `getattr(self, "_streaming_redactor", None)` and on line 1180 invokes `_streaming_redactor.wrap_stream(chunk_iter)`
 - The attribute name is identical: `proxy._streaming_redactor` is set on the proxy object; the streaming mixin reads the same attribute on `self` (which is the proxy class instance).
 
 **Conclusion:** The wiring is correct.
@@ -40,7 +40,7 @@ Two additional release-path issues were closed after the reconciliation pass:
 
 **Verdict:** FALSE. The re-auditor searched for `sso:user` literally but the production code uses an f-string `f"sso:{sso_user}"`.
 
-**Verification:** `headroom/proxy/routes/admin.py:54-86`:
+**Verification:** `cutctx/proxy/routes/admin.py:54-86`:
 - Line 61: `actor = f"sso:{sso_user}"`
 - Line 77: `actor = f"key:{fp}"` (admin key SHA-256 fingerprint, prefix `key:`)
 - Line 82: `actor = "admin"` (final fallback)
@@ -51,9 +51,9 @@ Two additional release-path issues were closed after the reconciliation pass:
 
 **Verdict:** TRUE. This was a real finding.
 
-**Verification:** `docker/docker-compose.native.yml:31` still had `ghcr.io/chopratejas/headroom:latest` while line 9 had `ghcr.io/aryansingh/headroom:latest`.
+**Verification:** `docker/docker-compose.native.yml:31` still had `ghcr.io/chopratejas/cutctx:latest` while line 9 had `ghcr.io/aryansingh/cutctx:latest`.
 
-**Fix:** Commit `fb73887b` updates line 31 to match line 9 (and `helm/headroom/values.yaml`).
+**Fix:** Commit `fb73887b` updates line 31 to match line 9 (and `helm/cutctx/values.yaml`).
 
 ## Test suite reconciliation
 
@@ -62,7 +62,7 @@ The re-auditor reported `91 failed / 6,692 passed / 205 skipped` of 7,451 collec
 **Actual results after `fb73887b`:**
 - `7,041 passed, 154 failed, 256 skipped` of 7,451 collected.
 - The 154 failures are concentrated in 31 test files. Sampling shows they are caused by:
-  1. **Uncommitted rebrand work** (e.g. `test_config.py` expects `HeadroomMode` but uncommitted diffs renamed it to `CutctxMode` while the import in `headroom/config.py` was renamed but the enum constant was not — `NameError: HeadroomMode`).
+  1. **Uncommitted rebrand work** (e.g. `test_config.py` expects `CutctxMode` but uncommitted diffs renamed it to `CutctxMode` while the import in `cutctx/config.py` was renamed but the enum constant was not — `NameError: CutctxMode`).
   2. **Pre-existing environment issues** (e.g. `test_release_version.py` looks for `cutctx/release_version.py` which doesn't exist).
   3. **Test environment deps** (e.g. `tests/test_install/test_supervisors.py`, `tests/test_compression_safety_rails.py` rely on system tools).
   4. **None of the failures are caused by my recent commits** (`db7f7a45`..`fb73887b`).

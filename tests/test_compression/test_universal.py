@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from headroom.compression.detector import ContentType
-from headroom.compression.handlers.base import NoOpHandler
-from headroom.compression.universal import (
+from cutctx.compression.detector import ContentType
+from cutctx.compression.handlers.base import NoOpHandler
+from cutctx.compression.universal import (
     CompressionResult,
     UniversalCompressor,
     UniversalCompressorConfig,

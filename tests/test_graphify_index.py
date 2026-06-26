@@ -6,31 +6,23 @@ Covers GraphifyIndex loading/query, render_subgraph, and GraphifyInterceptor.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
+
 import pytest
 
 pytest.importorskip("networkx")
 
 import networkx as nx  # noqa: E402
 
-from headroom.graph.graphify import (  # noqa: E402
+from cutctx.graph.graphify import (  # noqa: E402
     GraphifyIndex,
     GraphifyQueryResult,
     GraphNode,
-    graphify_available,
-    get_global_indexer,
-    networkx_available,
     render_subgraph,
-    set_global_indexer,
 )
-from headroom.proxy.interceptors.graph_interceptor import (  # noqa: E402
+from cutctx.proxy.interceptors.graph_interceptor import (  # noqa: E402
     GraphifyInterceptor,
-    _TARGET_TOOLS,
-    _MIN_OUTPUT_CHARS,
-    _MAX_OUTPUT_CHARS,
 )
-
 
 # =========================================================================
 # Fixtures
@@ -151,6 +143,46 @@ class TestGraphifyIndex:
         result = idx.query_subgraph(["nonexistent"], bfs_depth=2, max_nodes=10)
         # No matching nodes -> fallback mode or empty result
         assert result.fallback or len(result.nodes) == 0
+
+    def test_max_nodes_zero_returns_empty(self, sample_nx_graph: nx.Graph) -> None:
+        """Query with max_nodes=0 returns no nodes (edge case)."""
+        idx = GraphifyIndex(graph=sample_nx_graph, version="test-v1")
+        result = idx.query_subgraph(["login"], bfs_depth=2, max_nodes=0)
+        assert len(result.nodes) == 0
+
+    def test_bfs_depth_zero_returns_only_seeds(self, sample_nx_graph: nx.Graph) -> None:
+        """Query with bfs_depth=0 returns only matching seed nodes, no neighbors."""
+        idx = GraphifyIndex(graph=sample_nx_graph, version="test-v1")
+        result = idx.query_subgraph(["login"], bfs_depth=0, max_nodes=20)
+        # Should contain only the seed node itself, not its neighbors
+        labels = [n.label for n in result.nodes]
+        assert "login()" in labels
+        # bfs_depth=0 means no expansion, so neighbors like auth.py should NOT be present
+        assert not any("auth.py" in l for l in labels), (
+            "bfs_depth=0 should not include neighbor auth.py"
+        )
+
+    def test_self_loop_does_not_crash(self, sample_nx_graph: nx.Graph) -> None:
+        """Self-loop edges do not cause duplicate count errors or crashes."""
+        # Add a self-loop (node referencing itself)
+        sample_nx_graph.add_edge("func:login", "func:login", relationship="self_loop")
+        idx = GraphifyIndex(graph=sample_nx_graph, version="test-v1")
+        result = idx.query_subgraph(["login"], bfs_depth=1, max_nodes=20)
+        # Should complete without error; nodes should be valid
+        assert len(result.nodes) > 0
+        # No duplicate node IDs in the result
+        node_ids = [n.id for n in result.nodes]
+        assert len(node_ids) == len(set(node_ids)), "Duplicate node IDs in result"
+
+    def test_no_match_on_populated_graph_uses_fallback(
+        self, sample_graph_json: Path
+    ) -> None:
+        """Querying a populated graph with a non-existent term returns fallback."""
+        idx = GraphifyIndex.load(sample_graph_json)
+        result = idx.query_subgraph(["xyznonexistent"], bfs_depth=2, max_nodes=10)
+        assert result.fallback is True
+        # Fallback should return some nodes (top-degree)
+        assert len(result.nodes) > 0, "Fallback should return top-degree nodes"
 
 
 # =========================================================================

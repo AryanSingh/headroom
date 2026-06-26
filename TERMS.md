@@ -1,4 +1,4 @@
-# CutCtx Terms of Service
+# Cutctx Terms of Service
 
 **Last updated:** June 2026
 
@@ -6,13 +6,13 @@
 
 ## 1. Acceptance of Terms
 
-By installing, copying, or using CutCtx software or services ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you are using the Service on behalf of an organization, you represent that you have authority to bind that organization to these Terms.
+By installing, copying, or using Cutctx software or services ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you are using the Service on behalf of an organization, you represent that you have authority to bind that organization to these Terms.
 
 ## 2. Definitions
 
-- **"OSS Software"** means the open-source CutCtx client, including the compression engine, proxy, SDKs, CLI, MCP server, and base model, distributed under the Apache License 2.0.
+- **"OSS Software"** means the open-source Cutctx client, including the compression engine, proxy, SDKs, CLI, MCP server, and base model, distributed under the Apache License 2.0.
 - **"Commercial Software"** means the enterprise control plane, agent-tuned models, and proprietary modules distributed under the Cutctx Commercial License.
-- **"Service"** refers collectively to the OSS Software, Commercial Software, and any hosted or support services provided by CutCtx Labs.
+- **"Service"** refers collectively to the OSS Software, Commercial Software, and any hosted or support services provided by Cutctx Labs.
 - **"User," "you"** means any individual or entity using the Service.
 
 ## 3. License Grant
@@ -21,13 +21,13 @@ By installing, copying, or using CutCtx software or services ("Service"), you ag
 The OSS Software is licensed under the Apache License 2.0. You may use, modify, and distribute it in accordance with that license.
 
 ### 3.2 Commercial Software
-The Commercial Software is licensed, not sold. Subject to payment of applicable fees and compliance with these Terms, CutCtx Labs grants you a limited, non-exclusive, non-transferable license to use the Commercial Software for the duration of your active subscription.
+The Commercial Software is licensed, not sold. Subject to payment of applicable fees and compliance with these Terms, Cutctx Labs grants you a limited, non-exclusive, non-transferable license to use the Commercial Software for the duration of your active subscription.
 
 ## 4. Subscription and Fees
 
 - Paid plans are billed in advance on a monthly or annual basis.
 - Fees are non-refundable except as required by applicable law.
-- Free-tier (Builder) usage is subject to fair-use limits. CutCtx Labs reserves the right to throttle or suspend abuse.
+- Free-tier (Builder) usage is subject to fair-use limits. Cutctx Labs reserves the right to throttle or suspend abuse.
 - Enterprise pricing is governed by a separate Master Services Agreement (MSA).
 
 ## 5. Acceptable Use
@@ -41,13 +41,13 @@ You agree not to:
 
 ## 6. Intellectual Property
 
-CutCtx Labs retains all right, title, and interest in and to the Service, including all intellectual property rights. Nothing in these Terms transfers ownership of any intellectual property from CutCtx Labs to you, except the limited license grants above.
+Cutctx Labs retains all right, title, and interest in and to the Service, including all intellectual property rights. Nothing in these Terms transfers ownership of any intellectual property from Cutctx Labs to you, except the limited license grants above.
 
 ## 7. Data Handling
 
-- **Self-hosted deployments:** Your prompts, tool outputs, and conversation data remain on your infrastructure. CutCtx Labs has no access to this data.
+- **Self-hosted deployments:** Your prompts, tool outputs, and conversation data remain on your infrastructure. Cutctx Labs has no access to this data.
 - **Optional telemetry:** When enabled, only aggregate metrics (request counts, tokens saved, model distribution) are transmitted. No message content is ever collected.
-- **License validation:** License keys and machine fingerprints are transmitted to CutCtx Labs for validation purposes only.
+- **License validation:** License keys and machine fingerprints are transmitted to Cutctx Labs for validation purposes only.
 
 ## 8. Warranty Disclaimer
 
@@ -60,7 +60,7 @@ IN NO EVENT SHALL CUTCTX LABS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, C
 ## 10. Termination
 
 - You may terminate your subscription at any time. Termination takes effect at the end of the current billing period.
-- CutCtx Labs may suspend or terminate your access for material breach of these Terms, with thirty (30) days written notice.
+- Cutctx Labs may suspend or terminate your access for material breach of these Terms, with thirty (30) days written notice.
 - Upon termination, your license to the Commercial Software is revoked. You may continue using the OSS Software under the Apache License 2.0.
 
 ## 11. Governing Law
@@ -69,7 +69,7 @@ These Terms are governed by the laws of the State of Delaware, United States, wi
 
 ## 12. Changes to These Terms
 
-CutCtx Labs may update these Terms from time to time. Material changes will be communicated via email or prominent notice in the Service. Continued use after changes take effect constitutes acceptance.
+Cutctx Labs may update these Terms from time to time. Material changes will be communicated via email or prominent notice in the Service. Continued use after changes take effect constitutes acceptance.
 
 ## 13. Contact
 

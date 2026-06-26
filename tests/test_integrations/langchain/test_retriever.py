@@ -56,7 +56,7 @@ class TestCompressionMetrics:
 
     def test_create_metrics(self):
         """Create compression metrics with all fields."""
-        from headroom.integrations.langchain.retriever import CompressionMetrics
+        from cutctx.integrations.langchain.retriever import CompressionMetrics
 
         metrics = CompressionMetrics(
             documents_before=50,
@@ -72,18 +72,18 @@ class TestCompressionMetrics:
 
     def test_metrics_required_fields(self):
         """All fields are required."""
-        from headroom.integrations.langchain.retriever import CompressionMetrics
+        from cutctx.integrations.langchain.retriever import CompressionMetrics
 
         with pytest.raises(TypeError):
             CompressionMetrics()  # type: ignore[call-arg]
 
 
-class TestHeadroomDocumentCompressorInit:
+class TestCutctxDocumentCompressorInit:
     """Tests for CutctxDocumentCompressor initialization."""
 
     def test_init_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -94,7 +94,7 @@ class TestHeadroomDocumentCompressorInit:
 
     def test_init_custom_settings(self):
         """Initialize with custom settings."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(
             max_documents=20,
@@ -107,12 +107,12 @@ class TestHeadroomDocumentCompressorInit:
         assert compressor.prefer_diverse is True
 
 
-class TestHeadroomDocumentCompressorCompress:
+class TestCutctxDocumentCompressorCompress:
     """Tests for compress_documents method."""
 
     def test_compress_empty_documents(self):
         """Compress empty list returns empty list."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -124,7 +124,7 @@ class TestHeadroomDocumentCompressorCompress:
 
     def test_compress_fewer_than_max_documents(self, sample_documents):
         """Compress when documents fewer than max returns all."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=10)  # More than 5 docs
 
@@ -135,7 +135,7 @@ class TestHeadroomDocumentCompressorCompress:
 
     def test_compress_more_than_max_documents(self, many_documents):
         """Compress when documents exceed max returns max_documents."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=10)
 
@@ -148,7 +148,7 @@ class TestHeadroomDocumentCompressorCompress:
 
     def test_compress_orders_by_relevance(self, sample_documents):
         """Compressed documents are ordered by relevance."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=3)
 
@@ -161,7 +161,7 @@ class TestHeadroomDocumentCompressorCompress:
 
     def test_compress_with_min_relevance_filter(self):
         """Documents below min_relevance are filtered out."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         documents = [
             Document(page_content="Very relevant Python tutorial"),
@@ -182,7 +182,7 @@ class TestHeadroomDocumentCompressorCompress:
 
     def test_compress_tracks_relevance_scores(self, sample_documents):
         """Compression tracks relevance scores."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=3)
 
@@ -195,12 +195,12 @@ class TestHeadroomDocumentCompressorCompress:
         assert scores == sorted(scores, reverse=True)
 
 
-class TestHeadroomDocumentCompressorScoring:
+class TestCutctxDocumentCompressorScoring:
     """Tests for document relevance scoring."""
 
     def test_score_document_exact_match_boost(self):
         """Exact phrase match gets relevance boost."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -215,7 +215,7 @@ class TestHeadroomDocumentCompressorScoring:
 
     def test_score_document_term_frequency(self):
         """Higher term frequency increases score."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -230,7 +230,7 @@ class TestHeadroomDocumentCompressorScoring:
 
     def test_score_document_empty_query(self):
         """Empty query returns zero score."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -242,7 +242,7 @@ class TestHeadroomDocumentCompressorScoring:
 
     def test_score_document_empty_content(self):
         """Empty document content returns zero score."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -254,7 +254,7 @@ class TestHeadroomDocumentCompressorScoring:
 
     def test_score_document_case_insensitive(self):
         """Scoring is case insensitive."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -265,12 +265,12 @@ class TestHeadroomDocumentCompressorScoring:
         assert score > 0.0
 
 
-class TestHeadroomDocumentCompressorTokenize:
+class TestCutctxDocumentCompressorTokenize:
     """Tests for text tokenization."""
 
     def test_tokenize_basic(self):
         """Tokenize basic text."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -280,7 +280,7 @@ class TestHeadroomDocumentCompressorTokenize:
 
     def test_tokenize_with_punctuation(self):
         """Tokenize text with punctuation."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -293,7 +293,7 @@ class TestHeadroomDocumentCompressorTokenize:
 
     def test_tokenize_filters_short_tokens(self):
         """Tokenize filters tokens with length 1."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -306,12 +306,12 @@ class TestHeadroomDocumentCompressorTokenize:
         assert "developer" in tokens
 
 
-class TestHeadroomDocumentCompressorDiversity:
+class TestCutctxDocumentCompressorDiversity:
     """Tests for diverse document selection (MMR-style)."""
 
     def test_compress_with_diversity(self):
         """Diverse selection avoids redundant documents."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         # Create similar documents
         documents = [
@@ -334,7 +334,7 @@ class TestHeadroomDocumentCompressorDiversity:
 
     def test_select_diverse_empty(self):
         """Diverse selection with empty input."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(prefer_diverse=True)
 
@@ -344,7 +344,7 @@ class TestHeadroomDocumentCompressorDiversity:
 
     def test_document_similarity_identical(self):
         """Identical documents have similarity 1.0."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -357,7 +357,7 @@ class TestHeadroomDocumentCompressorDiversity:
 
     def test_document_similarity_different(self):
         """Different documents have low similarity."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -370,7 +370,7 @@ class TestHeadroomDocumentCompressorDiversity:
 
     def test_document_similarity_partial_overlap(self):
         """Partially overlapping documents have medium similarity."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -383,7 +383,7 @@ class TestHeadroomDocumentCompressorDiversity:
 
     def test_document_similarity_empty_content(self):
         """Empty content documents have zero similarity."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -395,12 +395,12 @@ class TestHeadroomDocumentCompressorDiversity:
         assert similarity == 0.0
 
 
-class TestHeadroomDocumentCompressorStats:
+class TestCutctxDocumentCompressorStats:
     """Tests for compression statistics."""
 
     def test_last_metrics_none_initially(self):
         """last_metrics is None before any compression."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -408,7 +408,7 @@ class TestHeadroomDocumentCompressorStats:
 
     def test_last_metrics_updated_after_compression(self, sample_documents):
         """last_metrics is updated after compression."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=3)
 
@@ -420,7 +420,7 @@ class TestHeadroomDocumentCompressorStats:
 
     def test_get_compression_stats_empty(self):
         """get_compression_stats returns empty dict before compression."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor()
 
@@ -430,7 +430,7 @@ class TestHeadroomDocumentCompressorStats:
 
     def test_get_compression_stats_with_data(self, many_documents):
         """get_compression_stats returns stats after compression."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=10)
 
@@ -446,7 +446,7 @@ class TestHeadroomDocumentCompressorStats:
 
     def test_get_compression_stats_average_relevance(self, sample_documents):
         """get_compression_stats calculates average relevance correctly."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=2)
 
@@ -461,12 +461,12 @@ class TestHeadroomDocumentCompressorStats:
         assert abs(stats["average_relevance"] - expected_avg) < 0.001
 
 
-class TestHeadroomDocumentCompressorCallbacks:
+class TestCutctxDocumentCompressorCallbacks:
     """Tests for LangChain callbacks integration."""
 
     def test_compress_ignores_callbacks(self, sample_documents):
         """compress_documents accepts but ignores callbacks parameter."""
-        from headroom.integrations.langchain.retriever import CutctxDocumentCompressor
+        from cutctx.integrations.langchain.retriever import CutctxDocumentCompressor
 
         compressor = CutctxDocumentCompressor(max_documents=3)
 
@@ -484,7 +484,7 @@ class TestLangChainNotAvailable:
 
     def test_check_raises_import_error(self):
         """_check_langchain_available raises ImportError when not available."""
-        from headroom.integrations.langchain.retriever import _check_langchain_available
+        from cutctx.integrations.langchain.retriever import _check_langchain_available
 
         # When LangChain IS available, should not raise
         try:

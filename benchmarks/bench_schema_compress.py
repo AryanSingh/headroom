@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmark: JSON schema compression for LLM tool definitions.
 
-Measures token savings from CutCtx schema compression on realistic tool schemas.
+Measures token savings from Cutctx schema compression on realistic tool schemas.
 Compares against uncompressed baseline and old 10-key OpenAI drop list.
 """
 
@@ -12,12 +12,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from headroom.proxy.schema_compress import (
-    compress_tool_schemas,
-    compress_tool_results,
+from cutctx.proxy.schema_compress import (
     _SCHEMA_DROP_KEYS,
+    compress_tool_results,
+    compress_tool_schemas,
 )
-
 
 # ─── Realistic tool schemas (from production APIs) ───
 
@@ -373,7 +372,7 @@ def _estimate_tokens(obj):
 
 def run_benchmark():
     print("=" * 80)
-    print("CutCtx JSON Schema Compression Benchmark")
+    print("Cutctx JSON Schema Compression Benchmark")
     print("=" * 80)
 
     # ─── Benchmark 1: Anthropic tools ───
@@ -387,7 +386,7 @@ def run_benchmark():
     if modified:
         print(f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new/before)*100:.1f}% savings)")
     else:
-        print(f"  New (30-key): no change")
+        print("  New (30-key): no change")
 
     # ─── Benchmark 2: OpenAI tools ───
     print("\n─── OpenAI Tool Schemas (2 tools) ───")
@@ -400,7 +399,7 @@ def run_benchmark():
     if modified:
         print(f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new/before)*100:.1f}% savings)")
     else:
-        print(f"  New (30-key): no change")
+        print("  New (30-key): no change")
 
     # ─── Benchmark 3: Combined (realistic agent call) ───
     print("\n─── Combined: 4 Anthropic + 2 OpenAI tools ───")
@@ -447,9 +446,9 @@ def run_benchmark():
     # ─── Summary ───
     print("\n─── Key Metrics ───")
     print(f"  Drop keys: {len(_SCHEMA_DROP_KEYS)} (vs old: {len(_OLD_DROP_KEYS)})")
-    print(f"  Description truncation: 200 chars (nested: 100)")
-    print(f"  Positional array: ≥2 items × ≥3 fields")
-    print(f"  Overhead guard: no modification if compressed >= original")
+    print("  Description truncation: 200 chars (nested: 100)")
+    print("  Positional array: ≥2 items × ≥3 fields")
+    print("  Overhead guard: no modification if compressed >= original")
 
 
 if __name__ == "__main__":

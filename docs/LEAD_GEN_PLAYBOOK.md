@@ -1,6 +1,6 @@
-# Headroom Lead Generation Playbook
+# Cutctx Lead Generation Playbook
 
-> **Product:** Headroom — AI context compression proxy for development teams.
+> **Product:** Cutctx — AI context compression proxy for development teams.
 > **Target:** Security leaders, pentest consultants, and DevSecOps engineers who hit LLM context limits daily.
 > **Goal:** Generate qualified pipeline that converts to paid seats.
 
@@ -41,8 +41,8 @@
 
 | Range | Label | Definition |
 |-------|-------|------------|
-| 80–100 | **Hot** | Actively searching for context compression. Uses Claude Code / Cursor daily. SOC 2 audit within 90 days. Headroom could directly solve an immediate blocker. |
-| 60–79 | **Warm** | Using AI coding tools regularly. Has compliance requirements (SOC 2, HIPAA, ISO 27001). Headroom could replace a manual workflow they hate. |
+| 80–100 | **Hot** | Actively searching for context compression. Uses Claude Code / Cursor daily. SOC 2 audit within 90 days. Cutctx could directly solve an immediate blocker. |
+| 60–79 | **Warm** | Using AI coding tools regularly. Has compliance requirements (SOC 2, HIPAA, ISO 27001). Cutctx could replace a manual workflow they hate. |
 | 40–59 | **Tepid** | AI-curious, evaluating LLM tools. No immediate compliance pressure. Context limits are a minor annoyance, not a blocker. |
 | 0–39 | **Cold** | Exploring AI tooling broadly. No clear pain around context limits or compliance. Needs education before qualification. |
 
@@ -73,7 +73,7 @@
 | Signal | Search / Filter | Lead Type |
 |--------|----------------|-----------|
 | `Dockerfile` + `anthropic` or `openai` SDK dependency | Search `dependency:anthropic` in repos with a `Dockerfile` | P2 (DevSecOps) |
-| Starred `headroomlabs/headroom` | Stargazers list | All tiers (signals awareness) |
+| Starred `cutctxlabs/cutctx` | Stargazers list | All tiers (signals awareness) |
 | Uses Cursor / Claude Code config | `.cursorrules` or ` CLAUDE.md` in repo | P0, P1 |
 | `requirements.txt` + `langchain` + `openai` | Dependency search | P2 |
 | Repos with security workflows | `.github/workflows/` referencing `semgrep` or `snyk` | P0 |
@@ -111,9 +111,9 @@
 | `"Show HN: ..."` LLM-related tool | Builder is a potential partner or user |
 | Comments complaining about `"cost of Claude"` or `"token limits"` | Explicit pain signal |
 | Threads about `"AI code review"` or `"security at AI companies"` | Community of potential P1/P2 leads |
-| `"Ask HN: Best way to handle large codebases with LLMs?"` | Direct need for Headroom |
+| `"Ask HN: Best way to handle large codebases with LLMs?"` | Direct need for Cutctx |
 
-**Tactic:** Monitor via `hn.algolia.com`. Engage thoughtfully. Only pitch Headroom if directly relevant.
+**Tactic:** Monitor via `hn.algolia.com`. Engage thoughtfully. Only pitch Cutctx if directly relevant.
 
 ### Conferences & Events
 
@@ -136,9 +136,9 @@
 
 | Touch | Timing | Subject Line | Body |
 |-------|--------|--------------|------|
-| **A1** | Day 0 | SOC 2 audit season coming up? | "Hey {{first_name}}, noticed {{company}} runs SOC 2. Most security teams we talk to spend 20+ hours per audit cycle manually collecting LLM chat transcripts as evidence. Headroom compresses and archives every AI interaction automatically — cutting review time by ~60%. Want to see how? Happy to share a 2-min video." |
-| **A2** | Day 5 | How {{similar_company}} saved 2 engineer-weeks per audit | "{{first_name}}, [Similar Company] was in your exact position — 3 weeks out from their SOC 2 audit and drowning in LLM evidence requests. By using Headroom's compression proxy, they compressed 12GB of Claude logs into 480MB, lowered their token bill 40%, and closed their audit 2 weeks early. Full case study attached. Worth 10 minutes?" |
-| **A3** | Day 12 | Quick demo — 10 mins, your own logs | "{{first_name}}, instead of me explaining, let me show you. I'll run Headroom against a sample of your team's actual Claude/Cursor usage. You'll see raw vs. compressed side-by-side. Takes 10 minutes. No commitment. Pick a time: [Calendly link]" |
+| **A1** | Day 0 | SOC 2 audit season coming up? | "Hey {{first_name}}, noticed {{company}} runs SOC 2. Most security teams we talk to spend 20+ hours per audit cycle manually collecting LLM chat transcripts as evidence. Cutctx compresses and archives every AI interaction automatically — cutting review time by ~60%. Want to see how? Happy to share a 2-min video." |
+| **A2** | Day 5 | How {{similar_company}} saved 2 engineer-weeks per audit | "{{first_name}}, [Similar Company] was in your exact position — 3 weeks out from their SOC 2 audit and drowning in LLM evidence requests. By using Cutctx's compression proxy, they compressed 12GB of Claude logs into 480MB, lowered their token bill 40%, and closed their audit 2 weeks early. Full case study attached. Worth 10 minutes?" |
+| **A3** | Day 12 | Quick demo — 10 mins, your own logs | "{{first_name}}, instead of me explaining, let me show you. I'll run Cutctx against a sample of your team's actual Claude/Cursor usage. You'll see raw vs. compressed side-by-side. Takes 10 minutes. No commitment. Pick a time: [Calendly link]" |
 
 **Fallback (if no reply after A3):** Move to nurture. Send the ROI calculator (Section 7, Stage 5) with a note: "No rush — here's a tool to estimate your own savings. When audit season heats up, we're here."
 
@@ -146,7 +146,7 @@
 
 | Touch | Timing | Subject Line | Body |
 |-------|--------|--------------|------|
-| **B1** | Day 0 | 100k lines to review? We fit it in one Claude context | "Hey {{first_name}}, I saw you're at {{company}}. If you're feeding engagement logs into Claude, you know the pain of hitting context limits mid-analysis. Headroom compresses on the fly — I've seen pentesters fit an entire 100k-line engagement into a single Claude context window. Curious? Reply and I'll send the one-pager." |
+| **B1** | Day 0 | 100k lines to review? We fit it in one Claude context | "Hey {{first_name}}, I saw you're at {{company}}. If you're feeding engagement logs into Claude, you know the pain of hitting context limits mid-analysis. Cutctx compresses on the fly — I've seen pentesters fit an entire 100k-line engagement into a single Claude context window. Curious? Reply and I'll send the one-pager." |
 | **B2** | Day 4 | Architecture deep-dive + token benchmarks | "{{first_name}}, here's how it works under the hood: [link to architecture diagram]. TL;DR — we use semantic compression with a configurable CCR (Context Compression Ratio). In our benchmarks, a 50k-token pentest report compresses to 8k tokens with >95% semantic fidelity. That's 6x more analysis per dollar. Benchmarks attached. Want me to run it on one of your actual reports?" |
 | **B3** | Day 10 | Free 30-day trial — built for pentest firms | "{{first_name}}, we're offering pentest firms a free 30-day trial. No credit card. Full access. You'll see compression working on your real engagement data within 30 minutes. Trial includes: unlimited compression, memory persistence across sessions, and audit logging. Grab it here: [trial link]" |
 
@@ -154,7 +154,7 @@
 
 | Touch | Timing | Subject Line | Body |
 |-------|--------|--------------|------|
-| **C1** | Day 0 | Your CI/CD agents are running out of context | "Hey {{first_name}}, if you're running AI agents in CI/CD (PR reviews, secret scanning, code gen), you've seen the dreaded 'maximum context length exceeded' error. Headroom sits between your agents and the LLM API, compressing prompts transparently. No code changes. Average compression: 5–8x. Want to see the GitHub Action integration?" |
+| **C1** | Day 0 | Your CI/CD agents are running out of context | "Hey {{first_name}}, if you're running AI agents in CI/CD (PR reviews, secret scanning, code gen), you've seen the dreaded 'maximum context length exceeded' error. Cutctx sits between your agents and the LLM API, compressing prompts transparently. No code changes. Average compression: 5–8x. Want to see the GitHub Action integration?" |
 | **C2** | Day 4 | Integration guide: GitHub Actions → Docker → K8s | "{{first_name}}, here's the 5-minute setup guide: [link]. Works with: GitHub Actions (drop-in action), Docker (sidecar container), Kubernetes (helm chart), and any OpenAI/Anthropic-compatible client. The tl;dr — add one env variable to your existing workflow and you're compressing. Docs attached. Questions?" |
 | **C3** | Day 10 | ROI calculator — your traffic, your savings | "{{first_name}}, instead of guessing, here's a live ROI calculator. Plug in your monthly token usage and see the savings: [link]. Most teams our size save $X,XXX/month on API costs alone — before counting productivity gains. Want to chat about your numbers?" |
 
@@ -178,7 +178,7 @@
 #### P1 (Pentest Consultant)
 
 1. **Workflow-focused:**
-> "Hi {{first_name}}, I work with pentest firms that feed engagement data through LLMs. Headroom lets you fit an entire 100k-line report into one context window. Would love to connect."
+> "Hi {{first_name}}, I work with pentest firms that feed engagement data through LLMs. Cutctx lets you fit an entire 100k-line report into one context window. Would love to connect."
 
 2. **Peer referral:**
 > "Hey {{first_name}}, [mutual connection] mentioned you do pentest work with AI tooling. We compress logs & code for LLM analysis — curious if you've hit context limits in engagements. Let's connect!"
@@ -265,10 +265,10 @@ Always end with a clear next step:
 ### Stage 1: Problem Intro (2 min)
 
 **Script:**
-> "Context compression is the new caching. Just like Redis made database queries faster by caching results, Headroom makes LLM interactions cheaper and more capable by compressing context on the fly. Every token you save is money back in your pocket and more room for actual reasoning."
+> "Context compression is the new caching. Just like Redis made database queries faster by caching results, Cutctx makes LLM interactions cheaper and more capable by compressing context on the fly. Every token you save is money back in your pocket and more room for actual reasoning."
 
 **Key point to land:**
-> "Your team is already paying for context they don't use. Headroom reclaims it."
+> "Your team is already paying for context they don't use. Cutctx reclaims it."
 
 **Visual:** Slide showing "Raw Context" (full bar) vs "Compressed Context" (1/5 the size) — labeled with dollar amounts.
 
@@ -279,7 +279,7 @@ Always end with a clear next step:
 **Action:**
 ```
 # Raw input (5,000 tokens)
-headroom compress input.txt --output compressed.txt
+cutctx compress input.txt --output compressed.txt
 # Compressed output (850 tokens)
 ```
 
@@ -302,14 +302,14 @@ headroom compress input.txt --output compressed.txt
 - Conservative CCR: 2x (lossless compression — good for compliance evidence)
 
 **Memory:**
-> "Headroom remembers what it compressed. If you ask about a decision made 3 sessions ago, it reconstructs the relevant context without re-ingesting the full history. Repeated tokens get reclaimed automatically."
+> "Cutctx remembers what it compressed. If you ask about a decision made 3 sessions ago, it reconstructs the relevant context without re-ingesting the full history. Repeated tokens get reclaimed automatically."
 
 **Visual:** Timeline showing multiple sessions → compressed summaries → cross-session retrieval.
 
 ### Stage 4: Audit Evidence (3 min) — P0 Focus
 
 **Script:**
-> "This is where Headroom shines for compliance. Every compressed interaction is automatically logged with: timestamp, user identity, original token count, compressed token count, compression ratio, and a cryptographic hash proving the compressed output matches the original."
+> "This is where Cutctx shines for compliance. Every compressed interaction is automatically logged with: timestamp, user identity, original token count, compressed token count, compression ratio, and a cryptographic hash proving the compressed output matches the original."
 
 **Show:**
 - Audit log table: Date | User | Original Tokens | Compressed | Ratio | Hash
@@ -318,7 +318,7 @@ headroom compress input.txt --output compressed.txt
 
 **For P1:** Skip audit slide. Show multi-engagement context persistence instead.
 
-**For P2:** Skip audit slide. Show API integration — how Headroom plugs into existing CI/CD pipelines with zero code changes.
+**For P2:** Skip audit slide. Show API integration — how Cutctx plugs into existing CI/CD pipelines with zero code changes.
 
 ### Stage 5: ROI Calculator (2 min)
 
@@ -327,7 +327,7 @@ headroom compress input.txt --output compressed.txt
 
 **Table:**
 
-| Metric | Before Headroom | With Headroom (5x CCR) |
+| Metric | Before Cutctx | With Cutctx (5x CCR) |
 |--------|----------------|------------------------|
 | Monthly input tokens | 50M | 10M |
 | Monthly input cost | $150 | $30 |
@@ -345,12 +345,12 @@ headroom compress input.txt --output compressed.txt
 | # | Objection | Root Cause | Response |
 |---|-----------|------------|----------|
 | 1 | **"It's too expensive."** | Price sensitivity or unclear value | "Understood. What budget were you thinking? Our pricing scales with usage, so teams your size typically pay $X-$Y/month. And if you're spending $Z/month on LLM tokens, the compression alone pays for itself within 30 days. Want me to show you the math?" |
-| 2 | **"We're concerned about security — you're proxying our LLM traffic."** | Trust / data governance | "Great question. Headroom runs as a forward proxy in your own VPC. Data never leaves your infrastructure. We have customers handling HIPAA data. Here's our security white paper: [link]. Happy to set up a private deployment for your review." |
+| 2 | **"We're concerned about security — you're proxying our LLM traffic."** | Trust / data governance | "Great question. Cutctx runs as a forward proxy in your own VPC. Data never leaves your infrastructure. We have customers handling HIPAA data. Here's our security white paper: [link]. Happy to set up a private deployment for your review." |
 | 3 | **"We'll build this ourselves."** | Not invented here / engineer ego | "We hear that a lot. Here's what teams find: compression that preserves semantic meaning without hallucinations is harder than it looks — we've spent 18 months on the algorithm. Our average customer saves 400+ engineering hours on the build vs. buy decision alone. But if you want to try, our OSS version is available. Most teams end up upgrading within 2 months." |
-| 4 | **"We're worried about vendor lock-in."** | Long-term commitment fear | "Headroom compresses to standard token formats compatible with any LLM provider. If you leave, your compressed contexts are plain JSON — no proprietary format. Plus, you can export everything. It's a proxy, not a platform." |
+| 4 | **"We're worried about vendor lock-in."** | Long-term commitment fear | "Cutctx compresses to standard token formats compatible with any LLM provider. If you leave, your compressed contexts are plain JSON — no proprietary format. Plus, you can export everything. It's a proxy, not a platform." |
 | 5 | **"There's an open-source alternative."** | Cost avoidance | "We maintain our own OSS version! The difference is: managed infrastructure, compliance logging, team management, priority support, and SLA guarantees. Most OSS users graduate to paid within 6 weeks once they hit scale. Start with OSS, upgrade when ready." |
-| 6 | **"I'm not sure how this fits with our compliance requirements."** | Uncertainty / risk aversion | "Let's set up a 15-min call with our compliance team. We've mapped Headroom to SOC 2, HIPAA, and ISO 27001 control requirements. We'll share our compliance deck and you can assess against your specific framework. No commitment." |
-| 7 | **"We're too small for this."** | Mistaken about eligibility | "Actually, Headroom works great for small teams! Our 'Starter' tier is designed for teams under 10 seats. You get the same compression, just fewer admin features. And when you grow, you can upgrade seamlessly. Want to see the Starter pricing?" |
+| 6 | **"I'm not sure how this fits with our compliance requirements."** | Uncertainty / risk aversion | "Let's set up a 15-min call with our compliance team. We've mapped Cutctx to SOC 2, HIPAA, and ISO 27001 control requirements. We'll share our compliance deck and you can assess against your specific framework. No commitment." |
+| 7 | **"We're too small for this."** | Mistaken about eligibility | "Actually, Cutctx works great for small teams! Our 'Starter' tier is designed for teams under 10 seats. You get the same compression, just fewer admin features. And when you grow, you can upgrade seamlessly. Want to see the Starter pricing?" |
 | 8 | **"Not the right time — we're focused on shipping."** | No urgency / competing priority | "I get it. When is a better time? In 3 months? 6 months? I'll set a calendar reminder to follow up. In the meantime, here's our ROI calculator — if your token costs spike, you'll know exactly what you'd save. I'll check back in [agreed timeframe]." |
 
 ---
@@ -358,7 +358,7 @@ headroom compress input.txt --output compressed.txt
 ## 9. Post-Call Follow-up Template
 
 ```
-Subject: Thanks, {{prospect_name}} — next steps with Headroom
+Subject: Thanks, {{prospect_name}} — next steps with Cutctx
 
 Hi {{prospect_name}},
 
@@ -407,7 +407,7 @@ Best,
 |-------|------------|----------------|------------------------|
 | **1. Lead** | New inquiry — inbound form, event scan, LinkedIn connection, sourced list import. No qualification yet. | - Contact exists in HubSpot<br>- Source tracked (GH, LI, conference, inbound) | - Score ≥ 40 → move to Qualified<br>- Score < 40 → keep in Lead, nurture monthly<br>- No engagement in 90 days → archive |
 | **2. Qualified** | Pain confirmed, budget exists or can be allocated, timeline identified. | - Discovery call completed (Section 6)<br>- Score ≥ 60 (Warm) ideally<br>- At least 2 of: pain, budget, authority, timeline | - Demo booked → move to Demo Completed<br>- Prospect declines demo → move back to Lead, set 60-day nurture |
-| **3. Demo Completed** | Prospect has seen Headroom working on their own data (not just a generic demo). Compression ratio verified on their logs. | - Demo completed (Section 7)<br>- ROI calculated with their numbers<br>- Next steps agreed (Section 9) | - Verbal commitment / "ready to move forward" → Negotiation<br>- Needs internal buy-in → set follow-up with decision maker<br>- Ghosted > 14 days → reach out, then move back to Qualified |
+| **3. Demo Completed** | Prospect has seen Cutctx working on their own data (not just a generic demo). Compression ratio verified on their logs. | - Demo completed (Section 7)<br>- ROI calculated with their numbers<br>- Next steps agreed (Section 9) | - Verbal commitment / "ready to move forward" → Negotiation<br>- Needs internal buy-in → set follow-up with decision maker<br>- Ghosted > 14 days → reach out, then move back to Qualified |
 | **4. Negotiation** | Active pricing discussion. Contract sent or under legal review. | - Deal size scoped (seats or token volume)<br>- Pricing proposal sent<br>- Legal / security review initiated | - Signed contract → Closed Won<br>- Lost to competitor / no decision → Closed Lost<br>- Stalled > 30 days → set "snooze" and re-engage in 90 days |
 | **5. Closed Won** | Contract signed. Implementation kickoff scheduled. | - Signed agreement in CRM<br>- Payment method collected<br>- Implementation call booked | - Handoff to customer success<br>- First value achieved within 14 days |
 | **6. Closed Lost** | Deal is definitively not happening. | - Prospect explicitly says no OR<br>- Radio silence > 60 days in Negotiation | - Log reason (price, competitor, no need, built internally)<br>- Suppress from outbound for 12 months<br>- Add to re-activation nurture flow |
@@ -510,15 +510,15 @@ Best,
 
 ### Key Links
 
-- **Headroom website:** [headroomlabs.com](https://headroomlabs.com)
-- **Docs:** [docs.headroomlabs.com](https://docs.headroomlabs.com)
-- **Open source:** [github.com/headroomlabs/headroom](https://github.com/headroomlabs/headroom)
-- **Pricing:** [headroomlabs.com/pricing](https://headroomlabs.com/pricing)
-- **Security white paper:** [docs.headroomlabs.com/security](https://docs.headroomlabs.com/security)
-- **Demo booking:** [calendly.com/headroomlabs/demo](https://calendly.com/headroomlabs/demo)
+- **Cutctx website:** [cutctxlabs.com](https://cutctxlabs.com)
+- **Docs:** [docs.cutctxlabs.com](https://docs.cutctxlabs.com)
+- **Open source:** [github.com/cutctxlabs/cutctx](https://github.com/cutctxlabs/cutctx)
+- **Pricing:** [cutctxlabs.com/pricing](https://cutctxlabs.com/pricing)
+- **Security white paper:** [docs.cutctxlabs.com/security](https://docs.cutctxlabs.com/security)
+- **Demo booking:** [calendly.com/cutctxlabs/demo](https://calendly.com/cutctxlabs/demo)
 
 ---
 
-> **Maintainer:** Headroom Sales & Marketing
+> **Maintainer:** Cutctx Sales & Marketing
 > **Last updated:** {{date}}
 > **Version:** 1.0

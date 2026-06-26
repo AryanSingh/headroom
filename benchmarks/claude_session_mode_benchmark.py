@@ -15,17 +15,17 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from headroom.cache.compression_cache import CompressionCache
-from headroom.cache.prefix_tracker import PrefixCacheTracker
-from headroom.pricing.litellm_pricing import get_model_pricing
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import CutctxProxy
-from headroom.tokenizers import get_tokenizer
-from headroom.utils import extract_user_query
+from cutctx.cache.compression_cache import CompressionCache
+from cutctx.cache.prefix_tracker import PrefixCacheTracker
+from cutctx.pricing.litellm_pricing import get_model_pricing
+from cutctx.proxy.handlers.anthropic import AnthropicHandlerMixin
+from cutctx.proxy.models import ProxyConfig
+from cutctx.proxy.server import CutctxProxy
+from cutctx.tokenizers import get_tokenizer
+from cutctx.utils import extract_user_query
 
 try:
-    from headroom.proxy.modes import PROXY_MODE_CACHE, PROXY_MODE_TOKEN
+    from cutctx.proxy.modes import PROXY_MODE_CACHE, PROXY_MODE_TOKEN
 except ImportError:
     PROXY_MODE_CACHE = "cache"
     PROXY_MODE_TOKEN = "token"
@@ -865,7 +865,7 @@ def _apply_mode_to_messages(
 
     working_messages = copy.deepcopy(messages)
     if proxy.config.image_optimize and working_messages and _messages_have_images(working_messages):
-        from headroom.proxy.helpers import _get_image_compressor
+        from cutctx.proxy.helpers import _get_image_compressor
 
         compressor = _get_image_compressor()
         if compressor and compressor.has_images(working_messages):
@@ -1038,14 +1038,14 @@ def _merge_mode_summary(target: ModeSummary, source: ModeSummary) -> None:
     target.latest_turn_only_rewrite_turns += source.latest_turn_only_rewrite_turns
 
 
-def _disable_headroom_benchmark_logging() -> None:
+def _disable_cutctx_benchmark_logging() -> None:
     logging.raiseExceptions = False
     for logger_name in (
         "cutctx",
-        "headroom.cache",
-        "headroom.cache.compression_cache",
-        "headroom.proxy",
-        "headroom.transforms",
+        "cutctx.cache",
+        "cutctx.cache.compression_cache",
+        "cutctx.proxy",
+        "cutctx.transforms",
     ):
         logger = logging.getLogger(logger_name)
         logger.handlers.clear()
@@ -1140,7 +1140,7 @@ def _simulate_single_replay_mode(
     cache_ttl_minutes: int,
     cache_write_multiplier: float,
 ) -> ModeSummary:
-    _disable_headroom_benchmark_logging()
+    _disable_cutctx_benchmark_logging()
 
     summary = ModeSummary(mode=mode, sessions=1)
     ttl = timedelta(minutes=cache_ttl_minutes)
@@ -1395,7 +1395,7 @@ def simulate_session_files(
         if worker_count > 1 and total > 1:
             with concurrent.futures.ProcessPoolExecutor(
                 max_workers=worker_count,
-                initializer=_disable_headroom_benchmark_logging,
+                initializer=_disable_cutctx_benchmark_logging,
             ) as executor:
                 future_map: dict[concurrent.futures.Future[tuple[str, ModeSummary]], str] = {}
                 completed = 0
@@ -2011,8 +2011,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    logging.getLogger("headroom.transforms").setLevel(logging.WARNING)
-    logging.getLogger("headroom.proxy").setLevel(logging.WARNING)
+    logging.getLogger("cutctx.transforms").setLevel(logging.WARNING)
+    logging.getLogger("cutctx.proxy").setLevel(logging.WARNING)
     checkpoint_dir = resolve_checkpoint_dir(
         args.checkpoint_dir,
         recent_turns_per_session=args.recent_turns_per_session,

@@ -19,14 +19,14 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from headroom.cache.compression_cache import CompressionCache
-from headroom.cache.prefix_tracker import PrefixCacheTracker
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.modes import PROXY_MODE_CACHE, PROXY_MODE_TOKEN
-from headroom.proxy.server import CutctxProxy
-from headroom.tokenizers import get_tokenizer
-from headroom.utils import extract_user_query
+from cutctx.cache.compression_cache import CompressionCache
+from cutctx.cache.prefix_tracker import PrefixCacheTracker
+from cutctx.proxy.handlers.anthropic import AnthropicHandlerMixin
+from cutctx.proxy.models import ProxyConfig
+from cutctx.proxy.modes import PROXY_MODE_CACHE, PROXY_MODE_TOKEN
+from cutctx.proxy.server import CutctxProxy
+from cutctx.tokenizers import get_tokenizer
+from cutctx.utils import extract_user_query
 
 MODEL = "claude-sonnet-4-6"
 
@@ -259,8 +259,8 @@ def _print_results(results: dict[str, ModeBenchmarkResult]) -> None:
 
 def _print_real_harness() -> None:
     print("\nReal test harness (manual; optional, not executed by this benchmark):")
-    print("  1) Start proxy in cache mode:  HEADROOM_MODE=cache headroom proxy --port 8787")
-    print("  2) Start proxy in token mode:  HEADROOM_MODE=token headroom proxy --port 8787")
+    print("  1) Start proxy in cache mode:  CUTCTX_MODE=cache cutctx proxy --port 8787")
+    print("  2) Start proxy in token mode:  CUTCTX_MODE=token cutctx proxy --port 8787")
     print("  3) Run Claude Code against each:")
     print("     ANTHROPIC_BASE_URL=http://localhost:8787 claude")
     print("  4) Compare /stats prefix_cache and compression sections per run.")

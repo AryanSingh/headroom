@@ -20,7 +20,7 @@ cutctx proxy --port 8787
 **Requirements:** Python 3.10+, 2GB RAM
 
 **What runs:**
-- CutCtx proxy (FastAPI + Uvicorn)
+- Cutctx proxy (FastAPI + Uvicorn)
 - Python compression pipeline
 - Rust core (via PyO3)
 - SQLite for CCR and memory
@@ -215,7 +215,7 @@ cutctx proxy --port 8787
 │                    Customer Infrastructure                    │
 │                                                              │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │  AI Agent    │───▶│   CutCtx   │───▶│  LLM Provider│   │
+│  │  AI Agent    │───▶│   Cutctx   │───▶│  LLM Provider│   │
 │  │  (Claude,    │    │    Proxy     │    │  (Anthropic, │   │
 │  │   Codex,     │    │  (port 8787) │    │   OpenAI,    │   │
 │  │   Cursor)    │    │              │    │   Google)    │   │
@@ -244,7 +244,7 @@ cutctx proxy --port 8787
 
 | Component | CPU | Memory | Disk |
 |-----------|-----|--------|------|
-| CutCtx proxy | 0.25–1.0 cores | 256MB–1GB | 100MB |
+| Cutctx proxy | 0.25–1.0 cores | 256MB–1GB | 100MB |
 | CCR database | Negligible | 50MB–500MB | 1GB–10GB |
 | Memory store | Negligible | 50MB–500MB | 100MB–1GB |
 | Request logs | Negligible | 10MB–100MB | 1GB–50GB |
@@ -253,7 +253,7 @@ cutctx proxy --port 8787
 ## Scaling
 
 ### Horizontal Scaling
-- Run multiple CutCtx proxy instances behind a load balancer
+- Run multiple Cutctx proxy instances behind a load balancer
 - Each instance has its own CCR and memory store (isolated)
 - No shared state between instances
 

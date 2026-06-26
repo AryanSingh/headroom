@@ -1,4 +1,4 @@
-# CutCtx — Asset Register (Ship vs Serve)
+# Cutctx — Asset Register (Ship vs Serve)
 
 **Purpose:** Classify every valuable asset as "ship" (delivered to customer) or "serve" (kept server-side). This is SP-0 — the highest-leverage protection control.
 

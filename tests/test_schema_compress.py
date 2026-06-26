@@ -1,20 +1,18 @@
-"""Tests for headroom.proxy.schema_compress — JSON schema compression."""
+"""Tests for cutctx.proxy.schema_compress — JSON schema compression."""
 
 from __future__ import annotations
 
 import json
-import pytest
 
-from headroom.proxy.schema_compress import (
-    compress_tool_schemas,
-    compress_tool_results,
-    _truncate_description,
-    _try_positional_array,
-    _json_bytes,
+from cutctx.proxy.schema_compress import (
     _SCHEMA_DROP_KEYS,
     _SCHEMA_KEEP_KEYS,
+    _json_bytes,
+    _truncate_description,
+    _try_positional_array,
+    compress_tool_results,
+    compress_tool_schemas,
 )
-
 
 # ───────────────── Fixtures ─────────────────
 

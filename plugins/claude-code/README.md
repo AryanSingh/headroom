@@ -1,10 +1,10 @@
-# CutCtx Plugin for Claude Code
+# Cutctx Plugin for Claude Code
 
 Context compression that runs inside Claude Code — compress tool outputs, retrieve originals on demand, and track token savings.
 
 ## What It Does
 
-- **Auto-starts the CutCtx proxy** when Claude Code launches
+- **Auto-starts the Cutctx proxy** when Claude Code launches
 - **Compresses tool outputs** (file listings, search results, logs) before they reach the LLM
 - **Provides MCP tools** for on-demand compress/retrieve/status
 - **Tracks token savings** across your session
@@ -55,7 +55,7 @@ cutctx proxy
 ## How It Works
 
 ```
-Claude Code → CutCtx Plugin → Proxy (port 8787) → LLM Provider
+Claude Code → Cutctx Plugin → Proxy (port 8787) → LLM Provider
                   ↓
             MCP Server (stdio)
             ├── cutctx_retrieve
@@ -63,7 +63,7 @@ Claude Code → CutCtx Plugin → Proxy (port 8787) → LLM Provider
             └── cutctx_status
 ```
 
-1. **Session Start**: Plugin hooks auto-start the CutCtx proxy if not running
+1. **Session Start**: Plugin hooks auto-start the Cutctx proxy if not running
 2. **Tool Use**: Before tool results reach Claude, the proxy compresses large outputs
 3. **Retrieval**: When Claude needs full content, it calls `cutctx_retrieve` via MCP
 4. **Status**: View compression ratios and token savings via `cutctx_status`

@@ -1,4 +1,4 @@
-"""Tests for RBAC system (headroom/rbac.py)."""
+"""Tests for RBAC system (cutctx/rbac.py)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from headroom.rbac import (
+from cutctx.rbac import (
     PERMISSION_MAP,
     ROLE_HIERARCHY,
     AdminRole,
@@ -43,14 +43,14 @@ class TestRbacChecker:
     def test_resolve_role_explicit_header(self):
         checker = RbacChecker()
         request = MagicMock()
-        request.headers = {"x-headroom-role": "operator"}
+        request.headers = {"x-cutctx-role": "operator"}
         role = checker.resolve_role(request)
         assert role == AdminRole.OPERATOR
 
     def test_resolve_role_invalid_header_falls_back(self):
         checker = RbacChecker()
         request = MagicMock()
-        request.headers = {"x-headroom-role": "invalid_role"}
+        request.headers = {"x-cutctx-role": "invalid_role"}
         role = checker.resolve_role(request)
         assert role == AdminRole.ADMIN  # default
 
@@ -58,7 +58,7 @@ class TestRbacChecker:
         checker = RbacChecker()
         checker.assign_role("user123", AdminRole.VIEWER)
         request = MagicMock()
-        request.headers = {"x-headroom-user-id": "user123"}
+        request.headers = {"x-cutctx-user-id": "user123"}
         role = checker.resolve_role(request)
         assert role == AdminRole.VIEWER
 

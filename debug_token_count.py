@@ -1,4 +1,4 @@
-from headroom.tokenizers.tiktoken_counter import TiktokenCounter
+from cutctx.tokenizers.tiktoken_counter import TiktokenCounter
 
 tokenizer = TiktokenCounter("gpt-4o")
 

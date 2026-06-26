@@ -1,25 +1,25 @@
 openapi: 3.1.0
 info:
-  title: CutCtx Management API
+  title: Cutctx Management API
   description: |
-    Management and observability endpoints for the CutCtx context compression proxy.
+    Management and observability endpoints for the Cutctx context compression proxy.
     
     These endpoints are served by the Python management layer alongside the Rust
     reverse proxy. They require admin API key authentication when configured.
     
-    **Authentication:** When `HEADROOM_ADMIN_API_KEY` is set, all management
+    **Authentication:** When `CUTCTX_ADMIN_API_KEY` is set, all management
     endpoints require either:
     - `Authorization: Bearer <admin-api-key>` header
-    - `X-CutCtx-Admin-Key: <admin-api-key>` header
+    - `X-Cutctx-Admin-Key: <admin-api-key>` header
     
     When no admin API key is configured, endpoints are open (backward-compatible).
   version: "0.26.0"
   contact:
-    name: CutCtx Labs
+    name: Cutctx Labs
     email: hello@cutctx.dev
     url: https://cutctx.dev
   license:
-    name: CutCtx Commercial License
+    name: Cutctx Commercial License
     url: https://pitchtoship.com/legal/commercial-license
 
 servers:
@@ -422,7 +422,7 @@ components:
     AdminKeyHeader:
       type: apiKey
       in: header
-      name: X-CutCtx-Admin-Key
+      name: X-Cutctx-Admin-Key
       description: Admin API key in custom header
 
   schemas:
@@ -431,7 +431,7 @@ components:
       properties:
         service:
           type: string
-          example: "headroom-proxy"
+          example: "cutctx-proxy"
         status:
           type: string
           example: "healthy"

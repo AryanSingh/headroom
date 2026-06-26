@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3 -m headroom.cli init hook ensure --profile init-headroom-a4d5fe9c --marker headroom-init-codex",
+            "command": "/Users/aryansingh/.local/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
             "timeout": 15
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3 -m headroom.cli init hook ensure --profile init-headroom-a4d5fe9c --marker headroom-init-codex",
+            "command": "/Users/aryansingh/.local/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
             "timeout": 15
           }
         ]

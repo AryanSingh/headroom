@@ -14,56 +14,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 * **Hardware fingerprint hardening**: replaced `uuid.getnode()` (MAC address, trivially spoofed) with OS-native machine IDs — `/etc/machine-id` on Linux, `IOPlatformUUID` via `ioreg` on macOS, `HKLM\MachineGuid` on Windows. Three-factor binding: machine ID + hostname + username.
 * **HMAC signature expanded 64-bit → 128-bit**: `licensing.rs` truncation changed from 16 → 32 hex chars with constant-time XOR fold comparison and up-front length rejection. `generate_license.py` updated to emit 32-char signatures.
-* **Anti-debug guard**: Rust module `antidebug.rs` — macOS `ptrace(PT_DENY_ATTACH)`, Linux `TracerPid` parse, Windows `IsDebuggerPresent`. Python fallback in `headroom/security/antidebug.py`. `HEADROOM_ALLOW_DEBUG=1` escape hatch. Called automatically at EE import time.
-* **EE binary integrity manifest**: `headroom_ee/MANIFEST.sha256.json` — SHA-256 hashes of all `.so` files, HMAC-signed with `HEADROOM_LICENSE_HMAC_SECRET`. Verified by `headroom/security/integrity.py` before any EE code executes. `HEADROOM_SKIP_INTEGRITY_CHECK=1` escape hatch for debugging.
+* **Anti-debug guard**: Rust module `antidebug.rs` — macOS `ptrace(PT_DENY_ATTACH)`, Linux `TracerPid` parse, Windows `IsDebuggerPresent`. Python fallback in `cutctx/security/antidebug.py`. `CUTCTX_ALLOW_DEBUG=1` escape hatch. Called automatically at EE import time.
+* **EE binary integrity manifest**: `cutctx_ee/MANIFEST.sha256.json` — SHA-256 hashes of all `.so` files, HMAC-signed with `CUTCTX_LICENSE_HMAC_SECRET`. Verified by `cutctx/security/integrity.py` before any EE code executes. `CUTCTX_SKIP_INTEGRITY_CHECK=1` escape hatch for debugging.
 
 ### Fixed
-* **Stateless mode** (`--stateless` / `HEADROOM_STATELESS=true`): 14 files updated to use `:memory:` SQLite; beacon lock files, file logging, and subscription file persistence all guarded. Zero files written in stateless mode (was 20+).
-* **Docker**: `COPY headroom_ee/` was missing from `Dockerfile`, causing `ImportError` at container start. Fixed with correct COPY directives, extras (`proxy,code,ee`), `--no-editable` install, and EE manifest rebuild for Linux platform.
+* **Stateless mode** (`--stateless` / `CUTCTX_STATELESS=true`): 14 files updated to use `:memory:` SQLite; beacon lock files, file logging, and subscription file persistence all guarded. Zero files written in stateless mode (was 20+).
+* **Docker**: `COPY cutctx_ee/` was missing from `Dockerfile`, causing `ImportError` at container start. Fixed with correct COPY directives, extras (`proxy,code,ee`), `--no-editable` install, and EE manifest rebuild for Linux platform.
 * **Proxy routes**: `/audit/stats` returned 404 (now 403 for non-enterprise); `/v1/spend/query` returned 500 (now 200 with NullStore fallback); `/v1/dsr/export` and `/v1/dsr/delete` had wrong prefix (`/v1/me` → `/v1/dsr`).
 * **CLI** (from manual testing pass): `bench --algorithm` six implementations replacing broken `_get_algorithms()`; `agent-savings` duplicate `--format` option removed; `audit` broken import removed; `learn --dry-run` flag added; `evals probes` empty-directory guard.
 * **Compression**: `compact_table.py` `compress()` was returning `None`; `diff_compressor.py` Python fallback added for when Rust produces no compression; `log_compressor.py` missing `tokens_saved_estimate` field; `selective_filter.py` wrong return type.
-* **LlamaIndex Pydantic v2 compatibility**: `CutCtxNodePostprocessor` fields now use class-level annotations and `PrivateAttr`.
-* **Air-gap mode**: `is_offline()` now checks both `HEADROOM_AIR_GAP=1` and `HEADROOM_OFFLINE_MODE=1`; proxy refuses to start without `HEADROOM_LICENSE_HMAC_SECRET` in air-gap mode.
+* **LlamaIndex Pydantic v2 compatibility**: `CutctxNodePostprocessor` fields now use class-level annotations and `PrivateAttr`.
+* **Air-gap mode**: `is_offline()` now checks both `CUTCTX_AIR_GAP=1` and `CUTCTX_OFFLINE_MODE=1`; proxy refuses to start without `CUTCTX_LICENSE_HMAC_SECRET` in air-gap mode.
 * **EE integrity check on source installs**: `verify_ee_manifest` now detects when zero `.so` files are present (fresh clone / uncompiled dev install) and skips gracefully instead of raising `IntegrityError`.
 
 ### Added
 * **JetBrains plugin CI verification**: `pluginVerification.ides` block added to `build.gradle.kts` — verifies against IntelliJ IDEA Community 2024.1, 2024.3, and 2025.1 (the full declared `sinceBuild=241` / `untilBuild=251.*` range).
-* **`CCRStore`**: backward-compatible wrapper (`headroom/ccr/store.py`) exposing legacy `put()`/`get()` API over `BatchContextStore`.
-* **Missing package inits**: `headroom_ee/memory_service/__init__.py` and `headroom_ee/tests/__init__.py` added (were causing `ImportError` in Docker).
+* **`CCRStore`**: backward-compatible wrapper (`cutctx/ccr/store.py`) exposing legacy `put()`/`get()` API over `BatchContextStore`.
+* **Missing package inits**: `cutctx_ee/memory_service/__init__.py` and `cutctx_ee/tests/__init__.py` added (were causing `ImportError` in Docker).
 
 ### Fixed
 * **pyproject.toml URLs**: corrected typo `AryanSingh/cutcxt` → `cutctx/cutctx` in Repository, Issues, and Changelog URLs
 * **README badge URLs**: all 5 `AryanSingh/cutcxt` badge and star-history URLs corrected to `cutctx/cutctx`
 
 ### Added
-* **PRIVACY.md**: new document covering local-first architecture, CCR store location, `--stateless` / `--no-telemetry` modes, API key pass-through, enterprise VPC deployment, and explicit "what CutCtx does NOT do" list
+* **PRIVACY.md**: new document covering local-first architecture, CCR store location, `--stateless` / `--no-telemetry` modes, API key pass-through, enterprise VPC deployment, and explicit "what Cutctx does NOT do" list
 * **Image optimization documented**: README and proxy `--help` now surface the `image_optimize` capability (40–90% reduction, zero config, on-by-default)
-* **Accuracy guard documented**: `HEADROOM_ACCURACY_GUARD=strict|balanced|off` surfaces in README near proxy configuration
-* **LLMLingua-2 integration** (`pip install cutctx-ai[llmlingua]`): Microsoft's BERT-level ML token-classification compressor now available as an optional algorithm. Use `cutctx proxy --llmlingua` or `HEADROOM_USE_LLMLINGUA=1`. Falls through to Kompress gracefully when not installed. Provides a second ML compression path independent of the Kompress/ModernBERT stack.
+* **Accuracy guard documented**: `CUTCTX_ACCURACY_GUARD=strict|balanced|off` surfaces in README near proxy configuration
+* **LLMLingua-2 integration** (`pip install cutctx-ai[llmlingua]`): Microsoft's BERT-level ML token-classification compressor now available as an optional algorithm. Use `cutctx proxy --llmlingua` or `CUTCTX_USE_LLMLINGUA=1`. Falls through to Kompress gracefully when not installed. Provides a second ML compression path independent of the Kompress/ModernBERT stack.
 * **CompactTableCompressor**: new pure-Python transform that serializes JSON arrays of homogeneous objects into a compact pipe-delimited table format (30–60% smaller than JSON for file listings, DB rows, search results, API list responses). Auto-activates for arrays of ≥5 dicts before SmartCrusher; constant columns collapsed to header annotations.
-* **Query-aware compression** (`--query-aware` / `HEADROOM_QUERY_AWARE=1`): detects the user's task type from the last message (CODE, DEBUG, SEARCH, LIST, SUMMARIZE, etc.) and automatically adjusts `protect_recent` and `min_tokens_to_crush` per compression pass. CODE/DEBUG: conservative (protect last 6 turns). SEARCH/LIST/SUMMARIZE: aggressive (protect last 2 turns). Uses existing `TaskType` feature extractor infrastructure.
+* **Query-aware compression** (`--query-aware` / `CUTCTX_QUERY_AWARE=1`): detects the user's task type from the last message (CODE, DEBUG, SEARCH, LIST, SUMMARIZE, etc.) and automatically adjusts `protect_recent` and `min_tokens_to_crush` per compression pass. CODE/DEBUG: conservative (protect last 6 turns). SEARCH/LIST/SUMMARIZE: aggressive (protect last 2 turns). Uses existing `TaskType` feature extractor infrastructure.
 * **JetBrains plugin**: raised `pluginUntilBuild` from `243.*` to `251.*` so the plugin is compatible with IntelliJ 2025.1+ (build 251)
-* **Langfuse integration surfaced** (`pip install cutctx-ai[langfuse]`): `cutctx proxy --langfuse` (or `HEADROOM_LANGFUSE_ENABLED=1`) now activates the built-in Langfuse OTEL tracing with visible CLI flag, startup banner line, and `[langfuse]` installable extra. Added `wiki/langfuse.md`.
-* **LlamaIndex integration** (`pip install cutctx-ai[llamaindex]`): `CutCtxNodePostprocessor` — drop-in LlamaIndex `NodePostprocessor` that filters retrieved nodes by BM25/hybrid relevance score and optionally compresses surviving node text via CutCtx ContentRouter. Added `wiki/llamaindex.md`.
-* **Selective Context Filter** (`--selective-filter` / `HEADROOM_SELECTIVE_FILTER=1`): new pre-compression transform that scores each conversation turn against the current user query and drops turns below `--selective-filter-threshold` (default 0.15). Uses existing BM25/hybrid relevance infrastructure. Wired into `ContentRouterConfig` and runs before all compression logic.
+* **Langfuse integration surfaced** (`pip install cutctx-ai[langfuse]`): `cutctx proxy --langfuse` (or `CUTCTX_LANGFUSE_ENABLED=1`) now activates the built-in Langfuse OTEL tracing with visible CLI flag, startup banner line, and `[langfuse]` installable extra. Added `wiki/langfuse.md`.
+* **LlamaIndex integration** (`pip install cutctx-ai[llamaindex]`): `CutctxNodePostprocessor` — drop-in LlamaIndex `NodePostprocessor` that filters retrieved nodes by BM25/hybrid relevance score and optionally compresses surviving node text via Cutctx ContentRouter. Added `wiki/llamaindex.md`.
+* **Selective Context Filter** (`--selective-filter` / `CUTCTX_SELECTIVE_FILTER=1`): new pre-compression transform that scores each conversation turn against the current user query and drops turns below `--selective-filter-threshold` (default 0.15). Uses existing BM25/hybrid relevance infrastructure. Wired into `ContentRouterConfig` and runs before all compression logic.
 
 ### Added
 * **`cutctx init windsurf`**: now performs real durable install — writes `openai.baseUrl` to the platform-correct Windsurf `settings.json` (macOS/Linux/Windows paths resolved automatically); merges non-destructively with existing settings
 * **`cutctx init zed`**: now performs real durable install — writes `language_models.openai.api_url` and `language_models.anthropic.api_url` into `~/.config/zed/settings.json` via deep-merge
 * **`cutctx init opencode`**: now performs real durable install — injects `OPENAI_BASE_URL` into the user's shell profile using the existing marker-block mechanism (same pattern as Copilot/Gemini)
-* **`cutctx proxy --ccr-ttl-seconds`**: configurable CCR store TTL (default 1800s / 30 min; `0` = never expire). Also controllable via `HEADROOM_CCR_TTL_SECONDS` env var. Removes the silent-data-loss risk on long agent runs and enables persistent/daemon deployments with no expiry
+* **`cutctx proxy --ccr-ttl-seconds`**: configurable CCR store TTL (default 1800s / 30 min; `0` = never expire). Also controllable via `CUTCTX_CCR_TTL_SECONDS` env var. Removes the silent-data-loss risk on long agent runs and enables persistent/daemon deployments with no expiry
 * **e2e wrap smoke tests**: added `verify_windsurf_wrap`, `verify_zed_wrap`, `verify_opencode_wrap` to `e2e/wrap/run.py` following the `--prepare-only` pattern used by cline/continue/goose/openhands
 
 ### Added
 
-* **harnesses — Windsurf:** `cutctx wrap windsurf` starts the proxy and prints OpenAI and Anthropic base URL configuration instructions for Windsurf's Settings UI and `settings.json`. Provider module at `headroom/providers/windsurf/`. `cutctx init windsurf` prints manual shell-profile setup instructions.
-* **harnesses — Zed:** `cutctx wrap zed` starts the proxy and prints the exact `language_models.openai.api_url` / `language_models.anthropic.api_url` JSON snippet for `~/.config/zed/settings.json`. Provider module at `headroom/providers/zed/`. `cutctx init zed` prints manual setup instructions.
+* **harnesses — Windsurf:** `cutctx wrap windsurf` starts the proxy and prints OpenAI and Anthropic base URL configuration instructions for Windsurf's Settings UI and `settings.json`. Provider module at `cutctx/providers/windsurf/`. `cutctx init windsurf` prints manual shell-profile setup instructions.
+* **harnesses — Zed:** `cutctx wrap zed` starts the proxy and prints the exact `language_models.openai.api_url` / `language_models.anthropic.api_url` JSON snippet for `~/.config/zed/settings.json`. Provider module at `cutctx/providers/zed/`. `cutctx init zed` prints manual setup instructions.
 * **harnesses — opencode:** `cutctx wrap opencode` starts the proxy and launches opencode with `OPENAI_BASE_URL` pointed at the local proxy — same Pattern A as `cutctx wrap codex`. `cutctx init opencode` prints manual shell-profile instructions. Added `opencode` and `windsurf` to `_AGENT_SAVINGS_WRAP_AGENTS` for per-session savings attribution.
 * **VS Code extension:** full TypeScript extension at `extensions/vscode/` — auto-starts the `cutctx proxy` process, polls `/stats` every 30 s, shows tokens saved in the status bar, and configures Cline / Continue via command. Published as `cutctx-ai` on the VS Code Marketplace.
-* **JetBrains plugin:** full Kotlin/Gradle plugin at `extensions/jetbrains/` for IntelliJ IDEA, PyCharm, and all JetBrains IDEs — `ProxyService` manages the proxy process lifetime, status bar widget shows live savings, settings configurable, Tools > CutCtx menu. Uses IntelliJ Platform Gradle Plugin v2.
+* **JetBrains plugin:** full Kotlin/Gradle plugin at `extensions/jetbrains/` for IntelliJ IDEA, PyCharm, and all JetBrains IDEs — `ProxyService` manages the proxy process lifetime, status bar widget shows live savings, settings configurable, Tools > Cutctx menu. Uses IntelliJ Platform Gradle Plugin v2.
 * **distribution protection:** `scripts/strip_wheel.py` strips proprietary `.py` sources from built wheels (algorithms stay in compiled Rust `.so`). `scripts/build_protected_wheel.sh` runs the full maturin + strip pipeline in one command. `make dist-protected` target added. `PROTECTION.md` documents the protection architecture.
-* **compress SKILL.md:** adversarially tested all five claims against live `headroom-ai` v0.27.0 install; corrected binary name, removed non-existent CLI commands (`compress`, `stats`, `retrieve`), added proxy dependency note, fixed compression ratio claims, documented 30-minute CCR TTL.
+* **compress SKILL.md:** adversarially tested all five claims against live `cutctx-ai` v0.27.0 install; corrected binary name, removed non-existent CLI commands (`compress`, `stats`, `retrieve`), added proxy dependency note, fixed compression ratio claims, documented 30-minute CCR TTL.
 
 * **kompress:** warn when `CUTCTX_KOMPRESS_BACKEND` is set to an unrecognized
   value instead of silently falling back to `auto`, and document the backend
@@ -113,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now `async` and offloads the subprocess via `asyncio.to_thread`; the stats
   endpoint uses `await asyncio.to_thread(_get_context_tool_stats)`.
 - **Hardcoded Neo4j credential in `docker-compose.yml`.** `NEO4J_AUTH` now
-  defaults to `${NEO4J_AUTH:-neo4j/devpassword}` and is documented in
+  defaults to `${NEO4J_AUTH:-neo4j/REPLACE_WITH_STRONG_PASSWORD}` and is documented in
   `.env.example` (excluded from `.gitignore` via `!.env.example`).
 - **`SemanticCache.get_memory_stats()` concurrent iteration.** The method
   iterates `self._cache.values()` without holding the async lock. A snapshot

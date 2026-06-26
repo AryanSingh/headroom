@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { CutCtxContextEngine } from "../src/engine.js";
+import { CutctxContextEngine } from "../src/engine.js";
 
-describe("CutCtxContextEngine", () => {
+describe("CutctxContextEngine", () => {
   it("normalizes pass-through assistant messages when no proxy is available", async () => {
-    const engine = new CutCtxContextEngine({ enabled: false });
+    const engine = new CutctxContextEngine({ enabled: false });
 
     const result = await engine.assemble({
       sessionId: "test-session",

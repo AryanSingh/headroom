@@ -4,13 +4,13 @@ import time
 
 import pytest
 
-from headroom.cache import (
+from cutctx.cache import (
     AnthropicCacheOptimizer,
     OptimizationContext,
     SemanticCache,
     SemanticCacheLayer,
 )
-from headroom.cache.semantic import SemanticCacheConfig
+from cutctx.cache.semantic import SemanticCacheConfig
 
 
 class TestSemanticCacheConfig:

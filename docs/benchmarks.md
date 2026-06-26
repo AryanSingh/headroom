@@ -1,4 +1,4 @@
-# CutCtx Benchmarks
+# Cutctx Benchmarks
 
 > **Methodology note:** All comparisons run on the same input corpora. Compression ratio = `1 - (output_tokens / input_tokens)`. Quality retention = task accuracy of compressed vs. uncompressed on the downstream evaluation. All figures are reproducible — see [`benchmarks/`](../benchmarks/) for runner scripts.
 
@@ -6,14 +6,14 @@
 
 ## Token Reduction by Content Type
 
-| Content Type | CutCtx | LLMLingua-2 | Morph Compact | lean-ctx |
+| Content Type | Cutctx | LLMLingua-2 | Morph Compact | lean-ctx |
 |---|---|---|---|---|
 | **JSON tool output** | 82–95% | 40–60% | 50–65% | 70–85% |
 | **Source code (AST)** | 55–80% | 35–55% | 45–60% | 60–75% |
 | **Prose / logs** | 60–85% | 60–85% | 50–70% | 30–50% |
 | **Mixed agent context** | 70–90% | 50–70% | 55–70% | 65–80% |
 
-CutCtx's ContentRouter detects content type and selects the best algorithm. Competitors apply a single algorithm to all content — this is why CutCtx's JSON compression (SmartCrusher) significantly outperforms prose-first approaches on structured data.
+Cutctx's ContentRouter detects content type and selects the best algorithm. Competitors apply a single algorithm to all content — this is why Cutctx's JSON compression (SmartCrusher) significantly outperforms prose-first approaches on structured data.
 
 ---
 
@@ -23,13 +23,13 @@ Measured on coding and QA tasks after compression. Higher = better.
 
 | Tool | SWE-bench (coding) | FRAMES (long-doc QA) | ToolBench (tool use) |
 |---|---|---|---|
-| **CutCtx (CCR off)** | 96.1% | 94.8% | 97.3% |
-| **CutCtx (CCR on)** | 99.2% | 98.7% | 99.6% |
+| **Cutctx (CCR off)** | 96.1% | 94.8% | 97.3% |
+| **Cutctx (CCR on)** | 99.2% | 98.7% | 99.6% |
 | LLMLingua-2 | 94.2% | 91.3% | 93.8% |
 | Morph Compact | 97.1% | 95.2% | 96.9% |
 | Uncompressed baseline | 100% | 100% | 100% |
 
-CCR (reversible compression) allows the model to retrieve original content on demand — this is why CutCtx+CCR is within 1% of uncompressed on all benchmarks while achieving 70–90% token reduction.
+CCR (reversible compression) allows the model to retrieve original content on demand — this is why Cutctx+CCR is within 1% of uncompressed on all benchmarks while achieving 70–90% token reduction.
 
 ---
 
@@ -39,9 +39,9 @@ Measured on a MacBook Pro M3 (8-core CPU, 36 GB RAM).
 
 | Tool | Throughput | P99 Latency (per request) | Mode |
 |---|---|---|---|
-| **CutCtx (Kompress-v2-base)** | ~2,400 tok/s | 18ms | ONNX int8 |
-| **CutCtx (SmartCrusher / JSON)** | ~45,000 tok/s | <1ms | Pure Rust |
-| **CutCtx (CodeCompressor)** | ~12,000 tok/s | 4ms | AST (Rust) |
+| **Cutctx (Kompress-v2-base)** | ~2,400 tok/s | 18ms | ONNX int8 |
+| **Cutctx (SmartCrusher / JSON)** | ~45,000 tok/s | <1ms | Pure Rust |
+| **Cutctx (CodeCompressor)** | ~12,000 tok/s | 4ms | AST (Rust) |
 | LLMLingua-2 | ~800 tok/s | 60–120ms | PyTorch GPU |
 | Morph Compact | ~33,000 tok/s | <1ms | Byte-deletion |
 
@@ -53,12 +53,12 @@ SmartCrusher and CodeCompressor are pure Rust and add negligible latency. The Ko
 
 | Tool | RSS (idle) | RSS (under load) | Model size on disk |
 |---|---|---|---|
-| **CutCtx** | 45 MB | 90–160 MB | 280 MB (Kompress-v2-base int8) |
+| **Cutctx** | 45 MB | 90–160 MB | 280 MB (Kompress-v2-base int8) |
 | LLMLingua-2 | 1.2 GB | 2.8 GB | 4.2 GB (GPT-2 distilled) |
 | Morph Compact | 12 MB | 25 MB | None |
 | lean-ctx | 8 MB | 18 MB | None |
 
-CutCtx uses a custom int8-quantized ONNX model (~280 MB) vs LLMLingua-2's 4+ GB dependency. For RAM-constrained deployments (CI runners, small cloud VMs), this matters.
+Cutctx uses a custom int8-quantized ONNX model (~280 MB) vs LLMLingua-2's 4+ GB dependency. For RAM-constrained deployments (CI runners, small cloud VMs), this matters.
 
 ---
 
@@ -81,7 +81,7 @@ At $3/M input tokens (Claude Sonnet), a team of 10 engineers each running 5 sess
 
 ## Competitive Summary
 
-| Capability | CutCtx | LLMLingua-2 | Morph Compact | lean-ctx |
+| Capability | Cutctx | LLMLingua-2 | Morph Compact | lean-ctx |
 |---|---|---|---|---|
 | Multi-algorithm routing | ✅ | ❌ | ❌ | ✅ (shell/file) |
 | Reversible (CCR) | ✅ | ❌ | ❌ | ❌ |

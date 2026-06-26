@@ -15,14 +15,14 @@ import pytest
 
 @pytest.fixture
 def tmp_sub_store(tmp_path: Path):
-    from headroom.proxy.webhook_stores import WebhookSubscriptionStore
+    from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
 
     yield WebhookSubscriptionStore(db_path=str(tmp_path / "subs.db"))
 
 
 @pytest.fixture
 def tmp_dlq_store(tmp_path: Path):
-    from headroom.proxy.webhook_stores import WebhookDeadLetterStore
+    from cutctx.proxy.webhook_stores import WebhookDeadLetterStore
 
     yield WebhookDeadLetterStore(
         db_path=str(tmp_path / "dlq.db"), max_rows=10
@@ -31,7 +31,7 @@ def tmp_dlq_store(tmp_path: Path):
 
 class TestSubscriptionStore:
     def test_upsert_then_list(self, tmp_sub_store):
-        from headroom.proxy.webhook_stores import StoredSubscription
+        from cutctx.proxy.webhook_stores import StoredSubscription
 
         sub = tmp_sub_store.upsert(
             url="https://example.com/hook",
@@ -75,7 +75,7 @@ class TestSubscriptionStore:
         assert tmp_sub_store.delete(sub.id) is False
 
     def test_persistence_across_instances(self, tmp_path: Path):
-        from headroom.proxy.webhook_stores import WebhookSubscriptionStore
+        from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
 
         store_a = WebhookSubscriptionStore(db_path=str(tmp_path / "s.db"))
         sub = store_a.upsert(
@@ -150,7 +150,7 @@ class TestDeadLetterStore:
         the oldest unacknowledged rows are purged (with a
         loud warning) to bound the table.
         """
-        from headroom.proxy.webhook_stores import WebhookDeadLetterStore
+        from cutctx.proxy.webhook_stores import WebhookDeadLetterStore
 
         store = WebhookDeadLetterStore(
             db_path=str(tmp_path / "dlq.db"), max_rows=5
@@ -175,15 +175,15 @@ class TestDispatcherIntegration:
     def test_dispatcher_uses_persistent_subscription(self, tmp_path: Path):
         import os
 
-        os.environ["HEADROOM_WEBHOOKS_IN_MEMORY"] = "0"
+        os.environ["CUTCTX_WEBHOOKS_IN_MEMORY"] = "0"
         os.environ["CUTCTX_WEBHOOK_DB_PATH"] = str(tmp_path / "subs.db")
         os.environ["CUTCTX_WEBHOOK_DLQ_DB_PATH"] = str(tmp_path / "dlq.db")
 
-        from headroom.proxy.webhook_stores import (
+        from cutctx.proxy.webhook_stores import (
             WebhookDeadLetterStore,
             WebhookSubscriptionStore,
         )
-        from headroom.proxy.webhooks import (
+        from cutctx.proxy.webhooks import (
             WebhookDispatcher,
             WebhookSubscription,
         )

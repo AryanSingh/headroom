@@ -25,16 +25,16 @@ export async function activate(context: vscode.ExtensionContext) {
                 await proxyManager.start();
                 statsPoller.start();
                 statusBar.update();
-                vscode.window.showInformationMessage(`CutCtx proxy started on port ${port}`);
+                vscode.window.showInformationMessage(`Cutctx proxy started on port ${port}`);
             } catch (err) {
-                vscode.window.showErrorMessage(`Failed to start CutCtx: ${err}`);
+                vscode.window.showErrorMessage(`Failed to start Cutctx: ${err}`);
             }
         }),
         vscode.commands.registerCommand('cutctx.stopProxy', async () => {
             await proxyManager.stop();
             statsPoller.stop();
             statusBar.update();
-            vscode.window.showInformationMessage('CutCtx proxy stopped');
+            vscode.window.showInformationMessage('Cutctx proxy stopped');
         }),
         vscode.commands.registerCommand('cutctx.showStats', async () => {
             const stats = statsPoller.getLatestStats();
@@ -43,7 +43,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 return;
             }
             vscode.window.showInformationMessage(
-                `CutCtx Stats: ${stats.tokensSaved.toLocaleString()} tokens saved, $${stats.dollarsSaved.toFixed(4)} saved`
+                `Cutctx Stats: ${stats.tokensSaved.toLocaleString()} tokens saved, $${stats.dollarsSaved.toFixed(4)} saved`
             );
         }),
         vscode.commands.registerCommand('cutctx.configureExtension', async () => {

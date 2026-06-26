@@ -22,7 +22,7 @@
     "memory",
     "shared-context",
     "failure-learning",
-    "headroom-learn",
+    "cutctx-learn",
     "---Proxy Server---",
     "proxy",
     "---Integrations---",

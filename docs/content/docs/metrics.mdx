@@ -1,9 +1,9 @@
 ---
 title: Metrics & Monitoring
-description: Monitor compression performance, cost savings, and system health with CutCtx's built-in metrics, Prometheus endpoint, and SDK APIs.
+description: Monitor compression performance, cost savings, and system health with Cutctx's built-in metrics, Prometheus endpoint, and SDK APIs.
 ---
 
-CutCtx provides comprehensive metrics for monitoring compression performance, cost savings, and system health through both the proxy server and the SDK.
+Cutctx provides comprehensive metrics for monitoring compression performance, cost savings, and system health through both the proxy server and the SDK.
 
 ## Proxy Endpoints
 
@@ -44,7 +44,7 @@ curl http://localhost:8787/stats
 }
 ```
 
-Persistent savings are stored at `~/.headroom/proxy_savings.json` and survive proxy restarts. Override the path with `HEADROOM_SAVINGS_PATH`.
+Persistent savings are stored at `~/.cutctx/proxy_savings.json` and survive proxy restarts. Override the path with `CUTCTX_SAVINGS_PATH`.
 
 ### Historical Savings
 
@@ -66,23 +66,23 @@ curl http://localhost:8787/metrics
 ```
 
 ```
-# HELP headroom_requests_total Total requests processed
-headroom_requests_total{mode="optimize"} 1234
+# HELP cutctx_requests_total Total requests processed
+cutctx_requests_total{mode="optimize"} 1234
 
-# HELP headroom_tokens_saved_total Total tokens saved
-headroom_tokens_saved_total 5678900
+# HELP cutctx_tokens_saved_total Total tokens saved
+cutctx_tokens_saved_total 5678900
 
 # HELP cutctx_compression_ratio Compression ratio histogram
 cutctx_compression_ratio_bucket{le="0.5"} 890
 cutctx_compression_ratio_bucket{le="0.7"} 1100
 cutctx_compression_ratio_bucket{le="0.9"} 1200
 
-# HELP headroom_latency_seconds Request latency histogram
-headroom_latency_seconds_bucket{le="0.01"} 800
-headroom_latency_seconds_bucket{le="0.1"} 1150
+# HELP cutctx_latency_seconds Request latency histogram
+cutctx_latency_seconds_bucket{le="0.01"} 800
+cutctx_latency_seconds_bucket{le="0.1"} 1150
 
-# HELP headroom_cache_hits_total Cache hit counter
-headroom_cache_hits_total 456
+# HELP cutctx_cache_hits_total Cache hit counter
+cutctx_cache_hits_total 456
 ```
 
 ### Health Check
@@ -109,9 +109,9 @@ curl http://localhost:8787/health
 The TypeScript SDK queries the proxy for stats:
 
 ```ts twoslash
-import { CutCtxClient } from 'cutctx-ai';
+import { CutctxClient } from 'cutctx-ai';
 
-const client = new CutCtxClient();
+const client = new CutctxClient();
 
 // Get proxy stats
 const stats = await client.proxyStats();
@@ -221,15 +221,15 @@ logging.basicConfig(level=logging.DEBUG)
 Example output:
 
 ```
-INFO:headroom.transforms.pipeline:Pipeline complete: 45000 -> 4500 tokens (saved 40500, 90.0% reduction)
-INFO:headroom.transforms.smart_crusher:SmartCrusher applied top_n strategy: kept 15 of 1000 items
-DEBUG:headroom.transforms.smart_crusher:Kept items: [0,1,2,42,77,97,98,99] (errors at 42, warnings at 77)
+INFO:cutctx.transforms.pipeline:Pipeline complete: 45000 -> 4500 tokens (saved 40500, 90.0% reduction)
+INFO:cutctx.transforms.smart_crusher:SmartCrusher applied top_n strategy: kept 15 of 1000 items
+DEBUG:cutctx.transforms.smart_crusher:Kept items: [0,1,2,42,77,97,98,99] (errors at 42, warnings at 77)
 ```
 </Tab>
 <Tab value="Proxy">
 ```bash
 # Log to file
-cutctx proxy --log-file headroom.jsonl
+cutctx proxy --log-file cutctx.jsonl
 
 # Increase verbosity
 cutctx proxy --log-level debug
@@ -265,7 +265,7 @@ Example Prometheus queries for a Grafana dashboard:
 
 | Panel | PromQL |
 |-------|--------|
-| Tokens Saved | `headroom_tokens_saved_total` |
+| Tokens Saved | `cutctx_tokens_saved_total` |
 | Compression Ratio (median) | `histogram_quantile(0.5, cutctx_compression_ratio_bucket)` |
-| Request Latency (p99) | `histogram_quantile(0.99, headroom_latency_seconds_bucket)` |
-| Cache Hit Rate | `headroom_cache_hits_total / (headroom_cache_hits_total + headroom_cache_misses_total)` |
+| Request Latency (p99) | `histogram_quantile(0.99, cutctx_latency_seconds_bucket)` |
+| Cache Hit Rate | `cutctx_cache_hits_total / (cutctx_cache_hits_total + cutctx_cache_misses_total)` |

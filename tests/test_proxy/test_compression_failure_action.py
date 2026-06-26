@@ -8,7 +8,7 @@ the oversized frame, and Codex's auto-compaction never fired because
 its ``total_usage_tokens`` heuristic had been hidden from cumulative
 context pressure by Cutctx's earlier successful compressions.
 
-These tests pin :func:`headroom.proxy.helpers.decide_compression_failure_action`
+These tests pin :func:`cutctx.proxy.helpers.decide_compression_failure_action`
 so the matrix is reviewable in one place and regressions are loud.
 """
 
@@ -21,7 +21,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from headroom.proxy.helpers import (
+from cutctx.proxy.helpers import (
     WS_COMPRESSION_FAIL_OPEN_ENV,
     WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT,
     WS_COMPRESSION_OVERSIZE_BYTES_ENV,
@@ -64,17 +64,31 @@ def test_timeout_refuses_without_client_override_regardless_of_frame_size() -> N
     assert action.frame_bytes == 128
 
 
-def test_codex_client_timeout_fails_open_without_env_override() -> None:
-    """Codex direct-proxy traffic should keep flowing on compression timeout."""
+def test_codex_client_any_error_fails_open_without_env_override() -> None:
+    """Codex direct-proxy traffic should keep flowing on any compression error."""
     with _env(**{WS_COMPRESSION_FAIL_OPEN_ENV: None, WS_COMPRESSION_OVERSIZE_BYTES_ENV: None}):
         action = decide_compression_failure_action(
-            asyncio.TimeoutError(),
+            RuntimeError("compressor crashed"),
             frame_bytes=128,
             client="codex",
         )
     assert action.refuse is False
     assert action.reason == "client_override:codex"
     assert action.frame_bytes == 128
+
+
+def test_codex_client_oversize_fails_open() -> None:
+    """Codex direct-proxy traffic should keep flowing even if the payload is oversized."""
+    big = WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT + 1024
+    with _env(**{WS_COMPRESSION_FAIL_OPEN_ENV: None, WS_COMPRESSION_OVERSIZE_BYTES_ENV: None}):
+        action = decide_compression_failure_action(
+            RuntimeError("compressor crashed"),
+            frame_bytes=big,
+            client="codex",
+        )
+    assert action.refuse is False
+    assert action.reason == "client_override:codex"
+    assert action.frame_bytes == big
 
 
 def test_non_codex_timeout_still_refuses_without_env_override() -> None:
@@ -106,7 +120,7 @@ def test_oversize_frame_any_error_refuses() -> None:
     big = WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT + 1024
     with _env(**{WS_COMPRESSION_FAIL_OPEN_ENV: None, WS_COMPRESSION_OVERSIZE_BYTES_ENV: None}):
         action = decide_compression_failure_action(
-            RuntimeError("compressor crashed"), frame_bytes=big
+            RuntimeError("compressor crashed"), frame_bytes=big, client="claude-code"
         )
     assert action.refuse is True
     assert action.reason.startswith("oversize:")

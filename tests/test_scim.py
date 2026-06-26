@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from headroom.scim import ScimStore
+from cutctx.scim import ScimStore
 
 
 def test_scim_store_user_crud(tmp_path):

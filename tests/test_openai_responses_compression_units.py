@@ -3,10 +3,10 @@ from __future__ import annotations
 import threading
 from types import MethodType, SimpleNamespace
 
-from headroom.proxy.handlers import openai as openai_handler
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.transforms.compression_units import UnitCompressionResult
-from headroom.transforms.content_router import (
+from cutctx.proxy.handlers import openai as openai_handler
+from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
+from cutctx.transforms.compression_units import UnitCompressionResult
+from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     RouterCompressionResult,
@@ -28,16 +28,16 @@ def _handler_with_router(router: ContentRouter) -> OpenAIHandlerMixin:
 
 
 def test_openai_responses_unit_parallelism_env_defaults_and_clamps(monkeypatch):
-    monkeypatch.delenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", raising=False)
+    monkeypatch.delenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", raising=False)
     assert openai_handler._openai_responses_unit_parallelism() == 4
 
-    monkeypatch.setenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "bad")
+    monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "bad")
     assert openai_handler._openai_responses_unit_parallelism() == 4
 
-    monkeypatch.setenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "0")
+    monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "0")
     assert openai_handler._openai_responses_unit_parallelism() == 1
 
-    monkeypatch.setenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "999")
+    monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "999")
     assert openai_handler._openai_responses_unit_parallelism() == 16
 
 
@@ -58,7 +58,7 @@ def test_openai_responses_cached_unit_handles_results_without_router_result():
 
 
 def test_openai_responses_unit_cache_evicts_oldest_entry(monkeypatch):
-    from headroom.proxy.handlers.openai import responses as _responses_mod
+    from cutctx.proxy.handlers.openai import responses as _responses_mod
 
     monkeypatch.setattr(_responses_mod, "_OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES", 1)
     # Clear shared cache to avoid cross-test contamination
@@ -276,7 +276,7 @@ def test_openai_responses_adapter_reuses_identical_tool_output_in_same_request()
 
 
 def test_openai_responses_adapter_parallelizes_cache_misses_preserving_order(monkeypatch):
-    monkeypatch.setenv("HEADROOM_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "4")
+    monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "4")
     router = ContentRouter()
     lock = threading.Lock()
     release = threading.Event()
@@ -358,7 +358,7 @@ def test_openai_responses_adapter_accepts_empty_input_list():
     assert strategy_chain == []
 
 
-def test_openai_responses_adapter_preserves_headroom_retrieve_outputs():
+def test_openai_responses_adapter_preserves_cutctx_retrieve_outputs():
     router = ContentRouter()
 
     def compress(self, content: str, **_kwargs):
@@ -377,7 +377,7 @@ def test_openai_responses_adapter_preserves_headroom_retrieve_outputs():
             {
                 "type": "function_call",
                 "call_id": "call_retrieve",
-                "name": "mcp__headroom__headroom_retrieve",
+                "name": "mcp__cutctx__cutctx_retrieve",
                 "arguments": "{}",
             },
             {
@@ -455,7 +455,7 @@ def test_openai_responses_payload_routes_through_content_router_without_rust(
     router.compress = MethodType(compress, router)
     handler = _handler_with_router(router)
 
-    import headroom._core as core
+    import cutctx._core as core
 
     def rust_must_not_run(*_args, **_kwargs):
         raise AssertionError("Responses payload compression should route through ContentRouter")

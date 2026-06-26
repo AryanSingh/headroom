@@ -14,9 +14,9 @@ This directory contains the commercialization, procurement, onboarding, and laun
 - [security-one-pager.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/security-one-pager.md)
 - [roi-calculator.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/roi-calculator.md)
 - [value-proposition.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/value-proposition.md)
-- [TOKEN_COST_INTEGRATIONS_STRATEGY_AND_SPEC.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/TOKEN_COST_INTEGRATIONS_STRATEGY_AND_SPEC.md)
-- [SAVINGS_ORCHESTRATION_PRD.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SAVINGS_ORCHESTRATION_PRD.md)
-- [SAVINGS_ORCHESTRATION_AGENT_TASKLIST.md](/Users/aryansingh/Documents/Claude/Projects/headroom/artifacts/SAVINGS_ORCHESTRATION_AGENT_TASKLIST.md)
+- [TOKEN_COST_INTEGRATIONS_STRATEGY_AND_SPEC.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/TOKEN_COST_INTEGRATIONS_STRATEGY_AND_SPEC.md)
+- [SAVINGS_ORCHESTRATION_PRD.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/SAVINGS_ORCHESTRATION_PRD.md)
+- [SAVINGS_ORCHESTRATION_AGENT_TASKLIST.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/SAVINGS_ORCHESTRATION_AGENT_TASKLIST.md)
 
 ## Sales And Pilots
 

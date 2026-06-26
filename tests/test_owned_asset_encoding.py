@@ -1,4 +1,4 @@
-"""Regression tests for UTF-8 decoding/encoding of headroom-owned assets.
+"""Regression tests for UTF-8 decoding/encoding of cutctx-owned assets.
 
 These guard against ``UnicodeDecodeError`` on systems whose default text
 encoding is not UTF-8 (e.g. Windows ``cp949``/``cp1252`` locales). Cutctx
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from headroom.dashboard import TEMPLATES_DIR, get_dashboard_html
-from headroom.memory.sync import _load_sync_state, _save_sync_state
+from cutctx.dashboard import TEMPLATES_DIR, get_dashboard_html
+from cutctx.memory.sync import _load_sync_state, _save_sync_state
 
 
 def test_dashboard_template_contains_non_ascii() -> None:

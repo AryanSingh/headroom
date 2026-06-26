@@ -23,7 +23,7 @@ def main():
     random.seed(42)
 
     print("\n" + "=" * 70)
-    print("HEADROOM MCP INTEGRATION - COMPRESSION DEMO")
+    print("CUTCTX MCP INTEGRATION - COMPRESSION DEMO")
     print("=" * 70)
 
     # Get token counter

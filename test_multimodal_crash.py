@@ -1,6 +1,6 @@
 import json
 
-from headroom.compress import compress
+from cutctx.compress import compress
 
 large_json = json.dumps([{"id": i, "val": "hello world"} for i in range(1000)])
 

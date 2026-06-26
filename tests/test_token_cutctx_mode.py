@@ -1,4 +1,4 @@
-"""Integration tests for token mode (legacy token_headroom behavior).
+"""Integration tests for token mode (legacy token_cutctx behavior).
 
 Tests the CompressionCache working across simulated multi-turn conversations,
 verifying the critical invariants: no message injection, correct frozen counts,
@@ -8,7 +8,7 @@ when Claude Code drops messages.
 
 import copy
 
-from headroom.cache.compression_cache import CompressionCache
+from cutctx.cache.compression_cache import CompressionCache
 
 
 def _make_user_msg(text: str) -> dict:

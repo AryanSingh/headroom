@@ -1,6 +1,6 @@
-# Headroom Helm Chart — Default Values
-# Override via: helm install headroom . -f custom-values.yaml
-# Or: helm install headroom . --set key=value
+# Cutctx Helm Chart — Default Values
+# Override via: helm install cutctx . -f custom-values.yaml
+# Or: helm install cutctx . --set key=value
 
 replicaCount: 2
 
@@ -117,7 +117,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: headroom.example.com
+    - host: cutctx.example.com
       paths:
         - path: /
           pathType: Prefix
@@ -158,7 +158,7 @@ extraEnv: []
 # - name: CUTCTX_LICENSE_KEY
 #   valueFrom:
 #     secretKeyRef:
-#       name: headroom-secrets
+#       name: cutctx-secrets
 #       key: license-key
 
 # ── Volumes / Mounts ──────────────────────────────────────────────────

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from headroom.relevance.base import RelevanceScore
-from headroom.relevance.bm25 import BM25Scorer
+from cutctx.relevance.base import RelevanceScore
+from cutctx.relevance.bm25 import BM25Scorer
 
 
 class TestBM25Tokenize:

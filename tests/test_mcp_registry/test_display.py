@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from headroom.mcp_registry.base import RegisterResult, RegisterStatus
-from headroom.mcp_registry.display import (
+from cutctx.mcp_registry.base import RegisterResult, RegisterStatus
+from cutctx.mcp_registry.display import (
     any_succeeded,
     format_result,
     format_results,

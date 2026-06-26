@@ -1,10 +1,10 @@
 /**
  * SharedContext — compressed inter-agent context sharing.
- * Matches Python headroom.shared_context.SharedContext.
+ * Matches Python cutctx.shared_context.SharedContext.
  */
 
-import { CutCtxClient } from "./client.js";
-import type { CutCtxClientOptions, CompressResult } from "./types.js";
+import { CutctxClient } from "./client.js";
+import type { CutctxClientOptions, CompressResult } from "./types.js";
 
 export interface ContextEntry {
   key: string;
@@ -26,7 +26,7 @@ export interface SharedContextStats {
   savingsPercent: number;
 }
 
-export interface SharedContextOptions extends CutCtxClientOptions {
+export interface SharedContextOptions extends CutctxClientOptions {
   model?: string;
   ttl?: number;
   maxEntries?: number;
@@ -34,14 +34,14 @@ export interface SharedContextOptions extends CutCtxClientOptions {
 
 export class SharedContext {
   private entries = new Map<string, ContextEntry>();
-  private client: CutCtxClient;
+  private client: CutctxClient;
   private model: string;
   private ttl: number;
   private maxEntries: number;
 
   constructor(options: SharedContextOptions = {}) {
     const { model, ttl, maxEntries, ...clientOptions } = options;
-    this.client = new CutCtxClient(clientOptions);
+    this.client = new CutctxClient(clientOptions);
     this.model = model ?? "claude-sonnet-4-5-20250929";
     this.ttl = ttl ?? 3600;
     this.maxEntries = maxEntries ?? 100;

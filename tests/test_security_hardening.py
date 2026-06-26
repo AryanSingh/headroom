@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.structured_output import (
+from cutctx.proxy.structured_output import (
     _ALLOWED_BASE_HOSTS,
     _validate_base_url,
 )

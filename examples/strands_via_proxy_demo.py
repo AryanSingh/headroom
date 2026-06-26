@@ -93,7 +93,7 @@ def start_proxy(port: int, region: str) -> subprocess.Popen[bytes]:
     env.setdefault("AWS_REGION", region)
     env.setdefault("AWS_DEFAULT_REGION", region)
     # Crank logging up so we can read pipeline decisions live.
-    env.setdefault("HEADROOM_LOG", "INFO")
+    env.setdefault("CUTCTX_LOG", "INFO")
     cmd = [
         sys.executable,
         "-m",
@@ -170,7 +170,7 @@ def build_agent(port: int, model_id: str) -> Any:
             "default_headers": {
                 # Stable session key so the proxy's PrefixCacheTracker
                 # treats both turns as the same conversation.
-                "x-headroom-session-id": SESSION_ID,
+                "x-cutctx-session-id": SESSION_ID,
                 # Harness identification (Fix #4) — the proxy labels
                 # this request as 'strands' in metrics + outcomes.
                 "X-Client": "strands",
@@ -244,7 +244,7 @@ def direct_smoke_test(
         headers={
             "Content-Type": "application/json",
             "Authorization": "Bearer dummy-bedrock-uses-aws-creds-at-proxy",
-            "x-headroom-session-id": session_id,
+            "x-cutctx-session-id": session_id,
             "X-Client": "strands",
         },
         method="POST",
@@ -363,7 +363,7 @@ async def run_demo(port: int, region: str, model_id: str) -> int:
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": "Bearer dummy",
-                    "x-headroom-session-id": smoke_session,
+                    "x-cutctx-session-id": smoke_session,
                     "X-Client": "strands",
                 },
                 method="POST",
@@ -414,7 +414,7 @@ async def run_demo(port: int, region: str, model_id: str) -> int:
         # this shape.
         # ----------------------------------------------------------------
         print("\n[2c/4] Compression probe -- tool_result with verbose JSON")
-        # ContentRouter defaults (headroom/transforms/content_router.py):
+        # ContentRouter defaults (cutctx/transforms/content_router.py):
         #   skip_user_messages: True   (line 456) -- "subject of conversation"
         #   skip_system: True          (line 2294) -- system prompt is sacred
         #   compress_assistant_text_blocks: False (line 472) -- conservative
@@ -496,7 +496,7 @@ async def run_demo(port: int, region: str, model_id: str) -> int:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": "Bearer dummy",
-                "x-headroom-session-id": "compression-probe-session",
+                "x-cutctx-session-id": "compression-probe-session",
                 "X-Client": "strands",
             },
             method="POST",

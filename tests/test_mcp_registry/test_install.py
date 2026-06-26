@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from headroom.mcp_registry.base import (
+from cutctx.mcp_registry.base import (
     MCPRegistrar,
     RegisterResult,
     RegisterStatus,
     ServerSpec,
 )
-from headroom.mcp_registry.install import (
+from cutctx.mcp_registry.install import (
     DEFAULT_PROXY_URL,
-    build_headroom_spec,
+    build_cutctx_spec,
     build_serena_spec,
     install_everywhere,
 )
@@ -47,12 +47,12 @@ class _FakeRegistrar(MCPRegistrar):
 
 
 # ----------------------------------------------------------------------
-# build_headroom_spec
+# build_cutctx_spec
 # ----------------------------------------------------------------------
 
 
 def test_build_spec_default_proxy_no_env() -> None:
-    spec = build_headroom_spec()
+    spec = build_cutctx_spec()
     assert spec.name == "cutctx"
     assert spec.command == "cutctx"
     assert spec.args == ("mcp", "serve")
@@ -60,12 +60,12 @@ def test_build_spec_default_proxy_no_env() -> None:
 
 
 def test_build_spec_custom_proxy_sets_env() -> None:
-    spec = build_headroom_spec("http://127.0.0.1:9999")
+    spec = build_cutctx_spec("http://127.0.0.1:9999")
     assert spec.env == {"CUTCTX_PROXY_URL": "http://127.0.0.1:9999"}
 
 
 def test_build_spec_default_url_omits_env() -> None:
-    spec = build_headroom_spec(DEFAULT_PROXY_URL)
+    spec = build_cutctx_spec(DEFAULT_PROXY_URL)
     assert spec.env == {}
 
 

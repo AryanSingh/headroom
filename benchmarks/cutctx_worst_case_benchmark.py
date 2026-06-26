@@ -28,11 +28,11 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
-    from headroom import CutctxClient, OpenAIProvider
+    from cutctx import CutctxClient, OpenAIProvider
 
-    HEADROOM_AVAILABLE = True
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
+    CUTCTX_AVAILABLE = False
 
 
 # =============================================================================
@@ -708,7 +708,7 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
         raise ValueError("OPENAI_API_KEY required")
 
     print("=" * 70)
-    print("HEADROOM WORST-CASE BENCHMARK")
+    print("CUTCTX WORST-CASE BENCHMARK")
     print("Testing scenarios where compression may hurt performance")
     print("=" * 70)
 
@@ -719,9 +719,9 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
 
     baseline_client = OpenAI(api_key=api_key)
 
-    if HEADROOM_AVAILABLE:
-        db_path = os.path.join(tempfile.gettempdir(), "headroom_worst_case.db")
-        headroom_client = CutctxClient(
+    if CUTCTX_AVAILABLE:
+        db_path = os.path.join(tempfile.gettempdir(), "cutctx_worst_case.db")
+        cutctx_client = CutctxClient(
             original_client=OpenAI(api_key=api_key),
             provider=OpenAIProvider(),
             store_url=f"sqlite:///{db_path}",
@@ -729,7 +729,7 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
         )
     else:
         print("WARNING: Cutctx not available, running baseline only")
-        headroom_client = None
+        cutctx_client = None
 
     scenarios = [
         create_support_triage_scenario(),
@@ -769,29 +769,29 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
         results.append(baseline_result)
 
         # Run Cutctx
-        if headroom_client:
-            print("\n[2/2] Running HEADROOM...")
-            headroom_result = run_scenario(headroom_client, scenario, "cutctx")
-            print(f"   Input tokens: {headroom_result.input_tokens:,}")
-            print(f"   Output tokens: {headroom_result.output_tokens:,}")
-            print(f"   Cost: ${headroom_result.cost_usd:.4f}")
+        if cutctx_client:
+            print("\n[2/2] Running CUTCTX...")
+            cutctx_result = run_scenario(cutctx_client, scenario, "cutctx")
+            print(f"   Input tokens: {cutctx_result.input_tokens:,}")
+            print(f"   Output tokens: {cutctx_result.output_tokens:,}")
+            print(f"   Cost: ${cutctx_result.cost_usd:.4f}")
 
-            avg_headroom_score = (
-                sum(v["score"] for v in headroom_result.validation_scores.values())
-                / len(headroom_result.validation_scores)
-                if headroom_result.validation_scores
+            avg_cutctx_score = (
+                sum(v["score"] for v in cutctx_result.validation_scores.values())
+                / len(cutctx_result.validation_scores)
+                if cutctx_result.validation_scores
                 else 0
             )
-            print(f"   Validation score: {avg_headroom_score:.1%}")
+            print(f"   Validation score: {avg_cutctx_score:.1%}")
 
-            results.append(headroom_result)
+            results.append(cutctx_result)
 
             # Compare
             if baseline_result.input_tokens > 0:
                 token_change = (
-                    headroom_result.input_tokens - baseline_result.input_tokens
+                    cutctx_result.input_tokens - baseline_result.input_tokens
                 ) / baseline_result.input_tokens
-                quality_change = avg_headroom_score - avg_baseline_score
+                quality_change = avg_cutctx_score - avg_baseline_score
 
                 print("\n   📊 COMPARISON:")
                 print(
@@ -810,13 +810,13 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
     print("=" * 70)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "cutctx"]
+    cutctx_results = [r for r in results if r.mode == "cutctx"]
 
     print(f"\n{'Scenario':<30} {'Baseline Tokens':>15} {'Cutctx Tokens':>15} {'Quality Δ':>12}")
     print("-" * 72)
 
     for br in baseline_results:
-        hr = next((r for r in headroom_results if r.scenario_name == br.scenario_name), None)
+        hr = next((r for r in cutctx_results if r.scenario_name == br.scenario_name), None)
         if hr:
             b_score = (
                 sum(v["score"] for v in br.validation_scores.values()) / len(br.validation_scores)
@@ -850,7 +850,7 @@ def run_worst_case_benchmark(api_key: str = None) -> dict:
                 "cost": r.cost_usd,
                 "validation": r.validation_scores,
             }
-            for r in headroom_results
+            for r in cutctx_results
         ],
     }
 

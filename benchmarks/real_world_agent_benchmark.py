@@ -32,11 +32,11 @@ except ImportError:
 
 # Cutctx
 try:
-    from headroom import CutctxClient, OpenAIProvider
+    from cutctx import CutctxClient, OpenAIProvider
 
-    HEADROOM_AVAILABLE = True
+    CUTCTX_AVAILABLE = True
 except ImportError:
-    HEADROOM_AVAILABLE = False
+    CUTCTX_AVAILABLE = False
 
 
 # =============================================================================
@@ -557,8 +557,8 @@ def run_agent_scenario(
     start = time.time()
 
     # Determine if using CutctxClient
-    is_headroom = isinstance(client, CutctxClient) if HEADROOM_AVAILABLE else False
-    mode = "cutctx" if is_headroom else "baseline"
+    is_cutctx = isinstance(client, CutctxClient) if CUTCTX_AVAILABLE else False
+    mode = "cutctx" if is_cutctx else "baseline"
 
     try:
         response = client.chat.completions.create(
@@ -622,7 +622,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
     if not api_key:
         raise ValueError("OPENAI_API_KEY required")
 
-    if not HEADROOM_AVAILABLE:
+    if not CUTCTX_AVAILABLE:
         raise RuntimeError("Cutctx not available")
 
     # Create clients
@@ -633,8 +633,8 @@ def run_full_benchmark(api_key: str = None) -> dict:
     baseline_client = OpenAI(api_key=api_key)
 
     # Cutctx-wrapped client
-    db_path = os.path.join(tempfile.gettempdir(), "headroom_benchmark.db")
-    headroom_client = CutctxClient(
+    db_path = os.path.join(tempfile.gettempdir(), "cutctx_benchmark.db")
+    cutctx_client = CutctxClient(
         original_client=OpenAI(api_key=api_key),
         provider=OpenAIProvider(),
         store_url=f"sqlite:///{db_path}",
@@ -674,21 +674,21 @@ def run_full_benchmark(api_key: str = None) -> dict:
         results.append(baseline_result)
 
         # Run with Cutctx
-        print("\n[2/2] Running HEADROOM (optimized)...")
-        headroom_result = run_agent_scenario(headroom_client, scenario)
-        print(f"   Input tokens: {headroom_result.total_input_tokens:,}")
-        print(f"   Output tokens: {headroom_result.total_output_tokens:,}")
-        print(f"   Cost: ${headroom_result.cost_usd:.4f}")
-        print(f"   Answer quality: {headroom_result.answer_quality:.1%}")
-        results.append(headroom_result)
+        print("\n[2/2] Running CUTCTX (optimized)...")
+        cutctx_result = run_agent_scenario(cutctx_client, scenario)
+        print(f"   Input tokens: {cutctx_result.total_input_tokens:,}")
+        print(f"   Output tokens: {cutctx_result.total_output_tokens:,}")
+        print(f"   Cost: ${cutctx_result.cost_usd:.4f}")
+        print(f"   Answer quality: {cutctx_result.answer_quality:.1%}")
+        results.append(cutctx_result)
 
         # Calculate savings
         if baseline_result.total_input_tokens > 0:
             token_savings = 1 - (
-                headroom_result.total_input_tokens / baseline_result.total_input_tokens
+                cutctx_result.total_input_tokens / baseline_result.total_input_tokens
             )
             cost_savings = (
-                1 - (headroom_result.cost_usd / baseline_result.cost_usd)
+                1 - (cutctx_result.cost_usd / baseline_result.cost_usd)
                 if baseline_result.cost_usd > 0
                 else 0
             )
@@ -696,7 +696,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
             print(f"   Token reduction: {token_savings:.1%}")
             print(f"   Cost reduction: {cost_savings:.1%}")
             print(
-                f"   Quality preserved: {'✓' if headroom_result.answer_quality >= baseline_result.answer_quality * 0.9 else '✗'}"
+                f"   Quality preserved: {'✓' if cutctx_result.answer_quality >= baseline_result.answer_quality * 0.9 else '✗'}"
             )
 
     # Summary
@@ -705,26 +705,26 @@ def run_full_benchmark(api_key: str = None) -> dict:
     print("=" * 70)
 
     baseline_results = [r for r in results if r.mode == "baseline"]
-    headroom_results = [r for r in results if r.mode == "cutctx"]
+    cutctx_results = [r for r in results if r.mode == "cutctx"]
 
     total_baseline_tokens = sum(r.total_input_tokens for r in baseline_results)
-    total_headroom_tokens = sum(r.total_input_tokens for r in headroom_results)
+    total_cutctx_tokens = sum(r.total_input_tokens for r in cutctx_results)
     total_baseline_cost = sum(r.cost_usd for r in baseline_results)
-    total_headroom_cost = sum(r.cost_usd for r in headroom_results)
+    total_cutctx_cost = sum(r.cost_usd for r in cutctx_results)
 
     print(f"\n{'Metric':<25} {'Baseline':>15} {'Cutctx':>15} {'Savings':>15}")
     print("-" * 70)
 
     token_savings = (
-        (1 - total_headroom_tokens / total_baseline_tokens) if total_baseline_tokens > 0 else 0
+        (1 - total_cutctx_tokens / total_baseline_tokens) if total_baseline_tokens > 0 else 0
     )
-    cost_savings = (1 - total_headroom_cost / total_baseline_cost) if total_baseline_cost > 0 else 0
+    cost_savings = (1 - total_cutctx_cost / total_baseline_cost) if total_baseline_cost > 0 else 0
 
     print(
-        f"{'Total Input Tokens':<25} {total_baseline_tokens:>15,} {total_headroom_tokens:>15,} {token_savings:>14.1%}"
+        f"{'Total Input Tokens':<25} {total_baseline_tokens:>15,} {total_cutctx_tokens:>15,} {token_savings:>14.1%}"
     )
     print(
-        f"{'Total Cost':<25} ${total_baseline_cost:>14.4f} ${total_headroom_cost:>14.4f} {cost_savings:>14.1%}"
+        f"{'Total Cost':<25} ${total_baseline_cost:>14.4f} ${total_cutctx_cost:>14.4f} {cost_savings:>14.1%}"
     )
 
     avg_baseline_quality = (
@@ -732,24 +732,24 @@ def run_full_benchmark(api_key: str = None) -> dict:
         if baseline_results
         else 0
     )
-    avg_headroom_quality = (
-        sum(r.answer_quality for r in headroom_results) / len(headroom_results)
-        if headroom_results
+    avg_cutctx_quality = (
+        sum(r.answer_quality for r in cutctx_results) / len(cutctx_results)
+        if cutctx_results
         else 0
     )
     print(
-        f"{'Avg Answer Quality':<25} {avg_baseline_quality:>14.1%} {avg_headroom_quality:>14.1%} {'preserved' if avg_headroom_quality >= avg_baseline_quality * 0.9 else 'degraded':>15}"
+        f"{'Avg Answer Quality':<25} {avg_baseline_quality:>14.1%} {avg_cutctx_quality:>14.1%} {'preserved' if avg_cutctx_quality >= avg_baseline_quality * 0.9 else 'degraded':>15}"
     )
 
     return {
         "baseline": [r.__dict__ for r in baseline_results],
-        "cutctx": [r.__dict__ for r in headroom_results],
+        "cutctx": [r.__dict__ for r in cutctx_results],
         "summary": {
             "total_baseline_tokens": total_baseline_tokens,
-            "total_headroom_tokens": total_headroom_tokens,
+            "total_cutctx_tokens": total_cutctx_tokens,
             "token_savings": token_savings,
             "total_baseline_cost": total_baseline_cost,
-            "total_headroom_cost": total_headroom_cost,
+            "total_cutctx_cost": total_cutctx_cost,
             "cost_savings": cost_savings,
         },
     }

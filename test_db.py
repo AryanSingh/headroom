@@ -1,5 +1,7 @@
 import time
-from headroom.telemetry.episodes import EpisodeStore, CompressionEpisode
+
+from cutctx.telemetry.episodes import CompressionEpisode, EpisodeStore
+
 store = EpisodeStore(db_path=":memory:")
 store._init_db()
 ep = CompressionEpisode(

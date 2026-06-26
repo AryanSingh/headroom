@@ -1,6 +1,6 @@
 import * as http from 'http';
 
-export interface CutCtxStats {
+export interface CutctxStats {
     tokensSaved: number;
     dollarsSaved: number;
     requestsCompressed: number;
@@ -8,7 +8,7 @@ export interface CutCtxStats {
 
 export class StatsPoller {
     private timer: NodeJS.Timeout | null = null;
-    private latest: CutCtxStats | null = null;
+    private latest: CutctxStats | null = null;
 
     constructor(private readonly port: number) {}
 
@@ -22,7 +22,7 @@ export class StatsPoller {
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
     }
 
-    getLatestStats(): CutCtxStats | null {
+    getLatestStats(): CutctxStats | null {
         return this.latest;
     }
 

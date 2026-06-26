@@ -1,10 +1,10 @@
-"""Tests for the org/workspace/project data model (headroom/org.py)."""
+"""Tests for the org/workspace/project data model (cutctx/org.py)."""
 
 from __future__ import annotations
 
 import pytest
 
-from headroom.org import OrgStore, get_org_store, reset_org_store
+from cutctx.org import OrgStore, get_org_store, reset_org_store
 
 
 @pytest.fixture

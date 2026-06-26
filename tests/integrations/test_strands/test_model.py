@@ -224,7 +224,7 @@ def math_operation(x: float, y: float, op: str) -> str:
 
 @pytest.mark.skipif(SKIP_BEDROCK, reason="AWS credentials not available")
 @pytest.mark.skipif(not STRANDS_AVAILABLE, reason="strands-agents not installed")
-class TestHeadroomStrandsModelReal:
+class TestCutctxStrandsModelReal:
     """Real-world integration tests for CutctxStrandsModel with Bedrock."""
 
     @pytest.fixture
@@ -239,7 +239,7 @@ class TestHeadroomStrandsModelReal:
     @pytest.fixture
     def wrapped_model(self, base_bedrock_model):
         """Create a CutctxStrandsModel wrapping the Bedrock model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         return CutctxStrandsModel(
             wrapped_model=base_bedrock_model,
@@ -464,7 +464,7 @@ class TestHeadroomStrandsModelReal:
 
     def test_model_wrapper_attribute_forwarding(self, base_bedrock_model):
         """Test that attributes are forwarded to wrapped model."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         wrapped = CutctxStrandsModel(
             wrapped_model=base_bedrock_model,
@@ -482,8 +482,8 @@ class TestHeadroomStrandsModelReal:
 
     def test_model_wrapper_custom_config(self, base_bedrock_model):
         """Test that custom CutctxConfig is applied."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         custom_config = CutctxConfig()
         custom_config.smart_crusher.min_tokens_to_crush = 50
@@ -495,8 +495,8 @@ class TestHeadroomStrandsModelReal:
             auto_detect_provider=True,
         )
 
-        assert wrapped.headroom_config is custom_config
-        assert wrapped.headroom_config.smart_crusher.min_tokens_to_crush == 50
+        assert wrapped.cutctx_config is custom_config
+        assert wrapped.cutctx_config.smart_crusher.min_tokens_to_crush == 50
 
         # The model should still work
         agent = Agent(model=wrapped)
@@ -505,8 +505,8 @@ class TestHeadroomStrandsModelReal:
 
     def test_model_wrapper_provider_detection(self, base_bedrock_model):
         """Test that provider is auto-detected correctly for Bedrock Claude."""
-        from headroom.integrations.strands import CutctxStrandsModel
-        from headroom.providers import AnthropicProvider
+        from cutctx.integrations.strands import CutctxStrandsModel
+        from cutctx.providers import AnthropicProvider
 
         wrapped = CutctxStrandsModel(
             wrapped_model=base_bedrock_model,
@@ -517,8 +517,8 @@ class TestHeadroomStrandsModelReal:
         _ = wrapped.pipeline
 
         # For Bedrock Claude models, should detect Anthropic provider
-        assert wrapped._headroom_provider is not None
-        assert isinstance(wrapped._headroom_provider, AnthropicProvider)
+        assert wrapped._cutctx_provider is not None
+        assert isinstance(wrapped._cutctx_provider, AnthropicProvider)
 
     def test_model_wrapper_handles_large_context(self, wrapped_model):
         """Test that wrapper handles large context appropriately."""
@@ -537,7 +537,7 @@ class TestHeadroomStrandsModelReal:
 
     def test_model_wrapper_empty_messages(self, base_bedrock_model):
         """Test that wrapper handles edge cases gracefully."""
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         wrapped = CutctxStrandsModel(
             wrapped_model=base_bedrock_model,
@@ -555,7 +555,7 @@ class TestHeadroomStrandsModelReal:
         import threading
         import time
 
-        from headroom.integrations.strands import CutctxStrandsModel
+        from cutctx.integrations.strands import CutctxStrandsModel
 
         wrapped = CutctxStrandsModel(
             wrapped_model=base_bedrock_model,
@@ -606,7 +606,7 @@ class TestOptimizeMessagesFunction:
 
     def test_optimize_messages_basic(self):
         """Test basic message optimization."""
-        from headroom.integrations.strands import optimize_messages
+        from cutctx.integrations.strands import optimize_messages
 
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -626,7 +626,7 @@ class TestOptimizeMessagesFunction:
 
     def test_optimize_messages_with_tool_content(self):
         """Test optimization of messages containing tool responses."""
-        from headroom.integrations.strands import optimize_messages
+        from cutctx.integrations.strands import optimize_messages
 
         # Create messages with large tool output
         large_data = json.dumps([{"id": i, "data": f"value_{i}" * 10} for i in range(100)])
@@ -656,8 +656,8 @@ class TestOptimizeMessagesFunction:
 
     def test_optimize_messages_custom_config(self):
         """Test optimization with custom config."""
-        from headroom import CutctxConfig
-        from headroom.integrations.strands import optimize_messages
+        from cutctx import CutctxConfig
+        from cutctx.integrations.strands import optimize_messages
 
         config = CutctxConfig()
         config.smart_crusher.enabled = True

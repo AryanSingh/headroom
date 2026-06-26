@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from headroom.proxy.intelligence_pipeline import IntelligencePipeline, PipelineContext
+from cutctx.proxy.intelligence_pipeline import IntelligencePipeline, PipelineContext
 
 # ---------------------------------------------------------------------------
 # Helpers — realistic message fixtures
@@ -162,7 +162,7 @@ class TestSemanticDedupE2E:
     """End-to-end semantic deduplication testing."""
 
     def test_duplicate_content_replaced_with_pointer(self):
-        """When same content appears twice, second is replaced with [headroom:ref:HASH]."""
+        """When same content appears twice, second is replaced with [cutctx:ref:HASH]."""
         pipeline = IntelligencePipeline(dedup=True)
         # Use TRULY identical messages (no per-copy prefix)
         large_content = _make_long_content(1200)
@@ -178,7 +178,7 @@ class TestSemanticDedupE2E:
         result = pipeline.post_compression(messages, messages, ctx, request_id="test-1")
 
         # Find messages that got replaced
-        deduped = [m for m in result if "[headroom:ref:" in m.get("content", "")]
+        deduped = [m for m in result if "[cutctx:ref:" in m.get("content", "")]
         assert len(deduped) >= 1, f"Expected at least 1 deduped message, got {len(deduped)}"
         assert ctx.dedup_count >= 1
         assert ctx.tokens_saved_by_dedup > 0
@@ -195,7 +195,7 @@ class TestSemanticDedupE2E:
         result = pipeline.post_compression(messages, messages, ctx, request_id="test-2")
 
         for m in result:
-            assert "[headroom:ref:" not in m.get("content", "")
+            assert "[cutctx:ref:" not in m.get("content", "")
 
     def test_short_content_not_deduped(self):
         """Content below MIN_DEDUP_TOKENS (200) is not deduped."""
@@ -212,7 +212,7 @@ class TestSemanticDedupE2E:
 
     def test_dedup_across_multiple_process_calls(self):
         """Deduplicator state persists across multiple process() calls."""
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
 
         dedup = SessionDeduplicator()
         large_content = _make_long_content(1200)
@@ -229,7 +229,7 @@ class TestSemanticDedupE2E:
             {"role": "user", "content": large_content}
         ])
         assert r2.dedup_count == 1
-        assert "[headroom:ref:" in r2.messages[0]["content"]
+        assert "[cutctx:ref:" in r2.messages[0]["content"]
 
     def test_three_way_dedup_saves_two(self):
         """Three copies of same content → 1 tracked + 2 deduped."""
@@ -284,7 +284,7 @@ class TestContextBudgetE2E:
 
     def test_budget_status_reports_accurately(self):
         """Budget status reports token usage and zone correctly."""
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         budget = ContextBudgetController(max_tokens=10_000, model="claude-sonnet-4")
         messages = _make_repeated_turns(10, content_len=500)
@@ -299,7 +299,7 @@ class TestContextBudgetE2E:
 
     def test_budget_zone_transitions(self):
         """Budget controller transitions through GREEN → YELLOW → RED as context grows."""
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
 
         budget = ContextBudgetController(max_tokens=1_000, model="claude-sonnet-4")
 
@@ -324,7 +324,7 @@ class TestCrossSessionProfilesE2E:
 
     def test_profile_persists_to_disk(self):
         """Profile data is saved to disk and can be reloaded."""
-        from headroom.profiles import CompressionProfile
+        from cutctx.profiles import CompressionProfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a profile with a known hash
@@ -344,7 +344,7 @@ class TestCrossSessionProfilesE2E:
             def fake_get_profile_path(ws_hash):
                 return Path(tmpdir) / f"{ws_hash}.json"
 
-            with patch("headroom.profiles._get_profile_path", side_effect=fake_get_profile_path):
+            with patch("cutctx.profiles._get_profile_path", side_effect=fake_get_profile_path):
                 profile.save()
 
             # Verify file exists
@@ -360,7 +360,7 @@ class TestCrossSessionProfilesE2E:
 
     def test_profile_recommends_less_compression_after_retrievals(self):
         """After high CCR retrieval rates, profile recommends less aggressive compression."""
-        from headroom.profiles import CompressionProfile
+        from cutctx.profiles import CompressionProfile
 
         profile = CompressionProfile(workspace_hash="test_retrieval")
 
@@ -402,7 +402,7 @@ class TestCrossSessionProfilesE2E:
 
     def test_profile_recommendation_adjusts_over_time(self):
         """Profile learns over multiple sessions and adjusts recommendations."""
-        from headroom.profiles import CompressionProfile
+        from cutctx.profiles import CompressionProfile
 
         profile = CompressionProfile(workspace_hash="test_learning")
 
@@ -446,7 +446,7 @@ class TestMultiAgentSharedStateE2E:
 
     def test_cache_hit_on_repeated_content(self):
         """Agent B gets cache hit when compressing same content as Agent A."""
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         # Reset singleton to avoid cross-test contamination
         MultiAgentCoordinator.reset_instance()
@@ -475,7 +475,7 @@ class TestMultiAgentSharedStateE2E:
 
     def test_cache_miss_on_different_content(self):
         """Different content gets cache miss."""
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         MultiAgentCoordinator.reset_instance()
         coordinator = MultiAgentCoordinator.get_instance()
@@ -498,7 +498,7 @@ class TestMultiAgentSharedStateE2E:
 
     def test_workspace_isolation(self):
         """Content in different workspaces is not shared."""
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         MultiAgentCoordinator.reset_instance()
         coordinator = MultiAgentCoordinator.get_instance()
@@ -526,7 +526,7 @@ class TestMultiAgentSharedStateE2E:
         pipeline = IntelligencePipeline(shared_context=True)
         messages = _make_task_messages("review code")
 
-        # Mock compress_shared to avoid headroom.compress import chain
+        # Mock compress_shared to avoid cutctx.compress import chain
         mock_coordinator = MagicMock()
         mock_coordinator.get_agent_context.return_value = MagicMock(total_items_compressed=0)
 
@@ -550,7 +550,7 @@ class TestMultiAgentSharedStateE2E:
 
     def test_agent_tracking(self):
         """Agents are properly registered and tracked."""
-        from headroom.shared_context import MultiAgentCoordinator
+        from cutctx.shared_context import MultiAgentCoordinator
 
         MultiAgentCoordinator.reset_instance()
         coordinator = MultiAgentCoordinator.get_instance()
@@ -575,7 +575,7 @@ class TestCostForecastingE2E:
 
     def test_policy_engine_selects_strategy(self):
         """Policy engine selects appropriate strategy based on budget."""
-        from headroom.cost_forecast import CompressionStrategy, PolicyEngine
+        from cutctx.cost_forecast import CompressionStrategy, PolicyEngine
 
         engine = PolicyEngine(model="claude-sonnet-4")
 
@@ -595,7 +595,7 @@ class TestCostForecastingE2E:
 
     def test_cost_tracker_accumulates_across_requests(self):
         """Cost tracker accumulates costs across multiple requests."""
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
 
         tracker = SessionCostTracker(model="claude-sonnet-4")
 
@@ -651,7 +651,7 @@ class TestCostForecastingE2E:
 
     def test_cost_estimator_savings_calculation(self):
         """CostEstimator correctly calculates compression savings."""
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         estimator = CostEstimator(model="claude-sonnet-4")
 
@@ -670,7 +670,7 @@ class TestCostForecastingE2E:
 
     def test_model_pricing_resolves_correctly(self):
         """Model pricing resolves for known models with fallback."""
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
 
         # Known model
         estimator_sonnet = CostEstimator(model="claude-sonnet-4")
@@ -706,7 +706,7 @@ class TestPipelinePersistenceE2E:
         ctx2 = pipeline.pre_compression(msgs2, model="claude-sonnet-4")
         result2 = pipeline.post_compression(msgs2, msgs2, ctx2, "req-2")
         assert ctx2.dedup_count == 1
-        assert "[headroom:ref:" in result2[0]["content"]
+        assert "[cutctx:ref:" in result2[0]["content"]
 
         # Request 3: still deduped
         msgs3 = [{"role": "user", "content": large_content}]
@@ -764,7 +764,7 @@ class TestGracefulFailureE2E:
         pipeline = IntelligencePipeline(task_aware=True)
         messages = [{"role": "user", "content": "help me"}]
 
-        with patch("headroom.compression.task_aware.TaskExtractor.extract_task", side_effect=RuntimeError("boom")):
+        with patch("cutctx.compression.task_aware.TaskExtractor.extract_task", side_effect=RuntimeError("boom")):
             ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
             # Should not raise
             assert ctx.task is None
@@ -785,7 +785,7 @@ class TestGracefulFailureE2E:
         pipeline = IntelligencePipeline(cost_forecast=True)
         messages = _make_task_messages("fix bug")
 
-        with patch("headroom.cost_forecast.PolicyEngine", side_effect=RuntimeError("cost boom")):
+        with patch("cutctx.cost_forecast.PolicyEngine", side_effect=RuntimeError("cost boom")):
             ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
             assert ctx.policy_strategy == "light"  # Default
 

@@ -7,8 +7,6 @@ endpoints were a stub. These tests pin the new behavior.
 """
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -23,7 +21,7 @@ def _tmp_key() -> bytes:
 
 @pytest.fixture
 def tmp_store(tmp_path: Path):
-    from headroom.security.secrets_store import SecretsStore
+    from cutctx.security.secrets_store import SecretsStore
 
     key = _tmp_key()
     db = tmp_path / "secrets.db"
@@ -68,7 +66,7 @@ class TestSecretsStore:
 
     def test_encryption_at_rest(self, tmp_path: Path):
         """The on-disk ciphertext must not contain the plaintext."""
-        from headroom.security.secrets_store import SecretsStore
+        from cutctx.security.secrets_store import SecretsStore
 
         key = _tmp_key()
         db = tmp_path / "secrets.db"
@@ -99,7 +97,7 @@ class TestSecretsStore:
 
     def test_wrong_key_raises_on_decrypt(self, tmp_path: Path):
         """Re-opening with a different key must fail loudly, not silently."""
-        from headroom.security.secrets_store import SecretsStore
+        from cutctx.security.secrets_store import SecretsStore
 
         key_a = _tmp_key()
         key_b = _tmp_key()
@@ -117,8 +115,8 @@ class TestSecretsStore:
 
     def test_strict_refuses_unset_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.delenv("CUTCTX_SECRETS_KEY", raising=False)
-        monkeypatch.delenv("HEADROOM_LICENSE_HMAC_SECRET", raising=False)
-        from headroom.security.secrets_store import SecretsStore
+        monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
+        from cutctx.security.secrets_store import SecretsStore
 
         with pytest.raises(RuntimeError, match="no encryption key"):
             SecretsStore(
@@ -129,8 +127,8 @@ class TestSecretsStore:
         self, tmp_path: Path, monkeypatch
     ):
         monkeypatch.delenv("CUTCTX_SECRETS_KEY", raising=False)
-        monkeypatch.delenv("HEADROOM_LICENSE_HMAC_SECRET", raising=False)
-        from headroom.security.secrets_store import SecretsStore
+        monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
+        from cutctx.security.secrets_store import SecretsStore
 
         store = SecretsStore(
             db_path=str(tmp_path / "s.db"), strict=False
@@ -145,8 +143,8 @@ class TestSecretsRoute:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from headroom.proxy.routes.secrets import create_secrets_router
-        from headroom.security.secrets_store import SecretsStore
+        from cutctx.proxy.routes.secrets import create_secrets_router
+        from cutctx.security.secrets_store import SecretsStore
 
         key = _tmp_key()
         store = SecretsStore(

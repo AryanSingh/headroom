@@ -2,8 +2,8 @@
 
 import pytest
 
-from headroom.cache import CacheConfig, OpenAICacheOptimizer, OptimizationContext
-from headroom.cache.base import CacheStrategy
+from cutctx.cache import CacheConfig, OpenAICacheOptimizer, OptimizationContext
+from cutctx.cache.base import CacheStrategy
 
 
 class TestOpenAICacheOptimizer:

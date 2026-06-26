@@ -190,7 +190,7 @@ def simple_calculator(a: int, b: int, operation: str) -> str:
 
 @pytest.mark.skipif(SKIP_BEDROCK, reason="AWS credentials not available")
 @pytest.mark.skipif(not STRANDS_AVAILABLE, reason="strands-agents not installed")
-class TestHeadroomHookProviderReal:
+class TestCutctxHookProviderReal:
     """Real-world integration tests for CutctxHookProvider with Bedrock."""
 
     @pytest.fixture
@@ -205,7 +205,7 @@ class TestHeadroomHookProviderReal:
     @pytest.fixture
     def hook_provider(self):
         """Create a CutctxHookProvider with test configuration."""
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         return CutctxHookProvider(
             compress_tool_outputs=True,
@@ -292,7 +292,7 @@ class TestHeadroomHookProviderReal:
         2. Creates an agent with a tool that returns error data
         3. Verifies error results are preserved unchanged
         """
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         # Create hook with preserve_errors=True (default)
         hook_with_preserve = CutctxHookProvider(
@@ -446,7 +446,7 @@ class TestHeadroomHookProviderReal:
         1. Creates a hook with compress_tool_outputs=False
         2. Verifies tool outputs are not modified
         """
-        from headroom.integrations.strands import CutctxHookProvider
+        from cutctx.integrations.strands import CutctxHookProvider
 
         # Create hook with compression disabled
         disabled_hook = CutctxHookProvider(

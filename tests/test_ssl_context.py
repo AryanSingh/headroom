@@ -1,4 +1,4 @@
-"""Unit tests for headroom.proxy.ssl_context.find_ca_bundle.
+"""Unit tests for cutctx.proxy.ssl_context.find_ca_bundle.
 
 Covers:
 - Returns None when no env var is set
@@ -15,7 +15,7 @@ import os
 
 import pytest
 
-from headroom.proxy.ssl_context import find_ca_bundle
+from cutctx.proxy.ssl_context import find_ca_bundle
 
 # Minimal self-signed CA certificate (PEM) used only to verify that
 # load_verify_locations accepts the file.  Generated offline; never used

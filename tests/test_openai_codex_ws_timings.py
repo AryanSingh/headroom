@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 import anyio
 import pytest
 
-import headroom.proxy.handlers.openai as openai_handler
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
+import cutctx.proxy.handlers.openai as openai_handler
+from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
 
 
 class _DummyMetrics:
@@ -136,13 +136,13 @@ class _CapturingHandler(logging.Handler):
 
 @pytest.fixture
 def stage_log_capture():
-    """Attach a ``Handler`` directly to the ``headroom.proxy`` logger.
+    """Attach a ``Handler`` directly to the ``cutctx.proxy`` logger.
 
     Using a direct handler is more robust than ``caplog`` for this
     logger because upstream configuration may set ``propagate=False``
     during module import, which bypasses pytest's root-logger capture.
     """
-    target = logging.getLogger("headroom.proxy")
+    target = logging.getLogger("cutctx.proxy")
     handler = _CapturingHandler()
     previous_level = target.level
     target.addHandler(handler)

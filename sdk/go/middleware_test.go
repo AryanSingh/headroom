@@ -107,8 +107,8 @@ func TestMiddleware_InterceptsLLMRequest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if gotHeaders.Get("X-CutCtx-Key") != "test-key" {
-		t.Errorf("expected X-CutCtx-Key header, got %q", gotHeaders.Get("X-CutCtx-Key"))
+	if gotHeaders.Get("X-Cutctx-Key") != "test-key" {
+		t.Errorf("expected X-Cutctx-Key header, got %q", gotHeaders.Get("X-Cutctx-Key"))
 	}
 }
 
@@ -134,8 +134,8 @@ func TestMiddleware_SkipsNonLLMRequest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if gotHeaders.Get("X-CutCtx-Key") != "" {
-		t.Errorf("expected no X-CutCtx-Key header for non-LLM request")
+	if gotHeaders.Get("X-Cutctx-Key") != "" {
+		t.Errorf("expected no X-Cutctx-Key header for non-LLM request")
 	}
 }
 

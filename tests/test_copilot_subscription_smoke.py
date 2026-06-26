@@ -26,7 +26,7 @@ import asyncio
 
 import pytest
 
-from headroom import copilot_auth, copilot_linux_secret, copilot_macos_keychain
+from cutctx import copilot_auth, copilot_linux_secret, copilot_macos_keychain
 
 BUSINESS_API = "https://api.business.githubcopilot.com"
 

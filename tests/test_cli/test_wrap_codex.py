@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap codex` and `headroom unwrap codex`.
+"""Tests for `cutctx wrap codex` and `cutctx unwrap codex`.
 
 These exercise the Codex-specific ``config.toml`` injection and restoration
 helpers that route Codex through the Cutctx proxy.  They are deliberately
@@ -15,8 +15,8 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_mod
-from headroom.cli.main import main
+from cutctx.cli import wrap as wrap_mod
+from cutctx.cli.main import main
 
 
 def _set_test_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -36,20 +36,20 @@ def runner() -> CliRunner:
 # ---------------------------------------------------------------------------
 
 
-class TestStripCodexHeadroomBlocks:
+class TestStripCodexCutctxBlocks:
     """Tests for the regex-based cleanup helper."""
 
     def test_empty_content_returns_empty(self) -> None:
-        assert wrap_mod._strip_codex_headroom_blocks("") == ""
+        assert wrap_mod._strip_codex_cutctx_blocks("") == ""
 
     def test_returns_content_unchanged_when_no_markers(self) -> None:
         original = '[profiles.default]\nmodel = "gpt-4o"\n'
-        cleaned = wrap_mod._strip_codex_headroom_blocks(original)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(original)
         # Trailing whitespace normalization only — semantic content preserved.
         assert 'model = "gpt-4o"' in cleaned
         assert "[profiles.default]" in cleaned
 
-    def test_removes_complete_headroom_block(self) -> None:
+    def test_removes_complete_cutctx_block(self) -> None:
         wrapped = (
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
             'model_provider = "cutctx"\n'
@@ -58,7 +58,7 @@ class TestStripCodexHeadroomBlocks:
             'base_url = "http://127.0.0.1:8787/v1"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n"
         )
-        assert wrap_mod._strip_codex_headroom_blocks(wrapped) == ""
+        assert wrap_mod._strip_codex_cutctx_blocks(wrapped) == ""
 
     def test_preserves_user_content_around_block(self) -> None:
         user_pre = '[profiles.default]\nmodel = "gpt-4o"\n'
@@ -72,7 +72,7 @@ class TestStripCodexHeadroomBlocks:
             'base_url = "http://127.0.0.1:8787/v1"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n" + user_post
         )
-        cleaned = wrap_mod._strip_codex_headroom_blocks(wrapped)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(wrapped)
         assert wrap_mod._CODEX_TOP_LEVEL_MARKER not in cleaned
         assert wrap_mod._CODEX_END_MARKER not in cleaned
         assert 'model = "gpt-4o"' in cleaned
@@ -81,7 +81,7 @@ class TestStripCodexHeadroomBlocks:
     def test_removes_stray_top_level_model_provider_line(self) -> None:
         # Old wrap versions left `model_provider = "cutctx"` outside markers.
         content = 'foo = 1\nmodel_provider = "cutctx"\nbar = 2\n'
-        cleaned = wrap_mod._strip_codex_headroom_blocks(content, remove_mcp=True)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(content, remove_mcp=True)
         assert 'model_provider = "cutctx"' not in cleaned
         assert "foo = 1" in cleaned
         assert "bar = 2" in cleaned
@@ -90,7 +90,7 @@ class TestStripCodexHeadroomBlocks:
         content = (
             '[profiles.default]\nmodel = "gpt-4o"\n\n'
             f"{wrap_mod._CODEX_MCP_MARKER}\n"
-            "[mcp_servers.headroom]\n"
+            "[mcp_servers.cutctx]\n"
             'command = "cutctx"\n'
             f"{wrap_mod._CODEX_MCP_END}\n\n"
             "# --- Cutctx MCP server: serena ---\n"
@@ -98,16 +98,16 @@ class TestStripCodexHeadroomBlocks:
             'command = "uvx"\n'
             "# --- end Cutctx MCP server: serena ---\n\n"
             f"{wrap_mod._MEMORY_MCP_MARKER}\n"
-            "[mcp_servers.headroom_memory]\n"
+            "[mcp_servers.cutctx_memory]\n"
             'command = "python"\n'
             f"{wrap_mod._MEMORY_MCP_END}\n"
         )
 
-        cleaned = wrap_mod._strip_codex_headroom_blocks(content, remove_mcp=True)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(content, remove_mcp=True)
 
-        assert "[mcp_servers.headroom]" not in cleaned
+        assert "[mcp_servers.cutctx]" not in cleaned
         assert "[mcp_servers.serena]" not in cleaned
-        assert "[mcp_servers.headroom_memory]" not in cleaned
+        assert "[mcp_servers.cutctx_memory]" not in cleaned
         assert 'model = "gpt-4o"' in cleaned
 
 
@@ -116,7 +116,7 @@ class TestSnapshotCodexConfig:
 
     def test_creates_backup_on_first_call(self, tmp_path: Path) -> None:
         config_file = tmp_path / "config.toml"
-        backup_file = tmp_path / "config.toml.headroom-backup"
+        backup_file = tmp_path / "config.toml.cutctx-backup"
         config_file.write_text('model = "gpt-4o"\n')
 
         wrap_mod._snapshot_codex_config_if_unwrapped(config_file, backup_file)
@@ -126,7 +126,7 @@ class TestSnapshotCodexConfig:
 
     def test_does_not_overwrite_existing_backup(self, tmp_path: Path) -> None:
         config_file = tmp_path / "config.toml"
-        backup_file = tmp_path / "config.toml.headroom-backup"
+        backup_file = tmp_path / "config.toml.cutctx-backup"
         config_file.write_text("second-wrap content\n")
         backup_file.write_text("original-pre-wrap content\n")
 
@@ -137,7 +137,7 @@ class TestSnapshotCodexConfig:
 
     def test_no_backup_when_config_missing(self, tmp_path: Path) -> None:
         config_file = tmp_path / "config.toml"
-        backup_file = tmp_path / "config.toml.headroom-backup"
+        backup_file = tmp_path / "config.toml.cutctx-backup"
 
         wrap_mod._snapshot_codex_config_if_unwrapped(config_file, backup_file)
 
@@ -145,7 +145,7 @@ class TestSnapshotCodexConfig:
 
     def test_no_backup_when_config_already_wrapped(self, tmp_path: Path) -> None:
         config_file = tmp_path / "config.toml"
-        backup_file = tmp_path / "config.toml.headroom-backup"
+        backup_file = tmp_path / "config.toml.cutctx-backup"
         config_file.write_text(
             f"{wrap_mod._CODEX_TOP_LEVEL_MARKER}\n"
             'model_provider = "cutctx"\n'
@@ -175,7 +175,7 @@ class TestInjectAndRestoreRoundTrip:
         # No prior config existed → the injected file is fully removed.
         assert status == "removed"
         assert not config_file.exists()
-        assert not (tmp_path / ".codex" / "config.toml.headroom-backup").exists()
+        assert not (tmp_path / ".codex" / "config.toml.cutctx-backup").exists()
 
     def test_wrap_unwrap_respects_codex_home(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -218,7 +218,7 @@ class TestInjectAndRestoreRoundTrip:
         status, _ = wrap_mod._restore_codex_provider_config()
         assert status == "restored"
         assert config_file.read_text() == original
-        assert not (config_dir / "config.toml.headroom-backup").exists()
+        assert not (config_dir / "config.toml.cutctx-backup").exists()
 
     def test_wrap_is_idempotent(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         _set_test_home(monkeypatch, tmp_path)
@@ -295,11 +295,11 @@ class TestInjectAndRestoreRoundTrip:
             'model_provider = "cutctx"\n'
             f"{wrap_mod._CODEX_END_MARKER}\n\n"
             f"{wrap_mod._CODEX_MCP_MARKER}\n"
-            "[mcp_servers.headroom]\n"
+            "[mcp_servers.cutctx]\n"
             'command = "cutctx"\n'
             f"{wrap_mod._CODEX_MCP_END}\n\n"
             f"{wrap_mod._MEMORY_MCP_MARKER}\n"
-            "[mcp_servers.headroom_memory]\n"
+            "[mcp_servers.cutctx_memory]\n"
             'command = "python"\n'
             f"{wrap_mod._MEMORY_MCP_END}\n"
         )
@@ -383,7 +383,7 @@ class TestSubscriptionRouting:
         content = (
             '[profiles.default]\nmodel = "gpt-4o"\nopenai_base_url = "http://127.0.0.1:8787/v1"\n'
         )
-        cleaned = wrap_mod._strip_codex_headroom_blocks(content)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(content)
         assert "openai_base_url" not in cleaned
         assert 'model = "gpt-4o"' in cleaned
 
@@ -406,7 +406,7 @@ class TestSubscriptionRouting:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests: full `headroom wrap codex` / `headroom unwrap codex`
+# Integration tests: full `cutctx wrap codex` / `cutctx unwrap codex`
 # ---------------------------------------------------------------------------
 
 
@@ -419,12 +419,12 @@ def test_wrap_codex_prepare_only_creates_backup_and_config(
     original = 'model_provider = "openai"\n'
     config_file.write_text(original)
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
 
     assert result.exit_code == 0, result.output
     assert 'model_provider = "cutctx"' in config_file.read_text()
-    backup = tmp_path / ".codex" / "config.toml.headroom-backup"
+    backup = tmp_path / ".codex" / "config.toml.cutctx-backup"
     assert backup.exists()
     assert backup.read_text() == original
 
@@ -437,7 +437,7 @@ def test_wrap_codex_prepare_only_respects_codex_home(
     codex_home.mkdir()
     monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         result = runner.invoke(
             main,
             ["wrap", "codex", "--prepare-only", "--no-serena", "--port", "8787"],
@@ -460,7 +460,7 @@ def test_unwrap_codex_without_codex_home_warns_on_ambiguous_noop(
     codex_home.mkdir()
     monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         wrap_result = runner.invoke(
             main,
             [
@@ -482,7 +482,7 @@ def test_unwrap_codex_without_codex_home_warns_on_ambiguous_noop(
     unwrap_result = runner.invoke(main, ["unwrap", "codex", "--no-stop-proxy"])
 
     assert unwrap_result.exit_code == 0, unwrap_result.output
-    assert "CutCtx wrap markers" in (
+    assert "Cutctx wrap markers" in (
         unwrap_result.output
     )
     assert "If you wrapped Codex with CODEX_HOME" in unwrap_result.output
@@ -554,17 +554,17 @@ def test_wrap_codex_prepare_only_updates_stale_mcp_proxy_url(
     config_file = tmp_path / ".codex" / "config.toml"
     config_file.parent.mkdir(parents=True)
     config_file.write_text(
-        "# --- CutCtx MCP server ---\n"
+        "# --- Cutctx MCP server ---\n"
         "[mcp_servers.cutctx]\n"
         'command = "cutctx"\n'
         'args = ["mcp", "serve"]\n'
         "\n"
         "[mcp_servers.cutctx.env]\n"
         'CUTCTX_PROXY_URL = "http://127.0.0.1:9000"\n'
-        "# --- end CutCtx MCP server ---\n"
+        "# --- end Cutctx MCP server ---\n"
     )
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
 
     assert result.exit_code == 0, result.output
@@ -587,8 +587,8 @@ def test_wrap_codex_prepare_only_registers_serena_when_uvx_exists(
             return "/usr/local/bin/uvx"
         return None
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
-        with patch("headroom.cli.wrap.shutil.which", side_effect=fake_which):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
+        with patch("cutctx.cli.wrap.shutil.which", side_effect=fake_which):
             result = runner.invoke(main, ["wrap", "codex", "--prepare-only"])
 
     assert result.exit_code == 0, result.output
@@ -605,7 +605,7 @@ def test_wrap_codex_prepare_only_no_serena_skips_serena(
     config_file = tmp_path / ".codex" / "config.toml"
     config_file.parent.mkdir(parents=True)
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--no-serena"])
 
     assert result.exit_code == 0, result.output
@@ -628,7 +628,7 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     )
     config_file.write_text(original)
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         wrap_result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
     assert wrap_result.exit_code == 0, wrap_result.output
     assert 'model_provider = "cutctx"' in config_file.read_text()
@@ -636,7 +636,7 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     stopped: list[int] = []
 
     with patch(
-        "headroom.cli.wrap._stop_local_proxy_for_unwrap",
+        "cutctx.cli.wrap._stop_local_proxy_for_unwrap",
         side_effect=lambda port: stopped.append(port) or "stopped",
     ):
         unwrap_result = runner.invoke(main, ["unwrap", "codex", "--port", "9999"])
@@ -647,9 +647,9 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     # proxy is stopped.
     assert config_file.read_text() == original
     assert 'model_provider = "cutctx"' not in config_file.read_text()
-    assert not (tmp_path / ".codex" / "config.toml.headroom-backup").exists()
+    assert not (tmp_path / ".codex" / "config.toml.cutctx-backup").exists()
     assert stopped == [9999]
-    assert "Stopped local CutCtx proxy on port 9999" in unwrap_result.output
+    assert "Stopped local Cutctx proxy on port 9999" in unwrap_result.output
 
 
 def test_unwrap_codex_no_stop_proxy_leaves_proxy_alone(
@@ -658,14 +658,14 @@ def test_unwrap_codex_no_stop_proxy_leaves_proxy_alone(
     _set_test_home(monkeypatch, tmp_path)
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "explicit-codex-home"))
 
-    with patch("headroom.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy:
+    with patch("cutctx.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy:
         result = runner.invoke(main, ["unwrap", "codex", "--no-stop-proxy"])
 
     assert result.exit_code == 0, result.output
     stop_proxy.assert_not_called()
 
 
-def test_stop_local_proxy_for_unwrap_kills_identified_headroom_proxy(
+def test_stop_local_proxy_for_unwrap_kills_identified_cutctx_proxy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     killed: list[tuple[int, int]] = []
@@ -688,7 +688,7 @@ def test_stop_local_proxy_for_unwrap_refuses_unidentified_listener(
     monkeypatch.setattr(wrap_mod, "_check_proxy", lambda port: True)
     monkeypatch.setattr(wrap_mod, "_query_proxy_config", lambda port: None)
 
-    with patch("headroom.cli.wrap._kill_proxy_by_pid") as kill_proxy:
+    with patch("cutctx.cli.wrap._kill_proxy_by_pid") as kill_proxy:
         assert wrap_mod._stop_local_proxy_for_unwrap(8787) == "unidentified"
 
     kill_proxy.assert_not_called()
@@ -707,12 +707,12 @@ def test_unwrap_codex_is_safe_noop_with_explicit_codex_home(
     assert not (tmp_path / ".codex" / "config.toml").exists()
 
 
-def test_unwrap_codex_removes_headroom_only_config_file(
+def test_unwrap_codex_removes_cutctx_only_config_file(
     runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _set_test_home(monkeypatch, tmp_path)
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         wrap_result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
     assert wrap_result.exit_code == 0, wrap_result.output
 
@@ -734,7 +734,7 @@ def test_unwrap_codex_preserves_unrelated_sections(
     original = '[mcp_servers.local_thing]\ncommand = "/usr/local/bin/thing"\nargs = ["--serve"]\n'
     config_file.write_text(original)
 
-    with patch("headroom.cli.wrap._ensure_rtk_binary", return_value=None):
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
 
     result = runner.invoke(main, ["unwrap", "codex"])
@@ -749,11 +749,11 @@ def test_unwrap_codex_preserves_unrelated_sections(
 
 
 class TestCodexProjectHeaderConfig:
-    """The injected provider maps X-Headroom-Project to HEADROOM_PROJECT.
+    """The injected provider maps X-Cutctx-Project to CUTCTX_PROJECT.
 
     Codex's ``env_http_headers`` sends a header only when the mapped env var
-    is set at Codex runtime, so `headroom wrap codex` exports
-    ``HEADROOM_PROJECT`` and the proxy attributes savings per project.
+    is set at Codex runtime, so `cutctx wrap codex` exports
+    ``CUTCTX_PROJECT`` and the proxy attributes savings per project.
     """
 
     def test_inject_writes_env_http_headers_mapping(
@@ -764,7 +764,7 @@ class TestCodexProjectHeaderConfig:
         wrap_mod._inject_codex_provider_config(8787)
 
         content = (tmp_path / ".codex" / "config.toml").read_text()
-        assert 'env_http_headers = { "X-Headroom-Project" = "HEADROOM_PROJECT" }' in content
+        assert 'env_http_headers = { "X-Cutctx-Project" = "CUTCTX_PROJECT" }' in content
 
     def test_env_http_headers_inside_provider_section(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -784,7 +784,7 @@ class TestCodexProjectHeaderConfig:
     def test_strip_removes_block_with_env_http_headers(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """_strip_codex_headroom_blocks removes the whole injected block,
+        """_strip_codex_cutctx_blocks removes the whole injected block,
         including the new env_http_headers line, leaving user content."""
         _set_test_home(monkeypatch, tmp_path)
         config_dir = tmp_path / ".codex"
@@ -797,8 +797,8 @@ class TestCodexProjectHeaderConfig:
         wrapped = config_file.read_text()
         assert "env_http_headers" in wrapped
 
-        cleaned = wrap_mod._strip_codex_headroom_blocks(wrapped)
+        cleaned = wrap_mod._strip_codex_cutctx_blocks(wrapped)
         assert "env_http_headers" not in cleaned
-        assert "X-Headroom-Project" not in cleaned
+        assert "X-Cutctx-Project" not in cleaned
         assert "[model_providers.cutctx]" not in cleaned
         assert 'model = "gpt-4o"' in cleaned

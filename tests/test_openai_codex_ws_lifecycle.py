@@ -15,9 +15,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS
-from headroom.proxy.ws_session_registry import WebSocketSessionRegistry
+from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
+from cutctx.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS
+from cutctx.proxy.ws_session_registry import WebSocketSessionRegistry
 
 # ---------------------------------------------------------------------------
 # Test doubles
@@ -91,10 +91,10 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         return fn()
 
     async def _record_request_outcome(self, outcome) -> None:
-        # Mirror of ``HeadroomProxy._record_request_outcome`` for the
+        # Mirror of ``CutctxProxy._record_request_outcome`` for the
         # mixin tests. Delegates to the free funnel function so the
         # wire shape is identical to production.
-        from headroom.proxy.outcome import emit_request_outcome
+        from cutctx.proxy.outcome import emit_request_outcome
 
         await emit_request_outcome(self, outcome)
 
@@ -670,7 +670,9 @@ async def test_ws_connect_failure_falls_back_to_http():
     assert len(fallback_calls) == 1
     _body, _first_raw = fallback_calls[0]
     assert _first_raw == first
-    assert _body == json.loads(first)
+    expected_body = json.loads(first)
+    expected_body["model"] = "gpt-5.4"
+    assert _body == expected_body
     # Clean teardown.
     assert handler.ws_sessions.active_count() == 0
 
@@ -738,7 +740,7 @@ async def test_ws_forwards_codex_headers_to_client_accept():
     with (
         patch.dict(sys.modules, {"websockets": fake_ws_mod}),
         patch(
-            "headroom.subscription.codex_rate_limits.get_codex_rate_limit_state",
+            "cutctx.subscription.codex_rate_limits.get_codex_rate_limit_state",
             _fake_state,
         ),
     ):
@@ -775,7 +777,7 @@ async def test_ws_first_frame_timeout_after_connect_closes_upstream():
     with (
         patch.dict(sys.modules, {"websockets": fake_ws_mod}),
         patch(
-            "headroom.proxy.handlers.openai.responses.WS_FIRST_FRAME_TIMEOUT_SECONDS",
+            "cutctx.proxy.handlers.openai.responses.WS_FIRST_FRAME_TIMEOUT_SECONDS",
             0.05,
         ),
     ):

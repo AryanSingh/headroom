@@ -4,13 +4,13 @@ import time
 
 import pytest
 
-from headroom.cache.compression_feedback import (
+from cutctx.cache.compression_feedback import (
     CompressionFeedback,
     LocalToolPattern,
     get_compression_feedback,
     reset_compression_feedback,
 )
-from headroom.cache.compression_store import (
+from cutctx.cache.compression_store import (
     CompressionStore,
     RetrievalEvent,
     reset_compression_store,

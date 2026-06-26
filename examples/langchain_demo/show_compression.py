@@ -150,7 +150,7 @@ def main():
     """Run compression demonstrations."""
 
     print("\n" + "=" * 70)
-    print("HEADROOM SMARTCRUSHER: BEFORE/AFTER COMPRESSION")
+    print("CUTCTX SMARTCRUSHER: BEFORE/AFTER COMPRESSION")
     print("=" * 70)
     print("""
 This demonstrates how Cutctx's SmartCrusher compresses large tool outputs.

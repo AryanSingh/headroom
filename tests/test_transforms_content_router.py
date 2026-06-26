@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom.transforms.content_router as content_router_module
-from headroom.transforms.content_detector import ContentType, DetectionResult
-from headroom.transforms.content_router import (
+import cutctx.transforms.content_router as content_router_module
+from cutctx.transforms.content_detector import ContentType, DetectionResult
+from cutctx.transforms.content_router import (
     CompressionCache,
     CompressionStrategy,
     ContentRouter,
@@ -102,7 +102,7 @@ def test_router_result_helpers_and_summary() -> None:
 
 def test_content_signature_and_detection_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stage-3d (PR5) wired `_detect_content` through the Rust chain
-    (`headroom._core.detect_content_type` → magika → unidiff →
+    (`cutctx._core.detect_content_type` → magika → unidiff →
     PlainText). The pre-PR5 Python-side `_get_magika_detector`
     fallback path is gone.
 
@@ -118,7 +118,7 @@ def test_content_signature_and_detection_helpers(monkeypatch: pytest.MonkeyPatch
     # Monkeypatch the Rust binding to return a deterministic fake
     # result; verify _detect_content propagates the content_type
     # tag back as the Python ContentType enum.
-    import headroom._core as _core
+    import cutctx._core as _core
 
     fake_rust_result = SimpleNamespace(
         content_type="source_code",

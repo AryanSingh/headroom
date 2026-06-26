@@ -15,12 +15,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
 
-import pytest
-
-
-DASHBOARD_PATH = Path(__file__).parent.parent / "headroom/dashboard/templates/dashboard.html"
+DASHBOARD_PATH = Path(__file__).parent.parent / "cutctx/dashboard/templates/dashboard.html"
 
 
 def _extract_filter_function() -> str:

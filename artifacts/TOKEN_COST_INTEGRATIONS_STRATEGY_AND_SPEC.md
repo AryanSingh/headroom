@@ -10,24 +10,24 @@
 
 This memo answers three questions:
 
-1. Which external token-cost tools and platform features should CutCtx integrate?
-2. How should those integrations be positioned so they help sell CutCtx instead of commoditizing it?
+1. Which external token-cost tools and platform features should Cutctx integrate?
+2. How should those integrations be positioned so they help sell Cutctx instead of commoditizing it?
 3. What exact product and engineering plan should be implemented to ship that strategy?
 
 ---
 
 ## Executive Summary
 
-CutCtx should **not** position itself as "another prompt caching product." That category is increasingly absorbed by providers like OpenAI, Anthropic, Google, Bedrock, and Azure.
+Cutctx should **not** position itself as "another prompt caching product." That category is increasingly absorbed by providers like OpenAI, Anthropic, Google, Bedrock, and Azure.
 
-CutCtx should position itself as:
+Cutctx should position itself as:
 
 > **The optimization, savings intelligence, and governance layer across every token-saving mechanism.**
 
 That means:
 
 - Use provider-native caching wherever it exists
-- Add CutCtx compression where provider caching does not help
+- Add Cutctx compression where provider caching does not help
 - Add semantic cache where repeated intent is common
 - Add routing, analytics, and policy so teams can see and control all of it in one place
 
@@ -39,7 +39,7 @@ The product should become the **system of record for token savings**, not just a
 
 ### Core Positioning
 
-> CutCtx is the control plane for LLM token efficiency. It combines provider-native caching, CutCtx compression, semantic cache, and routing policies into one local-first optimization layer with measurable ROI.
+> Cutctx is the control plane for LLM token efficiency. It combines provider-native caching, Cutctx compression, semantic cache, and routing policies into one local-first optimization layer with measurable ROI.
 
 ### One-Liner Options
 
@@ -54,7 +54,7 @@ The product should become the **system of record for token savings**, not just a
 - Prompt compression alone is easy to commoditize.
 - Gateways alone become operational plumbing.
 
-CutCtx is strongest when it owns:
+Cutctx is strongest when it owns:
 
 - decisioning
 - compatibility
@@ -78,11 +78,11 @@ These directly improve product sellability and should be prioritized.
 2. **Anthropic prompt caching support**
    - Automatic `cache_control` strategies
    - Provider-specific heuristics for cacheable blocks
-   - Separate reporting for prompt-cache hits vs CutCtx compression
+   - Separate reporting for prompt-cache hits vs Cutctx compression
 
 3. **Gemini context caching support**
    - Support implicit and explicit cache modes where available
-   - Add metrics so buyers can compare provider cache vs CutCtx savings
+   - Add metrics so buyers can compare provider cache vs Cutctx savings
 
 4. **Bedrock prompt caching support**
    - Important for enterprise procurement
@@ -96,7 +96,7 @@ These directly improve product sellability and should be prioritized.
    - The most important product feature
    - Must separate:
      - provider cache savings
-     - CutCtx compression savings
+     - Cutctx compression savings
      - semantic cache savings
      - routing/model savings
 
@@ -129,18 +129,18 @@ These directly improve product sellability and should be prioritized.
 
 1. **Helicone**
    - Good for observability interop
-   - Not core to CutCtx value
+   - Not core to Cutctx value
 
 2. **Portkey**
    - Good as an optional gateway integration
-   - Not something CutCtx should depend on for its core story
+   - Not something Cutctx should depend on for its core story
 
 ### Things To Avoid
 
 1. Becoming dependent on a third-party gateway as the primary product surface
 2. Shipping semantic caching as the default for all agent workloads
-3. Mixing provider-cache savings and CutCtx savings into one opaque number
-4. Marketing any external cache as if it were proprietary CutCtx savings
+3. Mixing provider-cache savings and Cutctx savings into one opaque number
+4. Marketing any external cache as if it were proprietary Cutctx savings
 
 ---
 
@@ -148,7 +148,7 @@ These directly improve product sellability and should be prioritized.
 
 ### Primary Message
 
-> Your team already has multiple ways to save tokens. The problem is they are fragmented, provider-specific, hard to measure, and hard to govern. CutCtx unifies them into one optimization layer and one savings ledger.
+> Your team already has multiple ways to save tokens. The problem is they are fragmented, provider-specific, hard to measure, and hard to govern. Cutctx unifies them into one optimization layer and one savings ledger.
 
 ### Best Commercial Angle
 
@@ -172,15 +172,15 @@ Sell:
 
 #### Startup / AI Product Team
 
-> Keep your existing stack. CutCtx automatically combines provider prompt caching and context compression to reduce spend and extend usable context, then shows exactly where the savings came from.
+> Keep your existing stack. Cutctx automatically combines provider prompt caching and context compression to reduce spend and extend usable context, then shows exactly where the savings came from.
 
 #### Platform Team
 
-> Standardize LLM cost controls across OpenAI, Anthropic, Gemini, Bedrock, Azure, LiteLLM, and self-hosted inference. CutCtx gives you one policy layer and one savings ledger.
+> Standardize LLM cost controls across OpenAI, Anthropic, Gemini, Bedrock, Azure, LiteLLM, and self-hosted inference. Cutctx gives you one policy layer and one savings ledger.
 
 #### Enterprise Buyer
 
-> CutCtx is the governance and cost-optimization layer across every model provider. It runs in your environment, preserves provider-native discounts, and gives your team auditable savings reporting.
+> Cutctx is the governance and cost-optimization layer across every model provider. It runs in your environment, preserves provider-native discounts, and gives your team auditable savings reporting.
 
 ---
 
@@ -220,13 +220,13 @@ Add a new product capability called:
 
 > **Savings Orchestration**
 
-This capability makes CutCtx aware of external token-saving systems and attributes value correctly across them.
+This capability makes Cutctx aware of external token-saving systems and attributes value correctly across them.
 
 ### User Outcomes
 
 Users should be able to:
 
-1. Turn on provider-native caching without losing CutCtx compression benefits
+1. Turn on provider-native caching without losing Cutctx compression benefits
 2. See exactly how much each mechanism saved
 3. Configure per-provider policy defaults
 4. Export buyer-grade ROI reports
@@ -238,7 +238,7 @@ Users should be able to:
 
 ### FR-1: Savings Source Attribution
 
-CutCtx must track savings separately for:
+Cutctx must track savings separately for:
 
 - `provider_prompt_cache`
 - `cutctx_compression`
@@ -255,7 +255,7 @@ Each request record must support:
 - cache mode used
 - compression mode used
 - tokens before optimization
-- tokens after CutCtx optimization
+- tokens after Cutctx optimization
 - provider cached tokens
 - semantic cache hit tokens avoided
 - estimated dollar savings by source
@@ -280,7 +280,7 @@ Add dashboard support for:
 - savings by model
 - savings by workload type
 - policy effectiveness
-- provider-cache vs CutCtx overlap analysis
+- provider-cache vs Cutctx overlap analysis
 
 ### FR-5: ROI Reporting
 
@@ -289,7 +289,7 @@ Reports must export:
 - weekly and monthly savings
 - savings by source
 - savings by org/project/agent/model
-- "what if CutCtx were disabled"
+- "what if Cutctx were disabled"
 - "what if provider cache were disabled"
 
 ### FR-6: A/B Strategy Evaluation
@@ -297,7 +297,7 @@ Reports must export:
 Support side-by-side comparisons for:
 
 - provider-cache only
-- CutCtx compression only
+- Cutctx compression only
 - combined mode
 - semantic cache mode
 
@@ -306,7 +306,7 @@ Support side-by-side comparisons for:
 ## Non-Functional Requirements
 
 1. **No silent savings inflation**
-   - Provider cache savings must not be counted again as CutCtx savings.
+   - Provider cache savings must not be counted again as Cutctx savings.
 
 2. **Backward compatibility**
    - Existing proxy flows must continue to work if integrations are disabled.
@@ -368,7 +368,7 @@ Extend request metrics / persisted request records with fields like:
 
 Add a provider-aware optimization strategy resolver:
 
-- `headroom/policy/savings_orchestrator.py`
+- `cutctx/policy/savings_orchestrator.py`
 
 Responsibilities:
 
@@ -382,11 +382,11 @@ Responsibilities:
 
 Add provider-specific savings parsers:
 
-- `headroom/providers/openai/savings.py`
-- `headroom/providers/anthropic/savings.py`
-- `headroom/providers/gemini/savings.py`
-- `headroom/providers/bedrock/savings.py`
-- `headroom/providers/azure_openai/savings.py`
+- `cutctx/providers/openai/savings.py`
+- `cutctx/providers/anthropic/savings.py`
+- `cutctx/providers/gemini/savings.py`
+- `cutctx/providers/bedrock/savings.py`
+- `cutctx/providers/azure_openai/savings.py`
 
 Responsibilities:
 
@@ -398,9 +398,9 @@ Responsibilities:
 
 Add optional semantic cache abstraction:
 
-- `headroom/cache/semantic/base.py`
-- `headroom/cache/semantic/gptcache_adapter.py`
-- `headroom/cache/semantic/litellm_adapter.py`
+- `cutctx/cache/semantic/base.py`
+- `cutctx/cache/semantic/gptcache_adapter.py`
+- `cutctx/cache/semantic/litellm_adapter.py`
 
 Do not hardcode any one vendor into the core path.
 
@@ -442,21 +442,21 @@ Make savings attribution trustworthy before adding more integrations.
 3. Persist savings breakdown to storage
 4. Update dashboard cards to split:
    - provider cache savings
-   - CutCtx savings
+   - Cutctx savings
    - total savings
 5. Add tests for no double counting
 
 ### Files To Touch
 
-- `headroom/proxy/server.py`
-- `headroom/proxy/cost.py`
-- `headroom/proxy/savings_tracker.py`
-- `headroom/ccr/mcp_server.py`
+- `cutctx/proxy/server.py`
+- `cutctx/proxy/cost.py`
+- `cutctx/proxy/savings_tracker.py`
+- `cutctx/ccr/mcp_server.py`
 - dashboard templates or React dashboard payload consumers
 
 ### Acceptance Criteria
 
-- Dashboard shows separate lines for provider cache and CutCtx savings
+- Dashboard shows separate lines for provider cache and Cutctx savings
 - Exports preserve the same breakdown
 - Total savings equals sum of individual sources
 
@@ -464,7 +464,7 @@ Make savings attribution trustworthy before adding more integrations.
 
 ### Objective
 
-Make CutCtx aware of provider cache behavior.
+Make Cutctx aware of provider cache behavior.
 
 ### Work
 
@@ -478,11 +478,11 @@ Make CutCtx aware of provider cache behavior.
 
 ### Files To Add
 
-- `headroom/providers/openai/savings.py`
-- `headroom/providers/anthropic/savings.py`
-- `headroom/providers/gemini/savings.py`
-- `headroom/providers/bedrock/savings.py`
-- `headroom/providers/azure_openai/savings.py`
+- `cutctx/providers/openai/savings.py`
+- `cutctx/providers/anthropic/savings.py`
+- `cutctx/providers/gemini/savings.py`
+- `cutctx/providers/bedrock/savings.py`
+- `cutctx/providers/azure_openai/savings.py`
 
 ### Acceptance Criteria
 
@@ -511,7 +511,7 @@ Choose the best mechanism per workload.
 
 ### Files To Add
 
-- `headroom/policy/savings_orchestrator.py`
+- `cutctx/policy/savings_orchestrator.py`
 - `docs/spec/005-integrations.md`
 - `docs/spec/016-observability.md`
 
@@ -551,7 +551,7 @@ Turn technical capability into a sellable feature set.
 1. Add ROI report template with savings-by-source breakdown
 2. Add pricing-page language for unified savings orchestration
 3. Add pilot success metric:
-   - "verified provider + CutCtx combined savings"
+   - "verified provider + Cutctx combined savings"
 4. Add sales deck proof screenshots from dashboard
 
 ### Files To Update
@@ -567,7 +567,7 @@ Turn technical capability into a sellable feature set.
 
 ### Default Strategy by Workload
 
-| Workload | Provider Cache | CutCtx Compression | Semantic Cache | Notes |
+| Workload | Provider Cache | Cutctx Compression | Semantic Cache | Notes |
 |----------|----------------|--------------------|----------------|-------|
 | Coding agents | On | Tool outputs only, conservative history compression | Off by default | Preserve provider-cache prefixes |
 | Support / FAQ | On | Light | On | Best semantic-cache fit |
@@ -615,7 +615,7 @@ For each workload, compare:
 
 1. baseline
 2. provider cache only
-3. CutCtx only
+3. Cutctx only
 4. combined
 5. semantic cache enabled
 
@@ -632,10 +632,10 @@ For each workload, compare:
 
 This initiative is successful when all of the following are true:
 
-1. A buyer can see a dashboard that separates provider savings from CutCtx savings.
-2. A founder can say "CutCtx makes every token-saving layer work together" and the product proves it.
+1. A buyer can see a dashboard that separates provider savings from Cutctx savings.
+2. A founder can say "Cutctx makes every token-saving layer work together" and the product proves it.
 3. Engineering teams can enable new savings mechanisms without changing app code.
-4. CutCtx becomes harder to replace because it owns optimization policy and ROI reporting.
+4. Cutctx becomes harder to replace because it owns optimization policy and ROI reporting.
 
 ---
 
@@ -653,5 +653,5 @@ This initiative is successful when all of the following are true:
 
 Use this in demos and outreach:
 
-> Most teams now have multiple token-saving mechanisms available, but they are fragmented and hard to operate. CutCtx is the layer that makes them work together. We preserve provider-native cache wins, compress the payloads those caches do not touch, add optional semantic caching where it makes sense, and show you exactly where every dollar of savings came from.
+> Most teams now have multiple token-saving mechanisms available, but they are fragmented and hard to operate. Cutctx is the layer that makes them work together. We preserve provider-native cache wins, compress the payloads those caches do not touch, add optional semantic caching where it makes sense, and show you exactly where every dollar of savings came from.
 

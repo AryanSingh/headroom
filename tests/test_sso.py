@@ -9,7 +9,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from headroom.sso import (
+from cutctx.sso import (
     SsoClaims,
     SsoConfig,
     SsoDiscoveryError,
@@ -55,23 +55,23 @@ class TestSsoConfig(unittest.TestCase):
         self.assertFalse(cfg.enabled)
 
     @patch.dict(os.environ, {
-        "HEADROOM_SSO_PROVIDER_TYPE": "jwt",
-        "HEADROOM_SSO_DISCOVERY_URL": "https://idp.example.com/.well-known/openid-configuration",
-        "HEADROOM_SSO_ISSUER": "https://idp.example.com",
-        "HEADROOM_SSO_AUDIENCE": "headroom-api",
-        "HEADROOM_SSO_ROLE_MAPPING": "groups=admin,roles=operator",
-        "HEADROOM_SSO_REQUIRED_SCOPES": "openid,profile",
-        "HEADROOM_SSO_DEFAULT_ROLE": "viewer",
-        "HEADROOM_SSO_JWKS_CACHE_TTL": "7200",
-        "HEADROOM_SSO_CLOCK_SKEW_TOLERANCE": "30",
-        "HEADROOM_SSO_HTTP_TIMEOUT": "15",
+        "CUTCTX_SSO_PROVIDER_TYPE": "jwt",
+        "CUTCTX_SSO_DISCOVERY_URL": "https://idp.example.com/.well-known/openid-configuration",
+        "CUTCTX_SSO_ISSUER": "https://idp.example.com",
+        "CUTCTX_SSO_AUDIENCE": "cutctx-api",
+        "CUTCTX_SSO_ROLE_MAPPING": "groups=admin,roles=operator",
+        "CUTCTX_SSO_REQUIRED_SCOPES": "openid,profile",
+        "CUTCTX_SSO_DEFAULT_ROLE": "viewer",
+        "CUTCTX_SSO_JWKS_CACHE_TTL": "7200",
+        "CUTCTX_SSO_CLOCK_SKEW_TOLERANCE": "30",
+        "CUTCTX_SSO_HTTP_TIMEOUT": "15",
     })
     def test_from_env(self):
         cfg = SsoConfig.from_env()
         self.assertEqual(cfg.provider_type, "jwt")
         self.assertEqual(cfg.discovery_url, "https://idp.example.com/.well-known/openid-configuration")
         self.assertEqual(cfg.issuer, "https://idp.example.com")
-        self.assertEqual(cfg.audience, "headroom-api")
+        self.assertEqual(cfg.audience, "cutctx-api")
         self.assertEqual(cfg.role_mapping, {"groups": "admin", "roles": "operator"})
         self.assertEqual(cfg.required_scopes, ["openid", "profile"])
         self.assertEqual(cfg.jwks_cache_ttl, 7200)
@@ -91,7 +91,7 @@ class TestSsoClaims(unittest.TestCase):
         claims = SsoClaims(
             subject="user-123",
             issuer="https://idp.example.com",
-            audience="headroom-api",
+            audience="cutctx-api",
             expires_at=9999999999.0,
             issued_at=1000000000.0,
             scopes=["openid", "profile"],

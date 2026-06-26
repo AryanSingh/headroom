@@ -11,7 +11,7 @@ function Sidebar() {
     <div className="sidebar">
       <div className="sidebar-header">
         <h1>
-          <Activity color="#58a6ff" /> Headroom
+          <Activity color="#58a6ff" /> CutCtx
         </h1>
       </div>
       <nav>

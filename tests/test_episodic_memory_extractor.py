@@ -25,14 +25,14 @@ import pytest
 @pytest.fixture
 def tmp_memory_dir():
     """Provide a temporary directory for episodic memory storage."""
-    with tempfile.TemporaryDirectory(prefix="headroom_epi_test_") as d:
+    with tempfile.TemporaryDirectory(prefix="cutctx_epi_test_") as d:
         yield d
 
 
 @pytest.fixture
 def store(tmp_memory_dir):
     """Create an EpisodicMemoryStore backed by the temp directory."""
-    from headroom.memory.store import EpisodicMemoryStore
+    from cutctx.memory.store import EpisodicMemoryStore
 
     return EpisodicMemoryStore(memory_dir=tmp_memory_dir)
 
@@ -40,7 +40,7 @@ def store(tmp_memory_dir):
 @pytest.fixture
 def tracker(store):
     """Create an EpisodicSessionTracker with a real store."""
-    from headroom.memory.session_tracker import EpisodicSessionTracker
+    from cutctx.memory.session_tracker import EpisodicSessionTracker
 
     return EpisodicSessionTracker(store, idle_timeout_seconds=2, enabled=True)
 
@@ -114,7 +114,7 @@ class TestEpisodicMemoryStore:
         assert not str(path).startswith("../../")
 
     def test_compute_project_hash_stability(self):
-        from headroom.memory.store import compute_project_hash
+        from cutctx.memory.store import compute_project_hash
 
         h1 = compute_project_hash("/Users/test/myproject")
         h2 = compute_project_hash("/Users/test/myproject")
@@ -122,7 +122,7 @@ class TestEpisodicMemoryStore:
         assert len(h1) == 16  # 16 hex chars
 
     def test_compute_project_hash_normalizes(self):
-        from headroom.memory.store import compute_project_hash
+        from cutctx.memory.store import compute_project_hash
 
         h1 = compute_project_hash("/Users/test/myproject/")
         h2 = compute_project_hash("/Users/test/myproject")
@@ -136,7 +136,7 @@ class TestEpisodicMemoryStore:
 
 class TestFilterMessages:
     def test_filters_system_messages(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [
             {"role": "system", "content": "You are helpful."},
@@ -147,7 +147,7 @@ class TestFilterMessages:
         assert result[0]["role"] == "user"
 
     def test_filters_empty_messages(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [
             {"role": "user", "content": ""},
@@ -158,7 +158,7 @@ class TestFilterMessages:
         assert len(result) == 1
 
     def test_filters_thinking_blocks(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [
             {
@@ -174,7 +174,7 @@ class TestFilterMessages:
         assert "answer" in result[0]["content"]
 
     def test_filters_tool_errors(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [
             {
@@ -198,7 +198,7 @@ class TestFilterMessages:
         assert len(result) == 0
 
     def test_includes_successful_tool_results(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [
             {
@@ -218,7 +218,7 @@ class TestFilterMessages:
         assert "Tool output" in result[0]["content"]
 
     def test_string_content_preserved(self):
-        from headroom.memory.extractor import _filter_messages
+        from cutctx.memory.extractor import _filter_messages
 
         msgs = [{"role": "user", "content": "Hello world"}]
         result = _filter_messages(msgs)
@@ -232,7 +232,7 @@ class TestFilterMessages:
 
 class TestFormatTranscript:
     def test_basic_formatting(self):
-        from headroom.memory.extractor import _format_transcript
+        from cutctx.memory.extractor import _format_transcript
 
         msgs = [
             {"role": "user", "content": "Hello"},
@@ -243,7 +243,7 @@ class TestFormatTranscript:
         assert "Assistant: Hi!" in result
 
     def test_truncation(self):
-        from headroom.memory.extractor import _format_transcript
+        from cutctx.memory.extractor import _format_transcript
 
         msgs = [{"role": "user", "content": "x" * 10000}]
         result = _format_transcript(msgs, max_chars=500)
@@ -258,20 +258,20 @@ class TestFormatTranscript:
 
 class TestFormatMemoryBlock:
     def test_wraps_with_tag(self):
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         result = format_memory_block("## Insights\n- fact1")
         assert result.startswith("[SYSTEM: Past Session Memories]")
         assert "fact1" in result
 
     def test_empty_insights(self):
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         assert format_memory_block("") == ""
         assert format_memory_block("  ") == ""
 
     def test_includes_project_path(self):
-        from headroom.memory.extractor import format_memory_block
+        from cutctx.memory.extractor import format_memory_block
 
         result = format_memory_block("insights", project_path="/my/project")
         assert "/my/project" in result
@@ -285,14 +285,14 @@ class TestFormatMemoryBlock:
 class TestExtractSessionInsights:
     @pytest.mark.asyncio
     async def test_empty_messages(self):
-        from headroom.memory.extractor import extract_session_insights
+        from cutctx.memory.extractor import extract_session_insights
 
         result = await extract_session_insights([])
         assert result == ""
 
     @pytest.mark.asyncio
     async def test_all_filtered_messages(self):
-        from headroom.memory.extractor import extract_session_insights
+        from cutctx.memory.extractor import extract_session_insights
 
         result = await extract_session_insights(
             [{"role": "system", "content": "sys msg"}]
@@ -302,7 +302,7 @@ class TestExtractSessionInsights:
     @pytest.mark.asyncio
     async def test_heuristic_fallback_no_api_key(self):
         """Without API key, falls back to heuristic extraction."""
-        from headroom.memory.extractor import extract_session_insights
+        from cutctx.memory.extractor import extract_session_insights
 
         msgs = [
             {
@@ -324,7 +324,7 @@ class TestExtractSessionInsights:
     @pytest.mark.asyncio
     async def test_llm_extract_called(self):
         """When API key is provided, LLM extraction is attempted."""
-        from headroom.memory.extractor import extract_session_insights
+        from cutctx.memory.extractor import extract_session_insights
 
         msgs = [
             {"role": "user", "content": "Add dark mode to dashboard.py"},
@@ -360,7 +360,7 @@ class TestExtractSessionInsights:
     @pytest.mark.asyncio
     async def test_llm_failure_falls_back_to_heuristic(self):
         """LLM failure should fall back to heuristic extraction."""
-        from headroom.memory.extractor import extract_session_insights
+        from cutctx.memory.extractor import extract_session_insights
 
         msgs = [
             {"role": "user", "content": "Fix the bug in cache.py"},
@@ -388,7 +388,7 @@ class TestExtractSessionInsights:
 
 class TestEpisodicSessionTracker:
     def test_disabled_tracker(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=False)
         assert not tracker.enabled
@@ -397,7 +397,7 @@ class TestEpisodicSessionTracker:
         assert tracker.load_episodic_memories("/project") == ""
 
     def test_on_request_buffers_messages(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=True)
         h = tracker.on_request(
@@ -414,7 +414,7 @@ class TestEpisodicSessionTracker:
         assert stats["total_tracked"] == 1
 
     def test_on_request_accumulates(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=True)
         tracker.on_request("/project", [{"role": "user", "content": "msg1"}])
@@ -423,18 +423,18 @@ class TestEpisodicSessionTracker:
         assert stats["active_sessions"] == 1
 
     def test_load_memories_empty(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=True)
         result = tracker.load_episodic_memories("/project")
         assert result == ""
 
     def test_load_memories_after_save(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=True)
         # Save directly to store
-        from headroom.memory.store import compute_project_hash
+        from cutctx.memory.store import compute_project_hash
 
         h = compute_project_hash("/project")
         store.save_memory(h, "## Past session\n- User likes dark mode")
@@ -444,7 +444,7 @@ class TestEpisodicSessionTracker:
 
     @pytest.mark.asyncio
     async def test_sweep_extracts_on_idle(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(
             store, idle_timeout_seconds=0, enabled=True
@@ -457,7 +457,7 @@ class TestEpisodicSessionTracker:
 
         # Mock the LLM extraction to avoid API calls
         with patch(
-            "headroom.memory.session_tracker.extract_session_insights",
+            "cutctx.memory.session_tracker.extract_session_insights",
             new_callable=AsyncMock,
             return_value="## Session Insights\n- Dark mode added",
         ) as mock_extract:
@@ -467,13 +467,13 @@ class TestEpisodicSessionTracker:
 
         mock_extract.assert_called_once()
         # Memories should now be stored
-        from headroom.memory.store import compute_project_hash
+        from cutctx.memory.store import compute_project_hash
 
         h = compute_project_hash("/project")
         assert store.has_memories(h)
 
     def test_get_stats(self, store):
-        from headroom.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
 
         tracker = EpisodicSessionTracker(store, enabled=True)
         stats = tracker.get_stats()

@@ -1,4 +1,4 @@
-# CutCtx — Corrected Product Capability & Gap Analysis
+# Cutctx — Corrected Product Capability & Gap Analysis
 
 **Corrected after deep codebase audit. Previous analysis had stale claims about CLI, dashboard, and MCP.**
 

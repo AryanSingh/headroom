@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug to help us improve Headroom
+about: Report a bug to help us improve Cutctx
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -14,7 +14,7 @@ A clear and concise description of what the bug is.
 
 Steps to reproduce the behavior:
 
-1. Install headroom with '...'
+1. Install cutctx with '...'
 2. Run this code '...'
 3. See error
 
@@ -30,7 +30,7 @@ What actually happened.
 
 ```python
 # Minimal code to reproduce the issue
-from headroom import HeadroomClient
+from cutctx import CutctxClient
 
 # Your code here
 ```
@@ -43,7 +43,7 @@ Paste any error messages or stack traces here
 
 ## Environment
 
-- **Headroom version**: (run `python -c "import headroom; print(headroom.__version__)"`)
+- **Cutctx version**: (run `python -c "import cutctx; print(cutctx.__version__)"`)
 - **Python version**: (run `python --version`)
 - **OS**: (e.g., macOS 14.0, Ubuntu 22.04, Windows 11)
 - **LLM Provider**: (e.g., OpenAI, Anthropic)

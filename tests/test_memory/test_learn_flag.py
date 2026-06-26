@@ -11,7 +11,7 @@ Verifies that:
 
 from __future__ import annotations
 
-from headroom.proxy.server import HeadroomProxy, CutctxProxy, ProxyConfig
+from cutctx.proxy.server import CutctxProxy, ProxyConfig
 
 # =============================================================================
 # ProxyConfig Flag Resolution Tests
@@ -68,7 +68,7 @@ class TestProxyConfigFlags:
 # =============================================================================
 
 
-class TestHeadroomProxyTrafficLearner:
+class TestCutctxProxyTrafficLearner:
     """Test that CutctxProxy correctly initializes (or doesn't) the traffic learner."""
 
     def test_no_traffic_learner_by_default(self):
@@ -205,7 +205,7 @@ class TestCompressAPIIsolation:
 
     def test_compress_has_no_memory_dependency(self):
         """compress() module does not import memory modules."""
-        from headroom import compress
+        from cutctx import compress
 
         # compress is a function, not a class with state
         assert callable(compress)
@@ -214,7 +214,7 @@ class TestCompressAPIIsolation:
         """compress() signature has no memory/learn parameters."""
         import inspect
 
-        from headroom import compress
+        from cutctx import compress
 
         sig = inspect.signature(compress)
         param_names = set(sig.parameters.keys())
@@ -240,7 +240,7 @@ class TestWrapCLILearnFlag:
         # We can't actually run the proxy, but we can check the function signature
         import inspect
 
-        from headroom.cli.wrap import _start_proxy
+        from cutctx.cli.wrap import _start_proxy
 
         sig = inspect.signature(_start_proxy)
         assert "learn" in sig.parameters
@@ -249,7 +249,7 @@ class TestWrapCLILearnFlag:
         """_ensure_proxy accepts learn kwarg."""
         import inspect
 
-        from headroom.cli.wrap import _ensure_proxy
+        from cutctx.cli.wrap import _ensure_proxy
 
         sig = inspect.signature(_ensure_proxy)
         assert "learn" in sig.parameters
@@ -258,7 +258,7 @@ class TestWrapCLILearnFlag:
         """_launch_tool accepts learn kwarg."""
         import inspect
 
-        from headroom.cli.wrap import _launch_tool
+        from cutctx.cli.wrap import _launch_tool
 
         sig = inspect.signature(_launch_tool)
         assert "learn" in sig.parameters

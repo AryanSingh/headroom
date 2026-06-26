@@ -1,7 +1,7 @@
 # Savings Telemetry
 
 Partner caches, routers, and inference gateways can attribute savings without
-calling a separate CutCtx API. Send one `x-headroom-savings-metadata` header
+calling a separate Cutctx API. Send one `x-cutctx-savings-metadata` header
 on the request into the local proxy. The proxy strips this internal header
 before forwarding upstream and persists the normalized savings into dashboard
 history, buyer reports, and `cutctx integrations status`.
@@ -12,7 +12,7 @@ history, buyer reports, and `cutctx integrations status`.
 curl http://127.0.0.1:8787/v1/chat/completions \
   -H 'authorization: Bearer <provider-key>' \
   -H 'content-type: application/json' \
-  -H 'x-headroom-savings-metadata: {"semantic_cache":{"tokens":420},"vllm_apc":{"prefix_cache_hits":900},"model_routing":{"tokens_routed":1200,"usd_saved":0.18}}' \
+  -H 'x-cutctx-savings-metadata: {"semantic_cache":{"tokens":420},"vllm_apc":{"prefix_cache_hits":900},"model_routing":{"tokens_routed":1200,"usd_saved":0.18}}' \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hello"}]}'
 ```
 
@@ -36,11 +36,11 @@ Accepted integration aliases:
 
 Simple gateways may use dedicated headers instead of JSON:
 
-- `x-headroom-provider-cache-tokens`
-- `x-headroom-semantic-cache-avoided-tokens`
-- `x-headroom-prefix-cache-hits`
-- `x-headroom-model-routing-tokens`
-- `x-headroom-model-routing-usd`
+- `x-cutctx-provider-cache-tokens`
+- `x-cutctx-semantic-cache-avoided-tokens`
+- `x-cutctx-prefix-cache-hits`
+- `x-cutctx-model-routing-tokens`
+- `x-cutctx-model-routing-usd`
 
 The same metadata path is wired for normal, streaming, batch, OpenAI
 Responses, Gemini, Anthropic, Bedrock streaming, and passthrough outcomes.

@@ -1,38 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2025-2026 Cutctx Labs.
-"""Tests for the headroom.savings/ module (High-20).
+"""Tests for the cutctx.savings/ module (High-20).
 
 Production audit (production-audit-2026-06-20.md) found that
-the headroom.savings/ module — the new moat-b1 code on this
+the cutctx.savings/ module — the new moat-b1 code on this
 branch — had 0 test imports. This file adds coverage for the
 shared types, parsers, policy, integrations, and orchestrator.
 """
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 import pytest
 
-from headroom.savings import (
+from cutctx.savings import (
     RequestSavingsBreakdown,
     SavingsBySource,
     SavingsSource,
     parse_provider_savings,
 )
-from headroom.savings.integrations import (
+from cutctx.savings.integrations import (
     parse_gptcache_hit,
     parse_litellm_cache,
     parse_model_routing_metadata,
     parse_vllm_apc,
 )
-from headroom.savings.orchestrator import (
-    AggregateSavings,
+from cutctx.savings.orchestrator import (
     SavingsOrchestrator,
 )
-from headroom.savings.policy import PolicyDecision, StrategyResolver, WorkloadClass
-
+from cutctx.savings.policy import PolicyDecision, StrategyResolver, WorkloadClass
 
 # ── types.py ────────────────────────────────────────────────────────
 

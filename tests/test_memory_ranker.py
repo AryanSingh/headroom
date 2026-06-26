@@ -1,4 +1,4 @@
-"""Tests for :class:`headroom.proxy.memory_ranker.MemoryRanker` +
+"""Tests for :class:`cutctx.proxy.memory_ranker.MemoryRanker` +
 :class:`RecencyBoostRanker`.
 
 Pre-this-PR Cutctx ranked memory candidates by pure cosine
@@ -24,7 +24,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta, timezone
 
-from headroom.proxy.memory_ranker import (
+from cutctx.proxy.memory_ranker import (
     MemoryCandidate,
     RecencyBoostRanker,
 )

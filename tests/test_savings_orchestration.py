@@ -14,9 +14,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.savings import (
+from cutctx.savings import (
     AggregateSavings,
-    PolicyDecision,
     RequestSavingsBreakdown,
     SavingsBySource,
     SavingsOrchestrator,
@@ -34,7 +33,6 @@ from headroom.savings import (
     parse_provider_savings,
     parse_vllm_apc,
 )
-
 
 # ---------------------------------------------------------------------------
 # Phase 1.1: SavingsSource + SavingsBySource
@@ -440,7 +438,7 @@ class TestSavingsOrchestrator:
         b.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, 200)
         b.by_source.add(SavingsSource.CUTCTX_COMPRESSION, 100)
         o.record_request(b)
-        # Provider cache and CutCtx compression are tracked independently
+        # Provider cache and Cutctx compression are tracked independently
         # even when they apply to the same request.
         a = o.aggregate
         assert a.by_source.get_tokens(SavingsSource.PROVIDER_PROMPT_CACHE) == 200

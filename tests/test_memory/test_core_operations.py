@@ -26,14 +26,14 @@ from pathlib import Path
 import httpx
 import pytest
 
-from headroom.memory.config import MemoryConfig
-from headroom.memory.core import HierarchicalMemory
-from headroom.memory.models import Memory, ScopeLevel
-from headroom.memory.ports import MemoryFilter
+from cutctx.memory.config import MemoryConfig
+from cutctx.memory.core import HierarchicalMemory
+from cutctx.memory.models import Memory, ScopeLevel
+from cutctx.memory.ports import MemoryFilter
 
 # Check if hnswlib is available (HierarchicalMemory requires it)
 try:
-    from headroom.memory.adapters.hnsw import _check_hnswlib_available
+    from cutctx.memory.adapters.hnsw import _check_hnswlib_available
 
     HNSW_AVAILABLE = _check_hnswlib_available()
 except ImportError:

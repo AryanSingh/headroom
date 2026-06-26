@@ -1,7 +1,0 @@
-interface:
-  display_name: "CutCtx"
-  short_description: "Automatic context compression for Codex"
-  default_prompt: "Use $cutctx automatically for large outputs, preserve retrievable hashes, and report token savings honestly."
-
-policy:
-  allow_implicit_invocation: true

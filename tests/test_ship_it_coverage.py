@@ -6,12 +6,9 @@ watermark, abuse, stripe_webhook, pitchtoship_client.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import os
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -19,14 +16,14 @@ import pytest
 # ─── dedup ──────────────────────────────────────────────────────────────
 class TestSessionDeduplicator:
     def test_first_occurrence_not_deduped(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
         d = SessionDeduplicator()
         msgs = [{"role": "user", "content": "A" * 500}]
         result = d.process(msgs)
         assert result.messages[0]["content"] == "A" * 500
 
     def test_duplicate_replaced_with_pointer(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
         d = SessionDeduplicator()
         # MIN_DEDUP_TOKENS=200, so need ~800+ chars to exceed threshold
         content = "B" * 1000
@@ -40,7 +37,7 @@ class TestSessionDeduplicator:
         assert len(result.messages) == 3
 
     def test_short_content_not_deduped(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
         d = SessionDeduplicator()
         msgs = [
             {"role": "user", "content": "short"},
@@ -51,7 +48,7 @@ class TestSessionDeduplicator:
         assert result.dedup_count == 0
 
     def test_stats(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
         d = SessionDeduplicator()
         content = "C" * 1000
         d.process([{"role": "user", "content": content}])
@@ -60,7 +57,7 @@ class TestSessionDeduplicator:
         assert isinstance(stats["total_dedup_count"], int)
 
     def test_reset(self):
-        from headroom.dedup import SessionDeduplicator
+        from cutctx.dedup import SessionDeduplicator
         d = SessionDeduplicator()
         content = "D" * 1000
         d.process([{"role": "user", "content": content}])
@@ -73,27 +70,27 @@ class TestSessionDeduplicator:
 # ─── context_budget ─────────────────────────────────────────────────────
 class TestContextBudgetController:
     def test_green_zone_no_compression(self):
-        from headroom.context_budget import ContextBudgetController, BudgetZone
+        from cutctx.context_budget import BudgetZone, ContextBudgetController
         c = ContextBudgetController(max_tokens=100_000)
         msgs = [{"role": "user", "content": "hello"}]
         c.apply(msgs)
         assert c.status.zone == BudgetZone.GREEN
 
     def test_status(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
         c = ContextBudgetController(max_tokens=100_000)
         s = c.status
         assert hasattr(s, "zone")
         assert hasattr(s, "tokens_used")
 
     def test_percent_used(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
         c = ContextBudgetController(max_tokens=1000)
         c._tokens_used = 500
         assert c.percent_used == 50.0
 
     def test_forecast(self):
-        from headroom.context_budget import ContextBudgetController
+        from cutctx.context_budget import ContextBudgetController
         c = ContextBudgetController(max_tokens=100_000)
         msgs = [{"role": "user", "content": "x" * 1000}]
         result = c.forecast(msgs)
@@ -104,30 +101,30 @@ class TestContextBudgetController:
 # ─── profiles ───────────────────────────────────────────────────────────
 class TestCompressionProfile:
     def test_stats_update(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
         s = ContentTypeStats(content_type="json")
         s.update_from_session(original_count=10, compressed_count=5)
         assert s.total_compressions == 1
         assert s.avg_compression_ratio == 0.5
 
     def test_retrieval_rate(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
         s = ContentTypeStats(content_type="json")
         s.update_from_session(original_count=10, compressed_count=5, was_retrieved=True)
         assert s.total_retrievals == 1
         assert s.retrieval_rate == 1.0
 
     def test_recommendation_stable(self):
-        from headroom.profiles import ContentTypeStats
+        from cutctx.profiles import ContentTypeStats
         s = ContentTypeStats(content_type="json")
         for _ in range(5):
             s.update_from_session(original_count=10, compressed_count=5)
         assert hasattr(s, "recommended_ratio")
 
     def test_load_save_roundtrip(self, tmp_path):
-        from headroom.profiles import CompressionProfile, ContentTypeStats
+        from cutctx.profiles import CompressionProfile
         ws_hash = "test_workspace_hash_123"
-        with patch("headroom.profiles._get_profile_path", return_value=tmp_path / "test.json"):
+        with patch("cutctx.profiles._get_profile_path", return_value=tmp_path / "test.json"):
             p = CompressionProfile(workspace_hash=ws_hash)
             p.record_session("session-1", [{"content_type": "json", "original_count": 10, "compressed_count": 5}])
             p.save()
@@ -138,7 +135,7 @@ class TestCompressionProfile:
 # ─── cost_forecast ──────────────────────────────────────────────────────
 class TestCostEstimator:
     def test_known_pricing(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
         e = CostEstimator(model="claude-sonnet-4-5-20250929")
         est = e.estimate(input_tokens=100_000, output_tokens=5_000)
         assert est.input_usd > 0
@@ -146,13 +143,13 @@ class TestCostEstimator:
         assert est.total_usd > 0
 
     def test_compression_savings(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
         e = CostEstimator(model="claude-sonnet-4-5-20250929")
         est = e.estimate(input_tokens=100_000, output_tokens=5_000, compression_ratio=0.5)
         assert est.compression_savings_usd > 0
 
     def test_unknown_model_uses_default(self):
-        from headroom.cost_forecast import CostEstimator
+        from cutctx.cost_forecast import CostEstimator
         e = CostEstimator(model="unknown-model-xyz")
         est = e.estimate(input_tokens=10_000, output_tokens=1_000)
         assert est.total_usd > 0
@@ -160,7 +157,7 @@ class TestCostEstimator:
 
 class TestPolicyEngine:
     def test_default_rules(self):
-        from headroom.cost_forecast import PolicyEngine
+        from cutctx.cost_forecast import PolicyEngine
         e = PolicyEngine(model="claude-sonnet-4-5-20250929")
         msgs = [{"role": "user", "content": "hello"}]
         decision = e.evaluate(messages=msgs, input_tokens=10_000, budget_remaining_usd=10.0)
@@ -168,14 +165,14 @@ class TestPolicyEngine:
         assert hasattr(decision, "rationale")
 
     def test_budget_critical(self):
-        from headroom.cost_forecast import PolicyEngine
+        from cutctx.cost_forecast import PolicyEngine
         e = PolicyEngine(model="claude-sonnet-4-5-20250929")
         msgs = [{"role": "user", "content": "hello"}]
         decision = e.evaluate(messages=msgs, input_tokens=10_000, budget_remaining_usd=0.1)
         assert decision.strategy in ("aggressive", "emergency")
 
     def test_large_context(self):
-        from headroom.cost_forecast import PolicyEngine
+        from cutctx.cost_forecast import PolicyEngine
         e = PolicyEngine(model="claude-sonnet-4-5-20250929")
         msgs = [{"role": "user", "content": "x" * 500_000}]
         decision = e.evaluate(messages=msgs, input_tokens=200_000, budget_remaining_usd=100.0)
@@ -184,7 +181,7 @@ class TestPolicyEngine:
 
 class TestSessionCostTracker:
     def test_record(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
         t = SessionCostTracker(model="claude-sonnet-4-5-20250929", budget_usd=10.0)
         t.record_request(input_tokens=10_000, output_tokens=1_000, compressed_input_tokens=5_000)
         snap = t.snapshot()
@@ -192,7 +189,7 @@ class TestSessionCostTracker:
         assert snap.total_input_usd > 0
 
     def test_budget_tracking(self):
-        from headroom.cost_forecast import SessionCostTracker
+        from cutctx.cost_forecast import SessionCostTracker
         t = SessionCostTracker(model="claude-sonnet-4-5-20250929", budget_usd=1.0)
         t.record_request(input_tokens=100_000, output_tokens=10_000)
         snap = t.snapshot()
@@ -203,31 +200,43 @@ class TestSessionCostTracker:
 # ─── structured_output ──────────────────────────────────────────────────
 class TestStructuredOutputValidator:
     def test_valid_json(self):
-        from headroom.proxy.structured_output import StructuredOutputValidator, StructuredOutputConfig
+        from cutctx.proxy.structured_output import (
+            StructuredOutputConfig,
+            StructuredOutputValidator,
+        )
         v = StructuredOutputValidator(config=StructuredOutputConfig())
         result = v.validate('{"name": "test"}', {"type": "object", "properties": {"name": {"type": "string"}}})
         assert result.valid
 
     def test_invalid_json(self):
-        from headroom.proxy.structured_output import StructuredOutputValidator, StructuredOutputConfig
+        from cutctx.proxy.structured_output import (
+            StructuredOutputConfig,
+            StructuredOutputValidator,
+        )
         v = StructuredOutputValidator(config=StructuredOutputConfig())
         result = v.validate("not json", {"type": "object"})
         assert not result.valid
 
     def test_schema_violation(self):
-        from headroom.proxy.structured_output import StructuredOutputValidator, StructuredOutputConfig
+        from cutctx.proxy.structured_output import (
+            StructuredOutputConfig,
+            StructuredOutputValidator,
+        )
         v = StructuredOutputValidator(config=StructuredOutputConfig())
         result = v.validate('{"age": "not_a_number"}', {"type": "object", "properties": {"age": {"type": "integer"}}, "required": ["age"]})
         assert not result.valid
 
     def test_strip_markdown_fences(self):
-        from headroom.proxy.structured_output import StructuredOutputValidator, StructuredOutputConfig
+        from cutctx.proxy.structured_output import (
+            StructuredOutputConfig,
+            StructuredOutputValidator,
+        )
         v = StructuredOutputValidator(config=StructuredOutputConfig())
         result = v.validate('```json\n{"x": 1}\n```', {"type": "object"})
         assert result.valid
 
     def test_ssrf_protection(self):
-        from headroom.proxy.structured_output import _validate_base_url
+        from cutctx.proxy.structured_output import _validate_base_url
         with pytest.raises(ValueError):
             _validate_base_url("http://evil.com/api")
         # Allowed hosts should not raise
@@ -237,13 +246,13 @@ class TestStructuredOutputValidator:
 # ─── watermark ──────────────────────────────────────────────────────────
 class TestWatermark:
     def test_generate_canary(self):
-        from headroom_ee.watermark import generate_canary_strings
+        from cutctx_ee.watermark import generate_canary_strings
         canaries = generate_canary_strings(lic_id="TEST-123", count=3)
         assert len(canaries) == 3
-        assert all("HEADROOM_INTERNAL" in c for c in canaries)
+        assert all("CUTCTX_INTERNAL" in c for c in canaries)
 
     def test_watermark_to_marker_and_back(self):
-        from headroom_ee.watermark import Watermark
+        from cutctx_ee.watermark import Watermark
         w = Watermark(lic_id="L1", customer_id="C1", build_id="B1")
         marker = w.to_marker()
         assert marker.startswith("CTXWM:")
@@ -253,7 +262,11 @@ class TestWatermark:
         assert w2.customer_id == "C1"
 
     def test_embed_and_extract(self, tmp_path):
-        from headroom_ee.watermark import Watermark, embed_watermark_in_source, extract_watermark_from_source
+        from cutctx_ee.watermark import (
+            Watermark,
+            embed_watermark_in_source,
+            extract_watermark_from_source,
+        )
         # embed_watermark_in_source only works on __init__.py files
         init_file = tmp_path / "__init__.py"
         init_file.write_text("# package\n")
@@ -265,7 +278,11 @@ class TestWatermark:
         assert len(watermarks) >= 1
 
     def test_verify_traceability(self, tmp_path):
-        from headroom_ee.watermark import Watermark, embed_watermark_in_source, verify_watermark_traceability
+        from cutctx_ee.watermark import (
+            Watermark,
+            embed_watermark_in_source,
+            verify_watermark_traceability,
+        )
         init_file = tmp_path / "__init__.py"
         init_file.write_text("# pkg\n")
         w = Watermark(lic_id="TRACE-789", customer_id="C1", build_id="B1")
@@ -278,14 +295,14 @@ class TestWatermark:
 # ─── abuse ──────────────────────────────────────────────────────────────
 class TestAbuseDetector:
     def test_no_alerts_clean(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
         d = AbuseDetector()
         r = ActivationRecord(lic_id="L1", fingerprint="fp1", ip_address="1.2.3.4")
         alerts = d.process_event(r)
         assert len(alerts) == 0
 
     def test_impossible_travel(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord, GEO_COORDS
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
         d = AbuseDetector()
         t = time.time()
         # Send two events from same lic_id but different geo regions (US vs EU = ~7000km)
@@ -296,7 +313,7 @@ class TestAbuseDetector:
         assert len(alerts) >= 0  # At minimum, no crash
 
     def test_too_many_fingerprints(self):
-        from headroom_ee.abuse import AbuseDetector, ActivationRecord
+        from cutctx_ee.abuse import AbuseDetector, ActivationRecord
         d = AbuseDetector(max_fingerprints=3)
         t = time.time()
         for i in range(5):
@@ -307,11 +324,11 @@ class TestAbuseDetector:
 
 class TestHaversine:
     def test_same_point(self):
-        from headroom_ee.abuse import _haversine_km
+        from cutctx_ee.abuse import _haversine_km
         assert _haversine_km(40.0, -74.0, 40.0, -74.0) == 0.0
 
     def test_known_distance(self):
-        from headroom_ee.abuse import _haversine_km
+        from cutctx_ee.abuse import _haversine_km
         d = _haversine_km(40.7128, -74.0060, 51.5074, -0.1278)
         assert 5500 < d < 5700
 
@@ -319,16 +336,16 @@ class TestHaversine:
 # ─── stripe_webhook ─────────────────────────────────────────────────────
 class TestStripeWebhook:
     def test_generate_license_key(self):
-        from headroom_ee.billing.stripe_webhook import generate_license_key
-        with patch.dict(os.environ, {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
+        from cutctx_ee.billing.stripe_webhook import generate_license_key
+        with patch.dict(os.environ, {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
             key = generate_license_key(tier="team", customer_id="cus_123")
             # Format: {tier}-{random_id}-{hmac_sig}
             assert key.startswith("team-")
             assert len(key.split("-")) >= 3
 
     def test_handle_event_checkout(self):
-        from headroom_ee.billing.stripe_webhook import handle_event
-        with patch.dict(os.environ, {"HEADROOM_LICENSE_HMAC_SECRET": "test-secret"}):
+        from cutctx_ee.billing.stripe_webhook import handle_event
+        with patch.dict(os.environ, {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
             event = {
                 "type": "checkout.session.completed",
                 "data": {
@@ -343,7 +360,7 @@ class TestStripeWebhook:
             assert result["ok"] is True
 
     def test_handle_event_unknown(self):
-        from headroom_ee.billing.stripe_webhook import handle_event
+        from cutctx_ee.billing.stripe_webhook import handle_event
         result = handle_event({"type": "unknown.event", "data": {}})
         assert result["ok"] is True
         assert result["action"] == "ignored"
@@ -352,19 +369,20 @@ class TestStripeWebhook:
 # ─── pitchtoship_client ─────────────────────────────────────────────────
 class TestPitchToShipClient:
     def test_is_configured_false_by_default(self):
-        from headroom_ee.billing import pitchtoship_client
+        from cutctx_ee.billing import pitchtoship_client
         with patch.dict("os.environ", {}, clear=True):
             assert not pitchtoship_client.is_configured()
 
     def test_b64url_decode(self):
-        from headroom_ee.billing.pitchtoship_client import _b64url_decode
         import base64
+
+        from cutctx_ee.billing.pitchtoship_client import _b64url_decode
         data = b"hello world"
         encoded = base64.urlsafe_b64encode(data).rstrip(b"=").decode()
         assert _b64url_decode(encoded) == data
 
     def test_machine_id(self):
-        from headroom_ee.billing.pitchtoship_client import _get_machine_id
+        from cutctx_ee.billing.pitchtoship_client import _get_machine_id
         mid = _get_machine_id()
         assert isinstance(mid, str)
         assert len(mid) > 0

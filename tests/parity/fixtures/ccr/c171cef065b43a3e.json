@@ -31,11 +31,11 @@
           ],
           "type": "object"
         },
-        "name": "headroom_retrieve"
+        "name": "cutctx_retrieve"
       }
     ],
     true
   ],
-  "recorded_at": "2026-04-23T23:51:37.807275+00:00",
+  "recorded_at": "2026-06-23T21:15:44.237274+00:00",
   "transform": "ccr"
 }
