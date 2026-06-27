@@ -117,6 +117,44 @@ class OpenAICompressMixin:
             )
 
         try:
+            image_metrics: dict[str, int | float | bool | str] = {
+                "images_optimized": 0,
+                "tokens_before": 0,
+                "tokens_after": 0,
+                "tokens_saved": 0,
+            }
+
+            # Keep /v1/compress aligned with the main OpenAI chat path:
+            # multimodal payloads should run through the image optimizer before
+            # text compression, and the endpoint's token metrics should reflect
+            # both layers rather than text-only router counts.
+            if self.config.image_optimize:
+                from cutctx.proxy.helpers import _get_image_compressor
+
+                compressor = None
+                try:
+                    compressor = _get_image_compressor()
+                    if compressor and compressor.has_images(messages):
+                        messages = compressor.compress(messages, provider="openai")
+                        if compressor.last_result:
+                            image_metrics = {
+                                "images_optimized": (
+                                    compressor.last_result.compressed_tokens
+                                    < compressor.last_result.original_tokens
+                                ),
+                                "tokens_before": compressor.last_result.original_tokens,
+                                "tokens_after": compressor.last_result.compressed_tokens,
+                                "tokens_saved": (
+                                    compressor.last_result.original_tokens
+                                    - compressor.last_result.compressed_tokens
+                                ),
+                                "technique": compressor.last_result.technique.value,
+                                "confidence": compressor.last_result.confidence,
+                            }
+                finally:
+                    if compressor and hasattr(compressor, "close"):
+                        compressor.close()
+
             # Use OpenAI pipeline (messages are in OpenAI format from TS SDK)
             # Allow optional token_budget to override model's context limit
             # (used by OpenClaw compact() and other callers that need tighter budgets)
@@ -149,20 +187,30 @@ class OpenAICompressMixin:
                 **pipeline_kwargs,
             )
 
+            total_tokens_before = result.tokens_before + int(image_metrics.get("tokens_before", 0))
+            total_tokens_after = result.tokens_after + int(image_metrics.get("tokens_after", 0))
+            total_tokens_saved = max(0, total_tokens_before - total_tokens_after)
+
+            transforms_applied = list(result.transforms_applied)
+            image_technique = image_metrics.get("technique")
+            if image_technique and image_metrics.get("tokens_saved", 0):
+                transforms_applied.append(f"image:{image_technique}")
+
             return JSONResponse(
                 {
                     "messages": result.messages,
-                    "tokens_before": result.tokens_before,
-                    "tokens_after": result.tokens_after,
-                    "tokens_saved": result.tokens_before - result.tokens_after,
+                    "tokens_before": total_tokens_before,
+                    "tokens_after": total_tokens_after,
+                    "tokens_saved": total_tokens_saved,
                     "compression_ratio": (
-                        result.tokens_after / result.tokens_before
-                        if result.tokens_before > 0
+                        total_tokens_after / total_tokens_before
+                        if total_tokens_before > 0
                         else 1.0
                     ),
-                    "transforms_applied": result.transforms_applied,
+                    "transforms_applied": transforms_applied,
                     "transforms_summary": result.transforms_summary,
                     "ccr_hashes": result.markers_inserted,
+                    "image_metrics": image_metrics,
                 }
             )
         except Exception as e:
@@ -176,5 +224,4 @@ class OpenAICompressMixin:
                     }
                 },
             )
-
 

@@ -1,216 +1,352 @@
-import { Activity, Zap, ShieldAlert, Cpu, Download } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  ArrowRight,
+  BarChart3,
+  BrainCircuit,
+  Clock3,
+  Database,
+  ShieldCheck,
+  Sparkles,
+  Waves,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  formatCurrency,
+  formatDurationMs,
+  formatInteger,
+  formatNumber,
+  formatPercent,
+  formatRelativeTime,
+  titleize,
+} from '../lib/format';
+import { useDashboardData } from '../lib/use-dashboard-data';
 
-// Audit-Deep-2026-06-21 Blocker 4: Overview.jsx was a static
-// mockup. The page now fetches real data from the proxy's
-// /stats endpoint and renders per-source savings, recent
-// request counts, and provider health. The hardcoded mock
-// values (4,289 Requests/min, 68.4% Compression Savings, etc.)
-// are gone.
+const strategyLabels = {
+  smart_crusher: 'SmartCrusher',
+  mixed: 'Mixed router',
+  log_compressor: 'LogCompressor',
+  code_compressor: 'CodeCompressor',
+  image: 'Image optimization',
+  preserve: 'Preserve',
+  noop: 'No-op',
+  openai: 'OpenAI responses',
+};
+
+function buildSourceRows(stats) {
+  const sourceTokens = stats?.savings_by_source?.tokens || {};
+  const sourceUsd = stats?.savings_by_source?.usd || {};
+  const tokens = stats?.tokens || {};
+  const cost = stats?.summary?.cost || {};
+
+  const rows = [
+    {
+      key: 'cutctx_compression',
+      label: 'Compression',
+      tokens: Number(sourceTokens.cutctx_compression || tokens.proxy_compression_saved || 0),
+      usd: Number(sourceUsd.cutctx_compression || cost?.breakdown?.compression_savings_usd || 0),
+    },
+    {
+      key: 'provider_prompt_cache',
+      label: 'Provider cache',
+      tokens: Number(sourceTokens.provider_prompt_cache || 0),
+      usd: Number(sourceUsd.provider_prompt_cache || cost?.breakdown?.cache_savings_usd || 0),
+    },
+    {
+      key: 'semantic_cache',
+      label: 'Semantic cache',
+      tokens: Number(sourceTokens.semantic_cache || 0),
+      usd: Number(sourceUsd.semantic_cache || 0),
+    },
+    {
+      key: 'prefix_cache_self_hosted',
+      label: 'Prefix cache',
+      tokens: Number(sourceTokens.prefix_cache_self_hosted || 0),
+      usd: Number(sourceUsd.prefix_cache_self_hosted || 0),
+    },
+    {
+      key: 'model_routing',
+      label: 'Model routing',
+      tokens: Number(sourceTokens.model_routing || 0),
+      usd: Number(sourceUsd.model_routing || 0),
+    },
+  ];
+
+  return rows;
+}
+
+function buildStrategyRows(stats) {
+  const compressionCounts = stats?.compressions_by_strategy || {};
+  const savedByStrategy = stats?.tokens_saved_by_strategy || {};
+  const keys = Array.from(
+    new Set([
+      ...Object.keys(compressionCounts),
+      ...Object.keys(savedByStrategy),
+      'smart_crusher',
+      'mixed',
+      'image',
+      'noop',
+    ]),
+  );
+
+  return keys
+    .map((key) => ({
+      key,
+      label: strategyLabels[key] || titleize(key),
+      requests: Number(compressionCounts[key] || 0),
+      saved: Number(savedByStrategy[key] || 0),
+    }))
+    .filter((row) => row.requests > 0 || row.saved > 0 || ['smart_crusher', 'mixed', 'image'].includes(row.key));
+}
 
 export default function Overview() {
-  const [stats, setStats] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { stats, health, loading, error, lastUpdated } = useDashboardData();
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const [statsRes, healthRes] = await Promise.all([
-          fetch('/stats?cached=1').then((r) => r.json()),
-          fetch('/health').then((r) => r.json()),
-        ]);
-        if (cancelled) return;
-        setStats({ ...statsRes, health: healthRes });
-        setError(null);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e?.message || String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    const id = setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
-
-  // Derive the per-source USD totals from the funnel-shaped
-  // response. Falls back to 0 when the proxy is offline.
-  const tokens = stats?.tokens || {};
+  const summary = stats?.summary || {};
   const requests = stats?.requests || {};
-  const savingsBySource = stats?.savings_by_source || {};
-  const providers = Object.entries(requests?.by_provider || {});
+  const tokens = stats?.tokens || {};
+  const codexWs = stats?.codex_ws || {};
+  const rateLimiter = stats?.rate_limiter || {};
+  const compressionCache = stats?.compression_cache || {};
+  const contextTool = stats?.context_tool || {};
+  const recentRequests = Array.isArray(stats?.recent_requests) ? stats.recent_requests.slice(0, 4) : [];
 
-  const handleExportCSV = () => {
-    const headers = [
-      "Source",
-      "Tokens Saved",
-      "USD Saved",
-    ];
-    const rows = Object.entries(savingsBySource).map(
-      ([source, vals]) => [
-        source,
-        vals?.tokens || 0,
-        vals?.usd || 0,
-      ]
-    );
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((r) => r.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "savings_by_source.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const sourceRows = buildSourceRows(stats);
+  const strategyRows = buildStrategyRows(stats);
+
+  const topMetrics = [
+    {
+      label: 'Requests',
+      value: formatInteger(requests.total),
+      note: `${formatInteger(requests.failed)} failed, ${formatInteger(requests.cached)} cached`,
+      icon: Database,
+    },
+    {
+      label: 'Tokens saved',
+      value: formatNumber(tokens.saved),
+      note: `${formatPercent(tokens.savings_percent)} total reduction`,
+      icon: Sparkles,
+    },
+    {
+      label: 'USD saved',
+      value: formatCurrency(summary?.cost?.total_saved_usd),
+      note: `${formatCurrency(summary?.cost?.without_cutctx_usd)} without Cutctx`,
+      icon: BarChart3,
+    },
+    {
+      label: 'Proxy health',
+      value: health?.status || 'unknown',
+      note: `${health?.ready ? 'Ready' : 'Not ready'} • refreshed ${formatRelativeTime(lastUpdated)}`,
+      icon: ShieldCheck,
+    },
+  ];
+
+  const totalSourceTokens = sourceRows.reduce((sum, row) => sum + row.tokens, 0) || Number(tokens.total_before_compression || 0);
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <div
-          role="alert"
-          className="rounded border border-red-600 bg-red-900/30 text-red-200 px-4 py-2 text-sm"
-        >
-          Failed to load stats: {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Stat
-          icon={<Activity className="text-blue-400" />}
-          label="Requests (today)"
-          value={
-            loading
-              ? "—"
-              : (requests?.total || 0).toLocaleString()
-          }
-        />
-        <Stat
-          icon={<Zap className="text-green-400" />}
-          label="Tokens saved (today)"
-          value={
-            loading
-              ? "—"
-              : (tokens?.saved || 0).toLocaleString()
-          }
-        />
-        <Stat
-          icon={<Cpu className="text-yellow-400" />}
-          label="USD saved (today)"
-          value={
-            loading
-              ? "—"
-              : `$${(tokens?.usd_saved || 0).toFixed(2)}`
-          }
-        />
-        <Stat
-          icon={<ShieldAlert className="text-purple-400" />}
-          label="Health"
-          value={
-            loading
-              ? "—"
-              : stats?.health?.status || "unknown"
-          }
-        />
-      </div>
-
-      <div className="bg-surface rounded-lg border border-border p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium text-gray-200">
-            Per-source savings (today)
-          </h2>
-          <button
-            onClick={handleExportCSV}
-            disabled={!savingsBySource || Object.keys(savingsBySource).length === 0}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
-            aria-label="Export per-source savings as CSV"
-          >
-            <Download size={16} />
-            Export CSV
-          </button>
-        </div>
-        {Object.keys(savingsBySource).length === 0 ? (
-          <p className="text-sm text-gray-500">No savings recorded yet today.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
-                <th className="px-2 py-2 font-medium">Source</th>
-                <th className="px-2 py-2 font-medium text-right">Tokens saved</th>
-                <th className="px-2 py-2 font-medium text-right">USD saved</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {Object.entries(savingsBySource).map(([source, vals]) => (
-                <tr key={source}>
-                  <td className="px-2 py-2 text-gray-300">{source}</td>
-                  <td className="px-2 py-2 text-right text-gray-200 font-mono">
-                    {(vals?.tokens || 0).toLocaleString()}
-                  </td>
-                  <td className="px-2 py-2 text-right text-gray-200 font-mono">
-                    ${(vals?.usd || 0).toFixed(4)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="bg-surface rounded-lg border border-border p-4">
-        <h2 className="text-lg font-medium text-gray-200 mb-3">
-          Upstream providers (today)
-        </h2>
-        {providers.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No upstream calls recorded today.
+    <section className="page-stack">
+      <div className="page-header-card page-header-card-rich">
+        <div>
+          <div className="eyebrow">Live observability</div>
+          <h1>Cutctx Command Center</h1>
+          <p>
+            This control surface tracks compression, cache leverage, Codex websocket flows, memory, firewall
+            posture, and multimodal token savings from the running proxy.
           </p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
-                <th className="px-2 py-2 font-medium">Provider</th>
-                <th className="px-2 py-2 font-medium text-right">Requests</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {providers.map(([name, count]) => (
-                <tr key={name}>
-                  <td className="px-2 py-2 text-gray-300">{name}</td>
-                  <td className="px-2 py-2 text-right text-gray-200 font-mono">
-                    {count.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          <div className="hero-pill-row">
+            <span className="hero-pill">Mode: {summary.mode || 'token'}</span>
+            <span className="hero-pill">Primary model: {summary.primary_model || '—'}</span>
+            <span className="hero-pill">API requests: {formatInteger(summary.api_requests)}</span>
+          </div>
+        </div>
+
+        <div className="hero-sidecard">
+          <div className="hero-sidecard-label">System health</div>
+          <div className="hero-sidecard-value">{health?.status || 'connecting'}</div>
+          <p>{health?.ready ? 'Proxy is healthy and reporting live telemetry.' : 'Waiting for a healthy proxy.'}</p>
+          <div className="hero-sidecard-meta">
+            <div>Updated {formatRelativeTime(lastUpdated)}</div>
+            <div>Rust core: {health?.rust_core || 'loaded'}</div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {error && <div className="alert-card">Failed to load command center data: {error}</div>}
+
+      <div className="metric-grid metric-grid-four">
+        {topMetrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <article key={metric.label} className="metric-card">
+              <div className="metric-header">
+                <span className="metric-label">{metric.label}</span>
+                <div className="metric-icon">
+                  <Icon size={18} />
+                </div>
+              </div>
+              <div className="metric-value">{loading ? '—' : metric.value}</div>
+              <div className="metric-footnote">{metric.note}</div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="panel panel-wide">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Savings attribution</div>
+              <h2>Where token savings are coming from</h2>
+            </div>
+            <p>Compression and cache channels are broken out separately so value stays visible.</p>
+          </div>
+
+          <div className="source-stack">
+            {sourceRows.map((row) => {
+              const pct = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
+              return (
+                <div key={row.key} className="source-row">
+                  <div className="source-labels">
+                    <div className="source-name">{row.label}</div>
+                    <div className="source-meta">
+                      {formatInteger(row.tokens)} tokens • {formatCurrency(row.usd)}
+                    </div>
+                  </div>
+                  <div className="source-bar-track">
+                    <div className="source-bar-fill" style={{ width: `${Math.min(100, pct)}%` }} />
+                  </div>
+                  <div className="source-percent">{formatPercent(pct)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <aside className="panel panel-side">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Live control rail</div>
+              <h2>Operational status</h2>
+            </div>
+          </div>
+
+          <div className="stack-list">
+            <StatusTile
+              icon={<Waves size={16} />}
+              label="Codex websocket"
+              value={`${formatInteger(codexWs.frames_attempted_total)} frames`}
+              detail={`${formatInteger(codexWs.frames_failed_total)} failed • ${formatInteger(codexWs.frames_compressed_total)} compressed`}
+            />
+            <StatusTile
+              icon={<Clock3 size={16} />}
+              label="Rate limiter"
+              value={`${formatInteger(rateLimiter.active_keys)} active keys`}
+              detail={`${formatInteger(rateLimiter.requests_per_minute)} rpm • ${formatInteger(rateLimiter.tokens_per_minute)} tpm`}
+            />
+            <StatusTile
+              icon={<BrainCircuit size={16} />}
+              label="Context tool"
+              value={titleize(contextTool.configured || 'none')}
+              detail={contextTool.available ? 'Available in workspace' : 'Unavailable'}
+            />
+            <StatusTile
+              icon={<Database size={16} />}
+              label="Compression cache"
+              value={titleize(compressionCache.mode || 'unknown')}
+              detail={`${formatInteger(compressionCache.total_hits)} hits • ttl ${formatInteger(compressionCache.ttl_seconds)}s`}
+            />
+          </div>
+        </aside>
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="panel panel-wide">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Compression mix</div>
+              <h2>Strategy activity</h2>
+            </div>
+          </div>
+
+          <div className="capability-grid">
+            {strategyRows.map((row) => (
+              <article key={row.key} className="capability-card">
+                <div className="capability-name">{row.label}</div>
+                <p>
+                  {formatInteger(row.requests)} requests • {formatInteger(row.saved)} tokens saved
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <aside className="panel panel-side">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Quick paths</div>
+              <h2>Next actions</h2>
+            </div>
+          </div>
+
+          <div className="stack-list">
+            <QuickLink to="/playground" label="Run a live compression check" />
+            <QuickLink to="/capabilities" label="See the full product surface map" />
+            <QuickLink to="/memory" label="Inspect cross-session memory signals" />
+          </div>
+        </aside>
+      </div>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">Recent activity</div>
+            <h2>Latest requests</h2>
+          </div>
+        </div>
+
+        <div className="capability-grid">
+          {recentRequests.length > 0 ? (
+            recentRequests.map((request) => (
+              <article key={request.request_id} className="capability-card">
+                <div className="capability-name">{request.model || 'Unknown model'}</div>
+                <p>
+                  Saved {formatInteger(request.tokens_saved)} tokens • {formatPercent(request.savings_percent)} •{' '}
+                  {formatRelativeTime(request.timestamp)}
+                </p>
+                <p>
+                  Latency {formatDurationMs(request.total_latency_ms)} • input{' '}
+                  {formatInteger(request.input_tokens_original)}
+                </p>
+              </article>
+            ))
+          ) : (
+            <div className="empty-copy">No recent requests yet.</div>
+          )}
+        </div>
+      </section>
+    </section>
   );
 }
 
-function Stat({ icon, label, value }) {
+function StatusTile({ icon, label, value, detail }) {
   return (
-    <div className="bg-surface rounded-lg border border-border p-4 flex items-center gap-3">
-      <div className="p-2 rounded bg-bg">{icon}</div>
-      <div className="min-w-0">
-        <div className="text-xs text-gray-500 uppercase tracking-wide">{label}</div>
-        <div className="text-xl font-semibold text-gray-100 truncate" title={String(value)}>
-          {value}
-        </div>
+    <article className="status-bullet">
+      <div className="capability-name">
+        {icon}
+        {label}
       </div>
-    </div>
+      <strong>{value}</strong>
+      <p>{detail}</p>
+    </article>
+  );
+}
+
+function QuickLink({ to, label }) {
+  return (
+    <Link to={to} className="nav-card">
+      <div className="nav-card-title">{label}</div>
+      <div className="nav-card-copy">
+        Open
+        <ArrowRight size={14} />
+      </div>
+    </Link>
   );
 }

@@ -1,110 +1,194 @@
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
-import { Activity, Shield, BrainCircuit, Settings, Database, TerminalSquare, Search, X } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  Activity,
+  KeyRound,
+  ArrowUpRight,
+  BadgeInfo,
+  BrainCircuit,
+  Command,
+  Flame,
+  Network,
+  Radar,
+  Search,
+  Shield,
+  Sparkles,
+  TerminalSquare,
+} from 'lucide-react';
 import Overview from './pages/Overview';
 import Firewall from './pages/Firewall';
 import Memory from './pages/Memory';
 import Playground from './pages/Playground';
+import Capabilities from './pages/Capabilities';
+import { DashboardDataProvider } from './lib/dashboard-context';
+import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
+import { useDashboardData } from './lib/use-dashboard-data';
+import { formatRelativeTime } from './lib/format';
 
-function Sidebar() {
+const navItems = [
+  { path: '/', label: 'Command Center', icon: Radar, description: 'Live proxy control surface' },
+  { path: '/capabilities', label: 'Capabilities', icon: Sparkles, description: 'Full product surface map' },
+  { path: '/firewall', label: 'Security', icon: Shield, description: 'Firewall and audit posture' },
+  { path: '/memory', label: 'Memory', icon: BrainCircuit, description: 'Cross-session knowledge' },
+  { path: '/playground', label: 'Playground', icon: TerminalSquare, description: 'Real compression simulator' },
+];
+
+function Sidebar({ searchQuery }) {
+  const query = searchQuery.trim().toLowerCase();
+  const items = navItems.filter((item) => {
+    if (!query) {
+      return true;
+    }
+    return `${item.label} ${item.description}`.toLowerCase().includes(query);
+  });
+
   return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <h1>
-          <Activity color="#58a6ff" /> CutCtx
-        </h1>
-      </div>
-      <nav>
-        <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <Database size={18} /> Overview
-        </NavLink>
-        <NavLink to="/firewall" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <Shield size={18} /> Firewall
-        </NavLink>
-        <NavLink to="/memory" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <BrainCircuit size={18} /> Memory & Learn
-        </NavLink>
-        <NavLink to="/playground" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <TerminalSquare size={18} /> Prompt Simulator
-        </NavLink>
-        <div className="nav-link" aria-disabled="true" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-          <Settings size={18} aria-hidden="true" /> Settings
+    <aside className="sidebar-shell">
+      <div className="brand-lockup">
+        <div className="brand-mark">
+          <Activity size={18} />
         </div>
-      </nav>
-    </div>
+        <div>
+          <div className="eyebrow">Cutctx</div>
+          <h1>Command Center</h1>
+        </div>
+      </div>
+
+      <div className="sidebar-section">
+        <div className="sidebar-label">Navigation</div>
+        <nav className="nav-stack">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/'}
+                className={({ isActive }) => `nav-card ${isActive ? 'active' : ''}`}
+              >
+                <div className="nav-card-icon">
+                  <Icon size={18} />
+                </div>
+                <div>
+                  <div className="nav-card-title">{item.label}</div>
+                  <div className="nav-card-copy">{item.description}</div>
+                </div>
+              </NavLink>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="sidebar-section sidebar-promo">
+        <div className="sidebar-label">Product surfaces</div>
+        <div className="promo-card">
+          <div className="promo-row">
+            <Command size={16} />
+            Proxy, wrap, library, MCP
+          </div>
+          <div className="promo-row">
+            <Network size={16} />
+            Memory, CCR, firewall, savings
+          </div>
+          <div className="promo-row">
+            <Flame size={16} />
+            Multimodal optimization and live telemetry
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
-function Topbar({ searchInputRef }) {
+function Topbar({ searchQuery, setSearchQuery, searchInputRef }) {
+  const deferredQuery = useDeferredValue(searchQuery);
+  const location = useLocation();
+  const { health, lastUpdated } = useDashboardData();
+  const [adminKey, setAdminKey] = useState(() => readStoredAdminKey());
+
+  const currentNav = useMemo(
+    () => navItems.find((item) => item.path === location.pathname) || navItems[0],
+    [location.pathname],
+  );
+
   return (
-    <div className="topbar" style={{ padding: '16px 48px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div style={{ position: 'relative', width: '300px' }}>
-        <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--text-secondary)' }} aria-hidden="true" />
-        <input 
-          ref={searchInputRef}
-          type="text" 
-          aria-label="Search"
-          placeholder="Search... (Press '/' to focus)" 
-          style={{ width: '100%', padding: '8px 12px 8px 36px', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)' }}
-        />
+    <header className="topbar-shell">
+      <div>
+        <div className="eyebrow">Live workspace</div>
+        <div className="topbar-title-row">
+          <h2>{currentNav.label}</h2>
+          <span className="status-pill">
+            <span className={`status-dot ${health?.ready ? 'ok' : 'warn'}`} />
+            {health?.status || 'connecting'}
+          </span>
+        </div>
+        <p className="topbar-copy">{currentNav.description}</p>
       </div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-        Press <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px' }}>?</kbd> for help
+
+      <div className="topbar-tools">
+        <label className="search-shell" aria-label="Search dashboard navigation">
+          <Search size={16} />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search pages and surfaces"
+          />
+        </label>
+
+        <label className="auth-shell">
+          <KeyRound size={16} />
+          <input
+            type="password"
+            value={adminKey}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setAdminKey(nextValue);
+              writeStoredAdminKey(nextValue.trim());
+            }}
+            placeholder="Optional admin key for protected actions"
+          />
+        </label>
+
+        <div className="topbar-meta">
+          <div className="meta-chip">
+            <BadgeInfo size={14} />
+            Local proxy
+          </div>
+          <div className="meta-chip">
+            <ArrowUpRight size={14} />
+            {formatRelativeTime(lastUpdated)}
+          </div>
+          <div className="meta-chip meta-chip-muted">
+            Query: {deferredQuery || 'all surfaces'}
+          </div>
+          <div className={`meta-chip ${adminKey ? '' : 'meta-chip-muted'}`}>
+            <KeyRound size={14} />
+            {adminKey ? 'Admin key loaded' : 'No admin key'}
+          </div>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
-function HelpModal({ isOpen, onClose }) {
-  if (!isOpen) return null;
-  return (
-    <div role="dialog" aria-modal="true" aria-labelledby="help-title" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div className="glass-panel" style={{ width: '400px', position: 'relative' }}>
-        <button onClick={onClose} aria-label="Close help" style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-          <X size={20} aria-hidden="true" />
-        </button>
-        <h3 id="help-title" style={{ marginBottom: '16px', color: '#fff' }}>Keyboard Shortcuts</h3>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span>Focus Search</span>
-            <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px' }}>/</kbd>
-          </li>
-          <li style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span>Show Help</span>
-            <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px' }}>?</kbd>
-          </li>
-          <li style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Close Modals</span>
-            <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px' }}>Escape</kbd>
-          </li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function App() {
-  const [showHelp, setShowHelp] = useState(false);
+function AppFrame() {
   const searchInputRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Don't trigger shortcuts if user is typing in an input or textarea
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-        if (e.key === 'Escape') {
-          e.target.blur();
+    const handleKeyDown = (event) => {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        if (event.key === 'Escape') {
+          event.target.blur();
         }
         return;
       }
 
-      if (e.key === '?') {
-        e.preventDefault();
-        setShowHelp(true);
-      } else if (e.key === '/') {
-        e.preventDefault();
+      if (event.key === '/') {
+        event.preventDefault();
         searchInputRef.current?.focus();
-      } else if (e.key === 'Escape') {
-        setShowHelp(false);
       }
     };
 
@@ -113,24 +197,34 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <div className="app-container">
-        <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <Topbar searchInputRef={searchInputRef} />
-          <main className="main-content" style={{ flex: 1, overflowY: 'auto' }}>
-            <Routes>
-              <Route path="/" element={<Overview />} />
-              <Route path="/firewall" element={<Firewall />} />
-              <Route path="/memory" element={<Memory />} />
-              <Route path="/playground" element={<Playground />} />
-            </Routes>
-          </main>
-        </div>
-        <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+    <div className="app-shell">
+      <Sidebar searchQuery={searchQuery} />
+      <div className="content-shell">
+        <Topbar
+          searchInputRef={searchInputRef}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+        <main className="page-shell">
+          <Routes>
+            <Route path="/" element={<Overview />} />
+            <Route path="/capabilities" element={<Capabilities />} />
+            <Route path="/firewall" element={<Firewall />} />
+            <Route path="/memory" element={<Memory />} />
+            <Route path="/playground" element={<Playground />} />
+          </Routes>
+        </main>
       </div>
-    </Router>
+    </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <DashboardDataProvider>
+        <AppFrame />
+      </DashboardDataProvider>
+    </BrowserRouter>
+  );
+}

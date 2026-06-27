@@ -103,6 +103,21 @@ curl -X POST http://localhost:8787/v1/messages \
 5. Test creating an org via the modal
 6. Test assigning a role via the modal
 
+### Dashboard Command Center / Playground
+
+1. Start the dashboard dev server:
+   `cd dashboard && npm run dev -- --host 127.0.0.1 --port 4173`
+2. Open the dashboard in a browser.
+3. Enter the proxy admin key in the top-bar `Optional admin key for protected actions` field.
+4. Verify the `Command Center`, `Capabilities`, `Security`, `Memory`, and `Playground` routes render without blank states or console errors.
+5. On `Playground`, click `Load sample multimodal image`.
+6. Leave or paste a long prompt, then click `Run live compression`.
+7. Verify the page shows:
+   - non-empty transformed payload output
+   - at least one transform chip
+   - `Image savings` greater than zero for the built-in sample
+8. Return to `Command Center` and verify compression attribution reflects the latest request instead of showing a false zero.
+
 ---
 
 ## 5. CLI Commands

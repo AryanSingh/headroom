@@ -5,6 +5,8 @@ for the TypeScript SDK and other HTTP clients.
 """
 
 import json
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -232,6 +234,57 @@ class TestCompressEndpointCompression:
         assert data["tokens_saved"] == data["tokens_before"] - data["tokens_after"]
         assert 0 < data["compression_ratio"] <= 1.0
         assert isinstance(data["transforms_applied"], list)
+
+    def test_image_payload_reports_multimodal_token_savings(self, client):
+        """Image optimization savings should be reflected in endpoint metrics."""
+
+        class _FakeImageCompressor:
+            def __init__(self):
+                self.last_result = SimpleNamespace(
+                    original_tokens=1000,
+                    compressed_tokens=340,
+                    technique=SimpleNamespace(value="preserve"),
+                    confidence=0.9,
+                )
+                self._messages = None
+
+            def has_images(self, messages):
+                self._messages = messages
+                return True
+
+            def compress(self, messages, provider="openai"):
+                assert provider == "openai"
+                return messages
+
+            def close(self):
+                return None
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Describe the chart."},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "data:image/png;base64,AAAA", "detail": "high"},
+                    },
+                ],
+            }
+        ]
+
+        with patch("cutctx.proxy.helpers._get_image_compressor", return_value=_FakeImageCompressor()):
+            response = client.post(
+                "/v1/compress",
+                json={"messages": messages, "model": "gpt-4o"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tokens_before"] >= 1000
+        assert data["tokens_saved"] >= 660
+        assert data["tokens_after"] == data["tokens_before"] - data["tokens_saved"]
+        assert "image:preserve" in data["transforms_applied"]
+        assert data["image_metrics"]["tokens_saved"] == 660
 
     def test_small_content_may_not_compress(self, client):
         """Small messages may not get compressed but should still work."""

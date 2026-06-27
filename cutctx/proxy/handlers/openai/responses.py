@@ -672,7 +672,8 @@ class OpenAIResponsesMixin:
                     compress_tool_schemas(_tools_list)
                 )
                 if tools_modified:
-                    working = {**working, "tools": compacted_tools}
+                    compacted_payload = {**working, "tools": compacted_tools}
+                    working = compacted_payload
             else:
                 tools_modified, tools_before_bytes, tools_after_bytes = False, 0, 0
         except ImportError:

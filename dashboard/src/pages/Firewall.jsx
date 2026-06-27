@@ -1,38 +1,43 @@
-import { Shield, ShieldAlert, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
-// Audit-Deep-2026-06-21 Blocker 4: Firewall.jsx was a static
-// mockup. It now reads from /v1/firewall/stats (the proxy's
-// real LLM firewall stats endpoint) and /v1/audit/events
-// (filtered to firewall.* actions) for the recent
-// interceptions table. The hardcoded values (27 patterns,
-// 143 blocks) are gone.
+import { formatInteger, formatRelativeTime } from '../lib/format';
+import { fetchDashboardJson } from '../lib/use-dashboard-data';
 
 export default function Firewall() {
   const [stats, setStats] = useState(null);
   const [events, setEvents] = useState([]);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
       try {
-        const [statsRes, auditRes] = await Promise.all([
-          fetch('/v1/firewall/stats?cached=1').then((r) => r.json()).catch(() => null),
-          fetch('/v1/audit/events?action_prefix=firewall&limit=20').then((r) => r.json()).catch(() => []),
+        const [statsResponse, eventsResponse] = await Promise.all([
+          fetchDashboardJson('/v1/firewall/stats?cached=1').catch(() => null),
+          fetchDashboardJson('/v1/audit/events?action_prefix=firewall&limit=20').catch(() => []),
         ]);
-        if (cancelled) return;
-        setStats(statsRes);
-        setEvents(Array.isArray(auditRes) ? auditRes : []);
+
+        if (cancelled) {
+          return;
+        }
+
+        setStats(statsResponse);
+        setEvents(Array.isArray(eventsResponse) ? eventsResponse : []);
         setError(null);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e?.message || String(e));
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+        setError(loadError.message || String(loadError));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
+
     load();
     const id = setInterval(load, 10000);
     return () => {
@@ -42,111 +47,132 @@ export default function Firewall() {
   }, []);
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>Firewall & Security</h2>
-        <p className="text-secondary">Manage LLM injection rules and PII redaction</p>
-      </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="rounded border border-red-600 bg-red-900/30 text-red-200 px-4 py-2 text-sm mb-4"
-        >
-          Failed to load firewall stats: {error}
+    <section className="page-stack">
+      <div className="page-header-card">
+        <div>
+          <div className="eyebrow">Governance</div>
+          <h1>Firewall and request security</h1>
+          <p>
+            Request interception, PII-aware scanning, audit events, and operator posture. This
+            page keeps the original security surface and makes it readable enough to actually use.
+          </p>
         </div>
-      )}
-
-      <div className="grid grid-cols-3 mb-4">
-        <div className="glass-panel">
-          <div className="flex items-center gap-2 text-secondary">
-            <Shield size={18} /> Active Patterns
-          </div>
-          <div className="text-2xl">
-            {loading ? '—' : (stats?.patterns_loaded ?? '—')}
-          </div>
-          <div className="text-sm mt-4 text-secondary">Signatures loaded</div>
-        </div>
-        <div className="glass-panel">
-          <div className="flex items-center gap-2 text-secondary">
-            <ShieldAlert size={18} /> Blocks (session)
-          </div>
-          <div className="text-2xl">
-            {loading ? '—' : (stats?.blocks ?? 0)}
-          </div>
-          <div className="text-sm text-secondary mt-4">
-            {loading ? '' : `${stats?.blocks_today ?? 0} in the last 24h`}
-          </div>
-        </div>
-        <div className="glass-panel">
-          <div className="flex items-center gap-2 text-secondary">
-            <CheckCircle size={18} /> Status
-          </div>
-          <div className="text-2xl">
-            {loading
-              ? '—'
-              : stats?.enabled
-                ? 'Active'
-                : 'Disabled'}
-          </div>
-          <div className="text-sm text-secondary mt-4">
-            {stats?.enabled
-              ? 'PII + injection + jailbreak scanning'
-              : 'Set CUTCTX_FIREWALL_ENABLED=1 to enable'}
-          </div>
+        <div className="hero-sidecard">
+          <div className="hero-sidecard-label">Current status</div>
+          <div className="hero-sidecard-value">{loading ? '—' : stats?.enabled ? 'Active' : 'Disabled'}</div>
+          <p>{stats?.enabled ? 'PII, jailbreak, and injection scanning enabled.' : 'Set CUTCTX_FIREWALL_ENABLED=1 to enable.'}</p>
         </div>
       </div>
 
-      <div className="glass-panel">
-        <div className="flex justify-between items-center mb-4">
-          <h3 style={{ color: '#fff' }}>Recent Interceptions</h3>
-          <button
-            className="btn btn-primary"
-            onClick={() => alert(
-              'Custom firewall rules are configured via env vars. See docs/security.md.'
-            )}
-            aria-label="Add custom firewall rule"
-          >
-            Add Custom Rule
-          </button>
-        </div>
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.length === 0 ? (
+      {error && <div className="alert-card">Failed to load firewall data: {error}</div>}
+
+      <div className="metric-grid metric-grid-four">
+        <MetricCard
+          icon={<Shield size={18} />}
+          label="Patterns"
+          value={loading ? '—' : formatInteger(stats?.patterns_loaded)}
+          note="Loaded signature rules"
+        />
+        <MetricCard
+          icon={<ShieldAlert size={18} />}
+          label="Blocks"
+          value={loading ? '—' : formatInteger(stats?.blocks)}
+          note={`${formatInteger(stats?.blocks_today)} in the last 24h`}
+        />
+        <MetricCard
+          icon={<ShieldCheck size={18} />}
+          label="Mode"
+          value={loading ? '—' : stats?.enabled ? 'Active' : 'Disabled'}
+          note="Live firewall posture"
+        />
+        <MetricCard
+          icon={<AlertTriangle size={18} />}
+          label="Events"
+          value={loading ? '—' : formatInteger(events.length)}
+          note="Recent audit trail rows"
+        />
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="panel panel-wide">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Recent interceptions</div>
+              <h2>Firewall event tape</h2>
+            </div>
+            <p>Recent firewall-related audit events from the proxy.</p>
+          </div>
+
+          <div className="table-shell">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={4} className="text-secondary text-center py-4">
-                    {loading ? 'Loading…' : 'No firewall events recorded yet.'}
-                  </td>
+                  <th>When</th>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Detail</th>
                 </tr>
-              ) : (
-                events.map((e, i) => (
-                  <tr key={e.event_id || i}>
-                    <td>{e.timestamp || '—'}</td>
-                    <td>
-                      <code>{e.action || '—'}</code>
-                    </td>
-                    <td>{e.actor || '—'}</td>
-                    <td>
-                      <code className="text-xs">
-                        {JSON.stringify(e.detail || {}).slice(0, 80)}
-                      </code>
+              </thead>
+              <tbody>
+                {events.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="empty-row">
+                      {loading ? 'Loading events…' : 'No firewall events recorded yet.'}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  events.map((event, index) => (
+                    <tr key={event.event_id || index}>
+                      <td>{event.timestamp ? formatRelativeTime(event.timestamp) : '—'}</td>
+                      <td>{event.action || '—'}</td>
+                      <td>{event.actor || '—'}</td>
+                      <td className="detail-cell">
+                        <code>{JSON.stringify(event.detail || {}).slice(0, 140)}</code>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside className="panel panel-side">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Operator notes</div>
+              <h2>Security surface</h2>
+            </div>
+          </div>
+          <div className="stack-list">
+            <StatusBullet title="Pattern inventory" detail="Tracks loaded signatures and active scanning posture." />
+            <StatusBullet title="Audit trail" detail="Surfaces recent firewall actions through the audit event tape." />
+            <StatusBullet title="Policy controls" detail="Environment-driven configuration remains the source of truth." />
+          </div>
+        </aside>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function MetricCard({ icon, label, value, note }) {
+  return (
+    <article className="metric-card">
+      <div className="metric-header">
+        <span className="metric-label">{label}</span>
+        <div className="metric-icon">{icon}</div>
+      </div>
+      <div className="metric-value">{value}</div>
+      <div className="metric-footnote">{note}</div>
+    </article>
+  );
+}
+
+function StatusBullet({ title, detail }) {
+  return (
+    <article className="status-bullet">
+      <strong>{title}</strong>
+      <p>{detail}</p>
+    </article>
   );
 }

@@ -134,11 +134,11 @@ async def main_async() -> int:
     log_fp = open("/tmp/e2e_ws_codex_headers_proxy.log", "w")
     proc = subprocess.Popen(
         [
-            str(REPO_ROOT / ".venv/bin/cutctx"),
-            "proxy",
+            sys.executable,
+            "-m",
+            "cutctx.proxy.server",
             "--port",
             str(proxy_port),
-            "--no-telemetry",
             "--openai-api-url",
             upstream_url,
         ],

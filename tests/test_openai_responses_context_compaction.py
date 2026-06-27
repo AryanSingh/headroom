@@ -199,6 +199,70 @@ def test_openai_tool_schema_compaction_is_deterministic() -> None:
     assert "examples" not in prop
 
 
+def test_openai_responses_payload_compacts_tools_without_unboundlocalerror() -> None:
+    """Regression for Codex WS `response.create` payloads with tool schemas.
+
+    The shared Responses payload compressor updates `working["tools"]` through
+    the `compress_tool_schemas()` path when verbose tool definitions are
+    present. A refactor left `compacted_payload` undefined in that branch, so
+    any modified tool schema raised `UnboundLocalError` before the websocket
+    frame could be forwarded. Codex then recorded `frames_failed_total` and
+    showed zero Cutctx savings in the dashboard.
+    """
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+
+    verbose = " ".join(["Read and analyze files in the workspace."] * 40)
+    payload: dict[str, Any] = {
+        "model": "gpt-5.4",
+        "tools": [
+            {
+                "type": "function",
+                "name": "read_file",
+                "description": verbose,
+                "parameters": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "title": "ReadFileParameters",
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": verbose,
+                            "examples": ["src/main.py"],
+                        }
+                    },
+                    "required": ["path"],
+                    "additionalProperties": False,
+                },
+            }
+        ],
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": " ".join(["compressible"] * 200),
+            }
+        ],
+    }
+
+    updated, modified, saved, transforms, reason, before_bytes, after_bytes, attempted = (
+        handler._compress_openai_responses_payload(
+            payload,
+            model="gpt-5.4",
+            request_id="hr_codex_tools_regression",
+        )
+    )
+
+    assert modified is True
+    assert saved >= 0
+    assert attempted >= 0
+    assert before_bytes >= after_bytes
+    assert reason is None
+    assert "tools" in updated
+    assert any("tool_schema_compaction" in t for t in transforms)
+
+
 class _StubTokenizer:
     def count_text(self, text: str) -> int:
         return len(text.split())
