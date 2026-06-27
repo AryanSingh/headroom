@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/aryansingh/.local/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
+            "command": "/opt/homebrew/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
             "timeout": 15
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/aryansingh/.local/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
+            "command": "/opt/homebrew/bin/cutctx init hook ensure --profile init-cutctx-b565d3b5 --marker cutctx-init-codex",
             "timeout": 15
           }
         ]
