@@ -1,0 +1,177 @@
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - heading "Cutctx" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]: Navigation
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e20]: Dashboard
+        - link "Capabilities" [ref=e21] [cursor=pointer]:
+          - /url: /dashboard/capabilities
+          - img [ref=e23]
+          - generic [ref=e26]: Capabilities
+        - link "Security" [ref=e27] [cursor=pointer]:
+          - /url: /dashboard/firewall
+          - img [ref=e29]
+          - generic [ref=e32]: Security
+        - link "Memory" [ref=e33] [cursor=pointer]:
+          - /url: /dashboard/memory
+          - img [ref=e35]
+          - generic [ref=e38]: Memory
+        - link "Playground" [ref=e39] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e41]
+          - generic [ref=e45]: Playground
+    - generic [ref=e46]:
+      - generic [ref=e47]: Surfaces
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e52]:
+          - img [ref=e53]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e55]: v0.1.0
+  - generic [ref=e56]:
+    - banner [ref=e57]:
+      - generic:
+        - button "Toggle sidebar" [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+        - generic:
+          - generic:
+            - heading "Dashboard" [level=2] [ref=e62]
+            - generic [ref=e63]: healthy
+      - generic [ref=e65]:
+        - generic "Search dashboard" [ref=e66]:
+          - img [ref=e67]
+          - textbox "Search" [ref=e70]
+          - generic [ref=e71]: /
+        - button "Switch to light mode" [ref=e72] [cursor=pointer]:
+          - img [ref=e74]
+    - main [ref=e80]:
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - article [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]: Tokens saved
+              - img [ref=e87]
+            - generic [ref=e90]: 139.8k
+            - img [ref=e91]
+            - generic [ref=e92]: 100% total reduction
+          - article [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]: Requests today
+              - img [ref=e97]
+            - generic [ref=e99]: "3"
+            - generic [ref=e100]: 0 failed · 0 cached
+          - article [ref=e101]:
+            - generic [ref=e102]:
+              - generic [ref=e103]: Compression ratio
+              - img [ref=e105]
+            - generic [ref=e109]: 0.0%
+            - generic [ref=e110]: Average token retention
+          - article [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]: Money saved
+              - img [ref=e115]
+            - generic [ref=e120]: $0.100
+            - generic [ref=e121]: vs $0.100 without Cutctx
+        - generic [ref=e122]:
+          - generic [ref=e124]:
+            - generic [ref=e125]: Trend
+            - heading "Savings over time" [level=2] [ref=e126]
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - button "24h" [ref=e129] [cursor=pointer]
+              - button "7d" [ref=e130] [cursor=pointer]
+              - button "30d" [ref=e131] [cursor=pointer]
+            - generic [ref=e132]:
+              - generic "0 tokens saved" [ref=e133]
+              - generic "0 tokens saved" [ref=e134]
+              - generic "0 tokens saved" [ref=e135]
+              - generic "0 tokens saved" [ref=e136]
+              - generic "0 tokens saved" [ref=e137]
+              - generic "0 tokens saved" [ref=e138]
+              - generic "0 tokens saved" [ref=e139]
+              - generic "0 tokens saved" [ref=e140]
+              - generic "0 tokens saved" [ref=e141]
+              - generic "0 tokens saved" [ref=e142]
+              - generic "0 tokens saved" [ref=e143]
+              - generic "0 tokens saved" [ref=e144]
+              - generic "0 tokens saved" [ref=e145]
+              - generic "0 tokens saved" [ref=e146]
+              - generic "0 tokens saved" [ref=e147]
+              - generic "0 tokens saved" [ref=e148]
+              - generic "0 tokens saved" [ref=e149]
+              - generic "0 tokens saved" [ref=e150]
+              - generic "0 tokens saved" [ref=e151]
+              - generic "139.8k tokens saved" [ref=e152]
+        - generic [ref=e153]:
+          - generic [ref=e154]:
+            - generic [ref=e155]:
+              - generic [ref=e156]: Attribution
+              - heading "Where savings come from" [level=2] [ref=e157]
+            - generic [ref=e158]:
+              - generic [ref=e159]:
+                - generic [ref=e160]: Compression
+                - generic [ref=e161]: 139,779 tokens · $0.105
+              - generic [ref=e162]: 100%
+          - generic [ref=e163]:
+            - generic [ref=e165]:
+              - generic [ref=e166]: Activity
+              - heading "Recent requests" [level=2] [ref=e167]
+            - table [ref=e169]:
+              - rowgroup [ref=e170]:
+                - row "Model Tokens Saved When" [ref=e171]:
+                  - columnheader "Model" [ref=e172]
+                  - columnheader "Tokens" [ref=e173]
+                  - columnheader "Saved" [ref=e174]
+                  - columnheader "When" [ref=e175]
+              - rowgroup [ref=e176]:
+                - row "gpt-5.4-mini 3,834 46,5931215% 40m ago" [ref=e177]:
+                  - cell "gpt-5.4-mini" [ref=e178]
+                  - cell "3,834" [ref=e179]
+                  - cell "46,5931215%" [ref=e180]
+                  - cell "40m ago" [ref=e181]
+                - row "gpt-5.4-mini 3,834 46,5931215% 20m ago" [ref=e182]:
+                  - cell "gpt-5.4-mini" [ref=e183]
+                  - cell "3,834" [ref=e184]
+                  - cell "46,5931215%" [ref=e185]
+                  - cell "20m ago" [ref=e186]
+                - row "gpt-5.4-mini 3,834 46,5931215% 46s ago" [ref=e187]:
+                  - cell "gpt-5.4-mini" [ref=e188]
+                  - cell "3,834" [ref=e189]
+                  - cell "46,5931215%" [ref=e190]
+                  - cell "46s ago" [ref=e191]
+        - generic [ref=e192]:
+          - link "Run compression Test a live compression request with the playground. Open" [ref=e193] [cursor=pointer]:
+            - /url: /dashboard/playground
+            - generic [ref=e194]:
+              - img [ref=e196]
+              - generic [ref=e198]: Run compression
+            - paragraph [ref=e199]: Test a live compression request with the playground.
+            - generic [ref=e200]:
+              - text: Open
+              - img [ref=e201]
+          - link "Product surfaces See the full map of available features and capabilities. Open" [ref=e203] [cursor=pointer]:
+            - /url: /dashboard/capabilities
+            - generic [ref=e204]:
+              - img [ref=e206]
+              - generic [ref=e210]: Product surfaces
+            - paragraph [ref=e211]: See the full map of available features and capabilities.
+            - generic [ref=e212]:
+              - text: Open
+              - img [ref=e213]
+          - link "Memory signals Inspect cross-session memory and correction entries. Open" [ref=e215] [cursor=pointer]:
+            - /url: /dashboard/memory
+            - generic [ref=e216]:
+              - img [ref=e218]
+              - generic [ref=e220]: Memory signals
+            - paragraph [ref=e221]: Inspect cross-session memory and correction entries.
+            - generic [ref=e222]:
+              - text: Open
+              - img [ref=e223]

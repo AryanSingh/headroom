@@ -1,19 +1,16 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Activity,
-  KeyRound,
-  ArrowUpRight,
-  BadgeInfo,
-  BrainCircuit,
-  Command,
-  Flame,
-  Network,
-  Radar,
+  BarChart3,
+  Home,
+  Moon,
+  PanelLeftOpen,
   Search,
   Shield,
-  Sparkles,
+  Sun,
   TerminalSquare,
+  Zap,
 } from 'lucide-react';
 import Overview from './pages/Overview';
 import Firewall from './pages/Firewall';
@@ -21,89 +18,90 @@ import Memory from './pages/Memory';
 import Playground from './pages/Playground';
 import Capabilities from './pages/Capabilities';
 import { DashboardDataProvider } from './lib/dashboard-context';
-import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
 import { useDashboardData } from './lib/use-dashboard-data';
-import { formatRelativeTime } from './lib/format';
+import { ThemeProvider, useTheme } from './lib/theme-context';
 
 const navItems = [
-  { path: '/', label: 'Overview', icon: Radar, description: 'Live proxy control surface' },
-  { path: '/capabilities', label: 'Capabilities', icon: Sparkles, description: 'Full product surface map' },
-  { path: '/firewall', label: 'Security', icon: Shield, description: 'Firewall and audit posture' },
-  { path: '/memory', label: 'Memory', icon: BrainCircuit, description: 'Cross-session knowledge' },
-  { path: '/playground', label: 'Playground', icon: TerminalSquare, description: 'Real compression simulator' },
+  { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/capabilities', label: 'Capabilities', icon: Zap },
+  { path: '/firewall', label: 'Security', icon: Shield },
+  { path: '/memory', label: 'Memory', icon: BarChart3 },
+  { path: '/playground', label: 'Playground', icon: TerminalSquare },
 ];
 
-function Sidebar({ searchQuery }) {
-  const query = searchQuery.trim().toLowerCase();
-  const items = navItems.filter((item) => {
-    if (!query) {
-      return true;
-    }
-    return `${item.label} ${item.description}`.toLowerCase().includes(query);
-  });
+/* ─── Sidebar ─────────────────────────────────────────────────── */
 
+function Sidebar({ open, onClose }) {
   return (
-    <aside className="sidebar-shell">
-      <div className="brand-lockup">
-        <div className="brand-mark">
-          <Activity size={18} />
+    <>
+      <div
+        className={`sidebar-overlay ${open ? 'visible' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside className={`sidebar-shell ${open ? 'open' : ''}`}>
+        <div className="brand-lockup">
+          <div className="brand-mark">
+            <Activity size={16} />
+          </div>
+          <h1>Cutctx</h1>
         </div>
-          <div>
-            <h1>Cutctx</h1>
-          </div>
-      </div>
 
-      <div className="sidebar-section">
-        <div className="sidebar-label">Navigation</div>
-        <nav className="nav-stack">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === '/'}
-                className={({ isActive }) => `nav-card ${isActive ? 'active' : ''}`}
-              >
-                <div className="nav-card-icon">
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <div className="nav-card-title">{item.label}</div>
-                  <div className="nav-card-copy">{item.description}</div>
-                </div>
-              </NavLink>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="sidebar-section sidebar-promo">
-        <div className="sidebar-label">Product surfaces</div>
-        <div className="promo-card">
-          <div className="promo-row">
-            <Command size={16} />
-            Proxy, wrap, library, MCP
-          </div>
-          <div className="promo-row">
-            <Network size={16} />
-            Memory, CCR, firewall, savings
-          </div>
-          <div className="promo-row">
-            <Flame size={16} />
-            Multimodal optimization and live telemetry
-          </div>
+        <div className="sidebar-section">
+          <div className="sidebar-label">Navigation</div>
+          <nav className="nav-stack">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/'}
+                  className={({ isActive }) => `nav-card ${isActive ? 'active' : ''}`}
+                  onClick={onClose}
+                >
+                  <div className="nav-card-icon">
+                    <Icon size={16} />
+                  </div>
+                  <div>
+                    <div className="nav-card-title">{item.label}</div>
+                  </div>
+                </NavLink>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-label">Surfaces</div>
+          <div className="promo-card">
+            <div className="promo-row">
+              <Shield size={12} />
+              Proxy, wrap, library, MCP
+            </div>
+            <div className="promo-row">
+              <Zap size={12} />
+              Memory, CCR, firewall, savings
+            </div>
+          </div>
+          <div className="sidebar-footer-label">v0.1.0</div>
+        </div>
+      </aside>
+    </>
   );
 }
 
-function Topbar({ searchQuery, setSearchQuery, searchInputRef }) {
-  const deferredQuery = useDeferredValue(searchQuery);
+/* ─── Topbar ──────────────────────────────────────────────────── */
+
+function Topbar({
+  searchQuery,
+  setSearchQuery,
+  searchInputRef,
+  onToggleSidebar,
+}) {
   const location = useLocation();
-  const { health, lastUpdated } = useDashboardData();
-  const [adminKey, setAdminKey] = useState(() => readStoredAdminKey());
+  const { health } = useDashboardData();
+  const { theme, toggleTheme } = useTheme();
 
   const currentNav = useMemo(
     () => navItems.find((item) => item.path === location.pathname) || navItems[0],
@@ -112,71 +110,86 @@ function Topbar({ searchQuery, setSearchQuery, searchInputRef }) {
 
   return (
     <header className="topbar-shell">
-      <div>
-        <div className="eyebrow">Live workspace</div>
-        <div className="topbar-title-row">
-          <h2>{currentNav.label}</h2>
-          <span className="status-pill">
-            <span className={`status-dot ${health?.ready ? 'ok' : 'warn'}`} />
-            {health?.status || 'connecting'}
-          </span>
+      <div className="topbar-left">
+        <button
+          className="sidebar-toggle-btn"
+          onClick={onToggleSidebar}
+          aria-label="Toggle sidebar"
+          type="button"
+        >
+          <PanelLeftOpen size={18} />
+        </button>
+
+        <div className="topbar-title-group">
+          <div className="topbar-title-row">
+            <h2>{currentNav.label}</h2>
+            <span className="status-pill">
+              <span className={`status-dot ${health?.ready ? 'ok' : ''}`} />
+              {health?.status || 'connecting'}
+            </span>
+          </div>
         </div>
-        <p className="topbar-copy">{currentNav.description}</p>
       </div>
 
       <div className="topbar-tools">
-        <label className="search-shell" aria-label="Search dashboard navigation">
-          <Search size={16} />
+        <label className="search-shell" aria-label="Search dashboard">
+          <Search size={14} />
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search pages and surfaces"
+            placeholder="Search"
             aria-label="Search"
           />
+          <span className="search-shortcut">/</span>
         </label>
 
-        <label className="auth-shell">
-          <KeyRound size={16} />
-          <input
-            type="password"
-            value={adminKey}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setAdminKey(nextValue);
-              writeStoredAdminKey(nextValue.trim());
-            }}
-            placeholder="Optional admin key for protected actions"
-            aria-label="Admin Key"
-          />
-        </label>
-
-        <div className="topbar-meta">
-          <div className="meta-chip">
-            <BadgeInfo size={14} />
-            Local proxy
-          </div>
-          <div className="meta-chip">
-            <ArrowUpRight size={14} />
-            {formatRelativeTime(lastUpdated)}
-          </div>
-          <div className="meta-chip meta-chip-muted">
-            Query: {deferredQuery || 'all surfaces'}
-          </div>
-          <div className={`meta-chip ${adminKey ? '' : 'meta-chip-muted'}`}>
-            <KeyRound size={14} />
-            {adminKey ? 'Admin key loaded' : 'No admin key'}
-          </div>
-        </div>
+        <button
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          type="button"
+        >
+          <span className="icon-sun">
+            <Sun size={16} />
+          </span>
+          <span className="icon-moon">
+            <Moon size={16} />
+          </span>
+        </button>
       </div>
     </header>
   );
 }
 
+/* ─── App Frame ───────────────────────────────────────────────── */
+
 function AppFrame() {
   const searchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    const handler = (e) => {
+      setIsMobile(e.matches);
+      if (e.matches) setSidebarOpen(false);
+      else setSidebarOpen(true);
+    };
+    handler(mq);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
+
+  const closeSidebar = useCallback(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -186,25 +199,24 @@ function AppFrame() {
         }
         return;
       }
-
       if (event.key === '/') {
         event.preventDefault();
         searchInputRef.current?.focus();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   return (
-    <div className="app-shell">
-      <Sidebar searchQuery={searchQuery} />
+    <div className={`app-shell ${!sidebarOpen && !isMobile ? 'sidebar-collapsed' : ''}`}>
+      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
       <div className="content-shell">
         <Topbar
           searchInputRef={searchInputRef}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onToggleSidebar={toggleSidebar}
         />
         <main className="page-shell">
           <Routes>
@@ -223,9 +235,11 @@ function AppFrame() {
 export default function App() {
   return (
     <BrowserRouter basename={window.location.pathname.startsWith('/admin') ? '/admin' : '/dashboard'}>
-      <DashboardDataProvider>
-        <AppFrame />
-      </DashboardDataProvider>
+      <ThemeProvider>
+        <DashboardDataProvider>
+          <AppFrame />
+        </DashboardDataProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
