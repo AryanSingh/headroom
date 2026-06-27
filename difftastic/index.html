@@ -23,7 +23,7 @@
     
     
       
-        <title>Structural Diff Compression (Difftastic) - CutCtx</title>
+        <title>Structural Diff Compression (Difftastic) - Cutctx</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="CutCtx" class="md-header__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-header__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
@@ -106,7 +106,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            CutCtx
+            Cutctx
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -419,13 +419,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="CutCtx" class="md-nav__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-nav__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
 
     </a>
-    CutCtx
+    Cutctx
   </label>
   
     <div class="md-nav__source">
@@ -2485,9 +2485,9 @@
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--difftastic<span class="w"> </span>--difftastic-binary<span class="w"> </span>/usr/local/bin/difft
 </span></code></pre></div>
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">HEADROOM_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nv">HEADROOM_DIFFTASTIC_CONTEXT_LINES</span><span class="o">=</span><span class="m">2</span><span class="w"> </span><span class="nv">HEADROOM_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nv">HEADROOM_DIFFTASTIC_BINARY</span><span class="o">=</span>/usr/local/bin/difft<span class="w"> </span><span class="nv">HEADROOM_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">CUTCTX_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nv">CUTCTX_DIFFTASTIC_CONTEXT_LINES</span><span class="o">=</span><span class="m">2</span><span class="w"> </span><span class="nv">CUTCTX_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nv">CUTCTX_DIFFTASTIC_BINARY</span><span class="o">=</span>/usr/local/bin/difft<span class="w"> </span><span class="nv">CUTCTX_DIFFTASTIC</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
 </span></code></pre></div>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <h3 id="proxyconfig-fields">ProxyConfig Fields<a class="headerlink" href="#proxyconfig-fields" title="Permanent link">&para;</a></h3>
@@ -2530,19 +2530,19 @@
 <tbody>
 <tr>
 <td><code>--difftastic</code></td>
-<td><code>HEADROOM_DIFFTASTIC</code></td>
+<td><code>CUTCTX_DIFFTASTIC</code></td>
 <td>—</td>
 <td>Enable structural diff compression</td>
 </tr>
 <tr>
 <td><code>--difftastic-binary</code></td>
-<td><code>HEADROOM_DIFFTASTIC_BINARY</code></td>
+<td><code>CUTCTX_DIFFTASTIC_BINARY</code></td>
 <td><code>auto</code></td>
 <td>Path or name of difft binary</td>
 </tr>
 <tr>
 <td><code>--difftastic-context-lines</code></td>
-<td><code>HEADROOM_DIFFTASTIC_CONTEXT_LINES</code></td>
+<td><code>CUTCTX_DIFFTASTIC_CONTEXT_LINES</code></td>
 <td><code>3</code></td>
 <td>Context lines (0–20)</td>
 </tr>
@@ -2559,12 +2559,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>HEADROOM_DIFFTASTIC_MIN_CHARS</code></td>
+<td><code>CUTCTX_DIFFTASTIC_MIN_CHARS</code></td>
 <td><code>200</code></td>
 <td>Minimum diff size (chars) before interception</td>
 </tr>
 <tr>
-<td><code>HEADROOM_DIFFTASTIC_TIMEOUT</code></td>
+<td><code>CUTCTX_DIFFTASTIC_TIMEOUT</code></td>
 <td><code>10</code></td>
 <td>Per-file subprocess timeout in seconds</td>
 </tr>
@@ -2572,7 +2572,7 @@
 </table>
 <h2 id="binary-management">Binary Management<a class="headerlink" href="#binary-management" title="Permanent link">&para;</a></h2>
 <h3 id="auto-fetch-recommended">Auto-Fetch (Recommended)<a class="headerlink" href="#auto-fetch-recommended" title="Permanent link">&para;</a></h3>
-<p>Difftastic (<code>difft</code>) is already registered in <code>headroom/tools.json</code> as v0.64.0. Cutctx auto-fetches it on first use:</p>
+<p>Difftastic (<code>difft</code>) is already registered in <code>cutctx/tools.json</code> as v0.64.0. Cutctx auto-fetches it on first use:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Pre-fetch all tools (including difft)</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>tools<span class="w"> </span>install
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
@@ -2598,18 +2598,18 @@
 <ol>
 <li><strong>Explicit path</strong> from <code>--difftastic-binary</code> (absolute path or name on PATH)</li>
 <li><strong><code>shutil.which("difft")</code></strong> — PATH lookup</li>
-<li><strong><code>headroom.binaries.resolve("difft")</code></strong> — auto-fetch from GitHub releases</li>
+<li><strong><code>cutctx.binaries.resolve("difft")</code></strong> — auto-fetch from GitHub releases</li>
 </ol>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <h3 id="no-python-dependency">No Python Dependency<a class="headerlink" href="#no-python-dependency" title="Permanent link">&para;</a></h3>
-<p>Difftastic is a <strong>standalone binary</strong> — no Python package dependency. The binary is auto-fetched via <code>cutctx tools install</code> or <code>headroom.binaries.resolve("difft")</code>.</p>
+<p>Difftastic is a <strong>standalone binary</strong> — no Python package dependency. The binary is auto-fetched via <code>cutctx tools install</code> or <code>cutctx.binaries.resolve("difft")</code>.</p>
 <h3 id="graceful-degradation">Graceful Degradation<a class="headerlink" href="#graceful-degradation" title="Permanent link">&para;</a></h3>
 <p>When the <code>difft</code> binary is unavailable:
 - <strong>DifftasticInterceptor</strong>: <code>transform()</code> returns <code>None</code> → the original diff passes through unchanged.
 - <strong>DifftasticBackend</strong>: Falls back to the standard <code>DiffCompressor</code>.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <h3 id="basic-interceptor-example">Basic Interceptor Example<a class="headerlink" href="#basic-interceptor-example" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.proxy.interceptors.difftastic_interceptor</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifftasticInterceptor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.proxy.interceptors.difftastic_interceptor</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifftasticInterceptor</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">interceptor</span> <span class="o">=</span> <span class="n">DifftasticInterceptor</span><span class="p">(</span><span class="n">binary_path</span><span class="o">=</span><span class="s2">&quot;/path/to/difft&quot;</span><span class="p">,</span> <span class="n">context_lines</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
@@ -2690,7 +2690,7 @@
 </span></code></pre></div>
 <p>Each file is processed independently and tagged with <code>[cutctx: structural diff via difft for ...]</code>.</p>
 <h3 id="difftasticbackend-contentrouter-diff-strategy">DifftasticBackend (ContentRouter DIFF Strategy)<a class="headerlink" href="#difftasticbackend-contentrouter-diff-strategy" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.diff_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifftasticBackend</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.diff_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">DifftasticBackend</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">backend</span> <span class="o">=</span> <span class="n">DifftasticBackend</span><span class="p">(</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">binary_path</span><span class="o">=</span><span class="s2">&quot;/path/to/difft&quot;</span><span class="p">,</span>
@@ -2702,7 +2702,7 @@
 </span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lines saved: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">original_line_count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">compressed_line_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="checking-binary-availability">Checking Binary Availability<a class="headerlink" href="#checking-binary-availability" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom</span><span class="w"> </span><span class="kn">import</span> <span class="n">binaries</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">binaries</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># Check if already available</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">exe</span> <span class="o">=</span> <span class="n">binaries</span><span class="o">.</span><span class="n">which</span><span class="p">(</span><span class="s2">&quot;difft&quot;</span><span class="p">)</span>
@@ -2763,8 +2763,8 @@
 </span></code></pre></div>
 <h3 id="real-diff-test">Real Diff Test<a class="headerlink" href="#real-diff-test" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>python<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="s">from headroom.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor</span>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="s">from headroom import binaries</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="s">from cutctx.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="s">from cutctx import binaries</span>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
 </span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="s">exe = binaries.which(&quot;difft&quot;)</span>
 </span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="s">if exe is None:</span>
@@ -2777,7 +2777,7 @@
 </span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="s">git_diff = subprocess.run(</span>
 </span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="s">    [&quot;git&quot;, &quot;diff&quot;, &quot;HEAD~1&quot;, &quot;HEAD&quot;],</span>
 </span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="s">    capture_output=True, text=True,</span>
-</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="s">    cwd=&quot;/Users/aryansingh/Documents/Claude/Projects/headroom&quot;</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="s">    cwd=&quot;/Users/aryansingh/Documents/Claude/Projects/cutctx&quot;</span>
 </span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="s">).stdout</span>
 </span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>
 </span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="s">if not git_diff.strip():</span>
@@ -2846,7 +2846,7 @@
 <ul>
 <li><a href="../transforms/">Transforms Reference</a> — Other compression transforms</li>
 <li><a href="../compression/">Compression Overview</a> — Universal compression</li>
-<li><a href="https://github.com/chopratejas/cutctx/blob/main/headroom/transforms/diff_compressor.py">diff_compressor.py</a> — Source</li>
+<li><a href="https://github.com/chopratejas/cutctx/blob/main/cutctx/transforms/diff_compressor.py">diff_compressor.py</a> — Source</li>
 </ul>
 
 

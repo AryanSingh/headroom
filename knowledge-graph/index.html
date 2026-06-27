@@ -23,7 +23,7 @@
     
     
       
-        <title>Knowledge Graph Compression (Graphify) - CutCtx</title>
+        <title>Knowledge Graph Compression (Graphify) - Cutctx</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="CutCtx" class="md-header__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-header__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
@@ -106,7 +106,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            CutCtx
+            Cutctx
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -419,13 +419,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="CutCtx" class="md-nav__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-nav__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
 
     </a>
-    CutCtx
+    Cutctx
   </label>
   
     <div class="md-nav__source">
@@ -2409,11 +2409,11 @@
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--knowledge-graph<span class="w"> </span>--knowledge-graph-bfs-depth<span class="w"> </span><span class="m">3</span><span class="w"> </span>--knowledge-graph-max-nodes<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">HEADROOM_KNOWLEDGE_GRAPH</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">HEADROOM_KG_BFS_DEPTH</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">HEADROOM_KG_MAX_NODES</span><span class="o">=</span><span class="m">60</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">CUTCTX_KNOWLEDGE_GRAPH</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">CUTCTX_KG_BFS_DEPTH</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">CUTCTX_KG_MAX_NODES</span><span class="o">=</span><span class="m">60</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
 </span></code></pre></div>
 <h3 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span><span class="p">,</span> <span class="n">GraphifyIndex</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span><span class="p">,</span> <span class="n">GraphifyIndex</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Build or load the graph</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">indexer</span> <span class="o">=</span> <span class="n">GraphifyIndexer</span><span class="p">(</span><span class="n">project_dir</span><span class="o">=</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
@@ -2480,26 +2480,26 @@
 <tbody>
 <tr>
 <td><code>--knowledge-graph</code></td>
-<td><code>HEADROOM_KNOWLEDGE_GRAPH</code></td>
+<td><code>CUTCTX_KNOWLEDGE_GRAPH</code></td>
 <td>—</td>
 <td>Enable knowledge-graph compression</td>
 </tr>
 <tr>
 <td><code>--knowledge-graph-bfs-depth</code></td>
-<td><code>HEADROOM_KG_BFS_DEPTH</code></td>
+<td><code>CUTCTX_KG_BFS_DEPTH</code></td>
 <td><code>2</code></td>
 <td>BFS depth (1–10)</td>
 </tr>
 <tr>
 <td><code>--knowledge-graph-max-nodes</code></td>
-<td><code>HEADROOM_KG_MAX_NODES</code></td>
+<td><code>CUTCTX_KG_MAX_NODES</code></td>
 <td><code>40</code></td>
 <td>Max nodes per response (5–200)</td>
 </tr>
 </tbody>
 </table>
 <h3 id="graphifyindexer-configuration">GraphifyIndexer Configuration<a class="headerlink" href="#graphifyindexer-configuration" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">indexer</span> <span class="o">=</span> <span class="n">GraphifyIndexer</span><span class="p">(</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">project_dir</span><span class="o">=</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">,</span>
@@ -2587,7 +2587,7 @@
 </span></code></pre></div>
 <h3 id="background-indexing">Background Indexing<a class="headerlink" href="#background-indexing" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span><span class="p">,</span> <span class="n">set_global_indexer</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.graph.graphify</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphifyIndexer</span><span class="p">,</span> <span class="n">set_global_indexer</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Create and start the indexer</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">indexer</span> <span class="o">=</span> <span class="n">GraphifyIndexer</span><span class="p">(</span>
@@ -2612,7 +2612,7 @@
 <h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
 <h3 id="check-graph-availability">Check Graph Availability<a class="headerlink" href="#check-graph-availability" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="s2">from headroom.graph.graphify import graphify_available, networkx_available</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="s2">from cutctx.graph.graphify import graphify_available, networkx_available</span>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="s2">print(&#39;graphifyy available:&#39;, graphify_available())</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="s2">print(&#39;networkx available:&#39;, networkx_available())</span>
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="s2">&quot;</span>
@@ -2621,7 +2621,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="s2">import json</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="s2">from pathlib import Path</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="s2">from headroom.graph.graphify import GraphifyIndex</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="s2">from cutctx.graph.graphify import GraphifyIndex</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="s2">index = GraphifyIndex.load(Path(&#39;graphify-out/graph.json&#39;))</span>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="s2">print(f&#39;Graph: {index.node_count} nodes, {index.edge_count} edges&#39;)</span>

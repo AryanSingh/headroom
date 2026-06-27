@@ -23,7 +23,7 @@
     
     
       
-        <title>CutCtx Manual Testing Guide - CutCtx</title>
+        <title>Cutctx Manual Testing Guide - Cutctx</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="CutCtx" class="md-header__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href="../.." title="Cutctx" class="md-header__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
@@ -106,13 +106,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            CutCtx
+            Cutctx
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CutCtx Manual Testing Guide
+              Cutctx Manual Testing Guide
             
           </span>
         </div>
@@ -419,13 +419,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="CutCtx" class="md-nav__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href="../.." title="Cutctx" class="md-nav__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
 
     </a>
-    CutCtx
+    Cutctx
   </label>
   
     <div class="md-nav__source">
@@ -3068,8 +3068,8 @@
   
 
 
-<h1 id="cutctx-manual-testing-guide">CutCtx Manual Testing Guide<a class="headerlink" href="#cutctx-manual-testing-guide" title="Permanent link">&para;</a></h1>
-<p><strong>Product:</strong> CutCtx (<code>cutctx</code> binary, <code>cutctx-ai</code> PyPI package, <code>headroom</code> internal Python package)<br />
+<h1 id="cutctx-manual-testing-guide">Cutctx Manual Testing Guide<a class="headerlink" href="#cutctx-manual-testing-guide" title="Permanent link">&para;</a></h1>
+<p><strong>Product:</strong> Cutctx (<code>cutctx</code> binary, <code>cutctx-ai</code> PyPI package, <code>cutctx</code> internal Python package)<br />
 <strong>Version:</strong> 0.26.0<br />
 <strong>Last updated:</strong> 2026-06-22</p>
 <p>This guide covers every testable surface of the product end-to-end. Work through sections top-to-bottom on a clean machine — each section builds on the previous. Every step lists the exact command, the expected output, and the pass/fail criterion.</p>
@@ -3178,7 +3178,7 @@
 <h3 id="environment-variables-used-throughout-this-guide">Environment variables used throughout this guide<a class="headerlink" href="#environment-variables-used-throughout-this-guide" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span>sk-ant-...<span class="w">          </span><span class="c1"># real key for live tests</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w">                 </span><span class="c1"># for OpenAI-backend tests</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_ADMIN_API_KEY</span><span class="o">=</span>test-admin-key<span class="w"> </span><span class="c1"># for admin API tests</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_ADMIN_API_KEY</span><span class="o">=</span>test-admin-key<span class="w"> </span><span class="c1"># for admin API tests</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_TEST_MODE</span><span class="o">=</span><span class="m">1</span><span class="w">                    </span><span class="c1"># suppresses browser-open in savings/report</span>
 </span></code></pre></div>
 <hr />
@@ -3189,12 +3189,12 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong>
 - <code>which cutctx</code> returns a path inside the venv
-- <code>--version</code> prints <code>cutctx 0.26.0</code> (not <code>headroom</code>)
+- <code>--version</code> prints <code>cutctx 0.26.0</code> (not <code>cutctx</code>)
 - <code>--help</code> lists all commands: proxy, wrap, init, bench, savings, license, etc.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Verify the Rust core is linked</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from headroom import _core; print(_core.hello())&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from cutctx import _core; print(_core.hello())&quot;</span>
 </span></code></pre></div>
-<p><strong>PASS:</strong> prints <code>headroom-core</code><br />
+<p><strong>PASS:</strong> prints <code>cutctx-core</code><br />
 <strong>FAIL:</strong> <code>ImportError</code> — the Rust <code>.so</code> isn't compiled for this platform</p>
 <hr />
 <h2 id="3-proxy-core-startup">3. Proxy — Core Startup<a class="headerlink" href="#3-proxy-core-startup" title="Permanent link">&para;</a></h2>
@@ -3222,11 +3222,11 @@
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>sleep<span class="w"> </span><span class="m">2</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8789/livez<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>ls<span class="w"> </span>~/.headroom/<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;files exist&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;no files written&quot;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>ls<span class="w"> </span>~/.cutctx/<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;files exist&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;no files written&quot;</span>
 </span></code></pre></div>
-<p><strong>PASS:</strong> proxy starts; <code>~/.headroom/</code> has no new files created during the run</p>
+<p><strong>PASS:</strong> proxy starts; <code>~/.cutctx/</code> has no new files created during the run</p>
 <h3 id="34-custom-hostport-via-environment">3.4 Custom host/port via environment<a class="headerlink" href="#34-custom-hostport-via-environment" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">HEADROOM_PORT</span><span class="o">=</span><span class="m">8790</span><span class="w"> </span><span class="nv">HEADROOM_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span><span class="p">&amp;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">CUTCTX_PORT</span><span class="o">=</span><span class="m">8790</span><span class="w"> </span><span class="nv">CUTCTX_HOST</span><span class="o">=</span><span class="m">127</span>.0.0.1<span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span><span class="p">&amp;</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nv">PROXY_PID</span><span class="o">=</span><span class="nv">$!</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>sleep<span class="w"> </span><span class="m">2</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://127.0.0.1:8790/livez<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
@@ -3256,7 +3256,7 @@
 <p><strong>PASS per endpoint:</strong>
 - <code>/livez</code> → <code>{"status": "ok"}</code>
 - <code>/readyz</code> → <code>{"status": "ok"}</code> (may differ briefly on startup)
-- <code>/metrics</code> → lines starting with <code># HELP</code> and <code>headroom_</code> metrics
+- <code>/metrics</code> → lines starting with <code># HELP</code> and <code>cutctx_</code> metrics
 - <code>/v1/stats</code> → JSON with <code>requests_total</code>, <code>tokens_saved</code>, <code>compression_ratio</code> fields
 - <code>/v1/version</code> → JSON with <code>version: "0.26.0"</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
@@ -3272,7 +3272,7 @@
 <p><strong>PASS:</strong> valid JSON with <code>algorithm</code>, <code>tokens_in</code>, <code>tokens_out</code>, <code>compression_ratio</code>, <code>elapsed_ms</code> keys.</p>
 <h3 id="52-smartcrusher-arrayjson-compaction">5.2 SmartCrusher (array/JSON compaction)<a class="headerlink" href="#52-smartcrusher-arrayjson-compaction" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="s">from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="s">from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="s">crusher = SmartCrusher(SmartCrusherConfig())</span>
 </span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="s">data = &#39;[&#39; + &#39;,&#39;.join([f&#39;{{&quot;id&quot;:{i},&quot;type&quot;:&quot;event&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;value&quot;:null}}&#39; for i in range(20)]) + &#39;]&#39;</span>
@@ -3285,7 +3285,7 @@
 <p><strong>PASS:</strong> output is valid JSON; ratio &gt; 20% savings; no crash</p>
 <h3 id="53-diffcompressor">5.3 DiffCompressor<a class="headerlink" href="#53-diffcompressor" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="s">from headroom.transforms.diff_compressor import DiffCompressor</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="s">from cutctx.transforms.diff_compressor import DiffCompressor</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="s">diff = &quot;&quot;&quot;diff --git a/main.py b/main.py</span>
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="s">index abc..def 100644</span>
@@ -3309,7 +3309,7 @@
 <p><strong>PASS:</strong> <code>result.compressed</code> is shorter; <code>result.tokens_saved &gt; 0</code></p>
 <h3 id="54-logcompressor">5.4 LogCompressor<a class="headerlink" href="#54-logcompressor" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="s">from headroom.transforms.log_compressor import LogCompressor</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="s">from cutctx.transforms.log_compressor import LogCompressor</span>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="s">log = &#39;\n&#39;.join([</span>
 </span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="s">    &#39;[2026-06-22 10:00:01] INFO  Server started on port 8787&#39;,</span>
@@ -3331,7 +3331,7 @@
 <p><strong>PASS:</strong> prints <code>PASS</code>; compressed output is shorter; repeated lines deduplicated</p>
 <h3 id="55-searchcompressor">5.5 SearchCompressor<a class="headerlink" href="#55-searchcompressor" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="s">from headroom.transforms.search_compressor import SearchCompressor</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="s">from cutctx.transforms.search_compressor import SearchCompressor</span>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="s">results = &#39;\n&#39;.join([</span>
 </span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="s">    f&quot;Result {i}: https://example.com/page{i}\nTitle: Example Page {i}\nSnippet: This is a very long snippet that contains the search term multiple times and includes a lot of boilerplate text that doesn&#39;t contribute to understanding. The page was published on 2026-01-{i:02d} and has been viewed 10000 times.\n&quot;</span>
@@ -3348,7 +3348,7 @@
 <p><strong>PASS:</strong> prints <code>PASS</code>; boilerplate stripped from search result snippets</p>
 <h3 id="56-codeawarecompressor-ast-level">5.6 CodeAwareCompressor (AST-level)<a class="headerlink" href="#56-codeawarecompressor-ast-level" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="s">from headroom.transforms.code_compressor import CodeAwareCompressor</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="s">from cutctx.transforms.code_compressor import CodeAwareCompressor</span>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="s">code = &#39;&#39;&#39;</span>
 </span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="s">def calculate_fibonacci(n: int) -&gt; int:</span>
@@ -3386,7 +3386,7 @@
 <hr />
 <h2 id="6-contentrouter-auto-detection-routing">6. ContentRouter — Auto-Detection &amp; Routing<a class="headerlink" href="#6-contentrouter-auto-detection-routing" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="s">from headroom.transforms.content_router import ContentRouter, ContentRouterConfig</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="s">from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="s">router = ContentRouter(ContentRouterConfig())</span>
 </span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
@@ -3420,7 +3420,7 @@
 <hr />
 <h2 id="7-compacttable-compressor">7. CompactTable Compressor<a class="headerlink" href="#7-compacttable-compressor" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="s">from headroom.transforms.compact_table import CompactTableCompressor</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="s">from cutctx.transforms.compact_table import CompactTableCompressor</span>
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="s">data = &#39;&#39;&#39;[</span>
 </span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="s">  {&quot;name&quot;: &quot;Alice&quot;, &quot;role&quot;: &quot;engineer&quot;, &quot;team&quot;: &quot;backend&quot;, &quot;status&quot;: &quot;active&quot;},</span>
@@ -3453,7 +3453,7 @@
 <h2 id="8-llmlingua-2-optional-compressor">8. LLMLingua-2 Optional Compressor<a class="headerlink" href="#8-llmlingua-2-optional-compressor" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Check graceful fallback when NOT installed</span>
 </span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="s">from headroom.transforms.llmlingua_compressor import LLMLinguaCompressor</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="s">from cutctx.transforms.llmlingua_compressor import LLMLinguaCompressor</span>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
 </span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="s">comp = LLMLinguaCompressor()</span>
 </span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="s">text = &quot;This is a test sentence that should be compressed. &quot; * 20</span>
@@ -3478,7 +3478,7 @@
 <hr />
 <h2 id="9-selective-context-filter">9. Selective Context Filter<a class="headerlink" href="#9-selective-context-filter" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="s">from headroom.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="s">from cutctx.transforms.selective_filter import SelectiveContextFilter, SelectiveFilterConfig</span>
 </span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
 </span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="s"># Note: messages must be &gt;= 80 chars (min_len_to_score default) to be scored by the filter.</span>
 </span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="s"># Short messages like those below will all be kept (score=0), which is expected here.</span>
@@ -3521,7 +3521,7 @@
 <hr />
 <h2 id="10-query-aware-compression">10. Query-Aware Compression<a class="headerlink" href="#10-query-aware-compression" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="s">from headroom.transforms.query_adapter import detect_query_hint, CompressionHint</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="s">from cutctx.transforms.query_adapter import detect_query_hint, CompressionHint</span>
 </span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
 </span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="s"># CODE task — should protect more context</span>
 </span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="s">hint = detect_query_hint(&quot;Fix the bug in my authentication middleware&quot;)</span>
@@ -3553,7 +3553,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="s">import tempfile, os</span>
 </span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="s">from pathlib import Path</span>
-</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="s">from headroom.ccr.store import CCRStore</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="s">from cutctx.ccr.store import CCRStore</span>
 </span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>
 </span><span id="__span-27-6"><a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="s">with tempfile.TemporaryDirectory() as tmp:</span>
 </span><span id="__span-27-7"><a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="s">    store = CCRStore(Path(tmp) / &quot;ccr.db&quot;)</span>
@@ -3786,7 +3786,7 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong> shows trial status or "no license activated"; does not crash</p>
 <h3 id="212-generate-a-test-license-key">21.2 Generate a test license key<a class="headerlink" href="#212-generate-a-test-license-key" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-56-1"><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_LICENSE_HMAC_SECRET</span><span class="o">=</span>my-test-secret-for-manual-testing
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-56-1"><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_LICENSE_HMAC_SECRET</span><span class="o">=</span>my-test-secret-for-manual-testing
 </span><span id="__span-56-2"><a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>python<span class="w"> </span>scripts/generate_license.py<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-56-3"><a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a><span class="w">  </span>--tier<span class="w"> </span>team<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-56-4"><a id="__codelineno-56-4" name="__codelineno-56-4" href="#__codelineno-56-4"></a><span class="w">  </span>--org<span class="w"> </span><span class="s2">&quot;Test Corp&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -3795,7 +3795,7 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong> outputs a signed license key starting with <code>team-</code>; key contains a <code>.</code> separator; signature part is exactly 32 hex chars</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-57-1"><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="c1"># Verify signature length</span>
-</span><span id="__span-57-2"><a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="nv">KEY</span><span class="o">=</span><span class="k">$(</span><span class="nv">HEADROOM_LICENSE_HMAC_SECRET</span><span class="o">=</span>my-test-secret<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-57-2"><a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="nv">KEY</span><span class="o">=</span><span class="k">$(</span><span class="nv">CUTCTX_LICENSE_HMAC_SECRET</span><span class="o">=</span>my-test-secret<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-57-3"><a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="w">  </span>python<span class="w"> </span>scripts/generate_license.py<span class="w"> </span>--tier<span class="w"> </span>team<span class="w"> </span>--org<span class="w"> </span><span class="s2">&quot;Test&quot;</span><span class="w"> </span>--seats<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-57-4"><a id="__codelineno-57-4" name="__codelineno-57-4" href="#__codelineno-57-4"></a><span class="w">  </span>grep<span class="w"> </span><span class="s2">&quot;^Key:&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $2}&#39;</span><span class="k">)</span>
 </span><span id="__span-57-5"><a id="__codelineno-57-5" name="__codelineno-57-5" href="#__codelineno-57-5"></a><span class="nv">SIG</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="nv">$KEY</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d.<span class="w"> </span>-f2<span class="k">)</span>
@@ -3843,19 +3843,19 @@
 </span></code></pre></div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-66-1"><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a><span class="c1"># List role assignments</span>
 </span><span id="__span-66-2"><a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8830/v1/rbac/assignments<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-66-3"><a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-66-3"><a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-66-4"><a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a>
 </span><span id="__span-66-5"><a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="c1"># Assign a role</span>
 </span><span id="__span-66-6"><a id="__codelineno-66-6" name="__codelineno-66-6" href="#__codelineno-66-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;http://localhost:8830/v1/rbac/assignments/user-001?role=viewer&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-66-7"><a id="__codelineno-66-7" name="__codelineno-66-7" href="#__codelineno-66-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-66-7"><a id="__codelineno-66-7" name="__codelineno-66-7" href="#__codelineno-66-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-66-8"><a id="__codelineno-66-8" name="__codelineno-66-8" href="#__codelineno-66-8"></a>
 </span><span id="__span-66-9"><a id="__codelineno-66-9" name="__codelineno-66-9" href="#__codelineno-66-9"></a><span class="c1"># Verify assignment</span>
 </span><span id="__span-66-10"><a id="__codelineno-66-10" name="__codelineno-66-10" href="#__codelineno-66-10"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8830/v1/rbac/assignments<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-66-11"><a id="__codelineno-66-11" name="__codelineno-66-11" href="#__codelineno-66-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-66-11"><a id="__codelineno-66-11" name="__codelineno-66-11" href="#__codelineno-66-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-66-12"><a id="__codelineno-66-12" name="__codelineno-66-12" href="#__codelineno-66-12"></a>
 </span><span id="__span-66-13"><a id="__codelineno-66-13" name="__codelineno-66-13" href="#__codelineno-66-13"></a><span class="c1"># Revoke the role</span>
 </span><span id="__span-66-14"><a id="__codelineno-66-14" name="__codelineno-66-14" href="#__codelineno-66-14"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span><span class="s2">&quot;http://localhost:8830/v1/rbac/assignments/user-001&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-66-15"><a id="__codelineno-66-15" name="__codelineno-66-15" href="#__codelineno-66-15"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-66-15"><a id="__codelineno-66-15" name="__codelineno-66-15" href="#__codelineno-66-15"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span></code></pre></div>
 <p><strong>PASS:</strong> assign returns 200; list shows the new assignment; revoke removes it; list shows it gone</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-67-1"><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a><span class="c1"># Unauthenticated request should be rejected</span>
@@ -3872,11 +3872,11 @@
 </span></code></pre></div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-70-1"><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a><span class="c1"># List recent events</span>
 </span><span id="__span-70-2"><a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8831/v1/audit/events<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-70-3"><a id="__codelineno-70-3" name="__codelineno-70-3" href="#__codelineno-70-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-70-3"><a id="__codelineno-70-3" name="__codelineno-70-3" href="#__codelineno-70-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-70-4"><a id="__codelineno-70-4" name="__codelineno-70-4" href="#__codelineno-70-4"></a>
 </span><span id="__span-70-5"><a id="__codelineno-70-5" name="__codelineno-70-5" href="#__codelineno-70-5"></a><span class="c1"># Stats</span>
 </span><span id="__span-70-6"><a id="__codelineno-70-6" name="__codelineno-70-6" href="#__codelineno-70-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8831/v1/audit/stats<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-70-7"><a id="__codelineno-70-7" name="__codelineno-70-7" href="#__codelineno-70-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-70-7"><a id="__codelineno-70-7" name="__codelineno-70-7" href="#__codelineno-70-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span></code></pre></div>
 <p><strong>PASS:</strong> both return 200 with valid JSON; no 500 errors</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-71-1"><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a><span class="c1"># CLI equivalents</span>
@@ -3906,7 +3906,7 @@
 </span><span id="__span-75-3"><a id="__codelineno-75-3" name="__codelineno-75-3" href="#__codelineno-75-3"></a>
 </span><span id="__span-75-4"><a id="__codelineno-75-4" name="__codelineno-75-4" href="#__codelineno-75-4"></a><span class="c1"># Run health check</span>
 </span><span id="__span-75-5"><a id="__codelineno-75-5" name="__codelineno-75-5" href="#__codelineno-75-5"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>cutctx-test<span class="w"> </span>-p<span class="w"> </span><span class="m">8840</span>:8787<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-75-6"><a id="__codelineno-75-6" name="__codelineno-75-6" href="#__codelineno-75-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">HEADROOM_ADMIN_API_KEY</span><span class="o">=</span>test-key<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-75-6"><a id="__codelineno-75-6" name="__codelineno-75-6" href="#__codelineno-75-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CUTCTX_ADMIN_API_KEY</span><span class="o">=</span>test-key<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-75-7"><a id="__codelineno-75-7" name="__codelineno-75-7" href="#__codelineno-75-7"></a><span class="w">  </span>cutctx-test:local
 </span><span id="__span-75-8"><a id="__codelineno-75-8" name="__codelineno-75-8" href="#__codelineno-75-8"></a>sleep<span class="w"> </span><span class="m">5</span>
 </span><span id="__span-75-9"><a id="__codelineno-75-9" name="__codelineno-75-9" href="#__codelineno-75-9"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8840/livez<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
@@ -3916,7 +3916,7 @@
 </span><span id="__span-76-2"><a id="__codelineno-76-2" name="__codelineno-76-2" href="#__codelineno-76-2"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>which<span class="w"> </span>cutctx
 </span><span id="__span-76-3"><a id="__codelineno-76-3" name="__codelineno-76-3" href="#__codelineno-76-3"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>cutctx<span class="w"> </span>--version
 </span></code></pre></div>
-<p><strong>PASS:</strong> binary is named <code>cutctx</code> (not <code>headroom</code>); version is <code>0.26.0</code></p>
+<p><strong>PASS:</strong> binary is named <code>cutctx</code> (not <code>cutctx</code>); version is <code>0.26.0</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-77-1"><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a><span class="c1"># Verify no debug keys in container</span>
 </span><span id="__span-77-2"><a id="__codelineno-77-2" name="__codelineno-77-2" href="#__codelineno-77-2"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;secret\|password\|key&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;^PATH&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
 </span></code></pre></div>
@@ -3926,20 +3926,20 @@
 <hr />
 <h2 id="28-helm-chart">28. Helm Chart<a class="headerlink" href="#28-helm-chart" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-79-1"><a id="__codelineno-79-1" name="__codelineno-79-1" href="#__codelineno-79-1"></a><span class="c1"># Lint the chart</span>
-</span><span id="__span-79-2"><a id="__codelineno-79-2" name="__codelineno-79-2" href="#__codelineno-79-2"></a>helm<span class="w"> </span>lint<span class="w"> </span>helm/headroom/
+</span><span id="__span-79-2"><a id="__codelineno-79-2" name="__codelineno-79-2" href="#__codelineno-79-2"></a>helm<span class="w"> </span>lint<span class="w"> </span>helm/cutctx/
 </span><span id="__span-79-3"><a id="__codelineno-79-3" name="__codelineno-79-3" href="#__codelineno-79-3"></a>
 </span><span id="__span-79-4"><a id="__codelineno-79-4" name="__codelineno-79-4" href="#__codelineno-79-4"></a><span class="c1"># Render templates (dry-run)</span>
-</span><span id="__span-79-5"><a id="__codelineno-79-5" name="__codelineno-79-5" href="#__codelineno-79-5"></a>helm<span class="w"> </span>template<span class="w"> </span>cutctx-release<span class="w"> </span>helm/headroom/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-79-5"><a id="__codelineno-79-5" name="__codelineno-79-5" href="#__codelineno-79-5"></a>helm<span class="w"> </span>template<span class="w"> </span>cutctx-release<span class="w"> </span>helm/cutctx/<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-79-6"><a id="__codelineno-79-6" name="__codelineno-79-6" href="#__codelineno-79-6"></a><span class="w">  </span>--set<span class="w"> </span>image.tag<span class="o">=</span>v0.26.0<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-79-7"><a id="__codelineno-79-7" name="__codelineno-79-7" href="#__codelineno-79-7"></a><span class="w">  </span>--set<span class="w"> </span><span class="nv">adminApiKey</span><span class="o">=</span>test-key<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-60
 </span></code></pre></div>
 <p><strong>PASS:</strong>
 - <code>helm lint</code> reports no errors
-- Rendered templates reference <code>ghcr.io/cutctx/cutctx</code> (not <code>headroom</code>)
+- Rendered templates reference <code>ghcr.io/cutctx/cutctx</code> (not <code>cutctx</code>)
 - Service port is 8787
-- All template references are <code>cutctx.*</code> not <code>headroom.*</code></p>
+- All template references are <code>cutctx.*</code> not <code>cutctx.*</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-80-1"><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a><span class="c1"># Check specific values</span>
-</span><span id="__span-80-2"><a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a>helm<span class="w"> </span>template<span class="w"> </span>cutctx-release<span class="w"> </span>helm/headroom/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;image:|port:|namespace:&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
+</span><span id="__span-80-2"><a id="__codelineno-80-2" name="__codelineno-80-2" href="#__codelineno-80-2"></a>helm<span class="w"> </span>template<span class="w"> </span>cutctx-release<span class="w"> </span>helm/cutctx/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;image:|port:|namespace:&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
 </span></code></pre></div>
 <p><strong>PASS:</strong> image is <code>ghcr.io/cutctx/cutctx:*</code>; namespace is <code>cutctx</code>; port is <code>8787</code></p>
 <hr />
@@ -3948,7 +3948,7 @@
 </span></code></pre></div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-82-1"><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-82-2"><a id="__codelineno-82-2" name="__codelineno-82-2" href="#__codelineno-82-2"></a><span class="s">try:</span>
-</span><span id="__span-82-3"><a id="__codelineno-82-3" name="__codelineno-82-3" href="#__codelineno-82-3"></a><span class="s">    from headroom.integrations.llamaindex import CutCtxNodePostprocessor, NodeFilterMetrics</span>
+</span><span id="__span-82-3"><a id="__codelineno-82-3" name="__codelineno-82-3" href="#__codelineno-82-3"></a><span class="s">    from cutctx.integrations.llamaindex import CutctxNodePostprocessor, NodeFilterMetrics</span>
 </span><span id="__span-82-4"><a id="__codelineno-82-4" name="__codelineno-82-4" href="#__codelineno-82-4"></a><span class="s">    print(&quot;Import OK&quot;)</span>
 </span><span id="__span-82-5"><a id="__codelineno-82-5" name="__codelineno-82-5" href="#__codelineno-82-5"></a><span class="s">except ImportError as e:</span>
 </span><span id="__span-82-6"><a id="__codelineno-82-6" name="__codelineno-82-6" href="#__codelineno-82-6"></a><span class="s">    print(f&quot;Import error: {e} — llama-index may not be installed&quot;)</span>
@@ -3959,7 +3959,7 @@
 </span><span id="__span-82-11"><a id="__codelineno-82-11" name="__codelineno-82-11" href="#__codelineno-82-11"></a><span class="s">import unittest.mock as mock</span>
 </span><span id="__span-82-12"><a id="__codelineno-82-12" name="__codelineno-82-12" href="#__codelineno-82-12"></a><span class="s">with mock.patch.dict(sys.modules, {&#39;llama_index&#39;: None, &#39;llama_index.core&#39;: None}):</span>
 </span><span id="__span-82-13"><a id="__codelineno-82-13" name="__codelineno-82-13" href="#__codelineno-82-13"></a><span class="s">    try:</span>
-</span><span id="__span-82-14"><a id="__codelineno-82-14" name="__codelineno-82-14" href="#__codelineno-82-14"></a><span class="s">        from headroom.integrations.llamaindex.postprocessor import CutCtxNodePostprocessor</span>
+</span><span id="__span-82-14"><a id="__codelineno-82-14" name="__codelineno-82-14" href="#__codelineno-82-14"></a><span class="s">        from cutctx.integrations.llamaindex.postprocessor import CutctxNodePostprocessor</span>
 </span><span id="__span-82-15"><a id="__codelineno-82-15" name="__codelineno-82-15" href="#__codelineno-82-15"></a><span class="s">        print(&quot;Graceful fallback PASS&quot;)</span>
 </span><span id="__span-82-16"><a id="__codelineno-82-16" name="__codelineno-82-16" href="#__codelineno-82-16"></a><span class="s">    except Exception as e:</span>
 </span><span id="__span-82-17"><a id="__codelineno-82-17" name="__codelineno-82-17" href="#__codelineno-82-17"></a><span class="s">        print(f&quot;Graceful fallback: {e}&quot;)</span>
@@ -3970,9 +3970,9 @@
 </span><span id="__span-83-2"><a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-83-3"><a id="__codelineno-83-3" name="__codelineno-83-3" href="#__codelineno-83-3"></a><span class="s">try:</span>
 </span><span id="__span-83-4"><a id="__codelineno-83-4" name="__codelineno-83-4" href="#__codelineno-83-4"></a><span class="s">    from llama_index.core.schema import TextNode</span>
-</span><span id="__span-83-5"><a id="__codelineno-83-5" name="__codelineno-83-5" href="#__codelineno-83-5"></a><span class="s">    from headroom.integrations.llamaindex import CutCtxNodePostprocessor</span>
+</span><span id="__span-83-5"><a id="__codelineno-83-5" name="__codelineno-83-5" href="#__codelineno-83-5"></a><span class="s">    from cutctx.integrations.llamaindex import CutctxNodePostprocessor</span>
 </span><span id="__span-83-6"><a id="__codelineno-83-6" name="__codelineno-83-6" href="#__codelineno-83-6"></a>
-</span><span id="__span-83-7"><a id="__codelineno-83-7" name="__codelineno-83-7" href="#__codelineno-83-7"></a><span class="s">    postprocessor = CutCtxNodePostprocessor(top_n=3, min_score=0.1, compress=False)</span>
+</span><span id="__span-83-7"><a id="__codelineno-83-7" name="__codelineno-83-7" href="#__codelineno-83-7"></a><span class="s">    postprocessor = CutctxNodePostprocessor(top_n=3, min_score=0.1, compress=False)</span>
 </span><span id="__span-83-8"><a id="__codelineno-83-8" name="__codelineno-83-8" href="#__codelineno-83-8"></a><span class="s">    nodes = [</span>
 </span><span id="__span-83-9"><a id="__codelineno-83-9" name="__codelineno-83-9" href="#__codelineno-83-9"></a><span class="s">        TextNode(text=&quot;Python is a programming language.&quot;, id_=&quot;n1&quot;),</span>
 </span><span id="__span-83-10"><a id="__codelineno-83-10" name="__codelineno-83-10" href="#__codelineno-83-10"></a><span class="s">        TextNode(text=&quot;The weather today is sunny.&quot;, id_=&quot;n2&quot;),</span>
@@ -3997,14 +3997,14 @@
 <h2 id="30-langchain-integration">30. LangChain Integration<a class="headerlink" href="#30-langchain-integration" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-84-1"><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-84-2"><a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a><span class="s">try:</span>
-</span><span id="__span-84-3"><a id="__codelineno-84-3" name="__codelineno-84-3" href="#__codelineno-84-3"></a><span class="s">    from headroom.integrations.langchain import CutctxCallbackHandler</span>
+</span><span id="__span-84-3"><a id="__codelineno-84-3" name="__codelineno-84-3" href="#__codelineno-84-3"></a><span class="s">    from cutctx.integrations.langchain import CutctxCallbackHandler</span>
 </span><span id="__span-84-4"><a id="__codelineno-84-4" name="__codelineno-84-4" href="#__codelineno-84-4"></a><span class="s">    print(&quot;LangChain integration import OK&quot;)</span>
 </span><span id="__span-84-5"><a id="__codelineno-84-5" name="__codelineno-84-5" href="#__codelineno-84-5"></a><span class="s">except ImportError as e:</span>
 </span><span id="__span-84-6"><a id="__codelineno-84-6" name="__codelineno-84-6" href="#__codelineno-84-6"></a><span class="s">    print(f&quot;langchain not installed: {e} — expected if not installed&quot;)</span>
 </span><span id="__span-84-7"><a id="__codelineno-84-7" name="__codelineno-84-7" href="#__codelineno-84-7"></a>
 </span><span id="__span-84-8"><a id="__codelineno-84-8" name="__codelineno-84-8" href="#__codelineno-84-8"></a><span class="s"># Test graceful import</span>
 </span><span id="__span-84-9"><a id="__codelineno-84-9" name="__codelineno-84-9" href="#__codelineno-84-9"></a><span class="s">try:</span>
-</span><span id="__span-84-10"><a id="__codelineno-84-10" name="__codelineno-84-10" href="#__codelineno-84-10"></a><span class="s">    from headroom.integrations.langchain.memory import CutctxChatMessageHistory</span>
+</span><span id="__span-84-10"><a id="__codelineno-84-10" name="__codelineno-84-10" href="#__codelineno-84-10"></a><span class="s">    from cutctx.integrations.langchain.memory import CutctxChatMessageHistory</span>
 </span><span id="__span-84-11"><a id="__codelineno-84-11" name="__codelineno-84-11" href="#__codelineno-84-11"></a><span class="s">    print(&quot;Memory integration import OK&quot;)</span>
 </span><span id="__span-84-12"><a id="__codelineno-84-12" name="__codelineno-84-12" href="#__codelineno-84-12"></a><span class="s">except ImportError:</span>
 </span><span id="__span-84-13"><a id="__codelineno-84-13" name="__codelineno-84-13" href="#__codelineno-84-13"></a><span class="s">    print(&quot;langchain-core not installed — graceful skip PASS&quot;)</span>
@@ -4023,7 +4023,7 @@
 <hr />
 <h2 id="32-security-hardware-fingerprint-state-encryption">32. Security — Hardware Fingerprint &amp; State Encryption<a class="headerlink" href="#32-security-hardware-fingerprint-state-encryption" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-87-1"><a id="__codelineno-87-1" name="__codelineno-87-1" href="#__codelineno-87-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-87-2"><a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a><span class="s">from headroom.security.state_crypto import _get_machine_id, _machine_fingerprint, encrypt_json, decrypt_json</span>
+</span><span id="__span-87-2"><a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a><span class="s">from cutctx.security.state_crypto import _get_machine_id, _machine_fingerprint, encrypt_json, decrypt_json</span>
 </span><span id="__span-87-3"><a id="__codelineno-87-3" name="__codelineno-87-3" href="#__codelineno-87-3"></a>
 </span><span id="__span-87-4"><a id="__codelineno-87-4" name="__codelineno-87-4" href="#__codelineno-87-4"></a><span class="s"># Test machine ID is non-empty</span>
 </span><span id="__span-87-5"><a id="__codelineno-87-5" name="__codelineno-87-5" href="#__codelineno-87-5"></a><span class="s">mid = _get_machine_id()</span>
@@ -4057,7 +4057,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a><span class="c1"># Verify MAC address is NOT used as primary (platform-specific)</span>
 </span><span id="__span-88-2"><a id="__codelineno-88-2" name="__codelineno-88-2" href="#__codelineno-88-2"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-88-3"><a id="__codelineno-88-3" name="__codelineno-88-3" href="#__codelineno-88-3"></a><span class="s">import sys, uuid</span>
-</span><span id="__span-88-4"><a id="__codelineno-88-4" name="__codelineno-88-4" href="#__codelineno-88-4"></a><span class="s">from headroom.security.state_crypto import _get_machine_id</span>
+</span><span id="__span-88-4"><a id="__codelineno-88-4" name="__codelineno-88-4" href="#__codelineno-88-4"></a><span class="s">from cutctx.security.state_crypto import _get_machine_id</span>
 </span><span id="__span-88-5"><a id="__codelineno-88-5" name="__codelineno-88-5" href="#__codelineno-88-5"></a>
 </span><span id="__span-88-6"><a id="__codelineno-88-6" name="__codelineno-88-6" href="#__codelineno-88-6"></a><span class="s">mid = _get_machine_id()</span>
 </span><span id="__span-88-7"><a id="__codelineno-88-7" name="__codelineno-88-7" href="#__codelineno-88-7"></a><span class="s">mac_str = str(uuid.getnode())</span>
@@ -4087,15 +4087,15 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-89-1"><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a><span class="c1"># Test manifest builder (unsigned, for testing)</span>
 </span><span id="__span-89-2"><a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>python3<span class="w"> </span>scripts/build_ee_manifest.py<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-89-3"><a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a><span class="w">  </span>--unsigned<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-89-4"><a id="__codelineno-89-4" name="__codelineno-89-4" href="#__codelineno-89-4"></a><span class="w">  </span>--ee-dir<span class="w"> </span>headroom_ee<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-89-4"><a id="__codelineno-89-4" name="__codelineno-89-4" href="#__codelineno-89-4"></a><span class="w">  </span>--ee-dir<span class="w"> </span>cutctx_ee<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-89-5"><a id="__codelineno-89-5" name="__codelineno-89-5" href="#__codelineno-89-5"></a><span class="w">  </span>--output<span class="w"> </span>/tmp/test-manifest.json
 </span><span id="__span-89-6"><a id="__codelineno-89-6" name="__codelineno-89-6" href="#__codelineno-89-6"></a>cat<span class="w"> </span>/tmp/test-manifest.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import json,sys; m=json.load(sys.stdin); print(f&#39;Files: {len(m[\&quot;files\&quot;])}, Signed: {\&quot;signature\&quot; in m}&#39;)&quot;</span>
 </span></code></pre></div>
 <p><strong>PASS:</strong> manifest created; <code>Files: N</code> where N &gt; 0; <code>Signed: False</code> (unsigned mode)</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-90-1"><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a><span class="c1"># Test signed manifest</span>
-</span><span id="__span-90-2"><a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HEADROOM_LICENSE_HMAC_SECRET</span><span class="o">=</span>test-integrity-secret
+</span><span id="__span-90-2"><a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_LICENSE_HMAC_SECRET</span><span class="o">=</span>test-integrity-secret
 </span><span id="__span-90-3"><a id="__codelineno-90-3" name="__codelineno-90-3" href="#__codelineno-90-3"></a>python3<span class="w"> </span>scripts/build_ee_manifest.py<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-90-4"><a id="__codelineno-90-4" name="__codelineno-90-4" href="#__codelineno-90-4"></a><span class="w">  </span>--ee-dir<span class="w"> </span>headroom_ee<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-90-4"><a id="__codelineno-90-4" name="__codelineno-90-4" href="#__codelineno-90-4"></a><span class="w">  </span>--ee-dir<span class="w"> </span>cutctx_ee<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-90-5"><a id="__codelineno-90-5" name="__codelineno-90-5" href="#__codelineno-90-5"></a><span class="w">  </span>--output<span class="w"> </span>/tmp/test-manifest-signed.json
 </span><span id="__span-90-6"><a id="__codelineno-90-6" name="__codelineno-90-6" href="#__codelineno-90-6"></a>cat<span class="w"> </span>/tmp/test-manifest-signed.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import json,sys; m=json.load(sys.stdin); print(f&#39;Signed: {\&quot;signature\&quot; in m}&#39;)&quot;</span>
 </span></code></pre></div>
@@ -4104,7 +4104,7 @@
 </span><span id="__span-91-2"><a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-91-3"><a id="__codelineno-91-3" name="__codelineno-91-3" href="#__codelineno-91-3"></a><span class="s">import os, json</span>
 </span><span id="__span-91-4"><a id="__codelineno-91-4" name="__codelineno-91-4" href="#__codelineno-91-4"></a><span class="s">from pathlib import Path</span>
-</span><span id="__span-91-5"><a id="__codelineno-91-5" name="__codelineno-91-5" href="#__codelineno-91-5"></a><span class="s">from headroom.security.integrity import verify_ee_manifest, IntegrityError</span>
+</span><span id="__span-91-5"><a id="__codelineno-91-5" name="__codelineno-91-5" href="#__codelineno-91-5"></a><span class="s">from cutctx.security.integrity import verify_ee_manifest, IntegrityError</span>
 </span><span id="__span-91-6"><a id="__codelineno-91-6" name="__codelineno-91-6" href="#__codelineno-91-6"></a>
 </span><span id="__span-91-7"><a id="__codelineno-91-7" name="__codelineno-91-7" href="#__codelineno-91-7"></a><span class="s"># No manifest = no crash (EE not installed)</span>
 </span><span id="__span-91-8"><a id="__codelineno-91-8" name="__codelineno-91-8" href="#__codelineno-91-8"></a><span class="s">try:</span>
@@ -4127,13 +4127,13 @@
 </span><span id="__span-91-25"><a id="__codelineno-91-25" name="__codelineno-91-25" href="#__codelineno-91-25"></a><span class="s">    Path(tmp).joinpath(&quot;fake.cpython-312-darwin.so&quot;).write_bytes(b&quot;not a real so file&quot;)</span>
 </span><span id="__span-91-26"><a id="__codelineno-91-26" name="__codelineno-91-26" href="#__codelineno-91-26"></a>
 </span><span id="__span-91-27"><a id="__codelineno-91-27" name="__codelineno-91-27" href="#__codelineno-91-27"></a><span class="s">    import sys</span>
-</span><span id="__span-91-28"><a id="__codelineno-91-28" name="__codelineno-91-28" href="#__codelineno-91-28"></a><span class="s">    sys.modules.pop(&quot;headroom_ee&quot;, None)</span>
+</span><span id="__span-91-28"><a id="__codelineno-91-28" name="__codelineno-91-28" href="#__codelineno-91-28"></a><span class="s">    sys.modules.pop(&quot;cutctx_ee&quot;, None)</span>
 </span><span id="__span-91-29"><a id="__codelineno-91-29" name="__codelineno-91-29" href="#__codelineno-91-29"></a><span class="s">    import unittest.mock as mock</span>
 </span><span id="__span-91-30"><a id="__codelineno-91-30" name="__codelineno-91-30" href="#__codelineno-91-30"></a><span class="s">    fake_ee = mock.MagicMock()</span>
 </span><span id="__span-91-31"><a id="__codelineno-91-31" name="__codelineno-91-31" href="#__codelineno-91-31"></a><span class="s">    fake_ee.__file__ = str(Path(tmp) / &quot;__init__.py&quot;)</span>
 </span><span id="__span-91-32"><a id="__codelineno-91-32" name="__codelineno-91-32" href="#__codelineno-91-32"></a><span class="s">    Path(tmp).joinpath(&quot;__init__.py&quot;).write_text(&quot;&quot;)</span>
 </span><span id="__span-91-33"><a id="__codelineno-91-33" name="__codelineno-91-33" href="#__codelineno-91-33"></a>
-</span><span id="__span-91-34"><a id="__codelineno-91-34" name="__codelineno-91-34" href="#__codelineno-91-34"></a><span class="s">    with mock.patch.dict(sys.modules, {&quot;headroom_ee&quot;: fake_ee}):</span>
+</span><span id="__span-91-34"><a id="__codelineno-91-34" name="__codelineno-91-34" href="#__codelineno-91-34"></a><span class="s">    with mock.patch.dict(sys.modules, {&quot;cutctx_ee&quot;: fake_ee}):</span>
 </span><span id="__span-91-35"><a id="__codelineno-91-35" name="__codelineno-91-35" href="#__codelineno-91-35"></a><span class="s">        try:</span>
 </span><span id="__span-91-36"><a id="__codelineno-91-36" name="__codelineno-91-36" href="#__codelineno-91-36"></a><span class="s">            verify_ee_manifest(strict=True)</span>
 </span><span id="__span-91-37"><a id="__codelineno-91-37" name="__codelineno-91-37" href="#__codelineno-91-37"></a><span class="s">            print(&quot;FAIL — should have raised IntegrityError&quot;)</span>
@@ -4145,16 +4145,16 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong> tampered manifest raises <code>IntegrityError</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-92-1"><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a><span class="c1"># Anti-debug guard (no debugger = no crash)</span>
-</span><span id="__span-92-2"><a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a><span class="nv">HEADROOM_ALLOW_DEBUG</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-92-3"><a id="__codelineno-92-3" name="__codelineno-92-3" href="#__codelineno-92-3"></a><span class="s">from headroom.security.antidebug import guard_ee_entry</span>
-</span><span id="__span-92-4"><a id="__codelineno-92-4" name="__codelineno-92-4" href="#__codelineno-92-4"></a><span class="s">guard_ee_entry()  # Should be a no-op with HEADROOM_ALLOW_DEBUG=1</span>
+</span><span id="__span-92-2"><a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a><span class="nv">CUTCTX_ALLOW_DEBUG</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+</span><span id="__span-92-3"><a id="__codelineno-92-3" name="__codelineno-92-3" href="#__codelineno-92-3"></a><span class="s">from cutctx.security.antidebug import guard_ee_entry</span>
+</span><span id="__span-92-4"><a id="__codelineno-92-4" name="__codelineno-92-4" href="#__codelineno-92-4"></a><span class="s">guard_ee_entry()  # Should be a no-op with CUTCTX_ALLOW_DEBUG=1</span>
 </span><span id="__span-92-5"><a id="__codelineno-92-5" name="__codelineno-92-5" href="#__codelineno-92-5"></a><span class="s">print(&quot;Anti-debug guard (debug allowed): PASS&quot;)</span>
 </span><span id="__span-92-6"><a id="__codelineno-92-6" name="__codelineno-92-6" href="#__codelineno-92-6"></a><span class="s">EOF</span>
 </span></code></pre></div>
-<p><strong>PASS:</strong> no exception when <code>HEADROOM_ALLOW_DEBUG=1</code></p>
+<p><strong>PASS:</strong> no exception when <code>CUTCTX_ALLOW_DEBUG=1</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-93-1"><a id="__codelineno-93-1" name="__codelineno-93-1" href="#__codelineno-93-1"></a><span class="c1"># Python-level detection (should be False in normal run — no debugger)</span>
 </span><span id="__span-93-2"><a id="__codelineno-93-2" name="__codelineno-93-2" href="#__codelineno-93-2"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-93-3"><a id="__codelineno-93-3" name="__codelineno-93-3" href="#__codelineno-93-3"></a><span class="s">from headroom.security.antidebug import _python_fallback_is_debugged</span>
+</span><span id="__span-93-3"><a id="__codelineno-93-3" name="__codelineno-93-3" href="#__codelineno-93-3"></a><span class="s">from cutctx.security.antidebug import _python_fallback_is_debugged</span>
 </span><span id="__span-93-4"><a id="__codelineno-93-4" name="__codelineno-93-4" href="#__codelineno-93-4"></a><span class="s">result = _python_fallback_is_debugged()</span>
 </span><span id="__span-93-5"><a id="__codelineno-93-5" name="__codelineno-93-5" href="#__codelineno-93-5"></a><span class="s">print(f&quot;Debugger detected: {result}&quot;)</span>
 </span><span id="__span-93-6"><a id="__codelineno-93-6" name="__codelineno-93-6" href="#__codelineno-93-6"></a><span class="s">assert result == False, &quot;expected no debugger in normal pytest/shell run&quot;</span>
@@ -4178,7 +4178,7 @@
 <p><strong>PASS:</strong> proxy prints clear error "port already in use" or similar; exits non-zero; no hang</p>
 <h3 id="342-empty-input-to-compressors">34.2 Empty input to compressors<a class="headerlink" href="#342-empty-input-to-compressors" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-95-1"><a id="__codelineno-95-1" name="__codelineno-95-1" href="#__codelineno-95-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-95-2"><a id="__codelineno-95-2" name="__codelineno-95-2" href="#__codelineno-95-2"></a><span class="s">from headroom.transforms.content_router import ContentRouter, ContentRouterConfig</span>
+</span><span id="__span-95-2"><a id="__codelineno-95-2" name="__codelineno-95-2" href="#__codelineno-95-2"></a><span class="s">from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig</span>
 </span><span id="__span-95-3"><a id="__codelineno-95-3" name="__codelineno-95-3" href="#__codelineno-95-3"></a>
 </span><span id="__span-95-4"><a id="__codelineno-95-4" name="__codelineno-95-4" href="#__codelineno-95-4"></a><span class="s">router = ContentRouter(ContentRouterConfig())</span>
 </span><span id="__span-95-5"><a id="__codelineno-95-5" name="__codelineno-95-5" href="#__codelineno-95-5"></a><span class="s">result = router.compress(&quot;&quot;)</span>
@@ -4189,7 +4189,7 @@
 <p><strong>PASS:</strong> no crash; compression ratio is 1.0 (0/0 division), tokens_saved is 0</p>
 <h3 id="343-very-large-input">34.3 Very large input<a class="headerlink" href="#343-very-large-input" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-96-1"><a id="__codelineno-96-1" name="__codelineno-96-1" href="#__codelineno-96-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-96-2"><a id="__codelineno-96-2" name="__codelineno-96-2" href="#__codelineno-96-2"></a><span class="s">from headroom.transforms.log_compressor import LogCompressor</span>
+</span><span id="__span-96-2"><a id="__codelineno-96-2" name="__codelineno-96-2" href="#__codelineno-96-2"></a><span class="s">from cutctx.transforms.log_compressor import LogCompressor</span>
 </span><span id="__span-96-3"><a id="__codelineno-96-3" name="__codelineno-96-3" href="#__codelineno-96-3"></a>
 </span><span id="__span-96-4"><a id="__codelineno-96-4" name="__codelineno-96-4" href="#__codelineno-96-4"></a><span class="s">big_log = &quot;[INFO] Processing item 12345\n&quot; * 10000</span>
 </span><span id="__span-96-5"><a id="__codelineno-96-5" name="__codelineno-96-5" href="#__codelineno-96-5"></a><span class="s">result = LogCompressor().compress(big_log)</span>
@@ -4201,7 +4201,7 @@
 <p><strong>PASS:</strong> handles 10k-line log; significant savings; no memory error</p>
 <h3 id="344-invalid-json-gracefully-handled">34.4 Invalid JSON gracefully handled<a class="headerlink" href="#344-invalid-json-gracefully-handled" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-97-1"><a id="__codelineno-97-1" name="__codelineno-97-1" href="#__codelineno-97-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
-</span><span id="__span-97-2"><a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a><span class="s">from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig</span>
+</span><span id="__span-97-2"><a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a><span class="s">from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig</span>
 </span><span id="__span-97-3"><a id="__codelineno-97-3" name="__codelineno-97-3" href="#__codelineno-97-3"></a>
 </span><span id="__span-97-4"><a id="__codelineno-97-4" name="__codelineno-97-4" href="#__codelineno-97-4"></a><span class="s">crusher = SmartCrusher(SmartCrusherConfig())</span>
 </span><span id="__span-97-5"><a id="__codelineno-97-5" name="__codelineno-97-5" href="#__codelineno-97-5"></a><span class="s"># Not valid JSON array</span>
@@ -4228,10 +4228,10 @@
 <h3 id="346-hmac-license-wrong-signature-length-rejected">34.6 HMAC license — wrong signature length rejected<a class="headerlink" href="#346-hmac-license-wrong-signature-length-rejected" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-99-1"><a id="__codelineno-99-1" name="__codelineno-99-1" href="#__codelineno-99-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-99-2"><a id="__codelineno-99-2" name="__codelineno-99-2" href="#__codelineno-99-2"></a><span class="s">import os</span>
-</span><span id="__span-99-3"><a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a><span class="s">os.environ[&quot;HEADROOM_LICENSE_HMAC_SECRET&quot;] = &quot;test-secret&quot;</span>
+</span><span id="__span-99-3"><a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a><span class="s">os.environ[&quot;CUTCTX_LICENSE_HMAC_SECRET&quot;] = &quot;test-secret&quot;</span>
 </span><span id="__span-99-4"><a id="__codelineno-99-4" name="__codelineno-99-4" href="#__codelineno-99-4"></a>
 </span><span id="__span-99-5"><a id="__codelineno-99-5" name="__codelineno-99-5" href="#__codelineno-99-5"></a><span class="s">try:</span>
-</span><span id="__span-99-6"><a id="__codelineno-99-6" name="__codelineno-99-6" href="#__codelineno-99-6"></a><span class="s">    from headroom import _core</span>
+</span><span id="__span-99-6"><a id="__codelineno-99-6" name="__codelineno-99-6" href="#__codelineno-99-6"></a><span class="s">    from cutctx import _core</span>
 </span><span id="__span-99-7"><a id="__codelineno-99-7" name="__codelineno-99-7" href="#__codelineno-99-7"></a><span class="s">    # Too-short signature (8 chars, below 32-char minimum)</span>
 </span><span id="__span-99-8"><a id="__codelineno-99-8" name="__codelineno-99-8" href="#__codelineno-99-8"></a><span class="s">    result = _core.verify_license_signature(&quot;team&quot;, &quot;abc123&quot;, &quot;cust456&quot;, &quot;deadbeef&quot;)</span>
 </span><span id="__span-99-9"><a id="__codelineno-99-9" name="__codelineno-99-9" href="#__codelineno-99-9"></a><span class="s">    assert result == False, &quot;short signature should be rejected&quot;</span>
@@ -4599,7 +4599,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-114-1"><a id="__codelineno-114-1" name="__codelineno-114-1" href="#__codelineno-114-1"></a><span class="c1"># Show the default agent-90 profile</span>
 </span><span id="__span-114-2"><a id="__codelineno-114-2" name="__codelineno-114-2" href="#__codelineno-114-2"></a>cutctx<span class="w"> </span>agent-savings<span class="w"> </span>--profile<span class="w"> </span>agent-90<span class="w"> </span>--format<span class="w"> </span>shell
 </span></code></pre></div>
-<p><strong>PASS:</strong> prints a set of <code>export HEADROOM_*=...</code> shell lines; no crash</p>
+<p><strong>PASS:</strong> prints a set of <code>export CUTCTX_*=...</code> shell lines; no crash</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-115-1"><a id="__codelineno-115-1" name="__codelineno-115-1" href="#__codelineno-115-1"></a><span class="c1"># JSON format</span>
 </span><span id="__span-115-2"><a id="__codelineno-115-2" name="__codelineno-115-2" href="#__codelineno-115-2"></a>cutctx<span class="w"> </span>agent-savings<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import json,sys; d=json.load(sys.stdin); print(&#39;Keys:&#39;, list(d.keys()))&quot;</span>
 </span></code></pre></div>
@@ -4642,14 +4642,14 @@
 </span><span id="__span-123-3"><a id="__codelineno-123-3" name="__codelineno-123-3" href="#__codelineno-123-3"></a>sleep<span class="w"> </span><span class="m">2</span>
 </span><span id="__span-123-4"><a id="__codelineno-123-4" name="__codelineno-123-4" href="#__codelineno-123-4"></a>
 </span><span id="__span-123-5"><a id="__codelineno-123-5" name="__codelineno-123-5" href="#__codelineno-123-5"></a><span class="c1"># List orgs (empty on fresh install)</span>
-</span><span id="__span-123-6"><a id="__codelineno-123-6" name="__codelineno-123-6" href="#__codelineno-123-6"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>list<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
+</span><span id="__span-123-6"><a id="__codelineno-123-6" name="__codelineno-123-6" href="#__codelineno-123-6"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>list<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
 </span><span id="__span-123-7"><a id="__codelineno-123-7" name="__codelineno-123-7" href="#__codelineno-123-7"></a>
 </span><span id="__span-123-8"><a id="__codelineno-123-8" name="__codelineno-123-8" href="#__codelineno-123-8"></a><span class="c1"># Create an org</span>
-</span><span id="__span-123-9"><a id="__codelineno-123-9" name="__codelineno-123-9" href="#__codelineno-123-9"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>create<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-123-9"><a id="__codelineno-123-9" name="__codelineno-123-9" href="#__codelineno-123-9"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>create<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-123-10"><a id="__codelineno-123-10" name="__codelineno-123-10" href="#__codelineno-123-10"></a><span class="w">  </span>--name<span class="w"> </span><span class="s2">&quot;Test Org&quot;</span><span class="w"> </span>--slug<span class="w"> </span><span class="s2">&quot;test-org&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
 </span><span id="__span-123-11"><a id="__codelineno-123-11" name="__codelineno-123-11" href="#__codelineno-123-11"></a>
 </span><span id="__span-123-12"><a id="__codelineno-123-12" name="__codelineno-123-12" href="#__codelineno-123-12"></a><span class="c1"># List again — should show the new org</span>
-</span><span id="__span-123-13"><a id="__codelineno-123-13" name="__codelineno-123-13" href="#__codelineno-123-13"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>list<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
+</span><span id="__span-123-13"><a id="__codelineno-123-13" name="__codelineno-123-13" href="#__codelineno-123-13"></a>cutctx<span class="w"> </span>orgs<span class="w"> </span>list<span class="w"> </span>--admin-key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
 </span><span id="__span-123-14"><a id="__codelineno-123-14" name="__codelineno-123-14" href="#__codelineno-123-14"></a>
 </span><span id="__span-123-15"><a id="__codelineno-123-15" name="__codelineno-123-15" href="#__codelineno-123-15"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
 </span></code></pre></div>
@@ -4672,11 +4672,11 @@
 </span><span id="__span-126-4"><a id="__codelineno-126-4" name="__codelineno-126-4" href="#__codelineno-126-4"></a>
 </span><span id="__span-126-5"><a id="__codelineno-126-5" name="__codelineno-126-5" href="#__codelineno-126-5"></a><span class="c1"># Get spend summary</span>
 </span><span id="__span-126-6"><a id="__codelineno-126-6" name="__codelineno-126-6" href="#__codelineno-126-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8920/v1/spend<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-126-7"><a id="__codelineno-126-7" name="__codelineno-126-7" href="#__codelineno-126-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-126-7"><a id="__codelineno-126-7" name="__codelineno-126-7" href="#__codelineno-126-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-126-8"><a id="__codelineno-126-8" name="__codelineno-126-8" href="#__codelineno-126-8"></a>
 </span><span id="__span-126-9"><a id="__codelineno-126-9" name="__codelineno-126-9" href="#__codelineno-126-9"></a><span class="c1"># Get per-org spend</span>
 </span><span id="__span-126-10"><a id="__codelineno-126-10" name="__codelineno-126-10" href="#__codelineno-126-10"></a>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;http://localhost:8920/v1/spend?org=default&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-126-11"><a id="__codelineno-126-11" name="__codelineno-126-11" href="#__codelineno-126-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-126-11"><a id="__codelineno-126-11" name="__codelineno-126-11" href="#__codelineno-126-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-126-12"><a id="__codelineno-126-12" name="__codelineno-126-12" href="#__codelineno-126-12"></a>
 </span><span id="__span-126-13"><a id="__codelineno-126-13" name="__codelineno-126-13" href="#__codelineno-126-13"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
 </span></code></pre></div>
@@ -4689,7 +4689,7 @@
 </span><span id="__span-127-4"><a id="__codelineno-127-4" name="__codelineno-127-4" href="#__codelineno-127-4"></a>
 </span><span id="__span-127-5"><a id="__codelineno-127-5" name="__codelineno-127-5" href="#__codelineno-127-5"></a><span class="c1"># Rate limit statistics</span>
 </span><span id="__span-127-6"><a id="__codelineno-127-6" name="__codelineno-127-6" href="#__codelineno-127-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8921/v1/rate_limit/stats<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-127-7"><a id="__codelineno-127-7" name="__codelineno-127-7" href="#__codelineno-127-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-127-7"><a id="__codelineno-127-7" name="__codelineno-127-7" href="#__codelineno-127-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-127-8"><a id="__codelineno-127-8" name="__codelineno-127-8" href="#__codelineno-127-8"></a>
 </span><span id="__span-127-9"><a id="__codelineno-127-9" name="__codelineno-127-9" href="#__codelineno-127-9"></a><span class="c1"># Test that --no-rate-limit disables it</span>
 </span><span id="__span-127-10"><a id="__codelineno-127-10" name="__codelineno-127-10" href="#__codelineno-127-10"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
@@ -4708,21 +4708,21 @@
 </span><span id="__span-128-4"><a id="__codelineno-128-4" name="__codelineno-128-4" href="#__codelineno-128-4"></a>
 </span><span id="__span-128-5"><a id="__codelineno-128-5" name="__codelineno-128-5" href="#__codelineno-128-5"></a><span class="c1"># List secrets (should be empty)</span>
 </span><span id="__span-128-6"><a id="__codelineno-128-6" name="__codelineno-128-6" href="#__codelineno-128-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8923/v1/secrets<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-128-7"><a id="__codelineno-128-7" name="__codelineno-128-7" href="#__codelineno-128-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-128-7"><a id="__codelineno-128-7" name="__codelineno-128-7" href="#__codelineno-128-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-128-8"><a id="__codelineno-128-8" name="__codelineno-128-8" href="#__codelineno-128-8"></a>
 </span><span id="__span-128-9"><a id="__codelineno-128-9" name="__codelineno-128-9" href="#__codelineno-128-9"></a><span class="c1"># Write a secret</span>
 </span><span id="__span-128-10"><a id="__codelineno-128-10" name="__codelineno-128-10" href="#__codelineno-128-10"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8923/v1/secrets<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-128-11"><a id="__codelineno-128-11" name="__codelineno-128-11" href="#__codelineno-128-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-128-11"><a id="__codelineno-128-11" name="__codelineno-128-11" href="#__codelineno-128-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-128-12"><a id="__codelineno-128-12" name="__codelineno-128-12" href="#__codelineno-128-12"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-128-13"><a id="__codelineno-128-13" name="__codelineno-128-13" href="#__codelineno-128-13"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;name&quot;: &quot;MY_TEST_SECRET&quot;, &quot;value&quot;: &quot;secret-value-123&quot;}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-128-14"><a id="__codelineno-128-14" name="__codelineno-128-14" href="#__codelineno-128-14"></a>
 </span><span id="__span-128-15"><a id="__codelineno-128-15" name="__codelineno-128-15" href="#__codelineno-128-15"></a><span class="c1"># Read it back</span>
 </span><span id="__span-128-16"><a id="__codelineno-128-16" name="__codelineno-128-16" href="#__codelineno-128-16"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8923/v1/secrets<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-128-17"><a id="__codelineno-128-17" name="__codelineno-128-17" href="#__codelineno-128-17"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-128-17"><a id="__codelineno-128-17" name="__codelineno-128-17" href="#__codelineno-128-17"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-128-18"><a id="__codelineno-128-18" name="__codelineno-128-18" href="#__codelineno-128-18"></a>
 </span><span id="__span-128-19"><a id="__codelineno-128-19" name="__codelineno-128-19" href="#__codelineno-128-19"></a><span class="c1"># Update it</span>
 </span><span id="__span-128-20"><a id="__codelineno-128-20" name="__codelineno-128-20" href="#__codelineno-128-20"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://localhost:8923/v1/secrets/MY_TEST_SECRET<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-128-21"><a id="__codelineno-128-21" name="__codelineno-128-21" href="#__codelineno-128-21"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-128-21"><a id="__codelineno-128-21" name="__codelineno-128-21" href="#__codelineno-128-21"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-128-22"><a id="__codelineno-128-22" name="__codelineno-128-22" href="#__codelineno-128-22"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-128-23"><a id="__codelineno-128-23" name="__codelineno-128-23" href="#__codelineno-128-23"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;value&quot;: &quot;updated-value-456&quot;}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-128-24"><a id="__codelineno-128-24" name="__codelineno-128-24" href="#__codelineno-128-24"></a>
@@ -4737,11 +4737,11 @@
 </span><span id="__span-129-4"><a id="__codelineno-129-4" name="__codelineno-129-4" href="#__codelineno-129-4"></a>
 </span><span id="__span-129-5"><a id="__codelineno-129-5" name="__codelineno-129-5" href="#__codelineno-129-5"></a><span class="c1"># Data export request</span>
 </span><span id="__span-129-6"><a id="__codelineno-129-6" name="__codelineno-129-6" href="#__codelineno-129-6"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8924/v1/dsr/export?user_id<span class="o">=</span>user-001<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-129-7"><a id="__codelineno-129-7" name="__codelineno-129-7" href="#__codelineno-129-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</span><span id="__span-129-7"><a id="__codelineno-129-7" name="__codelineno-129-7" href="#__codelineno-129-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-129-8"><a id="__codelineno-129-8" name="__codelineno-129-8" href="#__codelineno-129-8"></a>
 </span><span id="__span-129-9"><a id="__codelineno-129-9" name="__codelineno-129-9" href="#__codelineno-129-9"></a><span class="c1"># Data deletion request</span>
 </span><span id="__span-129-10"><a id="__codelineno-129-10" name="__codelineno-129-10" href="#__codelineno-129-10"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8924/v1/dsr/delete<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-129-11"><a id="__codelineno-129-11" name="__codelineno-129-11" href="#__codelineno-129-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$HEADROOM_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-129-11"><a id="__codelineno-129-11" name="__codelineno-129-11" href="#__codelineno-129-11"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;X-Admin-API-Key: </span><span class="nv">$CUTCTX_ADMIN_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-129-12"><a id="__codelineno-129-12" name="__codelineno-129-12" href="#__codelineno-129-12"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-129-13"><a id="__codelineno-129-13" name="__codelineno-129-13" href="#__codelineno-129-13"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: &quot;user-001&quot;}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </span><span id="__span-129-14"><a id="__codelineno-129-14" name="__codelineno-129-14" href="#__codelineno-129-14"></a>
@@ -4807,11 +4807,11 @@
 1. Open VS Code
 2. Press <code>Cmd+Shift+P</code> → "Extensions: Install from VSIX"
 3. Select the <code>.vsix</code> file
-4. Verify "CutCtx" appears in the Extensions list
-5. Open the CutCtx panel (sidebar icon)
+4. Verify "Cutctx" appears in the Extensions list
+5. Open the Cutctx panel (sidebar icon)
 6. Start proxy from the extension UI
-7. Verify the status bar shows "CutCtx: Running"
-8. Stop proxy; status bar should update to "CutCtx: Stopped"</p>
+7. Verify the status bar shows "Cutctx: Running"
+8. Stop proxy; status bar should update to "Cutctx: Stopped"</p>
 <p><strong>PASS:</strong> all 8 steps complete without VS Code crash or error dialogs</p>
 <hr />
 <h2 id="53-jetbrains-plugin-manual-smoke-test">53. JetBrains Plugin — Manual Smoke Test<a class="headerlink" href="#53-jetbrains-plugin-manual-smoke-test" title="Permanent link">&para;</a></h2>
@@ -4826,16 +4826,16 @@
 2. Click gear icon → "Install Plugin from Disk"
 3. Select the <code>.zip</code> from <code>build/distributions/</code>
 4. Restart IDE
-5. Verify "CutCtx" entry appears in Settings → Tools
-6. Open a project; verify the CutCtx toolbar button is present
+5. Verify "Cutctx" entry appears in Settings → Tools
+6. Open a project; verify the Cutctx toolbar button is present
 7. Enable proxy from plugin settings; verify proxy starts
-8. Check the CutCtx tool window shows savings stats</p>
+8. Check the Cutctx tool window shows savings stats</p>
 <p><strong>PASS:</strong> plugin installs without errors; proxy starts from within IDE</p>
 <hr />
 <h2 id="54-air-gap-mode">54. Air-Gap Mode<a class="headerlink" href="#54-air-gap-mode" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-139-1"><a id="__codelineno-139-1" name="__codelineno-139-1" href="#__codelineno-139-1"></a><span class="c1"># Start in offline/airgap mode</span>
-</span><span id="__span-139-2"><a id="__codelineno-139-2" name="__codelineno-139-2" href="#__codelineno-139-2"></a><span class="nv">HEADROOM_OFFLINE_MODE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-139-3"><a id="__codelineno-139-3" name="__codelineno-139-3" href="#__codelineno-139-3"></a><span class="nv">HEADROOM_LICENSE_HMAC_SECRET</span><span class="o">=</span>test-airgap-secret<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-139-2"><a id="__codelineno-139-2" name="__codelineno-139-2" href="#__codelineno-139-2"></a><span class="nv">CUTCTX_OFFLINE_MODE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-139-3"><a id="__codelineno-139-3" name="__codelineno-139-3" href="#__codelineno-139-3"></a><span class="nv">CUTCTX_LICENSE_HMAC_SECRET</span><span class="o">=</span>test-airgap-secret<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-139-4"><a id="__codelineno-139-4" name="__codelineno-139-4" href="#__codelineno-139-4"></a><span class="w">  </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8930</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10<span class="w"> </span><span class="p">&amp;</span>
 </span><span id="__span-139-5"><a id="__codelineno-139-5" name="__codelineno-139-5" href="#__codelineno-139-5"></a><span class="nv">PROXY_PID</span><span class="o">=</span><span class="nv">$!</span>
 </span><span id="__span-139-6"><a id="__codelineno-139-6" name="__codelineno-139-6" href="#__codelineno-139-6"></a>sleep<span class="w"> </span><span class="m">2</span>
@@ -4844,9 +4844,9 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong> proxy starts in offline mode; <code>/livez</code> returns ok; no call to external license server</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-140-1"><a id="__codelineno-140-1" name="__codelineno-140-1" href="#__codelineno-140-1"></a><span class="c1"># Without the secret, OFFLINE_MODE should refuse to start</span>
-</span><span id="__span-140-2"><a id="__codelineno-140-2" name="__codelineno-140-2" href="#__codelineno-140-2"></a><span class="nv">HEADROOM_OFFLINE_MODE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8931</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
+</span><span id="__span-140-2"><a id="__codelineno-140-2" name="__codelineno-140-2" href="#__codelineno-140-2"></a><span class="nv">CUTCTX_OFFLINE_MODE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8931</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
 </span></code></pre></div>
-<p><strong>PASS:</strong> clear error about <code>HEADROOM_LICENSE_HMAC_SECRET</code> being required; proxy does not start</p>
+<p><strong>PASS:</strong> clear error about <code>CUTCTX_LICENSE_HMAC_SECRET</code> being required; proxy does not start</p>
 <hr />
 <h2 id="55-rate-limiting">55. Rate Limiting<a class="headerlink" href="#55-rate-limiting" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-141-1"><a id="__codelineno-141-1" name="__codelineno-141-1" href="#__codelineno-141-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8932</span><span class="w"> </span><span class="p">&amp;</span>
@@ -4887,7 +4887,7 @@
 </span><span id="__span-143-11"><a id="__codelineno-143-11" name="__codelineno-143-11" href="#__codelineno-143-11"></a><span class="s">data_uri = f&quot;data:image/png;base64,{b64_image}&quot;</span>
 </span><span id="__span-143-12"><a id="__codelineno-143-12" name="__codelineno-143-12" href="#__codelineno-143-12"></a>
 </span><span id="__span-143-13"><a id="__codelineno-143-13" name="__codelineno-143-13" href="#__codelineno-143-13"></a><span class="s">try:</span>
-</span><span id="__span-143-14"><a id="__codelineno-143-14" name="__codelineno-143-14" href="#__codelineno-143-14"></a><span class="s">    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig</span>
+</span><span id="__span-143-14"><a id="__codelineno-143-14" name="__codelineno-143-14" href="#__codelineno-143-14"></a><span class="s">    from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig</span>
 </span><span id="__span-143-15"><a id="__codelineno-143-15" name="__codelineno-143-15" href="#__codelineno-143-15"></a><span class="s">    router = ContentRouter(ContentRouterConfig())</span>
 </span><span id="__span-143-16"><a id="__codelineno-143-16" name="__codelineno-143-16" href="#__codelineno-143-16"></a><span class="s">    # Image-only content — router should handle gracefully</span>
 </span><span id="__span-143-17"><a id="__codelineno-143-17" name="__codelineno-143-17" href="#__codelineno-143-17"></a><span class="s">    result = router.compress(data_uri)</span>
@@ -4901,7 +4901,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-144-1"><a id="__codelineno-144-1" name="__codelineno-144-1" href="#__codelineno-144-1"></a>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 </span><span id="__span-144-2"><a id="__codelineno-144-2" name="__codelineno-144-2" href="#__codelineno-144-2"></a><span class="s"># Test image compressor directly if available</span>
 </span><span id="__span-144-3"><a id="__codelineno-144-3" name="__codelineno-144-3" href="#__codelineno-144-3"></a><span class="s">try:</span>
-</span><span id="__span-144-4"><a id="__codelineno-144-4" name="__codelineno-144-4" href="#__codelineno-144-4"></a><span class="s">    from headroom._core import ImageCompressor</span>
+</span><span id="__span-144-4"><a id="__codelineno-144-4" name="__codelineno-144-4" href="#__codelineno-144-4"></a><span class="s">    from cutctx._core import ImageCompressor</span>
 </span><span id="__span-144-5"><a id="__codelineno-144-5" name="__codelineno-144-5" href="#__codelineno-144-5"></a><span class="s">    print(&quot;ImageCompressor available in Rust core&quot;)</span>
 </span><span id="__span-144-6"><a id="__codelineno-144-6" name="__codelineno-144-6" href="#__codelineno-144-6"></a><span class="s">except (ImportError, AttributeError):</span>
 </span><span id="__span-144-7"><a id="__codelineno-144-7" name="__codelineno-144-7" href="#__codelineno-144-7"></a><span class="s">    print(&quot;ImageCompressor: checked via content router path — PASS&quot;)</span>
@@ -4912,7 +4912,7 @@
 <h2 id="57-stateless-container-deployment">57. Stateless Container Deployment<a class="headerlink" href="#57-stateless-container-deployment" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-145-1"><a id="__codelineno-145-1" name="__codelineno-145-1" href="#__codelineno-145-1"></a><span class="c1"># Verify stateless mode leaves no files</span>
 </span><span id="__span-145-2"><a id="__codelineno-145-2" name="__codelineno-145-2" href="#__codelineno-145-2"></a><span class="nv">TMPDIR</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="k">)</span>
-</span><span id="__span-145-3"><a id="__codelineno-145-3" name="__codelineno-145-3" href="#__codelineno-145-3"></a><span class="nv">HOME</span><span class="o">=</span><span class="nv">$TMPDIR</span><span class="w"> </span><span class="nv">HEADROOM_STATELESS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8940</span><span class="w"> </span>--stateless<span class="w"> </span><span class="p">&amp;</span>
+</span><span id="__span-145-3"><a id="__codelineno-145-3" name="__codelineno-145-3" href="#__codelineno-145-3"></a><span class="nv">HOME</span><span class="o">=</span><span class="nv">$TMPDIR</span><span class="w"> </span><span class="nv">CUTCTX_STATELESS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8940</span><span class="w"> </span>--stateless<span class="w"> </span><span class="p">&amp;</span>
 </span><span id="__span-145-4"><a id="__codelineno-145-4" name="__codelineno-145-4" href="#__codelineno-145-4"></a><span class="nv">PROXY_PID</span><span class="o">=</span><span class="nv">$!</span>
 </span><span id="__span-145-5"><a id="__codelineno-145-5" name="__codelineno-145-5" href="#__codelineno-145-5"></a>sleep<span class="w"> </span><span class="m">2</span>
 </span><span id="__span-145-6"><a id="__codelineno-145-6" name="__codelineno-145-6" href="#__codelineno-145-6"></a>
@@ -4928,11 +4928,11 @@
 </span><span id="__span-145-16"><a id="__codelineno-145-16" name="__codelineno-145-16" href="#__codelineno-145-16"></a>find<span class="w"> </span><span class="nv">$TMPDIR</span><span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.db&quot;</span><span class="w"> </span>-o<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.json&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;.npm&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-10
 </span><span id="__span-145-17"><a id="__codelineno-145-17" name="__codelineno-145-17" href="#__codelineno-145-17"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Files found in HOME: </span><span class="k">$(</span>find<span class="w"> </span><span class="nv">$TMPDIR</span><span class="w"> </span>-type<span class="w"> </span>f<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39; &#39;</span><span class="k">)</span><span class="s2">&quot;</span>
 </span></code></pre></div>
-<p><strong>PASS:</strong> zero or very few files in <code>$TMPDIR</code>; specifically no <code>.db</code> or state <code>.json</code> files from CutCtx</p>
+<p><strong>PASS:</strong> zero or very few files in <code>$TMPDIR</code>; specifically no <code>.db</code> or state <code>.json</code> files from Cutctx</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-146-1"><a id="__codelineno-146-1" name="__codelineno-146-1" href="#__codelineno-146-1"></a><span class="c1"># Docker stateless run</span>
 </span><span id="__span-146-2"><a id="__codelineno-146-2" name="__codelineno-146-2" href="#__codelineno-146-2"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-146-3"><a id="__codelineno-146-3" name="__codelineno-146-3" href="#__codelineno-146-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">HEADROOM_STATELESS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-146-4"><a id="__codelineno-146-4" name="__codelineno-146-4" href="#__codelineno-146-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">HEADROOM_ADMIN_API_KEY</span><span class="o">=</span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-146-3"><a id="__codelineno-146-3" name="__codelineno-146-3" href="#__codelineno-146-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CUTCTX_STATELESS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-146-4"><a id="__codelineno-146-4" name="__codelineno-146-4" href="#__codelineno-146-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CUTCTX_ADMIN_API_KEY</span><span class="o">=</span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-146-5"><a id="__codelineno-146-5" name="__codelineno-146-5" href="#__codelineno-146-5"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">8941</span>:8787<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-146-6"><a id="__codelineno-146-6" name="__codelineno-146-6" href="#__codelineno-146-6"></a><span class="w">  </span>ghcr.io/cutctx/cutctx:0.26.0<span class="w"> </span><span class="p">&amp;</span>
 </span><span id="__span-146-7"><a id="__codelineno-146-7" name="__codelineno-146-7" href="#__codelineno-146-7"></a>sleep<span class="w"> </span><span class="m">5</span>
@@ -4962,10 +4962,10 @@
 </span><span id="__span-147-17"><a id="__codelineno-147-17" name="__codelineno-147-17" href="#__codelineno-147-17"></a>cutctx<span class="w"> </span>license<span class="w"> </span>status
 </span><span id="__span-147-18"><a id="__codelineno-147-18" name="__codelineno-147-18" href="#__codelineno-147-18"></a>
 </span><span id="__span-147-19"><a id="__codelineno-147-19" name="__codelineno-147-19" href="#__codelineno-147-19"></a><span class="c1"># 7. Rust core linked</span>
-</span><span id="__span-147-20"><a id="__codelineno-147-20" name="__codelineno-147-20" href="#__codelineno-147-20"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from headroom import _core; assert _core.hello() == &#39;headroom-core&#39;; print(&#39;Rust core OK&#39;)&quot;</span>
+</span><span id="__span-147-20"><a id="__codelineno-147-20" name="__codelineno-147-20" href="#__codelineno-147-20"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from cutctx import _core; assert _core.hello() == &#39;cutctx-core&#39;; print(&#39;Rust core OK&#39;)&quot;</span>
 </span><span id="__span-147-21"><a id="__codelineno-147-21" name="__codelineno-147-21" href="#__codelineno-147-21"></a>
 </span><span id="__span-147-22"><a id="__codelineno-147-22" name="__codelineno-147-22" href="#__codelineno-147-22"></a><span class="c1"># 8. State crypto round-trip</span>
-</span><span id="__span-147-23"><a id="__codelineno-147-23" name="__codelineno-147-23" href="#__codelineno-147-23"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from headroom.security.state_crypto import encrypt_json, decrypt_json; d={&#39;x&#39;:1}; assert decrypt_json(encrypt_json(d)) == d; print(&#39;Crypto OK&#39;)&quot;</span>
+</span><span id="__span-147-23"><a id="__codelineno-147-23" name="__codelineno-147-23" href="#__codelineno-147-23"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from cutctx.security.state_crypto import encrypt_json, decrypt_json; d={&#39;x&#39;:1}; assert decrypt_json(encrypt_json(d)) == d; print(&#39;Crypto OK&#39;)&quot;</span>
 </span></code></pre></div>
 <p>All 8 should pass in under 30 seconds on a healthy build.</p>
 

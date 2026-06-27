@@ -23,7 +23,7 @@
     
     
       
-        <title>Drain3 ML Log Template Mining - CutCtx</title>
+        <title>Drain3 ML Log Template Mining - Cutctx</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="CutCtx" class="md-header__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-header__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
@@ -106,7 +106,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            CutCtx
+            Cutctx
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -419,13 +419,13 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="CutCtx" class="md-nav__button md-logo" aria-label="CutCtx" data-md-component="logo">
+    <a href=".." title="Cutctx" class="md-nav__button md-logo" aria-label="Cutctx" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
 
     </a>
-    CutCtx
+    Cutctx
   </label>
   
     <div class="md-nav__source">
@@ -2448,11 +2448,11 @@
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--drain3<span class="w"> </span>--drain3-max-clusters<span class="w"> </span><span class="m">500</span><span class="w"> </span>--drain3-sim-threshold<span class="w"> </span><span class="m">0</span>.4
 </span></code></pre></div>
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">HEADROOM_DRAIN3</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">HEADROOM_DRAIN3_MAX_CLUSTERS</span><span class="o">=</span><span class="m">500</span><span class="w"> </span><span class="nv">HEADROOM_DRAIN3_SIM_THRESHOLD</span><span class="o">=</span><span class="m">0</span>.4<span class="w"> </span>cutctx<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">CUTCTX_DRAIN3</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>proxy
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">CUTCTX_DRAIN3_MAX_CLUSTERS</span><span class="o">=</span><span class="m">500</span><span class="w"> </span><span class="nv">CUTCTX_DRAIN3_SIM_THRESHOLD</span><span class="o">=</span><span class="m">0</span>.4<span class="w"> </span>cutctx<span class="w"> </span>proxy
 </span></code></pre></div>
 <h3 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">Drain3LogCompressor</span><span class="p">,</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">Drain3CompressorConfig</span><span class="p">,</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">)</span>
@@ -2506,26 +2506,26 @@
 <tbody>
 <tr>
 <td><code>--drain3</code></td>
-<td><code>HEADROOM_DRAIN3</code></td>
+<td><code>CUTCTX_DRAIN3</code></td>
 <td>—</td>
 <td>Enable Drain3 template mining</td>
 </tr>
 <tr>
 <td><code>--drain3-max-clusters</code></td>
-<td><code>HEADROOM_DRAIN3_MAX_CLUSTERS</code></td>
+<td><code>CUTCTX_DRAIN3_MAX_CLUSTERS</code></td>
 <td><code>1000</code></td>
 <td>Max Drain3 clusters (min 10)</td>
 </tr>
 <tr>
 <td><code>--drain3-sim-threshold</code></td>
-<td><code>HEADROOM_DRAIN3_SIM_THRESHOLD</code></td>
+<td><code>CUTCTX_DRAIN3_SIM_THRESHOLD</code></td>
 <td><code>0.4</code></td>
 <td>Similarity threshold 0.0–1.0</td>
 </tr>
 </tbody>
 </table>
 <h3 id="drain3compressorconfig">Drain3CompressorConfig<a class="headerlink" href="#drain3compressorconfig" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3CompressorConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3CompressorConfig</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">Drain3CompressorConfig</span><span class="p">(</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">max_clusters</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>        <span class="c1"># Max clusters before LRU eviction</span>
@@ -2583,7 +2583,7 @@
 <p>When Drain3 is <strong>not installed</strong>, <code>Drain3LogCompressor</code> is always constructable — its <code>compress()</code> method silently delegates to the standard <code>LogCompressor</code>. This means the ContentRouter can unconditionally use the Drain3 code path when the flag is set; the runtime fallback is transparent.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <h3 id="basic-example">Basic Example<a class="headerlink" href="#basic-example" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3LogCompressor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3LogCompressor</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">log</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="s2">2026-06-24 09:00:00 ERROR Database connection failed: timeout after 30s</span>
@@ -2627,7 +2627,7 @@
 </span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="c1">#     [49 more similar lines omitted — template: INFO  Request &lt;*&gt; from &lt;*&gt; processed in &lt;*&gt;ms]</span>
 </span></code></pre></div>
 <h3 id="mixed-log-content">Mixed Log Content<a class="headerlink" href="#mixed-log-content" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3LogCompressor</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.drain3_compressor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drain3LogCompressor</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Mix of errors, warnings, and info</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">log_text</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
@@ -2649,7 +2649,7 @@
 </span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a><span class="c1"># [2026-06-24] WARN  Disk usage at 85%</span>
 </span></code></pre></div>
 <h3 id="using-with-contentrouter">Using with ContentRouter<a class="headerlink" href="#using-with-contentrouter" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">headroom.transforms.content_router</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span><span class="p">,</span> <span class="n">ContentRouterConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.transforms.content_router</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentRouter</span><span class="p">,</span> <span class="n">ContentRouterConfig</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">ContentRouterConfig</span><span class="p">(</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">use_drain3</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -2687,7 +2687,7 @@
 <h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
 <h3 id="check-availability">Check Availability<a class="headerlink" href="#check-availability" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="s2">from headroom.transforms.drain3_compressor import drain3_available, Drain3LogCompressor</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="s2">from cutctx.transforms.drain3_compressor import drain3_available, Drain3LogCompressor</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="s2">print(&#39;drain3_available:&#39;, drain3_available())  # True or False</span>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="s2">c = Drain3LogCompressor()</span>
 </span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="s2">print(&#39;Compressor constructed OK&#39;)</span>
@@ -2695,7 +2695,7 @@
 </span></code></pre></div>
 <h3 id="test-compression">Test Compression<a class="headerlink" href="#test-compression" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="s2">from headroom.transforms.drain3_compressor import Drain3LogCompressor</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="s2">from cutctx.transforms.drain3_compressor import Drain3LogCompressor</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
 </span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="s2">log = &#39;\n&#39;.join(</span>
 </span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="s2">    f&#39;2026-06-24 09:00:{i:02d} INFO  Request {1000+i} from 10.0.0.{i%10} processed in {10+i}ms&#39;</span>
