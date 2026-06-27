@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Component, useDeferredValue, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Activity,
@@ -20,6 +20,43 @@ import Capabilities from './pages/Capabilities';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
 import { ThemeProvider, useTheme } from './lib/theme-context';
+
+/* ─── Error Boundary ──────────────────────────────────────────── */
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 'var(--space-3xl)', color: 'var(--text-primary)', background: 'var(--surface-0)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <h2 style={{ marginBottom: 'var(--space-md)' }}>Something went wrong.</h2>
+          <pre style={{ background: 'var(--surface-2)', padding: 'var(--space-lg)', borderRadius: 'var(--radius-lg)', color: 'var(--red)', maxWidth: '100%', overflowX: 'auto' }}>
+            {this.state.error?.toString()}
+          </pre>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 'var(--space-xl)', padding: 'var(--space-md) var(--space-xl)', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 600, border: 'none' }}
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
@@ -151,12 +188,15 @@ function Topbar({
           aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           type="button"
         >
-          <span className="icon-sun">
-            <Sun size={16} />
-          </span>
-          <span className="icon-moon">
-            <Moon size={16} />
-          </span>
+          {theme === 'dark' ? (
+            <span className="icon-sun">
+              <Sun size={16} />
+            </span>
+          ) : (
+            <span className="icon-moon">
+              <Moon size={16} />
+            </span>
+          )}
         </button>
       </div>
     </header>
@@ -219,13 +259,15 @@ function AppFrame() {
           onToggleSidebar={toggleSidebar}
         />
         <main className="page-shell">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/capabilities" element={<Capabilities />} />
-            <Route path="/firewall" element={<Firewall />} />
-            <Route path="/memory" element={<Memory />} />
-            <Route path="/playground" element={<Playground />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/capabilities" element={<Capabilities />} />
+              <Route path="/firewall" element={<Firewall />} />
+              <Route path="/memory" element={<Memory />} />
+              <Route path="/playground" element={<Playground />} />
+            </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
