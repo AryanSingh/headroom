@@ -188,14 +188,19 @@ function TrendChart({ stats }) {
         />
       ) : (
         <div className="trend-chart-container">
-          {bars.map((value, i) => (
-            <div
-              key={i}
-              className="trend-bar"
-              style={{ height: `${Math.max(4, (value / maxBar) * 100)}%` }}
-              title={`${formatNumber(value)} tokens saved`}
-            />
-          ))}
+          {bars.map((value, i) => {
+            const ratio = value / maxBar;
+            // Use square root scaling to make smaller bars visible despite outliers
+            const scaledHeight = value === 0 ? 4 : Math.max(4, Math.sqrt(ratio) * 100);
+            return (
+              <div
+                key={i}
+                className="trend-bar"
+                style={{ height: `${scaledHeight}%` }}
+                title={`${formatNumber(value)} tokens saved`}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -376,7 +381,7 @@ export default function Overview() {
                       <td className="savings-value">
                         {formatInteger(req.tokens_saved)}
                         <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: '4px', fontSize: 'var(--text-xs)' }}>
-                          {formatPercent(req.savings_percent)}
+                          {formatPercent(Math.min(100, Math.max(0, req.savings_percent || 0)))}
                         </span>
                       </td>
                       <td>{formatRelativeTime(req.timestamp)}</td>
