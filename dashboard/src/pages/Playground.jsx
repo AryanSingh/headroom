@@ -213,25 +213,11 @@ export default function Playground() {
 
   return (
     <section className="page-stack">
-      <div className="page-header-card">
-        <div>
-          <div className="eyebrow">Interactive verification</div>
-          <h1>Real compression playground</h1>
-          <p>
-            This page hits the live <code>/v1/compress</code> endpoint and supports multimodal payloads,
-            so users can inspect actual transforms and savings.
-          </p>
-        </div>
-        <div className="hero-sidecard">
-          <div className="hero-sidecard-label">What it proves</div>
-          <div className="hero-sidecard-value">Real endpoint</div>
-          <p>Prompt, transforms, before/after tokens, and image metrics come from the running proxy.</p>
-        </div>
-      </div>
 
-      {error && <div className="alert-card">{error}</div>}
 
-      <div className="dashboard-grid">
+      {error && <div className="alert-card" role="alert">{error}</div>}
+
+      <div className="dashboard-grid" aria-busy={loading}>
         <section className="panel panel-wide">
           <div className="section-heading">
             <div>
@@ -264,9 +250,9 @@ export default function Playground() {
               </select>
             </label>
 
-            <label className="field field-file">
+            <label className="field field-file" htmlFor="imageUpload">
               <span>Optional image</span>
-              <input type="file" accept="image/*" onChange={handleImageChange} />
+              <input id="imageUpload" type="file" accept="image/*" onChange={handleImageChange} />
             </label>
           </div>
 
@@ -294,7 +280,7 @@ export default function Playground() {
           </label>
 
           <div className="playground-actions">
-            <button className="primary-button" onClick={handleRun} disabled={loading}>
+            <button className="primary-button" onClick={handleRun} disabled={loading} type="button">
               <Play size={16} />
               {loading ? 'Compressing…' : 'Run live compression'}
             </button>
@@ -326,7 +312,7 @@ export default function Playground() {
         </aside>
       </div>
 
-      <div className="metric-grid metric-grid-four">
+      <div className="metric-grid metric-grid-four" aria-busy={loading}>
         <MetricCard
           icon={<Sparkles size={18} />}
           label="Tokens before"

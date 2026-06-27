@@ -26,7 +26,7 @@ import { useDashboardData } from './lib/use-dashboard-data';
 import { formatRelativeTime } from './lib/format';
 
 const navItems = [
-  { path: '/', label: 'Command Center', icon: Radar, description: 'Live proxy control surface' },
+  { path: '/', label: 'Overview', icon: Radar, description: 'Live proxy control surface' },
   { path: '/capabilities', label: 'Capabilities', icon: Sparkles, description: 'Full product surface map' },
   { path: '/firewall', label: 'Security', icon: Shield, description: 'Firewall and audit posture' },
   { path: '/memory', label: 'Memory', icon: BrainCircuit, description: 'Cross-session knowledge' },
@@ -48,10 +48,9 @@ function Sidebar({ searchQuery }) {
         <div className="brand-mark">
           <Activity size={18} />
         </div>
-        <div>
-          <div className="eyebrow">Cutctx</div>
-          <h1>Command Center</h1>
-        </div>
+          <div>
+            <h1>Cutctx</h1>
+          </div>
       </div>
 
       <div className="sidebar-section">
@@ -134,6 +133,7 @@ function Topbar({ searchQuery, setSearchQuery, searchInputRef }) {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search pages and surfaces"
+            aria-label="Search"
           />
         </label>
 
@@ -148,6 +148,7 @@ function Topbar({ searchQuery, setSearchQuery, searchInputRef }) {
               writeStoredAdminKey(nextValue.trim());
             }}
             placeholder="Optional admin key for protected actions"
+            aria-label="Admin Key"
           />
         </label>
 
@@ -221,7 +222,7 @@ function AppFrame() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={window.location.pathname.startsWith('/admin') ? '/admin' : '/dashboard'}>
       <DashboardDataProvider>
         <AppFrame />
       </DashboardDataProvider>

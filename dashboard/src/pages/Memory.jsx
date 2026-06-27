@@ -14,7 +14,17 @@ export default function Memory() {
 
     const load = async () => {
       try {
-        const data = await fetchDashboardJson('/v1/memory/query?limit=20');
+        let data = [];
+        try {
+          data = await fetchDashboardJson('/v1/memory/query?limit=20');
+        } catch (fetchErr) {
+          if (fetchErr.message && fetchErr.message.includes('404')) {
+            data = [];
+          } else {
+            throw fetchErr;
+          }
+        }
+
         if (cancelled) {
           return;
         }
@@ -46,25 +56,10 @@ export default function Memory() {
 
   return (
     <section className="page-stack">
-      <div className="page-header-card">
-        <div>
-          <div className="eyebrow">Shared state</div>
-          <h1>Memory and learning layer</h1>
-          <p>
-            Cross-session memory, extracted facts, and operator-visible learning signals. This
-            page keeps the original memory surface but turns it into a real operational view.
-          </p>
-        </div>
-        <div className="hero-sidecard">
-          <div className="hero-sidecard-label">Context tool</div>
-          <div className="hero-sidecard-value">{stats?.context_tool?.label || 'Unknown'}</div>
-          <p>{stats?.context_tool?.available ? 'Installed and available in this workspace.' : 'Not available in this workspace.'}</p>
-        </div>
-      </div>
 
-      {error && <div className="alert-card">Failed to load memory data: {error}</div>}
+      {error && <div className="alert-card" role="alert">Failed to load memory data: {error}</div>}
 
-      <div className="metric-grid metric-grid-four">
+      <div className="metric-grid metric-grid-four" aria-busy={loading}>
         <MetricCard
           icon={<BrainCircuit size={18} />}
           label="Insights"
@@ -95,7 +90,7 @@ export default function Memory() {
         />
       </div>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" aria-busy={loading}>
         <section className="panel panel-wide">
           <div className="section-heading">
             <div>

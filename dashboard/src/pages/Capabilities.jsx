@@ -48,26 +48,9 @@ export default function Capabilities() {
 
   return (
     <section className="page-stack">
-      <div className="page-header-card">
-        <div>
-          <div className="eyebrow">Product map</div>
-          <h1>All user-facing Cutctx capabilities</h1>
-          <p>
-            This page maps the backend feature surface into the product you can actually use:
-            deployment modes, compression systems, retrieval and memory, and operator controls.
-          </p>
-        </div>
-        <div className="hero-sidecard">
-          <div className="hero-sidecard-label">Why this exists</div>
-          <div className="hero-sidecard-value">Expose the whole product, not just a few charts.</div>
-          <p>
-            The old dashboard surfaced only a thin monitoring shell. The new IA makes the product
-            modes and live control surfaces visible in one place.
-          </p>
-        </div>
-      </div>
 
-      {error && <div className="alert-card">Failed to load live capability signals: {error}</div>}
+
+      {error && <div className="alert-card" role="alert">Failed to load live capability signals: {error}</div>}
 
       <div className="panel">
         <div className="section-heading">
@@ -78,7 +61,7 @@ export default function Capabilities() {
           <p>{loading ? 'Connecting to proxy…' : 'Signals pulled from the running proxy and stats API.'}</p>
         </div>
 
-        <div className="metric-grid metric-grid-three">
+        <div className="metric-grid metric-grid-three" aria-busy={loading}>
           {liveSurfaces.map((surface) => (
             <article key={surface.label} className="metric-card metric-card-compact">
               <div className="metric-label">{surface.label}</div>

@@ -15,8 +15,8 @@ export default function Firewall() {
     const load = async () => {
       try {
         const [statsResponse, eventsResponse] = await Promise.all([
-          fetchDashboardJson('/v1/firewall/stats?cached=1').catch(() => null),
-          fetchDashboardJson('/v1/audit/events?action_prefix=firewall&limit=20').catch(() => []),
+          fetchDashboardJson('/firewall/status?cached=1').catch(() => null),
+          fetchDashboardJson('/audit/events?action_prefix=firewall&limit=20').catch(() => []),
         ]);
 
         if (cancelled) {
@@ -48,25 +48,10 @@ export default function Firewall() {
 
   return (
     <section className="page-stack">
-      <div className="page-header-card">
-        <div>
-          <div className="eyebrow">Governance</div>
-          <h1>Firewall and request security</h1>
-          <p>
-            Request interception, PII-aware scanning, audit events, and operator posture. This
-            page keeps the original security surface and makes it readable enough to actually use.
-          </p>
-        </div>
-        <div className="hero-sidecard">
-          <div className="hero-sidecard-label">Current status</div>
-          <div className="hero-sidecard-value">{loading ? '—' : stats?.enabled ? 'Active' : 'Disabled'}</div>
-          <p>{stats?.enabled ? 'PII, jailbreak, and injection scanning enabled.' : 'Set CUTCTX_FIREWALL_ENABLED=1 to enable.'}</p>
-        </div>
-      </div>
 
-      {error && <div className="alert-card">Failed to load firewall data: {error}</div>}
+      {error && <div className="alert-card" role="alert">Failed to load firewall data: {error}</div>}
 
-      <div className="metric-grid metric-grid-four">
+      <div className="metric-grid metric-grid-four" aria-busy={loading}>
         <MetricCard
           icon={<Shield size={18} />}
           label="Patterns"
@@ -93,7 +78,7 @@ export default function Firewall() {
         />
       </div>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" aria-busy={loading}>
         <section className="panel panel-wide">
           <div className="section-heading">
             <div>

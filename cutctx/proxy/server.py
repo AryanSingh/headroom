@@ -52,6 +52,7 @@ try:
     from fastapi import Depends, FastAPI, HTTPException, Request, Response
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+    from fastapi.staticfiles import StaticFiles
 
     FASTAPI_AVAILABLE = True
 except ImportError:
@@ -1915,6 +1916,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # request) sees an honest "missing" rather than a stale "loaded".
     app.state.rust_core_status = "missing"
     app.state.rust_core_error = None
+
+    from pathlib import Path
+    react_assets = Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist" / "assets"
+    if react_assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(react_assets)), name="assets")
 
     def _iso_utc_now() -> str:
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
