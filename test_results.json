@@ -1,0 +1,230 @@
+{
+  "/orgs": {
+    "status_code": 200,
+    "json": {
+      "orgs": []
+    }
+  },
+  "/quota": {
+    "status_code": 200,
+    "json": {}
+  },
+  "/rbac/roles": {
+    "status_code": 200,
+    "json": {
+      "assignments": {}
+    }
+  },
+  "/retention/stats": {
+    "status_code": 200,
+    "json": {
+      "retention": {
+        "ccr_deleted": 0,
+        "audit_deleted": 0,
+        "episodic_deleted": 0,
+        "last_cleanup": null,
+        "cleanup_count": 0,
+        "errors": 0,
+        "config": {
+          "ccr_max_age_seconds": 604800,
+          "ccr_max_entries": 10000,
+          "audit_max_age_days": 90,
+          "audit_max_db_size_mb": 500,
+          "episodic_max_age_days": 30,
+          "cleanup_interval_seconds": 3600
+        }
+      }
+    }
+  },
+  "/subscription-window": {
+    "status_code": 503,
+    "json": "{\"error\":\"Subscription tracking is not enabled\"}"
+  },
+  "/audit/stats": {
+    "status_code": 200,
+    "json": {
+      "total_events": 3625,
+      "by_action": {
+        "system.start": 731,
+        "system.stop": 730,
+        "entitlement.denied": 539
+      },
+      "recent_events": [
+        {
+          "event_id": "7037c42f242f420a",
+          "timestamp": "2026-06-28T17:18:11.099211+00:00",
+          "action": "system.stop",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0"
+          },
+          "created_at": 1782667091.099488
+        },
+        {
+          "event_id": "7ebbbe0931894b92",
+          "timestamp": "2026-06-28T17:18:11.082923+00:00",
+          "action": "system.start",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0",
+            "tier": "builder",
+            "port": 8787
+          },
+          "created_at": 1782667091.0841768
+        },
+        {
+          "event_id": "d489477ec496420f",
+          "timestamp": "2026-06-28T17:17:38.603480+00:00",
+          "action": "system.stop",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0"
+          },
+          "created_at": 1782667058.603615
+        },
+        {
+          "event_id": "203e961f1cbf45c5",
+          "timestamp": "2026-06-28T17:17:38.586842+00:00",
+          "action": "system.start",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0",
+            "tier": "builder",
+            "port": 8787
+          },
+          "created_at": 1782667058.587959
+        },
+        {
+          "event_id": "a7fe655500704369",
+          "timestamp": "2026-06-28T17:17:02.645461+00:00",
+          "action": "system.stop",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0"
+          },
+          "created_at": 1782667022.64557
+        },
+        {
+          "event_id": "5915e9957b874b96",
+          "timestamp": "2026-06-28T17:17:02.631573+00:00",
+          "action": "system.start",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0",
+            "tier": "builder",
+            "port": 8787
+          },
+          "created_at": 1782667022.6328409
+        },
+        {
+          "event_id": "3c94df1a8cea4686",
+          "timestamp": "2026-06-28T17:16:41.779118+00:00",
+          "action": "system.stop",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0"
+          },
+          "created_at": 1782667001.7792408
+        },
+        {
+          "event_id": "88833d58e6974825",
+          "timestamp": "2026-06-28T17:16:41.763481+00:00",
+          "action": "system.start",
+          "actor": "system",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": null,
+          "user_agent": null,
+          "detail": {
+            "version": "0.29.0",
+            "tier": "builder",
+            "port": 8787
+          },
+          "created_at": 1782667001.764373
+        },
+        {
+          "event_id": "663c2d9db57f4767",
+          "timestamp": "2026-06-28T17:16:28.368967+00:00",
+          "action": "entitlement.denied",
+          "actor": "anonymous",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": false,
+          "ip_address": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "detail": {
+            "feature": "retention_controls",
+            "required_tier": "ENTERPRISE",
+            "current_tier": "builder",
+            "path": "/retention/stats"
+          },
+          "created_at": 1782666988.371152
+        },
+        {
+          "event_id": "1844abe1922647a9",
+          "timestamp": "2026-06-28T17:16:28.368114+00:00",
+          "action": "entitlement.denied",
+          "actor": "anonymous",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": false,
+          "ip_address": "127.0.0.1",
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "detail": {
+            "feature": "rbac",
+            "required_tier": "ENTERPRISE",
+            "current_tier": "builder",
+            "path": "/rbac/roles"
+          },
+          "created_at": 1782666988.368432
+        }
+      ]
+    }
+  }
+}

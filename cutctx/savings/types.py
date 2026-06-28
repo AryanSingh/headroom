@@ -1,21 +1,8 @@
-"""Shared savings-source types and request breakdown schema.
-
-Single source of truth for the five savings sources tracked by Cutctx:
-
-    - provider_prompt_cache: provider-native prompt caching (Anthropic, OpenAI, Gemini)
-    - cutctx_compression: Cutctx-internal compression (SmartCrusher, LiveZone, etc.)
-    - semantic_cache: repeated-query detection and short-circuit
-    - prefix_cache_self_hosted: self-hosted prefix cache (vLLM APC, etc.)
-    - model_routing: cost savings from routing to a cheaper model
-
-The ``SavingsBreakdown`` dataclass is the wire format that flows from
-provider adapters through the proxy and into the durable savings tracker
-and the dashboard.
-"""
+"""Shared savings-source types and request breakdown schema."""
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -25,16 +12,18 @@ class SavingsSource(str, Enum):
 
     PROVIDER_PROMPT_CACHE = "provider_prompt_cache"
     CUTCTX_COMPRESSION = "cutctx_compression"
+    TOOL_SCHEMA_COMPACTION = "tool_schema_compaction"
+    API_SURFACE_SLIMMING = "api_surface_slimming"
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
 
     @classmethod
-    def from_str(cls, value: str) -> SavingsSource:
+    def from_str(cls, value: str) -> "SavingsSource":
         try:
             return cls(value)
         except ValueError:
-            return SavingsSource.CUTCTX_COMPRESSION
+            return cls.CUTCTX_COMPRESSION
 
     @property
     def label(self) -> str:
@@ -48,85 +37,90 @@ class SavingsSource(str, Enum):
 _LABELS = {
     SavingsSource.PROVIDER_PROMPT_CACHE: "Provider Prompt Cache",
     SavingsSource.CUTCTX_COMPRESSION: "Cutctx Compression",
+    SavingsSource.TOOL_SCHEMA_COMPACTION: "Tool Schema Compaction",
+    SavingsSource.API_SURFACE_SLIMMING: "API Surface Slimming",
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
 }
 
 _DESCRIPTIONS = {
-    SavingsSource.PROVIDER_PROMPT_CACHE: (
-        "Savings from the upstream LLM provider's native prompt cache "
-        "(Anthropic cache_control, OpenAI prompt caching, Gemini cachedContent)."
-    ),
-    SavingsSource.CUTCTX_COMPRESSION: (
-        "Savings from Cutctx-internal compression (SmartCrusher, LiveZone, "
-        "CodeCompressor, LogCompressor, etc.) measured at model list price."
-    ),
-    SavingsSource.SEMANTIC_CACHE: (
-        "Tokens avoided by short-circuiting repeated or near-duplicate "
-        "requests via semantic-cache lookup."
-    ),
-    SavingsSource.PREFIX_CACHE_SELF_HOSTED: (
-        "Savings from a self-hosted prefix cache (e.g. vLLM Automatic "
-        "Prefix Caching) routed through Cutctx."
-    ),
-    SavingsSource.MODEL_ROUTING: (
-        "Savings from routing the request to a cheaper model than the "
-        "user originally requested."
-    ),
+    SavingsSource.PROVIDER_PROMPT_CACHE: "Tokens avoided by provider-native prompt caching.",
+    SavingsSource.CUTCTX_COMPRESSION: "Tokens removed by Cutctx compression layers.",
+    SavingsSource.TOOL_SCHEMA_COMPACTION: "Tokens removed by compacting repeated tool definitions.",
+    SavingsSource.API_SURFACE_SLIMMING: "Tokens removed by trimming oversized tool and API surfaces.",
+    SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
+    SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
+    SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
 }
 
 
 @dataclass
 class SavingsBySource:
-    """Per-source token and dollar savings for a single request or aggregate."""
+    """Token and USD totals keyed by canonical source id."""
 
     tokens: dict[str, int] = field(default_factory=dict)
     usd: dict[str, float] = field(default_factory=dict)
 
-    def add(self, source: SavingsSource, tokens: int, usd: float = 0.0) -> None:
-        self.tokens[source.value] = self.tokens.get(source.value, 0) + max(0, int(tokens))
-        self.usd[source.value] = self.usd.get(source.value, 0.0) + max(0.0, float(usd))
+    def add(
+        self,
+        source: SavingsSource | str,
+        tokens: int = 0,
+        usd: float = 0.0,
+    ) -> None:
+        source_name = source.value if isinstance(source, SavingsSource) else str(source)
+        if tokens:
+            self.tokens[source_name] = int(self.tokens.get(source_name, 0)) + int(tokens)
+            if self.tokens[source_name] == 0:
+                self.tokens.pop(source_name, None)
+        if usd:
+            self.usd[source_name] = float(self.usd.get(source_name, 0.0)) + float(usd)
+            if abs(self.usd[source_name]) < 1e-12:
+                self.usd.pop(source_name, None)
 
-    def get_tokens(self, source: SavingsSource) -> int:
-        return int(self.tokens.get(source.value, 0))
+    def get_tokens(self, source: SavingsSource | str) -> int:
+        source_name = source.value if isinstance(source, SavingsSource) else str(source)
+        return int(self.tokens.get(source_name, 0))
 
-    def get_usd(self, source: SavingsSource) -> float:
-        return float(self.usd.get(source.value, 0.0))
+    def get_usd(self, source: SavingsSource | str) -> float:
+        source_name = source.value if isinstance(source, SavingsSource) else str(source)
+        return float(self.usd.get(source_name, 0.0))
 
     @property
     def total_tokens(self) -> int:
-        return sum(self.tokens.values())
+        return sum(int(value) for value in self.tokens.values())
 
     @property
     def total_usd(self) -> float:
-        return sum(self.usd.values())
+        return sum(float(value) for value in self.usd.values())
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "tokens": dict(self.tokens),
-            "usd": {k: round(v, 6) for k, v in self.usd.items()},
+            "usd": {key: round(value, 6) for key, value in self.usd.items()},
             "total_tokens": self.total_tokens,
             "total_usd": round(self.total_usd, 6),
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any] | None) -> SavingsBySource:
-        if not payload:
+    def from_dict(cls, payload: dict[str, Any] | None) -> "SavingsBySource":
+        if not isinstance(payload, dict):
             return cls()
+
         tokens = payload.get("tokens") or {}
         usd = payload.get("usd") or {}
         if not isinstance(tokens, dict) or not isinstance(usd, dict):
             return cls()
+
         return cls(
-            tokens={str(k): int(v) for k, v in tokens.items()},
-            usd={str(k): float(v) for k, v in usd.items()},
+            tokens={str(key): int(value) for key, value in tokens.items()},
+            usd={str(key): float(value) for key, value in usd.items()},
         )
 
 
 @dataclass
 class RequestSavingsBreakdown:
-    """Per-request savings breakdown, including raw vs. optimized token counts."""
+    """Per-request savings breakdown, including raw vs optimized tokens."""
 
     raw_input_tokens: int = 0
     post_cutctx_tokens: int = 0
@@ -137,7 +131,7 @@ class RequestSavingsBreakdown:
 
     @property
     def has_any_savings(self) -> bool:
-        return self.total_tokens_saved > 0
+        return self.total_tokens_saved > 0 or self.by_source.total_tokens > 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -150,10 +144,10 @@ class RequestSavingsBreakdown:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any] | None) -> RequestSavingsBreakdown:
+    def from_dict(cls, payload: dict[str, Any] | None) -> "RequestSavingsBreakdown":
         if not isinstance(payload, dict):
             return cls()
-        by_source = SavingsBySource.from_dict(payload.get("by_source"))
+
         return cls(
             raw_input_tokens=int(payload.get("raw_input_tokens") or 0),
             post_cutctx_tokens=int(payload.get("post_cutctx_tokens") or 0),
@@ -162,27 +156,5 @@ class RequestSavingsBreakdown:
                 payload.get("semantic_cache_avoided_tokens") or 0
             ),
             total_tokens_saved=int(payload.get("total_tokens_saved") or 0),
-            by_source=by_source,
+            by_source=SavingsBySource.from_dict(payload.get("by_source")),
         )
-
-    def merge(self, other: RequestSavingsBreakdown) -> None:
-        """Add another breakdown's values into this one (used for aggregation)."""
-        self.raw_input_tokens += other.raw_input_tokens
-        self.post_cutctx_tokens += other.post_cutctx_tokens
-        self.provider_cached_tokens += other.provider_cached_tokens
-        self.semantic_cache_avoided_tokens += other.semantic_cache_avoided_tokens
-        self.total_tokens_saved += other.total_tokens_saved
-        for src in SavingsSource:
-            self.by_source.add(
-                src,
-                other.by_source.get_tokens(src),
-                other.by_source.get_usd(src),
-            )
-
-
-__all__ = [
-    "SavingsSource",
-    "SavingsBySource",
-    "RequestSavingsBreakdown",
-    "asdict",
-]

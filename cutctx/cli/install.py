@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
+from pathlib import Path
 
 import click
 
@@ -98,6 +100,43 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
             f"Deployment '{manifest.profile}' uses persistent-task scheduling; "
             f"`cutctx install {action}` is not supported for task deployments."
         )
+
+
+def _update_plugin_port(port: int) -> None:
+    """Update installed plugin.json files to use the resolved proxy port."""
+    plugins_dir = Path.home() / ".claude" / "plugins"
+    if not plugins_dir.exists():
+        return
+
+    port_str = str(port)
+    proxy_url = f"http://127.0.0.1:{port_str}"
+
+    for plugin_json in plugins_dir.glob("*/plugin.json"):
+        try:
+            with open(plugin_json, encoding="utf-8") as f:
+                plugin_data = json.load(f)
+
+            # Update settingsUrl and configurationUrl if they reference the old port
+            updated = False
+            for key in ("settingsUrl", "configurationUrl"):
+                if key in plugin_data:
+                    plugin_data[key] = f"{proxy_url}/dashboard"
+                    updated = True
+
+            # Also check in nested interface object for codex plugins
+            if "interface" in plugin_data and isinstance(plugin_data["interface"], dict):
+                for key in ("settingsUrl", "configurationUrl"):
+                    if key in plugin_data["interface"]:
+                        plugin_data["interface"][key] = f"{proxy_url}/dashboard"
+                        updated = True
+
+            if updated:
+                with open(plugin_json, "w", encoding="utf-8") as f:
+                    json.dump(plugin_data, f, indent=2)
+                    f.write("\n")
+        except Exception:
+            # Best-effort: silently ignore errors updating plugin files
+            pass
 
 
 @install.command("apply")
@@ -226,6 +265,9 @@ def install_apply(
     click.echo(f"Health: {manifest.health_url}")
     if manifest.targets:
         click.echo(f"Targets: {', '.join(manifest.targets)}")
+
+    # Update installed plugin.json files to use the resolved port
+    _update_plugin_port(port)
 
 
 @install.command("status")

@@ -14,5 +14,7 @@
     "token-savings",
     "compression",
     "cost-optimization"
-  ]
+  ],
+  "settingsUrl": "http://127.0.0.1:8787/dashboard",
+  "configurationUrl": "http://127.0.0.1:8787/dashboard"
 }

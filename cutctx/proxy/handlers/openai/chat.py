@@ -32,7 +32,7 @@ from cutctx.proxy.auth_mode import classify_auth_mode, classify_client
 from cutctx.proxy.compression_decision import CompressionDecision
 from cutctx.proxy.cost import header_safe_transforms
 from cutctx.proxy.outcome import RequestOutcome
-from cutctx.proxy.savings_metadata import extract_savings_metadata
+from cutctx.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
 
 logger = logging.getLogger("cutctx.proxy")
 
@@ -129,6 +129,7 @@ class OpenAIChatMixin:
             request_headers=request.headers,
             body=body,
         )
+        schema_savings_metadata = None
         from cutctx.proxy.model_router import prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
@@ -804,6 +805,67 @@ class OpenAIChatMixin:
         if tools or _original_tools is not None:
             body["tools"] = tools
 
+        try:
+            from cutctx.proxy.tool_surface import slim_tool_surface
+            from cutctx.proxy.schema_compress import (
+                compress_tool_results,
+                compress_tool_schemas,
+            )
+
+            tool_surface_query = extract_user_query(optimized_messages) or extract_user_query(messages)
+            tool_surface_result = slim_tool_surface(
+                body.get("tools"),
+                query=tool_surface_query,
+                tokenizer=tokenizer,
+                tool_choice=body.get("tool_choice"),
+            )
+            if tool_surface_result.modified:
+                body["tools"] = tool_surface_result.tools
+                tools = tool_surface_result.tools
+                tokens_saved += tool_surface_result.tokens_saved
+                optimized_tokens = max(0, optimized_tokens - tool_surface_result.tokens_saved)
+                schema_savings_metadata = merge_savings_metadata(
+                    schema_savings_metadata,
+                    {
+                        "api_surface_slimming": {
+                            "tokens": tool_surface_result.tokens_saved
+                        }
+                    },
+                )
+                transforms_applied = list(transforms_applied) + [
+                    "openai:chat:tool_surface_slimming"
+                ]
+
+            schema_tokens_saved = 0
+            if body.get("tools"):
+                original_tools_payload = body["tools"]
+                compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(original_tools_payload)
+                if tools_were_modified:
+                    body["tools"] = compacted_tools
+                    tools = compacted_tools
+                    transforms_applied = list(transforms_applied) + [
+                        "openai:chat:tool_schema_compaction"
+                    ]
+                    try:
+                        schema_tokens_saved = max(
+                            0,
+                            tokenizer.count_text(json.dumps(original_tools_payload, ensure_ascii=False))
+                            - tokenizer.count_text(json.dumps(compacted_tools, ensure_ascii=False)),
+                        )
+                    except Exception:
+                        schema_tokens_saved = max(0, (tb - ta) // 4)
+            if body.get("messages"):
+                body["messages"] = compress_tool_results(body["messages"])
+                optimized_messages = body["messages"]
+            if schema_tokens_saved > 0:
+                tokens_saved += schema_tokens_saved
+                optimized_tokens = max(0, optimized_tokens - schema_tokens_saved)
+                schema_savings_metadata = {
+                    "tool_schema_compaction": {"tokens": schema_tokens_saved}
+                }
+        except Exception as e:
+            logger.debug(f"[{request_id}] Schema compression failed: {e}")
+
         presend_event = self.pipeline_extensions.emit(
             PipelineStage.PRE_SEND,
             operation="proxy.request",
@@ -857,7 +919,10 @@ class OpenAIChatMixin:
                         waste_signals=waste_signals_dict,
                         prefix_tracker=openai_prefix_tracker,
                         optimized_messages=optimized_messages,
-                        savings_metadata=request_savings_metadata,
+                        savings_metadata=merge_savings_metadata(
+                            request_savings_metadata,
+                            schema_savings_metadata,
+                        ),
                     )
                 else:
                     # Non-streaming: use send_openai_message() → JSON
@@ -1349,10 +1414,13 @@ class OpenAIChatMixin:
                 # equivalent note at the backend-routed sibling.
                 from cutctx.proxy.helpers import compute_turn_id
 
-                outcome_savings_metadata = extract_savings_metadata(
-                    request_headers=request.headers,
-                    response_headers=response.headers,
-                    body=body,
+                outcome_savings_metadata = merge_savings_metadata(
+                    extract_savings_metadata(
+                        request_headers=request.headers,
+                        response_headers=response.headers,
+                        body=body,
+                    ),
+                    schema_savings_metadata,
                 )
                 await self._record_request_outcome(
                     RequestOutcome(

@@ -602,6 +602,7 @@ class AnthropicHandlerMixin:
                 request_headers=request.headers,
                 body=body,
             )
+            schema_savings_metadata = None
 
             # Audit-Deep-2026-06-21 Blocker 1: invoke the ModelRouter if
             # enabled. The router decides whether to downgrade the
@@ -887,7 +888,10 @@ class AnthropicHandlerMixin:
                             num_messages=len(messages),
                             tags=tags,
                             client=client,
-                            savings_metadata=request_savings_metadata,
+                            savings_metadata=merge_savings_metadata(
+                                request_savings_metadata,
+                                schema_savings_metadata,
+                            ),
                         )
                     )
 
@@ -1838,15 +1842,61 @@ class AnthropicHandlerMixin:
 
             # JSON schema compression — strip metadata keys, truncate descriptions
             try:
+                from cutctx.proxy.tool_surface import slim_tool_surface
                 from cutctx.proxy.schema_compress import (
                     compress_tool_results,
                     compress_tool_schemas,
                 )
 
+                tool_surface_query = extract_user_query(
+                    optimized_messages
+                ) or extract_user_query(messages)
+                tool_surface_result = slim_tool_surface(
+                    body.get("tools"),
+                    query=tool_surface_query,
+                    tokenizer=tokenizer,
+                    tool_choice=body.get("tool_choice"),
+                )
+                if tool_surface_result.modified:
+                    body["tools"] = tool_surface_result.tools
+                    tools = tool_surface_result.tools
+                    tokens_saved += tool_surface_result.tokens_saved
+                    transforms_applied = list(transforms_applied) + [
+                        "anthropic:tool_surface_slimming"
+                    ]
+                    schema_savings_metadata = merge_savings_metadata(
+                        schema_savings_metadata,
+                        {
+                            "api_surface_slimming": {
+                                "tokens": tool_surface_result.tokens_saved
+                            }
+                        },
+                    )
+
                 if body.get("tools"):
-                    compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(body["tools"])
+                    original_tools_payload = body["tools"]
+                    compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(original_tools_payload)
                     if tools_were_modified:
                         body["tools"] = compacted_tools
+                        try:
+                            schema_tokens_saved = max(
+                                0,
+                                tokenizer.count_text(
+                                    json.dumps(original_tools_payload, ensure_ascii=False)
+                                )
+                                - tokenizer.count_text(
+                                    json.dumps(compacted_tools, ensure_ascii=False)
+                                ),
+                            )
+                        except Exception:
+                            schema_tokens_saved = max(0, (tb - ta) // 4)
+                        if schema_tokens_saved > 0:
+                            tokens_saved += schema_tokens_saved
+                            schema_savings_metadata = {
+                                "tool_schema_compaction": {
+                                    "tokens": schema_tokens_saved
+                                }
+                            }
                         transforms_list = getattr(self, '_schema_compress_transforms', None)
                 if body.get("messages"):
                     body["messages"] = compress_tool_results(body["messages"])
@@ -1929,7 +1979,10 @@ class AnthropicHandlerMixin:
                             optimization_latency,
                             pipeline_timing=pipeline_timing,
                             original_messages=original_client_messages,
-                            savings_metadata=request_savings_metadata,
+                            savings_metadata=merge_savings_metadata(
+                                request_savings_metadata,
+                                schema_savings_metadata,
+                            ),
                         )
                     else:
                         async with stage_timer.measure("upstream_connect"):
@@ -2124,7 +2177,10 @@ class AnthropicHandlerMixin:
                         mutation_reasons=body_mutation_tracker.reasons,
                         memory_request_ctx=memory_request_ctx,
                         outcome_provider=provider_name,
-                        savings_metadata=request_savings_metadata,
+                        savings_metadata=merge_savings_metadata(
+                            request_savings_metadata,
+                            schema_savings_metadata,
+                        ),
                     )
                 else:
                     async with stage_timer.measure("upstream_connect"):
@@ -3352,7 +3408,10 @@ class AnthropicHandlerMixin:
                 total_latency_ms=latency_ms,
                 tags=tags,
                 client=client,
-                savings_metadata=request_savings_metadata,
+                savings_metadata=merge_savings_metadata(
+                    request_savings_metadata,
+                    schema_savings_metadata,
+                ),
             )
         )
 

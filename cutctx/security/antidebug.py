@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import socket as _socket
 import sys
 from typing import NoReturn
 
@@ -26,7 +27,23 @@ _ALLOW_DEBUG_ENV = "CUTCTX_ALLOW_DEBUG"
 
 
 def _is_debug_allowed() -> bool:
-    return os.environ.get(_ALLOW_DEBUG_ENV, "").strip() in ("1", "true", "yes")
+    if os.environ.get(_ALLOW_DEBUG_ENV, "").strip() not in ("1", "true", "yes"):
+        return False
+    # Only honour the flag when the process is listening on loopback only.
+    # This prevents a stray .env file from disabling security in a deployed env.
+    hostname = _socket.gethostname()
+    try:
+        addrs = {info[4][0] for info in _socket.getaddrinfo(hostname, None)}
+    except Exception:
+        addrs = set()
+    loopback = {"127.0.0.1", "::1", "localhost"}
+    if not addrs or addrs - loopback:
+        logger.warning(
+            "CUTCTX_ALLOW_DEBUG=1 is set but process is not loopback-only (addrs=%s) — ignoring flag",
+            addrs,
+        )
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------

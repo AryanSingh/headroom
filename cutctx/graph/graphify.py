@@ -450,6 +450,8 @@ class GraphifyIndexer:
         self._build_count = 0
         self._last_build_time: float = 0.0
         self._start_time: float = 0.0
+        self._last_error: str | None = None
+        self._build_in_progress = False
         self._stopped = False
         self._started = False
 
@@ -531,6 +533,8 @@ class GraphifyIndexer:
         with self._lock:
             build_count = self._build_count
             last_build = self._last_build_time
+            last_error = self._last_error
+            build_in_progress = self._build_in_progress
         return {
             "build_count": build_count,
             "last_build_time": last_build,
@@ -539,7 +543,43 @@ class GraphifyIndexer:
             "version": idx.version if idx else "",
             "age_seconds": round(time.time() - self._start_time, 1) if self._start_time else 0,
             "available": idx is not None,
+            "building": build_in_progress,
+            "last_error": last_error,
         }
+
+    def ensure_ready(self) -> GraphifyIndex | None:
+        """Best-effort recovery when the index is missing but recoverable."""
+        index = self.get_index()
+        if index is not None:
+            return index
+
+        graph_path = self.output_dir / "graph.json"
+        if graph_path.exists():
+            try:
+                new_index = GraphifyIndex.load(graph_path)
+                with self._index_lock:
+                    self._index = new_index
+                with self._lock:
+                    self._last_error = None
+                logger.info(
+                    "GraphifyIndexer: recovered index from graph.json (%d nodes, %d edges)",
+                    new_index.node_count,
+                    new_index.edge_count,
+                )
+                return new_index
+            except Exception as exc:
+                with self._lock:
+                    self._last_error = f"load_failed:{exc.__class__.__name__}"
+                logger.warning("GraphifyIndexer: recovery load failed: %s", exc)
+
+        with self._lock:
+            build_thread = self._build_thread
+            build_in_progress = self._build_in_progress or (
+                build_thread is not None and build_thread.is_alive()
+            )
+        if not build_in_progress:
+            self.schedule_refresh()
+        return self.get_index()
 
     # -- Build internals ----------------------------------------------------
 
@@ -556,6 +596,8 @@ class GraphifyIndexer:
 
     def _build_sync(self) -> None:
         """Synchronous build — runs on the background thread."""
+        with self._lock:
+            self._build_in_progress = True
         try:
             start = time.monotonic()
             logger.info("GraphifyIndexer: starting graph build...")
@@ -581,8 +623,10 @@ class GraphifyIndexer:
                     if self._stopped:
                         return
                     self._index = new_index
+                with self._lock:
                     self._build_count += 1
                     self._last_build_time = time.time()
+                    self._last_error = None
                 logger.info(
                     "GraphifyIndexer: build complete (%.1fs, %d nodes, %d edges)",
                     elapsed,
@@ -590,13 +634,20 @@ class GraphifyIndexer:
                     new_index.edge_count,
                 )
             else:
+                with self._lock:
+                    self._last_error = "graph_json_missing"
                 logger.warning(
                     "GraphifyIndexer: build ran but graph.json not found at %s",
                     graph_path,
                 )
 
         except Exception as exc:
+            with self._lock:
+                self._last_error = exc.__class__.__name__
             logger.error("GraphifyIndexer: build failed: %s", exc, exc_info=True)
+        finally:
+            with self._lock:
+                self._build_in_progress = False
 
     def _run_graphify_build(self) -> bool:
         """Run the graphify build, preferring the Python API over subprocess.

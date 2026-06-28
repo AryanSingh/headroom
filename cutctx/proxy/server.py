@@ -206,6 +206,10 @@ _INTERCEPT_BYPASS_IPS_FILE = Path.home() / ".cutctx" / "intercept_bypass_ips.jso
 _original_getaddrinfo = socket.getaddrinfo
 _intercept_bypass_applied = False
 
+# Loopback-only auth bypass: restricted to specific read-only endpoints
+# that legitimately need no auth from localhost dashboard access.
+_LOOPBACK_OPEN_PATHS = frozenset({"/livez", "/readyz", "/metrics", "/dashboard", "/api/savings", "/api/models"})
+
 
 def _patch_getaddrinfo_for_intercept() -> None:
     """Patch socket.getaddrinfo so the proxy's own outbound connections bypass /etc/hosts.
@@ -2292,12 +2296,29 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     else:
         _cors_allow_origins = _cors_origins
         _cors_allow_credentials = bool(_cors_origins)
+    # Wildcard origins → permissive methods/headers (dev/local mode).
+    # Explicit origin allowlist → restrict to methods and headers the proxy
+    # actually uses, reducing attack surface in production deployments.
+    if _cors_allow_origins == ["*"]:
+        _cors_methods: list[str] = ["*"]
+        _cors_headers: list[str] = ["*"]
+    else:
+        _cors_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+        _cors_headers = [
+            "Authorization",
+            "Content-Type",
+            "X-Cutctx-Admin-Key",
+            "X-Request-ID",
+            "X-Cutctx-MFA-Code",
+            "anthropic-version",
+            "anthropic-beta",
+        ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_allow_origins,
         allow_credentials=_cors_allow_credentials,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=_cors_methods,
+        allow_headers=_cors_headers,
     )
 
     # Global JSON decode error handler — invalid request body JSON
@@ -2811,8 +2832,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         # Loopback bypass for read-only: GET/HEAD requests from localhost
         # are implicitly trusted for dashboard/stats access. Mutating
         # requests (POST, PUT, DELETE, PATCH) still require admin credentials.
+        # Only specific read-only paths are allowed; all other paths require auth.
         client_host = getattr(request.client, "host", "") if request.client else ""
-        if client_host in ("127.0.0.1", "::1", "localhost") and request.method in ("GET", "HEAD"):
+        if (
+            client_host in ("127.0.0.1", "::1", "localhost")
+            and request.method in ("GET", "HEAD")
+            and any(request.url.path == p or request.url.path.startswith(p + "/") for p in _LOOPBACK_OPEN_PATHS)
+        ):
             request.state._cutctx_admin_checked = True
             return
 
@@ -3443,7 +3469,30 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
 
-        _kg_idx = getattr(proxy, "knowledge_graph_indexer", None)
+        _kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
+        _kg_idx = None
+        if _kg_indexer is not None:
+            try:
+                _kg_idx = _kg_indexer.ensure_ready()
+                _kg_stats = _kg_indexer.stats
+                proxy.knowledge_graph_status.update(
+                    available=bool(_kg_stats.get("available")),
+                    active=_kg_idx is not None,
+                    status=(
+                        "ready"
+                        if _kg_idx is not None
+                        else "building"
+                        if _kg_stats.get("building")
+                        else proxy.knowledge_graph_status.get("status", "disabled")
+                    ),
+                    reason=_kg_stats.get("last_error") or proxy.knowledge_graph_status.get("reason"),
+                )
+            except Exception as exc:
+                proxy.knowledge_graph_status.update(
+                    active=False,
+                    status="degraded",
+                    reason=exc.__class__.__name__,
+                )
 
         return {
             "summary": summary,
@@ -3742,7 +3791,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     if _kg_idx is not None
                     else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled")
                 ),
-                **(_kg_idx.stats if _kg_idx else {}),
+                **(_kg_indexer.stats if _kg_indexer else {}),
             },
             "anon_telemetry_shipping": is_telemetry_enabled(),
             "telemetry": {

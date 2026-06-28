@@ -1478,12 +1478,14 @@ class SavingsTracker:
                 prov = entry["by_provider"].setdefault(
                     provider,
                     {
+                        "requests": 0,
                         "tokens_saved": 0,
                         "compression_savings_usd_delta": 0.0,
                         "total_input_tokens_delta": 0,
                         "total_input_cost_usd_delta": 0.0,
                     },
                 )
+                prov["requests"] += 1
                 prov["tokens_saved"] += delta_tokens
                 prov["compression_savings_usd_delta"] = round(
                     prov["compression_savings_usd_delta"] + delta_usd,
@@ -1499,12 +1501,14 @@ class SavingsTracker:
                 mod = entry["by_model"].setdefault(
                     model,
                     {
+                        "requests": 0,
                         "tokens_saved": 0,
                         "compression_savings_usd_delta": 0.0,
                         "total_input_tokens_delta": 0,
                         "total_input_cost_usd_delta": 0.0,
                     },
                 )
+                mod["requests"] += 1
                 mod["tokens_saved"] += delta_tokens
                 mod["compression_savings_usd_delta"] = round(
                     mod["compression_savings_usd_delta"] + delta_usd,

@@ -638,12 +638,15 @@ class GeminiHandlerMixin:
 
                 uncached_input_tokens = max(0, total_input_tokens - cache_read_tokens)
 
-                # Eligible-tracking is TODO for Gemini; pass the full
-                # pre-compression request size as the fallback denominator.
-                # This makes Gemini's contribution to the aggregate
-                # active_savings_percent equal its whole-request ratio —
-                # not ideal but coherent until per-part live-zone
-                # tracking exists for this provider.
+                # Gemini per-part live-zone tracking is not yet available.
+                # As a known limitation, we use the full pre-compression request size
+                # (original_tokens) as the denominator for savings percentage calculation.
+                # This makes Gemini's contribution to the aggregate active_savings_percent
+                # equal its whole-request ratio — coherent accounting until granular
+                # per-part tracking exists for this provider.
+                #
+                # Savings formula: (original_tokens - optimized_tokens) / original_tokens
+                # where optimized_tokens = total_input_tokens sent to Gemini after compression.
                 #
                 # Gemini reports read-side context-cache only via
                 # ``cachedContentTokenCount``. There is no write counter

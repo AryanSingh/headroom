@@ -53,11 +53,15 @@ class StoredSubscription:
     created_at_ts: float
     updated_at_ts: float
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, reveal_secret: bool = False) -> dict[str, Any]:
+        # Never return the plaintext secret in list/get responses — only on
+        # initial creation (reveal_secret=True). Callers that need to verify
+        # the secret should re-hash it against their own copy.
+        secret_field = self.secret if reveal_secret else f"{self.secret[:4]}{'*' * 20}"
         return {
             "id": self.id,
             "url": self.url,
-            "secret": self.secret,
+            "secret": secret_field,
             "event_types": list(self.event_types) if self.event_types else None,
             "org_id": self.org_id,
             "enabled": self.enabled,

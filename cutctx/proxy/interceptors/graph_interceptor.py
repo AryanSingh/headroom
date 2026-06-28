@@ -90,10 +90,10 @@ class GraphifyInterceptor:
         """
         idx = self._indexer
         if idx is not None:
-            return idx.get_index()
+            return idx.ensure_ready()
         global_idx = get_global_indexer()
         if global_idx is not None:
-            return global_idx.get_index()
+            return global_idx.ensure_ready()
         return None
 
     # -- ToolResultInterceptor protocol ------------------------------------
@@ -282,5 +282,3 @@ class GraphifyInterceptor:
                     break
 
         return deduped
-
-

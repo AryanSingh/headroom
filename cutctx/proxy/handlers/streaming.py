@@ -399,7 +399,8 @@ class StreamingMixin:
                     if target.get("type") == "tool_use" and "_partial_json" in target:
                         try:
                             target["input"] = json.loads(target["_partial_json"])
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as _je:
+                            logger.warning("[streaming] tool_use input JSON parse failed for block %r: %s — using empty input", target.get("id"), _je)
                             target["input"] = {}
                         del target["_partial_json"]
                     # Materialize the thinking buffer into the
@@ -505,9 +506,11 @@ class StreamingMixin:
             events.append(f"event: content_block_stop\ndata: {json.dumps(block_stop)}\n\n".encode())
 
         # message_delta
+        has_tool_use = any(b.get("type") == "tool_use" for b in response.get("content", []))
+        stop_reason = "tool_use" if has_tool_use else response.get("stop_reason", "end_turn")
         msg_delta = {
             "type": "message_delta",
-            "delta": {"stop_reason": response.get("stop_reason", "end_turn")},
+            "delta": {"stop_reason": stop_reason},
             "usage": {"output_tokens": response.get("usage", {}).get("output_tokens", 0)},
         }
         events.append(f"event: message_delta\ndata: {json.dumps(msg_delta)}\n\n".encode())
@@ -1166,8 +1169,21 @@ class StreamingMixin:
             if "ratelimit" in k.lower() or k.lower().startswith("x-codex")
         }
 
+        # Adjust token count header to reflect post-compression token budget.
+        # After compression, the client consumed fewer tokens than the upstream
+        # reported; credit the difference back so harnesses don't throttle early.
+        _remaining_key = "x-ratelimit-remaining-tokens"
+        if _remaining_key in forwarded_headers and tokens_saved > 0:
+            try:
+                _remaining = int(forwarded_headers[_remaining_key])
+                forwarded_headers[_remaining_key] = str(_remaining + tokens_saved)
+            except (ValueError, TypeError):
+                pass
+
         async def generate():
             nonlocal body, memory_enabled  # May need to modify for continuation requests
+
+            stream_complete = False
 
             # For memory mode, we buffer the response to check for tool calls
             buffered_chunks: list[bytes] = []
@@ -1275,6 +1291,9 @@ class StreamingMixin:
                                 memory_enabled = False
 
                         # Parse complete SSE events from buffer
+                        # Check if we've received the terminal [DONE] sentinel
+                        if b"[DONE]" in chunk:
+                            stream_complete = True
                         usage = self._parse_sse_usage_from_buffer(stream_state, provider)
                         if usage:
                             if "input_tokens" in usage:
@@ -1490,6 +1509,8 @@ class StreamingMixin:
                     # are forbidden in this module per PR-A8 / P1-8.
                     decoder = __import__("codecs").getincrementaldecoder("utf-8")()
                     _final_full_sse_data = decoder.decode(bytes(full_sse_bytes), final=False)
+                if not stream_complete:
+                    logger.warning("[%s] Stream ended without terminal event — upstream may have truncated", request_id)
                 await self._finalize_stream_response(
                     body=body,
                     provider=provider,

@@ -1664,7 +1664,7 @@ def create_admin_router(
     )
     async def quota():
         """Unified quota/rate-limit stats for all registered providers."""
-        from cutctx.proxy.quota import get_quota_registry
+        from cutctx.subscription.base import get_quota_registry
 
         return JSONResponse(content=get_quota_registry().get_all_stats())
 

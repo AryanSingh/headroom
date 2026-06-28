@@ -34,6 +34,10 @@ if TYPE_CHECKING:
     from cutctx.savings import RequestSavingsBreakdown
 
 logger = logging.getLogger("cutctx.proxy")
+_CUTCTX_REATTRIBUTABLE_SOURCES = {
+    "tool_schema_compaction",
+    "api_surface_slimming",
+}
 
 
 @dataclass(frozen=True)
@@ -566,12 +570,22 @@ def _build_savings_breakdown(
             # If the extra source re-attributes tokens that were
             # already counted in the Cutctx bucket, roll them back so
             # the extra source is the only place that gets credit.
-            if tokens > 0 and src == SavingsSource.CUTCTX_COMPRESSION:
-                cutctx_bucket = breakdown.by_source.get_tokens(src)
+            if tokens > 0 and (
+                src == SavingsSource.CUTCTX_COMPRESSION
+                or src.value in _CUTCTX_REATTRIBUTABLE_SOURCES
+            ):
+                cutctx_bucket = breakdown.by_source.get_tokens(
+                    SavingsSource.CUTCTX_COMPRESSION
+                )
                 if cutctx_bucket >= tokens:
-                    breakdown.by_source.add(src, -tokens)
-                    by_source_tokens[src.value] = (
-                        by_source_tokens.get(src.value, 0) - tokens
+                    breakdown.by_source.add(
+                        SavingsSource.CUTCTX_COMPRESSION, -tokens
+                    )
+                    by_source_tokens[SavingsSource.CUTCTX_COMPRESSION.value] = (
+                        by_source_tokens.get(
+                            SavingsSource.CUTCTX_COMPRESSION.value, 0
+                        )
+                        - tokens
                     )
             breakdown.by_source.add(src, tokens, usd)
             by_source_tokens[src.value] = (
@@ -792,6 +806,16 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         semantic_cache_saved_tokens = max(0, int(outcome.semantic_cache_avoided_tokens))
         self_hosted_prefix_cache_saved_tokens = max(0, int(outcome.self_hosted_prefix_cache_hits))
         model_routing_saved_tokens = max(0, int(outcome.model_routing_tokens_saved))
+        tool_schema_saved_tokens = max(
+            0,
+            int(
+                ((outcome.savings_metadata or {}).get("tool_schema_compaction") or {}).get(
+                    "tokens",
+                    0,
+                )
+                or 0
+            ),
+        )
         total_saved_tokens = (
             max(0, int(outcome.tokens_saved))
             + cache_saved_tokens
@@ -804,12 +828,39 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             if outcome.original_tokens > 0
             else 0.0
         )
-        request_logger.log(
-            RequestLog(
-                request_id=outcome.request_id,
-                timestamp=datetime.now().isoformat(),
-                provider=outcome.provider,
-                model=outcome.model,
+    request_cost_usd: float | None = None
+    if cost_tracker is not None:
+        if outcome.from_response_cache:
+            request_cost_usd = 0.0
+        else:
+            uncached_input_tokens = max(0, int(outcome.uncached_input_tokens))
+            cache_read_tokens = max(0, int(outcome.cache_read_tokens))
+            cache_write_tokens = max(0, int(outcome.cache_write_tokens))
+            input_tokens_for_cost = uncached_input_tokens
+
+            # Fall back to the optimized prompt tokens when the provider
+            # did not report cache split counters for this request.
+            if (
+                input_tokens_for_cost <= 0
+                and cache_read_tokens <= 0
+                and cache_write_tokens <= 0
+            ):
+                input_tokens_for_cost = max(0, int(outcome.optimized_tokens))
+
+            request_cost_usd = cost_tracker.estimate_cost(
+                outcome.model,
+                input_tokens_for_cost,
+                max(0, int(outcome.output_tokens)),
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+            )
+
+    request_logger.log(
+        RequestLog(
+            request_id=outcome.request_id,
+            timestamp=datetime.now().isoformat(),
+            provider=outcome.provider,
+            model=outcome.model,
                 input_tokens_original=outcome.original_tokens,
                 input_tokens_optimized=outcome.optimized_tokens,
                 output_tokens=outcome.output_tokens,
@@ -821,14 +872,16 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_hit=outcome.cache_hit,
                 transforms_applied=list(outcome.transforms_applied),
                 cache_saved_tokens=cache_saved_tokens,
-                semantic_cache_saved_tokens=semantic_cache_saved_tokens,
-                self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
-                model_routing_saved_tokens=model_routing_saved_tokens,
-                total_saved_tokens=total_saved_tokens,
-                total_savings_percent=total_savings_percent,
-                waste_signals=outcome.waste_signals,
-                request_messages=outcome.request_messages,
-                compressed_messages=outcome.compressed_messages,
+            semantic_cache_saved_tokens=semantic_cache_saved_tokens,
+            self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
+            model_routing_saved_tokens=model_routing_saved_tokens,
+            tool_schema_saved_tokens=tool_schema_saved_tokens,
+            total_saved_tokens=total_saved_tokens,
+            total_savings_percent=total_savings_percent,
+            request_cost_usd=request_cost_usd,
+            waste_signals=outcome.waste_signals,
+            request_messages=outcome.request_messages,
+            compressed_messages=outcome.compressed_messages,
                 turn_id=outcome.turn_id,
             )
         )

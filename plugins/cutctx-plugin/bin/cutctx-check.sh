@@ -24,21 +24,23 @@ if ! CUTCTX_CMD="$(resolve_cutctx)"; then
 fi
 
 # Check if proxy is running
-if curl -sf http://127.0.0.1:8787/livez >/dev/null 2>&1; then
-  echo '{"status":"ready","proxy":"http://127.0.0.1:8787"}'
+PORT="${CUTCTX_PORT:-8787}"
+PROXY_ADDR="http://127.0.0.1:${PORT}"
+if curl -sf "${PROXY_ADDR}/livez" >/dev/null 2>&1; then
+  echo "{\"status\":\"ready\",\"proxy\":\"${PROXY_ADDR}\"}"
 else
   echo '{"status":"installed","proxy":"not_running","message":"Starting proxy..."}'
   # Auto-start the proxy in background
-  "$CUTCTX_CMD" proxy --port 8787 &>/dev/null &
+  "$CUTCTX_CMD" proxy --port "${PORT}" &>/dev/null &
   PROXY_PID=$!
   # Wait for it to be ready. The first launch can take a few seconds while
   # proxy dependencies initialize, so give it a longer window.
   for i in $(seq 1 40); do
-    if curl -sf http://127.0.0.1:8787/livez >/dev/null 2>&1; then
-      echo "{\"status\":\"ready\",\"proxy\":\"http://127.0.0.1:8787\",\"pid\":$PROXY_PID}"
+    if curl -sf "${PROXY_ADDR}/livez" >/dev/null 2>&1; then
+      echo "{\"status\":\"ready\",\"proxy\":\"${PROXY_ADDR}\",\"pid\":$PROXY_PID}"
       exit 0
     fi
     sleep 0.5
   done
-  echo '{"status":"error","message":"Proxy started but not responding on port 8787"}'
+  echo "{\"status\":\"error\",\"message\":\"Proxy started but not responding on port ${PORT}\"}"
 fi

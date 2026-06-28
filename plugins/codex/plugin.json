@@ -1,6 +1,6 @@
 {
   "name": "cutctx-codex",
-  "version": "0.26.1",
+  "version": "0.28.0",
   "description": "Cutctx context compression for OpenAI Codex — compress, retrieve, and observe token savings.",
   "author": {
     "name": "Cutctx Contributors",

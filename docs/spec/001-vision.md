@@ -2,108 +2,66 @@
 
 **Status:** done
 
-## What Cutctx Is
+## What Cutctx is
+Cutctx is a context-compression proxy for AI provider APIs. It sits between coding tools and provider APIs, reducing token usage before requests reach the model.
 
-Cutctx is a **context compression proxy** for AI provider APIs. It sits between AI coding tools (Claude Code, Copilot, Codex, etc.) and provider APIs (OpenAI, Anthropic, Google, Cohere), compressing context before it reaches the provider to reduce token usage and costs.
+## Core value proposition
+1. Token savings through compression, cache stabilization, and transport slimming
+2. Lower API spend before provider transmission
+3. Better effective context windows by removing repeated waste
+4. Local-first privacy by default
+5. Compatibility with existing tools through proxy, SDK, CLI, and MCP surfaces
 
-### Core Value Proposition
+## What Cutctx is not
+- a model provider
+- a prompt data store by default
+- a billing platform
+- a generic logging product
 
-1. **Token Savings** — 30-90% reduction in tokens sent to providers through semantic compression
-2. **Cost Reduction** — Lower API costs via compression before provider transmission
-3. **Context Window Extension** — Effective 2-10x larger context windows via compression
-4. **Privacy** — Prompts never logged by default; all processing stays local
-5. **Compatibility** — Works with existing AI coding tools via proxy or SDK
+## Design principles
 
-### What Cutctx Is Not
+### 1. Local-first privacy
+Prompt data should stay local unless a user explicitly exports it.
 
-- A model provider — Cutctx does not host or run AI models
-- A data store — No prompt storage by default (local SQLite is optional)
-- A logging service — No prompt logging by default
-- A billing service — Usage tracking is internal only
+### 2. Transparent compression
+Users should be able to see what was compressed, why, and where savings came from.
 
----
+### 3. Composable integration
+Cutctx should improve existing workflows without forcing users onto a new agent.
 
-## Design Principles
+### 4. Production-ready defaults
+Optional subsystems should degrade gracefully and safe defaults should work out of the box.
 
-### 1. Local-First Privacy
+## Core guarantees
+- Compression happens before provider transmission when enabled
+- Prompt data does not leave the proxy by default
+- Savings and cache behavior remain inspectable
+- Integrations stay composable with existing AI tooling
 
-**Principle:** Prompt data never leaves the proxy unless explicitly exported.
+## Target users
+- Individual developers reducing personal AI coding costs
+- Development teams sharing savings improvements and cache learnings
+- Enterprises running self-hosted deployments with stronger privacy requirements
+- Plugin and extension authors building on Cutctx seams
 
-**Implications:**
-- All compression happens locally or through the proxy
-- No third-party data sharing
-- Optional SQLite storage with user control
-- Export must be explicitly configured
+## Success metrics
+- Token savings above 30 percent on eligible traffic
+- Compression overhead below 50 ms per request
+- Healthy cache-hit behavior on repeated-session traffic
+- Zero prompt exfiltration by default
 
-### 2. Transparent Compression
+## Current strategic priorities
+Cutctx's biggest next savings wins come from shrinking repeated scaffolding and stabilizing cache reuse, not just adding another generic compressor.
 
-**Principle:** Users see exactly what is being compressed and why.
+Priority order:
+1. Tool schema compaction
+2. API and MCP surface slimming
+3. Reversible code payload minification
+4. Shell and tool-output slimming
+5. Token Optimizer style instrumentation
+6. Prompt-cache remediation
+7. Graphify runtime hardening
+8. Minimal-build behavior
 
-**Implications:**
-- Full observability into compression decisions
-- Metrics and logs show savings
-- Transform audit trail available
-- Dashboard visualizes all compression activity
-
-### 3. Composable Integration
-
-**Principle:** Cutctx works alongside existing tools without requiring workflow changes.
-
-**Implications:**
-- Proxy mode: route traffic through Cutctx
-- SDK mode: integrate into custom applications
-- CLI mode: wrap existing AI commands
-- Agent mode: MCP/LiteLLM/ASGI integrations
-
-### 4. Production-Ready Defaults
-
-**Principle:** Safe defaults that work out of the box.
-
-**Implications:**
-- Compression enabled by default
-- No logging by default
-- Cache enabled by default
-- Learning disabled by default
-
----
-
-## Core Guarantees
-
-| Guarantee | Description |
-|-----------|-------------|
-| **Never logs prompts** | No prompt data in logs unless exporter configured |
-| **Never leaves proxy** | All data stays local unless explicitly exported |
-| **Composable** | Works alongside Claude Code, Copilot, Codex, etc. |
-| **Transparent** | Full observability into compression decisions |
-| **Type-safe** | Full type annotations, mypy compliance |
-| **Test-covered** | Unit, integration, and E2E test coverage |
-
----
-
-## Target Users
-
-| User | Use Case |
-|------|----------|
-| **Individual Developers** | Reduce API costs for personal AI coding |
-| **Development Teams** | Shared compression with learn plugins |
-| **Enterprises** | Self-hosted deployment with security guarantees |
-| **Plugin Authors** | Extend Cutctx via plugin ABI |
-
----
-
-## Success Metrics
-
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Token savings | >30% | (tokens_before - tokens_after) / tokens_before |
-| Compression latency | <50ms | Per-request proxy overhead |
-| Cache hit rate | >60% | cache_hits / total_requests |
-| Zero data exfiltration | 100% | No prompts in logs by default |
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0-draft | 2026-04-16 | Initial vision document |
+Roadmap reference:
+- [Token-savings priorities](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/specs/token-savings-priorities.md)

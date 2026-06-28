@@ -53,8 +53,10 @@ class RequestLog:
     semantic_cache_saved_tokens: int = 0
     self_hosted_prefix_cache_saved_tokens: int = 0
     model_routing_saved_tokens: int = 0
+    tool_schema_saved_tokens: int = 0
     total_saved_tokens: int = 0
     total_savings_percent: float = 0.0
+    request_cost_usd: float | None = None
 
     # Waste signals detected in original messages
     waste_signals: dict[str, int] | None = None
@@ -317,9 +319,9 @@ class ProxyConfig:
     memory_qdrant_host: str = field(default_factory=qdrant_env.qdrant_env_host)
     memory_qdrant_port: int = field(default_factory=qdrant_env.qdrant_env_port)
     memory_qdrant_api_key: str | None = field(default_factory=qdrant_env.qdrant_env_api_key)
-    memory_neo4j_uri: str = "neo4j://localhost:7687"
-    memory_neo4j_user: str = "neo4j"
-    memory_neo4j_password: str = ""
+    memory_neo4j_uri: str = field(default_factory=lambda: os.environ.get("NEO4J_URI", "neo4j://localhost:7687"))
+    memory_neo4j_user: str = field(default_factory=lambda: os.environ.get("NEO4J_USER", "neo4j"))
+    memory_neo4j_password: str = field(default_factory=lambda: os.environ.get("NEO4J_PASSWORD", ""))
     memory_bridge_enabled: bool = False
     memory_bridge_md_paths: list[str] = field(default_factory=list)
     memory_bridge_md_format: str = "auto"

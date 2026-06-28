@@ -5,8 +5,25 @@
 ## Project Structure
 
 - **Repository:** `github.com/JerrettDavis/cutctx`
-- **License:** Apache 2.0
+- **License:** Apache 2.0 (Core) & Commercial (Enterprise features)
 - **Main Languages:** Python (core), TypeScript (SDK/dashboard)
+
+---
+
+## Dashboard Governance Surfaces
+
+The Cutctx proxy exposes a dashboard for governance features. These features are gated by the commercial license tiers.
+
+| Surface | Path | Required Tier | Description |
+|---------|------|---------------|-------------|
+| Organizations | `/orgs` | Business | Workspace and organizational model management |
+| Quotas & Limits | `/quota` | Business | Unified quota and rate-limit stats for providers |
+| Role-Based Access | `/rbac/roles` | Enterprise | Granular role management (Viewer, Operator, Admin) |
+| Retention Controls| `/retention/stats` | Enterprise | Controls and stats for data retention and cleanup |
+| Subscription Info | `/subscription-window`| Business | View active subscription state (requires tracker) |
+| Audit Logs | `/audit/stats` | Enterprise | Structured, queryable SQLite WAL-backed audit events |
+
+*Note: Running on the `builder` (Free/OSS) tier will result in these endpoints returning `{"error": "feature_not_available"}` with upgrade details.*
 
 ---
 

@@ -43,7 +43,8 @@ from cutctx.proxy.auth_mode import classify_auth_mode, classify_client
 from cutctx.proxy.cost import _summarize_transforms
 from cutctx.proxy.outcome import RequestOutcome
 from cutctx.proxy.project_context import classify_project, set_current_project
-from cutctx.proxy.savings_metadata import extract_savings_metadata
+from cutctx.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
+from cutctx.proxy.tool_surface import extract_responses_query, slim_tool_surface
 
 logger = logging.getLogger("cutctx.proxy")
 
@@ -57,6 +58,26 @@ _CLIENT_PROVIDER_MAP: dict[str, str] = {
 def _provider_for_client(client: str | None) -> str:
     """Map a detected client identifier to its provider label for metrics."""
     return _CLIENT_PROVIDER_MAP.get(client or "", "openai")
+
+
+def _tool_schema_savings_metadata(
+    tokenizer: Any,
+    original_tools: Any,
+    compacted_tools: Any,
+) -> dict[str, dict[str, int]] | None:
+    if not original_tools or not compacted_tools:
+        return None
+    try:
+        tokens_saved = max(
+            0,
+            tokenizer.count_text(json.dumps(original_tools, ensure_ascii=False))
+            - tokenizer.count_text(json.dumps(compacted_tools, ensure_ascii=False)),
+        )
+    except Exception:
+        return None
+    if tokens_saved <= 0:
+        return None
+    return {"tool_schema_compaction": {"tokens": tokens_saved}}
 
 
 _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES = 10_000
@@ -984,6 +1005,8 @@ class OpenAIResponsesMixin:
             request_headers=request.headers,
             body=body,
         )
+        schema_savings_metadata = None
+        tool_surface_query = extract_responses_query(body)
 
         messages: list[dict[str, Any]] = []
         if instructions:
@@ -1301,6 +1324,33 @@ class OpenAIResponsesMixin:
         # CompressionPolicy resolve at request entry).
         if self.config.optimize and not _bypass:
             try:
+                tool_surface_result = slim_tool_surface(
+                    body.get("tools"),
+                    query=tool_surface_query,
+                    tokenizer=tokenizer,
+                    tool_choice=body.get("tool_choice"),
+                )
+                tool_surface_tokens_saved = tool_surface_result.tokens_saved
+                if tool_surface_result.modified:
+                    body["tools"] = tool_surface_result.tools
+                    tokens_saved += tool_surface_tokens_saved
+                    optimized_tokens = max(
+                        0,
+                        original_tokens - tokens_saved,
+                    )
+                    schema_savings_metadata = merge_savings_metadata(
+                        schema_savings_metadata,
+                        {
+                            "api_surface_slimming": {
+                                "tokens": tool_surface_result.tokens_saved
+                            }
+                        },
+                    )
+                    transforms_applied = [
+                        "openai:responses:tool_surface_slimming",
+                        *list(transforms_applied),
+                    ]
+                original_tools_payload = copy.deepcopy(body.get("tools"))
                 (
                     body,
                     _modified,
@@ -1316,7 +1366,16 @@ class OpenAIResponsesMixin:
                     model=model,
                     request_id=request_id,
                 )
-                attempted_input_tokens = int(_attempted_tokens)
+                if (
+                    original_tools_payload
+                    and "openai:responses:tool_schema_compaction" in _transforms
+                ):
+                    schema_savings_metadata = _tool_schema_savings_metadata(
+                        tokenizer,
+                        original_tools_payload,
+                        body.get("tools"),
+                    )
+                attempted_input_tokens = int(_attempted_tokens) + tool_surface_tokens_saved
                 if _modified:
                     tokens_saved = int(_tokens_saved)
                     optimized_tokens = max(0, original_tokens - tokens_saved)
@@ -1425,7 +1484,10 @@ class OpenAIResponsesMixin:
                     optimization_latency,
                     memory_user_id=memory_user_id,
                     memory_request_ctx=memory_request_ctx,
-                    savings_metadata=request_savings_metadata,
+                    savings_metadata=merge_savings_metadata(
+                        request_savings_metadata,
+                        schema_savings_metadata,
+                    ),
                 )
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
@@ -1620,10 +1682,13 @@ class OpenAIResponsesMixin:
                         if getattr(self.config, "log_full_messages", False)
                         else None,
                         client=client,
-                        savings_metadata=extract_savings_metadata(
-                            request_headers=request.headers,
-                            response_headers=response.headers,
-                            body=body,
+                        savings_metadata=merge_savings_metadata(
+                            extract_savings_metadata(
+                                request_headers=request.headers,
+                                response_headers=response.headers,
+                                body=body,
+                            ),
+                            schema_savings_metadata,
                         ),
                     )
                 )
@@ -2518,6 +2583,28 @@ class OpenAIResponsesMixin:
                         _record_ws_compression_overhead(_preflight_ms)
                         _compression_started = time.perf_counter()
                         try:
+                            _tool_surface_result = slim_tool_surface(
+                                _inner.get("tools") if isinstance(_inner, dict) else None,
+                                query=extract_responses_query(
+                                    _inner if isinstance(_inner, dict) else {}
+                                ),
+                                tokenizer=get_tokenizer(_model),
+                                tool_choice=_inner.get("tool_choice")
+                                if isinstance(_inner, dict)
+                                else None,
+                            )
+                            _tool_surface_saved = _tool_surface_result.tokens_saved
+                            if _tool_surface_result.modified and isinstance(_inner, dict):
+                                _inner = {**_inner, "tools": _tool_surface_result.tools}
+                                ws_savings_metadata = merge_savings_metadata(
+                                    ws_savings_metadata,
+                                    {
+                                        "api_surface_slimming": {
+                                            "tokens": _tool_surface_saved
+                                        }
+                                    },
+                                )
+                            _original_ws_tools = copy.deepcopy(_inner.get("tools"))
                             (
                                 _new_inner,
                                 _modified,
@@ -2533,6 +2620,19 @@ class OpenAIResponsesMixin:
                                 model=_model,
                                 request_id=request_id,
                             )
+                            if (
+                                _original_ws_tools
+                                and "openai:responses:tool_schema_compaction"
+                                in _ws_transforms
+                            ):
+                                ws_savings_metadata = merge_savings_metadata(
+                                    ws_savings_metadata,
+                                    _tool_schema_savings_metadata(
+                                        get_tokenizer(_model),
+                                        _original_ws_tools,
+                                        _new_inner.get("tools"),
+                                    ),
+                                )
                             for _timing_name, _timing_ms in _ws_compression_timing.items():
                                 _record_ws_compression_timing(_timing_name, _timing_ms)
                         finally:
@@ -2572,23 +2672,33 @@ class OpenAIResponsesMixin:
                                     _rewrite_ms,
                                 )
                                 _record_ws_compression_overhead(_rewrite_ms)
-                                tokens_saved += int(_ws_saved)
-                                attempted_input_tokens_total += int(_ws_attempted_tokens)
-                                for _t in _ws_transforms:
-                                    if _t not in transforms_applied:
-                                        transforms_applied.append(_t)
-                                logger.info(
-                                    "[%s] WS /v1/responses compressed "
-                                    "%d→%d bytes (%d tokens saved, "
-                                    "auth_mode=%s, transforms=%s)",
-                                    request_id,
-                                    _bytes_before,
-                                    _bytes_after,
-                                    int(_ws_saved),
-                                    _ws_auth_mode.value,
-                                    transforms_applied,
-                                )
-                                ws_frames_compressed += 1
+                            tokens_saved += int(_tool_surface_saved)
+                            attempted_input_tokens_total += int(_tool_surface_saved)
+                            if _tool_surface_result.modified:
+                                if (
+                                    "openai:responses:tool_surface_slimming"
+                                    not in transforms_applied
+                                ):
+                                    transforms_applied.append(
+                                        "openai:responses:tool_surface_slimming"
+                                    )
+                            tokens_saved += int(_ws_saved)
+                            attempted_input_tokens_total += int(_ws_attempted_tokens)
+                            for _t in _ws_transforms:
+                                if _t not in transforms_applied:
+                                    transforms_applied.append(_t)
+                            logger.info(
+                                "[%s] WS /v1/responses compressed "
+                                "%d→%d bytes (%d tokens saved, "
+                                "auth_mode=%s, transforms=%s)",
+                                request_id,
+                                _bytes_before,
+                                _bytes_after,
+                                int(_ws_saved),
+                                _ws_auth_mode.value,
+                                transforms_applied,
+                            )
+                            ws_frames_compressed += 1
                         else:
                             _log_ws_passthrough(
                                 _ws_reason or "no_compression",
@@ -2802,6 +2912,31 @@ class OpenAIResponsesMixin:
                             _record_ws_compression_overhead(_preflight_ms)
                             _compression_started = time.perf_counter()
                             try:
+                                frame_surface_result = slim_tool_surface(
+                                    inner_payload.get("tools") if isinstance(inner_payload, dict) else None,
+                                    query=extract_responses_query(inner_payload if isinstance(inner_payload, dict) else {}),
+                                    tokenizer=get_tokenizer(model_for_frame),
+                                    tool_choice=inner_payload.get("tool_choice")
+                                    if isinstance(inner_payload, dict)
+                                    else None,
+                                )
+                                frame_surface_saved = frame_surface_result.tokens_saved
+                                if frame_surface_result.modified and isinstance(inner_payload, dict):
+                                    inner_payload = {
+                                        **inner_payload,
+                                        "tools": frame_surface_result.tools,
+                                    }
+                                    ws_savings_metadata = merge_savings_metadata(
+                                        ws_savings_metadata,
+                                        {
+                                            "api_surface_slimming": {
+                                                "tokens": frame_surface_saved
+                                            }
+                                        },
+                                    )
+                                original_frame_tools = copy.deepcopy(
+                                    inner_payload.get("tools")
+                                )
                                 (
                                     new_inner,
                                     modified,
@@ -2817,11 +2952,27 @@ class OpenAIResponsesMixin:
                                     model=model_for_frame,
                                     request_id=request_id,
                                 )
+                                if (
+                                    original_frame_tools
+                                    and "openai:responses:tool_schema_compaction"
+                                    in frame_transforms
+                                ):
+                                    ws_savings_metadata = merge_savings_metadata(
+                                        ws_savings_metadata,
+                                        _tool_schema_savings_metadata(
+                                            get_tokenizer(model_for_frame),
+                                            original_frame_tools,
+                                            new_inner.get("tools"),
+                                        ),
+                                    )
                                 for (
                                     _timing_name,
                                     _timing_ms,
                                 ) in frame_compression_timing.items():
-                                    _record_ws_compression_timing(_timing_name, _timing_ms)
+                                    _record_ws_compression_timing(
+                                        _timing_name,
+                                        _timing_ms,
+                                    )
                             finally:
                                 frame_compression_elapsed_ms = (
                                     time.perf_counter() - _compression_started
@@ -2909,6 +3060,11 @@ class OpenAIResponsesMixin:
                             _rewrite_ms,
                         )
                         _record_ws_compression_overhead(_rewrite_ms)
+                        tokens_saved += int(frame_surface_saved)
+                        attempted_input_tokens_total += int(frame_surface_saved)
+                        if frame_surface_result.modified:
+                            if "openai:responses:tool_surface_slimming" not in transforms_applied:
+                                transforms_applied.append("openai:responses:tool_surface_slimming")
                         tokens_saved += int(frame_saved)
                         attempted_input_tokens_total += int(frame_attempted_tokens)
                         for t in frame_transforms:

@@ -1,6 +1,6 @@
 {
   "name": "cutctx",
-  "version": "0.26.1",
+  "version": "0.28.0",
   "description": "Automatic context compression and retrieval for Codex.",
   "author": {
     "name": "Cutctx Contributors",
@@ -28,6 +28,8 @@
       "Write"
     ],
     "websiteURL": "https://cutctx.dev",
+    "settingsUrl": "http://127.0.0.1:8787/dashboard",
+    "configurationUrl": "http://127.0.0.1:8787/dashboard",
     "defaultPrompt": [
       "Use $cutctx automatically for large outputs and logs.",
       "Use $cutctx to retrieve exact details only when needed."

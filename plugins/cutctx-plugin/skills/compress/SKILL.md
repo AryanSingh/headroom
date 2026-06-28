@@ -14,21 +14,21 @@ Cutctx proxy starts automatically when this plugin loads. If it's not running:
 
 ```bash
 # Start the proxy in the background
-cutctx proxy --port 8787 &
+cutctx proxy --port ${CUTCTX_PORT:-8787} &
 
 # Wait for it to be ready
-until curl -sf http://127.0.0.1:8787/livez >/dev/null 2>&1; do
+until curl -sf http://127.0.0.1:${CUTCTX_PORT:-8787}/livez >/dev/null 2>&1; do
   sleep 0.5
 done
 ```
 
-The proxy runs on `http://127.0.0.1:8787` and compresses all requests automatically.
+The proxy runs on `http://127.0.0.1:${CUTCTX_PORT:-8787}` and compresses all requests automatically.
 
 ## Available Commands
 
 ### Start the proxy (manual, if auto-start failed)
 ```bash
-cutctx proxy --port 8787
+cutctx proxy --port ${CUTCTX_PORT:-8787}
 ```
 
 ### Wrap Claude Code (proxy + launch in one step)
@@ -67,7 +67,7 @@ cutctx savings
 ## Example Workflow
 
 Compression happens automatically via the proxy — no per-call commands needed:
-1. Run `cutctx wrap claude` (or `cutctx proxy --port 8787` for manual setup)
+1. Run `cutctx wrap claude` (or `cutctx proxy --port ${CUTCTX_PORT:-8787}` for manual setup)
 2. All API calls from Claude Code route through the proxy and are compressed automatically
 3. Check savings with `cutctx savings` after a session
 
@@ -89,4 +89,4 @@ The CLI binary is `cutctx` (installed via the `cutctx-ai` package).
 
 - **Docs**: https://cutctx.dev/docs
 - **GitHub**: https://github.com/cutctx/cutctx
-- **Proxy mode**: `cutctx proxy --port 8787` (zero code changes, automatic compression)
+- **Proxy mode**: `cutctx proxy --port ${CUTCTX_PORT:-8787}` (zero code changes, automatic compression)

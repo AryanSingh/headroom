@@ -298,6 +298,7 @@ def build_prefix_cache_stats(
             "net_benefit_tokens": (
                 metrics.prefix_freeze_tokens_preserved - metrics.prefix_freeze_compression_foregone
             ),
+            "adaptive_mode": diagnostics_indicates_adaptive_freeze(by_provider),
         },
         "compression_vs_cache": {
             "tokens_saved_by_compression": metrics.tokens_saved_total,
@@ -313,7 +314,20 @@ def build_prefix_cache_stats(
             "Observed TTL bucket metrics reflect provider-reported cache write usage "
             "(for example Anthropic 5m vs 1h), not configured or remaining TTL."
         ),
-    }
+}
+
+
+def diagnostics_indicates_adaptive_freeze(by_provider: dict[str, dict[str, Any]]) -> bool:
+    """Return True when runtime should bias harder toward prefix stability."""
+    for stats in by_provider.values():
+        writes = int(stats.get("cache_write_tokens", 0) or 0)
+        reads = int(stats.get("cache_read_tokens", 0) or 0)
+        busts = int(stats.get("bust_count", 0) or 0)
+        if busts > 0:
+            return True
+        if writes > 0 and reads == 0:
+            return True
+    return False
 
 
 def build_prefix_cache_diagnostics(

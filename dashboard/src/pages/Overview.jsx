@@ -79,6 +79,18 @@ function buildSourceRows(stats) {
       usd: Number(sourceUsd.cutctx_compression || costBreakdown.compression_savings_usd || 0),
     },
     {
+      key: 'tool_schema_compaction',
+      label: 'Tool schema compaction',
+      tokens: Number(sourceTokens.tool_schema_compaction || 0),
+      usd: Number(sourceUsd.tool_schema_compaction || 0),
+    },
+    {
+      key: 'api_surface_slimming',
+      label: 'API surface slimming',
+      tokens: Number(sourceTokens.api_surface_slimming || 0),
+      usd: Number(sourceUsd.api_surface_slimming || 0),
+    },
+    {
       key: 'provider_prompt_cache',
       label: 'Provider prompt cache',
       tokens: Number(sourceTokens.provider_prompt_cache || 0),
@@ -117,6 +129,142 @@ function buildClientRows(stats) {
       usd: Number(data.total_usd || 0),
     }))
     .sort((a, b) => b.tokens - a.tokens);
+}
+
+function getRequestDirectSaved(request) {
+  return Number(request?.tokens_saved || 0);
+}
+
+function getRequestIndirectSaved(request) {
+  return (
+    Number(request?.cache_saved_tokens || 0)
+    + Number(request?.semantic_cache_saved_tokens || 0)
+    + Number(request?.self_hosted_prefix_cache_saved_tokens || 0)
+    + Number(request?.model_routing_saved_tokens || 0)
+  );
+}
+
+function getBucketRequestCount(entry) {
+  const requestCount = entry?.requests ?? entry?.request_count ?? entry?.count ?? null;
+  if (requestCount != null) {
+    return Number(requestCount || 0);
+  }
+
+  const modelRequestCount = Object.values(entry?.by_model || {}).reduce(
+    (sum, value) => sum + Number(value?.requests || 0),
+    0,
+  );
+  if (modelRequestCount > 0) {
+    return modelRequestCount;
+  }
+
+  const providerRequestCount = Object.values(entry?.by_provider || {}).reduce(
+    (sum, value) => sum + Number(value?.requests || 0),
+    0,
+  );
+  if (providerRequestCount > 0) {
+    return providerRequestCount;
+  }
+
+  if (Number(entry?.tokens_saved || 0) > 0 || Number(entry?.total_tokens_saved || 0) > 0) {
+    return 1;
+  }
+
+  return null;
+}
+
+function addBucketModelContribution(bucket, model, tokensSaved, requests = 0) {
+  const key = model || 'unknown';
+  const current = bucket.models[key] || { tokens: 0, requests: 0 };
+  bucket.models[key] = {
+    tokens: current.tokens + Number(tokensSaved || 0),
+    requests: current.requests + Number(requests || 0),
+  };
+}
+
+function getBucketTopModels(bucket, limit = 2) {
+  return Object.entries(bucket?.models || {})
+    .map(([model, value]) => ({
+      model,
+      tokens: Number(value?.tokens || 0),
+      requests: Number(value?.requests || 0),
+    }))
+    .filter((entry) => entry.tokens > 0 || entry.requests > 0)
+    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests)
+    .slice(0, limit);
+}
+
+function buildDiagnosticsFallback(prefixCache) {
+  const totals = prefixCache?.totals || {};
+  const totalRequests = Number(totals.requests || 0);
+  const totalReads = Number(totals.cache_read_tokens || 0);
+  const totalWrites = Number(totals.cache_write_tokens || 0);
+  const bustCount = Number(totals.bust_count || 0);
+  const hitRate = Number(totals.hit_rate || 0);
+  const findings = [];
+
+  if (totalRequests === 0) {
+    findings.push({
+      severity: 'info',
+      code: 'no_prefix_cache_traffic',
+      title: 'No provider cache traffic yet',
+      detail: 'Prompt-cache diagnostics appear once repeated requests flow through the proxy.',
+      recommendation: 'Run a few repeated requests with a stable prefix to populate this panel.',
+    });
+    return findings;
+  }
+
+  if (totalWrites === 0 && totalReads === 0) {
+    findings.push({
+      severity: 'high',
+      code: 'cache_not_engaged',
+      title: 'Provider prompt caching is not engaging',
+      detail: 'The proxy is seeing requests, but providers are not reporting prompt-cache reads or writes.',
+      recommendation: 'Verify cache breakpoints and keep the reusable prompt prefix byte-stable.',
+    });
+  }
+
+  if (totalWrites > 0 && totalReads === 0) {
+    findings.push({
+      severity: 'high',
+      code: 'warming_without_hits',
+      title: 'The cache is warming but not being reused',
+      detail: 'Providers are reporting cache writes, but not cache reads.',
+      recommendation: 'Keep system prompts, tool schemas, and earlier turns stable between requests.',
+    });
+  }
+
+  if (hitRate > 0 && hitRate < 20) {
+    findings.push({
+      severity: 'medium',
+      code: 'low_hit_rate',
+      title: 'Prompt-cache hit rate is still low',
+      detail: `Only ${hitRate.toFixed(1)}% of observed prompt tokens are being served from cache.`,
+      recommendation: 'Reduce prefix churn so more repeated prompt volume lands in the cached region.',
+    });
+  }
+
+  if (bustCount > 0) {
+    findings.push({
+      severity: 'medium',
+      code: 'cache_busts_detected',
+      title: 'Cache busts are eroding savings',
+      detail: `${formatInteger(bustCount)} cache busts were observed in recent provider traffic.`,
+      recommendation: 'Avoid mutating earlier cached messages once the prefix is warm.',
+    });
+  }
+
+  if (findings.length === 0) {
+    findings.push({
+      severity: 'info',
+      code: 'cache_healthy',
+      title: 'Provider prompt caching looks healthy',
+      detail: 'The proxy is observing cache activity without an obvious anti-pattern dominating savings.',
+      recommendation: 'Most additional gains now come from direct compression and other optimization layers.',
+    });
+  }
+
+  return findings;
 }
 
 function Sparkline({ values, color = 'var(--accent)', height = 28, width = 80 }) {
@@ -179,13 +327,19 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
       tokens: 0,
       requests: null,
       hasRequestData: false,
+      models: {},
       label: `${formatBucketLabel(start, period)} - ${formatBucketLabel(end, period)}`,
     };
   });
 
   const series = historyData?.series;
   if (series) {
-    const sourceData = period === '24h' ? series.hourly || [] : series.daily || [];
+    const sourceData =
+      period === '24h'
+        ? series.hourly || []
+        : period === '7d'
+          ? series.daily || []
+          : series.daily || series.weekly || [];
     for (const entry of sourceData) {
       const timestamp = new Date(entry.timestamp).getTime();
       const age = referenceTime - timestamp;
@@ -195,14 +349,21 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
 
       const index = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
       buckets[index].tokens += Number(entry.tokens_saved || 0);
-      if (entry.requests != null) {
+      const requestCount = getBucketRequestCount(entry);
+      if (requestCount != null) {
         buckets[index].requests =
-          Number(buckets[index].requests || 0) + Number(entry.requests || 0);
+          Number(buckets[index].requests || 0) + requestCount;
         buckets[index].hasRequestData = true;
       }
+      for (const [model, data] of Object.entries(entry.by_model || {})) {
+        addBucketModelContribution(
+          buckets[index],
+          model,
+          Number(data?.tokens_saved || 0),
+          Number(data?.requests || 0),
+        );
+      }
     }
-
-    return buckets;
   }
 
   const recentRequests = Array.isArray(recentRequestsSource) ? recentRequestsSource : [];
@@ -213,12 +374,14 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
       continue;
     }
 
-    const index = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
-    buckets[index].tokens += Number(
-      request.total_saved_tokens ?? request.tokens_saved ?? 0,
-    );
-    buckets[index].requests = Number(buckets[index].requests || 0) + 1;
-    buckets[index].hasRequestData = true;
+      const index = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
+      if (!series) {
+        const totalSaved = getRequestTotalSaved(request);
+        buckets[index].tokens += totalSaved;
+        addBucketModelContribution(buckets[index], request.model, totalSaved, 1);
+      }
+      buckets[index].requests = Number(buckets[index].requests || 0) + 1;
+      buckets[index].hasRequestData = true;
   }
 
   return buckets;
@@ -247,6 +410,7 @@ function TrendChart({ stats, historyData }) {
     hoveredIndex != null
       ? buckets[hoveredIndex]
       : buckets.findLast((bucket) => bucket.tokens > 0) || buckets.at(-1);
+  const activeBucketTopModels = activeBucket ? getBucketTopModels(activeBucket) : [];
 
   if (buckets.every((bucket) => bucket.tokens === 0)) {
     return (
@@ -288,6 +452,13 @@ function TrendChart({ stats, historyData }) {
                   ? `${formatInteger(activeBucket.requests)} requests`
                   : 'Request count unavailable'}
               </span>
+              <span>
+                {activeBucketTopModels.length > 0
+                  ? `Top model: ${activeBucketTopModels
+                      .map((entry) => `${entry.model} (${formatInteger(entry.tokens)})`)
+                      .join(', ')}`
+                  : 'Model mix unavailable'}
+              </span>
             </div>
           </div>
         ) : null}
@@ -315,13 +486,19 @@ function TrendChart({ stats, historyData }) {
               const requestText = bucket.hasRequestData
                 ? `${formatInteger(bucket.requests)} requests`
                 : 'Request count unavailable';
+              const topModels = getBucketTopModels(bucket);
+              const modelText = topModels.length > 0
+                ? `Top model${topModels.length > 1 ? 's' : ''}: ${topModels
+                    .map((entry) => `${entry.model} (${formatInteger(entry.tokens)})`)
+                    .join(', ')}`
+                : 'Model mix unavailable';
 
               return (
                 <button
                   key={`${period}-${index}`}
                   className={`trend-bar ${isActive ? 'active' : ''}`}
                   style={{ height: `${scaledHeight}%` }}
-                  title={`${bucket.label}: ${formatInteger(bucket.tokens)} tokens saved${bucket.hasRequestData ? ` across ${formatInteger(bucket.requests)} requests` : ''}`}
+                  title={`${bucket.label}: ${formatInteger(bucket.tokens)} tokens saved${bucket.hasRequestData ? ` across ${formatInteger(bucket.requests)} requests` : ''}${topModels.length > 0 ? ` · ${modelText}` : ''}`}
                   type="button"
                   onMouseEnter={() => setHoveredIndex(index)}
                   onFocus={() => setHoveredIndex(index)}
@@ -332,6 +509,7 @@ function TrendChart({ stats, historyData }) {
                     <strong>{bucket.label}</strong>
                     <span>{formatInteger(bucket.tokens)} tokens saved</span>
                     <span>{requestText}</span>
+                    <span>{modelText}</span>
                   </span>
                 </button>
               );
@@ -480,7 +658,9 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle
 
 function DiagnosticsPanel({ prefixCache }) {
   const diagnostics = prefixCache?.diagnostics || {};
-  const findings = Array.isArray(diagnostics.findings) ? diagnostics.findings : [];
+  const findings = Array.isArray(diagnostics.findings) && diagnostics.findings.length > 0
+    ? diagnostics.findings
+    : buildDiagnosticsFallback(prefixCache);
   const providerStates = Array.isArray(diagnostics.by_provider) ? diagnostics.by_provider : [];
 
   return (
@@ -623,18 +803,19 @@ function GraphStatusPanel({ knowledgeGraph }) {
 }
 
 function getRequestTotalSaved(request) {
-  return Number(
-    request.total_saved_tokens ??
-      (Number(request.tokens_saved || 0) + Number(request.cache_saved_tokens || 0)),
-  );
+  if (request?.total_saved_tokens != null) {
+    return Number(request.total_saved_tokens || 0);
+  }
+
+  return getRequestDirectSaved(request) + getRequestIndirectSaved(request);
 }
 
 function getRequestTotalSavingsPercent(request) {
-  if (request.total_savings_percent != null) {
+  if (request?.total_savings_percent != null) {
     return Number(request.total_savings_percent || 0);
   }
 
-  const originalTokens = Number(request.input_tokens_original || 0);
+  const originalTokens = Number(request?.input_tokens_original || 0);
   const totalSaved = getRequestTotalSaved(request);
   return originalTokens > 0 ? (totalSaved / originalTokens) * 100 : 0;
 }
@@ -657,10 +838,18 @@ export default function Overview() {
     Number(requests.total || 0),
     Number(lifetime.requests || 0),
   );
-  const effectiveSavingsUsd = Math.max(
-    Number(summary?.cost?.total_saved_usd || 0),
-    Number(lifetime.compression_savings_usd || 0),
-  );
+  const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
+  const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
+  const sessionSavingsUsd = Number(summary?.cost?.total_saved_usd || 0);
+  const lifetimeSavingsUsd = Number(lifetime.compression_savings_usd || 0);
+  const effectiveSavingsUsd = sessionCostWithoutCutctx > 0
+    ? sessionSavingsUsd
+    : lifetimeSavingsUsd;
+  const moneySavedFootnote = sessionCostWithoutCutctx > 0
+    ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
+    : lifetimeSavingsUsd > 0
+      ? 'Lifetime compression savings'
+      : 'No cost data yet';
 
   const persistentHistory = Array.isArray(persistent.recent_history)
     ? persistent.recent_history.slice(-8).reverse().map((entry) => ({
@@ -691,6 +880,7 @@ export default function Overview() {
   const compressionRatio =
     tokens.savings_percent != null ? 100 - Number(tokens.savings_percent || 0) : null;
   const directCompressionRow = sourceRows.find((row) => row.key === 'cutctx_compression');
+  const toolSchemaRow = sourceRows.find((row) => row.key === 'tool_schema_compaction');
   const providerCacheRow = sourceRows.find((row) => row.key === 'provider_prompt_cache');
 
   return (
@@ -745,7 +935,7 @@ export default function Overview() {
             iconColor="amber"
             label="Money saved"
             value={formatCurrency(effectiveSavingsUsd)}
-            footnote={`vs ${formatCurrency(summary?.cost?.without_cutctx_usd || 0)} without Cutctx`}
+            footnote={moneySavedFootnote}
           />
         </div>
       )}
@@ -788,6 +978,7 @@ export default function Overview() {
               <>
                 <div className="attribution-note">
                   <span>Direct compression: {formatInteger(directCompressionRow?.tokens || 0)} tokens</span>
+                  <span>Tool schema: {formatInteger(toolSchemaRow?.tokens || 0)} tokens</span>
                   <span>Provider cache: {formatInteger(providerCacheRow?.tokens || 0)} tokens</span>
                 </div>
 
@@ -880,12 +1071,12 @@ export default function Overview() {
                           </span>
                         </div>
                       </td>
-                      <td>
-                        <div className="request-savings-stack request-savings-stack-muted">
-                          <span>{formatInteger(request.tokens_saved || 0)}</span>
-                          <span className="request-savings-percent">
-                            {formatPercent(
-                              Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
+                              <td>
+                                <div className="request-savings-stack request-savings-stack-muted">
+                                  <span>{formatInteger(getRequestDirectSaved(request))}</span>
+                                  <span className="request-savings-percent">
+                                    {formatPercent(
+                                      Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
                             )}
                           </span>
                         </div>

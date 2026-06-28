@@ -2,6 +2,18 @@
   "id": "cutctx",
   "kind": "context-engine",
   "uiHints": {
+    "enabled": {
+      "label": "Enabled",
+      "help": "Enable or disable the Cutctx plugin."
+    },
+    "autoStart": {
+      "label": "Auto Start Proxy",
+      "help": "Automatically start a local Cutctx proxy if one is not detected."
+    },
+    "startupTimeoutMs": {
+      "label": "Startup Timeout (ms)",
+      "help": "Maximum time to wait for the local Cutctx proxy to start."
+    },
     "proxyUrl": {
       "label": "Proxy URL",
       "help": "Optional. URL of a Cutctx proxy (example: http://127.0.0.1:8787 or https://cutctx.example.com). If omitted, plugin auto-detects on localhost. Auto-start only works for local addresses."
@@ -33,7 +45,6 @@
   },
   "configSchema": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "enabled": {
         "type": "boolean"

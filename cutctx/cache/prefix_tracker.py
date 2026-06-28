@@ -62,6 +62,8 @@ class FreezeStats:
     net_benefit_tokens: int = 0  # tokens_preserved - compression_foregone
     frozen_message_count: int = 0
     turn_number: int = 0
+    consecutive_write_only_turns: int = 0
+    remediation_active: bool = False
 
 
 class PrefixCacheTracker:
@@ -97,6 +99,7 @@ class PrefixCacheTracker:
         self._busts_avoided: int = 0
         self._tokens_preserved: int = 0
         self._compression_foregone_tokens: int = 0
+        self._consecutive_write_only_turns: int = 0
 
     def get_frozen_message_count(self) -> int:
         """How many leading messages to skip compression on the next turn.
@@ -109,7 +112,14 @@ class PrefixCacheTracker:
             return 0
         if self._cached_token_count < self.config.min_cached_tokens:
             return 0
-        return self._cached_message_count
+        frozen_count = self._cached_message_count
+        if (
+            self._consecutive_write_only_turns >= 2
+            and frozen_count > 0
+            and len(self._last_forwarded_messages) > frozen_count
+        ):
+            frozen_count += 1
+        return min(frozen_count, max(0, len(self._last_forwarded_messages) - 1))
 
     def update_from_response(
         self,
@@ -144,9 +154,15 @@ class PrefixCacheTracker:
         # Compute total cached tokens (read + write = what's in cache now)
         total_cached = cache_read_tokens + cache_write_tokens
 
+        if cache_write_tokens > 0 and cache_read_tokens == 0:
+            self._consecutive_write_only_turns += 1
+        elif cache_read_tokens > 0:
+            self._consecutive_write_only_turns = 0
+
         if total_cached == 0:
             self._cached_token_count = 0
             self._cached_message_count = 0
+            self._consecutive_write_only_turns = 0
             return
 
         # Estimate per-message token counts if not provided
@@ -239,6 +255,8 @@ class PrefixCacheTracker:
             net_benefit_tokens=self._tokens_preserved - self._compression_foregone_tokens,
             frozen_message_count=self._cached_message_count,
             turn_number=self._turn_number,
+            consecutive_write_only_turns=self._consecutive_write_only_turns,
+            remediation_active=self._consecutive_write_only_turns >= 2,
         )
 
     @staticmethod
