@@ -26,29 +26,24 @@ The proxy runs on `http://127.0.0.1:8787` and compresses all requests automatica
 
 ## Available Commands
 
-### Compress text
-```bash
-echo "large text here" | cutctx compress
-```
-
-### Compress a file
-```bash
-cutctx compress < large_file.txt
-```
-
-### Check compression stats
-```bash
-cutctx stats
-```
-
 ### Start the proxy (manual, if auto-start failed)
 ```bash
 cutctx proxy --port 8787
 ```
 
-### Retrieve original content from CCR
+### Wrap Claude Code (proxy + launch in one step)
 ```bash
-cutctx retrieve <hash>
+cutctx wrap claude
+```
+
+### Benchmark compression performance
+```bash
+cutctx bench --size small --json
+```
+
+### Check savings report
+```bash
+cutctx savings
 ```
 
 ## Compression Algorithms
@@ -71,11 +66,10 @@ cutctx retrieve <hash>
 
 ## Example Workflow
 
-When you receive a large tool output:
-1. Check if it's compressible (JSON, code, logs, diffs)
-2. Run: `echo '<content>' | cutctx compress`
-3. Use the compressed version in your response
-4. If the user needs full details, run: `cutctx retrieve <hash>`
+Compression happens automatically via the proxy — no per-call commands needed:
+1. Run `cutctx wrap claude` (or `cutctx proxy --port 8787` for manual setup)
+2. All API calls from Claude Code route through the proxy and are compressed automatically
+3. Check savings with `cutctx savings` after a session
 
 ## Installation
 

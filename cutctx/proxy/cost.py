@@ -290,6 +290,7 @@ def build_prefix_cache_stats(
     return {
         "by_provider": by_provider,
         "totals": totals,
+        "diagnostics": build_prefix_cache_diagnostics(by_provider, totals),
         "prefix_freeze": {
             "busts_avoided": metrics.prefix_freeze_busts_avoided,
             "tokens_preserved": metrics.prefix_freeze_tokens_preserved,
@@ -312,6 +313,159 @@ def build_prefix_cache_stats(
             "Observed TTL bucket metrics reflect provider-reported cache write usage "
             "(for example Anthropic 5m vs 1h), not configured or remaining TTL."
         ),
+    }
+
+
+def build_prefix_cache_diagnostics(
+    by_provider: dict[str, dict[str, Any]],
+    totals: dict[str, Any],
+) -> dict[str, Any]:
+    """Explain why prompt-cache savings are weak and how to improve them."""
+    findings: list[dict[str, Any]] = []
+    summary = "healthy"
+
+    total_requests = int(totals.get("requests", 0) or 0)
+    total_reads = int(totals.get("cache_read_tokens", 0) or 0)
+    total_writes = int(totals.get("cache_write_tokens", 0) or 0)
+    total_uncached = int(totals.get("uncached_input_tokens", 0) or 0)
+    bust_count = int(totals.get("bust_count", 0) or 0)
+    hit_rate = float(totals.get("hit_rate", 0) or 0.0)
+    request_hit_rate = float(totals.get("request_hit_rate", 0) or 0.0)
+
+    if total_requests == 0:
+        findings.append(
+            {
+                "severity": "info",
+                "code": "no_prefix_cache_traffic",
+                "title": "No provider cache traffic yet",
+                "detail": "Prompt-cache diagnostics appear after requests flow through the proxy.",
+                "recommendation": "Run a few repeated requests against the same long prompt or coding session.",
+            }
+        )
+        return {"summary": "no_traffic", "findings": findings}
+
+    if total_writes == 0 and total_reads == 0:
+        summary = "low_savings"
+        findings.append(
+            {
+                "severity": "high",
+                "code": "cache_not_engaged",
+                "title": "Provider prompt caching is not engaging",
+                "detail": "The proxy saw requests, but no cache writes or cache reads were reported by providers.",
+                "recommendation": "Verify cache breakpoints or prompt-cache keys are being set, and ensure prompts are long enough to cross provider cache thresholds.",
+            }
+        )
+    elif total_writes > 0 and total_reads == 0:
+        summary = "warming_only"
+        findings.append(
+            {
+                "severity": "high",
+                "code": "cache_warming_without_hits",
+                "title": "The cache is warming but not being reused",
+                "detail": "Providers reported cache writes but no cache reads, which usually means the supposedly-stable prefix is changing every turn.",
+                "recommendation": "Keep system prompts, tool schemas, and earlier turns byte-stable across requests so later turns can reuse the warmed cache.",
+            }
+        )
+
+    if total_reads > 0 and hit_rate < 20:
+        summary = "low_savings"
+        findings.append(
+            {
+                "severity": "medium",
+                "code": "low_token_hit_rate",
+                "title": "Prompt-cache hit rate is still low",
+                "detail": f"Only {hit_rate:.1f}% of prompt tokens were served from cache across observed provider traffic.",
+                "recommendation": "Reduce churn in the cached prefix, especially system instructions and large tool definitions.",
+            }
+        )
+
+    if request_hit_rate < 35 and total_requests >= 5:
+        summary = "low_savings"
+        findings.append(
+            {
+                "severity": "medium",
+                "code": "low_request_hit_rate",
+                "title": "Too few requests are reusing the cache",
+                "detail": f"Only {request_hit_rate:.1f}% of cache-eligible requests showed any provider cache read activity.",
+                "recommendation": "Favor repeated multi-turn sessions over one-off prompts and keep the request prefix stable between turns.",
+            }
+        )
+
+    if bust_count > 0:
+        summary = "low_savings"
+        findings.append(
+            {
+                "severity": "medium",
+                "code": "cache_busts_detected",
+                "title": "Cache busts are eroding savings",
+                "detail": f"The proxy observed {bust_count} cache bust events, which means previously warm prefixes were invalidated.",
+                "recommendation": "Avoid mutating earlier messages after they have been cached; keep compression and enrichment in the live tail of the conversation.",
+            }
+        )
+
+    if total_uncached > (total_reads + total_writes) * 2 and total_requests >= 3:
+        summary = "low_savings"
+        findings.append(
+            {
+                "severity": "medium",
+                "code": "uncached_volume_dominates",
+                "title": "Most prompt volume is still uncached",
+                "detail": "Uncached prompt tokens substantially outweigh cached reads and writes, so provider-cache savings stay limited.",
+                "recommendation": "Push more static context into stable prefixes and avoid re-sending volatile material in the cached region.",
+            }
+        )
+
+    provider_findings: list[dict[str, Any]] = []
+    for provider, stats in sorted(by_provider.items()):
+        provider_requests = int(stats.get("requests", 0) or 0)
+        if provider_requests == 0:
+            continue
+        provider_reads = int(stats.get("cache_read_tokens", 0) or 0)
+        provider_writes = int(stats.get("cache_write_tokens", 0) or 0)
+        provider_hit_rate = float(stats.get("hit_rate", 0) or 0.0)
+        provider_busts = int(stats.get("bust_count", 0) or 0)
+        status = "healthy"
+        reason = "Provider cache is being reused."
+        if provider_writes == 0 and provider_reads == 0:
+            status = "inactive"
+            reason = "No provider-reported prompt cache activity."
+        elif provider_writes > 0 and provider_reads == 0:
+            status = "warming_only"
+            reason = "Cache writes are happening, but the prefix is not stable enough to generate reads."
+        elif provider_hit_rate < 20:
+            status = "low_hit_rate"
+            reason = "Provider cache is active, but too little prompt volume is being served from cache."
+        elif provider_busts > 0:
+            status = "busting"
+            reason = "Cache reuse exists, but busts are still resetting warmed prefixes."
+        provider_findings.append(
+            {
+                "provider": provider,
+                "status": status,
+                "reason": reason,
+                "requests": provider_requests,
+                "cache_read_tokens": provider_reads,
+                "cache_write_tokens": provider_writes,
+                "hit_rate": provider_hit_rate,
+                "bust_count": provider_busts,
+            }
+        )
+
+    if not findings:
+        findings.append(
+            {
+                "severity": "info",
+                "code": "cache_healthy",
+                "title": "Provider prompt caching looks healthy",
+                "detail": "The proxy is observing meaningful cache reads with no obvious anti-pattern dominating savings.",
+                "recommendation": "Keep stable prefixes stable; most additional gains now come from compression, semantic cache, and model routing.",
+            }
+        )
+
+    return {
+        "summary": summary,
+        "findings": findings,
+        "by_provider": provider_findings,
     }
 
 
@@ -741,6 +895,7 @@ class CostTracker:
         *,
         provider: str | None = None,
         model: str | None = None,
+        client: str | None = None,
     ) -> None:
         """Add a per-request savings breakdown to the orchestrator aggregate.
 
@@ -749,7 +904,7 @@ class CostTracker:
         attribute savings correctly without double-counting.
         """
         self._savings_orchestrator.record_request(
-            breakdown, provider=provider, model=model
+            breakdown, provider=provider, model=model, client=client
         )
 
     def _get_list_price(self, model: str) -> float | None:
@@ -861,10 +1016,13 @@ class CostTracker:
             "per_model": per_model,
             "cost_with_cutctx_usd": round(cost_with_cutctx, 4),
             "savings_usd": round(savings_usd, 4),
-            # Phase 1.3: unified savings breakdown by source.
             "savings_by_source": self._savings_orchestrator.aggregate.by_source.to_dict(),
             "savings_by_provider": {
                 k: v.to_dict()
                 for k, v in self._savings_orchestrator.aggregate.by_provider.items()
+            },
+            "savings_by_client": {
+                k: v.to_dict()
+                for k, v in self._savings_orchestrator.aggregate.by_client.items()
             },
         }

@@ -1440,6 +1440,7 @@ class SavingsTracker:
                 bucket_key,
                 {
                     "timestamp": bucket_key,
+                    "requests": 0,
                     "tokens_saved": 0,
                     "compression_savings_usd_delta": 0.0,
                     "total_tokens_saved": total_tokens_saved,
@@ -1452,6 +1453,7 @@ class SavingsTracker:
                     "by_model": {},
                 },
             )
+            entry["requests"] += 1
             entry["tokens_saved"] += delta_tokens
             entry["compression_savings_usd_delta"] = round(
                 entry["compression_savings_usd_delta"] + delta_usd,

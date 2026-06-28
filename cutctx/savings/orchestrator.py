@@ -36,6 +36,7 @@ class AggregateSavings:
     by_source: SavingsBySource = field(default_factory=SavingsBySource)
     by_provider: dict[str, SavingsBySource] = field(default_factory=dict)
     by_model: dict[str, SavingsBySource] = field(default_factory=dict)
+    by_client: dict[str, SavingsBySource] = field(default_factory=dict)
 
     @property
     def total_tokens_saved(self) -> int:
@@ -55,6 +56,7 @@ class AggregateSavings:
             "by_source": self.by_source.to_dict(),
             "by_provider": {k: v.to_dict() for k, v in self.by_provider.items()},
             "by_model": {k: v.to_dict() for k, v in self.by_model.items()},
+            "by_client": {k: v.to_dict() for k, v in self.by_client.items()},
         }
 
 
@@ -74,6 +76,7 @@ class SavingsOrchestrator:
         *,
         provider: str | None = None,
         model: str | None = None,
+        client: str | None = None,
     ) -> None:
         """Add one request to the aggregate."""
         self._aggregate.requests += 1
@@ -104,6 +107,15 @@ class SavingsOrchestrator:
         if model:
             bucket = self._aggregate.by_model.setdefault(
                 model, SavingsBySource()
+            )
+            for src, n in breakdown.by_source.tokens.items():
+                bucket.tokens[src] = bucket.tokens.get(src, 0) + n
+            for src, u in breakdown.by_source.usd.items():
+                bucket.usd[src] = bucket.usd.get(src, 0.0) + u
+
+        if client:
+            bucket = self._aggregate.by_client.setdefault(
+                client, SavingsBySource()
             )
             for src, n in breakdown.by_source.tokens.items():
                 bucket.tokens[src] = bucket.tokens.get(src, 0) + n

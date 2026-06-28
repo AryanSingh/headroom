@@ -21,6 +21,7 @@ from . import (  # noqa: F401
     evals,
     init,
     install,
+    intercept,
     learn,
     license,
     mcp,

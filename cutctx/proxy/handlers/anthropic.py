@@ -2497,11 +2497,29 @@ class AnthropicHandlerMixin:
                     if assistant_message is not None:
                         next_original_messages.append(copy.deepcopy(assistant_message))
                         next_forwarded_messages.append(copy.deepcopy(assistant_message))
+
+                    # Estimate system prompt token count so the tracker can
+                    # subtract it from total_cached before freezing messages.
+                    # Without this, Claude Code sessions (large system+tools)
+                    # freeze the entire message array, leaving nothing to compress.
+                    _sys = body.get("system", "")
+                    if isinstance(_sys, str):
+                        _sys_chars = len(_sys)
+                    elif isinstance(_sys, list):
+                        _sys_chars = sum(
+                            len(b.get("text", "")) if isinstance(b, dict) else 0
+                            for b in _sys
+                        )
+                    else:
+                        _sys_chars = 0
+                    _system_token_estimate = max(0, int(_sys_chars / 3.5))
+
                     prefix_tracker.update_from_response(
                         cache_read_tokens=cr_tokens,
                         cache_write_tokens=cw_tokens,
                         messages=next_forwarded_messages,
                         original_messages=next_original_messages,
+                        system_token_count=_system_token_estimate,
                     )
 
                     # Cache response

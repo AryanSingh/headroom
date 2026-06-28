@@ -106,6 +106,20 @@ def _selected_context_tool() -> str:
     help="Port to bind to (default: 8787, env: CUTCTX_PORT)",
 )
 @click.option(
+    "--tls-cert",
+    default=None,
+    envvar="CUTCTX_TLS_CERT",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to TLS certificate file (enables HTTPS, env: CUTCTX_TLS_CERT)",
+)
+@click.option(
+    "--tls-key",
+    default=None,
+    envvar="CUTCTX_TLS_KEY",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to TLS private key file (enables HTTPS, env: CUTCTX_TLS_KEY)",
+)
+@click.option(
     "--workers",
     default=1,
     type=click.IntRange(min=1),
@@ -784,6 +798,8 @@ def proxy(
     mode: str | None,
     host: str,
     port: int,
+    tls_cert: str | None,
+    tls_key: str | None,
     workers: int,
     limit_concurrency: int,
     max_connections: int,
@@ -991,6 +1007,8 @@ def proxy(
     config = ProxyConfig(
         host=host,
         port=port,
+        tls_cert=tls_cert,
+        tls_key=tls_key,
         anthropic_api_url=provider_api_overrides.anthropic,
         openai_api_url=provider_api_overrides.openai,
         gemini_api_url=provider_api_overrides.gemini,
@@ -1285,7 +1303,7 @@ Memory (Multi-Provider):
 
 Starting proxy server...
 
-  URL:          http://{config.host}:{config.port}
+  URL:          {"https" if config.tls_cert else "http"}://{config.host}:{config.port}
   Mode:         {config.mode}
   Optimization: {"ENABLED" if config.optimize else "DISABLED"}
   Caching:      {"ENABLED" if config.cache_enabled else "DISABLED"}

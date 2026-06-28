@@ -7,7 +7,7 @@ MATURIN ?= maturin
 PYTHON ?= python3
 FIXTURES ?= tests/parity/fixtures
 
-.PHONY: help test test-parity bench build-proxy build-wheel fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
+.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
 
 help:
 	@echo "Cutctx Rust targets:"
@@ -16,6 +16,8 @@ help:
 	@echo "  make bench              - cargo bench --workspace"
 	@echo "  make build-proxy        - release build + strip cutctx-proxy, print size"
 	@echo "  make build-wheel        - release wheel for cutctx-py"
+	@echo "  make build-dashboard    - build React dashboard and copy assets into package"
+	@echo "  make build-binary       - compile Nuitka one-file binary → dist/nuitka/cutctx"
 	@echo "  make verify-rust-core   - build + install + import-verify cutctx._core"
 	@echo "  make fmt                - cargo fmt --all"
 	@echo "  make fmt-check          - cargo fmt --all -- --check"
@@ -53,6 +55,18 @@ build-proxy:
 
 build-wheel:
 	$(MATURIN) build --release -m crates/cutctx-py/Cargo.toml
+
+build-dashboard:
+	@echo "── build-dashboard ─────────────────────────────────────────────"
+	cd dashboard && npm run build
+	@echo "Syncing assets into cutctx/dashboard/ ..."
+	cp dashboard/dist/index.html cutctx/dashboard/index.html
+	cp dashboard/dist/favicon.svg cutctx/dashboard/favicon.svg
+	cp dashboard/dist/icons.svg cutctx/dashboard/icons.svg 2>/dev/null || true
+	rm -f cutctx/dashboard/assets/index-*.js cutctx/dashboard/assets/index-*.css
+	cp dashboard/dist/assets/index-*.js cutctx/dashboard/assets/
+	cp dashboard/dist/assets/index-*.css cutctx/dashboard/assets/
+	@echo "✅ Dashboard built and assets copied."
 
 # Hotfix-A0: maturin-develop + symlink + import-verify in one shot. Run this
 # any time you suspect the proxy is silently falling back to Python-only
@@ -145,6 +159,15 @@ ci-precheck-commitlint:
 
 install-git-hooks:
 	@scripts/install-git-hooks.sh
+
+build-binary:
+	@echo "── build-binary (Nuitka) ────────────────────────────────────────"
+	@if [ -z "$$VIRTUAL_ENV" ]; then \
+		echo "error: activate a venv first (e.g. source .venv/bin/activate)"; \
+		exit 1; \
+	fi
+	$(PYTHON) -m pip install --quiet nuitka
+	bash scripts/build_nuitka.sh
 
 # ─── Protected distribution ────────────────────────────────────────────────
 #

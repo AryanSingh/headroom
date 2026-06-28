@@ -40,7 +40,7 @@ function SkeletonBar() {
           key={index}
           style={{
             display: 'grid',
-            gridTemplateColumns: '140px 1fr 50px',
+            gridTemplateColumns: '140px minmax(0, 1fr) 50px',
             gap: '16px',
             alignItems: 'center',
           }}
@@ -69,21 +69,20 @@ function EmptyState({ icon: Icon, title, description }) {
 function buildSourceRows(stats) {
   const sourceTokens = stats?.savings_by_source?.tokens || {};
   const sourceUsd = stats?.savings_by_source?.usd || {};
-  const tokens = stats?.tokens || {};
-  const cost = stats?.summary?.cost || {};
+  const costBreakdown = stats?.summary?.cost?.breakdown || {};
 
   return [
     {
       key: 'cutctx_compression',
-      label: 'Compression',
-      tokens: Number(sourceTokens.cutctx_compression || tokens.proxy_compression_saved || 0),
-      usd: Number(sourceUsd.cutctx_compression || cost?.breakdown?.compression_savings_usd || 0),
+      label: 'Direct compression',
+      tokens: Number(sourceTokens.cutctx_compression || 0),
+      usd: Number(sourceUsd.cutctx_compression || costBreakdown.compression_savings_usd || 0),
     },
     {
       key: 'provider_prompt_cache',
-      label: 'Provider cache',
+      label: 'Provider prompt cache',
       tokens: Number(sourceTokens.provider_prompt_cache || 0),
-      usd: Number(sourceUsd.provider_prompt_cache || cost?.breakdown?.cache_savings_usd || 0),
+      usd: Number(sourceUsd.provider_prompt_cache || costBreakdown.cache_savings_usd || 0),
     },
     {
       key: 'semantic_cache',
@@ -93,7 +92,7 @@ function buildSourceRows(stats) {
     },
     {
       key: 'prefix_cache_self_hosted',
-      label: 'Prefix cache',
+      label: 'Self-hosted prefix cache',
       tokens: Number(sourceTokens.prefix_cache_self_hosted || 0),
       usd: Number(sourceUsd.prefix_cache_self_hosted || 0),
     },
@@ -104,6 +103,20 @@ function buildSourceRows(stats) {
       usd: Number(sourceUsd.model_routing || 0),
     },
   ];
+}
+
+function buildClientRows(stats) {
+  const byClient =
+    stats?.summary?.cost?.savings_by_client || stats?.savings_by_client || {};
+
+  return Object.entries(byClient)
+    .map(([client, data]) => ({
+      key: client,
+      label: client,
+      tokens: Number(data.total_tokens || 0),
+      usd: Number(data.total_usd || 0),
+    }))
+    .sort((a, b) => b.tokens - a.tokens);
 }
 
 function Sparkline({ values, color = 'var(--accent)', height = 28, width = 80 }) {
@@ -142,297 +155,197 @@ function Sparkline({ values, color = 'var(--accent)', height = 28, width = 80 })
   );
 }
 
-function TrendChart({ stats }) {
-  const [period, setPeriod] = useState('24h');
-  const [referenceTime, setReferenceTime] = useState(() => Date.now());
-  const recentRequestsSource = stats?.recent_requests;
+function formatBucketLabel(date, period) {
+  const options =
+    period === '24h'
+      ? { hour: 'numeric', minute: '2-digit' }
+      : { month: 'short', day: 'numeric' };
 
-  const bars = useMemo(() => {
-    const recentReqs = Array.isArray(recentRequestsSource) ? recentRequestsSource : [];
-    if (recentReqs.length === 0) {
-      return Array.from({ length: 20 }, () => 0);
-    }
+  return new Intl.DateTimeFormat('en-US', options).format(date);
+}
 
-    const periodMs =
-      period === '24h' ? 86_400_000 : period === '7d' ? 604_800_000 : 2_592_000_000;
-    const bucketCount = 20;
-    const bucketSize = periodMs / bucketCount;
-    const buckets = new Array(bucketCount).fill(0);
+function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsSource }) {
+  const periodMs =
+    period === '24h' ? 86_400_000 : period === '7d' ? 604_800_000 : 2_592_000_000;
+  const bucketCount = 20;
+  const bucketSize = periodMs / bucketCount;
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const start = new Date(referenceTime - periodMs + index * bucketSize);
+    const end = new Date(referenceTime - periodMs + (index + 1) * bucketSize);
+    return {
+      index,
+      start,
+      end,
+      tokens: 0,
+      requests: null,
+      hasRequestData: false,
+      label: `${formatBucketLabel(start, period)} - ${formatBucketLabel(end, period)}`,
+    };
+  });
 
-    for (const req of recentReqs) {
-      const timestamp = new Date(req.timestamp).getTime();
+  const series = historyData?.series;
+  if (series) {
+    const sourceData = period === '24h' ? series.hourly || [] : series.daily || [];
+    for (const entry of sourceData) {
+      const timestamp = new Date(entry.timestamp).getTime();
       const age = referenceTime - timestamp;
       if (age < 0 || age > periodMs) {
         continue;
       }
 
-      const index = Math.min(
-        bucketCount - 1,
-        Math.floor((periodMs - age) / bucketSize),
-      );
-      buckets[index] += Number(req.tokens_saved || 0);
+      const index = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
+      buckets[index].tokens += Number(entry.tokens_saved || 0);
+      if (entry.requests != null) {
+        buckets[index].requests =
+          Number(buckets[index].requests || 0) + Number(entry.requests || 0);
+        buckets[index].hasRequestData = true;
+      }
     }
 
     return buckets;
-  }, [period, recentRequestsSource, referenceTime]);
+  }
 
-  const maxBar = Math.max(...bars, 1);
+  const recentRequests = Array.isArray(recentRequestsSource) ? recentRequestsSource : [];
+  for (const request of recentRequests) {
+    const timestamp = new Date(request.timestamp).getTime();
+    const age = referenceTime - timestamp;
+    if (age < 0 || age > periodMs) {
+      continue;
+    }
 
-  return (
-    <div>
-      <div className="trend-chart-tabs">
-        {['24h', '7d', '30d'].map((nextPeriod) => (
-          <button
-            key={nextPeriod}
-            className={`trend-tab ${period === nextPeriod ? 'active' : ''}`}
-            onClick={() => {
-              setPeriod(nextPeriod);
-              setReferenceTime(Date.now());
-            }}
-            type="button"
-          >
-            {nextPeriod}
-          </button>
-        ))}
-      </div>
+    const index = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
+    buckets[index].tokens += Number(
+      request.total_saved_tokens ?? request.tokens_saved ?? 0,
+    );
+    buckets[index].requests = Number(buckets[index].requests || 0) + 1;
+    buckets[index].hasRequestData = true;
+  }
 
-      {bars.every((value) => value === 0) ? (
-        <EmptyState
-          icon={TrendingUp}
-          title="No trend data yet"
-          description="Token savings over time will appear here once requests flow through the proxy."
-        />
-      ) : (
-        <div className="trend-chart-container">
-          {bars.map((value, index) => {
-            const ratio = value / maxBar;
-            const scaledHeight = value === 0 ? 4 : Math.max(4, Math.sqrt(ratio) * 100);
-            return (
-              <div
-                key={`${period}-${index}`}
-                className="trend-bar"
-                style={{ height: `${scaledHeight}%` }}
-                title={`${formatNumber(value)} tokens saved`}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return buckets;
 }
 
-export default function Overview() {
-  const { stats, loading, error } = useDashboardData();
-  const summary = stats?.summary || {};
-  const requests = stats?.requests || {};
-  const tokens = stats?.tokens || {};
-  const recentRequests = Array.isArray(stats?.recent_requests)
-    ? stats.recent_requests.slice(0, 8)
-    : [];
-  const sourceRows = buildSourceRows(stats);
-  const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
-  const totalSourceTokens =
-    activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
-    Number(tokens.total_before_compression || 0);
-  const compressionRatio =
-    tokens.savings_percent != null ? 100 - Number(tokens.savings_percent || 0) : null;
+function TrendChart({ stats, historyData }) {
+  const [period, setPeriod] = useState('24h');
+  const [referenceTime, setReferenceTime] = useState(() => Date.now());
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const recentRequestsSource = stats?.recent_requests;
+
+  const buckets = useMemo(
+    () =>
+      buildTrendBuckets({
+        period,
+        referenceTime,
+        historyData,
+        recentRequestsSource,
+      }),
+    [historyData, period, recentRequestsSource, referenceTime],
+  );
+
+  const maxBar = Math.max(...buckets.map((bucket) => bucket.tokens), 1);
+  const yAxisTicks = [maxBar, Math.round(maxBar / 2), 0];
+  const activeBucket =
+    hoveredIndex != null
+      ? buckets[hoveredIndex]
+      : buckets.findLast((bucket) => bucket.tokens > 0) || buckets.at(-1);
+
+  if (buckets.every((bucket) => bucket.tokens === 0)) {
+    return (
+      <EmptyState
+        icon={TrendingUp}
+        title="No trend data yet"
+        description="Token savings over time will appear here once requests flow through the proxy."
+      />
+    );
+  }
 
   return (
-    <section className="page-stack">
-      {error ? (
-        <div className="alert-card" role="alert">
-          <span>Failed to load data: {error}</span>
-          <button
-            className="ghost-button"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => window.location.reload()}
-            type="button"
-          >
-            <RefreshCw size={14} />
-            Retry
-          </button>
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div className="metric-grid metric-grid-four">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <SkeletonCard key={index} />
+    <div className="trend-chart-shell">
+      <div className="trend-chart-header">
+        <div className="trend-chart-tabs">
+          {['24h', '7d', '30d'].map((nextPeriod) => (
+            <button
+              key={nextPeriod}
+              className={`trend-tab ${period === nextPeriod ? 'active' : ''}`}
+              onClick={() => {
+                setPeriod(nextPeriod);
+                setReferenceTime(Date.now());
+                setHoveredIndex(null);
+              }}
+              type="button"
+            >
+              {nextPeriod}
+            </button>
           ))}
         </div>
-      ) : (
-        <div className="metric-grid metric-grid-four">
-          <MetricCard
-            icon={PiggyBank}
-            iconColor="green"
-            label="Tokens saved"
-            value={formatNumber(tokens.saved)}
-            footnote={`${formatPercent(tokens.savings_percent)} total reduction`}
-            sparkline={recentRequests.slice(0, 10).map((request) => Number(request.tokens_saved || 0))}
-            sparklineColor="var(--accent)"
-          />
-          <MetricCard
-            icon={Table2}
-            iconColor="blue"
-            label="Requests today"
-            value={formatInteger(requests.total)}
-            footnote={`${formatInteger(requests.failed)} failed · ${formatInteger(requests.cached)} cached`}
-          />
-          <MetricCard
-            icon={Layers}
-            iconColor="purple"
-            label="Compression ratio"
-            value={compressionRatio != null ? `${compressionRatio.toFixed(1)}%` : '—'}
-            footnote="Average token retention"
-          />
-          <MetricCard
-            icon={Coins}
-            iconColor="amber"
-            label="Money saved"
-            value={formatCurrency(summary?.cost?.total_saved_usd)}
-            footnote={`vs ${formatCurrency(summary?.cost?.without_cutctx_usd)} without Cutctx`}
-          />
-        </div>
-      )}
 
-      <div className="panel">
-        <div className="section-heading">
-          <div>
-            <div className="eyebrow">Trend</div>
-            <h2>Savings over time</h2>
+        {activeBucket ? (
+          <div className="trend-hover-summary">
+            <div className="trend-hover-label">{activeBucket.label}</div>
+            <div className="trend-hover-metrics">
+              <span>{formatInteger(activeBucket.tokens)} tokens saved</span>
+              <span>
+                {activeBucket.hasRequestData
+                  ? `${formatInteger(activeBucket.requests)} requests`
+                  : 'Request count unavailable'}
+              </span>
+            </div>
           </div>
-        </div>
-        {loading ? (
-          <div className="skeleton" style={{ height: '200px', borderRadius: 'var(--radius-lg)' }} />
-        ) : (
-          <TrendChart stats={stats} />
-        )}
+        ) : null}
       </div>
 
-      <div className="dashboard-grid">
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Attribution</div>
-              <h2>Where savings come from</h2>
-            </div>
+      <div className="trend-chart">
+        <div className="trend-y-axis" aria-hidden="true">
+          {yAxisTicks.map((tick) => (
+            <span key={tick}>{formatNumber(tick)}</span>
+          ))}
+        </div>
+
+        <div className="trend-plot-area">
+          <div className="trend-grid-lines" aria-hidden="true">
+            {yAxisTicks.map((tick, index) => (
+              <span key={`${tick}-${index}`} />
+            ))}
           </div>
 
-          {loading ? (
-            <SkeletonBar />
-          ) : activeSourceRows.length === 0 ? (
-            <EmptyState
-              icon={Sparkles}
-              title="No savings data yet"
-              description="Savings attribution will populate as requests flow through compression and cache channels."
-            />
-          ) : (
-            <div className="source-stack">
-              {activeSourceRows.map((row) => {
-                const percent = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
-                return (
-                  <div key={row.key} className="source-row">
-                    <div className="source-labels">
-                      <div className="source-name">{row.label}</div>
-                      <div className="source-meta">
-                        {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
-                      </div>
-                    </div>
-                    <div className="source-bar-track">
-                      <div
-                        className="source-bar-fill"
-                        style={{ width: `${Math.min(100, percent)}%` }}
-                      />
-                    </div>
-                    <div className="source-percent">{formatPercent(percent)}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+          <div className="trend-chart-container">
+            {buckets.map((bucket, index) => {
+              const ratio = bucket.tokens / maxBar;
+              const scaledHeight = bucket.tokens === 0 ? 4 : Math.max(4, Math.sqrt(ratio) * 100);
+              const isActive = index === hoveredIndex;
+              const requestText = bucket.hasRequestData
+                ? `${formatInteger(bucket.requests)} requests`
+                : 'Request count unavailable';
 
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Activity</div>
-              <h2>Recent requests</h2>
-            </div>
+              return (
+                <button
+                  key={`${period}-${index}`}
+                  className={`trend-bar ${isActive ? 'active' : ''}`}
+                  style={{ height: `${scaledHeight}%` }}
+                  title={`${bucket.label}: ${formatInteger(bucket.tokens)} tokens saved${bucket.hasRequestData ? ` across ${formatInteger(bucket.requests)} requests` : ''}`}
+                  type="button"
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onFocus={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  onBlur={() => setHoveredIndex(null)}
+                >
+                  <span className="trend-bar-tooltip">
+                    <strong>{bucket.label}</strong>
+                    <span>{formatInteger(bucket.tokens)} tokens saved</span>
+                    <span>{requestText}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {loading ? (
-            <div className="skeleton" style={{ height: '200px', borderRadius: 'var(--radius-lg)' }} />
-          ) : recentRequests.length === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              title="No requests yet"
-              description="Start using the proxy to see request activity here."
-            />
-          ) : (
-            <div className="table-shell">
-              <table className="request-table">
-                <thead>
-                  <tr>
-                    <th>Model</th>
-                    <th>Tokens</th>
-                    <th>Saved</th>
-                    <th>When</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentRequests.map((request, index) => (
-                    <tr
-                      key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
-                    >
-                      <td className="model-name">{request.model || '—'}</td>
-                      <td>{formatInteger(request.input_tokens_original)}</td>
-                      <td className="savings-value">
-                        {formatInteger(request.tokens_saved)}
-                        <span
-                          style={{
-                            color: 'var(--text-tertiary)',
-                            fontWeight: 400,
-                            marginLeft: '4px',
-                            fontSize: 'var(--text-xs)',
-                          }}
-                        >
-                          {formatPercent(
-                            Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
-                          )}
-                        </span>
-                      </td>
-                      <td>{formatRelativeTime(request.timestamp)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="metric-grid metric-grid-three" style={{ marginTop: 'var(--space-xl)' }}>
-            <QuickAction
-              to="/playground"
-              icon={Zap}
-              label="Run compression"
-              description="Test a live compression request with the playground."
-            />
-            <QuickAction
-              to="/capabilities"
-              icon={Layers}
-              label="Product surfaces"
-              description="See the full map of available features and capabilities."
-            />
-            <QuickAction
-              to="/memory"
-              icon={BarChart3}
-              label="Memory signals"
-              description="Inspect cross-session memory and correction entries."
-            />
+          <div className="trend-x-axis" aria-hidden="true">
+            <span>{formatBucketLabel(buckets[0].start, period)}</span>
+            <span>{formatBucketLabel(buckets[Math.floor(buckets.length / 2)].start, period)}</span>
+            <span>Now</span>
           </div>
-        </section>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -453,6 +366,7 @@ function MetricCard({
           <Icon size={16} />
         </div>
       </div>
+
       <div className="metric-value">{value}</div>
       {sparkline ? <Sparkline values={sparkline} color={sparklineColor} /> : null}
       <div className="metric-footnote">{footnote}</div>
@@ -493,6 +407,7 @@ function QuickAction({ to, icon: Icon, label, description }) {
           {label}
         </span>
       </div>
+
       <p
         style={{
           color: 'var(--text-tertiary)',
@@ -503,6 +418,7 @@ function QuickAction({ to, icon: Icon, label, description }) {
       >
         {description}
       </p>
+
       <div
         style={{
           display: 'flex',
@@ -514,9 +430,500 @@ function QuickAction({ to, icon: Icon, label, description }) {
           marginTop: 'var(--space-sm)',
         }}
       >
-        Open
-        <ArrowRight size={14} />
+        Open <ArrowRight size={14} />
       </div>
     </Link>
+  );
+}
+
+function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle, emptyDescription }) {
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">{eyebrow}</div>
+          <h2>{title}</h2>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />
+      ) : (
+        <div className="source-stack">
+          {rows.map((row) => {
+            const percent = totalTokens > 0 ? (row.tokens / totalTokens) * 100 : 0;
+            return (
+              <div key={row.key} className="source-row">
+                <div className="source-labels">
+                  <div className="source-name">{row.label}</div>
+                  <div className="source-meta">
+                    {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
+                  </div>
+                </div>
+
+                <div className="source-bar-track">
+                  <div
+                    className="source-bar-fill"
+                    style={{ width: `${Math.min(100, percent)}%` }}
+                  />
+                </div>
+
+                <div className="source-percent">{formatPercent(percent)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DiagnosticsPanel({ prefixCache }) {
+  const diagnostics = prefixCache?.diagnostics || {};
+  const findings = Array.isArray(diagnostics.findings) ? diagnostics.findings : [];
+  const providerStates = Array.isArray(diagnostics.by_provider) ? diagnostics.by_provider : [];
+
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Savings diagnosis</div>
+          <h2>Why savings look low</h2>
+          <p>These findings come from provider prompt-cache reads, writes, busts, and uncached volume.</p>
+        </div>
+      </div>
+
+      {findings.length === 0 ? (
+        <EmptyState
+          icon={Sparkles}
+          title="No diagnostics yet"
+          description="Run a few repeated requests and the dashboard will explain where cache savings are being lost."
+        />
+      ) : (
+        <div className="diagnostic-stack">
+          {findings.map((finding) => (
+            <div
+              key={finding.code || finding.title}
+              className={`diagnostic-card severity-${finding.severity || 'info'}`}
+            >
+              <div className="diagnostic-title-row">
+                <strong>{finding.title}</strong>
+                <span className="diagnostic-severity">{finding.severity || 'info'}</span>
+              </div>
+              <p>{finding.detail}</p>
+              {finding.recommendation ? (
+                <div className="diagnostic-recommendation">{finding.recommendation}</div>
+              ) : null}
+            </div>
+          ))}
+
+          {providerStates.length > 0 ? (
+            <div className="provider-status-grid">
+              {providerStates.map((provider) => (
+                <div key={provider.provider} className="provider-status-card">
+                  <div className="provider-status-header">
+                    <strong>{provider.provider}</strong>
+                    <span className={`status-pill status-${provider.status || 'neutral'}`}>
+                      {provider.status || 'unknown'}
+                    </span>
+                  </div>
+                  <p>{provider.reason}</p>
+                  <div className="provider-status-meta">
+                    <span>{formatInteger(provider.requests)} requests</span>
+                    <span>{formatPercent(provider.hit_rate || 0)} hit rate</span>
+                    <span>{formatInteger(provider.bust_count || 0)} busts</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatKnowledgeGraphStatus(knowledgeGraph) {
+  const status = knowledgeGraph?.status || 'disabled';
+  switch (status) {
+    case 'ready':
+      return 'Ready';
+    case 'building':
+      return 'Building';
+    case 'unavailable':
+      return 'Unavailable';
+    case 'degraded':
+      return 'Degraded';
+    default:
+      return 'Disabled';
+  }
+}
+
+function GraphStatusPanel({ knowledgeGraph }) {
+  const status = knowledgeGraph?.status || 'disabled';
+  const countsAvailable = Number(knowledgeGraph?.node_count || 0) > 0 || Number(knowledgeGraph?.edge_count || 0) > 0;
+
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Graphify</div>
+          <h2>Knowledge graph status</h2>
+          <p>Clear state for requested, available, building, and live graph-backed compression behavior.</p>
+        </div>
+      </div>
+
+      <div className="graphify-status-shell">
+        <div className="graphify-status-row">
+          <span className={`status-pill status-${status}`}>{formatKnowledgeGraphStatus(knowledgeGraph)}</span>
+          <span className="graphify-status-copy">
+            {knowledgeGraph?.reason
+              ? knowledgeGraph.reason
+              : knowledgeGraph?.active
+                ? 'Interceptor is live and graph summaries can replace large tool output.'
+                : knowledgeGraph?.requested
+                  ? 'Requested, but not yet active.'
+                  : 'Not enabled for this proxy.'}
+          </span>
+        </div>
+
+        <div className="graphify-kv-grid">
+          <div className="graphify-kv">
+            <span>Requested</span>
+            <strong>{knowledgeGraph?.requested ? 'Yes' : 'No'}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Available</span>
+            <strong>{knowledgeGraph?.available ? 'Yes' : 'No'}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Interceptor</span>
+            <strong>{knowledgeGraph?.interceptor_registered ? 'Registered' : 'Not registered'}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Version</span>
+            <strong>{knowledgeGraph?.version || '—'}</strong>
+          </div>
+          {countsAvailable ? (
+            <>
+              <div className="graphify-kv">
+                <span>Nodes</span>
+                <strong>{formatInteger(knowledgeGraph?.node_count || 0)}</strong>
+              </div>
+              <div className="graphify-kv">
+                <span>Edges</span>
+                <strong>{formatInteger(knowledgeGraph?.edge_count || 0)}</strong>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getRequestTotalSaved(request) {
+  return Number(
+    request.total_saved_tokens ??
+      (Number(request.tokens_saved || 0) + Number(request.cache_saved_tokens || 0)),
+  );
+}
+
+function getRequestTotalSavingsPercent(request) {
+  if (request.total_savings_percent != null) {
+    return Number(request.total_savings_percent || 0);
+  }
+
+  const originalTokens = Number(request.input_tokens_original || 0);
+  const totalSaved = getRequestTotalSaved(request);
+  return originalTokens > 0 ? (totalSaved / originalTokens) * 100 : 0;
+}
+
+export default function Overview() {
+  const { stats, historyData, loading, error } = useDashboardData();
+  const summary = stats?.summary || {};
+  const requests = stats?.requests || {};
+  const tokens = stats?.tokens || {};
+  const persistent = stats?.persistent_savings || {};
+  const lifetime = persistent.lifetime || {};
+  const prefixCache = stats?.prefix_cache || {};
+  const knowledgeGraph = stats?.knowledge_graph || {};
+
+  const effectiveTokensSaved = Math.max(
+    Number(tokens.saved || 0),
+    Number(lifetime.tokens_saved || 0),
+  );
+  const effectiveRequests = Math.max(
+    Number(requests.total || 0),
+    Number(lifetime.requests || 0),
+  );
+  const effectiveSavingsUsd = Math.max(
+    Number(summary?.cost?.total_saved_usd || 0),
+    Number(lifetime.compression_savings_usd || 0),
+  );
+
+  const persistentHistory = Array.isArray(persistent.recent_history)
+    ? persistent.recent_history.slice(-8).reverse().map((entry) => ({
+        model: entry.model,
+        input_tokens_original: 0,
+        tokens_saved: entry.delta_tokens_saved,
+        total_saved_tokens: entry.delta_tokens_saved,
+        total_savings_percent: 0,
+        savings_percent: 0,
+        timestamp: entry.timestamp,
+      }))
+    : [];
+
+  const recentRequests =
+    Array.isArray(stats?.recent_requests) && stats.recent_requests.length > 0
+      ? stats.recent_requests.slice(0, 8)
+      : persistentHistory;
+
+  const sourceRows = buildSourceRows(stats);
+  const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
+  const clientRows = buildClientRows(stats);
+  const activeClientRows = clientRows.filter((row) => row.tokens > 0);
+  const totalSourceTokens =
+    activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
+    Number(tokens.total_before_compression || 0);
+  const totalClientTokens =
+    activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
+  const compressionRatio =
+    tokens.savings_percent != null ? 100 - Number(tokens.savings_percent || 0) : null;
+  const directCompressionRow = sourceRows.find((row) => row.key === 'cutctx_compression');
+  const providerCacheRow = sourceRows.find((row) => row.key === 'provider_prompt_cache');
+
+  return (
+    <section className="page-stack">
+      {error ? (
+        <div className="alert-card" role="alert">
+          <span>Failed to load data: {error}</span>
+          <button
+            className="ghost-button"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => window.location.reload()}
+            type="button"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="metric-grid metric-grid-four">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      ) : (
+        <div className="metric-grid metric-grid-four">
+          <MetricCard
+            icon={PiggyBank}
+            iconColor="green"
+            label="Tokens saved"
+            value={formatNumber(effectiveTokensSaved)}
+            footnote={`${formatPercent(tokens.savings_percent || 0)} total reduction`}
+            sparkline={recentRequests.slice(0, 10).map((request) => getRequestTotalSaved(request))}
+            sparklineColor="var(--accent)"
+          />
+          <MetricCard
+            icon={Table2}
+            iconColor="blue"
+            label="Requests"
+            value={formatInteger(effectiveRequests)}
+            footnote={`${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`}
+          />
+          <MetricCard
+            icon={Layers}
+            iconColor="purple"
+            label="Compression ratio"
+            value={compressionRatio != null ? `${compressionRatio.toFixed(1)}%` : '—'}
+            footnote="Average token retention"
+          />
+          <MetricCard
+            icon={Coins}
+            iconColor="amber"
+            label="Money saved"
+            value={formatCurrency(effectiveSavingsUsd)}
+            footnote={`vs ${formatCurrency(summary?.cost?.without_cutctx_usd || 0)} without Cutctx`}
+          />
+        </div>
+      )}
+
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">Trend</div>
+            <h2>Savings over time</h2>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--radius-lg)' }} />
+        ) : (
+          <TrendChart stats={stats} historyData={historyData} />
+        )}
+      </div>
+
+      <div className="overview-bottom-grid">
+        <div className="overview-side-stack">
+          <section className="panel panel-compact">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">Attribution</div>
+                <h2>Where savings come from</h2>
+                <p>Direct compression and provider-side cache wins are split out so total savings stays legible.</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <SkeletonBar />
+            ) : activeSourceRows.length === 0 ? (
+              <EmptyState
+                icon={Sparkles}
+                title="No savings data yet"
+                description="Savings attribution will populate as requests flow through compression and cache channels."
+              />
+            ) : (
+              <>
+                <div className="attribution-note">
+                  <span>Direct compression: {formatInteger(directCompressionRow?.tokens || 0)} tokens</span>
+                  <span>Provider cache: {formatInteger(providerCacheRow?.tokens || 0)} tokens</span>
+                </div>
+
+                <div className="source-stack">
+                  {activeSourceRows.map((row) => {
+                    const percent = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
+                    return (
+                      <div key={row.key} className="source-row">
+                        <div className="source-labels">
+                          <div className="source-name">{row.label}</div>
+                          <div className="source-meta">
+                            {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
+                          </div>
+                        </div>
+                        <div className="source-bar-track">
+                          <div
+                            className="source-bar-fill"
+                            style={{ width: `${Math.min(100, percent)}%` }}
+                          />
+                        </div>
+                        <div className="source-percent">{formatPercent(percent)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </section>
+
+          {activeClientRows.length > 0 ? (
+            <SavingsPanel
+              title="Savings by client"
+              eyebrow="Attribution"
+              rows={activeClientRows}
+              totalTokens={totalClientTokens}
+              emptyIcon={Sparkles}
+              emptyTitle="No client data yet"
+              emptyDescription="Client-level attribution appears once requests include client tags."
+            />
+          ) : null}
+
+          <DiagnosticsPanel prefixCache={prefixCache} />
+          <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
+        </div>
+
+        <section className="panel panel-expanded">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Activity</div>
+              <h2>Recent requests</h2>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--radius-lg)' }} />
+          ) : recentRequests.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title="No requests yet"
+              description="Start using the proxy to see request activity here."
+            />
+          ) : (
+            <div className="table-shell">
+              <table className="request-table">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Tokens</th>
+                    <th>Total saved</th>
+                    <th>Direct</th>
+                    <th>When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentRequests.map((request, index) => (
+                    <tr
+                      key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
+                    >
+                      <td className="model-name" title={request.model || '—'}>
+                        {request.model || '—'}
+                      </td>
+                      <td>{formatInteger(request.input_tokens_original || 0)}</td>
+                      <td className="savings-value">
+                        <div className="request-savings-stack">
+                          <span>{formatInteger(getRequestTotalSaved(request))}</span>
+                          <span className="request-savings-percent">
+                            {formatPercent(
+                              Math.min(100, Math.max(0, getRequestTotalSavingsPercent(request))),
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="request-savings-stack request-savings-stack-muted">
+                          <span>{formatInteger(request.tokens_saved || 0)}</span>
+                          <span className="request-savings-percent">
+                            {formatPercent(
+                              Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                      <td>{formatRelativeTime(request.timestamp)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="request-table-note">
+                Total saved includes direct compression plus cache-backed savings when available.
+                Direct column isolates what Cutctx compressed itself.
+              </div>
+            </div>
+          )}
+
+          <div className="metric-grid metric-grid-three" style={{ marginTop: 'var(--space-xl)' }}>
+            <QuickAction
+              to="/playground"
+              icon={Zap}
+              label="Run compression"
+              description="Test a live compression request with the playground."
+            />
+            <QuickAction
+              to="/capabilities"
+              icon={Layers}
+              label="Product surfaces"
+              description="See the full map of available features and capabilities."
+            />
+            <QuickAction
+              to="/memory"
+              icon={BarChart3}
+              label="Memory signals"
+              description="Inspect cross-session memory and correction entries."
+            />
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }

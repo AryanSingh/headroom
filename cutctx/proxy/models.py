@@ -49,6 +49,12 @@ class RequestLog:
     tags: dict[str, str]
     cache_hit: bool
     transforms_applied: list[str]
+    cache_saved_tokens: int = 0
+    semantic_cache_saved_tokens: int = 0
+    self_hosted_prefix_cache_saved_tokens: int = 0
+    model_routing_saved_tokens: int = 0
+    total_saved_tokens: int = 0
+    total_savings_percent: float = 0.0
 
     # Waste signals detected in original messages
     waste_signals: dict[str, int] | None = None
@@ -104,6 +110,8 @@ class ProxyConfig:
     # Server
     host: str = "127.0.0.1"
     port: int = 8787
+    tls_cert: str | None = None  # Path to TLS certificate file (enables HTTPS)
+    tls_key: str | None = None   # Path to TLS private key file (enables HTTPS)
     anthropic_api_url: str | None = None  # Custom Anthropic API URL override
     openai_api_url: str | None = None  # Custom OpenAI API URL override
     gemini_api_url: str | None = None  # Custom Gemini API URL override

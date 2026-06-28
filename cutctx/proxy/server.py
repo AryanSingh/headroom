@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .outcome import RequestOutcome
 
 
+import socket
 import httpx
 
 try:
@@ -133,6 +134,11 @@ from cutctx.proxy.memory_handler import MemoryConfig, MemoryHandler
 
 # Data models (extracted to cutctx/proxy/models.py for maintainability)
 from cutctx.proxy.models import CacheEntry, ProxyConfig, RateLimitState, RequestLog  # noqa: F401
+from cutctx.proxy.minimal_build import (
+    apply_minimal_build_to_anthropic_body,
+    apply_minimal_build_to_openai_body,
+    resolve_minimal_build_mode,
+)
 from cutctx.proxy.modes import (
     PROXY_MODE_CACHE,
     PROXY_MODE_TOKEN,
@@ -195,6 +201,51 @@ logging.basicConfig(
 logger = logging.getLogger("cutctx.proxy")
 
 _MULTI_WORKER_CONFIG_ENV = "CUTCTX_PROXY_CONFIG_JSON"
+
+_INTERCEPT_BYPASS_IPS_FILE = Path.home() / ".cutctx" / "intercept_bypass_ips.json"
+_original_getaddrinfo = socket.getaddrinfo
+_intercept_bypass_applied = False
+
+
+def _patch_getaddrinfo_for_intercept() -> None:
+    """Patch socket.getaddrinfo so the proxy's own outbound connections bypass /etc/hosts.
+
+    When `cutctx intercept install` is active, /etc/hosts redirects AI API
+    domains (api.anthropic.com, api.openai.com) to 127.0.0.1, and pfctl
+    forwards port 443 → 8787. Without this patch the proxy's own upstream
+    httpx calls loop back to itself.
+
+    The fix: read the real IPs that were resolved *before* /etc/hosts was
+    modified (saved by `cutctx intercept install`), and substitute them so
+    the proxy connects directly to the real servers while clients (Claude
+    Desktop, Node.js) still go through the redirect.
+    """
+    global _intercept_bypass_applied
+    if _intercept_bypass_applied:
+        return
+    if not _INTERCEPT_BYPASS_IPS_FILE.exists():
+        return
+
+    try:
+        bypass_ips: dict[str, str] = json.loads(_INTERCEPT_BYPASS_IPS_FILE.read_text())
+    except Exception:
+        return
+    if not bypass_ips:
+        return
+
+    def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):  # noqa: A002
+        real_ip = bypass_ips.get(host) if isinstance(host, str) else None
+        if real_ip:
+            return _original_getaddrinfo(real_ip, port, family, type, proto, flags)
+        return _original_getaddrinfo(host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = _patched_getaddrinfo
+    _intercept_bypass_applied = True
+    logger.info(
+        "Intercept bypass active: %d domain(s) routed directly (%s)",
+        len(bypass_ips),
+        ", ".join(bypass_ips),
+    )
 
 # Env var that opts out of the Rust core deployment smoke test (Hotfix-A0).
 # Default behavior: hard-fail at startup if `cutctx._core` is unimportable
@@ -824,33 +875,60 @@ class CutctxProxy(
 
         # Knowledge-graph compression (opt-in via --knowledge-graph)
         self.knowledge_graph_indexer = None
+        self.knowledge_graph_status = {
+            "requested": bool(config.knowledge_graph_enabled),
+            "enabled": bool(config.knowledge_graph_enabled),
+            "available": False,
+            "active": False,
+            "status": "disabled",
+            "reason": None,
+            "interceptor_registered": False,
+        }
         if config.knowledge_graph_enabled:
-            from cutctx.graph.graphify import (
-                GraphifyIndexer,
-                graphify_available,
-                set_global_indexer,
-            )
-            from cutctx.proxy.interceptors import base as interceptors_base
-            from cutctx.proxy.interceptors.graph_interceptor import GraphifyInterceptor
+            try:
+                from cutctx.graph.graphify import (
+                    GraphifyIndexer,
+                    graphify_available,
+                    set_global_indexer,
+                )
+                from cutctx.proxy.interceptors import base as interceptors_base
+                from cutctx.proxy.interceptors.graph_interceptor import GraphifyInterceptor
 
-            if not graphify_available():
-                logger.warning("Knowledge graph requested (--knowledge-graph) but graphifyy not installed. Install: pip install cutctx-ai[knowledge-graph]")
-            else:
-                indexer = GraphifyIndexer(
-                    project_dir=Path.cwd(),
-                    output_dir=config.knowledge_graph_output_dir,
+                if not graphify_available():
+                    self.knowledge_graph_status.update(
+                        status="unavailable",
+                        reason="graphify_not_installed",
+                    )
+                    logger.warning("Knowledge graph requested (--knowledge-graph) but graphifyy not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                else:
+                    indexer = GraphifyIndexer(
+                        project_dir=Path.cwd(),
+                        output_dir=config.knowledge_graph_output_dir,
+                    )
+                    indexer.start()
+                    self.knowledge_graph_indexer = indexer
+                    set_global_indexer(indexer)
+                    interceptors_base.register(
+                        GraphifyInterceptor(
+                            bfs_depth=config.knowledge_graph_bfs_depth,
+                            max_nodes=config.knowledge_graph_max_nodes,
+                            min_chars=config.knowledge_graph_min_chars,
+                        ),
+                    )
+                    self.knowledge_graph_status.update(
+                        available=True,
+                        active=indexer.get_index() is not None,
+                        status="ready" if indexer.get_index() is not None else "building",
+                        reason=None,
+                        interceptor_registered=True,
+                    )
+                    logger.info("Knowledge graph: interceptor registered (bfs_depth=%d, max_nodes=%d)", config.knowledge_graph_bfs_depth, config.knowledge_graph_max_nodes)
+            except Exception as exc:
+                self.knowledge_graph_status.update(
+                    status="degraded",
+                    reason=exc.__class__.__name__,
                 )
-                indexer.start()
-                self.knowledge_graph_indexer = indexer
-                set_global_indexer(indexer)
-                interceptors_base.register(
-                    GraphifyInterceptor(
-                        bfs_depth=config.knowledge_graph_bfs_depth,
-                        max_nodes=config.knowledge_graph_max_nodes,
-                        min_chars=config.knowledge_graph_min_chars,
-                    ),
-                )
-                logger.info("Knowledge graph: interceptor registered (bfs_depth=%d, max_nodes=%d)", config.knowledge_graph_bfs_depth, config.knowledge_graph_max_nodes)
+                logger.warning("Knowledge graph initialization degraded: %s", exc, exc_info=True)
 
         # Difftastic structural diff interceptor (opt-in)
         self._difftastic_enabled = config.difftastic_enabled
@@ -1043,6 +1121,7 @@ class CutctxProxy(
 
     async def startup(self):
         """Initialize async resources."""
+        _patch_getaddrinfo_for_intercept()
         self.pipeline_extensions.emit(
             PipelineStage.PRE_START,
             operation="proxy.startup",
@@ -2248,6 +2327,44 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         response = await call_next(request)
         response.headers["X-Request-ID"] = req_id
         return response
+
+    @app.middleware("http")
+    async def _minimal_build_middleware(request, call_next):
+        mode = resolve_minimal_build_mode(request.headers)
+        if mode is None or request.method != "POST":
+            return await call_next(request)
+
+        path = request.url.path
+        if path not in {"/v1/messages", "/v1/chat/completions"}:
+            return await call_next(request)
+
+        try:
+            body_bytes = await request.body()
+            if not body_bytes or len(body_bytes) > 1024 * 1024:
+                return await call_next(request)
+            payload = json.loads(body_bytes)
+            if not isinstance(payload, dict):
+                return await call_next(request)
+
+            if path == "/v1/messages":
+                applied = apply_minimal_build_to_anthropic_body(payload, mode)
+            else:
+                applied = apply_minimal_build_to_openai_body(payload, mode)
+            if applied:
+                request._body = json.dumps(
+                    payload,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                request._json = payload
+                request.state.cutctx_minimal_build_mode = mode
+        except (json.JSONDecodeError, ValueError, AttributeError, TypeError):
+            return await call_next(request)
+        except Exception as exc:
+            logger.debug("Minimal-build middleware skipped: %s", exc)
+            return await call_next(request)
+
+        return await call_next(request)
 
     # API versioning header — every response gets X-Cutctx-Version so
     # clients and load balancers can verify which proxy version is serving.
@@ -3618,7 +3735,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
             "compression_cache": compression_cache_stats,
             "knowledge_graph": {
-                "enabled": _kg_idx is not None,
+                **getattr(proxy, "knowledge_graph_status", {}),
+                "active": _kg_idx is not None,
+                "status": (
+                    "ready"
+                    if _kg_idx is not None
+                    else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled")
+                ),
                 **(_kg_idx.stats if _kg_idx else {}),
             },
             "anon_telemetry_shipping": is_telemetry_enabled(),
@@ -4219,6 +4342,10 @@ def run_server(
         uvicorn_kwargs["factory"] = True
     else:
         app_target = create_app(config)
+
+    if config.tls_cert and config.tls_key:
+        uvicorn_kwargs["ssl_certfile"] = config.tls_cert
+        uvicorn_kwargs["ssl_keyfile"] = config.tls_key
 
     uvicorn.run(
         app_target,

@@ -118,6 +118,7 @@ class PrefixCacheTracker:
         messages: list[dict[str, Any]],
         message_token_counts: list[int] | None = None,
         original_messages: list[dict[str, Any]] | None = None,
+        system_token_count: int = 0,
     ) -> None:
         """Update tracker with cache metrics from the API response.
 
@@ -130,6 +131,10 @@ class PrefixCacheTracker:
             messages: The messages that were sent to the API.
             message_token_counts: Pre-computed token counts per message.
                 If None, estimates from content length.
+            system_token_count: Estimated token count of the system prompt
+                (not included in `messages`). Subtracted from total_cached
+                before walking messages so system-prompt-heavy caches do not
+                incorrectly freeze the entire message array.
         """
         self._last_activity = time.time()
         self._turn_number += 1
@@ -148,13 +153,20 @@ class PrefixCacheTracker:
         if message_token_counts is None:
             message_token_counts = self._estimate_message_tokens(messages)
 
+        # Subtract system prompt tokens from the cache budget before walking
+        # messages. For Claude Code sessions, the system prompt (tools + context)
+        # can be 200-400k tokens. Without this, total_cached >> sum(messages),
+        # so all messages appear "within the cache boundary" and frozen_count
+        # equals len(messages) — nothing left to compress.
+        message_budget = max(0, total_cached - system_token_count)
+
         # Walk messages from the start, accumulating tokens until we exceed
-        # the cached amount. All messages within the cached prefix are frozen.
+        # the message budget. All messages within the cached prefix are frozen.
         accumulated = 0
         frozen_count = 0
         for i, tok_count in enumerate(message_token_counts):
             accumulated += tok_count
-            if accumulated <= total_cached:
+            if accumulated <= message_budget:
                 frozen_count = i + 1
             else:
                 break
@@ -163,11 +175,13 @@ class PrefixCacheTracker:
         self._cached_message_count = frozen_count
 
         logger.debug(
-            "PrefixCacheTracker[%s]: turn=%d, cached=%d tokens, "
+            "PrefixCacheTracker[%s]: turn=%d, cached=%d tokens (system=%d, msg_budget=%d), "
             "frozen=%d/%d messages (read=%d, write=%d)",
             self.provider,
             self._turn_number,
             total_cached,
+            system_token_count,
+            message_budget,
             frozen_count,
             len(messages),
             cache_read_tokens,

@@ -773,6 +773,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 _savings_meta,
                 provider=outcome.provider,
                 model=outcome.model,
+                client=outcome.client,
             )
 
     # 3. Per-request log (optional). The ``client`` outcome field is
@@ -787,6 +788,22 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             log_tags["client"] = outcome.client
         if project:
             log_tags["project"] = project
+        cache_saved_tokens = max(0, int(outcome.cache_read_tokens))
+        semantic_cache_saved_tokens = max(0, int(outcome.semantic_cache_avoided_tokens))
+        self_hosted_prefix_cache_saved_tokens = max(0, int(outcome.self_hosted_prefix_cache_hits))
+        model_routing_saved_tokens = max(0, int(outcome.model_routing_tokens_saved))
+        total_saved_tokens = (
+            max(0, int(outcome.tokens_saved))
+            + cache_saved_tokens
+            + semantic_cache_saved_tokens
+            + self_hosted_prefix_cache_saved_tokens
+            + model_routing_saved_tokens
+        )
+        total_savings_percent = (
+            (total_saved_tokens / outcome.original_tokens) * 100.0
+            if outcome.original_tokens > 0
+            else 0.0
+        )
         request_logger.log(
             RequestLog(
                 request_id=outcome.request_id,
@@ -803,6 +820,12 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 tags=log_tags,
                 cache_hit=outcome.cache_hit,
                 transforms_applied=list(outcome.transforms_applied),
+                cache_saved_tokens=cache_saved_tokens,
+                semantic_cache_saved_tokens=semantic_cache_saved_tokens,
+                self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
+                model_routing_saved_tokens=model_routing_saved_tokens,
+                total_saved_tokens=total_saved_tokens,
+                total_savings_percent=total_savings_percent,
                 waste_signals=outcome.waste_signals,
                 request_messages=outcome.request_messages,
                 compressed_messages=outcome.compressed_messages,

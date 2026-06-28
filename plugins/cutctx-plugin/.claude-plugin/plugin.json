@@ -1,6 +1,6 @@
 {
   "name": "cutctx",
-  "version": "0.26.1",
+  "version": "0.28.0",
   "description": "Context compression for AI agents — compress tool outputs, logs, and code to save 60-95% tokens",
   "author": {
     "name": "Cutctx Contributors",
