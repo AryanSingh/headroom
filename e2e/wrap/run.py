@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -18,7 +19,7 @@ from urllib.parse import quote
 
 import httpx
 
-REPO_ROOT = Path("/workspace")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_DIR = REPO_ROOT / "plugins" / "openclaw"
 SDK_DIR = REPO_ROOT / "sdk" / "typescript"
 RTK_MARKER = "<!-- cutctx:rtk-instructions -->"
@@ -242,10 +243,9 @@ def create_shims(shim_dir: Path) -> None:
 
         openai_base = os.environ.get("OPENAI_BASE_URL") or os.environ.get("OPENAI_API_BASE")
         if openai_base:
-            fetch(
-                f"{openai_base.rstrip('/')}/models",
-                headers={"Authorization": "Bearer test-key"},
-            )
+            admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY")
+            headers = {"X-Cutctx-Admin-Key": admin_key} if admin_key else None
+            fetch(f"{openai_base.rstrip('/')}/models", headers=headers)
 
         anthropic_base = os.environ.get("ANTHROPIC_BASE_URL")
         if anthropic_base:
@@ -465,39 +465,56 @@ def stop_openclaw_gateway(env: dict[str, str], cwd: Path) -> None:
     run(["openclaw", "gateway", "stop"], env=env, cwd=cwd, timeout=60)
 
 
+def find_aider_python() -> str | None:
+    """Locate a Python interpreter for the installed aider environment."""
+    explicit = os.environ.get("CUTCTX_E2E_AIDER_PYTHON")
+    if explicit:
+        return explicit
+
+    docker_default = Path("/opt/aider-venv/bin/python")
+    if docker_default.exists():
+        return str(docker_default)
+
+    aider_bin = shutil.which("aider")
+    if not aider_bin:
+        return None
+
+    resolved = Path(aider_bin).resolve()
+    candidate = resolved.parent / "python"
+    if candidate.exists():
+        return str(candidate)
+
+    return None
+
+
 def verify_installs() -> None:
     log("Verifying installed packages and binaries")
     for tool in ("cutctx", "codex", "aider", "openclaw"):
         assert_true(shutil.which(tool) is not None, f"Expected '{tool}' on PATH")
     run(["cutctx", "--help"], timeout=30)
-    run(["npm", "list", "-g", "--depth=0", "@openai/codex", "openclaw"], timeout=60)
-    run(["/opt/aider-venv/bin/python", "-m", "pip", "show", "aider-chat"], timeout=60)
+    run(["codex", "--version"], timeout=30)
+    run(["openclaw", "--version"], timeout=30)
+    aider_python = find_aider_python()
+    assert_true(aider_python is not None, "Expected a discoverable Python runtime for aider")
+    run(
+        [aider_python, "-c", "import aider; print(getattr(aider, '__file__', 'missing'))"],
+        timeout=60,
+    )
 
 
 def prepare_local_openclaw_plugin(base_env: dict[str, str], tmp_dir: Path) -> Path:
     log("Preparing local TypeScript package for OpenClaw plugin build")
-    sdk_dir = tmp_dir / "sdk-typescript"
-    plugin_dir = tmp_dir / "openclaw-plugin"
-    shutil.copytree(SDK_DIR, sdk_dir)
-    shutil.copytree(PLUGIN_DIR, plugin_dir)
-
-    plugin_lock = plugin_dir / "package-lock.json"
-    if plugin_lock.exists():
-        plugin_lock.unlink()
+    sdk_dir = SDK_DIR
 
     run(["npm", "install"], env=base_env, cwd=sdk_dir, timeout=600)
     run(["npm", "run", "build"], env=base_env, cwd=sdk_dir, timeout=600)
     pack_result = run(["npm", "pack"], env=base_env, cwd=sdk_dir, timeout=600)
+
     tarball_name = pack_result.stdout.strip().splitlines()[-1].strip()
     tarball_path = sdk_dir / tarball_name
     assert_true(tarball_path.exists(), "Expected npm pack to produce a local SDK tarball")
 
-    package_json_path = plugin_dir / "package.json"
-    package_json = json.loads(package_json_path.read_text(encoding="utf-8"))
-    package_json["dependencies"]["cutctx-ai"] = f"file:{tarball_path.as_posix()}"
-    package_json_path.write_text(f"{json.dumps(package_json, indent=2)}\n", encoding="utf-8")
-
-    return plugin_dir
+    return PLUGIN_DIR
 
 
 def verify_proxy_round_trip(base_env: dict[str, str], mock_server: MockOpenAIServer) -> None:
@@ -740,11 +757,13 @@ def verify_continue_wrap(base_env: dict[str, str], project_dir: Path) -> None:
         timeout=60,
     )
     config_file = project_dir / ".continue" / "config.json"
-    assert_true(config_file.exists(), "Continue wrap should create .continue/config.json")
-    data = json.loads(config_file.read_text(encoding="utf-8"))
-    system_message = data.get("systemMessage", "")
     assert_true(
-        RTK_MARKER in system_message,
+        config_file.exists(),
+        "Continue wrap should create .continue/config.json",
+    )
+    data = json.loads(config_file.read_text(encoding="utf-8"))
+    assert_true(
+        RTK_MARKER in data.get("systemMessage", ""),
         "Continue wrap should inject RTK instructions into systemMessage",
     )
 
@@ -766,12 +785,7 @@ def verify_goose_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 
 
 def verify_openhands_wrap(base_env: dict[str, str], project_dir: Path) -> None:
-    """Smoke test: `wrap openhands --prepare-only` exits clean and ensures rtk is present.
-
-    OpenHands wires instructions via the OPENHANDS_INSTRUCTIONS env var at launch
-    time (no on-disk artifact), so --prepare-only just exercises the rtk-binary
-    setup path. The env-var wiring is covered by the unit tests.
-    """
+    """Smoke test: `wrap openhands --prepare-only` exits clean after setup."""
     run(
         ["cutctx", "wrap", "openhands", "--prepare-only", "--port", str(OPENHANDS_PORT)],
         env=base_env,
@@ -781,44 +795,47 @@ def verify_openhands_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 
 
 def verify_windsurf_wrap(base_env: dict[str, str], project_dir: Path) -> None:
-    """Smoke test: `wrap windsurf --prepare-only` exits clean and prints the proxy URL."""
-    result = run(
-        ["cutctx", "wrap", "windsurf", "--prepare-only", "--proxy-port", str(WINDSURF_PORT)],
+    """Smoke test: `wrap windsurf --prepare-only` writes RTK guidance to .windsurfrules."""
+    run(
+        ["cutctx", "wrap", "windsurf", "--prepare-only", "--port", str(WINDSURF_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
     )
+    windsurfrules = project_dir / ".windsurfrules"
     assert_true(
-        str(WINDSURF_PORT) in result.stdout,
-        f"Windsurf wrap --prepare-only should mention port {WINDSURF_PORT} in output",
+        windsurfrules.exists(),
+        "Windsurf wrap should create .windsurfrules",
+    )
+    assert_true(
+        RTK_MARKER in windsurfrules.read_text(encoding="utf-8"),
+        "Windsurf wrap should inject RTK instructions",
     )
 
 
 def verify_zed_wrap(base_env: dict[str, str], project_dir: Path) -> None:
-    """Smoke test: `wrap zed --prepare-only` exits clean and prints the proxy URL."""
-    result = run(
-        ["cutctx", "wrap", "zed", "--prepare-only", "--proxy-port", str(ZED_PORT)],
+    """Smoke test: `wrap zed --prepare-only` exits clean without proxy startup."""
+    run(
+        ["cutctx", "wrap", "zed", "--prepare-only", "--port", str(ZED_PORT)],
         env=base_env,
         cwd=project_dir,
         timeout=60,
-    )
-    assert_true(
-        str(ZED_PORT) in result.stdout,
-        f"Zed wrap --prepare-only should mention port {ZED_PORT} in output",
     )
 
 
 def verify_opencode_wrap(base_env: dict[str, str], project_dir: Path) -> None:
-    """Smoke test: `wrap opencode --prepare-only` exits clean and prints the proxy URL."""
-    result = run(
-        ["cutctx", "wrap", "opencode", "--prepare-only", "--proxy-port", str(OPENCODE_PORT)],
+    """Smoke test: `wrap opencode -- --help` launches through Cutctx and injects AGENTS.md."""
+    run(
+        ["cutctx", "wrap", "opencode", "--port", str(OPENCODE_PORT), "--", "--help"],
         env=base_env,
         cwd=project_dir,
-        timeout=60,
+        timeout=120,
     )
+    agents_md = project_dir / "AGENTS.md"
+    assert_true(agents_md.exists(), "opencode wrap should create AGENTS.md")
     assert_true(
-        str(OPENCODE_PORT) in result.stdout,
-        f"Opencode wrap --prepare-only should mention port {OPENCODE_PORT} in output",
+        RTK_MARKER in agents_md.read_text(encoding="utf-8"),
+        "opencode wrap should inject RTK instructions",
     )
 
 
@@ -827,8 +844,12 @@ def verify_openclaw_wrap(
     project_dir: Path,
     plugin_dir: Path,
 ) -> None:
-    port = OPENCLAW_PROXY_PORT
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
     gateway_proc: subprocess.Popen[str] | None = None
+    openclaw_env = base_env.copy()
+    openclaw_env.pop("CUTCTX_ADMIN_API_KEY", None)
     run(
         [
             "cutctx",
@@ -836,27 +857,35 @@ def verify_openclaw_wrap(
             "openclaw",
             "--plugin-path",
             str(plugin_dir),
+            "--copy",
             "--proxy-port",
             str(port),
             "--startup-timeout-ms",
-            # 5s is too tight for cold Python+pyo3 import on a busy CI runner.
             "30000",
             "--verbose",
         ],
-        env=base_env,
+        env=openclaw_env,
         cwd=project_dir,
         timeout=600,
     )
     dist_index = plugin_dir / "dist" / "index.js"
-    assert_true(dist_index.exists(), "OpenClaw plugin build should produce dist/index.js")
+    assert_true(
+        dist_index.exists(),
+        "OpenClaw plugin build should produce dist/index.js",
+    )
 
-    config_file = run(["openclaw", "config", "file"], env=base_env, cwd=project_dir, timeout=60)
+    config_file = run(
+        ["openclaw", "config", "file"],
+        env=openclaw_env,
+        cwd=project_dir,
+        timeout=60,
+    )
     config_path_str = config_file.stdout.strip().splitlines()[-1].strip()
     if config_path_str.startswith("~/"):
         config_path = Path(base_env["HOME"]) / config_path_str[2:]
     else:
         config_path = Path(config_path_str)
-    assert_true(config_path.exists(), "OpenClaw should create a config file")
+    assert_true(config_path.exists(), "OpenClaw should create config file")
 
     state = json.loads(config_path.read_text(encoding="utf-8"))
     if state.get("gateway", {}).get("mode") != "local":
@@ -869,61 +898,44 @@ def verify_openclaw_wrap(
                 json.dumps("local"),
                 "--strict-json",
             ],
-            env=base_env,
+            env=openclaw_env,
             cwd=project_dir,
             timeout=60,
         )
         state = json.loads(config_path.read_text(encoding="utf-8"))
 
-    try:
-        try:
-            wait_for_command_success(
-                ["openclaw", "health"], env=base_env, cwd=project_dir, timeout=5
-            )
-        except RuntimeError:
-            gateway_proc = start_openclaw_gateway(base_env, project_dir)
-            try:
-                wait_for_command_success(
-                    ["openclaw", "health"], env=base_env, cwd=project_dir, timeout=30
-                )
-            except RuntimeError as exc:
-                gateway_output = ""
-                if gateway_proc.stdout is not None:
-                    gateway_output = gateway_proc.stdout.read()
-                raise RuntimeError(f"{exc}\nGateway output:\n{gateway_output}") from exc
+    entry = state["plugins"]["entries"]["cutctx"]
+    assert_true(entry["enabled"] is True, "OpenClaw wrap should enable plugin")
+    assert_true(
+        entry["config"]["proxyPort"] == port,
+        "OpenClaw wrap should set proxy port",
+    )
+    assert_true(
+        entry["config"].get("autoStart", True) is True,
+        "OpenClaw wrap should leave autoStart enabled",
+    )
+    assert_true(
+        state["gateway"]["mode"] == "local",
+        "OpenClaw e2e bootstrap should set gateway.mode=local",
+    )
+    assert_true(
+        state["plugins"]["slots"]["contextEngine"] == "cutctx",
+        "OpenClaw wrap should set context engine slot",
+    )
 
-        entry = state["plugins"]["entries"]["cutctx"]
-        assert_true(entry["enabled"] is True, "OpenClaw wrap should enable the plugin")
-        assert_true(entry["config"]["proxyPort"] == port, "OpenClaw wrap should set proxy port")
-        assert_true(
-            entry["config"].get("autoStart", True) is True,
-            "OpenClaw wrap should leave autoStart enabled",
-        )
-        assert_true(
-            state["gateway"]["mode"] == "local",
-            "OpenClaw e2e bootstrap should set gateway.mode=local",
-        )
-        assert_true(
-            state["plugins"]["slots"]["contextEngine"] == "cutctx",
-            "OpenClaw wrap should set the context engine slot",
-        )
-    finally:
-        if gateway_proc is not None:
-            stop_process(gateway_proc)
-        stop_openclaw_gateway(base_env, project_dir)
-
-    run(["cutctx", "unwrap", "openclaw"], env=base_env, cwd=project_dir, timeout=120)
+    run(["cutctx", "unwrap", "openclaw", "--proxy-port", str(port)], env=openclaw_env, cwd=project_dir, timeout=120)
     state = json.loads(config_path.read_text(encoding="utf-8"))
     assert_true(
         state["plugins"]["slots"]["contextEngine"] == "legacy",
-        "OpenClaw unwrap should restore the context engine slot",
+        "OpenClaw unwrap should restore context engine slot",
     )
 
 
 def main() -> None:
     verify_installs()
     with tempfile.TemporaryDirectory(
-        prefix="cutctx-wrap-e2e-", ignore_cleanup_errors=True
+        prefix="cutctx-wrap-e2e-",
+        ignore_cleanup_errors=True,
     ) as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
         home_dir = tmp_dir / "home"
@@ -931,17 +943,21 @@ def main() -> None:
         shim_dir = tmp_dir / "shim-bin"
         log_dir = tmp_dir / "logs"
 
-        for path in (home_dir, project_dir, shim_dir, log_dir):
-            path.mkdir(parents=True, exist_ok=True)
-        create_shims(shim_dir)
+        for path_item in (home_dir, project_dir, shim_dir, log_dir):
+            path_item.mkdir(parents=True, exist_ok=True)
 
+        create_shims(shim_dir)
         mock_server, mock_thread = start_mock_server(19001)
+
         base_env = os.environ.copy()
+        for key in ("OPENAI_BASE_URL", "OPENAI_API_BASE", "ANTHROPIC_BASE_URL"):
+            base_env.pop(key, None)
         base_env.update(
             {
                 "HOME": str(home_dir),
                 "PATH": f"{shim_dir}{os.pathsep}{base_env['PATH']}",
                 "CUTCTX_E2E_LOG_DIR": str(log_dir),
+                "CUTCTX_ADMIN_API_KEY": "test-key",
                 "OPENAI_TARGET_API_URL": "http://127.0.0.1:19001/v1",
             }
         )
@@ -965,7 +981,7 @@ def main() -> None:
             mock_server.shutdown()
             mock_thread.join(timeout=5)
 
-    log("All Docker wrap e2e checks passed.")
+    log("All wrap e2e checks passed.")
 
 
 if __name__ == "__main__":

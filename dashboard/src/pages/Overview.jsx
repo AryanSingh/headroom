@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   formatCurrency,
@@ -21,8 +21,6 @@ import {
   formatRelativeTime,
 } from '../lib/format';
 import { useDashboardData } from '../lib/use-dashboard-data';
-
-/* ─── Helpers ─────────────────────────────────────────────────── */
 
 function SkeletonCard() {
   return (
@@ -37,8 +35,16 @@ function SkeletonCard() {
 function SkeletonBar() {
   return (
     <div style={{ display: 'grid', gap: '12px' }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 50px', gap: '16px', alignItems: 'center' }}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '140px 1fr 50px',
+            gap: '16px',
+            alignItems: 'center',
+          }}
+        >
           <div className="skeleton skeleton-line skeleton-line-sm" />
           <div className="skeleton" style={{ height: '8px', borderRadius: '999px' }} />
           <div className="skeleton skeleton-line" style={{ width: '40px' }} />
@@ -59,8 +65,6 @@ function EmptyState({ icon: Icon, title, description }) {
     </div>
   );
 }
-
-/* ─── Source rows builder ─────────────────────────────────────── */
 
 function buildSourceRows(stats) {
   const sourceTokens = stats?.savings_by_source?.tokens || {};
@@ -102,17 +106,20 @@ function buildSourceRows(stats) {
   ];
 }
 
-/* ─── Mini sparkline (pure SVG, no dependencies) ──────────────── */
-
 function Sparkline({ values, color = 'var(--accent)', height = 28, width = 80 }) {
-  if (!values || values.length < 2) return null;
+  if (!values || values.length < 2) {
+    return null;
+  }
+
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
   const range = max - min || 1;
   const step = width / (values.length - 1);
-
   const points = values
-    .map((v, i) => `${i * step},${height - ((v - min) / range) * (height - 4) - 2}`)
+    .map((value, index) => {
+      const y = height - ((value - min) / range) * (height - 4) - 2;
+      return `${index * step},${y}`;
+    })
     .join(' ');
 
   return (
@@ -135,52 +142,61 @@ function Sparkline({ values, color = 'var(--accent)', height = 28, width = 80 })
   );
 }
 
-/* ─── Trend chart ─────────────────────────────────────────────── */
-
 function TrendChart({ stats }) {
   const [period, setPeriod] = useState('24h');
+  const [referenceTime, setReferenceTime] = useState(() => Date.now());
+  const recentRequestsSource = stats?.recent_requests;
 
   const bars = useMemo(() => {
-    const recentReqs = Array.isArray(stats?.recent_requests) ? stats.recent_requests : [];
+    const recentReqs = Array.isArray(recentRequestsSource) ? recentRequestsSource : [];
     if (recentReqs.length === 0) {
       return Array.from({ length: 20 }, () => 0);
     }
 
-    const now = Date.now();
-    const periodMs = period === '24h' ? 86400000 : period === '7d' ? 604800000 : 2592000000;
+    const periodMs =
+      period === '24h' ? 86_400_000 : period === '7d' ? 604_800_000 : 2_592_000_000;
     const bucketCount = 20;
     const bucketSize = periodMs / bucketCount;
-
     const buckets = new Array(bucketCount).fill(0);
+
     for (const req of recentReqs) {
-      const ts = new Date(req.timestamp).getTime();
-      const age = now - ts;
-      if (age >= 0 && age <= periodMs) {
-        const idx = Math.min(bucketCount - 1, Math.floor((periodMs - age) / bucketSize));
-        buckets[idx] += req.tokens_saved || 0;
+      const timestamp = new Date(req.timestamp).getTime();
+      const age = referenceTime - timestamp;
+      if (age < 0 || age > periodMs) {
+        continue;
       }
+
+      const index = Math.min(
+        bucketCount - 1,
+        Math.floor((periodMs - age) / bucketSize),
+      );
+      buckets[index] += Number(req.tokens_saved || 0);
     }
+
     return buckets;
-  }, [stats, period]);
+  }, [period, recentRequestsSource, referenceTime]);
 
   const maxBar = Math.max(...bars, 1);
 
   return (
     <div>
       <div className="trend-chart-tabs">
-        {['24h', '7d', '30d'].map((p) => (
+        {['24h', '7d', '30d'].map((nextPeriod) => (
           <button
-            key={p}
-            className={`trend-tab ${period === p ? 'active' : ''}`}
-            onClick={() => setPeriod(p)}
+            key={nextPeriod}
+            className={`trend-tab ${period === nextPeriod ? 'active' : ''}`}
+            onClick={() => {
+              setPeriod(nextPeriod);
+              setReferenceTime(Date.now());
+            }}
             type="button"
           >
-            {p}
+            {nextPeriod}
           </button>
         ))}
       </div>
 
-      {bars.every((b) => b === 0) ? (
+      {bars.every((value) => value === 0) ? (
         <EmptyState
           icon={TrendingUp}
           title="No trend data yet"
@@ -188,13 +204,12 @@ function TrendChart({ stats }) {
         />
       ) : (
         <div className="trend-chart-container">
-          {bars.map((value, i) => {
+          {bars.map((value, index) => {
             const ratio = value / maxBar;
-            // Use square root scaling to make smaller bars visible despite outliers
             const scaledHeight = value === 0 ? 4 : Math.max(4, Math.sqrt(ratio) * 100);
             return (
               <div
-                key={i}
+                key={`${period}-${index}`}
                 className="trend-bar"
                 style={{ height: `${scaledHeight}%` }}
                 title={`${formatNumber(value)} tokens saved`}
@@ -207,45 +222,43 @@ function TrendChart({ stats }) {
   );
 }
 
-/* ─── Main Overview ───────────────────────────────────────────── */
-
 export default function Overview() {
-  const { stats, health, loading, error, lastUpdated } = useDashboardData();
-
+  const { stats, loading, error } = useDashboardData();
   const summary = stats?.summary || {};
   const requests = stats?.requests || {};
   const tokens = stats?.tokens || {};
   const recentRequests = Array.isArray(stats?.recent_requests)
     ? stats.recent_requests.slice(0, 8)
     : [];
-
   const sourceRows = buildSourceRows(stats);
+  const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
   const totalSourceTokens =
-    sourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
+    activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
     Number(tokens.total_before_compression || 0);
-
-  const compressionRatio = tokens.savings_percent
-    ? (100 - Number(tokens.savings_percent || 0))
-    : null;
+  const compressionRatio =
+    tokens.savings_percent != null ? 100 - Number(tokens.savings_percent || 0) : null;
 
   return (
     <section className="page-stack">
-      {/* Error banner */}
-      {error && (
+      {error ? (
         <div className="alert-card" role="alert">
           <span>Failed to load data: {error}</span>
-          <button className="ghost-button" style={{ marginLeft: 'auto' }} onClick={() => window.location.reload()} type="button">
+          <button
+            className="ghost-button"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => window.location.reload()}
+            type="button"
+          >
             <RefreshCw size={14} />
             Retry
           </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Row 1: Key metrics */}
       {loading ? (
         <div className="metric-grid metric-grid-four">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonCard key={i} />
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={index} />
           ))}
         </div>
       ) : (
@@ -256,7 +269,7 @@ export default function Overview() {
             label="Tokens saved"
             value={formatNumber(tokens.saved)}
             footnote={`${formatPercent(tokens.savings_percent)} total reduction`}
-            sparkline={recentRequests.slice(0, 10).map((r) => r.tokens_saved || 0)}
+            sparkline={recentRequests.slice(0, 10).map((request) => Number(request.tokens_saved || 0))}
             sparklineColor="var(--accent)"
           />
           <MetricCard
@@ -283,7 +296,6 @@ export default function Overview() {
         </div>
       )}
 
-      {/* Row 2: Trend chart */}
       <div className="panel">
         <div className="section-heading">
           <div>
@@ -298,9 +310,7 @@ export default function Overview() {
         )}
       </div>
 
-      {/* Row 3: Attribution + Recent requests */}
       <div className="dashboard-grid">
-        {/* Left: Savings attribution */}
         <section className="panel">
           <div className="section-heading">
             <div>
@@ -311,7 +321,7 @@ export default function Overview() {
 
           {loading ? (
             <SkeletonBar />
-          ) : totalSourceTokens === 0 ? (
+          ) : activeSourceRows.length === 0 ? (
             <EmptyState
               icon={Sparkles}
               title="No savings data yet"
@@ -319,33 +329,30 @@ export default function Overview() {
             />
           ) : (
             <div className="source-stack">
-              {sourceRows
-                .filter((row) => row.tokens > 0)
-                .map((row) => {
-                  const pct = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
-                  return (
-                    <div key={row.key} className="source-row">
-                      <div className="source-labels">
-                        <div className="source-name">{row.label}</div>
-                        <div className="source-meta">
-                          {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
-                        </div>
+              {activeSourceRows.map((row) => {
+                const percent = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
+                return (
+                  <div key={row.key} className="source-row">
+                    <div className="source-labels">
+                      <div className="source-name">{row.label}</div>
+                      <div className="source-meta">
+                        {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
                       </div>
-                      <div className="source-bar-track">
-                        <div
-                          className="source-bar-fill"
-                          style={{ width: `${Math.min(100, pct)}%` }}
-                        />
-                      </div>
-                      <div className="source-percent">{formatPercent(pct)}</div>
                     </div>
-                  );
-                })}
+                    <div className="source-bar-track">
+                      <div
+                        className="source-bar-fill"
+                        style={{ width: `${Math.min(100, percent)}%` }}
+                      />
+                    </div>
+                    <div className="source-percent">{formatPercent(percent)}</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* Right: Recent requests */}
         <section className="panel">
           <div className="section-heading">
             <div>
@@ -374,54 +381,70 @@ export default function Overview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentRequests.map((req, index) => (
-                    <tr key={req.request_id || index}>
-                      <td className="model-name">{req.model || '—'}</td>
-                      <td>{formatInteger(req.input_tokens_original)}</td>
+                  {recentRequests.map((request, index) => (
+                    <tr
+                      key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
+                    >
+                      <td className="model-name">{request.model || '—'}</td>
+                      <td>{formatInteger(request.input_tokens_original)}</td>
                       <td className="savings-value">
-                        {formatInteger(req.tokens_saved)}
-                        <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: '4px', fontSize: 'var(--text-xs)' }}>
-                          {formatPercent(Math.min(100, Math.max(0, req.savings_percent || 0)))}
+                        {formatInteger(request.tokens_saved)}
+                        <span
+                          style={{
+                            color: 'var(--text-tertiary)',
+                            fontWeight: 400,
+                            marginLeft: '4px',
+                            fontSize: 'var(--text-xs)',
+                          }}
+                        >
+                          {formatPercent(
+                            Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
+                          )}
                         </span>
                       </td>
-                      <td>{formatRelativeTime(req.timestamp)}</td>
+                      <td>{formatRelativeTime(request.timestamp)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </section>
-      </div>
 
-      {/* Row 4: Quick actions */}
-      <div className="metric-grid metric-grid-three">
-        <QuickAction
-          to="/playground"
-          icon={Zap}
-          label="Run compression"
-          description="Test a live compression request with the playground."
-        />
-        <QuickAction
-          to="/capabilities"
-          icon={Layers}
-          label="Product surfaces"
-          description="See the full map of available features and capabilities."
-        />
-        <QuickAction
-          to="/memory"
-          icon={BarChart3}
-          label="Memory signals"
-          description="Inspect cross-session memory and correction entries."
-        />
+          <div className="metric-grid metric-grid-three" style={{ marginTop: 'var(--space-xl)' }}>
+            <QuickAction
+              to="/playground"
+              icon={Zap}
+              label="Run compression"
+              description="Test a live compression request with the playground."
+            />
+            <QuickAction
+              to="/capabilities"
+              icon={Layers}
+              label="Product surfaces"
+              description="See the full map of available features and capabilities."
+            />
+            <QuickAction
+              to="/memory"
+              icon={BarChart3}
+              label="Memory signals"
+              description="Inspect cross-session memory and correction entries."
+            />
+          </div>
+        </section>
       </div>
     </section>
   );
 }
 
-/* ─── Metric Card Component ───────────────────────────────────── */
-
-function MetricCard({ icon: Icon, iconColor = '', label, value, footnote, sparkline, sparklineColor }) {
+function MetricCard({
+  icon: Icon,
+  iconColor = '',
+  label,
+  value,
+  footnote,
+  sparkline,
+  sparklineColor,
+}) {
   return (
     <article className="metric-card">
       <div className="metric-header">
@@ -431,25 +454,66 @@ function MetricCard({ icon: Icon, iconColor = '', label, value, footnote, sparkl
         </div>
       </div>
       <div className="metric-value">{value}</div>
-      {sparkline && <Sparkline values={sparkline} color={sparklineColor} />}
+      {sparkline ? <Sparkline values={sparkline} color={sparklineColor} /> : null}
       <div className="metric-footnote">{footnote}</div>
     </article>
   );
 }
 
-/* ─── Quick Action Component ──────────────────────────────────── */
-
 function QuickAction({ to, icon: Icon, label, description }) {
   return (
-    <Link to={to} className="card" style={{ padding: 'var(--space-xl)', display: 'grid', gap: 'var(--space-sm)', textDecoration: 'none' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginBottom: 'var(--space-xs)' }}>
+    <Link
+      to={to}
+      className="card"
+      style={{
+        padding: 'var(--space-xl)',
+        display: 'grid',
+        gap: 'var(--space-sm)',
+        textDecoration: 'none',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-md)',
+          marginBottom: 'var(--space-xs)',
+        }}
+      >
         <div className="metric-icon">
           <Icon size={16} />
         </div>
-        <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{label}</span>
+        <span
+          style={{
+            fontWeight: 600,
+            fontSize: 'var(--text-sm)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          {label}
+        </span>
       </div>
-      <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', margin: 0, lineHeight: '1.5' }}>{description}</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent)', fontSize: 'var(--text-sm)', fontWeight: 600, marginTop: 'var(--space-sm)' }}>
+      <p
+        style={{
+          color: 'var(--text-tertiary)',
+          fontSize: 'var(--text-sm)',
+          margin: 0,
+          lineHeight: '1.5',
+        }}
+      >
+        {description}
+      </p>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          color: 'var(--accent)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: 600,
+          marginTop: 'var(--space-sm)',
+        }}
+      >
         Open
         <ArrowRight size={14} />
       </div>

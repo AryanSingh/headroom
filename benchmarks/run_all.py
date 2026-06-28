@@ -223,13 +223,23 @@ def compress_with_cutctx(text: str) -> tuple[str, float]:
         (compressed_text, latency_ms)
     """
     if not CUTCTX_AVAILABLE:
-        raise ImportError("cutctx not installed")
+        raise ImportError("cutctx is not installed")
 
     start = time.perf_counter()
-    result = compress(text)
+    result = compress(
+        [{"role": "tool", "content": text}],
+        model="gpt-4o",
+        compress_user_messages=True,
+        protect_recent=0,
+    )
     latency = (time.perf_counter() - start) * 1000
 
-    return result.compressed_text, latency
+    compressed_message = result.messages[0] if result.messages else {"content": text}
+    compressed_content = compressed_message.get("content", text)
+    if not isinstance(compressed_content, str):
+        compressed_content = json.dumps(compressed_content, ensure_ascii=False)
+
+    return compressed_content, latency
 
 
 def compress_with_llmlingua2(text: str) -> tuple[str, float]:

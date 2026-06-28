@@ -1266,7 +1266,76 @@ tbody tr:nth-child(even):hover td {
 
 .empty-row,
 .empty-copy {
-  color: var(--text-tertiary);
+color: var(--text-tertiary);
+}
+
+.governance-event {
+display: grid;
+gap: var(--space-xs);
+padding: var(--space-md) 0;
+border-bottom: 1px solid var(--border-subtle);
+}
+
+.governance-event:last-child {
+border-bottom: none;
+padding-bottom: 0;
+}
+
+.governance-event-meta {
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: var(--space-md);
+}
+
+.governance-event-meta span {
+color: var(--text-tertiary);
+font-size: var(--text-xs);
+white-space: nowrap;
+}
+
+.governance-event p {
+color: var(--text-secondary);
+font-size: var(--text-sm);
+}
+
+.governance-snapshot-grid {
+display: grid;
+grid-template-columns: repeat(2, minmax(0, 1fr));
+gap: var(--space-lg);
+}
+
+.governance-panel-title {
+display: inline-flex;
+align-items: center;
+gap: var(--space-sm);
+margin-bottom: var(--space-lg);
+color: var(--text-primary);
+font-weight: 600;
+}
+
+.governance-kv {
+display: flex;
+justify-content: space-between;
+gap: var(--space-lg);
+padding: var(--space-sm) 0;
+border-bottom: 1px solid var(--border-subtle);
+font-size: var(--text-sm);
+}
+
+.governance-kv:last-child {
+border-bottom: none;
+padding-bottom: 0;
+}
+
+.governance-kv span {
+color: var(--text-secondary);
+word-break: break-word;
+}
+
+.governance-kv strong {
+color: var(--text-primary);
+text-align: right;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1768,15 +1837,19 @@ tbody tr:nth-child(even):hover td {
    ═══════════════════════════════════════════════════════════════ */
 
 @media (max-width: 640px) {
-  .metric-grid-four,
-  .metric-grid-three,
-  .metric-grid-two {
-    grid-template-columns: 1fr;
-  }
+.metric-grid-four,
+.metric-grid-three,
+.metric-grid-two {
+grid-template-columns: 1fr;
+}
 
-  .badge-grid {
-    grid-template-columns: 1fr;
-  }
+.governance-snapshot-grid {
+grid-template-columns: 1fr;
+}
+
+.badge-grid {
+grid-template-columns: 1fr;
+}
 
   .page-shell {
     padding: var(--space-lg) var(--space-md);

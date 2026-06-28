@@ -286,6 +286,67 @@ class TestCompressEndpointCompression:
         assert "image:preserve" in data["transforms_applied"]
         assert data["image_metrics"]["tokens_saved"] == 660
 
+    def test_compress_endpoint_updates_stats_summary(self, client):
+        """Compression-only requests should be visible in /stats transparency surfaces."""
+        messages = [
+            {"role": "user", "content": "What items are available?"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_stats",
+                        "type": "function",
+                        "function": {
+                            "name": "list_items",
+                            "arguments": "{}",
+                        },
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "call_stats",
+                "content": json.dumps(
+                    [
+                        {
+                            "id": i,
+                            "name": f"Item {i}",
+                            "description": (
+                                f"This is a detailed description for item number {i}. "
+                                f"It contains metadata, retries, duplicate fields, "
+                                f"and large API response structure for compression tests."
+                            ),
+                            "tags": ["electronics", "sale", "featured", "new-arrival"],
+                        }
+                        for i in range(200)
+                    ]
+                ),
+            },
+            {"role": "user", "content": "Summarize the first 5 items."},
+        ]
+
+        response = client.post(
+            "/v1/compress",
+            json={"messages": messages, "model": "gpt-4"},
+        )
+        assert response.status_code == 200
+        compressed = response.json()
+        assert compressed["tokens_before"] > 0
+
+        stats_response = client.get("/stats")
+        assert stats_response.status_code == 200
+        stats = stats_response.json()
+
+        summary = stats["summary"]
+        assert summary["api_requests"] >= 1
+        assert summary["compression"]["total_tokens_removed"] >= compressed["tokens_saved"]
+
+        recent_requests = stats.get("recent_requests") or []
+        if recent_requests:
+            assert recent_requests[0]["model"] == "gpt-4"
+            assert recent_requests[0]["tokens_saved"] >= compressed["tokens_saved"]
+
     def test_small_content_may_not_compress(self, client):
         """Small messages may not get compressed but should still work."""
         response = client.post(

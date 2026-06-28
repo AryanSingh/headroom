@@ -447,7 +447,11 @@ export async function probeCutctxProxy(proxyUrl: string): Promise<ProxyProbeResu
     const retrieveStats = await fetch(`${origin}/v1/retrieve/stats`, {
       signal: AbortSignal.timeout(3_000),
     });
-    if (retrieveStats.ok) {
+    if (
+      retrieveStats.ok ||
+      retrieveStats.status === 401 ||
+      retrieveStats.status === 403
+    ) {
       return { reachable: true, isCutctx: true };
     }
     return {

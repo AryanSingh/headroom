@@ -3172,7 +3172,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
     async def dashboard():
         """Serve the Cutctx dashboard UI."""
-        return get_dashboard_html()
+        return get_dashboard_html(prefer_react=True)
 
     DASHBOARD_STATS_CACHE_TTL_SECONDS = 5.0
     _stats_snapshot_lock = asyncio.Lock()

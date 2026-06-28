@@ -22,6 +22,9 @@ def build_launch_env(
     strips it and attributes savings per project.
     """
     env = dict(environ or os.environ)
+    # Aider consumes OPENAI_API_BASE. Clear OPENAI_BASE_URL so ambient shell
+    # overrides do not take precedence in wrapper shims or downstream helpers.
+    env.pop("OPENAI_BASE_URL", None)
     openai_base_url = with_project_prefix(codex_proxy_base_url(port), project)
     anthropic_base_url = with_project_prefix(claude_proxy_base_url(port), project)
     env["OPENAI_API_BASE"] = openai_base_url

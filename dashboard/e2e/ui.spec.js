@@ -1,27 +1,24 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test('dashboard loads and navigates', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('h2').first()).toHaveText('Dashboard Overview');
+test('dashboard loads and exposes major navigation surfaces', async ({ page }) => {
+  await page.goto('/dashboard');
+  const nav = page.locator('.nav-stack');
+  const currentTitle = page.locator('.topbar-title-row h2');
+  await expect(currentTitle).toHaveText('Dashboard');
 
-  // Navigate to Firewall
-  await page.click('text=Firewall');
-  await expect(page.locator('h2').first()).toHaveText('Firewall & Security');
+  await nav.getByRole('link', { name: 'Capabilities', exact: true }).click();
+  await expect(currentTitle).toHaveText('Capabilities');
 
-  // Navigate to Memory
-  await page.click('text=Memory & Learn');
-  await expect(page.locator('h2').first()).toHaveText('Memory & Learn');
+  await nav.getByRole('link', { name: 'Governance', exact: true }).click();
+  await expect(currentTitle).toHaveText('Governance');
 
-  // Navigate to Playground
-  await page.click('text=Prompt Simulator');
-  await expect(page.locator('h2').first()).toHaveText('Prompt Simulator');
+  await nav.getByRole('link', { name: 'Security', exact: true }).click();
+  await expect(currentTitle).toHaveText('Security');
 
-  // Test empty state
-  await page.click('button:has-text("Simulate")');
-  await expect(page.locator('text=Please enter a prompt to simulate.')).toBeVisible();
+  await nav.getByRole('link', { name: 'Memory', exact: true }).click();
+  await expect(currentTitle).toHaveText('Memory');
 
-  // Test simulate
-  await page.fill('textarea', 'simulate this text');
-  await page.click('button:has-text("Simulate")');
-  await expect(page.locator('h3:has-text("Original Prompt")')).toBeVisible();
+  await nav.getByRole('link', { name: 'Playground', exact: true }).click();
+  await expect(currentTitle).toHaveText('Playground');
+  await expect(page.getByRole('button', { name: /load sample multimodal image/i })).toBeVisible();
 });

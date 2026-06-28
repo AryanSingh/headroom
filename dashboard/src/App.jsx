@@ -1,4 +1,4 @@
-import { Component, useDeferredValue, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Overview from './pages/Overview';
 import Firewall from './pages/Firewall';
+import Governance from './pages/Governance';
 import Memory from './pages/Memory';
 import Playground from './pages/Playground';
 import Capabilities from './pages/Capabilities';
@@ -61,6 +62,7 @@ class ErrorBoundary extends Component {
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
   { path: '/capabilities', label: 'Capabilities', icon: Zap },
+  { path: '/governance', label: 'Governance', icon: Activity },
   { path: '/firewall', label: 'Security', icon: Shield },
   { path: '/memory', label: 'Memory', icon: BarChart3 },
   { path: '/playground', label: 'Playground', icon: TerminalSquare },
@@ -263,6 +265,7 @@ function AppFrame() {
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/capabilities" element={<Capabilities />} />
+              <Route path="/governance" element={<Governance />} />
               <Route path="/firewall" element={<Firewall />} />
               <Route path="/memory" element={<Memory />} />
               <Route path="/playground" element={<Playground />} />

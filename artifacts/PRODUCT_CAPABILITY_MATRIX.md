@@ -1,4 +1,41 @@
+## 2026-06-28 Final Capability Delta
+
+This top section supersedes stale scoring notes below where they conflict with fresh verification.
+
+Freshly verified capabilities:
+
+- Dashboard: `/dashboard` React UI is live again, with governance/admin sections restored and fallback standalone HTML preserved for test/non-asset contexts.
+- Compression telemetry: `/v1/compress` activity is visible again in `/stats`, which addresses the user's "no savings in dashboard" symptom for that path.
+- Agent wrapping: Claude, Codex, Aider, Cursor, Cline, Continue, Goose, OpenHands, Windsurf, Zed, opencode, and OpenClaw all now have current wrap-e2e coverage aligned with their real product behavior.
+- OpenClaw plugin: local install, slot assignment, proxy auto-start, auth-gated Cutctx probe recognition, and unwrap back to `legacy` all pass in the repaired targeted e2e path and in the full wrap e2e log.
+- Benchmarks: current dry-run benchmark evidence remains JSON-heavy content at `59.0%` reduction and mixed content at `31.4%`, while code/prose fixtures still route to noop and therefore show `0%` savings in those synthetic samples.
+
+Freshly closed final release gate:
+
+- Docker init e2e now passes end to end after the `e2e/init/Dockerfile` arm64 BuildKit fix. Verified with `docker build -f e2e/init/Dockerfile -t cutctx-init-e2e .` followed by `docker run --rm cutctx-init-e2e`, which completed all `10/10` init checks successfully.
+
+Practical implication for release readiness:
+
+- Product capability exposure is materially better than the earlier dashboard-only view suggested.
+- The biggest product-side gaps closed in this pass were telemetry visibility, dashboard routing, OpenClaw proxy health detection, and wrap/install verification.
+- The remaining product-side gaps are now UI/commercialization gaps, not release-blocking correctness failures in proxy, wrap, dashboard, compression telemetry, OpenClaw, or Dockerized init verification.
+
+---
+
 # Cutctx — Corrected Product Capability & Gap Analysis
+
+## 2026-06-28 Verified Delta
+
+- `/dashboard` now has a safer split between the built React UI and the standalone fallback HTML used by tests and non-asset contexts.
+- `/v1/compress` request accounting was re-verified to flow into `/stats` and recent request telemetry after the shared outcome-path fix in `cutctx/proxy/handlers/openai/compress.py`.
+- Wrapper startup behavior was re-verified for both reserved-port failure and controlled restart flows in `cutctx/cli/wrap.py`.
+
+Fresh evidence from this pass:
+
+- Wrapper and persistent restart coverage: `29 passed`
+- Compression and observability coverage: `22 passed`
+- Dashboard TTL Playwright coverage: `1 passed`
+- Install/init/wrap/MCP/Strands compatibility slice: `162 passed, 26 skipped`
 
 **Corrected after deep codebase audit. Previous analysis had stale claims about CLI, dashboard, and MCP.**
 

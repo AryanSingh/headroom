@@ -35,7 +35,9 @@ def _check_available() -> bool:
 
 @dataclass
 class LLMLinguaConfig:
-    model_name: str = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+    # Keep the integrated router path aligned with the benchmark adapter so
+    # we evaluate and ship the same LLMLingua-2 variant.
+    model_name: str = "microsoft/llmlingua-2-xlm-roberta-large-meetingbank"
     rate: float = 0.5  # target keep-rate (0.5 = 50% of tokens kept)
     force_tokens: list[str] = field(default_factory=list)  # tokens always kept
     device: str = "cpu"  # "cpu" or "cuda"

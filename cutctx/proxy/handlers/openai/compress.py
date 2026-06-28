@@ -196,23 +196,44 @@ class OpenAICompressMixin:
             if image_technique and image_metrics.get("tokens_saved", 0):
                 transforms_applied.append(f"image:{image_technique}")
 
-            return JSONResponse(
-                {
-                    "messages": result.messages,
-                    "tokens_before": total_tokens_before,
-                    "tokens_after": total_tokens_after,
-                    "tokens_saved": total_tokens_saved,
-                    "compression_ratio": (
-                        total_tokens_after / total_tokens_before
-                        if total_tokens_before > 0
-                        else 1.0
-                    ),
-                    "transforms_applied": transforms_applied,
-                    "transforms_summary": result.transforms_summary,
-                    "ccr_hashes": result.markers_inserted,
-                    "image_metrics": image_metrics,
-                }
+            response_payload = {
+                "messages": result.messages,
+                "tokens_before": total_tokens_before,
+                "tokens_after": total_tokens_after,
+                "tokens_saved": total_tokens_saved,
+                "compression_ratio": (
+                    total_tokens_after / total_tokens_before
+                    if total_tokens_before > 0
+                    else 1.0
+                ),
+                "transforms_applied": transforms_applied,
+                "transforms_summary": result.transforms_summary,
+                "ccr_hashes": result.markers_inserted,
+                "image_metrics": image_metrics,
+            }
+
+            from cutctx.proxy.outcome import RequestOutcome
+
+            await self._record_request_outcome(
+                RequestOutcome(
+                    request_id=await self._next_request_id(),
+                    provider="compress",
+                    model=model,
+                    original_tokens=total_tokens_before,
+                    optimized_tokens=total_tokens_after,
+                    output_tokens=0,
+                    tokens_saved=total_tokens_saved,
+                    attempted_input_tokens=total_tokens_before,
+                    total_latency_ms=0.0,
+                    overhead_ms=0.0,
+                    transforms_applied=tuple(transforms_applied),
+                    num_messages=len(messages),
+                    request_messages=None,
+                    compressed_messages=None,
+                )
             )
+
+            return JSONResponse(response_payload)
         except Exception as e:
             logger.exception("Compression failed: %s", e)
             return JSONResponse(
@@ -224,4 +245,3 @@ class OpenAICompressMixin:
                     }
                 },
             )
-

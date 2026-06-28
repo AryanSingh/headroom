@@ -1,8 +1,61 @@
+## 2026-06-28 Final Verification Delta
+
+This top section supersedes stale historical notes below.
+
+Freshly fixed and re-verified in the current worktree:
+
+- `cutctx/proxy/handlers/openai/compress.py`: `/v1/compress` request telemetry now flows into `/stats` correctly.
+- `cutctx/dashboard/__init__.py` + `cutctx/proxy/server.py`: `/dashboard` once again serves the built React UI while fallback HTML still works for tests and non-asset callers.
+- `cutctx/cli/wrap.py`: wrapper restarts now preserve port preflight checks for fresh launches while avoiding disruptive self-restart behavior for active shared-proxy clients.
+- `e2e/wrap/run.py`: wrap e2e runner repaired end-to-end, including current `--port` usage, durable artifact assertions for Windsurf/Zed/opencode, local repo-root discovery, stable OpenClaw install flow, and isolated OpenClaw verification that does not hijack a shared proxy.
+- `plugins/openclaw/src/proxy-manager.ts`: OpenClaw now recognizes auth-gated Cutctx stats endpoints (`401`/`403`) as a healthy Cutctx proxy instead of falsely treating them as startup failure.
+- `e2e/init/Dockerfile`: init harness builder is now architecture-aware (`amd64` vs `arm64`) instead of hardcoding an `x86_64` manylinux wheel build, and the arm64 BuildKit crash is fixed by copying the workspace before bootstrapping Rust.
+
+Fresh evidence captured on 2026-06-28:
+
+- `pytest tests/test_cli/test_wrap_persistent.py tests/test_cli/test_wrap_rtk_metrics.py -q` -> `29 passed`
+- `pytest tests/test_proxy_compress_endpoint.py tests/test_compression_observability.py -q` -> `22 passed`
+- `pytest tests/test_dashboard_cache_ttl_playwright.py -q` -> `1 passed`
+- `pytest tests/test_install/test_native_installers.py tests/test_install/test_health.py tests/test_cli/test_init_cli.py tests/test_cli/test_wrap_codex.py tests/test_cli/test_wrap_gemini.py tests/test_cli/test_wrap_aider.py tests/test_cli/test_wrap_continue.py tests/test_cli/test_wrap_copilot.py tests/test_cli/test_mcp.py tests/integrations/test_strands/test_hooks.py tests/integrations/test_strands/test_model.py -q` -> `162 passed, 26 skipped`
+- `./.venv/bin/python benchmarks/run_all.py --dry-run --tools cutctx --output /tmp/cutctx_bench_results.json` -> JSON `59.0%` reduction, mixed `31.4%` reduction, code/prose `0%` on noop-router fixtures
+- `./.venv/bin/python e2e/wrap/run.py` -> `All wrap e2e checks passed.`
+
+Fresh Docker verification on 2026-06-28:
+
+- `docker build -f e2e/init/Dockerfile -t cutctx-init-e2e .` -> `PASS`
+- `docker run --rm cutctx-init-e2e` -> `PASS` (`10/10` init checks green, including local/global init sequences and explicit target flows)
+
+Operational note:
+
+- Restarting a shared proxy can still interrupt active clients if control traffic and user traffic share the same proxy path. The wrapper now reduces unnecessary restart disruption, but release and maintenance operations should still use a dedicated control path or maintenance port whenever possible.
+
+---
+
 # Release Readiness Report — CutCtx v0.27.0
 
 **Date:** 2026-06-24  
 **Branch:** `main`  
-**Commit:** `314f59a6`  
+## 2026-06-28 Audit Delta
+
+Fresh verification in the current worktree found and fixed two additional regressions introduced during the dashboard and proxy audit work:
+
+- `cutctx/cli/wrap.py`: restored preflight port validation for fresh starts while still allowing in-place proxy upgrades after a controlled stop, so wrapper launches fail fast on reserved or unavailable ports but do not get stuck on self-restarts.
+- `cutctx/dashboard/__init__.py` + `cutctx/proxy/server.py`: split the self-contained dashboard HTML helper from the React dashboard route so `/dashboard` still serves the built React UI, while tests and non-asset callers keep getting a standalone HTML page instead of a broken asset shell.
+
+Freshly re-verified on 2026-06-28:
+
+- `pytest tests/test_cli/test_wrap_persistent.py tests/test_cli/test_wrap_rtk_metrics.py -q` -> `29 passed`
+- `pytest tests/test_proxy_compress_endpoint.py tests/test_compression_observability.py -q` -> `22 passed`
+- `pytest tests/test_dashboard_cache_ttl_playwright.py -q` -> `1 passed`
+- `pytest tests/test_install/test_native_installers.py tests/test_install/test_health.py tests/test_cli/test_init_cli.py tests/test_cli/test_wrap_codex.py tests/test_cli/test_wrap_gemini.py tests/test_cli/test_wrap_aider.py tests/test_cli/test_wrap_continue.py tests/test_cli/test_wrap_copilot.py tests/test_cli/test_mcp.py tests/integrations/test_strands/test_hooks.py tests/integrations/test_strands/test_model.py -q` -> `162 passed, 26 skipped`
+
+Operational note:
+
+- Restarting a shared proxy can interrupt active clients if they are routed through that same proxy. The wrapper now avoids disruptive restarts when other wrapper clients are attached, but release operations should still prefer a dedicated maintenance port or an external control path when restarting a live shared proxy.
+
+---
+
+**Commit:** `314f59a6`
 **Tag:** `v0.27.0`
 
 ---

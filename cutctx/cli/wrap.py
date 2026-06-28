@@ -1850,6 +1850,12 @@ def _ensure_proxy(
     helpers = _live_wrap_module()
     if not no_proxy:
         manifest = helpers._find_persistent_manifest(port)
+        if manifest is None and not helpers._check_proxy(port):
+            bind_error = _port_bind_error(port)
+            if bind_error is not None:
+                raise click.ClickException(
+                    _format_unbindable_port_error(port, bind_error, agent_type)
+                )
         if manifest is not None:
             from cutctx.install.health import probe_ready
 
@@ -1942,6 +1948,7 @@ def _ensure_proxy(
                     )
                 needs_restart = True
 
+            restarted_existing_proxy = False
             if running_config is not None:
                 missing = []
                 if memory and not running_config.get("memory"):
@@ -1998,6 +2005,7 @@ def _ensure_proxy(
                                     f"Failed to stop existing proxy (PID {proxy_pid}) on port {port}. "
                                     "Stop it manually and retry."
                                 )
+                            restarted_existing_proxy = True
                         else:
                             click.echo(
                                 "  Warning: Running proxy does not expose PID. "
@@ -2013,14 +2021,23 @@ def _ensure_proxy(
                 click.echo(f"  Proxy already running on port {port}")
                 return None
 
-        # Start (or restart) the proxy with the requested flags
-        bind_error = helpers._port_bind_error(port)
-        if bind_error is not None:
-            raise click.ClickException(
-                helpers._format_unbindable_port_error(port, bind_error, agent_type)
-            )
+            # Start (or restart) the proxy with the requested flags
+            if running_config is None or not restarted_existing_proxy:
+                bind_error = _port_bind_error(port)
+                if bind_error is not None:
+                    raise click.ClickException(
+                        _format_unbindable_port_error(port, bind_error, agent_type)
+                    )
 
-        click.echo(f"  Starting Cutctx proxy on port {port}...")
+            bind_error = None
+            if running_config is None or not restarted_existing_proxy:
+                bind_error = _port_bind_error(port)
+            if bind_error is not None:
+                raise click.ClickException(
+                    _format_unbindable_port_error(port, bind_error, agent_type)
+                )
+
+            click.echo(f"  Starting Cutctx proxy on port {port}...")
         try:
             proc = cast(
                 subprocess.Popen[Any],
@@ -2718,6 +2735,10 @@ def claude(
         click.echo()
 
         env = os.environ.copy()
+        # Claude should route only through the Anthropic proxy path. Clear any
+        # inherited OpenAI base overrides that could confuse downstream tooling.
+        env.pop("OPENAI_BASE_URL", None)
+        env.pop("OPENAI_API_BASE", None)
         if foundry_upstream:
             env["ANTHROPIC_FOUNDRY_BASE_URL"] = proxy_url
         else:

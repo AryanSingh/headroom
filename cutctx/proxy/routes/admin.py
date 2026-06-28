@@ -1645,9 +1645,11 @@ def create_admin_router(
     )
     async def subscription_window():
         """Current Anthropic subscription window utilisation."""
-        from cutctx.proxy.subscription import get_subscription_tracker
-
-        tracker = get_subscription_tracker()
+        try:
+            from cutctx.proxy.subscription import get_subscription_tracker
+            tracker = get_subscription_tracker()
+        except ImportError:
+            tracker = None
         if tracker is None:
             return JSONResponse(
                 status_code=503,

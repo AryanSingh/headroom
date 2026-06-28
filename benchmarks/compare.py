@@ -218,13 +218,16 @@ class CutctxTool(CompressionTool):
     def __init__(self):
         if not CUTCTX_AVAILABLE:
             raise ImportError("cutctx not installed")
-        self.compress_func = compress
+        from benchmarks._cutctx_adapter import compress_text_with_cutctx
+
+        self.compress_func = compress_text_with_cutctx
 
     def compress(self, text: str) -> tuple[str, float]:
         start = time.perf_counter()
         result = self.compress_func(text)
         latency = (time.perf_counter() - start) * 1000
-        return result.compressed_text, latency
+        compressed_text, _adapter_latency = result
+        return compressed_text, latency
 
     def get_metrics(self) -> dict[str, Any]:
         return {
@@ -239,13 +242,12 @@ class LLMLingua2Tool(CompressionTool):
     def __init__(self):
         if not LLMLINGUA2_AVAILABLE:
             raise ImportError("llmlingua2 not installed")
-        self.compressor = PromptCompressor(model_name="microsoft/phi-2")
+        from benchmarks.llmlingua_compressor import LLMLinguaCompressor
+
+        self.compressor = LLMLinguaCompressor()
 
     def compress(self, text: str) -> tuple[str, float]:
-        start = time.perf_counter()
-        compressed = self.compressor.compress_prompt(text, target_token=None)
-        latency = (time.perf_counter() - start) * 1000
-        return compressed, latency
+        return self.compressor.compress(text)
 
     def get_metrics(self) -> dict[str, Any]:
         return {
