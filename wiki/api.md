@@ -344,29 +344,6 @@ window = RollingWindow(config)
 result = window.apply(messages, max_tokens=100000)
 ```
 
-### IntelligentContextManager
-
-```python
-from cutctx.transforms import IntelligentContextManager
-from cutctx.config import IntelligentContextConfig
-from cutctx.telemetry import get_toin
-
-# With TOIN integration for learned patterns
-toin = get_toin()
-config = IntelligentContextConfig(
-    keep_system=True,
-    keep_last_turns=2,
-    use_importance_scoring=True,
-)
-
-manager = IntelligentContextManager(config, toin=toin)
-result = manager.apply(messages, tokenizer, model_limit=128000)
-
-# Access scoring details
-print(result.transforms_applied)  # ["intelligent_cap:3"]
-print(result.tokens_before, result.tokens_after)
-```
-
 ### MessageScorer
 
 ```python

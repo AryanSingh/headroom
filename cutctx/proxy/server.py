@@ -475,7 +475,7 @@ class CutctxProxy(
         from cutctx.proxy.interceptors import ToolResultInterceptorTransform
 
         transforms = [
-            CacheAligner(CacheAlignerConfig(enabled=False)),
+            CacheAligner(CacheAlignerConfig(enabled=config.cache_aligner_enabled)),
             ToolResultInterceptorTransform(),
             content_router,
         ]

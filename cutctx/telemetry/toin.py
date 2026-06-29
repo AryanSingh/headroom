@@ -952,39 +952,6 @@ class ToolIntelligenceNetwork:
 
         self._maybe_auto_save()
 
-    def get_recommendation(
-        self,
-        tool_signature: ToolSignature,  # noqa: ARG002 — kept for source compat
-        query_context: str | None = None,  # noqa: ARG002
-    ) -> None:
-        """**Deprecated.** Returns `None`. PR-B5 retired the request-time hint API.
-
-        TOIN is observation-only; recommendations are emitted by the
-        offline `cutctx.cli.toin_publish` CLI into `recommendations.toml`
-        and loaded by the Rust proxy at startup. New code must not call
-        this method. Existing call sites should migrate to reading the
-        TOML file directly.
-
-        Emits `DeprecationWarning` once per process to keep busy call
-        sites from flooding logs.
-
-        Returns:
-            Always `None`. The legacy compression-hint envelope is no
-            longer constructed at request time.
-        """
-        cls = type(self)
-        if not cls._DEPRECATION_WARNED:
-            cls._DEPRECATION_WARNED = True
-            warnings.warn(
-                "ToolIntelligenceNetwork.get_recommendation() is deprecated "
-                "and now returns None. PR-B5 retired the request-time hint "
-                "API; recommendations come from recommendations.toml at "
-                "startup. See cutctx/telemetry/toin.py module docstring.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return None
-
     def _update_recommendations(self, pattern: ToolPattern) -> None:
         """Update learned recommendations for a pattern."""
         # Calculate optimal max_items based on retrieval rate

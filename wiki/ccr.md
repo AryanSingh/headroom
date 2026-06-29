@@ -17,7 +17,6 @@ CCR eliminates this tradeoff.
 |-----------|-------------------|-----------------|
 | **SmartCrusher** | JSON arrays (tool outputs) | Stores original array, marker includes hash |
 | **ContentRouter** | Code, logs, search results, text | Stores original content by strategy |
-| **IntelligentContextManager** | Messages (conversation turns) | Stores dropped messages, marker includes hash |
 
 ## How CCR Works
 
@@ -91,28 +90,7 @@ Turn 5: User asks "What about the auth middleware?"
         → LLM sees full file list, finds auth_middleware.py
 ```
 
-## Message-Level CCR (IntelligentContext)
 
-IntelligentContextManager is a **message-level compressor**. When it drops low-importance messages to fit the context budget, those messages are stored in CCR:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  LONG CONVERSATION (100 messages, 50K tokens)                    │
-│  └─ IntelligentContext scores messages by importance            │
-│  └─ Drops 60 low-scoring messages                               │
-│  └─ Dropped messages cached with hash=def456                    │
-│  └─ Marker inserted: "60 messages dropped, retrieve: def456"    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  LLM PROCESSING                                                  │
-│  Option A: LLM solves task with remaining messages → Done       │
-│  Option B: LLM needs earlier context                            │
-│            → Calls cutctx_retrieve(hash=def456)               │
-│            → Full conversation restored                          │
-└─────────────────────────────────────────────────────────────────┘
-```
 
 **The marker includes the CCR reference:**
 ```

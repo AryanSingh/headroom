@@ -792,6 +792,60 @@ def _selected_context_tool() -> str:
         "Env: CUTCTX_DIFFTASTIC_CONTEXT_LINES."
     ),
 )
+@click.option(
+    "--enable-task-aware",
+    is_flag=True,
+    envvar="CUTCTX_TASK_AWARE_ENABLED",
+    help="Modulate compression based on extracted task. Env: CUTCTX_TASK_AWARE_ENABLED=1",
+)
+@click.option(
+    "--enable-semantic-dedup",
+    is_flag=True,
+    envvar="CUTCTX_DEDUP_ENABLED",
+    help="Replace repeated content with CCR pointers. Env: CUTCTX_DEDUP_ENABLED=1",
+)
+@click.option(
+    "--enable-context-budget",
+    is_flag=True,
+    envvar="CUTCTX_CONTEXT_BUDGET_ENABLED",
+    help="Progressive compression as token budget fills. Env: CUTCTX_CONTEXT_BUDGET_ENABLED=1",
+)
+@click.option(
+    "--enable-cross-session",
+    is_flag=True,
+    envvar="CUTCTX_PROFILES_ENABLED",
+    help="Learn compression patterns per workspace. Env: CUTCTX_PROFILES_ENABLED=1",
+)
+@click.option(
+    "--enable-multi-agent",
+    is_flag=True,
+    envvar="CUTCTX_SHARED_CONTEXT_ENABLED",
+    help="Shared compression cache across agents. Env: CUTCTX_SHARED_CONTEXT_ENABLED=1",
+)
+@click.option(
+    "--enable-cost-forecasting",
+    is_flag=True,
+    envvar="CUTCTX_COST_FORECAST_ENABLED",
+    help="Pre-task cost estimation + policy rules. Env: CUTCTX_COST_FORECAST_ENABLED=1",
+)
+@click.option(
+    "--enable-firewall",
+    is_flag=True,
+    envvar="CUTCTX_FIREWALL_ENABLED",
+    help="Enable LLM Firewall (prompt injection & PII detection). Env: CUTCTX_FIREWALL_ENABLED=1",
+)
+@click.option(
+    "--enable-cache-aligner",
+    is_flag=True,
+    envvar="CUTCTX_CACHE_ALIGNER_ENABLED",
+    help="Enable CacheAligner to freeze prefix context. Env: CUTCTX_CACHE_ALIGNER_ENABLED=1",
+)
+@click.option(
+    "--enable-ensemble",
+    is_flag=True,
+    envvar="CUTCTX_ENSEMBLE_ENABLED",
+    help="Fan-out to multiple models + evaluator. Env: CUTCTX_ENSEMBLE_ENABLED=1",
+)
 @click.pass_context
 def proxy(
     ctx: click.Context,
@@ -874,6 +928,15 @@ def proxy(
     difftastic_enabled: bool,
     difftastic_binary: str | None,
     difftastic_context_lines: int | None,
+    enable_task_aware: bool,
+    enable_semantic_dedup: bool,
+    enable_context_budget: bool,
+    enable_cross_session: bool,
+    enable_multi_agent: bool,
+    enable_cost_forecasting: bool,
+    enable_firewall: bool,
+    enable_cache_aligner: bool,
+    enable_ensemble: bool,
 ) -> None:
     """Start the optimization proxy server.
 
@@ -1144,11 +1207,25 @@ def proxy(
         ),
         # LLM Firewall: env var or CLI flag (CLI flags for firewall are in the
         # argparse path; the Click CLI reads the env var directly).
-        firewall_enabled=_get_env_bool("CUTCTX_FIREWALL_ENABLED", False),
+        firewall_enabled=enable_firewall or _get_env_bool("CUTCTX_FIREWALL_ENABLED", False),
         firewall_block_pii=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_PII", False),
         firewall_block_injection=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_INJECTION", False),
         firewall_block_jailbreak=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_JAILBREAK", False),
         firewall_redact_streaming=not _get_env_bool("CUTCTX_FIREWALL_NO_REDACT_STREAMING", False),
+        
+        # Intelligence Layer
+        task_aware_enabled=enable_task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False),
+        dedup_enabled=enable_semantic_dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False),
+        context_budget_enabled=enable_context_budget or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False),
+        profiles_enabled=enable_cross_session or _get_env_bool("CUTCTX_PROFILES_ENABLED", False),
+        shared_context_enabled=enable_multi_agent or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),
+        cost_forecast_enabled=enable_cost_forecasting or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False),
+        
+        # Cache Aligner
+        cache_aligner_enabled=enable_cache_aligner or _get_env_bool("CUTCTX_CACHE_ALIGNER_ENABLED", False),
+        
+        # Ensemble
+        ensemble_enabled=enable_ensemble or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False),
     )
 
     memory_status = "DISABLED"

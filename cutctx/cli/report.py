@@ -269,13 +269,6 @@ def report_schedule_list() -> None:
     click.echo(f"  Created: {schedule.get('created_at', 'N/A')}")
 
 
-@report_group.command("schedule-cancel")
-def report_schedule_cancel() -> None:
-    """Cancel all report schedules."""
-    schedule_path = _get_schedule_path()
-    if schedule_path.exists():
-        schedule_path.unlink()
-
 
 @report_group.command("buyer")
 @click.option(

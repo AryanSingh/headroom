@@ -244,6 +244,7 @@ class ProxyConfig:
     cache_enabled: bool = True
     cache_ttl_seconds: int = 3600
     cache_max_entries: int = 1000
+    cache_aligner_enabled: bool = False
 
     # Rate limiting
     rate_limit_enabled: bool = True

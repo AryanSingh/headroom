@@ -257,9 +257,7 @@ cutctx proxy --mode cache
 | `--no-code-aware` | off | Disable AST-aware code compression |
 | `--code-aware` | off | Enable code-aware compression in the proxy (env: CUTCTX_CODE_AWARE_ENABLED) |
 | `--no-read-lifecycle` | off | Disable stale/superseded read compression |
-| `--no-intelligent-context` | off | Disable intelligent context manager |
-| `--no-intelligent-scoring` | off | Disable multi-factor importance scoring |
-| `--no-compress-first` | off | Disable deep compression before dropping messages |
+
 | `--memory` | off | Enable persistent user memory |
 | `--memory-db-path` | `""` | Override memory DB path (help text: `{cwd}/.cutctx/memory.db`) |
 | `--no-memory-tools` | off | Disable automatic memory tool injection |

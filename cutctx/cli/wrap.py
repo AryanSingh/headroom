@@ -2505,6 +2505,9 @@ def wrap() -> None:
         cutctx wrap goose               # Goose (Block) CLI
         cutctx wrap openhands           # OpenHands CLI
         cutctx wrap openclaw            # OpenClaw plugin bootstrap
+        cutctx wrap windsurf            # Windsurf (prints config instructions)
+        cutctx wrap zed                 # Zed (prints config instructions)
+        cutctx wrap opencode            # Launch opencode CLI
 
     \b
     `wrap` vs `proxy`:
@@ -2513,11 +2516,6 @@ def wrap() -> None:
         - `cutctx proxy` — just the proxy. Use this with any
           OpenAI/Anthropic-compatible client by setting
           ANTHROPIC_BASE_URL / OPENAI_BASE_URL yourself.
-
-    \b
-    Note: `cutctx wrap opencode` does NOT exist. For opencode, run
-    `cutctx proxy` and point opencode at it via OPENAI_BASE_URL.
-    `openclaw` is a separate tool — different from opencode.
     """
 
 

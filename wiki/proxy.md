@@ -100,32 +100,10 @@ When to pick each:
 
 Legacy values (`token_cutctx`, `cost_savings`) are still accepted as aliases.
 
-### Context Management Options
+### ML Compression — `--llmlingua` flag
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--no-intelligent-context` | `false` | Disable IntelligentContextManager (fall back to RollingWindow) |
-| `--no-intelligent-scoring` | `false` | Disable multi-factor importance scoring (use position-based) |
-| `--no-compress-first` | `false` | Disable trying deeper compression before dropping messages |
-
-By default, the proxy uses **IntelligentContextManager** which scores messages by multiple factors (recency, semantic similarity, TOIN-learned patterns, error indicators, forward references) and drops lowest-scored messages first. This is smarter than simple age-based truncation.
-
-**CCR Integration:** When messages are dropped, they're stored in CCR so the LLM can retrieve them if needed. The inserted marker includes the CCR reference. Drops are also recorded to TOIN, so the system learns which message patterns are important across all users.
-
-```bash
-# Use legacy RollingWindow (drops oldest first)
-cutctx proxy --no-intelligent-context
-
-# Disable semantic scoring (faster, but less intelligent)
-cutctx proxy --no-intelligent-scoring
-```
-
-### ML Compression — RETIRED `--llmlingua` flag
-
-The `--llmlingua` / `--llmlingua-device` / `--llmlingua-rate` flags and
-the `cutctx-ai[llmlingua]` extra were retired and replaced by Kompress
-(ModernBERT). For the current opt-in path, install `cutctx-ai[ml]`
-and see [transforms.md](transforms.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+The `--llmlingua` flag (and the `cutctx-ai[llmlingua]` extra) enables LLMLingua-2 for plain-text compression. While Kompress (ModernBERT) is the default when ML is enabled, LLMLingua remains fully supported for users who prefer its token-classification approach.
+For the default ML path, install `cutctx-ai[ml]` and see [transforms.md](transforms.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## API Endpoints
 
