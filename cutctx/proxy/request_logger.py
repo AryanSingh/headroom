@@ -208,6 +208,48 @@ class RequestLogger:
                 )
                 self.log_file = None
 
+        # Warm the in-memory deque from the durable JSONL log so that
+        # get_recent() returns meaningful data immediately after a restart.
+        # Only the tail is needed — we read at most MAX_LOG_ENTRIES lines
+        # backwards so startup stays O(log_size) not O(file_size).
+        if self.log_file and self.log_file.exists():
+            self._warm_from_file()
+
+    def _warm_from_file(self) -> None:
+        """Replay the tail of the JSONL log into the in-memory deque.
+
+        Called once at startup so get_recent() is non-empty immediately
+        after a proxy restart — preventing the per-request table from
+        going blank until new traffic arrives.
+        """
+        if not self.log_file:
+            return
+        try:
+            # Read the last MAX_LOG_ENTRIES lines without loading the full
+            # file — avoids O(file_size) memory on long-running deployments.
+            from collections import deque as _deque
+            tail: _deque[bytes] = _deque(maxlen=self.MAX_LOG_ENTRIES)
+            with open(self.log_file, "rb") as f:
+                for line in f:
+                    if line.strip():
+                        tail.append(line)
+            for raw in tail:
+                try:
+                    data = json.loads(raw)
+                    # Re-hydrate into a RequestLog; skip malformed entries.
+                    entry = RequestLog(**{k: v for k, v in data.items() if k in RequestLog.__dataclass_fields__})
+                    self._logs.append(entry)
+                except Exception:
+                    continue
+            if self._logs:
+                logger.debug(
+                    "Warmed request logger from %s: %d entries restored",
+                    self.log_file,
+                    len(self._logs),
+                )
+        except OSError:
+            pass  # file may not exist yet on a brand-new install
+
     def log(self, entry: RequestLog):
         """Log a request. Oldest entries are automatically removed when limit reached.
 
