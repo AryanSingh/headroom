@@ -52,7 +52,7 @@ try:
     import uvicorn
     from fastapi import Depends, FastAPI, HTTPException, Request, Response
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse, FileResponse
     from fastapi.staticfiles import StaticFiles
 
     FASTAPI_AVAILABLE = True
@@ -3312,7 +3312,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         payload["runtime"] = _runtime_payload()
         return JSONResponse(status_code=200, content=payload)
 
-    @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
+    @app.get("/favicon.svg", include_in_schema=False)
+    async def favicon():
+        fav_path = react_assets.parent / "favicon.svg"
+        if fav_path.exists():
+            return FileResponse(fav_path, media_type="image/svg+xml")
+        raise HTTPException(status_code=404, detail="Not found")
+
+    @app.get("/dashboard",
+ response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
     async def dashboard():
         """Serve the Cutctx dashboard UI."""
         return get_dashboard_html(prefer_react=True)

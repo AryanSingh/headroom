@@ -1304,6 +1304,7 @@ Memory (Multi-Provider):
 Starting proxy server...
 
   URL:          {"https" if config.tls_cert else "http"}://{config.host}:{config.port}
+  Dashboard:    {"https" if config.tls_cert else "http"}://{config.host}:{config.port}/dashboard
   Mode:         {config.mode}
   Optimization: {"ENABLED" if config.optimize else "DISABLED"}
   Caching:      {"ENABLED" if config.cache_enabled else "DISABLED"}

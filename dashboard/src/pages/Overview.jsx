@@ -664,6 +664,83 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle
   );
 }
 
+
+function RouterDiagnosticsPanel({ routeCounts }) {
+  if (!routeCounts || Object.keys(routeCounts).length === 0) {
+    return null;
+  }
+
+  // Group metrics
+  const protectionKeys = ['user_msg', 'system_msg', 'recent_code'];
+  const constraintKeys = ['small', 'ratio_too_high', 'already_compressed'];
+  const formatKeys = ['non_string', 'content_blocks', 'excluded_tool', 'analysis_ctx'];
+
+  const getGroupSum = (keys) => keys.reduce((sum, key) => sum + (routeCounts[key] || 0), 0);
+
+  const protectionTotal = getGroupSum(protectionKeys);
+  const constraintTotal = getGroupSum(constraintKeys);
+  const formatTotal = getGroupSum(formatKeys);
+  
+  const totalBypassed = protectionTotal + constraintTotal + formatTotal;
+
+  if (totalBypassed === 0) {
+    return null;
+  }
+
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Router diagnostics</div>
+          <h2>Bypassed Messages</h2>
+          <p>Why certain messages skipped the compressor</p>
+        </div>
+      </div>
+
+      <div className="diagnostic-stack">
+        {protectionTotal > 0 && (
+          <div className="diagnostic-card severity-info">
+            <div className="diagnostic-title-row">
+              <strong>User / System Protection</strong>
+              <span className="diagnostic-severity">{formatInteger(protectionTotal)} msgs</span>
+            </div>
+            <p>Messages intentionally protected from compression to preserve high-fidelity context.</p>
+            <div className="provider-status-meta" style={{ marginTop: '0.5rem', gap: '1rem', display: 'flex', fontSize: '0.875rem' }}>
+              {protectionKeys.map(k => routeCounts[k] ? <span key={k}>{k}: {routeCounts[k]}</span> : null)}
+            </div>
+          </div>
+        )}
+
+        {constraintTotal > 0 && (
+          <div className="diagnostic-card severity-medium">
+            <div className="diagnostic-title-row">
+              <strong>Compression Constraints</strong>
+              <span className="diagnostic-severity">{formatInteger(constraintTotal)} msgs</span>
+            </div>
+            <p>Messages that failed heuristic checks (e.g., too small or insufficient expected savings).</p>
+            <div className="provider-status-meta" style={{ marginTop: '0.5rem', gap: '1rem', display: 'flex', fontSize: '0.875rem' }}>
+              {constraintKeys.map(k => routeCounts[k] ? <span key={k}>{k}: {routeCounts[k]}</span> : null)}
+            </div>
+          </div>
+        )}
+
+        {formatTotal > 0 && (
+          <div className="diagnostic-card severity-high">
+            <div className="diagnostic-title-row">
+              <strong>Format Constraints</strong>
+              <span className="diagnostic-severity">{formatInteger(formatTotal)} msgs</span>
+            </div>
+            <p>Payload formats that the compressor currently ignores or bypasses by policy.</p>
+            <div className="provider-status-meta" style={{ marginTop: '0.5rem', gap: '1rem', display: 'flex', fontSize: '0.875rem' }}>
+              {formatKeys.map(k => routeCounts[k] ? <span key={k}>{k}: {routeCounts[k]}</span> : null)}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function DiagnosticsPanel({ prefixCache }) {
   const diagnostics = prefixCache?.diagnostics || {};
   const findings = Array.isArray(diagnostics.findings) && diagnostics.findings.length > 0
@@ -1029,6 +1106,7 @@ export default function Overview() {
           ) : null}
 
           <DiagnosticsPanel prefixCache={prefixCache} />
+          <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} />
           <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
         </div>
 
