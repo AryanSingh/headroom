@@ -3553,103 +3553,24 @@
 <td>off</td>
 <td>Disable stale/superseded read compression</td>
 </tr>
-<tr>
-<td><code>--no-intelligent-context</code></td>
-<td>off</td>
-<td>Disable intelligent context manager</td>
-</tr>
-<tr>
-<td><code>--no-intelligent-scoring</code></td>
-<td>off</td>
-<td>Disable multi-factor importance scoring</td>
-</tr>
-<tr>
-<td><code>--no-compress-first</code></td>
-<td>off</td>
-<td>Disable deep compression before dropping messages</td>
-</tr>
-<tr>
-<td><code>--memory</code></td>
-<td>off</td>
-<td>Enable persistent user memory</td>
-</tr>
-<tr>
-<td><code>--memory-db-path</code></td>
-<td><code>""</code></td>
-<td>Override memory DB path (help text: <code>{cwd}/.cutctx/memory.db</code>)</td>
-</tr>
-<tr>
-<td><code>--no-memory-tools</code></td>
-<td>off</td>
-<td>Disable automatic memory tool injection</td>
-</tr>
-<tr>
-<td><code>--no-memory-context</code></td>
-<td>off</td>
-<td>Disable automatic memory context injection</td>
-</tr>
-<tr>
-<td><code>--memory-top-k</code></td>
-<td><code>10</code></td>
-<td>Number of memories to inject</td>
-</tr>
-<tr>
-<td><code>--learn</code></td>
-<td>off</td>
-<td>Enable live traffic learning</td>
-</tr>
-<tr>
-<td><code>--no-learn</code></td>
-<td>off</td>
-<td>Explicitly disable traffic learning</td>
-</tr>
-<tr>
-<td><code>--backend</code></td>
-<td><code>anthropic</code></td>
-<td>Backend: <code>anthropic</code>, <code>bedrock</code>, <code>openrouter</code>, <code>anyllm</code>, or <code>litellm-*</code></td>
-</tr>
-<tr>
-<td><code>--anyllm-provider</code></td>
-<td><code>openai</code></td>
-<td>Provider name for <code>anyllm</code></td>
-</tr>
-<tr>
-<td><code>--anthropic-api-url</code></td>
-<td>unset</td>
-<td>Custom Anthropic passthrough API URL</td>
-</tr>
-<tr>
-<td><code>--openai-api-url</code></td>
-<td>unset</td>
-<td>Custom OpenAI passthrough API URL</td>
-</tr>
-<tr>
-<td><code>--gemini-api-url</code></td>
-<td>unset</td>
-<td>Custom Gemini passthrough API URL</td>
-</tr>
-<tr>
-<td><code>--region</code></td>
-<td><code>us-west-2</code></td>
-<td>Cloud region for Bedrock / Vertex / related backends</td>
-</tr>
-<tr>
-<td><code>--bedrock-region</code></td>
-<td>unset</td>
-<td>Deprecated Bedrock region override</td>
-</tr>
-<tr>
-<td><code>--bedrock-profile</code></td>
-<td>unset</td>
-<td>AWS profile name for Bedrock</td>
-</tr>
-<tr>
-<td><code>--no-telemetry</code></td>
-<td>off</td>
-<td>Disable anonymous usage telemetry</td>
-</tr>
 </tbody>
 </table>
+<p>| <code>--memory</code> | off | Enable persistent user memory |
+| <code>--memory-db-path</code> | <code>""</code> | Override memory DB path (help text: <code>{cwd}/.cutctx/memory.db</code>) |
+| <code>--no-memory-tools</code> | off | Disable automatic memory tool injection |
+| <code>--no-memory-context</code> | off | Disable automatic memory context injection |
+| <code>--memory-top-k</code> | <code>10</code> | Number of memories to inject |
+| <code>--learn</code> | off | Enable live traffic learning |
+| <code>--no-learn</code> | off | Explicitly disable traffic learning |
+| <code>--backend</code> | <code>anthropic</code> | Backend: <code>anthropic</code>, <code>bedrock</code>, <code>openrouter</code>, <code>anyllm</code>, or <code>litellm-*</code> |
+| <code>--anyllm-provider</code> | <code>openai</code> | Provider name for <code>anyllm</code> |
+| <code>--anthropic-api-url</code> | unset | Custom Anthropic passthrough API URL |
+| <code>--openai-api-url</code> | unset | Custom OpenAI passthrough API URL |
+| <code>--gemini-api-url</code> | unset | Custom Gemini passthrough API URL |
+| <code>--region</code> | <code>us-west-2</code> | Cloud region for Bedrock / Vertex / related backends |
+| <code>--bedrock-region</code> | unset | Deprecated Bedrock region override |
+| <code>--bedrock-profile</code> | unset | AWS profile name for Bedrock |
+| <code>--no-telemetry</code> | off | Disable anonymous usage telemetry |</p>
 <p>Notes:</p>
 <ul>
 <li><code>--learn</code> implies memory unless <code>--no-learn</code> is also set.</li>
