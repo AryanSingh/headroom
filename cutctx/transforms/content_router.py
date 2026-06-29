@@ -2260,6 +2260,7 @@ class ContentRouter(Transform):
             read_protection_window = max(0, int(runtime_read_protection_window))
 
         # Adaptive compression ratio: scale with context pressure
+        runtime_min_ratio_override = kwargs.get("min_ratio_override")
         if model_limit > 0:
             context_pressure = min(1.0, tokens_before / model_limit)
         else:
@@ -2276,6 +2277,12 @@ class ContentRouter(Transform):
             self.config.min_ratio_aggressive,
             min(self.config.min_ratio_relaxed, min_ratio),
         )
+        if runtime_min_ratio_override is not None:
+            try:
+                min_ratio = max(0.0, min(1.0, float(runtime_min_ratio_override)))
+            except (TypeError, ValueError):
+                pass
+        allow_skip_cache = min_ratio <= self.config.min_ratio_relaxed
 
         if context_pressure > 0.3:
             logger.debug(
@@ -2477,7 +2484,7 @@ class ContentRouter(Transform):
             content_key = hash(content)
 
             # Tier 1: skip set — instant rejection
-            if self._cache.is_skipped(content_key):
+            if allow_skip_cache and self._cache.is_skipped(content_key):
                 result_slots[i] = message
                 route_counts["ratio_too_high"] += 1
                 route_counts.setdefault("cache_hit", 0)
@@ -2624,6 +2631,21 @@ class ContentRouter(Transform):
             except Exception as e:  # pragma: no cover - defensive
                 logger.debug("Router observer raised (non-fatal): %s", e)
 
+        route_summary = ", ".join(parts)
+        diagnostics = {
+            "content_router": {
+                "compressed_count": len(compressed_details),
+                "compressed_details": list(compressed_details),
+                "route_counts": dict(route_counts),
+                "summary": route_summary,
+                "context_pressure": round(context_pressure, 4),
+                "min_ratio_threshold": round(min_ratio, 4),
+                "cache": dict(self._cache.stats),
+                "compress_assistant_text_blocks": bool(compress_assistant_text_blocks),
+                "protect_analysis_context": bool(protect_analysis),
+                "read_protection_window": int(read_protection_window),
+            }
+        }
         all_transforms = lifecycle_transforms + transforms_applied
         return TransformResult(
             messages=transformed_messages,
@@ -2632,6 +2654,7 @@ class ContentRouter(Transform):
             transforms_applied=all_transforms if all_transforms else ["router:noop"],
             markers_inserted=lifecycle_ccr_hashes,
             warnings=warnings,
+            diagnostics=diagnostics,
             timing=compressor_timing,
         )
 
@@ -2811,7 +2834,7 @@ class ContentRouter(Transform):
                     content_key = hash(tool_content)
 
                     # Tier 1: skip set — instant rejection
-                    if self._cache.is_skipped(content_key):
+                    if allow_skip_cache and self._cache.is_skipped(content_key):
                         new_blocks.append(block)
                         if route_counts is not None:
                             route_counts["ratio_too_high"] += 1
@@ -2901,7 +2924,7 @@ class ContentRouter(Transform):
                     content_key = hash(text_content)
 
                     # Tier 1: skip set
-                    if self._cache.is_skipped(content_key):
+                    if allow_skip_cache and self._cache.is_skipped(content_key):
                         new_blocks.append(block)
                         if route_counts is not None:
                             route_counts["ratio_too_high"] += 1

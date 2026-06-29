@@ -190,6 +190,12 @@ def merge_savings_metadata(
         for source, values in metadata.items():
             if not isinstance(values, Mapping):
                 continue
+            if str(source) == "ghost_token_audit":
+                result[str(source)] = {
+                    "scaffolding_tokens": _coerce_int(values.get("scaffolding_tokens", 0)),
+                    "ghost_tokens": _coerce_int(values.get("ghost_tokens", 0)),
+                }
+                continue
             _merge(
                 result,
                 source,

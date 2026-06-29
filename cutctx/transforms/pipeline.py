@@ -271,6 +271,7 @@ class TransformPipeline:
             all_transforms: list[str] = []
             all_markers: list[str] = []
             all_warnings: list[str] = []
+            all_diagnostics: dict[str, Any] = {}
             all_timing: dict[str, float] = {}  # transform_name → ms
 
             # Track transform diffs if enabled
@@ -351,15 +352,17 @@ class TransformPipeline:
                             len(result.transforms_applied),
                         )
 
-                    # Accumulate results
-                    all_transforms.extend(result.transforms_applied)
-                    all_markers.extend(result.markers_inserted)
-                    all_warnings.extend(result.warnings)
-                    all_timing[transform.name] = duration_ms
+                # Accumulate results
+                all_transforms.extend(result.transforms_applied)
+                all_markers.extend(result.markers_inserted)
+                all_warnings.extend(result.warnings)
+                if result.diagnostics:
+                    all_diagnostics.update(result.diagnostics)
+                all_timing[transform.name] = duration_ms
 
-                    # Merge sub-transform timing (e.g. ContentRouter's per-compressor breakdown)
-                    if result.timing:
-                        all_timing.update(result.timing)
+                # Merge sub-transform timing (e.g. ContentRouter's per-compressor breakdown)
+                if result.timing:
+                    all_timing.update(result.timing)
 
                     # Log transform results
                     if result.transforms_applied:
@@ -468,6 +471,7 @@ class TransformPipeline:
             transforms_applied=all_transforms,
             markers_inserted=all_markers,
             warnings=all_warnings,
+            diagnostics=all_diagnostics,
             diff_artifact=diff_artifact,
             timing=all_timing,
             waste_signals=waste_signals,

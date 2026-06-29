@@ -562,6 +562,8 @@ class PrometheusMetrics:
         cache_write_1h_tokens: int = 0,
         uncached_input_tokens: int = 0,
         attempted_input_tokens: int = 0,
+        scaffolding_tokens: int = 0,
+        ghost_tokens: int = 0,
         project: str | None = None,
         # Phase 1.4: extra savings sources. Defaults to 0/None so old
         # callers keep working.
@@ -666,6 +668,8 @@ class PrometheusMetrics:
                 cache_read_tokens=cache_read_tokens,
                 cache_write_tokens=cache_write_tokens,
                 uncached_input_tokens=uncached_input_tokens,
+                scaffolding_tokens=scaffolding_tokens,
+                ghost_tokens=ghost_tokens,
                 total_input_tokens=total_input_tokens,
                 total_input_cost_usd=total_input_cost_usd,
                 # Phase 1.4: extra savings sources so the durable

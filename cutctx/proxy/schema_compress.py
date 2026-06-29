@@ -363,11 +363,17 @@ def _try_compress_json_content(
     max_items: int,
     min_fields: int,
 ) -> str:
-    """Try to compress a JSON string by converting arrays to positional format."""
+    """Try to compress a JSON string by converting arrays to positional format.
+    If it's not JSON, apply deblank minification and snip trimming."""
     try:
         parsed = json.loads(text)
     except (json.JSONDecodeError, TypeError):
-        return text
+        from cutctx.proxy.snip import Snipper
+        from cutctx.proxy.deblank import Deblanker
+        
+        trimmed = Snipper.snip(text)
+        minified, _ = Deblanker.deblank(trimmed)
+        return minified if len(minified) < len(text) else text
 
     if isinstance(parsed, list) and len(parsed) >= 2:
         compressed = _try_positional_array(parsed, max_items, min_fields)
@@ -378,6 +384,68 @@ def _try_compress_json_content(
                 return result
 
     return text
+
+
+def _try_compress_json_content(
+    text: str,
+    max_items: int,
+    min_fields: int,
+) -> str:
+    """Try compress JSON content, else conservatively trim code or shell text."""
+
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return _try_trim_code_or_shell_text(text)
+
+    if isinstance(parsed, list) and len(parsed) >= 2:
+        compressed = _try_positional_array(parsed, max_items, min_fields)
+        if compressed is not None:
+            result = json.dumps(compressed, separators=(",", ":"))
+            original = json.dumps(parsed, separators=(",", ":"))
+            if len(result) < len(original):
+                return result
+
+    return text
+
+
+def _try_trim_code_or_shell_text(text: str) -> str:
+    """Apply low-risk trimming only to obviously code-like or shell-like text."""
+
+    if not isinstance(text, str) or not text.strip():
+        return text
+    if not _looks_like_code_or_shell(text):
+        return text
+
+    from cutctx.proxy.deblank import Deblanker
+    from cutctx.proxy.snip import Snipper
+
+    trimmed = Snipper.snip(text)
+    minified, _restore_map = Deblanker.deblank(trimmed)
+    return minified if len(minified) < len(text) else text
+
+
+def _looks_like_code_or_shell(text: str) -> bool:
+    markers = (
+        "Traceback (most recent call last):",
+        "$ ",
+        ">>> ",
+        "Exception:",
+        "Error:",
+        "stderr",
+        "stdout",
+        "diff --git",
+        "def ",
+        "class ",
+        "function ",
+        "import ",
+        "#include",
+        "SELECT ",
+        "FROM ",
+        "npm ",
+        "pip ",
+    )
+    return any(marker in text for marker in markers)
 
 
 def _try_positional_array(

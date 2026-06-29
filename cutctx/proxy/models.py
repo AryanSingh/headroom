@@ -54,6 +54,8 @@ class RequestLog:
     self_hosted_prefix_cache_saved_tokens: int = 0
     model_routing_saved_tokens: int = 0
     tool_schema_saved_tokens: int = 0
+    scaffolding_tokens: int = 0
+    ghost_tokens: int = 0
     total_saved_tokens: int = 0
     total_savings_percent: float = 0.0
     request_cost_usd: float | None = None

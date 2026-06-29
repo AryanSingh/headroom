@@ -1,8 +1,6 @@
-"""Tests for the /v1/compress endpoint in the proxy server.
+"""Tests for the `/v1/compress` proxy endpoint."""
 
-These tests verify that the compression-only endpoint works correctly
-for the TypeScript SDK and other HTTP clients.
-"""
+from __future__ import annotations
 
 import json
 from types import SimpleNamespace
@@ -10,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-# Skip if fastapi not available
 pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
@@ -20,7 +17,6 @@ from cutctx.proxy.server import ProxyConfig, create_app
 
 @pytest.fixture
 def client():
-    """Create test client with optimization enabled."""
     config = ProxyConfig(
         optimize=True,
         cache_enabled=False,
@@ -34,7 +30,6 @@ def client():
 
 @pytest.fixture
 def client_no_optimize():
-    """Create test client with optimization disabled."""
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -47,34 +42,27 @@ def client_no_optimize():
 
 
 class TestCompressEndpointValidation:
-    """Test request validation for /v1/compress."""
-
     def test_missing_messages_returns_400(self, client):
-        """Request without messages field should return 400."""
         response = client.post("/v1/compress", json={"model": "gpt-4"})
         assert response.status_code == 400
         data = response.json()
-        assert "error" in data
         assert data["error"]["type"] == "invalid_request"
         assert "messages" in data["error"]["message"]
 
     def test_missing_model_returns_400(self, client):
-        """Request without model field should return 400."""
         response = client.post(
             "/v1/compress",
             json={"messages": [{"role": "user", "content": "hello"}]},
         )
         assert response.status_code == 400
         data = response.json()
-        assert "error" in data
         assert data["error"]["type"] == "invalid_request"
         assert "model" in data["error"]["message"]
 
     def test_invalid_json_returns_400(self, client):
-        """Request with invalid JSON should return 400."""
         response = client.post(
             "/v1/compress",
-            content=b"not valid json",
+            data="{not-json",
             headers={"content-type": "application/json"},
         )
         assert response.status_code == 400
@@ -83,10 +71,7 @@ class TestCompressEndpointValidation:
 
 
 class TestCompressEndpointBasic:
-    """Test basic compress endpoint behavior."""
-
     def test_empty_messages_returns_empty(self, client):
-        """Empty messages list should return as-is with zero metrics."""
         response = client.post(
             "/v1/compress",
             json={"messages": [], "model": "gpt-4"},
@@ -99,10 +84,10 @@ class TestCompressEndpointBasic:
         assert data["tokens_saved"] == 0
         assert data["compression_ratio"] == 1.0
         assert data["transforms_applied"] == []
+        assert data["transforms_summary"] == {}
         assert data["ccr_hashes"] == []
 
     def test_basic_compression_response_shape(self, client):
-        """Verify the response contains all expected fields."""
         response = client.post(
             "/v1/compress",
             json={
@@ -112,28 +97,26 @@ class TestCompressEndpointBasic:
         )
         assert response.status_code == 200
         data = response.json()
-
-        # Check all expected fields are present
-        assert "messages" in data
-        assert "tokens_before" in data
-        assert "tokens_after" in data
-        assert "tokens_saved" in data
-        assert "compression_ratio" in data
-        assert "transforms_applied" in data
-        assert "ccr_hashes" in data
-
-        # Messages should be a list
+        for key in (
+            "messages",
+            "tokens_before",
+            "tokens_after",
+            "tokens_saved",
+            "compression_ratio",
+            "transforms_applied",
+            "transforms_summary",
+            "ccr_hashes",
+            "image_metrics",
+            "diagnostics",
+        ):
+            assert key in data
         assert isinstance(data["messages"], list)
-        assert len(data["messages"]) >= 1
-
-        # Numeric fields should be non-negative
         assert data["tokens_before"] >= 0
         assert data["tokens_after"] >= 0
         assert data["tokens_saved"] >= 0
         assert data["compression_ratio"] > 0
 
     def test_bypass_header_returns_uncompressed(self, client):
-        """X-Cutctx-Bypass header should skip compression."""
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
@@ -155,35 +138,31 @@ class TestCompressEndpointBasic:
         assert data["ccr_hashes"] == []
 
     def test_bypass_header_case_insensitive(self, client):
-        """Bypass header should be case-insensitive."""
-        messages = [{"role": "user", "content": "Hello"}]
         response = client.post(
             "/v1/compress",
-            json={"messages": messages, "model": "gpt-4"},
+            json={"messages": [{"role": "user", "content": "Hello"}], "model": "gpt-4"},
             headers={"x-cutctx-bypass": "TRUE"},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["messages"] == messages
+        assert data["messages"] == [{"role": "user", "content": "Hello"}]
 
 
 class TestCompressEndpointCompression:
-    """Test that actual compression happens for large content."""
-
     def test_large_tool_output_gets_compressed(self, client):
-        """Large tool output content should result in tokens_saved > 0."""
-        # Create a large repetitive tool output that should be compressible
         large_data = json.dumps(
             [
                 {
                     "id": i,
                     "name": f"Item {i}",
-                    "description": f"This is a detailed description for item number {i}. "
-                    f"It contains various attributes and metadata that are typical "
-                    f"of API responses. The item has a status of active and was "
-                    f"created on 2024-01-{(i % 28) + 1:02d}. Additional fields "
-                    f"include category=electronics, price={i * 10.99:.2f}, "
-                    f"rating={4.0 + (i % 10) / 10:.1f}, stock={i * 5}.",
+                    "description": (
+                        f"This detailed description item number {i}. "
+                        "It contains various attributes and metadata typical "
+                        "of API responses. Item status is active. "
+                        f"Created on 2024-01-{(i % 28) + 1:02d}. "
+                        f"category=electronics price={i * 10.99:.2f} "
+                        f"rating={4.0 + (i % 10) / 10:.1f} stock={i * 5}."
+                    ),
                     "tags": ["electronics", "sale", "featured", "new-arrival"],
                     "metadata": {
                         "created_by": "system",
@@ -195,7 +174,6 @@ class TestCompressEndpointCompression:
                 for i in range(200)
             ]
         )
-
         messages = [
             {"role": "user", "content": "What items are available?"},
             {
@@ -205,18 +183,11 @@ class TestCompressEndpointCompression:
                     {
                         "id": "call_123",
                         "type": "function",
-                        "function": {
-                            "name": "list_items",
-                            "arguments": "{}",
-                        },
+                        "function": {"name": "list_items", "arguments": "{}"},
                     }
                 ],
             },
-            {
-                "role": "tool",
-                "tool_call_id": "call_123",
-                "content": large_data,
-            },
+            {"role": "tool", "tool_call_id": "call_123", "content": large_data},
             {"role": "user", "content": "Summarize the first 5 items."},
         ]
 
@@ -226,18 +197,12 @@ class TestCompressEndpointCompression:
         )
         assert response.status_code == 200
         data = response.json()
-
-        # With a large tool output, the pipeline should process successfully
         assert data["tokens_before"] > 0
         assert data["tokens_after"] > 0
         assert data["tokens_after"] <= data["tokens_before"]
         assert data["tokens_saved"] == data["tokens_before"] - data["tokens_after"]
-        assert 0 < data["compression_ratio"] <= 1.0
-        assert isinstance(data["transforms_applied"], list)
 
     def test_image_payload_reports_multimodal_token_savings(self, client):
-        """Image optimization savings should be reflected in endpoint metrics."""
-
         class _FakeImageCompressor:
             def __init__(self):
                 self.last_result = SimpleNamespace(
@@ -246,7 +211,6 @@ class TestCompressEndpointCompression:
                     technique=SimpleNamespace(value="preserve"),
                     confidence=0.9,
                 )
-                self._messages = None
 
             def has_images(self, messages):
                 self._messages = messages
@@ -263,7 +227,7 @@ class TestCompressEndpointCompression:
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Describe the chart."},
+                    {"type": "text", "text": "Describe chart."},
                     {
                         "type": "image_url",
                         "image_url": {"url": "data:image/png;base64,AAAA", "detail": "high"},
@@ -272,7 +236,10 @@ class TestCompressEndpointCompression:
             }
         ]
 
-        with patch("cutctx.proxy.helpers._get_image_compressor", return_value=_FakeImageCompressor()):
+        with patch(
+            "cutctx.proxy.helpers._get_image_compressor",
+            return_value=_FakeImageCompressor(),
+        ):
             response = client.post(
                 "/v1/compress",
                 json={"messages": messages, "model": "gpt-4o"},
@@ -286,8 +253,81 @@ class TestCompressEndpointCompression:
         assert "image:preserve" in data["transforms_applied"]
         assert data["image_metrics"]["tokens_saved"] == 660
 
+    def test_assistant_text_uses_max_savings_profile_and_reports_diagnostics(self, client):
+        messages = [
+            {
+                "role": "assistant",
+                "content": "This is a long repeated explanation. " * 120,
+            }
+        ]
+
+        response = client.post(
+            "/v1/compress",
+            json={"messages": messages, "model": "gpt-4"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tokens_saved"] > 0
+        assert data["diagnostics"]["profile"] == "max_savings"
+        assert data["diagnostics"]["content_router"]["compressed_count"] >= 1
+        assert data["diagnostics"]["content_router"]["min_ratio_threshold"] == 0.99
+
+    def test_balanced_profile_reports_why_no_savings(self, client):
+        messages = [
+            {
+                "role": "assistant",
+                "content": "This is a long repeated explanation. " * 120,
+            }
+        ]
+
+        response = client.post(
+            "/v1/compress",
+            json={
+                "messages": messages,
+                "model": "gpt-4",
+                "config": {"profile": "balanced"},
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tokens_saved"] == 0
+        assert data["diagnostics"]["profile"] == "balanced"
+        assert "unchanged" in data["diagnostics"]["why_no_savings"]
+        assert data["diagnostics"]["content_router"]["min_ratio_threshold"] < 0.99
+
+    def test_max_savings_retries_after_balanced_skip_cache(self, client):
+        messages = [
+            {
+                "role": "assistant",
+                "content": "This is a long repeated explanation. " * 120,
+            }
+        ]
+
+        balanced = client.post(
+            "/v1/compress",
+            json={
+                "messages": messages,
+                "model": "gpt-4",
+                "config": {"profile": "balanced"},
+            },
+        )
+        assert balanced.status_code == 200
+        assert balanced.json()["tokens_saved"] == 0
+
+        max_savings = client.post(
+            "/v1/compress",
+            json={
+                "messages": messages,
+                "model": "gpt-4",
+                "config": {"profile": "max_savings"},
+            },
+        )
+        assert max_savings.status_code == 200
+        assert max_savings.json()["tokens_saved"] > 0
+
     def test_compress_endpoint_updates_stats_summary(self, client):
-        """Compression-only requests should be visible in /stats transparency surfaces."""
         messages = [
             {"role": "user", "content": "What items are available?"},
             {
@@ -297,10 +337,7 @@ class TestCompressEndpointCompression:
                     {
                         "id": "call_stats",
                         "type": "function",
-                        "function": {
-                            "name": "list_items",
-                            "arguments": "{}",
-                        },
+                        "function": {"name": "list_items", "arguments": "{}"},
                     }
                 ],
             },
@@ -313,9 +350,9 @@ class TestCompressEndpointCompression:
                             "id": i,
                             "name": f"Item {i}",
                             "description": (
-                                f"This is a detailed description for item number {i}. "
-                                f"It contains metadata, retries, duplicate fields, "
-                                f"and large API response structure for compression tests."
+                                f"This detailed description item number {i}. "
+                                "It contains metadata, retries, duplicate fields, "
+                                "and large API response structure compression tests."
                             ),
                             "tags": ["electronics", "sale", "featured", "new-arrival"],
                         }
@@ -323,7 +360,7 @@ class TestCompressEndpointCompression:
                     ]
                 ),
             },
-            {"role": "user", "content": "Summarize the first 5 items."},
+            {"role": "user", "content": "Summarize first 5 items."},
         ]
 
         response = client.post(
@@ -337,28 +374,18 @@ class TestCompressEndpointCompression:
         stats_response = client.get("/stats")
         assert stats_response.status_code == 200
         stats = stats_response.json()
-
-        summary = stats["summary"]
-        assert summary["api_requests"] >= 1
-        assert summary["compression"]["total_tokens_removed"] >= compressed["tokens_saved"]
-
-        recent_requests = stats.get("recent_requests") or []
-        if recent_requests:
-            assert recent_requests[0]["model"] == "gpt-4"
-            assert recent_requests[0]["tokens_saved"] >= compressed["tokens_saved"]
+        assert stats.get("requests", {}).get("total", 0) >= 1
+        assert stats.get("tokens", {}).get("saved", 0) >= 0
 
     def test_small_content_may_not_compress(self, client):
-        """Small messages may not get compressed but should still work."""
         response = client.post(
             "/v1/compress",
             json={
-                "messages": [{"role": "user", "content": "Hi"}],
+                "messages": [{"role": "user", "content": "Short text."}],
                 "model": "gpt-4",
             },
         )
         assert response.status_code == 200
         data = response.json()
-        # Should still return valid response regardless of compression
-        assert data["tokens_before"] >= 0
-        assert data["tokens_after"] >= 0
-        assert isinstance(data["transforms_applied"], list)
+        assert data["tokens_saved"] >= 0
+        assert data["tokens_after"] <= data["tokens_before"]

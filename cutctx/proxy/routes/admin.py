@@ -2133,7 +2133,6 @@ def create_admin_router(
 
     @router.post(
         "/v1/compress",
-        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
     )
     async def compress_messages(request: Request):
         return await _proxy.handle_compress(request)

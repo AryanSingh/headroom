@@ -1,113 +1,93 @@
 # Cutctx Benchmarks
 
-> **Methodology note:** All comparisons run on the same input corpora. Compression ratio = `1 - (output_tokens / input_tokens)`. Quality retention = task accuracy of compressed vs. uncompressed on the downstream evaluation. All figures are reproducible — see [`benchmarks/`](../benchmarks/) for runner scripts.
+> **Methodology note:** Compression ratio is `1 - (output_tokens / input_tokens)`. The most trustworthy numbers are the ones reproduced from the current repo state with the scripts in [`benchmarks/`](../benchmarks/).
 
----
+## Fresh Local Verification
 
-## Token Reduction by Content Type
+Re-run on **2026-06-29** in the current worktree:
 
-| Content Type | Cutctx | LLMLingua-2 | Morph Compact | lean-ctx |
-|---|---|---|---|---|
-| **JSON tool output** | 82–95% | 40–60% | 50–65% | 70–85% |
-| **Source code (AST)** | 55–80% | 35–55% | 45–60% | 60–75% |
-| **Prose / logs** | 60–85% | 60–85% | 50–70% | 30–50% |
-| **Mixed agent context** | 70–90% | 50–70% | 55–70% | 65–80% |
+```bash
+./.venv/bin/python benchmarks/run_all.py --dry-run --output /tmp/cutctx_bench_results.json
+./.venv/bin/python benchmarks/compare.py --tool cutctx --tool llmlingua2 --corpus synthetic --corpus mixed --dry-run --output /tmp/cutctx_compare_results.json
+```
 
-Cutctx's ContentRouter detects content type and selects the best algorithm. Competitors apply a single algorithm to all content — this is why Cutctx's JSON compression (SmartCrusher) significantly outperforms prose-first approaches on structured data.
+### Cutctx dry-run results
 
----
+| Corpus | Input tokens | Output tokens | Reduction | Latency |
+|---|---:|---:|---:|---:|
+| JSON | 8112 | 3326 | 59.0% | 743.6 ms |
+| Code | 921 | 921 | 0.0% | 3565.3 ms |
+| Prose | 607 | 607 | 0.0% | 29.5 ms |
+| Mixed | 1108 | 760 | 31.4% | 655.8 ms |
 
-## Quality Retention (Downstream Task Accuracy)
+What this says:
+- Cutctx is strongest on structured JSON-like content in this local run.
+- The current dry-run corpora did not show wins on the small code and prose fixtures because the router correctly chose not to force low-confidence compression.
 
-Measured on coding and QA tasks after compression. Higher = better.
+### Explicit compaction endpoint behavior
 
-| Tool | SWE-bench (coding) | FRAMES (long-doc QA) | ToolBench (tool use) |
-|---|---|---|---|
-| **Cutctx (CCR off)** | 96.1% | 94.8% | 97.3% |
-| **Cutctx (CCR on)** | 99.2% | 98.7% | 99.6% |
-| LLMLingua-2 | 94.2% | 91.3% | 93.8% |
-| Morph Compact | 97.1% | 95.2% | 96.9% |
-| Uncompressed baseline | 100% | 100% | 100% |
+The direct `/v1/compress` endpoint now exposes two distinct operating modes:
+- `balanced`: proxy-style conservative acceptance
+- `max_savings`: explicit compaction mode that accepts smaller wins and returns diagnostics
 
-CCR (reversible compression) allows the model to retrieve original content on demand — this is why Cutctx+CCR is within 1% of uncompressed on all benchmarks while achieving 70–90% token reduction.
+Fresh local check on 2026-06-29 for a repetitive assistant payload:
 
----
+| Profile | Input tokens | Output tokens | Tokens saved | Outcome |
+|---|---:|---:|---:|---|
+| `balanced` | 849 | 849 | 0 | Rejected as `unchanged (ratio>=0.83)` |
+| `max_savings` | 849 | 823 | 26 | Accepted and reported as compressed |
 
-## Speed
+This is important because it shows the product can now explain why savings were low and can intentionally trade strict acceptance for higher savings on explicit compaction requests.
 
-Measured on a MacBook Pro M3 (8-core CPU, 36 GB RAM).
+### LLMLingua2 comparison on current dry-run corpora
 
-| Tool | Throughput | P99 Latency (per request) | Mode |
-|---|---|---|---|
-| **Cutctx (Kompress-v2-base)** | ~2,400 tok/s | 18ms | ONNX int8 |
-| **Cutctx (SmartCrusher / JSON)** | ~45,000 tok/s | <1ms | Pure Rust |
-| **Cutctx (CodeCompressor)** | ~12,000 tok/s | 4ms | AST (Rust) |
-| LLMLingua-2 | ~800 tok/s | 60–120ms | PyTorch GPU |
-| Morph Compact | ~33,000 tok/s | <1ms | Byte-deletion |
+| Corpus | Tool | Input tokens | Output tokens | Reduction | Latency | Model size |
+|---|---|---:|---:|---:|---:|---:|
+| Synthetic | Cutctx | 6001 | 2444 | 59.3% | 10304.1 ms | 280 MB |
+| Synthetic | LLMLingua2 | 6001 | 2444 | 59.3% | 5232.9 ms | 4200 MB |
+| Mixed | Cutctx | 2839 | 1010 | 64.4% | 6545.8 ms | 280 MB |
+| Mixed | LLMLingua2 | 2839 | 1010 | 64.4% | 1795.4 ms | 4200 MB |
 
-SmartCrusher and CodeCompressor are pure Rust and add negligible latency. The Kompress-v2-base model (int8 ONNX) is ~3x faster than LLMLingua-2 on the same hardware. Morph Compact is faster on byte-deletion but cannot compress AST or structured data.
+Interpretation:
+- On the current synthetic and mixed dry-run inputs, both tools landed the same output-token counts.
+- The strongest currently verified advantage is not universal ratio dominance; it is product fit, structured-data behavior, reversibility, and a much smaller reported model footprint in this harness.
 
----
+## Practical Positioning
 
-## Memory Overhead
+What we can support from current evidence:
+- Cutctx delivers meaningful token reduction on structured agent context.
+- Cutctx has first-class proxy, wrap, CCR retrieval, observability, and dashboard integration.
+- Cutctx can compete on compression while using a much smaller reported model artifact than LLMLingua2 in the local comparison harness.
 
-| Tool | RSS (idle) | RSS (under load) | Model size on disk |
-|---|---|---|---|
-| **Cutctx** | 45 MB | 90–160 MB | 280 MB (Kompress-v2-base int8) |
-| LLMLingua-2 | 1.2 GB | 2.8 GB | 4.2 GB (GPT-2 distilled) |
-| Morph Compact | 12 MB | 25 MB | None |
-| lean-ctx | 8 MB | 18 MB | None |
+What we should avoid claiming without broader runs:
+- "Best in market" across every workload
+- blanket superiority over every competitor on raw compression ratio
 
-Cutctx uses a custom int8-quantized ONNX model (~280 MB) vs LLMLingua-2's 4+ GB dependency. For RAM-constrained deployments (CI runners, small cloud VMs), this matters.
+## Why Some Corpora Show Zero Reduction
 
----
+Zero reduction in the local `code` and `prose` dry-run fixtures is not automatically a bug.
 
-## Cost Savings: Real Agent Workloads
+Common reasons:
+- the sample is too small to justify compression overhead
+- the router judged the transform as low-confidence and skipped it
+- the benchmark fixture is intentionally safety-biased rather than tuned for maximal shrinking
 
-Measured across 500 real Claude Code sessions (mixed coding tasks, 30–120 minute sessions each).
-
-| Metric | Value |
-|---|---|
-| Average input tokens before compression | 48,300 / session |
-| Average input tokens after compression | 9,200 / session |
-| Average compression ratio | 80.9% |
-| Average cost reduction (Anthropic Claude 3.5 Sonnet pricing) | 74% |
-| Sessions where CCR retrieval was used | 18% |
-| Quality regressions detected (automated eval) | 0.4% |
-
-At $3/M input tokens (Claude Sonnet), a team of 10 engineers each running 5 sessions/day saves approximately **$8,200/month** in LLM costs alone — well above Team tier pricing ($1,500/month).
-
----
-
-## Competitive Summary
-
-| Capability | Cutctx | LLMLingua-2 | Morph Compact | lean-ctx |
-|---|---|---|---|---|
-| Multi-algorithm routing | ✅ | ❌ | ❌ | ✅ (shell/file) |
-| Reversible (CCR) | ✅ | ❌ | ❌ | ❌ |
-| Cross-agent memory | ✅ | ❌ | ❌ | ✅ (CCP) |
-| Proxy mode (zero code changes) | ✅ | ❌ | ✅ | ✅ |
-| Multi-provider | ✅ | ❌ | ❌ | ✅ |
-| Open source | ✅ Apache 2.0 | ✅ MIT | ❌ Commercial | ✅ MIT |
-| Model size | 280 MB | 4.2 GB | None | None |
-| JSON compression | ✅ SmartCrusher | ❌ | ✅ (deletion) | ✅ (deletion) |
-| AST code compression | ✅ | ❌ | ❌ | ❌ |
-| Enterprise governance | ✅ | ❌ | ❌ | ❌ |
-
----
+That is generally preferable to forcing lossy compression on weak candidates.
 
 ## Reproducing These Results
 
 ```bash
-# Install dependencies
-pip install "cutctx-ai[all]" llmlingua
+# Fresh Cutctx-only dry-run
+./.venv/bin/python benchmarks/run_all.py --dry-run --output /tmp/cutctx_bench_results.json
 
-# Run the full benchmark suite
-cd benchmarks/
-python run_all.py --output results.json
-
-# Run a single comparison
-python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench
+# Head-to-head dry-run with LLMLingua2
+./.venv/bin/python benchmarks/compare.py \
+  --tool cutctx \
+  --tool llmlingua2 \
+  --corpus synthetic \
+  --corpus mixed \
+  --dry-run \
+  --output /tmp/cutctx_compare_results.json
 ```
 
-See [`benchmarks/README.md`](../benchmarks/README.md) for corpus download instructions and GPU/CPU configuration.
+For larger or real corpora, see [`benchmarks/README.md`](../benchmarks/README.md).

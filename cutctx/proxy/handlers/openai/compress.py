@@ -1,57 +1,38 @@
-"""OpenAI handler mixin for CutctxProxy.
-
-Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
-"""
+"""OpenAI compression-only endpoint support."""
 
 from __future__ import annotations
 
 import json
 import logging
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from cutctx.proxy.handlers.openai.utils import *  # noqa: F403
 
 if TYPE_CHECKING:
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
 
-
 logger = logging.getLogger("cutctx.proxy")
-
-_OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES = 10_000
-_OPENAI_RESPONSES_UNIT_CACHE_VERSION = "openai_responses_unit_v1"
-_OPENAI_RESPONSES_UNIT_PARALLELISM_ENV = "CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM"
-_OPENAI_RESPONSES_UNIT_PARALLELISM_DEFAULT = 4
-_OPENAI_RESPONSES_UNIT_PARALLELISM_MAX = 16
-_OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK = threading.RLock()
-_OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
-_OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
-
-from cutctx.proxy.handlers.openai.utils import *  # noqa: E402, F403
 
 
 class OpenAICompressMixin:
     async def handle_compress(self, request: Request) -> JSONResponse:
-        """Compress messages without calling an LLM.
-
-        POST /v1/compress
-        Body: {"messages": [...], "model": "...", "config": {}}
-        Returns compressed messages + metrics.
-        """
+        """Compress messages without making an upstream model call."""
         from fastapi.responses import JSONResponse
 
         from cutctx.proxy.helpers import _read_request_json
 
-        # Check bypass header
+        # Bypass keeps the endpoint useful as a pure pass-through shaping surface.
         if request.headers.get("x-cutctx-bypass", "").lower() == "true":
             try:
                 body = await _read_request_json(request)
-            except (json.JSONDecodeError, ValueError) as e:
+            except (json.JSONDecodeError, ValueError) as exc:
                 return JSONResponse(
                     status_code=400,
-                    content={"error": f"Invalid request body: {e!s}"},
+                    content={"error": f"Invalid request body: {exc!s}"},
                 )
+
             messages = body.get("messages", [])
             return JSONResponse(
                 {
@@ -61,7 +42,20 @@ class OpenAICompressMixin:
                     "tokens_saved": 0,
                     "compression_ratio": 1.0,
                     "transforms_applied": [],
+                    "transforms_summary": {},
                     "ccr_hashes": [],
+                    "image_metrics": {
+                        "images_optimized": 0,
+                        "tokens_before": 0,
+                        "tokens_after": 0,
+                        "tokens_saved": 0,
+                    },
+                    "diagnostics": {
+                        "profile": "bypass",
+                        "warnings": [],
+                        "timing_ms": {},
+                        "content_router": {},
+                    },
                 }
             )
 
@@ -91,7 +85,6 @@ class OpenAICompressMixin:
                     }
                 },
             )
-
         if model is None:
             return JSONResponse(
                 status_code=400,
@@ -102,7 +95,6 @@ class OpenAICompressMixin:
                     }
                 },
             )
-
         if not messages:
             return JSONResponse(
                 {
@@ -112,7 +104,20 @@ class OpenAICompressMixin:
                     "tokens_saved": 0,
                     "compression_ratio": 1.0,
                     "transforms_applied": [],
+                    "transforms_summary": {},
                     "ccr_hashes": [],
+                    "image_metrics": {
+                        "images_optimized": 0,
+                        "tokens_before": 0,
+                        "tokens_after": 0,
+                        "tokens_saved": 0,
+                    },
+                    "diagnostics": {
+                        "profile": "empty",
+                        "warnings": [],
+                        "timing_ms": {},
+                        "content_router": {},
+                    },
                 }
             )
 
@@ -125,9 +130,7 @@ class OpenAICompressMixin:
             }
 
             # Keep /v1/compress aligned with the main OpenAI chat path:
-            # multimodal payloads should run through the image optimizer before
-            # text compression, and the endpoint's token metrics should reflect
-            # both layers rather than text-only router counts.
+            # multimodal payloads should run through image optimization first.
             if self.config.image_optimize:
                 from cutctx.proxy.helpers import _get_image_compressor
 
@@ -155,31 +158,60 @@ class OpenAICompressMixin:
                     if compressor and hasattr(compressor, "close"):
                         compressor.close()
 
-            # Use OpenAI pipeline (messages are in OpenAI format from TS SDK)
-            # Allow optional token_budget to override model's context limit
-            # (used by OpenClaw compact() and other callers that need tighter budgets)
             token_budget = body.get("token_budget")
             context_limit = (
                 token_budget
                 if token_budget and isinstance(token_budget, int)
                 else self.openai_provider.get_context_limit(model)
             )
-            # Extract CompressConfig options from request body
-            compress_config = body.get("config", {})
-            compress_user_messages = compress_config.get("compress_user_messages", False)
+
+            compress_config = body.get("config", {}) or {}
+            compression_profile = str(
+                compress_config.get("profile", "max_savings") or "max_savings"
+            ).strip().lower()
+            compress_user_messages = compress_config.get("compress_user_messages")
+            compress_assistant_text_blocks = compress_config.get(
+                "compress_assistant_text_blocks"
+            )
             target_ratio = compress_config.get("target_ratio")
             protect_recent = compress_config.get("protect_recent")
             protect_analysis_context = compress_config.get("protect_analysis_context")
+            min_ratio_override = compress_config.get("min_ratio_override")
 
-            pipeline_kwargs: dict = {"model_limit": context_limit}
+            # /v1/compress is an explicit compaction surface, so default it to a
+            # more aggressive acceptance policy than the live proxy path.
+            if compression_profile == "max_savings":
+                if compress_user_messages is None:
+                    compress_user_messages = True
+                if compress_assistant_text_blocks is None:
+                    compress_assistant_text_blocks = True
+                if protect_recent is None:
+                    protect_recent = 0
+                if protect_analysis_context is None:
+                    protect_analysis_context = False
+                if min_ratio_override is None:
+                    min_ratio_override = 0.99
+            else:
+                if compress_user_messages is None:
+                    compress_user_messages = False
+                if compress_assistant_text_blocks is None:
+                    compress_assistant_text_blocks = False
+
+            pipeline_kwargs: dict[str, Any] = {"model_limit": context_limit}
             if compress_user_messages:
                 pipeline_kwargs["compress_user_messages"] = True
+            if compress_assistant_text_blocks:
+                pipeline_kwargs["compress_assistant_text_blocks"] = True
             if target_ratio is not None:
                 pipeline_kwargs["target_ratio"] = float(target_ratio)
             if protect_recent is not None:
                 pipeline_kwargs["protect_recent"] = int(protect_recent)
             if protect_analysis_context is not None:
-                pipeline_kwargs["protect_analysis_context"] = bool(protect_analysis_context)
+                pipeline_kwargs["protect_analysis_context"] = bool(
+                    protect_analysis_context
+                )
+            if min_ratio_override is not None:
+                pipeline_kwargs["min_ratio_override"] = float(min_ratio_override)
 
             result = self.openai_pipeline.apply(
                 messages=messages,
@@ -187,14 +219,34 @@ class OpenAICompressMixin:
                 **pipeline_kwargs,
             )
 
-            total_tokens_before = result.tokens_before + int(image_metrics.get("tokens_before", 0))
-            total_tokens_after = result.tokens_after + int(image_metrics.get("tokens_after", 0))
+            total_tokens_before = result.tokens_before + int(
+                image_metrics.get("tokens_before", 0)
+            )
+            total_tokens_after = result.tokens_after + int(
+                image_metrics.get("tokens_after", 0)
+            )
             total_tokens_saved = max(0, total_tokens_before - total_tokens_after)
 
             transforms_applied = list(result.transforms_applied)
             image_technique = image_metrics.get("technique")
             if image_technique and image_metrics.get("tokens_saved", 0):
                 transforms_applied.append(f"image:{image_technique}")
+
+            content_router_diag: dict[str, Any] = {}
+            if isinstance(result.diagnostics, dict):
+                content_router_diag = dict(result.diagnostics.get("content_router") or {})
+
+            diagnostics = {
+                "profile": compression_profile,
+                "warnings": list(result.warnings),
+                "timing_ms": dict(result.timing),
+                "content_router": content_router_diag,
+            }
+            if total_tokens_saved <= 0:
+                diagnostics["why_no_savings"] = (
+                    content_router_diag.get("summary")
+                    or "No transform met the current acceptance threshold."
+                )
 
             response_payload = {
                 "messages": result.messages,
@@ -210,6 +262,7 @@ class OpenAICompressMixin:
                 "transforms_summary": result.transforms_summary,
                 "ccr_hashes": result.markers_inserted,
                 "image_metrics": image_metrics,
+                "diagnostics": diagnostics,
             }
 
             from cutctx.proxy.outcome import RequestOutcome
@@ -234,14 +287,14 @@ class OpenAICompressMixin:
             )
 
             return JSONResponse(response_payload)
-        except Exception as e:
-            logger.exception("Compression failed: %s", e)
+        except Exception as exc:
+            logger.exception("Compression failed: %s", exc)
             return JSONResponse(
                 status_code=503,
                 content={
                     "error": {
                         "type": "compression_error",
-                        "message": str(e),
+                        "message": str(exc),
                     }
                 },
             )

@@ -806,12 +806,19 @@ class OpenAIChatMixin:
             body["tools"] = tools
 
         try:
-            from cutctx.proxy.tool_surface import slim_tool_surface
+            from cutctx.proxy.tool_surface import (
+                estimate_tool_scaffolding_tokens,
+                slim_tool_surface,
+            )
             from cutctx.proxy.schema_compress import (
                 compress_tool_results,
                 compress_tool_schemas,
             )
 
+            tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
+                body.get("tools"),
+                tokenizer,
+            )
             tool_surface_query = extract_user_query(optimized_messages) or extract_user_query(messages)
             tool_surface_result = slim_tool_surface(
                 body.get("tools"),
@@ -863,6 +870,22 @@ class OpenAIChatMixin:
                 schema_savings_metadata = {
                     "tool_schema_compaction": {"tokens": schema_tokens_saved}
                 }
+            residual_ghost_tokens = max(
+                0,
+                tool_scaffolding_tokens
+                - tool_surface_result.tokens_saved
+                - schema_tokens_saved,
+            )
+            if tool_scaffolding_tokens > 0:
+                schema_savings_metadata = merge_savings_metadata(
+                    schema_savings_metadata,
+                    {
+                        "ghost_token_audit": {
+                            "scaffolding_tokens": tool_scaffolding_tokens,
+                            "ghost_tokens": residual_ghost_tokens,
+                        }
+                    },
+                )
         except Exception as e:
             logger.debug(f"[{request_id}] Schema compression failed: {e}")
 

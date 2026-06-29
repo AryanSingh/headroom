@@ -44,7 +44,11 @@ from cutctx.proxy.cost import _summarize_transforms
 from cutctx.proxy.outcome import RequestOutcome
 from cutctx.proxy.project_context import classify_project, set_current_project
 from cutctx.proxy.savings_metadata import extract_savings_metadata, merge_savings_metadata
-from cutctx.proxy.tool_surface import extract_responses_query, slim_tool_surface
+from cutctx.proxy.tool_surface import (
+    estimate_tool_scaffolding_tokens,
+    extract_responses_query,
+    slim_tool_surface,
+)
 
 logger = logging.getLogger("cutctx.proxy")
 
@@ -1324,6 +1328,10 @@ class OpenAIResponsesMixin:
         # CompressionPolicy resolve at request entry).
         if self.config.optimize and not _bypass:
             try:
+                tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
+                    body.get("tools"),
+                    tokenizer,
+                )
                 tool_surface_result = slim_tool_surface(
                     body.get("tools"),
                     query=tool_surface_query,
@@ -1374,6 +1382,22 @@ class OpenAIResponsesMixin:
                         tokenizer,
                         original_tools_payload,
                         body.get("tools"),
+                    )
+                residual_ghost_tokens = max(
+                    0,
+                    tool_scaffolding_tokens
+                    - tool_surface_tokens_saved
+                    - max(0, int(_tokens_saved)),
+                )
+                if tool_scaffolding_tokens > 0:
+                    schema_savings_metadata = merge_savings_metadata(
+                        schema_savings_metadata,
+                        {
+                            "ghost_token_audit": {
+                                "scaffolding_tokens": tool_scaffolding_tokens,
+                                "ghost_tokens": residual_ghost_tokens,
+                            }
+                        },
                     )
                 attempted_input_tokens = int(_attempted_tokens) + tool_surface_tokens_saved
                 if _modified:
@@ -2583,6 +2607,10 @@ class OpenAIResponsesMixin:
                         _record_ws_compression_overhead(_preflight_ms)
                         _compression_started = time.perf_counter()
                         try:
+                            _tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
+                                _inner.get("tools") if isinstance(_inner, dict) else None,
+                                get_tokenizer(_model),
+                            )
                             _tool_surface_result = slim_tool_surface(
                                 _inner.get("tools") if isinstance(_inner, dict) else None,
                                 query=extract_responses_query(
@@ -2601,6 +2629,22 @@ class OpenAIResponsesMixin:
                                     {
                                         "api_surface_slimming": {
                                             "tokens": _tool_surface_saved
+                                        }
+                                    },
+                                )
+                            if _tool_scaffolding_tokens > 0:
+                                _schema_saved = 0
+                                ws_savings_metadata = merge_savings_metadata(
+                                    ws_savings_metadata,
+                                    {
+                                        "ghost_token_audit": {
+                                            "scaffolding_tokens": _tool_scaffolding_tokens,
+                                            "ghost_tokens": max(
+                                                0,
+                                                _tool_scaffolding_tokens
+                                                - _tool_surface_saved
+                                                - _schema_saved,
+                                            ),
                                         }
                                     },
                                 )

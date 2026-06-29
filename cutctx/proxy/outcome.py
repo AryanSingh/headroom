@@ -73,6 +73,10 @@ class RequestOutcome:
     output_tokens: int
     tokens_saved: int
     attempted_input_tokens: int
+    
+    # ── Ghost Token Auditing ──────────────────────────────────────────
+    scaffolding_tokens: int = 0
+    ghost_tokens: int = 0
 
     # ── Cache (provider-agnostic; unused fields stay 0) ───────────────
     # Anthropic populates all five (read + write + 5m + 1h + uncached).
@@ -707,6 +711,15 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = (
         _build_savings_breakdown(outcome)
     )
+    audit_meta = ((outcome.savings_metadata or {}).get("ghost_token_audit") or {})
+    scaffolding_tokens = max(
+        0,
+        int(getattr(outcome, "scaffolding_tokens", 0) or audit_meta.get("scaffolding_tokens", 0) or 0),
+    )
+    ghost_tokens = max(
+        0,
+        int(getattr(outcome, "ghost_tokens", 0) or audit_meta.get("ghost_tokens", 0) or 0),
+    )
 
     # 1. Prometheus / SavingsTracker.
     await handler.metrics.record_request(
@@ -727,6 +740,8 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         cache_write_1h_tokens=outcome.cache_write_1h_tokens,
         uncached_input_tokens=outcome.uncached_input_tokens,
         attempted_input_tokens=outcome.attempted_input_tokens,
+        scaffolding_tokens=scaffolding_tokens,
+        ghost_tokens=ghost_tokens,
         project=project,
         # Phase 1.4: extra savings sources.
         semantic_cache_avoided_tokens=int(
@@ -874,9 +889,11 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_saved_tokens=cache_saved_tokens,
             semantic_cache_saved_tokens=semantic_cache_saved_tokens,
             self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
-            model_routing_saved_tokens=model_routing_saved_tokens,
-            tool_schema_saved_tokens=tool_schema_saved_tokens,
-            total_saved_tokens=total_saved_tokens,
+                model_routing_saved_tokens=model_routing_saved_tokens,
+                tool_schema_saved_tokens=tool_schema_saved_tokens,
+                scaffolding_tokens=scaffolding_tokens,
+                ghost_tokens=ghost_tokens,
+                total_saved_tokens=total_saved_tokens,
             total_savings_percent=total_savings_percent,
             request_cost_usd=request_cost_usd,
             waste_signals=outcome.waste_signals,

@@ -592,6 +592,7 @@ class TransformResult:
     transforms_applied: list[str]
     markers_inserted: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
     diff_artifact: DiffArtifact | None = None  # Populated if generate_diff_artifact=True
     cache_metrics: CachePrefixMetrics | None = None  # Populated by CacheAligner
     timing: dict[str, float] = field(default_factory=dict)  # transform_name → ms
@@ -704,4 +705,3 @@ class RequestMetrics:
 
 CutctxMode = CutctxMode  # type: ignore[misc,assignment]
 CutctxConfig = CutctxConfig  # type: ignore[misc,assignment]
-

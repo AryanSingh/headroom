@@ -132,7 +132,15 @@ function buildClientRows(stats) {
 }
 
 function getRequestDirectSaved(request) {
-  return Number(request?.tokens_saved || 0);
+return Number(request?.tokens_saved || 0);
+}
+
+function getRequestScaffoldingTokens(request) {
+return Number(request?.scaffolding_tokens || 0);
+}
+
+function getRequestGhostTokens(request) {
+return Number(request?.ghost_tokens || 0);
 }
 
 function getRequestIndirectSaved(request) {
@@ -1044,13 +1052,15 @@ export default function Overview() {
             <div className="table-shell">
               <table className="request-table">
                 <thead>
-                  <tr>
-                    <th>Model</th>
-                    <th>Tokens</th>
-                    <th>Total saved</th>
-                    <th>Direct</th>
-                    <th>When</th>
-                  </tr>
+<tr>
+<th>Model</th>
+<th>Tokens</th>
+<th>Total saved</th>
+<th>Direct</th>
+<th>Scaffold</th>
+<th>Ghost</th>
+<th>When</th>
+</tr>
                 </thead>
                 <tbody>
                   {recentRequests.map((request, index) => (
@@ -1071,25 +1081,28 @@ export default function Overview() {
                           </span>
                         </div>
                       </td>
-                              <td>
-                                <div className="request-savings-stack request-savings-stack-muted">
-                                  <span>{formatInteger(getRequestDirectSaved(request))}</span>
-                                  <span className="request-savings-percent">
-                                    {formatPercent(
-                                      Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
-                            )}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{formatRelativeTime(request.timestamp)}</td>
+<td>
+<div className="request-savings-stack request-savings-stack-muted">
+<span>{formatInteger(getRequestDirectSaved(request))}</span>
+<span className="request-savings-percent">
+{formatPercent(
+Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
+)}
+</span>
+</div>
+</td>
+<td>{formatInteger(getRequestScaffoldingTokens(request))}</td>
+<td>{formatInteger(getRequestGhostTokens(request))}</td>
+<td>{formatRelativeTime(request.timestamp)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="request-table-note">
-                Total saved includes direct compression plus cache-backed savings when available.
-                Direct column isolates what Cutctx compressed itself.
-              </div>
+                <div className="request-table-note">
+                  Total saved includes direct compression plus cache-backed savings when available.
+                  Direct column isolates what Cutctx compressed itself. Scaffold and Ghost
+                  columns show oversized tool-manifest footprint and residual overhead.
+                </div>
             </div>
           )}
 

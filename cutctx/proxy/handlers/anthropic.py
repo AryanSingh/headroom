@@ -1842,12 +1842,19 @@ class AnthropicHandlerMixin:
 
             # JSON schema compression — strip metadata keys, truncate descriptions
             try:
-                from cutctx.proxy.tool_surface import slim_tool_surface
+                from cutctx.proxy.tool_surface import (
+                    estimate_tool_scaffolding_tokens,
+                    slim_tool_surface,
+                )
                 from cutctx.proxy.schema_compress import (
                     compress_tool_results,
                     compress_tool_schemas,
                 )
 
+                tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
+                    body.get("tools"),
+                    tokenizer,
+                )
                 tool_surface_query = extract_user_query(
                     optimized_messages
                 ) or extract_user_query(messages)
@@ -1897,7 +1904,23 @@ class AnthropicHandlerMixin:
                                     "tokens": schema_tokens_saved
                                 }
                             }
-                        transforms_list = getattr(self, '_schema_compress_transforms', None)
+                residual_ghost_tokens = max(
+                    0,
+                    tool_scaffolding_tokens
+                    - tool_surface_result.tokens_saved
+                    - schema_tokens_saved,
+                )
+                if tool_scaffolding_tokens > 0:
+                    schema_savings_metadata = merge_savings_metadata(
+                        schema_savings_metadata,
+                        {
+                            "ghost_token_audit": {
+                                "scaffolding_tokens": tool_scaffolding_tokens,
+                                "ghost_tokens": residual_ghost_tokens,
+                            }
+                        },
+                    )
+                transforms_list = getattr(self, "_schema_compress_transforms", None)
                 if body.get("messages"):
                     body["messages"] = compress_tool_results(body["messages"])
             except Exception as e:

@@ -48,6 +48,21 @@ class ToolSurfaceResult:
     kept_count: int
 
 
+def estimate_tool_scaffolding_tokens(
+    tools: list[dict[str, Any]] | None,
+    tokenizer: Any | None = None,
+) -> int:
+    if not isinstance(tools, list) or not tools:
+        return 0
+    try:
+        payload = json.dumps(tools, ensure_ascii=False)
+        if tokenizer is not None:
+            return max(0, int(tokenizer.count_text(payload)))
+        return max(0, len(payload.encode("utf-8")) // 4)
+    except Exception:
+        return 0
+
+
 def tool_surface_slimming_enabled() -> bool:
     return os.environ.get(_ENABLE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
