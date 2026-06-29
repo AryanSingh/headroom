@@ -100,6 +100,12 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
         assert rbac.status_code == 200
         assert rbac.json() == {"assignments": {}}
 
+        firewall = client.get("/firewall/status", headers=headers)
+        assert firewall.status_code == 200
+        firewall_payload = firewall.json()
+        assert "patterns_loaded" in firewall_payload
+        assert firewall_payload["telemetry_available"] is False
+
         heartbeat = client.post(
             "/fleet/deployments/heartbeat",
             headers=headers,
@@ -129,6 +135,7 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
             headers=headers,
         )
         assert delete_deployment.status_code == 200
+
 
 
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):

@@ -297,6 +297,15 @@ class TestGraphifyInterceptor:
         result = interceptor.transform("Read", {"file_path": "x.py"}, "x" * 1000)
         assert result is None
 
+    def test_matches_supports_get_index_only_indexer(self) -> None:
+        """matches() accepts lightweight indexers that only expose get_index()."""
+        g = nx.Graph()
+        g.add_node("n1", label="test", type="module", file_path="test.py")
+        idx = GraphifyIndex(graph=g, version="test")
+        interceptor = GraphifyInterceptor(indexer=_FakeIndexer(idx))
+
+        assert interceptor.matches("Read", {"file_path": "test.py"}, "x" * 1000) is True
+
     def test_progressive_disclosure_key(self) -> None:
         """progressive_disclosure_key returns file-path key for Read."""
         interceptor = GraphifyInterceptor()

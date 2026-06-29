@@ -1600,6 +1600,24 @@ text-align: right;
   background: rgba(5, 150, 105, 0.08);
 }
 
+.status-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--green);
+}
+
+.status-inactive {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
 .status-building,
 .status-warming_only,
 .status-low_hit_rate {

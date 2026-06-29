@@ -106,8 +106,8 @@ curl -X POST http://localhost:8787/v1/messages \
 ### Dashboard Command Center / Playground
 
 1. Start the dashboard dev server:
-   `cd dashboard && npm run dev -- --host 127.0.0.1 --port 4173`
-2. Open the dashboard in a browser.
+   `cd dashboard && CUTCTX_ADMIN_API_KEY=test-admin-key npm run dev -- --host 127.0.0.1 --port 4173`
+2. Open `http://127.0.0.1:4173/dashboard` in a browser.
 3. Enter the proxy admin key in the top-bar `Optional admin key for protected actions` field.
 4. Verify the `Command Center`, `Capabilities`, `Security`, `Memory`, and `Playground` routes render without blank states or console errors.
 5. On `Playground`, click `Load sample multimodal image`.
@@ -117,6 +117,10 @@ curl -X POST http://localhost:8787/v1/messages \
    - at least one transform chip
    - `Image savings` greater than zero for the built-in sample
 8. Return to `Command Center` and verify compression attribution reflects the latest request instead of showing a false zero.
+
+Notes:
+- The React dashboard uses a router basename of `/dashboard`, so `http://127.0.0.1:4173/` is not the correct manual-test entrypoint.
+- The Vite dev server forwards `/health`, `/stats`, and `/v1/*` to the local proxy and uses `CUTCTX_ADMIN_API_KEY` as its default admin header when no browser-stored key exists yet.
 
 ---
 

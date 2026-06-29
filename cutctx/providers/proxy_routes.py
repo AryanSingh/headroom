@@ -79,19 +79,16 @@ def _codex_client_version(requested_client_version: str | None = None) -> str:
     return "0.130.0"
 
 
-def _models_list_response(model_ids: tuple[str, ...]) -> Response:
+def _models_list_response(models_raw: tuple[dict[str, Any], ...]) -> Response:
     """Build an OpenAI-compatible model-list response for Codex metadata callers."""
+    for m in models_raw:
+        m["id"] = m.get("slug", "unknown")
+        m["object"] = "model"
+        
     payload = {
         "object": "list",
-        "data": [
-            {
-                "id": model_id,
-                "object": "model",
-                "created": 0,
-                "owned_by": "openai",
-            }
-            for model_id in model_ids
-        ],
+        "data": list(models_raw),
+        "models": list(models_raw),
     }
     return Response(
         content=json.dumps(payload),
@@ -102,7 +99,8 @@ def _models_list_response(model_ids: tuple[str, ...]) -> Response:
 
 def _synthetic_models_list_response() -> Response:
     """OpenAI-compatible `/v1/models` payload for Codex ChatGPT auth."""
-    return _models_list_response(_CHATGPT_AUTH_CODEX_MODELS)
+    synthetic_models = tuple({"slug": m} for m in _CHATGPT_AUTH_CODEX_MODELS)
+    return _models_list_response(synthetic_models)
 
 
 def _synthetic_model_get_response(model_id: str) -> Response:
@@ -152,12 +150,12 @@ def _normalize_codex_registry_headers(headers: dict[str, str]) -> dict[str, str]
     return upstream_headers
 
 
-async def _fetch_chatgpt_codex_model_ids(
+async def _fetch_chatgpt_codex_models_raw(
     proxy: Any,
     headers: dict[str, str],
     requested_client_version: str | None,
-) -> tuple[str, ...] | None:
-    """Fetch Codex model slugs from ChatGPT, returning None when fallback should apply."""
+) -> tuple[dict[str, Any], ...] | None:
+    """Fetch Codex model objects from ChatGPT."""
     client_version = _codex_client_version(requested_client_version)
     upstream_headers = _normalize_codex_registry_headers(headers)
     url = (
@@ -185,20 +183,17 @@ async def _fetch_chatgpt_codex_model_ids(
             logger.warning("Codex model registry response did not contain models[]")
             return None
 
-        model_ids = tuple(
-            slug
+        models_list = tuple(
+            entry
             for entry in models_raw
-            if isinstance(entry, dict)
-            for slug in (entry.get("slug"),)
-            if isinstance(slug, str) and slug
+            if isinstance(entry, dict) and entry.get("slug")
         )
-        if not model_ids:
+        if not models_list:
             logger.warning("Codex model registry returned no model slugs")
             return None
 
-        logger.info("Fetched %d Codex models from upstream model registry", len(model_ids))
-        logger.debug("Fetched Codex model IDs from upstream model registry: %s", list(model_ids))
-        return model_ids
+        logger.info("Fetched %d Codex models from upstream model registry", len(models_list))
+        return models_list
     except Exception:
         logger.exception("Codex model registry fetch failed")
         return None
@@ -210,10 +205,10 @@ async def _fetch_chatgpt_codex_models_response(
     requested_client_version: str | None,
 ) -> Response | None:
     """Build a dynamic `/v1/models` response from the Codex registry when available."""
-    model_ids = await _fetch_chatgpt_codex_model_ids(proxy, headers, requested_client_version)
-    if model_ids is None:
+    models_raw = await _fetch_chatgpt_codex_models_raw(proxy, headers, requested_client_version)
+    if models_raw is None:
         return None
-    return _models_list_response(model_ids)
+    return _models_list_response(models_raw)
 
 
 async def _fetch_chatgpt_codex_model_get_response(
@@ -223,19 +218,14 @@ async def _fetch_chatgpt_codex_model_get_response(
     requested_client_version: str | None,
 ) -> Response | None:
     """Build a dynamic `/v1/models/{id}` response from the Codex registry when available."""
-    model_ids = await _fetch_chatgpt_codex_model_ids(proxy, headers, requested_client_version)
-    if model_ids is None:
+    models_raw = await _fetch_chatgpt_codex_models_raw(proxy, headers, requested_client_version)
+    if models_raw is None:
         return None
-    if model_id in model_ids:
+    
+    found_model = next((m for m in models_raw if m.get("slug") == model_id), None)
+    if found_model is not None:
         return Response(
-            content=json.dumps(
-                {
-                    "id": model_id,
-                    "object": "model",
-                    "created": 0,
-                    "owned_by": "openai",
-                }
-            ),
+            content=json.dumps(found_model),
             status_code=200,
             headers={"content-type": "application/json"},
         )

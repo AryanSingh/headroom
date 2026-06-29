@@ -90,7 +90,13 @@ class GraphifyInterceptor:
         """
         idx = self._indexer
         if idx is not None:
-            return idx.ensure_ready()
+            if hasattr(idx, "ensure_ready"):
+                return idx.ensure_ready()
+            if hasattr(idx, "get_index"):
+                return idx.get_index()
+            if isinstance(idx, GraphifyIndex):
+                return idx
+            return None
         global_idx = get_global_indexer()
         if global_idx is not None:
             return global_idx.ensure_ready()

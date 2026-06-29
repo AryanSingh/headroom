@@ -896,7 +896,7 @@ def create_admin_router(
         "/rbac/roles",
         dependencies=[
             _Dep(require_admin_auth),
-            _Dep(require_rbac_permission("rbac.write")),
+            _Dep(require_rbac_permission("dashboard.read")),
             _Dep(require_entitlement("rbac")),
         ],
     )
@@ -1398,14 +1398,43 @@ def create_admin_router(
     async def firewall_status():
         """Get LLM firewall status and scan statistics."""
         if _firewall_scanner is None:
-            return {"enabled": False, "message": "Firewall not initialized"}
+            return {
+                "enabled": False,
+                "message": "Firewall not initialized",
+                "patterns_loaded": None,
+                "blocks": None,
+                "blocks_today": None,
+                "telemetry_available": False,
+            }
+
+        from cutctx.security.firewall import (
+            _EXFIL_PATTERNS,
+            _INJECTION_PATTERNS,
+            _JAILBREAK_PATTERNS,
+            _PII_PATTERNS,
+        )
+
+        patterns_loaded = len(_EXFIL_PATTERNS) + len(_firewall_scanner.config.custom_patterns)
+        if _firewall_scanner.config.block_injection:
+            patterns_loaded += len(_INJECTION_PATTERNS)
+        if _firewall_scanner.config.block_jailbreak:
+            patterns_loaded += len(_JAILBREAK_PATTERNS)
+        if _firewall_scanner.config.block_pii:
+            patterns_loaded += len(_PII_PATTERNS)
+
         return {
             "enabled": _firewall_scanner.enabled,
+            "patterns_loaded": patterns_loaded,
+            "blocks": None,
+            "blocks_today": None,
+            "telemetry_available": False,
             "config": {
                 "block_pii": _firewall_scanner.config.block_pii,
                 "block_injection": _firewall_scanner.config.block_injection,
                 "block_jailbreak": _firewall_scanner.config.block_jailbreak,
                 "redact_streaming": _firewall_scanner.config.redact_streaming,
+                "custom_patterns": len(_firewall_scanner.config.custom_patterns),
+                "allowed_domains": len(_firewall_scanner.config.allowed_domains),
             },
         }
 

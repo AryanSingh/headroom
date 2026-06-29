@@ -644,15 +644,16 @@ def build_session_summary(
         best_compression = best["savings_pct"]
         best_detail = f"{best['original']:,} → {best['optimized']:,} tokens"
 
-    # Cost summary — dollar savings are proxy-compression only at model list
-    # price. CLI filtering tokens are counted in token savings but have no
-    # model-specific price because they never reached the proxy request.
+    # Cost summary — provider cache and direct proxy compression both
+    # contribute to realized dollar savings. CLI filtering tokens are counted
+    # in token savings but have no model-specific price because they never
+    # reached the proxy request.
     cost_stats = proxy.cost_tracker.stats() if proxy.cost_tracker else {}
     cost_with = cost_stats.get("cost_with_cutctx_usd", 0.0)
     compression_savings = cost_stats.get("savings_usd", 0.0)
     cache_net = prefix_cache_stats.get("totals", {}).get("net_savings_usd", 0.0)
-    total_saved_usd = round(compression_savings, 2)
-    cost_without = cost_with + compression_savings
+    total_saved_usd = round(compression_savings + cache_net, 2)
+    cost_without = cost_with + compression_savings + cache_net
     savings_pct_cost = round(total_saved_usd / cost_without * 100, 1) if cost_without > 0 else 0.0
 
     # Primary models used

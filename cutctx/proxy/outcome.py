@@ -870,12 +870,13 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_write_tokens=cache_write_tokens,
             )
 
-    request_logger.log(
-        RequestLog(
-            request_id=outcome.request_id,
-            timestamp=datetime.now().isoformat(),
-            provider=outcome.provider,
-            model=outcome.model,
+    if request_logger is not None:
+        request_logger.log(
+            RequestLog(
+                request_id=outcome.request_id,
+                timestamp=datetime.now().isoformat(),
+                provider=outcome.provider,
+                model=outcome.model,
                 input_tokens_original=outcome.original_tokens,
                 input_tokens_optimized=outcome.optimized_tokens,
                 output_tokens=outcome.output_tokens,
@@ -887,18 +888,18 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_hit=outcome.cache_hit,
                 transforms_applied=list(outcome.transforms_applied),
                 cache_saved_tokens=cache_saved_tokens,
-            semantic_cache_saved_tokens=semantic_cache_saved_tokens,
-            self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
+                semantic_cache_saved_tokens=semantic_cache_saved_tokens,
+                self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
                 model_routing_saved_tokens=model_routing_saved_tokens,
                 tool_schema_saved_tokens=tool_schema_saved_tokens,
                 scaffolding_tokens=scaffolding_tokens,
                 ghost_tokens=ghost_tokens,
                 total_saved_tokens=total_saved_tokens,
-            total_savings_percent=total_savings_percent,
-            request_cost_usd=request_cost_usd,
-            waste_signals=outcome.waste_signals,
-            request_messages=outcome.request_messages,
-            compressed_messages=outcome.compressed_messages,
+                total_savings_percent=total_savings_percent,
+                request_cost_usd=request_cost_usd,
+                waste_signals=outcome.waste_signals,
+                request_messages=outcome.request_messages,
+                compressed_messages=outcome.compressed_messages,
                 turn_id=outcome.turn_id,
             )
         )

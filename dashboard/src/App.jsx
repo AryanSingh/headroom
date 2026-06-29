@@ -4,6 +4,7 @@ import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router
 import {
   Activity,
   BarChart3,
+  BookOpen,
   Home,
   Moon,
   PanelLeftOpen,
@@ -19,6 +20,7 @@ import Governance from './pages/Governance';
 import Memory from './pages/Memory';
 import Playground from './pages/Playground';
 import Capabilities from './pages/Capabilities';
+import Docs from './pages/Docs';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
 import { ThemeProvider, useTheme } from './lib/theme-context';
@@ -67,6 +69,7 @@ const navItems = [
   { path: '/firewall', label: 'Security', icon: Shield },
   { path: '/memory', label: 'Memory', icon: BarChart3 },
   { path: '/playground', label: 'Playground', icon: TerminalSquare },
+  { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
 /* ─── Sidebar ─────────────────────────────────────────────────── */
@@ -307,6 +310,7 @@ function AppFrame() {
               <Route path="/firewall" element={<Firewall />} />
               <Route path="/memory" element={<Memory />} />
               <Route path="/playground" element={<Playground />} />
+              <Route path="/docs" element={<Docs />} />
             </Routes>
           </ErrorBoundary>
         </main>

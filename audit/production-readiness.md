@@ -10,7 +10,9 @@ This verification pass confirmed:
 - Supply-chain signing and SBOM generation are already wired in CI.
 - The `/v1/compress` product endpoint works end to end again after fixing two regressions.
 - CCR retrieval, compression observability, and wrap persistence paths pass their focused suites.
+- Dashboard savings headline math, attribution payloads, trend request counts, and history loading states were corrected in code and covered with fresh targeted tests.
 - Fresh benchmark numbers are reproducible locally, but they do **not** support a blanket "best in market" compression-ratio claim on all corpora.
+- The React dashboard release surface can be exercised live at `/dashboard`, including protected auth flow and live savings panels, when the dev proxy and local proxy share the same admin key.
 
 ## What Was Fixed In This Pass
 
@@ -58,6 +60,36 @@ Fix:
 Impact:
 - The same repetitive assistant payload that stayed unchanged in `balanced` mode (`849 -> 849`, `0` saved) now compresses under `max_savings` (`849 -> 823`, `26` saved), with diagnostics explaining both outcomes.
 
+### 4. Dashboard savings totals and enterprise status pages were telling partial truths
+Files:
+- [cutctx/proxy/cost.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/cost.py)
+- [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py)
+- [cutctx/proxy/routes/admin.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/routes/admin.py)
+- [dashboard/src/lib/dashboard-context.jsx](/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/src/lib/dashboard-context.jsx)
+- [dashboard/src/pages/Overview.jsx](/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/src/pages/Overview.jsx)
+- [dashboard/src/pages/Capabilities.jsx](/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/src/pages/Capabilities.jsx)
+- [dashboard/src/pages/Firewall.jsx](/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/src/pages/Firewall.jsx)
+
+Issues:
+- Session-level dollars saved excluded provider-cache savings even when the cache breakdown reported real savings.
+- `/stats.savings_by_source` only emitted five legacy sources, while the dashboard expected newer attribution buckets too.
+- The trend chart could overcount requests when both rollups and recent request rows were present.
+- `/stats-history` failures collapsed into a misleading empty state instead of showing explicit loading/error status.
+- Synthetic history fallback rows displayed `0` in fields that were actually unknown.
+- `GET /rbac/roles` was guarded like a write surface, and the firewall page expected counters the backend did not truly expose.
+
+Fixes:
+- Cost summary now counts provider-cache savings in `total_saved_usd`, `without_cutctx_usd`, and cost savings percent.
+- `/stats` now exposes the newer savings-source keys used by the dashboard.
+- Overview cards now distinguish all-layer savings from active compression and avoid false zeroes / false request counts.
+- History fetch status is explicit in the React state, and synthetic rows leave unknown values blank.
+- RBAC role listing now uses a read-level permission already understood by the enterprise RBAC runtime.
+- Firewall status surfaces truthful configuration/pattern inventory data and marks block counters as unavailable instead of implying zero.
+
+Impact:
+- The dashboard code is now aligned with the intended savings story and no longer understates cache-backed wins in the UI logic.
+- Enterprise operator surfaces are less misleading about what is truly measured versus merely configured.
+
 ## Fresh Verification Evidence
 
 ### Targeted product-path tests
@@ -77,8 +109,26 @@ These cover:
 - CCR compress-to-retrieve round-trips
 - persistent wrap state and RTK metrics behavior
 
+### Extended regression bundle
+Executed on 2026-06-29:
+
+- `./.venv/bin/python -m pytest tests/test_proxy_compress_endpoint.py tests/test_compression_observability.py tests/test_ccr_row_drop_store_bridge.py tests/test_cli/test_wrap_persistent.py tests/test_cli/test_wrap_rtk_metrics.py tests/test_product_capabilities.py tests/test_proxy_savings_history.py tests/test_proxy_dashboard_stats_cache.py tests/test_savings_metadata.py tests/test_savings_metadata_response_headers.py tests/test_proxy_anthropic_compression_diagnostics.py -q`
+  - Result: `152 passed`
+- `cd dashboard && ../.venv/bin/python -m pytest ../tests/test_dashboard_cache_ttl_playwright.py -q`
+  - Result: `1 passed`
+- `cd dashboard && npx playwright test e2e/ui.spec.js e2e/overview.spec.js e2e/auth.spec.js`
+  - Result: `7 passed`
+- `pytest -q tests/test_proxy_dashboard_stats_cache.py tests/test_savings_hot_path.py tests/test_management_api_entitlements.py`
+  - Result: `27 passed`
+
+Important regression fixed during this sweep:
+- [cutctx/proxy/outcome.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/outcome.py)
+  - `request_logger.log(...)` had escaped its `if request_logger is not None` guard and could crash Anthropic request handling with `AttributeError: 'NoneType' object has no attribute 'log'`, causing `502` responses in diagnostic coverage. The guard is now restored.
+
 ### Build / compile checks
 - `./.venv/bin/python -m py_compile cutctx/proxy/routes/admin.py cutctx/proxy/savings_tracker.py`
+  - Result: pass
+- `./.venv/bin/python -m py_compile cutctx/proxy/outcome.py`
   - Result: pass
 
 ### Compression benchmark evidence
@@ -107,6 +157,29 @@ Observed outcome:
 Interpretation:
 - The current local evidence supports a footprint and product-integration advantage.
 - It does **not** support a universal "best compression ratio in market" claim from this benchmark alone.
+
+### Live product checks
+Executed on 2026-06-29:
+
+- Live dashboard auth + overview:
+  - React dashboard at `http://127.0.0.1:4173/dashboard` successfully moved from auth overlay to live metrics when the browser stored the actual proxy admin key.
+  - Observed live surfaces included:
+    - overview metrics with non-zero lifetime savings
+    - trend chart hover details including tokens saved, requests, and model mix
+    - honest `Request count unavailable` messaging for buckets without request rollups
+    - recent-requests table with `Total saved`, `Direct`, `Scaffold`, and `Ghost` columns
+- Protected compression endpoint:
+  - `POST /v1/compress` with `profile=max_savings` on a repetitive assistant log payload returned:
+    - `tokens_before=648`
+    - `tokens_after=127`
+    - `tokens_saved=521`
+    - `transforms_applied=["router:log:0.15"]`
+    - populated diagnostics with content-router summary and timing
+
+Environment note:
+- The Vite dashboard dev server is mounted at `/dashboard`, not `/`.
+- For local manual QA, the dashboard dev server and the proxy should share the same `CUTCTX_ADMIN_API_KEY` or the operator should expect the auth overlay until the correct key is entered.
+- If the local proxy process was already running before these dashboard/backend stat fixes were applied, restart it before using live `/stats` output as evidence. A stale process can still serve the old summary math and attribution shape even though the worktree is fixed.
 
 ## Supply Chain Status
 The older note claiming "No image signing / SBOM" is stale.

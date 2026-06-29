@@ -155,15 +155,19 @@ export default function Governance() {
     [sections.retention.data],
   );
   const availableSurfaces = countAvailableSurfaces(sections);
-  const sectionErrors = Object.entries(sections)
-    .filter(([, section]) => !section.ok && !loading)
-    .map(([key, section]) => `${key}: ${section.error}`);
+  const failedSections = Object.entries(sections)
+    .filter(([, section]) => !section.ok && !loading);
+  const isNetworkError = failedSections.some(([, s]) =>
+    s.error && !s.error.includes('403') && !s.error.includes('503') && !s.error.includes('501'),
+  );
 
   return (
     <section className="page-stack">
-      {sectionErrors.length > 0 ? (
+      {!loading && failedSections.length > 0 ? (
         <div className="alert-card" role="alert">
-          Some enterprise surfaces are unavailable in this environment: {sectionErrors.join(' • ')}
+          {isNetworkError
+            ? `Some governance surfaces could not be reached: ${failedSections.map(([k]) => k).join(', ')}.`
+            : `${failedSections.length} of ${Object.keys(sections).length} governance surfaces require enterprise entitlements or additional configuration. Surfaces with data are shown below.`}
         </div>
       ) : null}
 

@@ -1,13 +1,39 @@
-import { AlertTriangle, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Play, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatInteger, formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson } from '../lib/use-dashboard-data';
+import { getAdminAuthHeaders } from '../lib/admin-auth';
+import { getProxyUrl } from '../lib/api';
 
 export default function Firewall() {
   const [stats, setStats] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [scanText, setScanText] = useState('');
+  const [scanResult, setScanResult] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState(null);
+
+  const handleScan = async () => {
+    if (!scanText.trim()) return;
+    setScanning(true);
+    setScanResult(null);
+    setScanError(null);
+    try {
+      const response = await fetch(getProxyUrl('/firewall/scan'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ text: scanText }),
+      });
+      if (!response.ok) throw new Error(`Scan returned ${response.status}`);
+      setScanResult(await response.json());
+    } catch (e) {
+      setScanError(e.message || String(e));
+    } finally {
+      setScanning(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -61,8 +87,12 @@ export default function Firewall() {
         <MetricCard
           icon={<ShieldAlert size={18} />}
           label="Blocks"
-          value={loading ? '—' : formatInteger(stats?.blocks)}
-          note={`${formatInteger(stats?.blocks_today)} in the last 24h`}
+          value={loading ? '—' : stats?.blocks == null ? '—' : formatInteger(stats?.blocks)}
+          note={
+            stats?.telemetry_available
+              ? `${formatInteger(stats?.blocks_today)} in the last 24h`
+              : 'Block counters not yet tracked by the runtime'
+          }
         />
         <MetricCard
           icon={<ShieldCheck size={18} />}
@@ -130,9 +160,119 @@ export default function Firewall() {
             </div>
           </div>
           <div className="stack-list">
-            <StatusBullet title="Pattern inventory" detail="Tracks loaded signatures and active scanning posture." />
-            <StatusBullet title="Audit trail" detail="Surfaces recent firewall actions through the audit event tape." />
-            <StatusBullet title="Policy controls" detail="Environment-driven configuration remains the source of truth." />
+            <StatusBullet
+              title="Prompt injection"
+              detail={`Detection: ${stats?.config?.block_injection ? 'enabled' : 'disabled'}. Intercepts attempts to override system instructions.`}
+            />
+            <StatusBullet
+              title="Jailbreak detection"
+              detail={`Detection: ${stats?.config?.block_jailbreak ? 'enabled' : 'disabled'}. Catches common restriction-bypass patterns.`}
+            />
+            <StatusBullet
+              title="PII redaction"
+              detail={`Redaction: ${stats?.config?.block_pii ? 'enabled' : 'disabled'}. Strips emails, SSNs, and credit card numbers in-flight.`}
+            />
+            <StatusBullet
+              title="Policy controls"
+              detail={`Custom patterns: ${formatInteger(stats?.config?.custom_patterns || 0)} · Allowed domains: ${formatInteger(stats?.config?.allowed_domains || 0)}`}
+            />
+          </div>
+        </aside>
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="panel panel-wide">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Live scanner</div>
+              <h2>Test text against firewall rules</h2>
+            </div>
+            <p>Paste any prompt or message to check for violations before it reaches the model.</p>
+          </div>
+
+          {stats && !stats.enabled && (
+            <div className="alert-card" role="status">
+              Firewall is not initialized on this proxy. Enable it by setting <code>CUTCTX_FIREWALL=1</code> and restarting.
+            </div>
+          )}
+
+          {scanError && <div className="alert-card" role="alert">{scanError}</div>}
+
+          <label className="field">
+            <span>Text to scan</span>
+            <textarea
+              value={scanText}
+              onChange={(e) => setScanText(e.target.value)}
+              rows={5}
+              placeholder="Paste a prompt, tool output, or user message to check for injections, jailbreaks, or PII."
+            />
+          </label>
+
+          <div className="playground-actions">
+            <button
+              className="primary-button"
+              onClick={handleScan}
+              disabled={scanning || !scanText.trim()}
+              type="button"
+            >
+              <Play size={16} />
+              {scanning ? 'Scanning…' : 'Scan text'}
+            </button>
+          </div>
+
+          {scanResult && (
+            <div className="table-shell" style={{ marginTop: '1rem' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kind</th>
+                    <th>Confidence</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scanResult.violations.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="empty-row">No violations detected.</td>
+                    </tr>
+                  ) : (
+                    scanResult.violations.map((v, i) => (
+                      <tr key={i}>
+                        <td><span className="transform-chip">{v.kind}</span></td>
+                        <td>{Math.round(v.confidence * 100)}%</td>
+                        <td>{v.description}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: scanResult.block ? '#f87171' : '#6ee7b7' }}>
+                {scanResult.block ? 'This request would be blocked.' : 'This request would be allowed.'}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <aside className="panel panel-side">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Configuration</div>
+              <h2>Active rule sets</h2>
+            </div>
+          </div>
+          <div className="stack-list">
+            <StatusBullet
+              title={`Patterns loaded: ${stats ? formatInteger(stats.patterns_loaded) : '—'}`}
+              detail="Total injection, jailbreak, PII, and custom signatures active."
+            />
+            <StatusBullet
+              title="Streaming redaction"
+              detail={stats?.config?.redact_streaming ? 'Enabled — PII stripped from streaming responses.' : 'Disabled.'}
+            />
+            <StatusBullet
+              title="Exfil patterns"
+              detail="Always-on data-exfiltration detection regardless of tier."
+            />
           </div>
         </aside>
       </div>

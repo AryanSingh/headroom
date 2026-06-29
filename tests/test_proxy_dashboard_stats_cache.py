@@ -411,6 +411,10 @@ def test_session_summary_uses_generic_cli_filtering_keys() -> None:
     assert payload["compression"]["total_tokens_saved_with_cli_filtering"] == 27
     assert payload["compression"]["total_tokens_before_with_cli_filtering"] == 100
     assert payload["compression"]["rtk_tokens_avoided"] == 7
+    assert payload["cost"]["total_saved_usd"] == 0.7
+    assert payload["cost"]["without_cutctx_usd"] == 2.7
+    assert payload["cost"]["with_cutctx_usd"] == 2.0
+    assert payload["cost"]["savings_pct"] == pytest.approx(25.9)
     assert payload["cost"]["breakdown"]["cli_filtering_savings_usd"] is None
     assert payload["cost"]["breakdown"]["rtk_savings_usd"] is None
 
@@ -487,3 +491,58 @@ def test_dashboard_uses_cached_stats_and_lazy_history_feed_polling() -> None:
     assert "Lean-ctx" in html
     assert "Context Tool" in html
     assert "cliFilteringLabel + ' Filtered'" in html
+
+
+def test_stats_surface_optional_feature_availability(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    import cutctx.proxy.server as server
+    from cutctx.proxy.server import ProxyConfig, create_app
+
+    monkeypatch.setattr(
+        server,
+        "get_compression_store",
+        lambda **kwargs: _StatsStub({"store": 0}, "store", {}),
+    )
+    monkeypatch.setattr(
+        server,
+        "get_telemetry_collector",
+        lambda **kwargs: _StatsStub({"telemetry": 0}, "telemetry", {}),
+    )
+    monkeypatch.setattr(
+        server,
+        "get_compression_feedback",
+        lambda **kwargs: _StatsStub({"feedback": 0}, "feedback", {}),
+    )
+    monkeypatch.setattr(server, "_get_context_tool_stats", lambda: None)
+    monkeypatch.setattr(server, "get_toin", lambda: _ToinStub())
+
+    app = create_app(
+        ProxyConfig(
+            optimize=False,
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+            log_requests=False,
+            ccr_inject_tool=False,
+            ccr_handle_responses=False,
+            ccr_context_tracking=False,
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/stats")
+
+    payload = response.json()
+    assert response.status_code == 200
+    features = payload["feature_availability"]
+    assert set(features.keys()) == {
+        "knowledge_graph",
+        "drain3",
+        "difftastic",
+        "llmlingua",
+        "multimodal_image",
+    }
+    assert "available" in features["knowledge_graph"]
+    assert "install_hint" in features["difftastic"]

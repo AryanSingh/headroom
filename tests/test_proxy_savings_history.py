@@ -73,6 +73,8 @@ def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatc
         "semantic_cache_savings_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "tool_schema_compaction_savings_usd": 0.0,
+        "api_surface_slimming_savings_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
         "delta_tokens_saved": 0,
@@ -81,6 +83,8 @@ def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatc
         "delta_semantic_cache_usd": 0.0,
         "delta_self_hosted_prefix_cache_usd": 0.0,
         "delta_model_routing_usd": 0.0,
+        "delta_tool_schema_compaction_usd": 0.0,
+        "delta_api_surface_slimming_usd": 0.0,
         "savings_by_source_tokens": {},
         "savings_by_source_usd": {},
     }
@@ -144,6 +148,8 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "semantic_cache_savings_usd": 0.0,
             "self_hosted_prefix_cache_savings_usd": 0.0,
             "model_routing_savings_usd": 0.0,
+            "tool_schema_compaction_savings_usd": 0.0,
+            "api_surface_slimming_savings_usd": 0.0,
             "total_input_tokens": 0,
             "total_input_cost_usd": 0.0,
             "delta_tokens_saved": 0,
@@ -152,6 +158,8 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "delta_semantic_cache_usd": 0.0,
             "delta_self_hosted_prefix_cache_usd": 0.0,
             "delta_model_routing_usd": 0.0,
+            "delta_tool_schema_compaction_usd": 0.0,
+            "delta_api_surface_slimming_usd": 0.0,
             "savings_by_source_tokens": {},
             "savings_by_source_usd": {},
         }
@@ -375,8 +383,12 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "semantic_cache_savings_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "tool_schema_compaction_savings_usd": 0.0,
+        "api_surface_slimming_savings_usd": 0.0,
         "total_input_tokens": 200,
         "total_input_cost_usd": pytest.approx(0.2),
+        "scaffolding_tokens": 0,
+        "ghost_tokens": 0,
         "savings_percent": pytest.approx(9.09),
         "started_at": "2026-03-27T09:00:00Z",
         "last_activity_at": "2026-03-27T09:10:00Z",
@@ -411,8 +423,12 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "semantic_cache_savings_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "tool_schema_compaction_savings_usd": 0.0,
+        "api_surface_slimming_savings_usd": 0.0,
         "total_input_tokens": 50,
         "total_input_cost_usd": pytest.approx(0.05),
+        "scaffolding_tokens": 0,
+        "ghost_tokens": 0,
         "savings_percent": pytest.approx(9.09),
         "started_at": "2026-03-27T10:05:00Z",
         "last_activity_at": "2026-03-27T10:05:00Z",
@@ -969,20 +985,25 @@ def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):
         response = client.get("/dashboard")
         assert response.status_code == 200
         html = response.text
-        assert "Session" in html
-        assert "Historical" in html
-        assert "fetch('/stats-history')" in html
-        assert "Export CSV" in html
-        assert "Weekly Savings" in html
-        assert "Monthly Savings" in html
-        assert "Per-Model Breakdown" in html
-        assert "historyChartModeOptions" in html
-        assert "Expected cost (without Cutctx)" in html
-        assert "toggleHistoryModel" in html
-        # Checkpoint view plots no per-model lines, so an active model
-        # filter must not suppress the aggregate line there.
-        assert "if (this.historySelectedSeriesKey === 'history') return null;" in html
-        # Breakdown header labels the effective (substituted) series.
-        assert "historyModelSourceSeriesLabel + ' buckets'" in html
-        # Non-top-5 breakdown rows swap into the last chart slot when selected.
-        assert "topModels[topModels.length - 1] = selected;" in html
+        assert "<!doctype html>" in html.lower()
+        if 'id="root"' in html:
+            assert "/assets/index-" in html
+            assert "/assets/index-" in html
+        else:
+            assert "Session" in html
+            assert "Historical" in html
+            assert "fetch('/stats-history')" in html
+            assert "Export CSV" in html
+            assert "Weekly Savings" in html
+            assert "Monthly Savings" in html
+            assert "Per-Model Breakdown" in html
+            assert "historyChartModeOptions" in html
+            assert "Expected cost (without Cutctx)" in html
+            assert "toggleHistoryModel" in html
+            # Checkpoint view plots no per-model lines, so an active model
+            # filter must not suppress the aggregate line there.
+            assert "if (this.historySelectedSeriesKey === 'history') return null;" in html
+            # Breakdown header labels the effective (substituted) series.
+            assert "historyModelSourceSeriesLabel + ' buckets'" in html
+            # Non-top-5 breakdown rows swap into the last chart slot when selected.
+            assert "topModels[topModels.length - 1] = selected;" in html

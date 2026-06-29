@@ -35,10 +35,24 @@ export const capabilityGroups = [
     title: 'Governance & Operations',
     description: 'Controls, security, and reporting surfaces operators care about.',
     items: [
-      { name: 'Firewall', detail: 'Prompt injection, jailbreak, and PII-aware request interception.' },
-      { name: 'Rate Limiting', detail: 'Request and token-based throttling with active-key tracking.' },
-      { name: 'Audit & Telemetry', detail: 'Savings attribution, recent requests, audit events, and TOIN pattern tracking.' },
+      { name: 'Firewall', detail: 'Prompt injection, jailbreak, PII, and data-exfil detection. Enable via CUTCTX_FIREWALL=1.' },
+      { name: 'Rate Limiting', detail: 'Per-key token and request throttling. Active keys tracked live on the Governance page.' },
+      { name: 'Audit & Telemetry', detail: 'Tamper-evident audit log with action counts, recent events, and hash-chain verification.' },
+      { name: 'RBAC', detail: 'Role-based access control with admin, operator, and viewer tiers. Assignable per user ID.' },
+      { name: 'Retention Controls', detail: 'Data lifecycle management and automated retention cleanup with configurable windows.' },
       { name: 'Observability', detail: 'Pipeline timing, waste signals, Codex websocket metrics, and display-session history.' },
+    ],
+  },
+  {
+    title: 'Provider & Protocol Coverage',
+    description: 'APIs and transport formats the proxy speaks natively.',
+    items: [
+      { name: 'OpenAI-compatible API', detail: 'Full /v1/chat/completions compatibility — drop-in for any OpenAI client.' },
+      { name: 'Anthropic Messages API', detail: 'Native /v1/messages support for Claude clients with content-block handling.' },
+      { name: 'Responses API / Codex', detail: 'WebSocket streaming aliases for OpenAI Codex and Responses API traffic.' },
+      { name: 'Google Gemini', detail: 'Gemini model routing with automatic token budget translation.' },
+      { name: 'Streaming (SSE)', detail: 'Server-Sent Events passthrough with in-flight compression and PII redaction.' },
+      { name: 'Structured Output', detail: 'JSON schema validation and retry loop for reliable structured completions.' },
     ],
   },
 ];

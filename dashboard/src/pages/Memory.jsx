@@ -18,7 +18,7 @@ export default function Memory() {
         try {
           data = await fetchDashboardJson('/v1/memory/query?limit=20');
         } catch (fetchErr) {
-          if (fetchErr.message && fetchErr.message.includes('404')) {
+          if (fetchErr.message && (fetchErr.message.includes('404') || fetchErr.message.includes('501') || fetchErr.message.includes('503'))) {
             data = [];
           } else {
             throw fetchErr;

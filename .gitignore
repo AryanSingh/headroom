@@ -271,3 +271,9 @@ uv.lock
 /cutctx/_core.so
 *.whl
 *.tar.gz
+
+# Temporary working files
+/scratch/
+fix_summary.md
+patch_*.py
+

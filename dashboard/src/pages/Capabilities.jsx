@@ -1,4 +1,4 @@
-import { Boxes, BrainCircuit, Cable, Lock, ServerCog, Sparkles } from 'lucide-react';
+import { Boxes, BrainCircuit, Cable, CheckCircle2, Lock, MinusCircle, ServerCog, Sparkles } from 'lucide-react';
 import { capabilityGroups } from '../data/capabilities';
 import { formatCurrency, formatInteger, formatPercent, titleize } from '../lib/format';
 import { useDashboardData } from '../lib/use-dashboard-data';
@@ -10,8 +10,18 @@ const icons = {
   'Governance & Operations': Lock,
 };
 
+function liveStatus(value) {
+  const nonzero = value != null && value !== 0 && value !== '0' && value !== 'none' && value !== 'None';
+  return nonzero
+    ? <span className="status-active"><CheckCircle2 size={13} /> Active</span>
+    : <span className="status-inactive"><MinusCircle size={13} /> Idle</span>;
+}
+
 export default function Capabilities() {
   const { stats, loading, error } = useDashboardData();
+  const providerCacheSavingsUsd =
+    Number(stats?.savings_by_source?.usd?.provider_prompt_cache || 0)
+    || Number(stats?.summary?.cost?.breakdown?.cache_savings_usd || 0);
 
   const liveSurfaces = [
     {
@@ -22,7 +32,7 @@ export default function Capabilities() {
     {
       label: 'Provider cache',
       value: formatInteger(stats?.savings_by_source?.tokens?.provider_prompt_cache),
-      detail: `${formatCurrency(stats?.savings_by_source?.usd?.provider_prompt_cache)} saved`,
+      detail: `${formatCurrency(providerCacheSavingsUsd)} saved`,
     },
     {
       label: 'Codex websocket',
@@ -43,6 +53,19 @@ export default function Capabilities() {
       label: 'Rate limiter',
       value: formatInteger(stats?.rate_limiter?.active_keys),
       detail: `${formatInteger(stats?.rate_limiter?.tokens_per_minute)} tokens / min`,
+      status: stats?.rate_limiter?.active_keys,
+    },
+    {
+      label: 'Memory backend',
+      value: titleize(stats?.memory?.backend || 'none'),
+      detail: `${formatInteger(stats?.memory?.total_entries)} entries stored`,
+      status: stats?.memory?.backend && stats.memory.backend !== 'none' ? 1 : 0,
+    },
+    {
+      label: 'Semantic cache',
+      value: formatInteger(stats?.semantic_cache?.hits),
+      detail: `${formatInteger(stats?.semantic_cache?.misses)} misses`,
+      status: stats?.semantic_cache?.hits,
     },
   ];
 
@@ -64,7 +87,10 @@ export default function Capabilities() {
         <div className="metric-grid metric-grid-three" aria-busy={loading}>
           {liveSurfaces.map((surface) => (
             <article key={surface.label} className="metric-card metric-card-compact">
-              <div className="metric-label">{surface.label}</div>
+              <div className="metric-header">
+                <span className="metric-label">{surface.label}</span>
+                {!loading && 'status' in surface && liveStatus(surface.status)}
+              </div>
               <div className="metric-value">{loading ? '—' : surface.value}</div>
               <div className="metric-footnote">{surface.detail}</div>
             </article>

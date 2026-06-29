@@ -122,7 +122,7 @@ function generateDemoImageDataUrl() {
 export default function Playground() {
   const [adminKey, setAdminKey] = useState(() => readStoredAdminKey());
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState('gpt-4o');
+  const [model, setModel] = useState('claude-sonnet-4-6');
   const [imageDataUrl, setImageDataUrl] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -244,9 +244,20 @@ export default function Playground() {
             <label className="field">
               <span>Model</span>
               <select value={model} onChange={(event) => setModel(event.target.value)}>
-                <option value="gpt-4o">gpt-4o</option>
-                <option value="gpt-5.4">gpt-5.4</option>
-                <option value="gpt-5.4-mini">gpt-5.4-mini</option>
+                <optgroup label="Anthropic">
+                  <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+                  <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+                  <option value="claude-opus-4-8">claude-opus-4-8</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4o">gpt-4o</option>
+                  <option value="gpt-5.4">gpt-5.4</option>
+                  <option value="gpt-5.4-mini">gpt-5.4-mini</option>
+                </optgroup>
+                <optgroup label="Google">
+                  <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                </optgroup>
               </select>
             </label>
 
