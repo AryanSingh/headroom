@@ -526,7 +526,7 @@ def create_admin_router(
                 chain_ok = chain_store.verify_chain(tenant_id or "default")
                 chain_result = {"ok": chain_ok}
         except Exception as exc:  # noqa: BLE001
-            chain_result = {"ok": False, "error": str(exc)}
+            chain_result = {"ok": False, "error": "Health check failed"}
         if not light.get("ok", False):
             raise HTTPException(
                 status_code=500,
@@ -1484,7 +1484,7 @@ def create_admin_router(
                 "strict_mode": cfg.strict_mode,
             }
         except Exception as exc:
-            return {"enabled": False, "error": str(exc)}
+            return {"enabled": False, "error": "Unable to check structured output support"}
 
     @router.post(
         "/structured-output/validate",
@@ -1526,7 +1526,7 @@ def create_admin_router(
                 "timeout_seconds": cfg.timeout_seconds,
             }
         except Exception as exc:
-            return {"enabled": False, "error": str(exc)}
+            return {"enabled": False, "error": "Unable to validate structured output"}
 
     # ── Budget ────────────────────────────────────────────────────────
 
@@ -1623,7 +1623,104 @@ def create_admin_router(
                 "description": "Pre-task cost estimation and policy-driven compression",
             }
         except Exception as exc:
-            return {"enabled": False, "error": str(exc)}
+            return {"enabled": False, "error": "Unable to retrieve policy status"}
+
+    # ── Runtime feature flag toggle API ──────────────────────────────────────
+    # These flags are stored in the intelligence_pipeline module's _RUNTIME_FLAGS
+    # dict and are read per-request, allowing live toggling without proxy restart.
+    # Startup-time features (cache, rate_limiter, firewall) still require restart.
+
+    _LIVE_TOGGLE_KEYS = {
+        "task_aware_enabled",
+        "dedup_enabled",
+        "context_budget_enabled",
+        "profiles_enabled",
+    }
+    _RESTART_REQUIRED_KEYS = {
+        "cache_enabled",
+        "rate_limit_enabled",
+        "firewall_enabled",
+        "text_compression_engine_enabled",
+        "log_template_mining_enabled",
+    }
+
+    @router.get(
+        "/config/flags",
+        dependencies=[_Dep(require_admin_auth)],
+    )
+    async def get_config_flags():
+        """Return current feature flag states (config defaults + runtime overrides)."""
+        from cutctx.proxy.intelligence_pipeline import get_all_runtime_flags
+        runtime = get_all_runtime_flags()
+
+        def _state(key: str) -> dict:
+            config_val = bool(getattr(_config, key, False))
+            if key in runtime:
+                return {"enabled": bool(runtime[key]), "source": "runtime", "config_default": config_val}
+            return {"enabled": config_val, "source": "config", "config_default": config_val}
+
+        return {
+            "live_toggleable": {k: _state(k) for k in _LIVE_TOGGLE_KEYS},
+            "restart_required": {k: _state(k) for k in _RESTART_REQUIRED_KEYS},
+            "runtime_overrides": runtime,
+        }
+
+    @router.post(
+        "/config/flags",
+        dependencies=[_Dep(require_admin_auth)],
+    )
+    async def set_config_flags(body: dict):
+        """
+        Toggle feature flags at runtime.
+
+        Live-toggleable (take effect on next request):
+          task_aware_enabled, dedup_enabled, context_budget_enabled, profiles_enabled
+
+        Restart-required (flag is saved but proxy must restart to apply):
+          cache_enabled, rate_limit_enabled, firewall_enabled, text_compression_engine_enabled, log_template_mining_enabled
+        """
+        from cutctx.proxy.intelligence_pipeline import set_runtime_flag, clear_runtime_flag
+        applied_live = {}
+        needs_restart = {}
+        unknown = {}
+
+        # Map user-facing flag names to internal config attribute names
+        flag_name_to_attr = {
+            "text_compression_engine_enabled": "use_llmlingua",
+            "log_template_mining_enabled": "drain3_enabled",
+        }
+
+        for key, value in body.items():
+            # Resolve the actual config attribute name
+            attr_name = flag_name_to_attr.get(key, key)
+
+            if key in _LIVE_TOGGLE_KEYS:
+                if value is None:
+                    clear_runtime_flag(key)
+                    applied_live[key] = {"cleared": True}
+                else:
+                    set_runtime_flag(key, bool(value))
+                    applied_live[key] = {"enabled": bool(value)}
+            elif key in _RESTART_REQUIRED_KEYS:
+                needs_restart[key] = {
+                    "requested": bool(value),
+                    "current": bool(getattr(_config, attr_name, False)),
+                    "env_var": {
+                        "cache_enabled": "CUTCTX_CACHE_ENABLED",
+                        "rate_limit_enabled": "CUTCTX_RATE_LIMIT_ENABLED",
+                        "firewall_enabled": "CUTCTX_FIREWALL_ENABLED",
+                        "text_compression_engine_enabled": "CUTCTX_TEXT_COMPRESSION_ENABLED",
+                        "log_template_mining_enabled": "CUTCTX_LOG_TEMPLATE_MINING_ENABLED",
+                    }.get(key, key.upper()),
+                }
+            else:
+                unknown[key] = "unknown flag"
+
+        return {
+            "applied_live": applied_live,
+            "restart_required": needs_restart,
+            "unknown": unknown,
+        }
 
     @router.get(
         "/policy/status",
@@ -1664,7 +1761,7 @@ def create_admin_router(
                 ),
             }
         except Exception as exc:
-            return {"resolver_disabled": True, "error": str(exc)}
+            return {"resolver_disabled": True, "error": "Unable to validate savings profile"}
 
     # ── Subscription / Quota / Metrics ────────────────────────────────
 

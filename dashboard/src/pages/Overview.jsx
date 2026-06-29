@@ -70,19 +70,45 @@ function buildSourceRows(stats) {
   const sourceTokens = stats?.savings_by_source?.tokens || {};
   const sourceUsd = stats?.savings_by_source?.usd || {};
   const costBreakdown = stats?.summary?.cost?.breakdown || {};
+  const sessionTokens = stats?.tokens || {};
+  const prefixTotals = stats?.prefix_cache?.totals || {};
+
+  // savings_by_source is file-backed (lifetime). Session counters track the
+  // same signals in-memory for the active run. Always take the higher of the
+  // two so the attribution bars reflect both fresh sessions and prior history.
+  const sessionCompression = Number(sessionTokens.proxy_compression_saved || 0);
+  const sessionSchemaCompaction = Number(sessionTokens.schema_compaction_saved || 0);
+  const sessionCacheRead = Number(prefixTotals.cache_read_tokens || 0);
+  const sessionCliFiltering = Number(sessionTokens.cli_filtering_saved || 0);
 
   return [
     {
       key: 'cutctx_compression',
       label: 'Direct compression',
-      tokens: Number(sourceTokens.cutctx_compression || 0),
+      tokens: Math.max(Number(sourceTokens.cutctx_compression || 0), sessionCompression),
       usd: Number(sourceUsd.cutctx_compression || costBreakdown.compression_savings_usd || 0),
+      session: sessionCompression,
     },
     {
       key: 'tool_schema_compaction',
       label: 'Tool schema compaction',
-      tokens: Number(sourceTokens.tool_schema_compaction || 0),
+      tokens: Math.max(Number(sourceTokens.tool_schema_compaction || 0), sessionSchemaCompaction),
       usd: Number(sourceUsd.tool_schema_compaction || 0),
+      session: sessionSchemaCompaction,
+    },
+    {
+      key: 'provider_prompt_cache',
+      label: 'Provider prompt cache',
+      tokens: Math.max(Number(sourceTokens.provider_prompt_cache || 0), sessionCacheRead),
+      usd: Number(sourceUsd.provider_prompt_cache || costBreakdown.cache_savings_usd || 0),
+      session: sessionCacheRead,
+    },
+    {
+      key: 'cli_filtering',
+      label: 'CLI output filtering',
+      tokens: Math.max(Number(sourceTokens.cli_filtering || 0), sessionCliFiltering),
+      usd: 0,
+      session: sessionCliFiltering,
     },
     {
       key: 'api_surface_slimming',
@@ -91,22 +117,10 @@ function buildSourceRows(stats) {
       usd: Number(sourceUsd.api_surface_slimming || 0),
     },
     {
-      key: 'provider_prompt_cache',
-      label: 'Provider prompt cache',
-      tokens: Number(sourceTokens.provider_prompt_cache || 0),
-      usd: Number(sourceUsd.provider_prompt_cache || costBreakdown.cache_savings_usd || 0),
-    },
-    {
       key: 'semantic_cache',
       label: 'Semantic cache',
       tokens: Number(sourceTokens.semantic_cache || 0),
       usd: Number(sourceUsd.semantic_cache || 0),
-    },
-    {
-      key: 'prefix_cache_self_hosted',
-      label: 'Self-hosted prefix cache',
-      tokens: Number(sourceTokens.prefix_cache_self_hosted || 0),
-      usd: Number(sourceUsd.prefix_cache_self_hosted || 0),
     },
     {
       key: 'model_routing',
@@ -822,24 +836,33 @@ function DiagnosticsPanel({ prefixCache }) {
   );
 }
 
-const FEATURE_LABELS = {
-  knowledge_graph: 'Knowledge Graph',
-  drain3: 'Log ML (Drain3)',
-  difftastic: 'Difftastic (structural diff)',
-  llmlingua: 'LLMLingua-2',
-  multimodal_image: 'Image / OCR',
-  smart_crusher: 'SmartCrusher (Rust)',
-  kompress: 'Kompress ONNX',
-  html_extractor: 'HTML Extractor',
-  voice_filler: 'Voice Filler',
-  code_ast: 'Code AST',
-  audio: 'Audio (proxy)',
-};
+// Maps API feature-availability keys to user-facing display labels.
+// All keys use branded names — no underlying library names appear here.
+const STRATEGY_DISPLAY = new Map([
+  ['knowledge_graph', 'Knowledge Graph'],
+  ['log_template_mining', 'Log pattern analysis'],
+  ['structural_diff_engine', 'Structural diff'],
+  ['text_compression_engine', 'Semantic text compression'],
+  ['multimodal_image', 'Image / OCR'],
+  ['smart_crusher', 'SmartCrusher'],
+  ['kompress', 'ML compression'],
+  ['html_extractor', 'HTML Extractor'],
+  ['voice_filler', 'Voice Filler'],
+  ['code_ast', 'Code AST'],
+  ['audio', 'Audio (proxy)'],
+]);
+
+function getStrategyLabel(key) {
+  return STRATEGY_DISPLAY.get(key) || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function FeatureAvailabilityPanel({ featureAvailability }) {
   if (!featureAvailability || Object.keys(featureAvailability).length === 0) return null;
   const entries = Object.entries(featureAvailability);
-  const availableCount = entries.filter(([, v]) => v?.available).length;
+  const availableCount = entries.filter(
+    ([, value]) => value?.available && value?.compression !== 'pass-through',
+  ).length;
+  const passthroughCount = entries.filter(([, value]) => value?.compression === 'pass-through').length;
   return (
     <section className="panel panel-compact">
       <div className="section-heading">
@@ -848,7 +871,9 @@ function FeatureAvailabilityPanel({ featureAvailability }) {
           <h2>Feature availability</h2>
           <p>Which optional Python extras and binaries are installed and active in this runtime.</p>
         </div>
-        <span className="stat-badge">{availableCount} / {entries.length} available</span>
+        <span className="stat-badge">
+          {availableCount} available{passthroughCount > 0 ? ` · ${passthroughCount} pass-through` : ''}
+        </span>
       </div>
       <div className="graphify-kv-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
         {entries.map(([key, val]) => {
@@ -858,7 +883,7 @@ function FeatureAvailabilityPanel({ featureAvailability }) {
           const pillLabel = isAudio ? 'pass-through' : available ? 'available' : 'missing';
           return (
             <div key={key} className="graphify-kv" title={val?.install_hint || val?.reason || ''}>
-              <span>{FEATURE_LABELS[key] || key}</span>
+              <span>{getStrategyLabel(key)}</span>
               <strong><span className={pillClass}>{pillLabel}</span></strong>
             </div>
           );
@@ -1227,56 +1252,62 @@ export default function Overview() {
             <div className="table-shell">
               <table className="request-table">
                 <thead>
-<tr>
-<th>Model</th>
-<th>Tokens</th>
-<th>Total saved</th>
-<th>Direct</th>
-<th>Scaffold</th>
-<th>Ghost</th>
-<th>When</th>
-</tr>
+                  <tr>
+                    <th>Model</th>
+                    <th>Input</th>
+                    <th>Saved</th>
+                    <th>Proxy</th>
+                    <th>Cache</th>
+                    <th>When</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {recentRequests.map((request, index) => (
-                    <tr
-                      key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
-                    >
-                      <td className="model-name" title={request.model || '—'}>
-                        {request.model || '—'}
-                      </td>
-                      <td>{formatMaybeInteger(request.input_tokens_original)}</td>
-                      <td className="savings-value">
-                        <div className="request-savings-stack">
-                          <span>{formatInteger(getRequestTotalSaved(request))}</span>
-                          <span className="request-savings-percent">
-                            {formatMaybePercent(
-                              request.synthetic ? null : getRequestTotalSavingsPercent(request),
-                            )}
-                          </span>
-                        </div>
-                      </td>
-<td>
-<div className="request-savings-stack request-savings-stack-muted">
-<span>{formatMaybeInteger(getRequestDirectSaved(request))}</span>
-<span className="request-savings-percent">
-{formatMaybePercent(request.savings_percent)}
-</span>
-</div>
-</td>
-<td>{formatMaybeInteger(getRequestScaffoldingTokens(request))}</td>
-<td>{formatMaybeInteger(getRequestGhostTokens(request))}</td>
-<td>{formatRelativeTime(request.timestamp)}</td>
-                    </tr>
-                  ))}
+                  {recentRequests.map((request, index) => {
+                    const indirect = getRequestIndirectSaved(request);
+                    const inputTokens = request.input_tokens_original;
+                    // Cap displayed savings at input size — provider cache credits
+                    // can accumulate across turns and exceed the per-request input count.
+                    const rawSaved = getRequestTotalSaved(request);
+                    const displaySaved = inputTokens != null
+                      ? Math.min(rawSaved, inputTokens)
+                      : rawSaved;
+                    return (
+                      <tr
+                        key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
+                      >
+                        <td className="model-name" title={request.model || '—'}>
+                          {request.model || '—'}
+                        </td>
+                        <td>{formatMaybeInteger(inputTokens)}</td>
+                        <td className="savings-value">
+                          <div className="request-savings-stack">
+                            <span>{formatInteger(displaySaved)}</span>
+                            <span className="request-savings-percent">
+                              {formatMaybePercent(
+                                request.synthetic ? null : getRequestTotalSavingsPercent(request),
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="request-savings-stack request-savings-stack-muted">
+                            <span>{formatMaybeInteger(getRequestDirectSaved(request))}</span>
+                            <span className="request-savings-percent">
+                              {formatMaybePercent(request.savings_percent)}
+                            </span>
+                          </div>
+                        </td>
+                        <td>{indirect > 0 ? formatInteger(indirect) : '—'}</td>
+                        <td>{formatRelativeTime(request.timestamp)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-                <div className="request-table-note">
-                  Total saved includes direct compression plus cache-backed savings when available.
-                  Direct column isolates what Cutctx compressed itself. Scaffold and Ghost
-                  columns show oversized tool-manifest footprint and residual overhead.
-                  Synthetic history rows leave unknown fields blank instead of implying zero.
-                </div>
+              <div className="request-table-note">
+                Saved = proxy compression + cache combined.
+                Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings.
+              </div>
             </div>
           )}
 

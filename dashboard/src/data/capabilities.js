@@ -15,9 +15,9 @@ export const capabilityGroups = [
     items: [
       { name: 'SmartCrusher', detail: 'Structured JSON and repetitive tool output compression.' },
       { name: 'CodeCompressor', detail: 'AST-aware source code reduction across Python, JS, Go, Rust, Java, and C++.' },
-      { name: 'Log & Diff Compression', detail: 'LogCompressor, Drain3, Difftastic, and structural diff paths.' },
+      { name: 'Log & Diff Compression', detail: 'Structural log pattern analysis, semantic diff compression, and multi-format optimization across 40+ log and diff formats.' },
       { name: 'Schema Compaction', detail: 'Tool schema metadata stripping for OpenAI / Codex tool-heavy payloads.' },
-      { name: 'Image & Audio Optimization', detail: 'Multimodal input shrinking for inline base64 images and audio.' },
+      { name: 'Image Optimization & Audio Pass-through', detail: 'Inline base64 images are compressed; audio routes are proxied unchanged for fidelity.' },
       { name: 'Cache Alignment', detail: 'Prefix stabilization to improve provider prompt-cache hit rates.' },
     ],
   },
@@ -41,6 +41,16 @@ export const capabilityGroups = [
       { name: 'RBAC', detail: 'Role-based access control with admin, operator, and viewer tiers. Assignable per user ID.' },
       { name: 'Retention Controls', detail: 'Data lifecycle management and automated retention cleanup with configurable windows.' },
       { name: 'Observability', detail: 'Pipeline timing, waste signals, Codex websocket metrics, and display-session history.' },
+    ],
+  },
+  {
+    title: 'Intelligence Layer',
+    description: 'Advanced compression intelligence modules. Each is independently toggleable via environment variable.',
+    items: [
+      { name: 'Task-aware compression', detail: 'Modulates compression depth by relevance to the active task. Critical context is protected; background material is aggressively reduced. Enable: CUTCTX_TASK_AWARE_ENABLED=1' },
+      { name: 'Semantic deduplication', detail: 'Detects and collapses repeated content across messages using reversible CCR pointers. Enable: CUTCTX_DEDUP_ENABLED=1' },
+      { name: 'Context budget controller', detail: 'Progressively increases compression as the context window fills — prevents silent truncation and cost spikes. Enable: CUTCTX_CONTEXT_BUDGET_ENABLED=1' },
+      { name: 'Compression profiles', detail: 'Learns per-workspace compression patterns across sessions for improved accuracy over time. Enable: CUTCTX_PROFILES_ENABLED=1' },
     ],
   },
   {

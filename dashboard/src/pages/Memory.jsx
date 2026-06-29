@@ -1,4 +1,4 @@
-import { BrainCircuit, History, NotebookTabs, ScanSearch } from 'lucide-react';
+import { BrainCircuit, History, Lock, NotebookTabs, ScanSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { formatInteger, formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson, useDashboardData } from '../lib/use-dashboard-data';
@@ -53,25 +53,16 @@ export default function Memory() {
   const corrections = useMemo(() => items.filter((item) => item.correction), [items]);
   const insights = useMemo(() => items.filter((item) => !item.correction), [items]);
   const contextTool = stats?.context_tool?.stats || {};
+  const memoryEnabled = stats?.config?.memory;
+  const memoryIsEE = !loading && items.length === 0 && !error && !memoryEnabled;
 
   return (
     <section className="page-stack">
 
       {error && <div className="alert-card" role="alert">Failed to load memory data: {error}</div>}
 
+      {/* Context-tool stats — always available */}
       <div className="metric-grid metric-grid-four" aria-busy={loading}>
-        <MetricCard
-          icon={<BrainCircuit size={18} />}
-          label="Insights"
-          value={loading ? '—' : formatInteger(insights.length)}
-          note="Semantic facts stored in memory"
-        />
-        <MetricCard
-          icon={<NotebookTabs size={18} />}
-          label="Corrections"
-          value={loading ? '—' : formatInteger(corrections.length)}
-          note="Corrective memory entries and learn signals"
-        />
         <MetricCard
           icon={<ScanSearch size={18} />}
           label="RTK commands"
@@ -88,64 +79,100 @@ export default function Memory() {
           }
           note="Context-tool session contribution"
         />
+        <MetricCard
+          icon={<BrainCircuit size={18} />}
+          label="Insights"
+          value={loading ? '—' : memoryIsEE ? '—' : formatInteger(insights.length)}
+          note="Semantic facts stored across sessions"
+        />
+        <MetricCard
+          icon={<NotebookTabs size={18} />}
+          label="Corrections"
+          value={loading ? '—' : memoryIsEE ? '—' : formatInteger(corrections.length)}
+          note="Learn signals and corrective entries"
+        />
       </div>
 
-      <div className="dashboard-grid" aria-busy={loading}>
-        <section className="panel panel-wide">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Recent memory rows</div>
-              <h2>Persisted memory entries</h2>
+      {/* Enterprise gate card */}
+      {memoryIsEE && (
+        <div className="panel ee-gate-panel">
+          <div className="ee-gate-icon"><Lock size={22} /></div>
+          <div className="ee-gate-body">
+            <div className="eyebrow">Enterprise feature</div>
+            <h2>Cross-agent memory</h2>
+            <p>
+              Persistent shared memory lets Claude, Codex, Gemini, and other agents
+              share knowledge across sessions — semantic search, learn signals, and
+              correction writing into AGENTS.md / CLAUDE.md. Contact sales to enable.
+            </p>
+            <div className="ee-gate-features">
+              <span>Semantic search across sessions</span>
+              <span>Correction write-back to agent config</span>
+              <span>Cross-agent knowledge sharing</span>
+              <span>Session mining and pattern learning</span>
             </div>
-            <p>Live memory records as exposed by the running proxy.</p>
           </div>
+        </div>
+      )}
 
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>Memory</th>
-                  <th>Source</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
+      {/* Memory table — shown when enabled */}
+      {!memoryIsEE && (
+        <div className="dashboard-grid" aria-busy={loading}>
+          <section className="panel panel-wide">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">Memory</div>
+                <h2>Persisted entries</h2>
+              </div>
+              <p>Live memory records from the running proxy.</p>
+            </div>
+            <div className="table-shell">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={3} className="empty-row">
-                      {loading ? 'Loading memories…' : 'No memories recorded yet.'}
-                    </td>
+                    <th>Memory</th>
+                    <th>Source</th>
+                    <th>Created</th>
                   </tr>
-                ) : (
-                  items.map((item, index) => (
-                    <tr key={item.id || index}>
-                      <td>{item.text || item.content || '—'}</td>
-                      <td>
-                        <span className="transform-chip">{item.source || 'unknown'}</span>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="empty-row">
+                        {loading ? 'Loading memories…' : 'No memories recorded yet.'}
                       </td>
-                      <td>{item.created_at ? formatRelativeTime(item.created_at) : '—'}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <aside className="panel panel-side">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Operational notes</div>
-              <h2>What users can do here</h2>
+                  ) : (
+                    items.map((item, index) => (
+                      <tr key={item.id || index}>
+                        <td>{item.text || item.content || '—'}</td>
+                        <td>
+                          <span className="transform-chip">{item.source || 'unknown'}</span>
+                        </td>
+                        <td>{item.created_at ? formatRelativeTime(item.created_at) : '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-          <div className="stack-list">
-            <StatusBullet title="Cross-agent memory" detail="Stored facts can be reused across future sessions." />
-            <StatusBullet title="Learn loop" detail="Corrections surface where Cutctx can steer future agent behavior." />
-            <StatusBullet title="Context tooling" detail="RTK and related tools are surfaced alongside memory activity." />
-          </div>
-        </aside>
-      </div>
+          </section>
+
+          <aside className="panel panel-side">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">How it works</div>
+                <h2>Memory system</h2>
+              </div>
+            </div>
+            <div className="stack-list">
+              <StatusBullet title="Cross-agent memory" detail="Stored facts reused across sessions by any connected agent." />
+              <StatusBullet title="Learn loop" detail="Corrections surface where the proxy can steer future agent behavior." />
+              <StatusBullet title="Context tooling" detail="RTK and related tools are tracked alongside memory activity." />
+            </div>
+          </aside>
+        </div>
+      )}
     </section>
   );
 }

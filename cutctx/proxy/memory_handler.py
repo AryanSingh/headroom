@@ -370,10 +370,10 @@ class MemoryHandler:
                 try:
                     import onnxruntime  # noqa: F401
                 except ImportError:
-                    # Fall back to sentence-transformers (requires torch)
+                    # Fall back to transformer embeddings (requires torch)
                     embedder_backend = "local"
                     logger.info(
-                        "Memory: onnxruntime not available, falling back to sentence-transformers"
+                        "Memory: ML inference runtime not available, falling back to transformer embeddings"
                     )
 
             backend_config = LocalBackendConfig(

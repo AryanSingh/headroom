@@ -32,6 +32,27 @@ from typing import Any
 
 logger = logging.getLogger("cutctx.intelligence")
 
+# ── Runtime flag store ────────────────────────────────────────────────────────
+# Module-level mutable dict. The /admin/config/flags endpoint writes here;
+# from_config() reads it per-request to allow live toggling without restart.
+_RUNTIME_FLAGS: dict[str, Any] = {}
+
+def set_runtime_flag(key: str, value: Any) -> None:
+    """Set a runtime override for an intelligence feature flag."""
+    _RUNTIME_FLAGS[key] = value
+
+def get_runtime_flag(key: str, default: Any = None) -> Any:
+    """Get a runtime flag value, returning default if not set."""
+    return _RUNTIME_FLAGS.get(key, default)
+
+def get_all_runtime_flags() -> dict[str, Any]:
+    """Return a copy of all current runtime flag overrides."""
+    return dict(_RUNTIME_FLAGS)
+
+def clear_runtime_flag(key: str) -> None:
+    """Remove a runtime override, reverting to config default."""
+    _RUNTIME_FLAGS.pop(key, None)
+
 
 @dataclass
 class PipelineContext:
@@ -116,16 +137,23 @@ class IntelligencePipeline:
 
     @classmethod
     def from_config(cls, config: Any) -> IntelligencePipeline:
-        """Create pipeline from ProxyConfig."""
+        """Create pipeline from ProxyConfig, with runtime flag overrides applied."""
+        def _flag(key: str, default: bool = False) -> bool:
+            # Runtime flags (set via /admin/config/flags) take precedence over
+            # the frozen ProxyConfig so features can be toggled without restart.
+            if key in _RUNTIME_FLAGS:
+                return bool(_RUNTIME_FLAGS[key])
+            return bool(getattr(config, key, default))
+
         return cls(
-            task_aware=getattr(config, "task_aware_enabled", False),
-            dedup=getattr(config, "dedup_enabled", False),
-            context_budget=getattr(config, "context_budget_enabled", False),
+            task_aware=_flag("task_aware_enabled"),
+            dedup=_flag("dedup_enabled"),
+            context_budget=_flag("context_budget_enabled"),
             context_budget_max_tokens=getattr(config, "context_budget_max_tokens", 100_000),
             context_budget_policy=getattr(config, "context_budget_policy", "balanced"),
-            profiles=getattr(config, "profiles_enabled", False),
-            shared_context=getattr(config, "shared_context_enabled", False),
-            cost_forecast=getattr(config, "cost_forecast_enabled", False),
+            profiles=_flag("profiles_enabled"),
+            shared_context=_flag("shared_context_enabled"),
+            cost_forecast=_flag("cost_forecast_enabled"),
             model=getattr(config, "default_model", "claude-3-5-sonnet-20241022"),
         )
 

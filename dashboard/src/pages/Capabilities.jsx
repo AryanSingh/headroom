@@ -56,16 +56,18 @@ export default function Capabilities() {
       status: stats?.rate_limiter?.active_keys,
     },
     {
-      label: 'Memory backend',
-      value: titleize(stats?.memory?.backend || 'none'),
-      detail: `${formatInteger(stats?.memory?.total_entries)} entries stored`,
-      status: stats?.memory?.backend && stats.memory.backend !== 'none' ? 1 : 0,
+      label: 'Semantic cache',
+      value: formatInteger(stats?.cache?.total_hits),
+      detail: `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.max_entries || 0)} max`,
+      // Cache is enabled by default; "0 hits" ≠ inactive — use entries as the running signal
+      status: stats?.config?.cache !== false ? (stats?.cache?.entries ?? 1) : 0,
     },
     {
-      label: 'Semantic cache',
-      value: formatInteger(stats?.semantic_cache?.hits),
-      detail: `${formatInteger(stats?.semantic_cache?.misses)} misses`,
-      status: stats?.semantic_cache?.hits,
+      label: 'CCR store',
+      value: formatInteger(stats?.compression?.ccr_entries),
+      detail: `${formatInteger(stats?.compression?.ccr_retrievals || 0)} retrievals`,
+      // CCR is always-on; any non-null response means it's running
+      status: stats?.compression != null ? 1 : 0,
     },
   ];
 

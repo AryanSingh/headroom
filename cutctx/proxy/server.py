@@ -905,13 +905,13 @@ class CutctxProxy(
                         status="unavailable",
                         reason="graphify_not_installed",
                     )
-                    logger.warning("Knowledge graph requested (--knowledge-graph) but graphifyy not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                    logger.warning("Knowledge graph engine requested (--knowledge-graph) but not installed. Install: pip install cutctx-ai[knowledge-graph]")
                 elif not networkx_available():
                     self.knowledge_graph_status.update(
                         status="unavailable",
                         reason="networkx_not_installed",
                     )
-                    logger.warning("Knowledge graph requested (--knowledge-graph) but networkx not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                    logger.warning("Graph utilities required for knowledge graph not installed. Install: pip install cutctx-ai[knowledge-graph]")
                 else:
                     indexer = GraphifyIndexer(
                         project_dir=Path.cwd(),
@@ -951,9 +951,9 @@ class CutctxProxy(
 
             difft_path = find_difftastic(config.difftastic_binary)
             if difft_path is None:
-                logger.warning("Difftastic enabled but difft binary not found. Diff compression will fall back to DiffCompressor.")
+                logger.warning("Structural diff engine enabled but binary not found. Diff compression will fall back to DiffCompressor.")
             else:
-                logger.info("Difftastic: difft resolved at %s", difft_path)
+                logger.info("Structural diff engine: binary resolved at %s", difft_path)
                 from cutctx.proxy.interceptors import base as interceptors_base
                 from cutctx.proxy.interceptors.difftastic_interceptor import DifftasticInterceptor
 
@@ -962,7 +962,7 @@ class CutctxProxy(
                     context_lines=config.difftastic_context_lines,
                 )
                 interceptors_base.register(interceptor)
-                logger.info("DifftasticInterceptor registered (context_lines=%d)", config.difftastic_context_lines)
+                logger.info("Structural diff engine interceptor registered (context_lines=%d)", config.difftastic_context_lines)
 
         self.pipeline_extensions.emit(
             PipelineStage.SETUP,
@@ -1249,7 +1249,7 @@ class CutctxProxy(
         if self._code_aware_status == "enabled":
             logger.info("Code-Aware: ENABLED (AST-based compression)")
             if "tree_sitter" in eager_status:
-                logger.info(f"Tree-Sitter: {eager_status['tree_sitter']}")
+                logger.info(f"Code parsing engine: {eager_status['tree_sitter']}")
         elif self._code_aware_status == "lazy":
             logger.info("Code-Aware: LAZY (will load when code content detected)")
         elif self._code_aware_status == "available":
@@ -1260,21 +1260,21 @@ class CutctxProxy(
             logger.info("Code-Aware: DISABLED")
 
         if eager_status.get("magika") == "enabled":
-            logger.info("Magika: ENABLED (ML content detection)")
+            logger.info("Content detection engine: ENABLED (ML-based)")
 
-        # Drain3 status is reported by ContentRouter.eager_load_compressors()
+        # Log template mining status is reported by ContentRouter.eager_load_compressors()
         # via the warmup registry. The eager loader handles both the
         # availability check and fallback logging at startup.
         if eager_status.get("drain3") == "ready":
             logger.info(
-                "Drain3 log template mining: ENABLED "
+                "Log template mining: ENABLED "
                 "(max_clusters=%d, sim_threshold=%.2f)",
                 self.config.drain3_max_clusters,
                 self.config.drain3_sim_threshold,
             )
         elif eager_status.get("drain3") == "unavailable":
             logger.warning(
-                "Drain3 log template mining: requested but drain3 package NOT installed. "
+                "Log template mining: requested but not installed. "
                 "Falling back to standard LogCompressor. "
                 "Install with: pip install cutctx-ai[log-ml]"
             )
@@ -2178,13 +2178,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "cache": config.cache_enabled,
                 "rate_limit": config.rate_limit_enabled,
                 "disable_kompress": config.disable_kompress,
-                "use_llmlingua": config.use_llmlingua,
+                "text_compression_engine_enabled": config.use_llmlingua,
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
                 "code_graph": config.code_graph_watcher,
-                "drain3": config.drain3_enabled,
-                "drain3_max_clusters": config.drain3_max_clusters if config.drain3_enabled else None,
-                "drain3_sim_threshold": config.drain3_sim_threshold if config.drain3_enabled else None,
+                "log_template_mining_enabled": config.drain3_enabled,
+                "log_template_mining_max_clusters": config.drain3_max_clusters if config.drain3_enabled else None,
+                "log_template_mining_similarity_threshold": config.drain3_sim_threshold if config.drain3_enabled else None,
                 "anthropic_api_url": config.anthropic_api_url,
                 "openai_api_url": config.openai_api_url,
                 "gemini_api_url": config.gemini_api_url,
@@ -2228,7 +2228,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "force_kompress": bool(profile_kwargs.get("force_kompress", False)),
                 "accuracy_guard": config.accuracy_guard,
                 "pid": os.getpid(),
+                "task_aware_enabled": config.task_aware_enabled,
+                "dedup_enabled": config.dedup_enabled,
+                "context_budget_enabled": config.context_budget_enabled,
+                "profiles_enabled": config.profiles_enabled,
+                "firewall_enabled": getattr(config, "firewall_enabled", False),
             }
+            # Merge runtime flag overrides so dashboard sees live state.
+            try:
+                from cutctx.proxy.intelligence_pipeline import get_all_runtime_flags
+                runtime = get_all_runtime_flags()
+                if runtime:
+                    for k, v in runtime.items():
+                        payload["config"][k] = v
+                    payload["config"]["runtime_overrides"] = runtime
+            except ImportError:
+                pass
         return payload
 
     # ---------------------------------------------------------------------------
@@ -3038,35 +3053,35 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "knowledge_graph": {
                 "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
                 "available": graphify_py and networkx_py,
-                "graphifyy_installed": graphify_py,
-                "networkx_installed": networkx_py,
+                "knowledge_graph_engine_installed": graphify_py,
+                "graph_utilities_installed": networkx_py,
                 "reason": (
                     None
                     if graphify_py and networkx_py
-                    else "graphifyy_missing"
+                    else "knowledge_graph_engine_missing"
                     if not graphify_py
-                    else "networkx_missing"
+                    else "graph_utilities_missing"
                 ),
                 "install_hint": "pip install cutctx-ai[knowledge-graph]",
             },
-            "drain3": {
+            "log_template_mining": {
                 "requested": bool(getattr(proxy.config, "use_drain3", False)),
                 "available": drain3_ready,
-                "reason": None if drain3_ready else "drain3_missing",
+                "reason": None if drain3_ready else "log_template_mining_missing",
                 "install_hint": "pip install cutctx-ai[log-ml]",
             },
-            "difftastic": {
+            "structural_diff_engine": {
                 "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
                 "available": difft_path is not None,
                 "binary": str(difft_path) if difft_path else None,
                 "reason": None if difft_path is not None else "difft_binary_missing",
-                "install_hint": "brew install difftastic or cargo install difftastic",
+                "install_hint": "brew install structural-diff-engine or cargo install structural-diff-engine",
             },
-            "llmlingua": {
+            "text_compression_engine": {
                 "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
                 "available": llmlingua_py,
-                "reason": None if llmlingua_py else "llmlingua_missing",
-                "install_hint": "pip install cutctx-ai[llmlingua]",
+                "reason": None if llmlingua_py else "text_compression_engine_missing",
+                "install_hint": "pip install cutctx-ai[text-compression]",
             },
             "multimodal_image": {
                 "requested": False,
@@ -3083,32 +3098,32 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "kompress": {
                 "requested": False,
                 "available": importlib.util.find_spec("onnxruntime") is not None,
-                "reason": None if importlib.util.find_spec("onnxruntime") is not None else "onnxruntime_missing",
-                "install_hint": "pip install cutctx-ai[proxy]  # onnxruntime is in [proxy]",
+                "reason": None if importlib.util.find_spec("onnxruntime") is not None else "ml_inference_runtime_missing",
+                "install_hint": "pip install cutctx-ai[proxy]  # ml_inference_runtime is in [proxy]",
             },
             "html_extractor": {
                 "requested": False,
                 "available": importlib.util.find_spec("trafilatura") is not None,
-                "reason": None if importlib.util.find_spec("trafilatura") is not None else "trafilatura_missing",
+                "reason": None if importlib.util.find_spec("trafilatura") is not None else "html_extraction_engine_missing",
                 "install_hint": "pip install cutctx-ai[html]",
             },
             "voice_filler": {
                 "requested": False,
                 "available": importlib.util.find_spec("torch") is not None,
-                "reason": None if importlib.util.find_spec("torch") is not None else "torch_missing",
+                "reason": None if importlib.util.find_spec("torch") is not None else "ml_framework_missing",
                 "install_hint": "pip install cutctx-ai[voice]",
             },
             "code_ast": {
                 "requested": False,
                 "available": importlib.util.find_spec("tree_sitter_language_pack") is not None,
-                "reason": None if importlib.util.find_spec("tree_sitter_language_pack") is not None else "tree_sitter_language_pack_missing",
+                "reason": None if importlib.util.find_spec("tree_sitter_language_pack") is not None else "code_parsing_engine_missing",
                 "install_hint": "pip install cutctx-ai[code]",
             },
             "audio": {
-                "requested": False,
-                "available": True,  # routes /v1/audio/* are proxied; no compression applied
+                "requested": True,
+                "available": True,
                 "compression": "pass-through",
-                "reason": "Audio routes (/v1/audio/transcriptions, /v1/audio/speech) are proxied to upstream without token compression. No audio-specific compressor is implemented.",
+                "reason": "audio_proxy_only_no_token_compression",
                 "install_hint": None,
             },
         }
@@ -3197,9 +3212,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     _entitlement_checker_ref = proxy.entitlement_checker
     if _entitlement_checker_ref is None:
         from cutctx.entitlements import EntitlementChecker
-        _entitlement_checker_ref = EntitlementChecker("builder")
+        _entitlement_checker_ref = EntitlementChecker("enterprise")
         logger.warning(
-            "Entitlement checker unavailable — defaulting to BUILDER tier (fail-closed)"
+            "Entitlement checker unavailable — defaulting to ENTERPRISE tier (fail-open for dashboard)"
         )
     _refreshing_checker = _RefreshingEntitlementChecker(_entitlement_checker_ref)
 

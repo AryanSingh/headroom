@@ -2723,8 +2723,7 @@ async def _read_request_body_bytes(request: Request) -> bytes:
             raise
         except ImportError:
             raise ValueError(
-                "Request body is zstd-compressed but the 'zstandard' package is not installed. "
-                "Install it with: pip install zstandard"
+                "Request body uses compression but the required compression library is not installed"
             ) from None
         except Exception as exc:
             raise ValueError(f"Failed to decompress zstd request body: {exc}") from exc

@@ -371,8 +371,8 @@ export default function Playground() {
             </div>
           </div>
           <div className="chip-stack">
-            {Array.isArray(result?.transforms_applied) && result.transforms_applied.length > 0 ? (
-              result.transforms_applied.map((transform) => (
+            {Array.isArray(result?.transforms_applied) && result?.transforms_applied.length > 0 ? (
+              result?.transforms_applied.map((transform) => (
                 <div key={transform} className="chip-card">
                   <div className="chip-title">{transform}</div>
                 </div>
