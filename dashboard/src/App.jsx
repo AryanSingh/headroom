@@ -221,29 +221,7 @@ function AppFrame() {
 
   const isUnauthorized = error && error.includes('401');
 
-  if (isUnauthorized) {
-    return (
-      <div style={{ padding: 'var(--space-3xl)', color: 'var(--text-primary)', background: 'var(--surface-0)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-        <h2 style={{ marginBottom: 'var(--space-md)' }}>Authentication Required</h2>
-        <p style={{ marginBottom: 'var(--space-xl)', color: 'var(--text-secondary)' }}>The proxy requires an admin API key.</p>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <input 
-            type="password" 
-            placeholder="Enter CUTCTX_ADMIN_API_KEY" 
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--surface-2)', background: 'var(--surface-1)', color: 'var(--text-primary)', width: '300px' }}
-          />
-          <button 
-            onClick={handleSaveKey}
-            style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            Save & Reload
-          </button>
-        </div>
-      </div>
-    );
-  }
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -285,6 +263,30 @@ function AppFrame() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  if (isUnauthorized) {
+    return (
+      <div style={{ padding: 'var(--space-3xl)', color: 'var(--text-primary)', background: 'var(--surface-0)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
+        <h2 style={{ marginBottom: 'var(--space-md)' }}>Authentication Required</h2>
+        <p style={{ marginBottom: 'var(--space-xl)', color: 'var(--text-secondary)' }}>The proxy requires an admin API key.</p>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <input 
+            type="password" 
+            placeholder="Enter CUTCTX_ADMIN_API_KEY" 
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+            style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--surface-2)', background: 'var(--surface-1)', color: 'var(--text-primary)', width: '300px' }}
+          />
+          <button 
+            onClick={handleSaveKey}
+            style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Save & Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`app-shell ${!sidebarOpen && !isMobile ? 'sidebar-collapsed' : ''}`}>
