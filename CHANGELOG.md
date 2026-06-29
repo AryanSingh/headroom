@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.28.0] - 2026-06-29
+
+### Added
+- **`cutctx capabilities` command** — new CLI command to display all available compression capabilities, formats, algorithms, and configuration options
+- **Pass-through audio routing** — audio requests pass through unmodified when compression is not applicable
+- **Documentation improvements** — expanded README guidance on install extras and CLI commands
+
+### Fixed
+- **README install guidance** — clarified distinction between recommended/full install (`pip install "cutctx-ai[all]"`) and granular extras
+- **Audio compression documentation** — documented pass-through behavior for non-compression scenarios
+
+
 ## [0.26.1] - 2026-06-23
 
 ### Security
@@ -512,7 +524,8 @@ cutctx proxy --port 8787
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 ```
 
-[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/cutctx/cutctx/compare/v0.26.1...v0.28.0
 [0.26.1]: https://github.com/cutctx/cutctx/compare/v0.26.0...v0.26.1
 [0.2.0]: https://github.com/chopratejas/cutctx/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/chopratejas/cutctx/releases/tag/v0.1.0

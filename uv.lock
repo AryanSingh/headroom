@@ -1183,8 +1183,10 @@ agno = [
 all = [
     { name = "anthropic" },
     { name = "datasets" },
+    { name = "drain3" },
     { name = "fastapi" },
     { name = "fastembed" },
+    { name = "graphifyy" },
     { name = "hnswlib" },
     { name = "httpx", extra = ["http2"] },
     { name = "huggingface-hub" },
@@ -1192,6 +1194,8 @@ all = [
     { name = "lm-eval", extra = ["api"] },
     { name = "magika" },
     { name = "mcp" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.11'" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.11'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
     { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
     { name = "onnxruntime", version = "1.23.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.14'" },
@@ -1273,6 +1277,44 @@ evals = [
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.11'" },
     { name = "sentence-transformers" },
+]
+full = [
+    { name = "drain3" },
+    { name = "fastapi" },
+    { name = "fastembed" },
+    { name = "graphifyy" },
+    { name = "gunicorn", marker = "sys_platform != 'win32'" },
+    { name = "hnswlib" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "huggingface-hub" },
+    { name = "jinja2" },
+    { name = "magika" },
+    { name = "mcp" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.11'" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "onnxruntime", version = "1.23.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.14'" },
+    { name = "onnxruntime", version = "1.26.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.14'" },
+    { name = "openai" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
+    { name = "pillow" },
+    { name = "rapidocr", marker = "python_full_version >= '3.13'" },
+    { name = "rapidocr-onnxruntime", marker = "python_full_version < '3.13'" },
+    { name = "sentence-transformers" },
+    { name = "sentencepiece" },
+    { name = "sqlite-vec" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "trafilatura" },
+    { name = "transformers", version = "5.0.0", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "tree-sitter-language-pack" },
+    { name = "uvicorn" },
+    { name = "watchdog" },
+    { name = "websockets" },
+    { name = "zstandard" },
 ]
 html = [
     { name = "trafilatura" },
@@ -1375,6 +1417,35 @@ pytorch-mps = [
     { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.13' and sys_platform == 'darwin'" },
     { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.13' and sys_platform == 'darwin'" },
 ]
+recommended = [
+    { name = "drain3" },
+    { name = "fastapi" },
+    { name = "fastembed" },
+    { name = "graphifyy" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "magika" },
+    { name = "mcp" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.11'" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "onnxruntime", version = "1.23.2", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version < '3.14'" },
+    { name = "onnxruntime", version = "1.26.0", source = { registry = "https://pypi.org/simple/" }, marker = "python_full_version >= '3.14'" },
+    { name = "openai" },
+    { name = "pillow" },
+    { name = "rapidocr", marker = "python_full_version >= '3.13'" },
+    { name = "rapidocr-onnxruntime", marker = "python_full_version < '3.13'" },
+    { name = "sentencepiece" },
+    { name = "sqlite-vec" },
+    { name = "trafilatura" },
+    { name = "transformers", version = "5.0.0", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version >= '3.11' and sys_platform == 'emscripten') or (python_full_version >= '3.11' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "tree-sitter-language-pack" },
+    { name = "uvicorn" },
+    { name = "watchdog" },
+    { name = "websockets" },
+    { name = "zstandard" },
+]
 relevance = [
     { name = "fastembed" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
@@ -1405,6 +1476,11 @@ voice-train = [
     { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple/" }, marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "drain3" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "accelerate", marker = "extra == 'voice-train'", specifier = ">=0.20.0" },
@@ -1418,7 +1494,9 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.0" },
     { name = "cryptography", specifier = ">=46.0.0" },
     { name = "cutctx-ai", extras = ["proxy"], marker = "extra == 'proxy-prod'", editable = "." },
-    { name = "cutctx-ai", extras = ["proxy", "code", "ml", "memory", "relevance", "image", "reports", "otel", "evals", "voice", "html", "benchmark", "mcp"], marker = "extra == 'all'", editable = "." },
+    { name = "cutctx-ai", extras = ["proxy", "code", "image", "html", "log-ml", "knowledge-graph", "relevance", "mcp"], marker = "extra == 'recommended'", editable = "." },
+    { name = "cutctx-ai", extras = ["proxy", "code", "ml", "memory", "relevance", "image", "reports", "otel", "evals", "voice", "html", "benchmark", "mcp", "knowledge-graph", "log-ml"], marker = "extra == 'all'", editable = "." },
+    { name = "cutctx-ai", extras = ["proxy", "proxy-prod", "code", "ml", "memory", "relevance", "image", "html", "log-ml", "knowledge-graph", "reports", "otel", "mcp"], marker = "extra == 'full'", editable = "." },
     { name = "cutctx-ai", extras = ["voice"], marker = "extra == 'voice-train'", editable = "." },
     { name = "cutctx-ee", marker = "extra == 'ee'", editable = "packaging/cutctx-ee" },
     { name = "datasets", marker = "extra == 'evals'", specifier = ">=2.14.0" },
@@ -1514,7 +1592,10 @@ requires-dist = [
     { name = "websockets", marker = "extra == 'proxy'", specifier = ">=13.0" },
     { name = "zstandard", marker = "extra == 'proxy'", specifier = ">=0.20.0" },
 ]
-provides-extras = ["ee", "proxy", "proxy-prod", "code", "llmlingua", "ml", "memory", "memory-stack", "pytorch-mps", "relevance", "image", "reports", "otel", "langfuse", "anyllm", "langchain", "llamaindex", "agno", "strands", "mcp", "voice", "voice-train", "evals", "bedrock", "html", "log-ml", "knowledge-graph", "benchmark", "demo-integrations", "dev", "all"]
+provides-extras = ["ee", "proxy", "proxy-prod", "code", "llmlingua", "ml", "memory", "memory-stack", "pytorch-mps", "relevance", "image", "reports", "otel", "langfuse", "anyllm", "langchain", "llamaindex", "agno", "strands", "mcp", "voice", "voice-train", "evals", "bedrock", "html", "log-ml", "knowledge-graph", "benchmark", "demo-integrations", "dev", "all", "recommended", "full"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "drain3", specifier = ">=0.9.11" }]
 
 [[package]]
 name = "cutctx-ee"

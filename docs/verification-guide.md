@@ -1,6 +1,6 @@
 # Cutctx — Complete Feature Verification Guide
 
-**Version:** v0.26.1+  
+**Version:** v0.28.0+  
 **Purpose:** Step-by-step verification for every product feature. Run after any release, major refactor, or new integration.  
 **Status key:** ✅ Pass | ❌ Fail | ⚠️ Degraded (partial)
 
@@ -9,8 +9,9 @@
 ## Prerequisites
 
 ```bash
-# Install full proxy extras
-pip install cutctx-ai[proxy,code]
+# Install recommended extras group
+pip install cutctx-ai[recommended]
+# recommended = proxy+code+image+html+log-ml+knowledge-graph+relevance+mcp
 
 # Set API keys
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -18,7 +19,7 @@ export OPENAI_API_KEY=sk-...
 export ADMIN_KEY=test-admin-key
 
 # Confirm binary
-cutctx --version   # must print v0.26.x
+cutctx --version   # must print v0.28.0+
 
 # Run full unit test suite first — catch regressions before manual testing
 python -m pytest tests/ -q --tb=short 2>&1 | tail -5
@@ -90,6 +91,24 @@ kill %1
 
 ## B. Compression Engine
 
+### B1. Audio Route Pass-Through (No Compression)
+
+Audio routes (`/v1/audio/*`) are configured as pass-through only and should **never** be compressed, regardless of interceptor flags or compression settings. This is a security and fidelity requirement for audio streaming.
+
+```bash
+# Verify audio routes bypass compression
+cutctx proxy --port 8787 --admin-api-key $ADMIN_KEY &
+sleep 2
+
+# Audio request should return without compression header
+curl -s -i -X POST http://127.0.0.1:8787/v1/audio/transcriptions \
+  -H "x-api-key: $OPENAI_API_KEY" \
+  -F "file=@/dev/null" \
+  -F "model=whisper-1" 2>/dev/null | \
+  grep -q "X-Cutctx-Tokens-Saved" && echo "❌ Audio was compressed" || echo "✅ Audio pass-through (no compression)"
+
+kill %1
+```
 
 ### B2. Code Compressor (AST slicing)
 
@@ -452,6 +471,33 @@ assert len(first_read) < len(large) or first_read != large, "First read should b
 assert second_read == large, "Second read must pass through unchanged (progressive disclosure)"
 print("✅ Progressive disclosure works correctly")
 EOF
+```
+
+---
+
+### C1-i. FeatureAvailabilityPanel in Dashboard
+
+The dashboard includes a **FeatureAvailabilityPanel** that displays real-time feature and interceptor status with the following metrics:
+
+- **requested**: Number of features explicitly requested via CLI flags
+- **available**: Number of features available in the current build
+- **interceptor**: Active interceptor information
+- **version**: Current cutctx version
+- **nodes**: Graph node count (for knowledge graph features)
+- **edges**: Graph edge count (for knowledge graph features)
+
+Verify the panel appears in the admin dashboard:
+
+```bash
+cutctx proxy --port 8787 --admin-api-key $ADMIN_KEY --knowledge-graph &
+sleep 2
+
+# Check dashboard displays feature panel (requires a dashboard UI or metrics endpoint)
+curl -sf -H "Authorization: Bearer $CUTCTX_ADMIN_API_KEY" http://127.0.0.1:8787/dashboard/features 2>/dev/null | \
+  python3 -c "import json,sys; d=json.load(sys.stdin); print('Features:', d.get('requested', 0), 'available'); \
+  print('✅ FeatureAvailabilityPanel accessible')" || echo "⚠️ Dashboard features endpoint not found"
+
+kill %1
 ```
 
 ---
@@ -1018,6 +1064,17 @@ cutctx config-check && echo "✅ config-check" || echo "⚠️ config-check"
 
 # Benchmarks
 cutctx bench --size small && echo "✅ bench" || echo "❌ bench"
+
+# Capabilities verification
+cutctx capabilities | grep -q "compression-engines" && echo "✅ capabilities command" || echo "❌ capabilities"
+# Expected: lists available compression engines, interceptors, and feature flags
+```
+
+### J1. make check-release
+
+```bash
+make check-release && echo "✅ check-release automation" || echo "❌ check-release"
+# Expected: verifies release checklist items (version bumps, changelog, tag consistency)
 ```
 
 ---
@@ -1223,7 +1280,7 @@ New Integrations (run if installed)
   [ ] difftastic: structural diff shorter than unified diff (requires difft binary)
 
 CLI / Extensions
-  [ ] cutctx --version prints v0.26.x
+  [ ] cutctx --version prints v0.28.0+
   [ ] --knowledge-graph flag in proxy --help
   [ ] --drain3 flag in proxy --help
   [ ] --difftastic flag in proxy --help
@@ -1243,10 +1300,12 @@ Infrastructure
 
 ---
 
-## S. Known Gaps (as of v0.26.1)
+## S. Known Gaps (as of v0.28.0)
 
 | Feature | Status | Action |
 |---------|--------|--------|
 | jedi Python cross-file analysis | Spec complete, not implemented | See `docs/jedi-integration-spec.md` — implement `jedi_interceptor.py` |
-| GitHub Release publish | Manual step | Go to github.com/AryanSingh/cutctx/releases/new, select tag v0.26.1, publish |
+| GitHub Release publish | Manual step | Go to github.com/cutctx/cutctx/releases/new, select tag v0.28.0, publish |
 | LanceDB vector search | Not started | Future roadmap item |
+| Audio compression | Pass-through only | `/v1/audio/*` routes are proxied to upstream; no token compression applied. `voice` extra provides filler-word detection only. |
+| llmlingua skip in CI | Expected skip | `tests/test_modality_matrix.py` llmlingua test skips when `torch` is not installed — correct behavior, install `cutctx-ai[llmlingua]` to un-skip. |

@@ -93,7 +93,7 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 
 ```bash
 # 1 — Install
-pip install "cutctx-ai[all]"          # Python
+pip install "cutctx-ai[all]"          # Python (recommended/full install)
 npm install cutctx-ai                 # Node / TypeScript
 
 # 2 — Pick your mode
@@ -103,7 +103,17 @@ cutctx proxy --port 8787              # drop-in proxy, zero code changes
 
 # 3 — See the savings
 cutctx perf
+
+# 4 — Explore capabilities
+cutctx capabilities                   # show all algorithms, formats, and options
 ```
+
+**CLI commands** — Key commands to get started:
+- `cutctx wrap <agent>` — wrap Claude, Cursor, Codex, and other agents
+- `cutctx proxy` — drop-in proxy server for any LLM client
+- `cutctx perf` — show token savings metrics
+- `cutctx capabilities` — list compression algorithms, supported formats, and configuration options
+- `cutctx learn` — analyze failed sessions and auto-generate corrections
 
 **Accuracy guard** — `--accuracy-guard strict` (default in agent profiles) verifies that compressed output preserves critical identifiers, function names, and references before forwarding. Use `CUTCTX_ACCURACY_GUARD=strict|balanced|off` to tune.
 
@@ -214,7 +224,7 @@ For buyers, operators, and security reviewers:
 - **LogCompressor** — structured log compression with aho-corasick pattern detection.
 - **SearchCompressor** — search result compression with relevance scoring.
 - **Image compression** — inline base64 image compression with CCR storage.
-- **Audio compression** — inline base64 audio compression (WAV/MP3/AAC) with downsampling.
+- **Audio compression** — inline base64 audio compression (WAV/MP3/AAC) with downsampling; audio requests pass through when compression is not applicable.
 - **JSON schema compression** — 40% token savings on tool definitions (32 metadata keys stripped).
 - **CacheAligner** — stabilizes prefixes so Anthropic/OpenAI KV caches actually hit.
 - **CCR** — reversible compression; LLM retrieves originals on demand via `cutctx_retrieve`.

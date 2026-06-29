@@ -2743,6 +2743,10 @@ class ContentRouter(Transform):
         new_blocks = []
         any_compressed = False
         role = message.get("role", "")
+        # Derived from the same formula as the outer apply() method.
+        # True when min_ratio is permissive enough that the skip-cache
+        # tier adds value (avoids re-checking blocks we already rejected).
+        allow_skip_cache = min_ratio <= getattr(self.config, "min_ratio_relaxed", min_ratio)
 
         # Role-based gate for `text` blocks. Tool/function roles are tool
         # outputs and compress freely; assistant defaults to skip (cache
