@@ -293,7 +293,17 @@ dev = [
 ]
 # All optional dependencies (everything you need)
 all = [
-    "cutctx-ai[proxy,code,ml,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp]",
+    "cutctx-ai[proxy,code,ml,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp,knowledge-graph,log-ml]",
+]
+# Recommended production bundle — fast to install, covers all commonly advertised features.
+# Does not include GPU/ML extras (torch) or developer tooling.
+recommended = [
+    "cutctx-ai[proxy,code,image,html,log-ml,knowledge-graph,relevance,mcp]",
+]
+# Full production bundle — everything in recommended plus ML-backed compressors,
+# memory stack, observability, and production ASGI server. Requires more disk.
+full = [
+    "cutctx-ai[proxy,proxy-prod,code,ml,memory,relevance,image,html,log-ml,knowledge-graph,reports,otel,mcp]",
 ]
 
 [project.scripts]

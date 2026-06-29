@@ -16,6 +16,7 @@ from . import (  # noqa: F401
     agent_savings,
     audit,
     billing,
+    capabilities,
     capture,
     config_check,
     evals,

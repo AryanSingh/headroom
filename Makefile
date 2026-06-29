@@ -7,7 +7,7 @@ MATURIN ?= maturin
 PYTHON ?= python3
 FIXTURES ?= tests/parity/fixtures
 
-.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
+.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
 
 help:
 	@echo "Cutctx Rust targets:"
@@ -168,6 +168,28 @@ build-binary:
 	fi
 	$(PYTHON) -m pip install --quiet nuitka
 	bash scripts/build_nuitka.sh
+
+check-release:
+	@echo "── check-release ───────────────────────────────────────────────────"
+	@echo "Phase 1: OSS + data-type bundle"
+	pytest -q \
+	  tests/test_graphify_index.py \
+	  tests/test_drain3_compressor.py \
+	  tests/test_difftastic_interceptor.py \
+	  tests/test_image_compression.py \
+	  tests/test_proxy_compress_endpoint.py \
+	  tests/test_product_capabilities.py \
+	  2>&1 | tail -5
+	@echo "Phase 2: Modality matrix"
+	pytest -q tests/test_modality_matrix.py 2>&1 | tail -5
+	@echo "Phase 3: Dashboard / stats sanity"
+	pytest -q \
+	  tests/test_proxy_dashboard_stats_cache.py \
+	  tests/test_proxy_compress_endpoint.py \
+	  2>&1 | tail -5
+	@echo "Phase 4: Capability check"
+	cutctx capabilities || true
+	@echo "── check-release complete ───────────────────────────────────────────"
 
 # ─── Protected distribution ────────────────────────────────────────────────
 #

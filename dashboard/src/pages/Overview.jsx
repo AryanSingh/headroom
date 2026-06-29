@@ -132,15 +132,27 @@ function buildClientRows(stats) {
 }
 
 function getRequestDirectSaved(request) {
-return Number(request?.tokens_saved || 0);
+  if (request?.tokens_saved == null) {
+    return null;
+  }
+
+  return Number(request.tokens_saved || 0);
 }
 
 function getRequestScaffoldingTokens(request) {
-return Number(request?.scaffolding_tokens || 0);
+  if (request?.scaffolding_tokens == null) {
+    return null;
+  }
+
+  return Number(request.scaffolding_tokens || 0);
 }
 
 function getRequestGhostTokens(request) {
-return Number(request?.ghost_tokens || 0);
+  if (request?.ghost_tokens == null) {
+    return null;
+  }
+
+  return Number(request.ghost_tokens || 0);
 }
 
 function getRequestIndirectSaved(request) {
@@ -388,8 +400,10 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
         buckets[index].tokens += totalSaved;
         addBucketModelContribution(buckets[index], request.model, totalSaved, 1);
       }
-      buckets[index].requests = Number(buckets[index].requests || 0) + 1;
-      buckets[index].hasRequestData = true;
+      if (!series) {
+        buckets[index].requests = Number(buckets[index].requests || 0) + 1;
+        buckets[index].hasRequestData = true;
+      }
   }
 
   return buckets;
@@ -808,6 +822,52 @@ function DiagnosticsPanel({ prefixCache }) {
   );
 }
 
+const FEATURE_LABELS = {
+  knowledge_graph: 'Knowledge Graph',
+  drain3: 'Log ML (Drain3)',
+  difftastic: 'Difftastic (structural diff)',
+  llmlingua: 'LLMLingua-2',
+  multimodal_image: 'Image / OCR',
+  smart_crusher: 'SmartCrusher (Rust)',
+  kompress: 'Kompress ONNX',
+  html_extractor: 'HTML Extractor',
+  voice_filler: 'Voice Filler',
+  code_ast: 'Code AST',
+  audio: 'Audio (proxy)',
+};
+
+function FeatureAvailabilityPanel({ featureAvailability }) {
+  if (!featureAvailability || Object.keys(featureAvailability).length === 0) return null;
+  const entries = Object.entries(featureAvailability);
+  const availableCount = entries.filter(([, v]) => v?.available).length;
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Runtime capabilities</div>
+          <h2>Feature availability</h2>
+          <p>Which optional Python extras and binaries are installed and active in this runtime.</p>
+        </div>
+        <span className="stat-badge">{availableCount} / {entries.length} available</span>
+      </div>
+      <div className="graphify-kv-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+        {entries.map(([key, val]) => {
+          const isAudio = val?.compression === 'pass-through';
+          const available = val?.available;
+          const pillClass = isAudio ? 'status-pill status-info' : available ? 'status-pill status-ready' : 'status-pill status-degraded';
+          const pillLabel = isAudio ? 'pass-through' : available ? 'available' : 'missing';
+          return (
+            <div key={key} className="graphify-kv" title={val?.install_hint || val?.reason || ''}>
+              <span>{FEATURE_LABELS[key] || key}</span>
+              <strong><span className={pillClass}>{pillLabel}</span></strong>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function formatKnowledgeGraphStatus(knowledgeGraph) {
   const status = knowledgeGraph?.status || 'disabled';
   switch (status) {
@@ -892,7 +952,7 @@ function getRequestTotalSaved(request) {
     return Number(request.total_saved_tokens || 0);
   }
 
-  return getRequestDirectSaved(request) + getRequestIndirectSaved(request);
+  return Number(getRequestDirectSaved(request) || 0) + getRequestIndirectSaved(request);
 }
 
 function getRequestTotalSavingsPercent(request) {
@@ -905,8 +965,23 @@ function getRequestTotalSavingsPercent(request) {
   return originalTokens > 0 ? (totalSaved / originalTokens) * 100 : 0;
 }
 
+function formatMaybeInteger(value) {
+  return value == null ? '—' : formatInteger(value);
+}
+
+function formatMaybePercent(value) {
+  return value == null ? '—' : formatPercent(Math.min(100, Math.max(0, Number(value || 0))));
+}
+
 export default function Overview() {
-  const { stats, historyData, loading, error } = useDashboardData();
+  const {
+    stats,
+    historyData,
+    historyLoading,
+    historyError,
+    loading,
+    error,
+  } = useDashboardData();
   const summary = stats?.summary || {};
   const requests = stats?.requests || {};
   const tokens = stats?.tokens || {};
@@ -914,6 +989,7 @@ export default function Overview() {
   const lifetime = persistent.lifetime || {};
   const prefixCache = stats?.prefix_cache || {};
   const knowledgeGraph = stats?.knowledge_graph || {};
+  const featureAvailability = stats?.feature_availability || {};
 
   const effectiveTokensSaved = Math.max(
     Number(tokens.saved || 0),
@@ -925,7 +1001,12 @@ export default function Overview() {
   );
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
-  const sessionSavingsUsd = Number(summary?.cost?.total_saved_usd || 0);
+  const sessionCostBreakdown = summary?.cost?.breakdown || {};
+  const sessionSavingsUsd = Math.max(
+    Number(summary?.cost?.total_saved_usd || 0),
+    Number(sessionCostBreakdown.compression_savings_usd || 0)
+      + Number(sessionCostBreakdown.cache_savings_usd || 0),
+  );
   const lifetimeSavingsUsd = Number(lifetime.compression_savings_usd || 0);
   const effectiveSavingsUsd = sessionCostWithoutCutctx > 0
     ? sessionSavingsUsd
@@ -939,12 +1020,15 @@ export default function Overview() {
   const persistentHistory = Array.isArray(persistent.recent_history)
     ? persistent.recent_history.slice(-8).reverse().map((entry) => ({
         model: entry.model,
-        input_tokens_original: 0,
-        tokens_saved: entry.delta_tokens_saved,
+        input_tokens_original: null,
+        tokens_saved: null,
         total_saved_tokens: entry.delta_tokens_saved,
-        total_savings_percent: 0,
-        savings_percent: 0,
+        total_savings_percent: null,
+        savings_percent: null,
+        scaffolding_tokens: null,
+        ghost_tokens: null,
         timestamp: entry.timestamp,
+        synthetic: true,
       }))
     : [];
 
@@ -962,8 +1046,10 @@ export default function Overview() {
     Number(tokens.total_before_compression || 0);
   const totalClientTokens =
     activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
-  const compressionRatio =
-    tokens.savings_percent != null ? 100 - Number(tokens.savings_percent || 0) : null;
+  const activeCompressionPercent =
+    tokens.active_savings_percent != null ? Number(tokens.active_savings_percent || 0) : null;
+  const proxyCompressionPercent =
+    tokens.proxy_savings_percent != null ? Number(tokens.proxy_savings_percent || 0) : null;
   const directCompressionRow = sourceRows.find((row) => row.key === 'cutctx_compression');
   const toolSchemaRow = sourceRows.find((row) => row.key === 'tool_schema_compaction');
   const providerCacheRow = sourceRows.find((row) => row.key === 'provider_prompt_cache');
@@ -1011,9 +1097,13 @@ export default function Overview() {
           <MetricCard
             icon={Layers}
             iconColor="purple"
-            label="Compression ratio"
-            value={compressionRatio != null ? `${compressionRatio.toFixed(1)}%` : '—'}
-            footnote="Average token retention"
+            label="Active compression"
+            value={activeCompressionPercent != null ? `${activeCompressionPercent.toFixed(1)}%` : '—'}
+            footnote={
+              proxyCompressionPercent != null
+                ? `${formatPercent(proxyCompressionPercent)} whole-request proxy reduction`
+                : 'Compressible-token savings rate'
+            }
           />
           <MetricCard
             icon={Coins}
@@ -1033,8 +1123,14 @@ export default function Overview() {
           </div>
         </div>
 
-        {loading ? (
+        {loading || historyLoading ? (
           <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--radius-lg)' }} />
+        ) : historyError ? (
+          <EmptyState
+            icon={TrendingUp}
+            title="Trend data unavailable"
+            description={`The history feed failed to load: ${historyError}`}
+          />
         ) : (
           <TrendChart stats={stats} historyData={historyData} />
         )}
@@ -1108,6 +1204,7 @@ export default function Overview() {
           <DiagnosticsPanel prefixCache={prefixCache} />
           <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} />
           <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
+          <FeatureAvailabilityPanel featureAvailability={featureAvailability} />
         </div>
 
         <section className="panel panel-expanded">
@@ -1148,29 +1245,27 @@ export default function Overview() {
                       <td className="model-name" title={request.model || '—'}>
                         {request.model || '—'}
                       </td>
-                      <td>{formatInteger(request.input_tokens_original || 0)}</td>
+                      <td>{formatMaybeInteger(request.input_tokens_original)}</td>
                       <td className="savings-value">
                         <div className="request-savings-stack">
                           <span>{formatInteger(getRequestTotalSaved(request))}</span>
                           <span className="request-savings-percent">
-                            {formatPercent(
-                              Math.min(100, Math.max(0, getRequestTotalSavingsPercent(request))),
+                            {formatMaybePercent(
+                              request.synthetic ? null : getRequestTotalSavingsPercent(request),
                             )}
                           </span>
                         </div>
                       </td>
 <td>
 <div className="request-savings-stack request-savings-stack-muted">
-<span>{formatInteger(getRequestDirectSaved(request))}</span>
+<span>{formatMaybeInteger(getRequestDirectSaved(request))}</span>
 <span className="request-savings-percent">
-{formatPercent(
-Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
-)}
+{formatMaybePercent(request.savings_percent)}
 </span>
 </div>
 </td>
-<td>{formatInteger(getRequestScaffoldingTokens(request))}</td>
-<td>{formatInteger(getRequestGhostTokens(request))}</td>
+<td>{formatMaybeInteger(getRequestScaffoldingTokens(request))}</td>
+<td>{formatMaybeInteger(getRequestGhostTokens(request))}</td>
 <td>{formatRelativeTime(request.timestamp)}</td>
                     </tr>
                   ))}
@@ -1180,6 +1275,7 @@ Math.min(100, Math.max(0, Number(request.savings_percent || 0))),
                   Total saved includes direct compression plus cache-backed savings when available.
                   Direct column isolates what Cutctx compressed itself. Scaffold and Ghost
                   columns show oversized tool-manifest footprint and residual overhead.
+                  Synthetic history rows leave unknown fields blank instead of implying zero.
                 </div>
             </div>
           )}

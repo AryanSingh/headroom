@@ -27,6 +27,7 @@ import argparse
 import asyncio
 import concurrent.futures
 import contextlib
+import importlib.util
 import json
 import logging
 import os
@@ -893,6 +894,7 @@ class CutctxProxy(
                 from cutctx.graph.graphify import (
                     GraphifyIndexer,
                     graphify_available,
+                    networkx_available,
                     set_global_indexer,
                 )
                 from cutctx.proxy.interceptors import base as interceptors_base
@@ -904,6 +906,12 @@ class CutctxProxy(
                         reason="graphify_not_installed",
                     )
                     logger.warning("Knowledge graph requested (--knowledge-graph) but graphifyy not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                elif not networkx_available():
+                    self.knowledge_graph_status.update(
+                        status="unavailable",
+                        reason="networkx_not_installed",
+                    )
+                    logger.warning("Knowledge graph requested (--knowledge-graph) but networkx not installed. Install: pip install cutctx-ai[knowledge-graph]")
                 else:
                     indexer = GraphifyIndexer(
                         project_dir=Path.cwd(),
@@ -2999,6 +3007,112 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return _check
 
+    def _feature_availability_snapshot() -> dict[str, dict[str, Any]]:
+        """Surface which optional best-in-class features are actually usable.
+
+        This keeps operator claims honest: several advanced surfaces are
+        optional extras or external binaries and may silently degrade if their
+        dependencies are missing. The snapshot is lightweight and safe to call
+        from ``/stats``.
+        """
+        graphify_py = importlib.util.find_spec("graphifyy") is not None
+        networkx_py = importlib.util.find_spec("networkx") is not None
+        pillow_py = importlib.util.find_spec("PIL") is not None
+        llmlingua_py = importlib.util.find_spec("llmlingua") is not None
+
+        try:
+            from cutctx.binaries import find_difftastic
+
+            difft_path = find_difftastic(getattr(proxy.config, "difftastic_binary", "difft"))
+        except Exception:
+            difft_path = None
+
+        try:
+            from cutctx.transforms.drain3_compressor import drain3_available
+
+            drain3_ready = bool(drain3_available())
+        except Exception:
+            drain3_ready = False
+
+        return {
+            "knowledge_graph": {
+                "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
+                "available": graphify_py and networkx_py,
+                "graphifyy_installed": graphify_py,
+                "networkx_installed": networkx_py,
+                "reason": (
+                    None
+                    if graphify_py and networkx_py
+                    else "graphifyy_missing"
+                    if not graphify_py
+                    else "networkx_missing"
+                ),
+                "install_hint": "pip install cutctx-ai[knowledge-graph]",
+            },
+            "drain3": {
+                "requested": bool(getattr(proxy.config, "use_drain3", False)),
+                "available": drain3_ready,
+                "reason": None if drain3_ready else "drain3_missing",
+                "install_hint": "pip install cutctx-ai[log-ml]",
+            },
+            "difftastic": {
+                "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
+                "available": difft_path is not None,
+                "binary": str(difft_path) if difft_path else None,
+                "reason": None if difft_path is not None else "difft_binary_missing",
+                "install_hint": "brew install difftastic or cargo install difftastic",
+            },
+            "llmlingua": {
+                "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
+                "available": llmlingua_py,
+                "reason": None if llmlingua_py else "llmlingua_missing",
+                "install_hint": "pip install cutctx-ai[llmlingua]",
+            },
+            "multimodal_image": {
+                "requested": False,
+                "available": pillow_py,
+                "reason": None if pillow_py else "pillow_missing",
+                "install_hint": "pip install cutctx-ai[image]",
+            },
+            "smart_crusher": {
+                "requested": True,  # always attempted when Rust ext is available
+                "available": importlib.util.find_spec("cutctx._core") is not None,
+                "reason": None if importlib.util.find_spec("cutctx._core") is not None else "rust_extension_not_built",
+                "install_hint": "pip install cutctx-ai  # built wheel includes _core.so",
+            },
+            "kompress": {
+                "requested": False,
+                "available": importlib.util.find_spec("onnxruntime") is not None,
+                "reason": None if importlib.util.find_spec("onnxruntime") is not None else "onnxruntime_missing",
+                "install_hint": "pip install cutctx-ai[proxy]  # onnxruntime is in [proxy]",
+            },
+            "html_extractor": {
+                "requested": False,
+                "available": importlib.util.find_spec("trafilatura") is not None,
+                "reason": None if importlib.util.find_spec("trafilatura") is not None else "trafilatura_missing",
+                "install_hint": "pip install cutctx-ai[html]",
+            },
+            "voice_filler": {
+                "requested": False,
+                "available": importlib.util.find_spec("torch") is not None,
+                "reason": None if importlib.util.find_spec("torch") is not None else "torch_missing",
+                "install_hint": "pip install cutctx-ai[voice]",
+            },
+            "code_ast": {
+                "requested": False,
+                "available": importlib.util.find_spec("tree_sitter_language_pack") is not None,
+                "reason": None if importlib.util.find_spec("tree_sitter_language_pack") is not None else "tree_sitter_language_pack_missing",
+                "install_hint": "pip install cutctx-ai[code]",
+            },
+            "audio": {
+                "requested": False,
+                "available": True,  # routes /v1/audio/* are proxied; no compression applied
+                "compression": "pass-through",
+                "reason": "Audio routes (/v1/audio/transcriptions, /v1/audio/speech) are proxied to upstream without token compression. No audio-specific compressor is implemented.",
+                "install_hint": None,
+            },
+        }
+
     # ── SSO token validation dependency ────────────────────────────────
     # When SSO is configured, validates Bearer tokens against the enterprise
     # IdP. Adds X-Cutctx-Sso-Role header so RBAC can resolve from SSO claims.
@@ -3502,13 +3616,20 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     reason=exc.__class__.__name__,
                 )
 
+        savings_sources = (
+            "provider_prompt_cache",
+            "cutctx_compression",
+            "semantic_cache",
+            "prefix_cache_self_hosted",
+            "model_routing",
+            "tool_schema_compaction",
+            "api_surface_slimming",
+        )
+
         return {
             "summary": summary,
             # Phase 1.4: per-source attribution for the dashboard's
-            # "Savings by Source" panel. The five canonical sources
-            # are: provider_prompt_cache, cutctx_compression,
-            # semantic_cache, prefix_cache_self_hosted,
-            # model_routing. The dashboard reads this object at
+            # "Savings by Source" panel. The dashboard reads this object at
             # ``stats.savings_by_source.{tokens,usd,total_tokens}``
             # so the keys must match exactly. Tokens and USD come
             # from the durable savings_tracker lifetime map so
@@ -3521,13 +3642,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         )
                         or 0
                     )
-                    for src in (
-                        "provider_prompt_cache",
-                        "cutctx_compression",
-                        "semantic_cache",
-                        "prefix_cache_self_hosted",
-                        "model_routing",
-                    )
+                    for src in savings_sources
                 ),
                 "tokens": {
                     src: int(
@@ -3536,13 +3651,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         )
                         or 0
                     )
-                    for src in (
-                        "provider_prompt_cache",
-                        "cutctx_compression",
-                        "semantic_cache",
-                        "prefix_cache_self_hosted",
-                        "model_routing",
-                    )
+                    for src in savings_sources
                 },
                 "usd": {
                     src: round(
@@ -3554,13 +3663,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         ),
                         6,
                     )
-                    for src in (
-                        "provider_prompt_cache",
-                        "cutctx_compression",
-                        "semantic_cache",
-                        "prefix_cache_self_hosted",
-                        "model_routing",
-                    )
+                    for src in savings_sources
                 },
             },
             "savings": {
@@ -3801,6 +3904,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ),
                 **(_kg_indexer.stats if _kg_indexer else {}),
             },
+            "feature_availability": _feature_availability_snapshot(),
             "anon_telemetry_shipping": is_telemetry_enabled(),
             "telemetry": {
                 "enabled": telemetry_stats.get("enabled", False),
