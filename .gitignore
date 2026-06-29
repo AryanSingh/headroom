@@ -25,6 +25,8 @@ scripts/*
 !scripts/record_fixtures.py
 !scripts/issue_license_from_webhook.py
 !scripts/build_rust_extension.sh
+!scripts/build_cython.sh
+!scripts/inject_cython_into_wheel.py
 !scripts/install-git-hooks.sh
 !scripts/smoke_issue_327.py
 !scripts/refresh_model_limits.sh

@@ -7,7 +7,7 @@ MATURIN ?= maturin
 PYTHON ?= python3
 FIXTURES ?= tests/parity/fixtures
 
-.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
+.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary build-cython check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
 
 help:
 	@echo "Cutctx Rust targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  make build-wheel        - release wheel for cutctx-py"
 	@echo "  make build-dashboard    - build React dashboard and copy assets into package"
 	@echo "  make build-binary       - compile Nuitka one-file binary → dist/nuitka/cutctx"
+	@echo "  make build-cython       - compile core Python modules → native .so extensions"
 	@echo "  make verify-rust-core   - build + install + import-verify cutctx._core"
 	@echo "  make fmt                - cargo fmt --all"
 	@echo "  make fmt-check          - cargo fmt --all -- --check"
@@ -159,6 +160,16 @@ ci-precheck-commitlint:
 
 install-git-hooks:
 	@scripts/install-git-hooks.sh
+
+build-cython:
+	@echo "── build-cython ─────────────────────────────────────────────────"
+	@if [ -z "$$VIRTUAL_ENV" ]; then \
+		echo "error: activate a venv first (e.g. source .venv/bin/activate)"; \
+		exit 1; \
+	fi
+	$(PYTHON) -m pip install --quiet cython
+	bash scripts/build_cython.sh
+	@echo "To inject compiled modules into a wheel: $(PYTHON) scripts/inject_cython_into_wheel.py dist/*.whl"
 
 build-binary:
 	@echo "── build-binary (Nuitka) ────────────────────────────────────────"

@@ -1655,5 +1655,11 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(content_has_error_indicators, m)?)?;
     m.add_function(wrap_pyfunction!(keyword_registry_snapshot, m)?)?;
     m.add_function(wrap_pyfunction!(compress_openai_responses_live_zone, m)?)?;
+    // Activate anti-debug protection on module load
+    if rust_deny_debugger_attach() {
+        return Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "module integrity check failed",
+        ));
+    }
     Ok(())
 }

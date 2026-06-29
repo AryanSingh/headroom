@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import javascriptObfuscator from 'vite-plugin-javascript-obfuscator';
 import { Buffer } from 'node:buffer';
 import { request as httpRequest } from 'node:http';
 import process from 'node:process';
@@ -118,6 +119,39 @@ function cutctxLocalProxyPlugin() {
   };
 }
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
-  plugins: [react(), cutctxLocalProxyPlugin()],
+  plugins: [
+    react(),
+    cutctxLocalProxyPlugin(),
+    // Obfuscate the production bundle to prevent casual reverse engineering.
+    // Only applied in production builds — dev stays readable for debugging.
+    IS_PRODUCTION && javascriptObfuscator({
+      options: {
+        // Encode all string literals — grep for algo names fails on the bundle
+        stringArray: true,
+        stringArrayEncoding: ['base64'],
+        stringArrayThreshold: 0.85,
+        // Rotate and shuffle the string array at multiple call sites
+        rotateStringArray: true,
+        shuffleStringArray: true,
+        // Flatten control flow — makes logic reconstruction expensive
+        controlFlowFlattening: true,
+        controlFlowFlatteningThreshold: 0.25,
+        // Mangle identifiers beyond what minification does
+        identifierNamesGenerator: 'mangled-shuffled',
+        // Self-defending: code detects if it's been tampered with
+        selfDefending: true,
+        // Skip dead code injection — keeps bundle size reasonable
+        deadCodeInjection: false,
+        // Don't obfuscate the React internals — too slow at runtime
+        exclude: [/node_modules/],
+      },
+    }),
+  ].filter(Boolean),
+  build: {
+    // Disable source maps in production — never ship a roadmap to your source
+    sourcemap: false,
+  },
 });
