@@ -36,10 +36,16 @@ def test_memory_router_mounts_sync_and_review(tmp_path, monkeypatch) -> None:
         )
     )
 
-    router_paths = {getattr(route, "path", "") for route in app.routes}
-    assert "/v1/memory/sync" in router_paths
-    assert "/v1/memory/review" in router_paths
-    assert "/v1/memory/query" not in router_paths
+    client = TestClient(app)
+    # The route requires admin auth, so a GET should return 401 or 405 (Method Not Allowed since it's a POST)
+    # Either way, if it returns 404, it means the route is not mounted.
+    r_sync = client.post("/v1/memory/sync", json={})
+    assert r_sync.status_code != 404
+    r_review = client.post("/v1/memory/review", json={})
+    assert r_review.status_code != 404
+    r_query = client.post("/v1/memory/query", json={})
+    # Query is typically not exposed here unless we have it, wait the original test asserted it is NOT in router paths
+    assert r_query.status_code == 404
 
     client = TestClient(app)
     now = datetime.now(UTC).isoformat()

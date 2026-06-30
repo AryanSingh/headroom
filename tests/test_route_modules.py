@@ -32,6 +32,7 @@ from cutctx.proxy.server import ProxyConfig, create_app
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "test-route-modules-1234")
+    monkeypatch.setenv("CUTCTX_SECRETS_KEY", "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=")
     config = ProxyConfig(
         cache_enabled=False,
         rate_limit_enabled=False,

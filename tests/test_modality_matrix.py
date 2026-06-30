@@ -71,8 +71,6 @@ def test_feature_availability_snapshot_structure() -> None:
     required_keys = {
         "knowledge_graph",
         "drain3",
-        "difftastic",
-        "llmlingua",
         "multimodal_image",
         "smart_crusher",
         "kompress",

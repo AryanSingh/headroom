@@ -113,14 +113,23 @@ class TestEgressEnforcer:
 
 
 class TestLoadPolicyFromEnv:
-    def test_unset_returns_empty(self, monkeypatch):
+    def test_unset_returns_connected_mode_by_default(self, monkeypatch):
         from cutctx.proxy.egress import load_policy_from_env
 
         monkeypatch.delenv("CUTCTX_EGRESS_POLICY", raising=False)
         p = load_policy_from_env()
+        assert p.policy_id == "default-connected"
+        assert p.allow_all is True
+
+    def test_unset_returns_empty_in_offline_mode(self, monkeypatch):
+        from cutctx.proxy.egress import load_policy_from_env
+
+        monkeypatch.delenv("CUTCTX_EGRESS_POLICY", raising=False)
+        monkeypatch.setenv("CUTCTX_OFFLINE_MODE", "1")
+        p = load_policy_from_env()
         assert p.policy_id == "default-empty"
-        assert p.allowed_patterns == ()
         assert p.allow_all is False
+        assert p.allowed_patterns == ()
 
     def test_invalid_json_returns_invalid_marker(self, monkeypatch):
         from cutctx.proxy.egress import load_policy_from_env
