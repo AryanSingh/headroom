@@ -29,17 +29,31 @@ re-verified here.
 
 | Task | Status | Evidence | Notes |
 |---|---|---|---|
-| Establish handoff log and commit discipline | In progress | This file | Must commit immediately after this update |
-| Re-verify high-risk runtime paths | Pending |  | Focus on proxy startup, health, stats, routing, streaming |
-| Re-verify new USearch and stack-graph work | Pending |  | Do not trust implementation without tests/builds |
+| Establish handoff log and commit discipline | Complete | commit `4fdc265d` | Tracker established and checkpoint committed |
+| Re-verify high-risk runtime paths | In progress | `tests/test_proxy_runtime_truthfulness.py` bundle passed | Need more live/manual coverage beyond the core audited slice |
+| Re-verify new USearch and stack-graph work | In progress | stack-graph Python-facing tests passed; USearch tests skipped without dependency | Rust build itself not verified because `cargo` is unavailable in this environment |
 | Re-verify dashboard stats and operator surfaces | Pending |  | Must validate UI with live backend payloads |
 | Refresh release verdict and remaining risks | Pending |  | Final task after independent verification |
 
 ### Next Actions
 
-1. Commit this tracker update as the first checkpoint.
-2. Inspect and verify the new USearch and stack-graph changes already present in the worktree.
-3. Run targeted compile/tests before making any runtime edits.
+1. Continue the widened runtime verification: provider routing, health, stats, and dashboard-facing contracts.
+2. Validate whether the new stack-graph/USearch work is actually release-ready or merely test-green in a partial environment.
+3. Audit the dashboard/operator surfaces live and record any broken stats or capability drift.
+
+### Evidence Log
+
+#### 2026-06-30 1st verification checkpoint
+
+- `python3 -m py_compile cutctx/memory/backends/usearch_store.py`
+  - passed
+- `uv run python -m pytest -q tests/test_stack_graph_resolver.py tests/test_stack_graph_reachability.py tests/test_usearch_backend.py`
+  - result: `35 passed, 27 skipped`
+  - note: all USearch backend tests were skipped because `usearch` is not installed in this environment
+- `uv run python -m pytest -q tests/test_proxy_runtime_truthfulness.py tests/test_provider_proxy_routes.py tests/test_proxy_dashboard_stats_cache.py tests/test_proxy_savings_history.py tests/test_proxy_compress_endpoint.py tests/test_proxy_anthropic_compression_diagnostics.py tests/test_graphify_index.py tests/test_cli_capabilities.py tests/test_memory_sync.py`
+  - result: `114 passed, 3 warnings`
+- `cargo test -p cutctx-core ...`
+  - not runnable here because `cargo` is not installed in the current environment
 
 **Date:** 2026-06-30  
 **Version target:** v0.29.0 → v0.29.1 (production release)  
