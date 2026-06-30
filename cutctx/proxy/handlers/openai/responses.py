@@ -19,7 +19,6 @@ import uuid
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from cutctx.tokenizers import get_tokenizer
 from typing import TYPE_CHECKING, Any
 
 from cutctx.proxy.helpers import (
@@ -33,6 +32,7 @@ from cutctx.proxy.ws_session_registry import (
     WebSocketSessionRegistry,
     WSSessionHandle,
 )
+from cutctx.tokenizers import get_tokenizer
 
 if TYPE_CHECKING:
     from fastapi import Request, WebSocket
@@ -55,10 +55,31 @@ from cutctx.proxy.tool_surface import (
 logger = logging.getLogger("cutctx.proxy")
 
 _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
-    # "stream" is included because chatgpt.com/backend-api/codex/responses
-    # does not support HTTP SSE — it always streams internally and rejects
-    # requests that include stream:true in the body with a bare 400.
-    {"client_metadata", "generate", "prompt_cache_key", "stream"}
+    # Fields the chatgpt.com/backend-api/codex/responses endpoint rejects.
+    # "stream" is included because the subscription HTTP path has historically
+    # rejected ``stream: true`` with a bare 400. We keep the safer non-streaming
+    # path unless and until that endpoint is re-verified live.
+    #
+    # Additional extended OpenAI API fields are stripped conservatively because
+    # chatgpt.com is stricter than api.openai.com and tends to respond with a
+    # plain 400 when it dislikes request-shape fields.
+    #   reasoning          — o-series extended thinking ({"effort": "medium"})
+    #   include            — encrypted reasoning retrieval (["reasoning.encrypted_content"])
+    #   text               — response verbosity control ({"verbosity": "low"})
+    #   store              — request storage flag (false)
+    #   parallel_tool_calls — tool parallelism flag
+    #   client_metadata, generate, prompt_cache_key — internal/legacy fields
+    {
+        "client_metadata",
+        "generate",
+        "include",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "text",
+    }
 )
 
 # Models that the chatgpt.com Codex backend no longer accepts — map to their
@@ -1669,10 +1690,10 @@ class OpenAIResponsesMixin:
             },
         )
 
-        # chatgpt.com/backend-api/codex/responses does not support HTTP SSE
-        # (stream:true is now stripped above). Force the non-streaming code
-        # path so the proxy makes a regular POST and returns a JSON response.
-        # The WS handler handles streaming Codex sessions separately.
+        # chatgpt.com/backend-api/codex/responses has historically rejected
+        # HTTP ``stream: true`` bodies with a bare 400. Keep the safer
+        # non-streaming POST path here; the WS handler still handles
+        # WS-native Codex sessions separately.
         if is_chatgpt_auth:
             stream = False
 
@@ -1708,12 +1729,13 @@ class OpenAIResponsesMixin:
                     except Exception:
                         _err_body = "<unreadable>"
                     logger.error(
-                        "[%s] upstream %s returned HTTP %d — url=%s body_sent=%s response_body=%s",
+                        "[%s] upstream %s returned HTTP %d — url=%s body_keys=%s body_sample=%s response_body=%s",
                         request_id,
                         url,
                         response.status_code,
                         url,
-                        json.dumps({k: v for k, v in body.items() if k != "input"})[:500],
+                        list(body.keys()),
+                        json.dumps({k: v for k, v in body.items() if k not in ("input", "instructions", "tools")})[:300],
                         _err_body,
                     )
                 _response_body_for_debug: Any = None
@@ -2251,7 +2273,7 @@ class OpenAIResponsesMixin:
                             else client_subprotocols or None
                         ),
                         ssl=use_ssl,
-                        open_timeout=max(30, self.config.connect_timeout_seconds * 3),
+                        open_timeout=8 if is_chatgpt_auth else max(30, self.config.connect_timeout_seconds * 3),
                         close_timeout=10,
                         ping_interval=20,
                         ping_timeout=20,
@@ -4341,8 +4363,30 @@ class OpenAIResponsesMixin:
         if http_body.get("type") in {"response.create", "response"}:
             http_body.pop("type", None)
 
-        # Ensure streaming is enabled so we get SSE events
-        http_body["stream"] = True
+        # For chatgpt.com, strip unsupported fields (stream, client_metadata, etc.)
+        # and apply emergency truncation if the body exceeds the size limit.
+        # For api.openai.com, enable streaming as normal.
+        _is_chatgpt_fallback = "chatgpt.com" in http_url
+        if _is_chatgpt_fallback:
+            http_body, _stripped = _sanitize_chatgpt_subscription_responses_body(http_body)
+            if _stripped:
+                logger.info(
+                    "[%s] WS→HTTP fallback stripped chatgpt subscription fields: %s",
+                    request_id,
+                    ", ".join(_stripped),
+                )
+            _fb_body_bytes = len(json.dumps(http_body).encode("utf-8", errors="replace"))
+            _CHATGPT_FALLBACK_MAX = 900 * 1024
+            if _fb_body_bytes > _CHATGPT_FALLBACK_MAX:
+                logger.warning(
+                    "[%s] WS→HTTP fallback body too large for chatgpt.com (%d bytes) — truncating",
+                    request_id,
+                    _fb_body_bytes,
+                )
+                http_body = _truncate_body_for_chatgpt(http_body, _CHATGPT_FALLBACK_MAX, request_id)
+        else:
+            # Ensure streaming is enabled for api.openai.com
+            http_body["stream"] = True
 
         # Build HTTP headers from the upstream headers (already stripped of WS
         # hop-by-hop headers by the caller).

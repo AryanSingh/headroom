@@ -36,6 +36,7 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
         "client_metadata": {"thread_id": "t_123"},
         "prompt_cache_key": "pk_123",
         "generate": {"foo": "bar"},
+        "stream": True,
         "text": {"verbosity": "low"},
     }
 
@@ -44,12 +45,13 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
     assert sanitized == {
         "model": "gpt-5.5",
         "input": "hi",
-        "text": {"verbosity": "low"},
     }
     assert stripped == [
         "client_metadata",
         "generate",
         "prompt_cache_key",
+        "stream",
+        "text",
         "model:gpt-5.4->gpt-5.5",
     ]
 

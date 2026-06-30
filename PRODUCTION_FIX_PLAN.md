@@ -416,3 +416,20 @@ Add a `v0.29.1` entry covering:
 | 4.x | Docs: CORS, ALLOW_DEBUG, CHANGELOG | `docs/`, `CHANGELOG.md` | — | ~2 hrs | Low |
 
 **Phase 1 (items 1.1–1.4) is the only hard blocker for production release.** The code changes are small (<30 lines total). Phases 2–4 should be completed before a public commercial announcement but are not deployment-blockers.
+
+## 2026-06-30 Incident Addendum
+
+- User-reported symptom: Cutctx-enabled traffic returned `{"detail":"Bad Request"}`. Disabling Cutctx removed the failure.
+- Most likely cause in the current worktree was the uncommitted ChatGPT Codex `Responses` compatibility change in [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py).
+- The risky behavior change was:
+- removing `stream` from the ChatGPT subscription unsupported-field strip list
+- removing the defensive `is_chatgpt_auth -> stream = False` override for HTTP `Responses` traffic
+- That path previously documented that chatgpt.com can reject HTTP `stream:true` with a bare `400`, so the safer assumption is to keep the non-streaming HTTP path unless re-verified live.
+- Fix applied:
+- restored `stream` to `_CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS`
+- restored the defensive `stream = False` behavior for `is_chatgpt_auth`
+- updated compatibility coverage in [tests/test_openai_responses_subscription_compat.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_openai_responses_subscription_compat.py)
+- Verification:
+- `uv run python -m pytest -q tests/test_openai_responses_subscription_compat.py` → `4 passed`
+- `uv run python -m pytest -q tests/test_provider_codex_runtime.py -k 'responses or codex'` → `5 passed`
+- Separate note: the stack-graph pre-compress hook remains a performance-risk area, but it is a weaker match for this specific plain-400 symptom than the `Responses` request-shape regression above.
