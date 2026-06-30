@@ -5,7 +5,7 @@ import { fetchDashboardJson } from '../lib/use-dashboard-data';
 import { getAdminAuthHeaders } from '../lib/admin-auth';
 import { getProxyUrl } from '../lib/api';
 
-export default function Firewall() {
+export default function Firewall({ searchQuery = '' }) {
   const [stats, setStats] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,14 +129,14 @@ export default function Firewall() {
                 </tr>
               </thead>
               <tbody>
-                {events.length === 0 ? (
+                {events.filter(e => !searchQuery || e.action?.toLowerCase().includes(searchQuery) || e.actor?.toLowerCase().includes(searchQuery) || JSON.stringify(e.detail || {}).toLowerCase().includes(searchQuery)).length === 0 ? (
                   <tr>
                     <td colSpan={4} className="empty-row">
                       {loading ? 'Loading events…' : 'No firewall events recorded yet.'}
                     </td>
                   </tr>
                 ) : (
-                  events.map((event, index) => (
+                  events.filter(e => !searchQuery || e.action?.toLowerCase().includes(searchQuery) || e.actor?.toLowerCase().includes(searchQuery) || JSON.stringify(e.detail || {}).toLowerCase().includes(searchQuery)).map((event, index) => (
                     <tr key={event.event_id || index}>
                       <td>{event.timestamp ? formatRelativeTime(event.timestamp) : '—'}</td>
                       <td>{event.action || '—'}</td>

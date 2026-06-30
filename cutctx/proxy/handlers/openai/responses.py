@@ -18,6 +18,7 @@ import uuid
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from cutctx.tokenizers import get_tokenizer
 from typing import TYPE_CHECKING, Any
 
 from cutctx.proxy.helpers import (
@@ -1025,6 +1026,7 @@ class OpenAIResponsesMixin:
             request_savings_metadata=request_savings_metadata,
             tool_calls=len(body.get("tools") or []),
             num_messages=len(messages),
+            messages=messages,
         )
         body["model"] = model
 
@@ -2212,9 +2214,11 @@ class OpenAIResponsesMixin:
                 or "unknown"
             )
             ws_num_messages = 0
+            ws_messages = None
             if isinstance(ws_routing_body, dict):
                 if isinstance(ws_routing_body.get("messages"), list):
-                    ws_num_messages = len(ws_routing_body.get("messages") or [])
+                    ws_messages = ws_routing_body.get("messages")
+                    ws_num_messages = len(ws_messages or [])
                 elif isinstance(ws_routing_body.get("input"), list):
                     ws_num_messages = len(ws_routing_body.get("input") or [])
             ws_model, ws_savings_metadata = prepare_model_routing(
@@ -2222,6 +2226,7 @@ class OpenAIResponsesMixin:
                 ws_model,
                 request_savings_metadata=ws_savings_metadata,
                 num_messages=ws_num_messages,
+                messages=ws_messages,
             )
             if isinstance(body, dict):
                 body["model"] = ws_model

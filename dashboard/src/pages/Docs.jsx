@@ -126,7 +126,7 @@ export default function Docs() {
             Three ways to use Cutctx — proxy, wrap, or inline library. Pick the one that matches your workflow.
           </p>
           <Code>{`# Install (Python)
-pip install "cutctx-ai[all]"          # full install — all algorithms
+pip install "cutctx-ai[all]"          # broad bundle — omits some heavy/proprietary extras
 pip install "cutctx-ai[proxy,ml]"     # proxy + Kompress-base only
 
 # Install (Node / TypeScript)
@@ -164,7 +164,7 @@ cutctx savings --by-source --format json`}
               ['`cutctx proxy`', 'Start the drop-in proxy server (default port 8787)'],
               ['`cutctx proxy --port <n>`', 'Start proxy on a custom port'],
               ['`cutctx proxy --backend anthropic`', 'Route to Anthropic (also: openai, bedrock, gemini, anyllm)'],
-              ['`cutctx proxy --mode token`', 'Compression mode: token (default), cost, accuracy, off'],
+              ['`cutctx proxy --mode token`', 'Compression mode: token (default) or cache'],
               ['`cutctx proxy --admin-key <key>`', 'Set admin API key (or use CUTCTX_ADMIN_API_KEY)'],
               ['`cutctx wrap <agent>`', 'Wrap a coding agent: claude, codex, cursor, aider, copilot, opencode'],
               ['`cutctx wrap <agent> --memory`', 'Enable cross-agent memory injection'],
@@ -233,7 +233,7 @@ cutctx savings --by-source --format json`}
               ['`CUTCTX_HOST`', '127.0.0.1', 'Bind address for the proxy server'],
               ['`CUTCTX_PORT`', '8787', 'Port the proxy listens on'],
               ['`CUTCTX_BACKEND`', 'anthropic', 'Upstream provider: anthropic, openai, bedrock, gemini, anyllm'],
-              ['`CUTCTX_MODE`', 'token', 'Compression mode: token, cost, accuracy, off'],
+              ['`CUTCTX_MODE`', 'token', 'Compression mode: token, cache'],
               ['`CUTCTX_ADMIN_API_KEY`', '(auto-generated)', 'Admin API key — set to a fixed value for stable deployments'],
               ['`CUTCTX_LICENSE_KEY`', '—', 'Enterprise license key'],
               ['`CUTCTX_ENTITLEMENT_TIER`', 'self-hosted', 'Override entitlement tier: builder, team, business, enterprise'],
@@ -254,6 +254,12 @@ cutctx savings --by-source --format json`}
               ['`CUTCTX_CCR_BACKEND`', 'local', 'CCR storage backend: local, redis, s3'],
               ['`CUTCTX_CONTEXT_BUDGET_POLICY`', '—', 'Override context budgeting policy'],
               ['`CUTCTX_EXCLUDE_TOOLS`', '—', 'Comma-separated tool names to skip from schema compression'],
+              ['`CUTCTX_DRAIN3`', 'false', 'Enable Drain3 ML log template mining'],
+              ['`CUTCTX_KNOWLEDGE_GRAPH`', 'false', 'Enable knowledge-graph compression (Graphify)'],
+              ['`CUTCTX_DIFFTASTIC`', 'false', 'Enable structural diff compression via difftastic'],
+              ['`CUTCTX_USE_LLMLINGUA`', 'false', 'Use LLMLingua-2 for plain-text compression'],
+              ['`CUTCTX_QUERY_AWARE`', 'false', 'Adapt compression aggressiveness to detected query type'],
+              ['`CUTCTX_SELECTIVE_FILTER`', 'false', 'Drop low-relevance message turns before compression'],
             ]}
           />
 
@@ -519,6 +525,7 @@ pip install "cutctx-ai[pytorch-mps]" # Apple GPU embedder offload`}
               ['GET /audit/events', 'Query audit log (action, actor, since, until, limit)'],
               ['GET /audit/verify', 'Integrity check — lightweight + hash-chain'],
               ['GET /orgs', 'List organizations (requires workspace_model entitlement)'],
+              ['POST /admin/config/flags', 'Update live intelligence layer feature flags at runtime'],
               ['GET /rbac/roles', 'List RBAC role assignments'],
               ['POST /rbac/roles', 'Assign a role to a user ID'],
               ['DELETE /rbac/roles/{user_id}', 'Remove a role assignment'],

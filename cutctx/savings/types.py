@@ -71,10 +71,14 @@ class SavingsBySource:
         source_name = source.value if isinstance(source, SavingsSource) else str(source)
         if tokens:
             self.tokens[source_name] = int(self.tokens.get(source_name, 0)) + int(tokens)
+            if self.tokens[source_name] < 0:
+                self.tokens[source_name] = 0
             if self.tokens[source_name] == 0:
                 self.tokens.pop(source_name, None)
         if usd:
             self.usd[source_name] = float(self.usd.get(source_name, 0.0)) + float(usd)
+            if self.usd[source_name] < 0.0:
+                self.usd[source_name] = 0.0
             if abs(self.usd[source_name]) < 1e-12:
                 self.usd.pop(source_name, None)
 
@@ -132,6 +136,17 @@ class RequestSavingsBreakdown:
     @property
     def has_any_savings(self) -> bool:
         return self.total_tokens_saved > 0 or self.by_source.total_tokens > 0
+
+    def merge(self, other: "RequestSavingsBreakdown") -> None:
+        self.raw_input_tokens += other.raw_input_tokens
+        self.post_cutctx_tokens += other.post_cutctx_tokens
+        self.provider_cached_tokens += other.provider_cached_tokens
+        self.semantic_cache_avoided_tokens += other.semantic_cache_avoided_tokens
+        self.total_tokens_saved += other.total_tokens_saved
+        for src, val in other.by_source.tokens.items():
+            self.by_source.add(src, tokens=val)
+        for src, val in other.by_source.usd.items():
+            self.by_source.add(src, usd=val)
 
     def to_dict(self) -> dict[str, Any]:
         return {

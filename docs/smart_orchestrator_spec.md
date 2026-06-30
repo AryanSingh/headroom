@@ -23,9 +23,8 @@ The system intercepts the `POST /v1/chat/completions` request.
 ### 3.1 The Pipeline
 1. **Interceptor**: Catches the OpenAI-compatible request from the coding agent inside `cutctx.proxy.server`.
 2. **Analyzer & Estimator**: Evaluates the `messages` array, estimates token count, and assigns a `Complexity Score (1-10)`.
-3. **Router**: Interrogates user configuration to route the request (e.g., `if complexity < 3 -> Local Llama3`, `else -> Claude 3.5 Sonnet`). This will leverage and extend the existing `cutctx/proxy/model_router.py`.
-4. **Executor**: Forwards the request to the chosen backend provider.
-5. **Ledger**: Records transaction cost, latency, and the specific model used into `spend_ledger.db`.
+3. **LiteLLM Router & Executor**: Rather than reinventing the wheel, we will leverage our existing `litellm` dependency to handle the actual routing and execution. We will configure LiteLLM's `Router` class dynamically based on the complexity score, allowing it to seamlessly handle load balancing, fallbacks, and connection pooling to the chosen backend provider.
+4. **Ledger**: Records transaction cost, latency, and the specific model used into `spend_ledger.db`.
 
 ### 3.2 Complexity Classifier (The "Brain")
 The hardest part of the system is the classifier. If a complex task is mistakenly routed to a weak local model, the agent will write bad code.
@@ -48,9 +47,9 @@ All changes will be isolated within the `headroom/cutctx/` codebase.
 1. **Create `cutctx/orchestrator/` directory**
    - **`classifier.py`**: Implement `def classify_task_complexity(messages: list[dict]) -> TaskComplexity`. Start with the Heuristic Engine.
    - **`cache.py`**: Semantic and exact-match caching for agent prompts (extending `cutctx/proxy/semantic_cache.py`).
-2. **Extend `cutctx/proxy/model_router.py`**
-   - Add new routing rules to accept the `TaskComplexity` enum.
-   - Implement health checks for local inference servers (e.g., polling `localhost:11434` for Ollama).
+2. **Integrate LiteLLM for Routing (`cutctx/proxy/model_router.py`)**
+   - Map our `TaskComplexity` enum directly into LiteLLM's configuration.
+   - Use LiteLLM's built-in fallback and health-check mechanisms for local inference servers (e.g., Ollama) instead of building custom health probes.
 
 ### Phase 2: Gateway Integration
 1. **Modify `cutctx/proxy/server.py`**

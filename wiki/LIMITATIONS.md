@@ -30,7 +30,7 @@ Cutctx includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it's 
 
 **Why this is the right default**: Code is almost always fetched because the user wants to work with it. Compressing function bodies would remove exactly what they need. LLMs like Claude are excellent at navigating large code files without compression.
 
-**Where code savings come from**: The IntelligentContextManager drops old code messages that are no longer relevant (scoring-based), which is a better strategy than stripping function bodies from active code.
+**Where code savings come from**: The RollingWindow drops old messages when the token limit is exceeded, but live-zone compression targets statistical redundancy within the active code blocks.
 
 **Override**: Set `protect_analysis_context=False` in `ContentRouterConfig` for aggressive code compression. Requires `cutctx-ai[code]` for tree-sitter.
 
@@ -80,7 +80,6 @@ These are kept even if they exceed the K budget.
 - **Latency**: Adds overhead that doesn't break even on fast models. Use for **cost savings**, not speed
 - **Thread safety**: Single global model instance with lock — sequential access under concurrency
 
-> The earlier LLMLingua-2 integration (`cutctx-ai[llmlingua]`) was retired and is no longer installable.
 
 ## Error Handling
 

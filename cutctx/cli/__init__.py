@@ -1,46 +1,52 @@
-"""Cutctx CLI - Command-line interface for memory and proxy management.
+"""Cutctx CLI package.
 
-The subcommand submodules are imported eagerly below so they are bound as
-attributes of `cutctx.cli`. Click registration happens via side effects in
-`main.py::_register_commands`, but that only binds them to the *main.py*
-module. Tests that do `patch("cutctx.cli.<sub>.<attr>")` resolve the target
-by walking attributes on the package object, and that lookup fails when a
-prior test has popped `cutctx.cli` from `sys.modules` and re-imported it
-through a path other than `main.py` (e.g. a test that replaces
-`sys.modules["cutctx.cli.main"]` with a fake to isolate one subcommand).
-Doing `from . import ...` here means the submodule attribute binding
-survives that kind of sys.modules mutation.
+Submodules are imported lazily so lightweight commands such as
+`cutctx capabilities` do not fail just because an unrelated optional
+command depends on an extra package.
 """
 
-from . import (  # noqa: F401
-    agent_savings,
-    audit,
-    billing,
-    capabilities,
-    capture,
-    config_check,
-    evals,
-    init,
-    install,
-    intercept,
-    learn,
-    license,
-    mcp,
-    orgs,
-    perf,
-    proxy,
-    rbac,
-    savings,
-    setup,
-    sso_test,
-    tools,
-    wrap,
-)
-from .main import main
+from __future__ import annotations
 
-try:
-    from . import memory  # noqa: F401
-except ImportError:
-    pass
+from importlib import import_module
 
-__all__ = ["main"]
+_LAZY_SUBMODULES = {
+    "agent_savings",
+    "audit",
+    "billing",
+    "capabilities",
+    "capture",
+    "config_check",
+    "evals",
+    "init",
+    "install",
+    "integrations",
+    "intercept",
+    "learn",
+    "license",
+    "mcp",
+    "memory",
+    "orgs",
+    "perf",
+    "proxy",
+    "rbac",
+    "report",
+    "savings",
+    "setup",
+    "sso_test",
+    "tools",
+    "wrap",
+}
+
+__all__ = ["main", *_LAZY_SUBMODULES]
+
+
+def __getattr__(name: str):
+    if name == "main":
+        from .main import main
+
+        return main
+    if name in _LAZY_SUBMODULES:
+        module = import_module(f"{__name__}.{name}")
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

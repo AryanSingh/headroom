@@ -252,6 +252,42 @@ def report_schedule(daily: bool, weekly: bool, email: str, fmt: str) -> None:
     click.echo(f"  Frequency: {schedule['frequency']}")
     click.echo(f"  Email: {email}")
     click.echo(f"  Format: {fmt}")
+    
+    click.echo("\nTo actually run this schedule, you must set up a daemon.")
+    click.echo("Option 1: crontab (Linux/macOS)")
+    click.echo("-------------------------------")
+    cron_freq = "0 8 * * *" if daily else "0 8 * * 1"
+    click.echo("Run `crontab -e` and add the following line:")
+    click.echo(f"{cron_freq} cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}")
+    
+    click.echo("\nOption 2: launchd (macOS)")
+    click.echo("-------------------------")
+    click.echo("Create ~/Library/LaunchAgents/com.cutctx.report.plist:")
+    plist = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cutctx.report</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>{'' if daily else '''
+        <key>Weekday</key>
+        <integer>1</integer>'''}
+    </dict>
+</dict>
+</plist>"""
+    click.echo(plist)
+    click.echo("\nThen run: launchctl load ~/Library/LaunchAgents/com.cutctx.report.plist")
 
 
 @report_group.command("schedule-list")

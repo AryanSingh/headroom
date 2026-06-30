@@ -41,7 +41,7 @@ from cutctx.savings import (
 
 class TestSavingsSource:
     def test_all_five_sources_present(self):
-        assert len(SavingsSource) == 5
+        assert len(SavingsSource) == 7
         assert SavingsSource.PROVIDER_PROMPT_CACHE.value == "provider_prompt_cache"
         assert SavingsSource.CUTCTX_COMPRESSION.value == "cutctx_compression"
         assert SavingsSource.SEMANTIC_CACHE.value == "semantic_cache"

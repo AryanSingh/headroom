@@ -45,7 +45,8 @@ class TestPrefixCacheTracker:
         )
 
         # On turn 2, the first 2 messages (1500 + 50 = 1550 <= 2050) are frozen
-        assert tracker.get_frozen_message_count() == 3  # All 3 fit within 2050
+        # Capped at N-1 (2) to ensure the last message triggers generation
+        assert tracker.get_frozen_message_count() == 2
 
     def test_partial_freeze(self, tracker):
         """Only messages that fit within cached tokens are frozen."""
@@ -95,8 +96,8 @@ class TestPrefixCacheTracker:
             message_token_counts=token_counts,
         )
 
-        # Turn 2: should freeze what was written
-        assert tracker.get_frozen_message_count() == 2
+        # Turn 2: should freeze what was written, capped at N-1
+        assert tracker.get_frozen_message_count() == 1
 
     def test_min_cached_tokens_threshold(self):
         """Below min_cached_tokens, no freeze."""
@@ -409,7 +410,7 @@ class TestMultiTurnScenario:
         token_counts_t2 = [2000, 50, 200, 50]
 
         frozen = tracker.get_frozen_message_count()
-        assert frozen == 2  # System + User1 frozen
+        assert frozen == 1  # System frozen (capped at N-1)
 
         tracker.update_from_response(
             cache_read_tokens=2050,
@@ -426,7 +427,7 @@ class TestMultiTurnScenario:
         token_counts_t3 = [2000, 50, 200, 50, 200, 50]
 
         frozen = tracker.get_frozen_message_count()
-        assert frozen == 4  # System + User1 + Asst1 + User2 frozen
+        assert frozen == 3  # Capped at N-1 (3)
 
         tracker.update_from_response(
             cache_read_tokens=2300,
@@ -454,7 +455,7 @@ class TestMultiTurnScenario:
             messages=messages,
             message_token_counts=[1500, 500],
         )
-        assert tracker.get_frozen_message_count() == 2  # Both fit within 2000
+        assert tracker.get_frozen_message_count() == 1  # Capped at N-1
 
         # Turn 2: Cache bust (0 reads, system prompt changed)
         tracker.update_from_response(

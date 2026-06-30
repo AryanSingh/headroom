@@ -42,10 +42,49 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any
 
 logger = logging.getLogger("cutctx.proxy.model_router")
+
+class TaskComplexity(IntEnum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
+    """Classify the complexity of a task based on the last user message."""
+    if not messages:
+        return TaskComplexity.HIGH
+
+    last_user_message = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+    if not last_user_message:
+        return TaskComplexity.HIGH
+
+    content = str(last_user_message.get("content", ""))
+
+    # Regex heuristic for low complexity
+    low_complexity_patterns = [
+        r"fix\s*(?:the)?\s*typo",
+        r"add\s*(?:a)?\s*docstring",
+        r"add\s*(?:type)?\s*hints?",
+        r"fix\s*lint(?:ing)?",
+        r"rename\s*(?:the)?\s*variable",
+        r"format\s*(?:the)?\s*code"
+    ]
+    
+    # If the text is short AND matches a low complexity pattern
+    if len(content) < 500:
+        for pattern in low_complexity_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                return TaskComplexity.LOW
+
+    if len(content) > 5000:
+        return TaskComplexity.HIGH
+
+    return TaskComplexity.MEDIUM
 
 
 @dataclass
@@ -277,6 +316,13 @@ class ModelRouter:
                 return False
         return True
 
+    def is_text_downgradeable(self, messages: list[dict[str, Any]]) -> bool:
+        """Check if the text content of the messages is simple enough to downgrade."""
+        if self.config.downgrade_when != "low_complexity":
+            return True
+        complexity = classify_task_complexity(messages)
+        return complexity == TaskComplexity.LOW
+
     def _lookup_costs(
         self, source: str, target: str
     ) -> tuple[float | None, float | None]:
@@ -311,6 +357,7 @@ def prepare_model_routing(
     attempted_input_tokens: int = 0,
     tool_calls: int = 0,
     num_messages: int = 0,
+    messages: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
@@ -319,6 +366,11 @@ def prepare_model_routing(
         return requested_model, request_savings_metadata
 
     try:
+        # If text downgrade check fails, abort routing
+        if messages and hasattr(router, "is_text_downgradeable"):
+            if not router.is_text_downgradeable(messages):
+                return requested_model, request_savings_metadata
+
         decision = router.maybe_route(
             requested_model,
             cache_read_tokens=cache_read_tokens,

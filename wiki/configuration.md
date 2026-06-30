@@ -59,7 +59,6 @@ cutctx proxy --no-ccr-responses
 # Disable proactive expansion
 cutctx proxy --no-ccr-expansion
 
-# (The earlier --llmlingua flag was retired in 0.9.x and replaced by
 # Kompress (ModernBERT). See `wiki/transforms.md` for the current
 # opt-in path via the `[ml]` extra.)
 ```

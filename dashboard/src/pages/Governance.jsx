@@ -208,7 +208,7 @@ function FeatureRow({ feature, stats, liveFlags, onToggle, toggleBusy, restartNe
   );
 }
 
-export default function Governance() {
+export default function Governance({ searchQuery = '' }) {
   const { stats, loading: statsLoading } = useDashboardData();
   const [sections, setSections] = useState({
     audit: emptySection(),
@@ -358,7 +358,7 @@ export default function Governance() {
           <p>Set these environment variables before starting the proxy. Restart required for changes to take effect.</p>
         </div>
         <div className="feature-config-list">
-          {FEATURE_CONFIG.map((feature) => (
+          {FEATURE_CONFIG.filter(f => f.label.toLowerCase().includes(searchQuery) || f.description.toLowerCase().includes(searchQuery)).map((feature) => (
             <FeatureRow
               key={feature.key}
               feature={feature}
@@ -393,14 +393,14 @@ export default function Governance() {
                 </tr>
               </thead>
               <tbody>
-                {orgs.length === 0 ? (
+                {orgs.filter(o => !searchQuery || (o.name?.toLowerCase().includes(searchQuery) || o.slug?.toLowerCase().includes(searchQuery) || o.admin_email?.toLowerCase().includes(searchQuery))).length === 0 ? (
                   <tr>
                     <td colSpan={4} className="empty-row">
                       {loading ? 'Loading…' : sections.orgs.ok ? 'No organizations configured.' : 'Enterprise feature — contact sales to enable.'}
                     </td>
                   </tr>
                 ) : (
-                  orgs.slice(0, 8).map((org, index) => (
+                  orgs.filter(o => !searchQuery || (o.name?.toLowerCase().includes(searchQuery) || o.slug?.toLowerCase().includes(searchQuery) || o.admin_email?.toLowerCase().includes(searchQuery))).slice(0, 8).map((org, index) => (
                     <tr key={org.id || org.slug || index}>
                       <td>{org.name || org.id || '—'}</td>
                       <td>{org.slug || '—'}</td>
@@ -472,14 +472,14 @@ export default function Governance() {
                 <tr><th>Action</th><th>Count</th></tr>
               </thead>
               <tbody>
-                {Object.entries(audit.by_action || {}).length === 0 ? (
+                {Object.entries(audit.by_action || {}).filter(([a]) => !searchQuery || a.toLowerCase().includes(searchQuery)).length === 0 ? (
                   <tr>
                     <td colSpan={2} className="empty-row">
                       {loading ? 'Loading…' : sections.audit.ok ? 'No audit activity yet.' : 'Enterprise feature — contact sales to enable.'}
                     </td>
                   </tr>
                 ) : (
-                  Object.entries(audit.by_action || {}).slice(0, 8).map(([action, count]) => (
+                  Object.entries(audit.by_action || {}).filter(([a]) => !searchQuery || a.toLowerCase().includes(searchQuery)).slice(0, 8).map(([action, count]) => (
                     <tr key={action}><td>{action}</td><td>{formatInteger(count)}</td></tr>
                   ))
                 )}
@@ -531,14 +531,14 @@ export default function Governance() {
                 <tr><th>User</th><th>Role</th></tr>
               </thead>
               <tbody>
-                {assignments.length === 0 ? (
+                {assignments.filter(a => !searchQuery || a.user_id?.toLowerCase().includes(searchQuery) || a.role?.toLowerCase().includes(searchQuery)).length === 0 ? (
                   <tr>
                     <td colSpan={2} className="empty-row">
                       {loading ? 'Loading…' : sections.rbac.ok ? 'No roles assigned yet.' : 'Enterprise feature.'}
                     </td>
                   </tr>
                 ) : (
-                  assignments.slice(0, 8).map((assignment, index) => (
+                  assignments.filter(a => !searchQuery || a.user_id?.toLowerCase().includes(searchQuery) || a.role?.toLowerCase().includes(searchQuery)).slice(0, 8).map((assignment, index) => (
                     <tr key={assignment.user_id || index}>
                       <td>{assignment.user_id || '—'}</td>
                       <td><span className="transform-chip">{assignment.role || '—'}</span></td>
@@ -564,14 +564,14 @@ export default function Governance() {
                 <tr><th>Provider</th><th>Limit</th><th>Remaining</th><th>Reset</th></tr>
               </thead>
               <tbody>
-                {quotaProviders.length === 0 ? (
+                {quotaProviders.filter(q => !searchQuery || q.provider?.toLowerCase().includes(searchQuery)).length === 0 ? (
                   <tr>
                     <td colSpan={4} className="empty-row">
                       {loading ? 'Loading…' : sections.quota.ok ? 'No quota configured.' : 'Enterprise feature.'}
                     </td>
                   </tr>
                 ) : (
-                  quotaProviders.map((row, index) => (
+                  quotaProviders.filter(q => !searchQuery || q.provider?.toLowerCase().includes(searchQuery)).map((row, index) => (
                     <tr key={row.provider || index}>
                       <td>{row.provider}</td>
                       <td>{row.limit}</td>

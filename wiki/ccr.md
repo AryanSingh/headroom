@@ -115,11 +115,11 @@ Full content available via ccr_retrieve tool with reference 'def456'.]
 # Proxy with CCR enabled (default)
 cutctx proxy --port 8787
 
-# Disable CCR response handling
-cutctx proxy --no-ccr-responses
+# Disable CCR tool injection (run compression-only)
+cutctx proxy --no-ccr-inject-tool
 
 # Disable proactive expansion
-cutctx proxy --no-ccr-expansion
+cutctx proxy --no-ccr-proactive-expansion
 ```
 
 ## Why This Matters

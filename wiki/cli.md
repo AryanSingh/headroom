@@ -243,7 +243,7 @@ cutctx proxy --mode cache
 |---|---|---|
 | `--host` | `127.0.0.1` | Host interface to bind |
 | `--port`, `-p` | `8787` | Port to bind |
-| `--mode` | runtime default | Optimization mode: `token`, `cache`, `token_mode`, `cache_mode`, `token_savings`, `cost_savings`, `token_cutctx` |
+| `--mode` | runtime default | Optimization mode: `token`, `cache` |
 | `--no-optimize` | off | Disable optimization and operate in passthrough mode |
 | `--no-cache` | off | Disable semantic caching |
 | `--no-rate-limit` | off | Disable rate limiting |

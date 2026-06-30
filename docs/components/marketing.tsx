@@ -1,75 +1,39 @@
 import Link from 'next/link';
+
 import { Button } from './button';
 import { CodeBlock } from './code-block';
 
-// --- Live Stats Grid ---
-
-const liveStats = [
-  { value: '$176.6K', label: 'Cost Saved' },
-  { value: '1.19M', label: 'Requests Optimized' },
-  { value: '889', label: 'Active Instances' },
-  { value: '14', label: 'Active Days' },
-];
-
-export function LiveStats() {
-  return (
-    <div className="not-prose">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
-        {liveStats.map((s) => (
-          <div
-            key={s.label}
-            className="flex flex-col items-center p-5 rounded-xl border border-fd-border bg-fd-card"
-          >
-            <span className="text-2xl font-bold text-fd-foreground">
-              {s.value}
-            </span>
-            <span className="mt-1 text-sm text-fd-muted-foreground">
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-      <Link
-        href="/docs/community-savings"
-        className="text-sm font-medium hover:underline"
-      >
-        View detailed charts and breakdowns &rarr;
-      </Link>
-    </div>
-  );
-}
-
-// --- Key Features Grid ---
-
-const features: {
+type FeatureCard = {
   title: string;
   description: string;
   href: string;
   code?: string;
   lang?: string;
-}[] = [
+};
+
+const features: FeatureCard[] = [
   {
     title: 'Lossless Compression (CCR)',
     description:
-      'Compresses aggressively, stores originals, gives the LLM a tool to retrieve full details. Nothing is thrown away.',
+      'Compresses aggressively, stores originals, and gives the LLM a tool to retrieve full details. Nothing is thrown away.',
     href: '/docs/ccr',
   },
   {
     title: 'Smart Content Detection',
     description:
-      'Auto-detects JSON, code, logs, text, diffs, HTML. Routes each to the best compressor. Zero configuration needed.',
+      'Auto-detects JSON, code, logs, text, diffs, and HTML. Routes each payload to the most appropriate compressor. Zero configuration needed.',
     href: '/docs/how-compression-works',
   },
   {
     title: 'Cache Optimization',
     description:
-      "Stabilizes prefixes so provider KV caches hit. Tracks frozen messages to preserve the 90% read discount.",
+      'Stabilizes prefixes so provider KV caches hit. Tracks frozen messages to preserve the prompt-cache discount.',
     href: '/docs/cache-optimization',
   },
   {
     title: 'Image Compression',
     description:
-      '40-90% token reduction via trained ML router. Automatically selects resize/quality tradeoff per image.',
+      '40-90% token reduction via the trained ML router. Automatically selects the right resize and quality tradeoff per image.',
     href: '/docs/image-compression',
   },
   {
@@ -81,7 +45,7 @@ const features: {
   {
     title: 'Failure Learning',
     description:
-      'Reads past sessions, finds failed tool calls, correlates with what succeeded, writes learnings to CLAUDE.md.',
+      'Reads past sessions, finds failed tool calls, correlates what succeeded, and writes learnings to CLAUDE.md.',
     href: '/docs/failure-learning',
   },
   {
@@ -94,69 +58,67 @@ const features: {
   {
     title: 'Metrics & Observability',
     description:
-      'Prometheus endpoint, per-request logging, cost tracking, budget limits, pipeline timing breakdowns.',
+      'Prometheus endpoint, per-request logging, cost tracking, budget limits, and pipeline timing breakdowns.',
     href: '/docs/metrics',
   },
 ];
 
 export async function KeyFeatures() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8 not-prose">
-      {await Promise.all(
-        features.map(async (f) => (
-          <div
-            key={f.title}
-            className="flex flex-col p-5 rounded-xl border border-fd-border bg-fd-card"
+    <div className="grid grid-cols-1 gap-4 my-8 not-prose md:grid-cols-2">
+      {features.map((feature) => (
+        <div
+          key={feature.title}
+          className="flex flex-col rounded-xl border border-fd-border bg-fd-card p-5"
+        >
+          <h3 className="text-base font-semibold text-fd-foreground">
+            {feature.title}
+          </h3>
+          <p className="mt-2 flex-1 text-sm text-fd-muted-foreground">
+            {feature.description}
+          </p>
+
+          {feature.code ? <CodeBlock code={feature.code} lang={feature.lang} /> : null}
+
+          <Link
+            href={feature.href}
+            className="mt-3 text-sm font-medium hover:underline"
           >
-            <h3 className="text-base font-semibold text-fd-foreground">
-              {f.title}
-            </h3>
-            <p className="mt-2 text-sm text-fd-muted-foreground flex-1">
-              {f.description}
-            </p>
-            {f.code && <CodeBlock code={f.code} lang={f.lang} />}
-            <Link
-              href={f.href}
-              className="mt-3 text-sm font-medium hover:underline"
-            >
-              Learn more &rarr;
-            </Link>
-          </div>
-        )),
-      )}
+            Learn more &rarr;
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }
 
-// --- Framework Integrations Bento ---
-
-const integrations: {
+type IntegrationCard = {
   title: string;
   description: string;
   code: string;
   lang: string;
   href: string;
-}[] = [
+};
+
+const integrations: IntegrationCard[] = [
   {
     title: 'LangChain',
     description:
-      'Wrap any chat model. Supports memory, retrievers, tools, streaming, async.',
+      'Wrap any chat model. Supports memory, retrievers, tools, streaming, and async workflows.',
     code: 'from cutctx.integrations.langchain import CutCtxChatModel\nllm = CutCtxChatModel(ChatOpenAI())',
     lang: 'python',
     href: '/docs/langchain',
   },
   {
     title: 'Agno',
-    description:
-      'Full agent framework integration with observability hooks.',
+    description: 'Full agent framework integration with observability hooks.',
     code: 'from cutctx.integrations.agno import CutCtxAgnoModel\nmodel = CutCtxAgnoModel(Claude())\nagent = Agent(model=model)',
     lang: 'python',
     href: '/docs/agno',
   },
   {
     title: 'Strands',
-    description:
-      'Model wrapping + tool output hook provider for Strands Agents.',
+    description: 'Model wrapping plus tool-output hooks for Strands Agents.',
     code: 'from cutctx.integrations.strands import CutCtxStrandsModel\nmodel = CutCtxStrandsModel(...)\nagent = Agent(model=model)',
     lang: 'python',
     href: '/docs/strands',
@@ -164,7 +126,7 @@ const integrations: {
   {
     title: 'MCP Tools',
     description:
-      'Three tools for Claude Code, Cursor, or any MCP client: cutctx_compress, cutctx_retrieve, cutctx_stats.',
+      'Three tools for Claude Code, Cursor, or any MCP client: cutctx_compress, cutctx_retrieve, and cutctx_stats.',
     code: 'cutctx mcp install && claude',
     lang: 'bash',
     href: '/docs/mcp',
@@ -172,7 +134,7 @@ const integrations: {
   {
     title: 'TypeScript SDK',
     description:
-      'compress(), Vercel AI SDK middleware, OpenAI and Anthropic client wrappers.',
+      'compress(), Vercel AI SDK middleware, and OpenAI/Anthropic client wrappers.',
     code: 'npm install cutctx-ai',
     lang: 'bash',
     href: '/docs/vercel-ai-sdk',
@@ -180,7 +142,7 @@ const integrations: {
   {
     title: 'Vercel AI SDK',
     description:
-      'One-liner withCutCtx() or cutctxMiddleware() for any Vercel AI SDK model.',
+      'One-liner withCutCtx() or cutctxMiddleware() support for any Vercel AI SDK model.',
     code: "import { withCutCtx } from 'cutctx-ai/vercel-ai'\nconst model = withCutCtx(openai('gpt-4o'))",
     lang: 'typescript',
     href: '/docs/vercel-ai-sdk',
@@ -190,34 +152,31 @@ const integrations: {
 export async function FrameworkIntegrations() {
   return (
     <div className="not-prose">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
-        {await Promise.all(
-          integrations.map(async (i) => (
-            <div
-              key={i.title}
-              className="flex flex-col p-5 rounded-xl border border-fd-border bg-fd-card"
+      <div className="grid grid-cols-1 gap-4 my-8 md:grid-cols-2">
+        {integrations.map((integration) => (
+          <div
+            key={integration.title}
+            className="flex flex-col rounded-xl border border-fd-border bg-fd-card p-5"
+          >
+            <h3 className="text-base font-semibold text-fd-foreground">
+              {integration.title}
+            </h3>
+            <p className="mt-2 flex-1 text-sm text-fd-muted-foreground">
+              {integration.description}
+            </p>
+            <CodeBlock code={integration.code} lang={integration.lang} />
+            <Link
+              href={integration.href}
+              className="mt-3 text-sm font-medium hover:underline"
             >
-              <h3 className="text-base font-semibold text-fd-foreground">
-                {i.title}
-              </h3>
-              <p className="mt-2 text-sm text-fd-muted-foreground flex-1">
-                {i.description}
-              </p>
-              <CodeBlock code={i.code} lang={i.lang} />
-              <Link
-                href={i.href}
-                className="mt-3 text-sm font-medium hover:underline"
-              >
-                {i.title} Guide &rarr;
-              </Link>
-            </div>
-          )),
-        )}
+              {integration.title} Guide &rarr;
+            </Link>
+          </div>
+        ))}
       </div>
+
       <Button variant="link" size="sm" asChild>
-        <Link href="/docs/quickstart">
-          All integration patterns &rarr;
-        </Link>
+        <Link href="/docs/quickstart">All integration patterns &rarr;</Link>
       </Button>
     </div>
   );

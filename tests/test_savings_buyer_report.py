@@ -249,6 +249,8 @@ def test_savings_by_source_empty_state_emits_valid_json():
             "semantic_cache",
             "prefix_cache_self_hosted",
             "model_routing",
+            "tool_schema_compaction",
+            "api_surface_slimming",
         }
         assert payload["sessions_count"] == 0
         assert payload["total_tokens_saved"] == 0

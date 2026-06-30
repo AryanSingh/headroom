@@ -170,9 +170,7 @@ class ProxyConfig:
     # CLI: --disable-kompress; env: CUTCTX_DISABLE_KOMPRESS=1.
     disable_kompress: bool = False
 
-    # Use LLMLingua-2 for plain-text compression instead of Kompress.
-    # Requires: pip install cutctx-ai[llmlingua]
-    # CLI: --llmlingua; env: CUTCTX_USE_LLMLINGUA=1.
+    # Deprecated: LLMLingua was removed. Field kept for CLI/env backward compat.
     use_llmlingua: bool = False
 
     # Query-aware compression: adapt protect_recent and min_tokens_to_crush

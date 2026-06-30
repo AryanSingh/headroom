@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatInteger, formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson, useDashboardData } from '../lib/use-dashboard-data';
 
-export default function Memory() {
+export default function Memory({ searchQuery = '' }) {
   const { stats } = useDashboardData();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,14 +136,14 @@ export default function Memory() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.length === 0 ? (
+                  {items.filter(i => !searchQuery || (i.text || i.content)?.toLowerCase().includes(searchQuery) || i.source?.toLowerCase().includes(searchQuery)).length === 0 ? (
                     <tr>
                       <td colSpan={3} className="empty-row">
                         {loading ? 'Loading memories…' : 'No memories recorded yet.'}
                       </td>
                     </tr>
                   ) : (
-                    items.map((item, index) => (
+                    items.filter(i => !searchQuery || (i.text || i.content)?.toLowerCase().includes(searchQuery) || i.source?.toLowerCase().includes(searchQuery)).map((item, index) => (
                       <tr key={item.id || index}>
                         <td>{item.text || item.content || '—'}</td>
                         <td>

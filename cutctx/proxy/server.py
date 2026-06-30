@@ -440,8 +440,6 @@ class CutctxProxy(
         if config.disable_kompress:
             router_config.enable_kompress = False
             router_config.fallback_strategy = CompressionStrategy.PASSTHROUGH
-        if config.use_llmlingua:
-            router_config.use_llmlingua = True
         # Selective filter: forward ProxyConfig toggle + threshold to ContentRouterConfig
         if getattr(config, "selective_filter", False):
             router_config.selective_filter = True
@@ -2178,7 +2176,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "cache": config.cache_enabled,
                 "rate_limit": config.rate_limit_enabled,
                 "disable_kompress": config.disable_kompress,
-                "text_compression_engine_enabled": config.use_llmlingua,
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
                 "code_graph": config.code_graph_watcher,
@@ -3078,7 +3075,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "install_hint": "brew install structural-diff-engine or cargo install structural-diff-engine",
             },
             "text_compression_engine": {
-                "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
                 "available": llmlingua_py,
                 "reason": None if llmlingua_py else "text_compression_engine_missing",
                 "install_hint": "pip install cutctx-ai[text-compression]",
@@ -3448,8 +3444,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return FileResponse(fav_path, media_type="image/svg+xml")
         raise HTTPException(status_code=404, detail="Not found")
 
-    @app.get("/dashboard",
- response_class=HTMLResponse, dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("dashboard.read"))])
+    @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard():
         """Serve the Cutctx dashboard UI."""
         return get_dashboard_html(prefer_react=True)
@@ -4308,6 +4303,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         except ImportError:
             pass
 
+
     register_provider_routes(app, proxy)
 
     return app
@@ -4356,7 +4352,6 @@ def _proxy_config_from_env() -> ProxyConfig:
         bedrock_profile=os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("CUTCTX_ANYLLM_PROVIDER", "openai"),
         disable_kompress=_get_env_bool("CUTCTX_DISABLE_KOMPRESS", False),
-        use_llmlingua=_get_env_bool("CUTCTX_USE_LLMLINGUA", False),
         max_connections=_get_env_int("CUTCTX_MAX_CONNECTIONS", 500),
         max_keepalive_connections=_get_env_int("CUTCTX_MAX_KEEPALIVE", 100),
         http2=_get_env_bool("CUTCTX_HTTP2", True),
@@ -4756,16 +4751,6 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--llmlingua",
-        action="store_true",
-        dest="use_llmlingua",
-        help=(
-            "Use LLMLingua-2 for plain-text compression instead of Kompress. "
-            "Requires: pip install cutctx-ai[llmlingua]. "
-            "Also settable via CUTCTX_USE_LLMLINGUA=1."
-        ),
-    )
-    parser.add_argument(
         "--exclude-tools",
         default=None,
         help="Comma-separated tool names whose output is never compressed, "
@@ -5027,9 +5012,6 @@ if __name__ == "__main__":
     cache_enabled = env_cache if not args.no_cache else False
     rate_limit_enabled = env_rate_limit if not args.no_rate_limit else False
     disable_kompress = args.disable_kompress or _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
-    use_llmlingua = getattr(args, "use_llmlingua", False) or _get_env_bool(
-        "CUTCTX_USE_LLMLINGUA", False
-    )
 
     # Set OpenRouter API key from CLI if provided
     if hasattr(args, "openrouter_api_key") and args.openrouter_api_key:
@@ -5074,7 +5056,6 @@ if __name__ == "__main__":
         log_full_messages=args.log_messages or _get_env_bool("CUTCTX_LOG_MESSAGES", False),
         code_aware_enabled=code_aware_enabled,
         disable_kompress=disable_kompress,
-        use_llmlingua=use_llmlingua,
         # Connection pool settings
         max_connections=_get_env_int("CUTCTX_MAX_CONNECTIONS", args.max_connections),
         max_keepalive_connections=_get_env_int("CUTCTX_MAX_KEEPALIVE", args.max_keepalive),

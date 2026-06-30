@@ -162,17 +162,6 @@ config = RollingWindowConfig(
 
 ---
 
-## LLMLinguaCompressor
-
-The LLMLingua-2 integration (`LLMLinguaCompressor`,
-`LLMLinguaConfig`, `is_llmlingua_model_loaded`, `unload_llmlingua_model`,
-the `cutctx-ai[llmlingua]` extra, and the `--llmlingua` proxy flag)
-is available as a token-classification alternative to Kompress (ModernBERT).
-The Kompress transform shipped with the proxy runs as Transform 4 in the live-zone pipeline (see
-[ARCHITECTURE.md](ARCHITECTURE.md)).
-
----
-
 ## CodeAwareCompressor (Optional)
 
 AST-based compression for source code using tree-sitter.

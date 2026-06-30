@@ -156,17 +156,9 @@ def _selected_context_tool() -> str:
     default=None,
     metavar="[token|cache]",
     type=click.Choice(
-        # Canonical modes first; legacy aliases follow for backward compatibility.
-        # `metavar` above hides the alias clutter from --help; users see "[token|cache]"
-        # while internal callers passing "token_mode"/"cost_savings"/etc. still validate.
         [
             "token",
             "cache",
-            "token_mode",
-            "cache_mode",
-            "token_savings",
-            "cost_savings",
-            "token_cutctx",
         ],
         case_sensitive=False,
     ),
@@ -174,8 +166,7 @@ def _selected_context_tool() -> str:
         "Optimization mode (default: token).\n"
         "  token  — prioritize compression; prior turns may be rewritten for max savings.\n"
         "  cache  — freeze prior turns to maximise provider prefix-cache hit rate.\n"
-        "Legacy aliases (token_mode, token_savings, token_cutctx, cache_mode, "
-        "cost_savings) are still accepted. Env: CUTCTX_MODE."
+        "Env: CUTCTX_MODE."
     ),
 )
 @click.option(
@@ -382,17 +373,7 @@ def _selected_context_tool() -> str:
         "Env: CUTCTX_DISABLE_KOMPRESS=1."
     ),
 )
-@click.option(
-    "--llmlingua",
-    "use_llmlingua",
-    is_flag=True,
-    envvar="CUTCTX_USE_LLMLINGUA",
-    help=(
-        "Use LLMLingua-2 for plain-text compression instead of Kompress. "
-        "Requires: pip install cutctx-ai[llmlingua]. "
-        "Env: CUTCTX_USE_LLMLINGUA."
-    ),
-)
+
 @click.option(
     "--query-aware",
     "query_aware_compression",
@@ -881,7 +862,6 @@ def proxy(
     budget: float | None,
     code_aware_flag: bool | None,
     disable_kompress: bool,
-    use_llmlingua: bool,
     query_aware_compression: bool,
     selective_filter: bool,
     selective_filter_threshold: float | None,
@@ -1131,7 +1111,6 @@ def proxy(
             in ("true", "1", "yes", "on")
         ),
         disable_kompress=disable_kompress,
-        use_llmlingua=use_llmlingua,
         query_aware_compression=query_aware_compression,
         selective_filter=selective_filter,
         selective_filter_threshold=(

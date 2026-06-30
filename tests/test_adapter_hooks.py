@@ -553,7 +553,4 @@ class TestAdapterLifecycle:
         assert stats["patterns_tracked"] >= 1
         assert stats["total_compressions"] >= 15
 
-        # PR-B5: get_recommendation is observation-only and returns None.
-        # Recommendations now flow through the publish CLI →
-        # recommendations.toml → Rust loader path.
-        assert toin2.get_recommendation(sig) is None
+

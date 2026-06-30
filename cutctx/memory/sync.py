@@ -205,11 +205,35 @@ async def sync_team_memory(
 
             # Merge server deltas into local DB
             for _s_delta in server_deltas:
-                # Upsert into local backend
-                # backend.save_memory or similar
-                # For now, we just pass since the local backend doesn't have an exact upsert method
-                # but we could call save_memory if it handles it
-                pass
+                action = _s_delta.get("action", "upsert")
+                server_id = _s_delta.get("id")
+                
+                shared_user_id = f"team_{org_id}"
+                
+                try:
+                    if action == "delete" and server_id:
+                        # Find local memory by server_id and delete it
+                        local_memories = await backend.get_user_memories(shared_user_id)
+                        for m in local_memories:
+                            if m.metadata.get("server_id") == server_id:
+                                await backend.delete_memory(m.id)
+                    else:
+                        content = _s_delta.get("content")
+                        if not content:
+                            continue
+                            
+                        await backend.save_memory(
+                            content=content,
+                            user_id=shared_user_id,
+                            importance=_s_delta.get("importance", 0.5),
+                            metadata={
+                                **_s_delta.get("metadata", {}),
+                                "sync_source": "team_sync",
+                                "server_id": server_id,
+                            },
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to apply server delta: {e}")
 
             state["team_sync_watermark"] = new_watermark
             _save_sync_state(state_path, state)

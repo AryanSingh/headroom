@@ -81,10 +81,6 @@ config = UniversalCompressorConfig(
     # Detection
     use_magika=True,               # Use ML-based detection (requires magika)
 
-    # Compression
-    # (Note: the legacy `use_llmlingua` flag was retired with the
-    # LLMLingua-2 integration. The optional ML compressor is now Kompress,
-    # installed via `cutctx-ai[ml]` and configured separately.)
     compression_ratio_target=0.3,  # Keep 30% of content (70% reduction)
     min_content_length=100,        # Skip content shorter than this
 
@@ -102,7 +98,6 @@ config = UniversalCompressorConfig(
 | Option | Default | Description |
 |--------|---------|-------------|
 | `use_magika` | `True` | Use ML-based content detection |
-| `use_llmlingua` | `True` | Use LLMLingua for compression |
 | `compression_ratio_target` | `0.3` | Target ratio (0.3 = keep 30%) |
 | `min_content_length` | `100` | Minimum chars to compress |
 | `use_entropy_preservation` | `True` | Preserve high-entropy tokens |
@@ -352,8 +347,6 @@ pip install cutctx-ai
 # With ML detection (recommended)
 pip install "cutctx-ai[magika]"
 
-# With LLMLingua compression
-pip install "cutctx-ai[llmlingua]"
 
 # With AST-based code handling
 pip install "cutctx-ai[code]"
@@ -373,7 +366,6 @@ from cutctx.compression import UniversalCompressor, UniversalCompressorConfig
 config = UniversalCompressorConfig(
     compression_ratio_target=0.25,  # Keep 25%
     use_magika=True,
-    use_llmlingua=True,
     ccr_enabled=True,
 )
 

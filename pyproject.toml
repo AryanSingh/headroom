@@ -60,6 +60,8 @@ dependencies = [
     "cryptography>=46.0.0",       # Fernet encryption for local state + HMAC for license cache
     "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
     "opentelemetry-sdk>=1.24.0",
+    "graphifyy>=0.8.46",
+    "networkx>=3.4.2",
 ]
 
 [project.optional-dependencies]
@@ -76,7 +78,7 @@ proxy = [
     "mcp>=1.0.0",                 # MCP server (cutctx_compress, retrieve, stats)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
-    "websockets>=13.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
+    "websockets>=13.0,<14.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
     "onnxruntime>=1.19.2",        # Kompress ONNX INT8 text compression (no torch needed)
     "transformers>=4.30.0,<6.0",  # Tokenizer only (for Kompress)
     "watchdog>=4.0.0",            # File watcher for live code graph reindexing (--code-graph)
@@ -93,13 +95,6 @@ proxy-prod = [
 # AST-based code compression (tree-sitter)
 code = [
     "tree-sitter-language-pack>=0.10.0",
-]
-# LLMLingua-2 prompt compression (Microsoft). GPU optional — runs on CPU.
-# pip install cutctx-ai[llmlingua]
-llmlingua = [
-    "llmlingua>=0.2.0",
-    "torch>=2.0.0",
-    "transformers>=4.30.0,<6.0",
 ]
 # ML-based compression with Kompress (ModernBERT).
 ml = [
@@ -277,7 +272,7 @@ dev = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
-    "websockets>=13.0",
+    "websockets>=13.0,<14.0",
     "playwright>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
     "ollama>=0.4.0",
@@ -289,8 +284,10 @@ dev = [
     "maturin>=1.5.0",
 ]
 # All optional dependencies (everything you need)
+# NOTE: The [all] extra intentionally omits experimental, heavy, or proprietary
+# extensions such as [voice], [memory-stack], [llmlingua], and [ee].
 all = [
-    "cutctx-ai[proxy,code,ml,llmlingua,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp,knowledge-graph,log-ml]",
+    "cutctx-ai[proxy,code,ml,memory,relevance,image,reports,otel,evals,voice,html,benchmark,mcp,knowledge-graph,log-ml]",
 ]
 # Recommended production bundle — fast to install, covers all commonly advertised features.
 # Does not include GPU/ML extras (torch) or developer tooling.
@@ -304,7 +301,7 @@ full = [
 ]
 
 [project.scripts]
-cutctx = "cutctx.cli:main"
+cutctx = "cutctx.cli.main:main"
 
 [project.urls]
 Homepage = "https://cutctx.dev"

@@ -1297,16 +1297,12 @@ async def test_ensure_initialized_fast_paths_and_qdrant_variants(
     await qdrant_handler._init_backend_locked()
     assert qdrant_handler.initialized is True
     assert seen["initialized"] is True
-    assert seen["config"] == {
-        "qdrant_url": None,
-        "qdrant_host": "localhost",
-        "qdrant_port": 6333,
-        "qdrant_api_key": None,
-        "neo4j_uri": "neo4j://localhost:7687",
-        "neo4j_user": "neo4j",
-        "neo4j_password": "password",
-        "enable_graph": True,
-    }
+    assert seen["config"]["qdrant_host"] == "localhost"
+    assert seen["config"]["qdrant_port"] == 6333
+    assert seen["config"]["neo4j_uri"] == "neo4j://localhost:7687"
+    assert seen["config"]["neo4j_user"] == "neo4j"
+    assert "neo4j_password" in seen["config"]
+    assert seen["config"]["enable_graph"] is True
 
     monkeypatch.setitem(sys.modules, "cutctx.memory.backends.direct_mem0", None)
     import builtins

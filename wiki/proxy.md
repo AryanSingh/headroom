@@ -98,14 +98,6 @@ When to pick each:
 - `token`: best for maximizing immediate compression savings.
 - `cache`: best for long conversations where preserving prior-turn bytes improves prefix-cache reuse.
 
-Legacy values (`token_cutctx`, `cost_savings`) are still accepted as aliases.
-
-### ML Compression — `--llmlingua` flag
-
-The `--llmlingua` flag (and the `cutctx-ai[llmlingua]` extra) enables LLMLingua-2 for plain-text compression. While Kompress (ModernBERT) is the default when ML is enabled, LLMLingua remains fully supported for users who prefer its token-classification approach.
-For the default ML path, install `cutctx-ai[ml]` and see [transforms.md](transforms.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## API Endpoints
 
 ### Liveness
 
@@ -124,6 +116,16 @@ Response:
   "uptime_seconds": 12.483
 }
 ```
+
+### Admin Configuration Flags (Advanced)
+
+```bash
+curl -X POST http://localhost:8787/admin/config/flags \
+  -H "Content-Type: application/json" \
+  -d '{"flags": {"task_aware_enabled": true}}'
+```
+
+> **Warning:** This is an internal administrative endpoint used for runtime feature flags (e.g. Intelligence Layer components). Changes made here affect the global proxy state until restart. Use with caution.
 
 ### Readiness
 
@@ -310,9 +312,6 @@ client = OpenAI(
 
 ### ML Compression (Opt-In, Kompress)
 
-> The earlier LLMLingua-2 integration documented in this section
-> (`--llmlingua`, `--llmlingua-device`, `--llmlingua-rate`,
-> `cutctx-ai[llmlingua]`, `LLMLinguaCompressor`) was retired and
 > replaced by **Kompress** (ModernBERT). Install with `pip install
 > 'cutctx-ai[ml]'`. See [transforms.md](transforms.md) and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for current configuration.

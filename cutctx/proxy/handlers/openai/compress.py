@@ -265,6 +265,7 @@ class OpenAICompressMixin:
                 "diagnostics": diagnostics,
             }
 
+            from cutctx.proxy.auth_mode import classify_client
             from cutctx.proxy.outcome import RequestOutcome
 
             await self._record_request_outcome(
@@ -283,6 +284,8 @@ class OpenAICompressMixin:
                     num_messages=len(messages),
                     request_messages=None,
                     compressed_messages=None,
+                    client=classify_client(request.headers),
+                    tags=self._extract_tags(request.headers),
                 )
             )
 

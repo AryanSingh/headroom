@@ -331,7 +331,7 @@ def mcp_serve(proxy_url: str | None, direct: bool, debug: bool) -> None:
 
     # Check for MCP SDK
     try:
-        from cutctx.ccr.mcp_server import create_ccr_mcp_server
+        from cutctx.mcp_server import create_ccr_mcp_server
     except ImportError as e:
         click.echo(f"Error: MCP dependencies not installed: {e}", err=True)
         click.echo("Install with: pip install 'cutctx-ai[mcp]'", err=True)

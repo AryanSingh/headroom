@@ -246,11 +246,8 @@ analysis = {
 The proxy ships an opt-in ML compression path backed by **Kompress**
 (ModernBERT-based token classifier). Install with `pip install
 'cutctx-ai[ml]'`; see `wiki/transforms.md` for current configuration.
-
-**Note:** The earlier LLMLingua-2 integration (`--llmlingua` flag, the
-`cutctx-ai[llmlingua]` extra, and the `LLMLinguaCompressor` class) was
-retired and replaced by Kompress. `pip install 'cutctx-ai[llmlingua]'`
-no longer resolves; use `[ml]` instead.
+fully supported for users who prefer its token-classification approach.
+While Kompress (ModernBERT) is the default when ML is enabled,
 
 ---
 
@@ -271,68 +268,7 @@ no longer resolves; use `[ml]` instead.
 
 **Safety rule:** If we drop a tool CALL, we MUST drop its RESPONSE too (or vice versa). Otherwise the model sees orphaned data.
 
----
 
-#### Transform 6: Intelligent Context Manager (Advanced)
-
-**Problem:** Rolling Window drops by position (oldest first), but position doesn't equal importance.
-
-```python
-# Scenario: Error at turn 3, verbose success at turn 10
-# Rolling Window: Drops turn 3 error (oldest first)
-# Intelligent Context: Keeps turn 3 error (high TOIN error score)
-```
-
-**The Solution:** Multi-factor importance scoring using TOIN-learned patterns:
-
-```python
-# Message scores (all learned, no hardcodes):
-scores = {
-    "recency": 0.20,           # Exponential decay from end
-    "semantic_similarity": 0.20,  # Embedding similarity to recent context
-    "toin_importance": 0.25,   # TOIN retrieval_rate (high = important)
-    "error_indicator": 0.15,   # TOIN field_semantics.inferred_type
-    "forward_reference": 0.15, # Referenced by later messages
-    "token_density": 0.05,     # Unique tokens / total tokens
-}
-
-# Drops lowest-scored messages first
-# Preserves critical errors even if old
-```
-
-**Key principle:** No hardcoded patterns. Error detection uses TOIN's learned `field_semantics.inferred_type == "error_indicator"`, not keyword matching like "error" or "fail".
-
-**TOIN + CCR Integration:**
-
-IntelligentContext is a **message-level compressor** — just like SmartCrusher compresses items in an array, IntelligentContext "compresses" messages in a conversation. This means full CCR integration:
-
-```python
-# When messages are dropped:
-# 1. Store dropped messages in CCR for potential retrieval
-ccr_ref = store.store(
-    original=json.dumps(dropped_messages),
-    compressed="[60 messages dropped]",
-    tool_name="intelligent_context_drop",
-)
-
-# 2. Record drop to TOIN for cross-user learning
-toin.record_compression(
-    tool_signature=message_signature,  # Pattern of roles, tools, errors
-    original_count=len(dropped_messages),
-    compressed_count=1,  # The marker
-    strategy="intelligent_context_drop",
-)
-
-# 3. Insert marker with CCR reference
-marker = f"[Earlier context compressed: 60 messages dropped. Retrieve: {ccr_ref}]"
-```
-
-**The feedback loop:**
-- If users retrieve dropped messages via CCR, TOIN learns those patterns are important
-- Future drops of similar message patterns get higher importance scores
-- The system gets smarter across all users, not just within one session
-
----
 
 ### 5. Storage (`storage/`) - Metrics Database
 
@@ -1066,8 +1002,6 @@ cutctx/
 │   ├── tool_crusher.py      # Naive compression (disabled)
 │   ├── smart_crusher.py     # Statistical compression (default)
 │   ├── rolling_window.py    # Token limit enforcement (position-based)
-│   ├── intelligent_context.py  # Semantic context management (score-based)
-│   ├── scoring.py           # Message importance scoring
 │   └── (legacy llmlingua_compressor.py removed — see [ml] extra for Kompress)
 │
 ├── cache/               # CCR Architecture - Caching & Storage
@@ -1173,6 +1107,21 @@ The model could still:
 - Identify the CPU spike (preserved by change point detection)
 - Reference specific error rates (kept in compressed data)
 - Provide correct remediation commands
+
+---
+
+## Strategy Rebranding Mapping
+
+In the dashboard and telemetry, internal strategy names are mapped to user-friendly display names via `STRATEGY_DISPLAY`. Here is the canonical mapping to help you trace telemetry back to the internal implementation:
+
+- `SMART_CRUSH` -> `K-Means Compression`
+- `SMART_CRUSH_FALLBACK` -> `Fallback Truncation`
+- `KOMPRESS` -> `ModernBERT Kompress`
+- `DIFF_COMPRESS` -> `Difftastic AST`
+- `DIFF_COMPRESS_FALLBACK` -> `Hunk Compression`
+- `ROLLING_WINDOW_DROP` -> `Rolling Window`
+- `DRAIN3_LOGS` -> `Template Extraction`
+- `HTMLEXTRACTOR` -> `DOM Content Extraction`
 
 ---
 

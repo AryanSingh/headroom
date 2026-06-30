@@ -242,7 +242,7 @@ Cutctx runs a three-stage pipeline on every request:
 graph LR
     A[Your Prompt] --> B[CacheAligner]
     B --> C[ContentRouter]
-    C --> D[IntelligentContext]
+    C --> D[RollingWindow]
     D --> E[LLM Provider]
 
     C -->|JSON| F[SmartCrusher]
@@ -272,7 +272,7 @@ graph LR
 | File reads / code queries | **GraphifyInterceptor** | Knowledge-graph subgraph via [`--knowledge-graph`](knowledge-graph.md). ~15 tokens/node vs ~800 tokens/file. |
 | HTML | **HTMLExtractor** | Strips markup, extracts readable content. |
 
-**Stage 3: IntelligentContext** — If the conversation still exceeds the model's context limit, scores each message by importance (recency, references, density) and drops the lowest-value ones.
+**Stage 3: RollingWindow** — If the conversation still exceeds the model's context limit, drops the oldest messages to strictly enforce the token budget.
 
 **Nothing is lost.** Compressed content goes into the CCR store (Compress-Cache-Retrieve). The LLM gets a `cutctx_retrieve` tool and can fetch full originals when it needs more detail.
 

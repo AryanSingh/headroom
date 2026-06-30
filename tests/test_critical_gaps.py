@@ -685,8 +685,6 @@ class TestCriticalFixesIntegration:
         store.search(hash_key, "item_50")
         # Should find the item even though it was compressed away
 
-        # 6. Get recommendation from TOIN
-        toin.get_recommendation(sig, "find item_50")
 
         # 7. Verify stats are consistent
         toin_stats = toin.get_stats()

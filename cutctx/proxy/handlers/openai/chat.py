@@ -138,6 +138,7 @@ class OpenAIChatMixin:
             request_savings_metadata=request_savings_metadata,
             tool_calls=len(body.get("tools") or []),
             num_messages=len(messages),
+            messages=messages,
         )
         body["model"] = model
         original_client_messages = copy.deepcopy(messages)

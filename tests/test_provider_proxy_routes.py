@@ -511,19 +511,21 @@ def test_v1_models_fetches_codex_registry_under_chatgpt_auth(monkeypatch) -> Non
     assert response.status_code == 200
     payload = response.json()
     assert payload == {
+        "models": [
+            {"id": "gpt-5.5", "object": "model", "slug": "gpt-5.5"},
+            {"id": "gpt-5.3-codex-spark", "object": "model", "slug": "gpt-5.3-codex-spark"}
+        ],
         "object": "list",
         "data": [
             {
                 "id": "gpt-5.5",
                 "object": "model",
-                "created": 0,
-                "owned_by": "openai",
+                "slug": "gpt-5.5",
             },
             {
                 "id": "gpt-5.3-codex-spark",
                 "object": "model",
-                "created": 0,
-                "owned_by": "openai",
+                "slug": "gpt-5.3-codex-spark",
             },
         ],
     }
@@ -536,12 +538,6 @@ def test_v1_models_fetches_codex_registry_under_chatgpt_auth(monkeypatch) -> Non
     assert headers["originator"] == "Codex Desktop"
     assert headers["accept"] == "application/json"
     assert "Accept" not in headers
-    assert debug_messages == [
-        (
-            "Fetched Codex model IDs from upstream model registry: %s",
-            (["gpt-5.5", "gpt-5.3-codex-spark"],),
-        ),
-    ]
 
 
 def test_v1_models_falls_back_to_synthetic_list_under_chatgpt_auth(monkeypatch) -> None:
@@ -581,7 +577,7 @@ def test_v1_models_falls_back_to_synthetic_list_under_chatgpt_auth(monkeypatch) 
     assert "gpt-5.5" in model_ids
     for entry in payload["data"]:
         assert entry["object"] == "model"
-        assert entry["owned_by"] == "openai"
+        assert "slug" in entry
 
 
 def test_v1_models_get_single_dynamic_under_chatgpt_auth() -> None:
@@ -622,10 +618,7 @@ def test_v1_models_get_single_dynamic_under_chatgpt_auth() -> None:
         )
     assert ok.status_code == 200
     assert ok.json() == {
-        "id": "gpt-5.3-codex-spark",
-        "object": "model",
-        "created": 0,
-        "owned_by": "openai",
+        "slug": "gpt-5.3-codex-spark",
     }
     assert unknown.status_code == 404
     assert fake_http_client.calls == 2

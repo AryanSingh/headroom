@@ -53,11 +53,7 @@ if TYPE_CHECKING:
         HTMLExtractorConfig,
         is_html_content,
     )
-    from cutctx.transforms.llmlingua_compressor import (  # noqa: F401
-        LLMLinguaCompressor,
-        LLMLinguaConfig,
-        LLMLinguaResult,
-    )
+
     from cutctx.transforms.log_compressor import (  # noqa: F401
         LogCompressionResult,
         LogCompressor,
@@ -77,7 +73,7 @@ if TYPE_CHECKING:
     from cutctx.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig  # noqa: F401
 
 _HTML_EXTRACTOR_AVAILABLE = importlib.util.find_spec("trafilatura") is not None
-_LLMLINGUA_AVAILABLE = importlib.util.find_spec("llmlingua") is not None
+
 
 __all__ = [
     # Base
@@ -129,8 +125,7 @@ __all__ = [
     "CacheAligner",
     # HTML extraction (optional)
     "_HTML_EXTRACTOR_AVAILABLE",
-    # LLMLingua-2 (optional — requires pip install cutctx-ai[llmlingua])
-    "_LLMLINGUA_AVAILABLE",
+
 ]
 
 # Conditionally add HTML extractor exports
@@ -144,15 +139,6 @@ if _HTML_EXTRACTOR_AVAILABLE:
         ]
     )
 
-# Conditionally add LLMLingua-2 exports (optional — pip install cutctx-ai[llmlingua])
-if _LLMLINGUA_AVAILABLE:
-    __all__.extend(
-        [
-            "LLMLinguaCompressor",
-            "LLMLinguaConfig",
-            "LLMLinguaResult",
-        ]
-    )
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Base
@@ -231,13 +217,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "HTMLExtractorConfig": ("cutctx.transforms.html_extractor", "HTMLExtractorConfig"),
     "HTMLExtractionResult": ("cutctx.transforms.html_extractor", "HTMLExtractionResult"),
     "is_html_content": ("cutctx.transforms.html_extractor", "is_html_content"),
-    # LLMLingua-2 (optional dependency - requires pip install cutctx-ai[llmlingua])
-    "LLMLinguaCompressor": (
-        "cutctx.transforms.llmlingua_compressor",
-        "LLMLinguaCompressor",
-    ),
-    "LLMLinguaConfig": ("cutctx.transforms.llmlingua_compressor", "LLMLinguaConfig"),
-    "LLMLinguaResult": ("cutctx.transforms.llmlingua_compressor", "LLMLinguaResult"),
+
 }
 
 
@@ -246,8 +226,7 @@ def __getattr__(name: str) -> object:
         raise AttributeError(name)
     if name == "_HTML_EXTRACTOR_AVAILABLE":
         return _HTML_EXTRACTOR_AVAILABLE
-    if name == "_LLMLINGUA_AVAILABLE":
-        return _LLMLINGUA_AVAILABLE
+
 
     try:
         module_name, attr_name = _LAZY_EXPORTS[name]

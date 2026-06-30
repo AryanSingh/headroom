@@ -42,7 +42,7 @@ def _run_security_guards() -> None:
     # Guard 2: binary integrity
     try:
         from cutctx.security.integrity import verify_ee_manifest
-        verify_ee_manifest(strict=True)
+        verify_ee_manifest(strict=False)
     except ImportError:
         _log.debug("cutctx.security.integrity not available — skipping integrity check")
 

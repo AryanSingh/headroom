@@ -537,11 +537,7 @@ class ContentRouterConfig:
     # Set to None to use DEFAULT_EXCLUDE_TOOLS, or provide custom set
     exclude_tools: set[str] | None = None
 
-    # LLMLingua-2: opt-in ML compressor for plain text (replaces Kompress for
-    # TEXT/KOMPRESS strategies when enabled and the library is installed).
-    # Requires: pip install cutctx-ai[llmlingua]
-    # CLI: --llmlingua; env: CUTCTX_USE_LLMLINGUA=1.
-    use_llmlingua: bool = False
+
 
     # Read lifecycle management (stale/superseded detection)
     read_lifecycle: ReadLifecycleConfig = field(default_factory=ReadLifecycleConfig)
@@ -1610,22 +1606,6 @@ class ContentRouter(Transform):
         compressed: str | None = None
         compressed_tokens: int | None = None
 
-        # Primary (opt-in): LLMLingua-2 — use when config.use_llmlingua is True
-        # and the library is installed. Falls through to Kompress on failure.
-        if self.config.use_llmlingua:
-            llmlingua = self._get_llmlingua()
-            if llmlingua is not None:
-                try:
-                    result = llmlingua.compress(
-                        text_to_compress,
-                        context=context,
-                        question=question,
-                        target_ratio=getattr(self, "_runtime_target_ratio", None),
-                    )
-                    compressed = result.compressed
-                    compressed_tokens = result.compressed_tokens
-                except Exception as e:
-                    logger.warning("LLMLingua-2 failed, falling back to Kompress: %s", e)
 
         # Primary: Kompress — downloads from chopratejas/kompress-v2-base on first use
         if compressed is None and self.config.enable_kompress:
@@ -1963,19 +1943,6 @@ class ContentRouter(Transform):
                 logger.debug("Kompress dependencies not available")
         return self._kompress
 
-    def _get_llmlingua(self) -> Any:
-        """Get LLMLinguaCompressor (lazy load). Returns None when not installed."""
-        if not hasattr(self, "_llmlingua_compressor"):
-            try:
-                from .llmlingua_compressor import LLMLinguaCompressor
-
-                if LLMLinguaCompressor.available():
-                    self._llmlingua_compressor = LLMLinguaCompressor()
-                else:
-                    self._llmlingua_compressor = None
-            except ImportError:
-                self._llmlingua_compressor = None
-        return self._llmlingua_compressor
 
     def _get_selective_filter(self) -> Any:
         """Get SelectiveContextFilter (lazy load). Returns None on error."""

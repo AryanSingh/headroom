@@ -21,6 +21,7 @@ import Memory from './pages/Memory';
 import Playground from './pages/Playground';
 import Capabilities from './pages/Capabilities';
 import Docs from './pages/Docs';
+import Orchestrator from './pages/Orchestrator';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
 import { ThemeProvider, useTheme } from './lib/theme-context';
@@ -66,6 +67,7 @@ class ErrorBoundary extends Component {
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/orchestrator', label: 'Orchestrator', icon: Activity },
   { path: '/capabilities', label: 'Capabilities', icon: Zap },
   { path: '/governance', label: 'Governance', icon: Activity },
   { path: '/firewall', label: 'Security', icon: Shield },
@@ -306,13 +308,14 @@ function AppFrame() {
         <main className="page-shell">
           <ErrorBoundary>
             <Routes>
-              <Route path="/" element={<Overview />} />
-              <Route path="/capabilities" element={<Capabilities />} />
-              <Route path="/governance" element={<Governance />} />
-              <Route path="/firewall" element={<Firewall />} />
-              <Route path="/memory" element={<Memory />} />
-              <Route path="/playground" element={<Playground />} />
-              <Route path="/docs" element={<Docs />} />
+              <Route path="/" element={<Overview searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/capabilities" element={<Capabilities searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/playground" element={<Playground searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/docs" element={<Docs searchQuery={searchQuery.toLowerCase()} />} />
             </Routes>
           </ErrorBoundary>
         </main>

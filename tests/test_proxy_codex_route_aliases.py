@@ -232,10 +232,7 @@ def test_codex_model_metadata_fetches_codex_registry_for_chatgpt_auth(monkeypatc
     assert known_response.status_code == 200
     known_payload = known_response.json()
     assert known_payload == {
-        "id": "gpt-5.5",
-        "object": "model",
-        "created": 0,
-        "owned_by": "openai",
+        "slug": "gpt-5.5",
     }
 
     # Unknown model variants 404 against the dynamic registry.

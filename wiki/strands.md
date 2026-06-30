@@ -160,7 +160,7 @@ CutctxStrandsModel.stream()
 Provider API (Bedrock, etc.)
 ```
 
-The model wrapper uses Cutctx's full pipeline (CacheAligner → ContentRouter → IntelligentContext). The hook provider uses SmartCrusher directly for fast JSON compression of individual tool results.
+The model wrapper uses Cutctx's full pipeline (CacheAligner → ContentRouter → RollingWindow). The hook provider uses SmartCrusher directly for fast JSON compression of individual tool results.
 
 ---
 

@@ -220,7 +220,7 @@ handoff(agent=coder, input_filter=compress_handoff)
 
 Under the hood, `put()` calls `cutctx.compress()` -- the same pipeline used by the Cutctx proxy -- and stores the original in memory. `get()` returns the compressed version. `get(full=True)` returns the original.
 
-The compression pipeline routes content to the best compressor:
+The compression pipeline routes content to the most appropriate compressor:
 
 - **JSON arrays** -- SmartCrusher (70-95% compression)
 - **Code** -- CodeCompressor (AST-aware)

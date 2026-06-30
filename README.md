@@ -93,7 +93,7 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 
 ```bash
 # 1 — Install
-pip install "cutctx-ai[all]"          # Python (recommended/full install)
+pip install "cutctx-ai[all]"          # Python (broad bundle; some heavy/proprietary extras omitted)
 npm install cutctx-ai                 # Node / TypeScript
 
 # 2 — Pick your mode
@@ -224,7 +224,7 @@ For buyers, operators, and security reviewers:
 - **LogCompressor** — structured log compression with aho-corasick pattern detection.
 - **SearchCompressor** — search result compression with relevance scoring.
 - **Image compression** — inline base64 image compression with CCR storage.
-- **Audio compression** — inline base64 audio compression (WAV/MP3/AAC) with downsampling; audio requests pass through when compression is not applicable.
+- **Audio routes** — `/v1/audio/*` traffic is proxied pass-through today; no token compression is applied to audio payloads.
 - **JSON schema compression** — 40% token savings on tool definitions (32 metadata keys stripped).
 - **CacheAligner** — stabilizes prefixes so Anthropic/OpenAI KV caches actually hit.
 - **CCR** — reversible compression; LLM retrieves originals on demand via `cutctx_retrieve`.
@@ -302,7 +302,7 @@ Provider and tool-specific behavior lives under `cutctx/providers/` so core orch
 ## Install
 
 ```bash
-pip install "cutctx-ai[all]"          # Python, everything
+pip install "cutctx-ai[all]"          # Python, broad bundle (not every heavy/proprietary extra)
 npm install cutctx-ai                 # TypeScript / Node
 docker pull ghcr.io/aryansingh/cutctx:latest
 ```

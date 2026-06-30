@@ -539,10 +539,17 @@ def test_stats_surface_optional_feature_availability(monkeypatch: pytest.MonkeyP
     features = payload["feature_availability"]
     assert set(features.keys()) == {
         "knowledge_graph",
-        "drain3",
-        "difftastic",
-        "llmlingua",
+        "text_compression_engine",
+        "log_template_mining",
+        "structural_diff_engine",
         "multimodal_image",
+        "kompress",
+        "html_extractor",
+        "smart_crusher",
+        "code_ast",
+        "voice_filler",
+        "audio",
     }
     assert "available" in features["knowledge_graph"]
-    assert "install_hint" in features["difftastic"]
+    assert features["audio"]["compression"] == "pass-through"
+    assert features["audio"]["reason"] == "audio_proxy_only_no_token_compression"

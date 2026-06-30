@@ -20,7 +20,6 @@ cutctx proxy --langfuse
 - Every compression pass: algorithm selected, tokens in/out, ratio, duration
 - CCR store operations: put, get, miss, TTL expiry
 - Proxy request lifecycle: provider, model, latency, cache hit/miss
-- LLMLingua-2 passes (when `--llmlingua` is active): perplexity score, compression rate
 
 ## Self-hosted Langfuse
 

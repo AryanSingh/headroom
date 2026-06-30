@@ -838,6 +838,11 @@ function DiagnosticsPanel({ prefixCache }) {
 
 // Maps API feature-availability keys to user-facing display labels.
 // All keys use branded names — no underlying library names appear here.
+// Developer Note:
+// This map intentionally rebrands internal compression strategy names to more
+// user-friendly, UX-optimized marketing names. For example, 'drain3' is displayed
+// as 'Log Structure Inference', and 'kompress' as 'Semantic Minification'.
+// This progressive disclosure prevents users from needing to understand the underlying ML model names.
 const STRATEGY_DISPLAY = new Map([
   ['knowledge_graph', 'Knowledge Graph'],
   ['log_template_mining', 'Log pattern analysis'],

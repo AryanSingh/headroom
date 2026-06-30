@@ -1,25 +1,4 @@
-"""CCR (Compress-Cache-Retrieve) module for reversible compression.
-
-This module provides tool injection and retrieval handling for the CCR architecture.
-When tool outputs are compressed, the LLM can retrieve more data if needed.
-
-Four key components:
-1. Tool Injection: Proxy injects cutctx_retrieve tool into requests
-2. Response Handler: Intercepts responses, handles CCR tool calls automatically
-3. Context Tracker: Tracks compressed content across turns, enables proactive expansion
-4. Batch Processing: Handles CCR tool calls in batch API results (async processing)
-
-Two distribution channels for the retrieval tool:
-1. Tool Injection: Proxy injects tool into request when compression occurs
-2. MCP Server: Standalone server exposes tool via MCP protocol
-
-When MCP is configured, tool injection is skipped to avoid duplicates.
-
-Batch API Support:
-- On batch submit: Store request context (messages, tools) in BatchContextStore
-- On batch results: Detect CCR tool calls, execute retrieval, make continuation calls
-- Works with all providers: Anthropic, OpenAI, Google
-"""
+"""CCR (Compress-Cache-Retrieve) public exports."""
 
 from .batch_processor import (
     BatchResultProcessor,
@@ -34,9 +13,7 @@ from .batch_store import (
     get_batch_context_store,
     reset_batch_context_store,
 )
-
-CCRStore = BatchContextStore
-from .context_tracker import (  # noqa: E402
+from .context_tracker import (
     CompressedContext,
     ContextTracker,
     ContextTrackerConfig,
@@ -44,7 +21,7 @@ from .context_tracker import (  # noqa: E402
     get_context_tracker,
     reset_context_tracker,
 )
-from .response_handler import (  # noqa: E402
+from .response_handler import (
     CCRResponseHandler,
     CCRToolCall,
     CCRToolResult,
@@ -52,7 +29,7 @@ from .response_handler import (  # noqa: E402
     StreamingCCRBuffer,
     StreamingCCRHandler,
 )
-from .tool_injection import (  # noqa: E402
+from .tool_injection import (
     CCR_TOOL_NAME,
     CCRToolInjector,
     create_ccr_tool_definition,
@@ -60,49 +37,46 @@ from .tool_injection import (  # noqa: E402
     parse_tool_call,
 )
 
-# MCP server is optional (requires mcp package)
+CCRStore = BatchContextStore
+
 try:
     from .mcp_server import CutctxMCPServer, create_ccr_mcp_server
 
     MCP_SERVER_AVAILABLE = True
 except ImportError:
-    CutctxMCPServer = None  # type: ignore
-    create_ccr_mcp_server = None  # type: ignore
+    CutctxMCPServer = None  # type: ignore[assignment]
+    create_ccr_mcp_server = None  # type: ignore[assignment]
     MCP_SERVER_AVAILABLE = False
 
 __all__ = [
-    # Tool injection
-    "CCR_TOOL_NAME",
-    "CCRToolInjector",
-    "create_ccr_tool_definition",
-    "create_system_instructions",
-    "parse_tool_call",
-    # Response handling
-    "CCRResponseHandler",
-    "CCRToolCall",
-    "CCRToolResult",
-    "ResponseHandlerConfig",
-    "StreamingCCRBuffer",
-    "StreamingCCRHandler",
-    # Context tracking
-    "CompressedContext",
-    "ContextTracker",
-    "ContextTrackerConfig",
-    "ExpansionRecommendation",
-    "get_context_tracker",
-    "reset_context_tracker",
-    # Batch processing
     "BatchContext",
     "BatchContextStore",
     "BatchRequestContext",
     "BatchResultProcessor",
     "BatchResultProcessorConfig",
+    "CCRResponseHandler",
+    "CCRStore",
+    "CCRToolCall",
+    "CCRToolInjector",
+    "CCRToolResult",
+    "CCR_TOOL_NAME",
+    "CompressedContext",
+    "ContextTracker",
+    "ContextTrackerConfig",
+    "CutctxMCPServer",
+    "ExpansionRecommendation",
+    "MCP_SERVER_AVAILABLE",
     "ProcessedBatchResult",
+    "ResponseHandlerConfig",
+    "StreamingCCRBuffer",
+    "StreamingCCRHandler",
+    "create_ccr_mcp_server",
+    "create_ccr_tool_definition",
+    "create_system_instructions",
     "get_batch_context_store",
+    "get_context_tracker",
+    "parse_tool_call",
     "process_batch_results",
     "reset_batch_context_store",
-    # MCP server
-    "CutctxMCPServer",
-    "create_ccr_mcp_server",
-    "MCP_SERVER_AVAILABLE",
+    "reset_context_tracker",
 ]

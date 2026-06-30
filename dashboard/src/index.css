@@ -1878,27 +1878,32 @@ text-align: right;
 
 .request-table th:nth-child(1),
 .request-table td:nth-child(1) {
-  width: 28%;
+  width: 25%;
 }
 
 .request-table th:nth-child(2),
 .request-table td:nth-child(2) {
-  width: 16%;
+  width: 15%;
 }
 
 .request-table th:nth-child(3),
 .request-table td:nth-child(3) {
-  width: 20%;
+  width: 15%;
 }
 
 .request-table th:nth-child(4),
 .request-table td:nth-child(4) {
-  width: 16%;
+  width: 15%;
 }
 
 .request-table th:nth-child(5),
 .request-table td:nth-child(5) {
-  width: 20%;
+  width: 15%;
+}
+
+.request-table th:nth-child(6),
+.request-table td:nth-child(6) {
+  width: 15%;
 }
 
 .request-savings-stack {
@@ -2162,7 +2167,7 @@ OVERVIEW: TREND CHART
 
   .request-table th:nth-child(1),
   .request-table td:nth-child(1) {
-    width: 30%;
+    width: 25%;
   }
 
   .request-table th:nth-child(2),
@@ -2172,7 +2177,9 @@ OVERVIEW: TREND CHART
   .request-table th:nth-child(4),
   .request-table td:nth-child(4),
   .request-table th:nth-child(5),
-  .request-table td:nth-child(5) {
+  .request-table td:nth-child(5),
+  .request-table th:nth-child(6),
+  .request-table td:nth-child(6) {
     width: auto;
   }
 

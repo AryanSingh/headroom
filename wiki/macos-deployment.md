@@ -205,10 +205,6 @@ Configure additional options in the plist `EnvironmentVariables` section:
 </dict>
 ```
 
-**Note:** The earlier LLMLingua-2 launch-agent variables
-(`CUTCTX_COMPRESSION_PROVIDER=llmlingua`, `CUTCTX_LLMLINGUA_DEVICE`,
-the `cutctx-ai[llmlingua]` extra) were retired with the
-`--llmlingua` flag. For ML compression today, install the `[ml]`
 extra and follow `wiki/transforms.md`.
 
 ### Crash Recovery

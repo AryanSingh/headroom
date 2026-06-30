@@ -109,51 +109,6 @@ config = RollingWindowConfig(
 )
 ```
 
-### IntelligentContextConfig
-
-```python
-from cutctx.config import IntelligentContextConfig, ScoringWeights
-
-weights = ScoringWeights(
-    recency=0.20,
-    semantic_similarity=0.20,
-    toin_importance=0.25,
-    error_indicator=0.15,
-    forward_reference=0.15,
-    token_density=0.05,
-)
-
-config = IntelligentContextConfig(
-    enabled=True,
-    keep_system=True,
-    keep_last_turns=2,
-    output_buffer_tokens=4000,
-    use_importance_scoring=True,
-    scoring_weights=weights,
-    toin_integration=True,
-    recency_decay_rate=0.1,
-    compress_threshold=0.1,
-)
-```
-
-### ScoringWeights
-
-```python
-from cutctx.config import ScoringWeights
-
-weights = ScoringWeights(
-    recency=0.20,              # Exponential decay from end
-    semantic_similarity=0.20,  # Embedding similarity to recent context
-    toin_importance=0.25,      # TOIN retrieval_rate
-    error_indicator=0.15,      # TOIN field_semantics error detection
-    forward_reference=0.15,    # Messages referenced by later messages
-    token_density=0.05,        # Unique/total token ratio
-)
-
-# Weights are auto-normalized to sum to 1.0
-normalized = weights.normalized()
-```
-
 ### RelevanceScorerConfig
 
 ```python
@@ -424,3 +379,27 @@ report = generate_report(
 For the TypeScript SDK API reference, see [TypeScript SDK](typescript-sdk.md).
 
 The TypeScript SDK provides `compress()`, `CutctxClient`, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.
+
+## `POST /admin/config/flags`
+Update live intelligence layer feature flags at runtime without restarting the proxy.
+
+**Note:** This endpoint is exposed via the internal admin port but is intentionally undocumented in standard OpenAPI specifications. It is primarily consumed by the Governance dashboard to toggle features.
+
+### Request Body (JSON)
+Key-value pairs of the feature flag and boolean state.
+```json
+{
+  "context_budgeting": true,
+  "semantic_dedup": false,
+  "multi_agent_shared_ctx": true,
+  "task_aware_compression": false
+}
+```
+
+### Response
+```json
+{
+  "status": "success",
+  "updated_flags": 4
+}
+```

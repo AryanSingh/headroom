@@ -30,11 +30,13 @@ The core package includes the `compress()` function, SmartCrusher, CacheAligner,
 
 ### Extras
 
-Install only what you need, or grab everything with `[all]`:
+Install only what you need, or grab the broad `[all]` bundle:
 
 ```bash
 pip install "cutctx-ai[all]"
 ```
+
+`[all]` intentionally omits heavy, experimental, platform-specific or proprietary integrations such as `memory-stack`, `pytorch-mps`, `demo-integrations`, `langfuse`, `anyllm`, `langchain`, `llamaindex`, `agno`, `strands`, `voice-train`, `bedrock`, `proxy-prod`, `dev`, and `ee`.
 
 | Extra | What it adds | Install command |
 |---|---|---|
@@ -46,7 +48,7 @@ pip install "cutctx-ai[all]"
 | `image` | Image compression (Pillow, ONNX runtime, OCR) | `pip install "cutctx-ai[image]"` |
 | `reports` | HTML/Markdown report generation (Jinja2) | `pip install "cutctx-ai[reports]"` |
 | `otel` | OpenTelemetry exporter (OTLP) | `pip install "cutctx-ai[otel]"` |
-| `voice` | Voice/audio support | `pip install "cutctx-ai[voice]"` |
+| `voice` | Voice ML extras (for example filler-word detection). Audio API routes still proxy pass-through. | `pip install "cutctx-ai[voice]"` |
 | `mcp` | MCP server tools (`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`) | `pip install "cutctx-ai[mcp]"` |
 | `langchain` | LangChain `CutctxChatModel` wrapper | `pip install "cutctx-ai[langchain]"` |
 | `agno` | Agno `CutctxAgnoModel` wrapper | `pip install "cutctx-ai[agno]"` |

@@ -17,7 +17,6 @@ This guide covers every testable surface of the product end-to-end. Work through
 5. [Compression Algorithms](#5-compression-algorithms)
 6. [ContentRouter — Auto-Detection & Routing](#6-contentrouter--auto-detection--routing)
 7. [CompactTable Compressor](#7-compacttable-compressor)
-8. [LLMLingua-2 Optional Compressor](#8-llmlingua-2-optional-compressor)
 9. [Selective Context Filter](#9-selective-context-filter)
 10. [Query-Aware Compression](#10-query-aware-compression)
 11. [Compressed Content Retrieval (CCR)](#11-compressed-content-retrieval-ccr)
@@ -448,40 +447,6 @@ EOF
 
 ---
 
-## 8. LLMLingua-2 Optional Compressor
-
-```bash
-# Check graceful fallback when NOT installed
-python3 - <<'EOF'
-from cutctx.transforms.llmlingua_compressor import LLMLinguaCompressor
-
-comp = LLMLinguaCompressor()
-text = "This is a test sentence that should be compressed. " * 20
-result = comp.compress(text)
-print(f"available: {comp.available()}")
-if comp.available():
-    print(f"Saved: {result.tokens_saved}")
-else:
-    print("Gracefully falling back to no-op (expected when not installed)")
-print("PASS — no crash")
-EOF
-```
-
-**PASS:** no crash; if llmlingua not installed, `comp.available == False` and `result.compressed == text`
-
-```bash
-# Test with proxy flag (should start without error even if not installed)
-cutctx proxy --port 8791 --llmlingua &
-PROXY_PID=$!
-sleep 2
-curl -s http://localhost:8791/livez | jq .
-kill $PROXY_PID
-```
-
-**PASS:** proxy starts without crashing; `/livez` returns ok (llmlingua is gracefully disabled if package not present)
-
----
-
 ## 9. Selective Context Filter
 
 ```bash
@@ -782,7 +747,7 @@ kill $P2
 ### Legacy alias acceptance
 
 ```bash
-cutctx proxy --port 8802 --mode token_mode &
+cutctx proxy --port 8802 --mode token &
 P=$!; sleep 2
 curl -s http://localhost:8802/livez | jq .
 kill $P
