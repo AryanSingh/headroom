@@ -47,13 +47,20 @@ if TYPE_CHECKING:
 
 
 import socket
+
 import httpx
 
 try:
     import uvicorn
     from fastapi import Depends, FastAPI, HTTPException, Request, Response
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse, FileResponse
+    from fastapi.responses import (
+        FileResponse,
+        HTMLResponse,
+        JSONResponse,
+        PlainTextResponse,
+        StreamingResponse,
+    )
     from fastapi.staticfiles import StaticFiles
 
     FASTAPI_AVAILABLE = True
@@ -81,6 +88,7 @@ from cutctx.config import (
     ReadLifecycleConfig,
 )
 from cutctx.dashboard import get_dashboard_html
+from cutctx.graph.resolver import StackGraphResolver, stack_graph_available
 from cutctx.observability import (
     LangfuseTracingConfig,
     OTelMetricsConfig,
@@ -132,14 +140,14 @@ from cutctx.proxy.helpers import (
     jitter_delay_ms,
 )
 from cutctx.proxy.memory_handler import MemoryConfig, MemoryHandler
-
-# Data models (extracted to cutctx/proxy/models.py for maintainability)
-from cutctx.proxy.models import CacheEntry, ProxyConfig, RateLimitState, RequestLog  # noqa: F401
 from cutctx.proxy.minimal_build import (
     apply_minimal_build_to_anthropic_body,
     apply_minimal_build_to_openai_body,
     resolve_minimal_build_mode,
 )
+
+# Data models (extracted to cutctx/proxy/models.py for maintainability)
+from cutctx.proxy.models import CacheEntry, ProxyConfig, RateLimitState, RequestLog  # noqa: F401
 from cutctx.proxy.modes import (
     PROXY_MODE_CACHE,
     PROXY_MODE_TOKEN,
@@ -178,7 +186,6 @@ from cutctx.transforms import (
     TransformPipeline,
     is_tree_sitter_available,
 )
-from cutctx.graph.resolver import StackGraphResolver, stack_graph_available
 
 AnyLLMBackend: Any = None
 LiteLLMBackend: Any = None
@@ -210,7 +217,7 @@ _intercept_bypass_applied = False
 
 # Loopback-only auth bypass: restricted to specific read-only endpoints
 # that legitimately need no auth from localhost dashboard access.
-_LOOPBACK_OPEN_PATHS = frozenset({"/livez", "/readyz", "/metrics", "/dashboard", "/api/savings", "/api/models"})
+_LOOPBACK_OPEN_PATHS = frozenset({"/livez", "/readyz", "/metrics"})
 
 
 def _patch_getaddrinfo_for_intercept() -> None:
@@ -465,12 +472,34 @@ class CutctxProxy(
         # code/RAG context — see issue #454).
         if profile_kwargs.get("compress_user_messages"):
             router_config.skip_user_messages = False
+        # Wire the intelligence pipeline's profile recommendations into the
+        # router config so ContentRouter can consume them via per_type_overrides.
+        # Best-effort: if the profile is not yet available, no overrides are set
+        # and existing behaviour is unchanged.
+        try:
+            from cutctx.profiles import CompressionProfile
+
+            _profile = CompressionProfile.load()
+            if _profile and _profile.stats:
+                _content_type_overrides: dict[str, dict[str, Any]] = {}
+                for _ct, _stats in _profile.stats.items():
+                    _content_type_overrides[_ct] = {
+                        "recommended_ratio": _stats.recommended_ratio,
+                    }
+                router_config.per_type_overrides = _content_type_overrides
+                logger.debug(
+                    "Wired %d content type overrides from profile into router config",
+                    len(_content_type_overrides),
+                )
+        except Exception:
+            pass  # Profile not available — no overrides, existing behaviour unchanged
         content_router = ContentRouter(router_config, observer=self.metrics)
         # Wire difftastic runtime flags so the router's _get_diff_compressor
         # can branch to DifftasticBackend when enabled.
         content_router._runtime_difftastic_enabled = config.difftastic_enabled
         content_router._runtime_difftastic_binary = config.difftastic_binary
         content_router._runtime_difftastic_context_lines = config.difftastic_context_lines
+        self._content_router = content_router
         from cutctx.proxy.interceptors import ToolResultInterceptorTransform
 
         transforms = [
@@ -978,7 +1007,9 @@ class CutctxProxy(
                     self.stack_graph_resolver = resolver
                     # Wire incremental re-indexing through the file watcher
                     try:
-                        from cutctx.graph.watcher import set_stack_graph_resolver as _set_sg_resolver
+                        from cutctx.graph.watcher import (
+                            set_stack_graph_resolver as _set_sg_resolver,
+                        )
                         _set_sg_resolver(resolver)
                     except ImportError:
                         pass  # Watcher module not available — incremental updates disabled
@@ -990,6 +1021,19 @@ class CutctxProxy(
                     logger.exception("Stack-graph: failed to initialize")
                     self.stack_graph_resolver = None
 
+        # Wire stack-graph reachability into the code compressor via
+        # the content router's pre-compress hook.
+        if self.stack_graph_resolver is not None and hasattr(self, '_content_router'):
+            resolver_for_hook = self.stack_graph_resolver
+            router_for_hook = self._content_router
+            # Set the hook on the config (used by ContentRouter.compress())
+            router_for_hook.config.pre_compress_hook = (
+                lambda _router, _content, _context: self._apply_stack_graph_to_compressor(
+                    _router, _content, _context, resolver_for_hook,
+                )
+            )
+            logger.info("Stack-graph: pre_compress_hook wired — reachable functions will be preserved")
+
         self.pipeline_extensions.emit(
             PipelineStage.SETUP,
             operation="proxy.setup",
@@ -1000,6 +1044,48 @@ class CutctxProxy(
                 "memory_enabled": self.config.memory_enabled,
             },
         )
+
+    def _apply_stack_graph_to_compressor(
+        self,
+        router: Any,
+        content: str,
+        context: str,
+        resolver: Any = None,
+    ) -> None:
+        """Extract entry points from user context and protect reachable symbols.
+
+        Called as a pre-compress hook from the ContentRouter.  Resolves
+        symbol names found in the context string through the stack graph
+        and sets ``protected_symbols`` on the code compressor so that
+        reachable functions keep their full bodies.
+        """
+        if resolver is None:
+            resolver = getattr(self, "stack_graph_resolver", None)
+        if resolver is None:
+            return
+
+        from cutctx.graph.reachability import resolve_entry_points
+
+        # Use the compression context as the query — it typically
+        # contains the most recent user message or task description.
+        query = context or content[:200]
+        if not query:
+            return
+
+        protected_symbols, _report = resolve_entry_points(
+            resolver, query, max_depth=5,
+        )
+
+        if protected_symbols:
+            # Find the code compressor and set protected symbols on it.
+            code_compressor = router._get_code_compressor()
+            if code_compressor is not None and hasattr(code_compressor, "set_protected_symbols"):
+                code_compressor.set_protected_symbols(protected_symbols)
+                logger.info(
+                    "StackGraph: protecting %d symbols from %s",
+                    len(protected_symbols),
+                    query[:50],
+                )
 
     async def _run_compression_in_executor(
         self,
@@ -1181,6 +1267,11 @@ class CutctxProxy(
             verify=_ca_bundle if _ca_bundle is not None else True,
         )
         logger.info("Cutctx Proxy started")
+        if os.environ.get("CUTCTX_ALLOW_DEBUG", "").strip() in ("1", "true", "yes"):
+            logger.warning(
+                "⚠️  CUTCTX_ALLOW_DEBUG is set — ptrace/debugger guard is DISABLED. "
+                "Do NOT run in production with this flag."
+            )
         logger.info(f"Optimization: {'ENABLED' if self.config.optimize else 'DISABLED'}")
         self.config.mode = normalize_proxy_mode(self.config.mode)
         logger.info(f"Mode: {self.config.mode}")
@@ -3110,6 +3201,30 @@ def _require_rbac_permission(permission: str):
             drain3_ready = bool(drain3_available())
         except Exception:
             drain3_ready = False
+        try:
+            from cutctx.memory.backends.usearch_store import usearch_available
+
+            usearch_ready = bool(usearch_available())
+        except Exception:
+            usearch_ready = False
+
+        model_router = getattr(proxy, "_model_router", None)
+        model_router_config = getattr(model_router, "config", None)
+        model_router_enabled = bool(getattr(model_router_config, "enabled", False))
+        model_router_routes = list(getattr(model_router_config, "routes", []) or [])
+        model_routing_status = {
+            "requested": model_router_enabled,
+            "available": model_router is not None,
+            "configured_routes": len(model_router_routes),
+            "reason": (
+                "router_uninitialized"
+                if model_router is None
+                else "no_routes_configured"
+                if model_router_enabled and not model_router_routes
+                else None
+            ),
+            "install_hint": "configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml",
+        }
 
         return {
             "knowledge_graph": {
@@ -4199,7 +4314,7 @@ def _require_rbac_permission(permission: str):
         """Update live intelligence layer feature flags at runtime."""
         # Wait for the payload
         payload = await request.json()
-        
+
         # Apply the changes to the global config object
         if "cache" in payload:
             config.cache_enabled = bool(payload["cache"])
@@ -4211,10 +4326,10 @@ def _require_rbac_permission(permission: str):
             config.episodic_memory_enabled = bool(payload["memory"])
             if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
                 try:
+                    from cutctx.intelligence_pipeline import IntelligencePipeline
                     from cutctx.memory.session_tracker import EpisodicSessionTracker
                     from cutctx.memory.store import EpisodicMemoryStore
-                    from cutctx.intelligence_pipeline import IntelligencePipeline
-                    
+
                     store = EpisodicMemoryStore()
                     intel = IntelligencePipeline(config)
                     proxy.episodic_tracker = EpisodicSessionTracker(store, intel, proxy.logger)
@@ -4227,10 +4342,10 @@ def _require_rbac_permission(permission: str):
         if "orchestrator" in payload:
             if hasattr(proxy, "_model_router") and proxy._model_router is not None:
                 proxy._model_router.config.enabled = bool(payload["orchestrator"])
-            
+
         logger.info(f"Runtime configuration updated: {payload}")
         return {
-            "status": "success", 
+            "status": "success",
             "config": {
                 "cache": getattr(config, "cache_enabled", False),
                 "ccr": getattr(config, "ccr_context_tracking", False),
@@ -4940,6 +5055,44 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     def _iso_utc_now() -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    def _runtime_payload() -> dict[str, Any]:
+        ws_registry = getattr(proxy, "ws_sessions", None)
+        ws_active_sessions = ws_registry.active_count() if ws_registry is not None else 0
+        ws_active_relay_tasks = (
+            ws_registry.active_relay_task_count() if ws_registry is not None else 0
+        )
+        with proxy._compression_metrics_lock:
+            queued = proxy._compression_queued
+            queued_max = proxy._compression_queued_max
+            queue_timeouts_total = proxy._compression_queue_timeouts
+            in_flight = proxy._compression_in_flight
+            in_flight_max = proxy._compression_in_flight_max
+            leaked_threads_total = proxy._compression_leaked_threads
+        return {
+            "anthropic_pre_upstream": {
+                "enabled": proxy.anthropic_pre_upstream_sem is not None,
+                "resolved_concurrency": proxy.anthropic_pre_upstream_concurrency,
+                "source": (
+                    "auto"
+                    if config.anthropic_pre_upstream_concurrency is None
+                    else "explicit"
+                ),
+            },
+            "compression_executor": {
+                "max_workers": proxy.compression_max_workers,
+                "queued": queued,
+                "queued_max": queued_max,
+                "queue_timeouts_total": queue_timeouts_total,
+                "in_flight": in_flight,
+                "in_flight_max": in_flight_max,
+                "leaked_threads_total": leaked_threads_total,
+            },
+            "websocket_sessions": {
+                "active_sessions": ws_active_sessions,
+                "active_relay_tasks": ws_active_relay_tasks,
+            },
+        }
+
     def _health_payload(include_config: bool = False) -> dict[str, Any]:
         payload = {
             "service": "cutctx-proxy",
@@ -4966,15 +5119,35 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             stats_snapshot["expires_at"] = time.monotonic() + stats_cache_ttl_seconds
             return payload
 
+    async def _require_local_admin_auth(request: Request) -> None:
+        expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
+        if not expected_admin_key:
+            return
+        auth_header = request.headers.get("authorization", "")
+        bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        admin_header = request.headers.get("x-cutctx-admin-key", "") or request.query_params.get("key", "")
+        legacy_header = request.headers.get("x-headroom-admin-key", "")
+        import hmac as _hmac
+
+        if (
+            _hmac.compare_digest(bearer_token, expected_admin_key)
+            or _hmac.compare_digest(admin_header, expected_admin_key)
+            or _hmac.compare_digest(legacy_header, expected_admin_key)
+        ):
+            return
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     @app.get("/stats")
     @app.get("/v1/stats")
-    async def stats(cached: bool = False):
+    async def stats(request: Request, cached: bool = False):
+        await _require_local_admin_auth(request)
         if cached:
             return await _get_cached_payload()
         return await _build_stats_payload()
 
     @app.post("/stats/reset")
-    async def stats_reset():
+    async def stats_reset(request: Request):
+        await _require_local_admin_auth(request)
         await proxy.metrics.reset_runtime()
         if proxy.cost_tracker:
             proxy.cost_tracker.reset_runtime()
@@ -4997,12 +5170,45 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def health():
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 
+    # Loopback-only debug introspection surfaces.
+    from cutctx.proxy.debug_introspection import (
+        collect_tasks as _collect_tasks,
+    )
+    from cutctx.proxy.loopback_guard import require_loopback as _require_loopback
+
+    @app.get("/debug/tasks", dependencies=[Depends(_require_loopback)])
+    async def debug_tasks(stack: bool = False):
+        ws_registry = getattr(proxy, "ws_sessions", None)
+        return JSONResponse(
+            status_code=200,
+            content=_collect_tasks(ws_registry, with_stack_depth=stack),
+        )
+
+    @app.get("/debug/ws-sessions", dependencies=[Depends(_require_loopback)])
+    async def debug_ws_sessions():
+        ws_registry = getattr(proxy, "ws_sessions", None)
+        snapshot = ws_registry.snapshot() if ws_registry is not None else []
+        return JSONResponse(status_code=200, content=snapshot)
+
+    @app.get("/debug/warmup", dependencies=[Depends(_require_loopback)])
+    async def debug_warmup():
+        warmup_registry = getattr(proxy, "warmup", None)
+        payload = warmup_registry.to_dict() if warmup_registry is not None else {}
+        payload["runtime"] = _runtime_payload()
+        return JSONResponse(status_code=200, content=payload)
+
     @app.get("/v1/version")
     async def get_v1_version():
         return JSONResponse(status_code=200, content={"version": __version__})
 
     @app.get("/stats-history")
-    async def stats_history(format: str = "json", series: str = "daily", history_mode: str = "compact"):
+    async def stats_history(
+        request: Request,
+        format: str = "json",
+        series: str = "daily",
+        history_mode: str = "compact",
+    ):
+        await _require_local_admin_auth(request)
         if format == "csv":
             filename = f"cutctx-stats-history-{series}.csv"
             return Response(
@@ -5030,7 +5236,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/dashboard", response_class=HTMLResponse)
     @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
-    async def dashboard(path: str = ""):
+    async def dashboard(request: Request, path: str = ""):
+        await _require_local_admin_auth(request)
         return HTMLResponse(get_dashboard_html(prefer_react=True))
 
     @app.post("/admin/config/flags")

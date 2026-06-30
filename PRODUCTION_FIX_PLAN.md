@@ -433,3 +433,27 @@ Add a `v0.29.1` entry covering:
 - `uv run python -m pytest -q tests/test_openai_responses_subscription_compat.py` → `4 passed`
 - `uv run python -m pytest -q tests/test_provider_codex_runtime.py -k 'responses or codex'` → `5 passed`
 - Separate note: the stack-graph pre-compress hook remains a performance-risk area, but it is a weaker match for this specific plain-400 symptom than the `Responses` request-shape regression above.
+
+## 2026-07-01 Runtime App Verification Addendum
+
+- Drove verification through the local CLI path:
+- `CUTCTX_ADMIN_API_KEY=test-admin-key uv run python -m cutctx.cli.main proxy --host 127.0.0.1 --port 4011 --no-optimize --no-cache --no-rate-limit --workers 1`
+- Found a structural regression in [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py):
+- the file defines `create_app` twice
+- Python exports the second definition (`co_firstlineno=4753`)
+- that exported runtime app had dropped `/debug/tasks`, `/debug/ws-sessions`, and `/debug/warmup`
+- the same exported runtime app also left `/stats`, `/stats-history`, and `/dashboard` publicly readable even when `CUTCTX_ADMIN_API_KEY` was set
+- Fixes applied to the exported runtime `create_app`:
+- restored `/debug/tasks`, `/debug/ws-sessions`, and `/debug/warmup`
+- restored the runtime payload helper used by `/debug/warmup`
+- added a shared admin-auth check for `/stats`, `/v1/stats`, `/stats-history`, `/dashboard`, and `/stats/reset`
+- added regression coverage in [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_runtime_app_admin_auth.py)
+- Verification:
+- `uv run python -m pytest -q tests/test_runtime_app_admin_auth.py tests/test_proxy_debug_endpoints.py tests/test_security_validations.py tests/test_openai_responses_subscription_compat.py` → `47 passed`
+- `python3 -m py_compile cutctx/proxy/server.py` → passed
+- live restarted CLI proxy checks:
+- `/stats` without admin key → `401`
+- `/dashboard` without admin key → `401`
+- `/stats` with `X-Cutctx-Admin-Key` → `200`
+- `/dashboard` with `X-Cutctx-Admin-Key` → `200`
+- `/debug/warmup` on loopback → `200`
