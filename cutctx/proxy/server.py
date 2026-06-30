@@ -19,7 +19,7 @@ Usage:
 
     # With Claude Code:
     ANTHROPIC_BASE_URL=http://localhost:8787 claude
-"""
+    """
 
 from __future__ import annotations
 
@@ -178,6 +178,7 @@ from cutctx.transforms import (
     TransformPipeline,
     is_tree_sitter_available,
 )
+from cutctx.graph.resolver import StackGraphResolver, stack_graph_available
 
 AnyLLMBackend: Any = None
 LiteLLMBackend: Any = None
@@ -961,6 +962,33 @@ class CutctxProxy(
                 )
                 interceptors_base.register(interceptor)
                 logger.info("Structural diff engine interceptor registered (context_lines=%d)", config.difftastic_context_lines)
+
+        # Stack-graph code navigation (optional)
+        self.stack_graph_resolver = None
+        if config.stack_graph_enabled:
+            if not stack_graph_available():
+                logger.warning(
+                    "Stack-graph: Rust extension not available. "
+                    "Run: maturin develop -m crates/cutctx-py/Cargo.toml"
+                )
+            else:
+                try:
+                    resolver = StackGraphResolver()
+                    count = resolver.index_project(os.getcwd())
+                    self.stack_graph_resolver = resolver
+                    # Wire incremental re-indexing through the file watcher
+                    try:
+                        from cutctx.graph.watcher import set_stack_graph_resolver as _set_sg_resolver
+                        _set_sg_resolver(resolver)
+                    except ImportError:
+                        pass  # Watcher module not available — incremental updates disabled
+                    logger.info(
+                        "Stack-graph: ENABLED — indexed %d files in %s",
+                        count, os.getcwd(),
+                    )
+                except Exception:
+                    logger.exception("Stack-graph: failed to initialize")
+                    self.stack_graph_resolver = None
 
         self.pipeline_extensions.emit(
             PipelineStage.SETUP,
@@ -1998,6 +2026,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 proxy.code_graph_watcher.stop()
             if getattr(proxy, "knowledge_graph_indexer", None):
                 proxy.knowledge_graph_indexer.stop()
+            if getattr(proxy, "stack_graph_resolver", None):
+                proxy.stack_graph_resolver.clear()
             await proxy.shutdown()
             shutdown_cutctx_tracing()
             shutdown_otel_metrics()
@@ -3017,7 +3047,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except Exception:
         logger.debug("RBAC checker not available", exc_info=True)
 
-    def _require_rbac_permission(permission: str):
+'''
+def _require_rbac_permission(permission: str):
         """Factory that returns a dependency checking a specific RBAC permission."""
 
         async def _check(request: Request):
@@ -3030,7 +3061,26 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             role = _rbac_checker_ref.resolve_role(request)
             _rbac_checker_ref.check_permission(role, permission)
 
-        return _check
+ return _check
+'''
+
+
+def _require_rbac_permission(permission: str):
+    """Factory returning a dependency that checks one RBAC permission."""
+
+    async def _check(request: Request):
+        await _authenticate_admin_request(request)
+        if _rbac_checker_ref is None:
+            raise HTTPException(
+                status_code=503,
+                detail="RBAC unavailable",
+            )
+        role = _rbac_checker_ref.resolve_role(request)
+        _rbac_checker_ref.check_permission(role, permission)
+
+    return _check
+
+    '''
 
     def _feature_availability_snapshot() -> dict[str, dict[str, Any]]:
         """Surface which optional best-in-class features are actually usable.
@@ -3040,7 +3090,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         dependencies are missing. The snapshot is lightweight and safe to call
         from ``/stats``.
         """
-        graphify_py = importlib.util.find_spec("graphifyy") is not None
+    graphify_py = importlib.util.find_spec("graphifyy") is not None or importlib.util.find_spec("graphify") is not None
         networkx_py = importlib.util.find_spec("networkx") is not None
         pillow_py = importlib.util.find_spec("PIL") is not None
         llmlingua_py = importlib.util.find_spec("llmlingua") is not None
@@ -3128,6 +3178,106 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "requested": False,
                 "available": importlib.util.find_spec("tree_sitter_language_pack") is not None,
                 "reason": None if importlib.util.find_spec("tree_sitter_language_pack") is not None else "code_parsing_engine_missing",
+                "install_hint": "pip install cutctx-ai[code]",
+            },
+            "audio": {
+                "requested": True,
+                "available": True,
+                "compression": "pass-through",
+                "reason": "audio_proxy_only_no_token_compression",
+                "install_hint": None,
+            },
+    }
+    '''
+
+    def _feature_availability_snapshot() -> dict[str, dict[str, Any]]:
+        """Surface optional best-in-class features actually usable."""
+        graphify_py = importlib.util.find_spec("graphifyy") is not None or importlib.util.find_spec("graphify") is not None
+        networkx_py = importlib.util.find_spec("networkx") is not None
+        pillow_py = importlib.util.find_spec("PIL") is not None
+        llmlingua_py = importlib.util.find_spec("llmlingua") is not None
+        llmlingua_module_py = importlib.util.find_spec("cutctx.transforms.llmlingua_compressor") is not None
+        rust_core_py = importlib.util.find_spec("cutctx._core") is not None
+        onnxruntime_py = importlib.util.find_spec("onnxruntime") is not None
+        trafilatura_py = importlib.util.find_spec("trafilatura") is not None
+        torch_py = importlib.util.find_spec("torch") is not None
+        tree_sitter_py = importlib.util.find_spec("tree_sitter_language_pack") is not None
+        try:
+            from cutctx.binaries import find_difftastic
+
+            difft_path = find_difftastic(getattr(proxy.config, "difftastic_binary", "difft"))
+        except Exception:
+            difft_path = None
+
+        try:
+            from cutctx.transforms.drain3_compressor import drain3_available
+
+            drain3_ready = bool(drain3_available())
+        except Exception:
+            drain3_ready = False
+
+        return {
+            "knowledge_graph": {
+                "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
+                "available": graphify_py and networkx_py,
+                "knowledge_graph_engine_installed": graphify_py,
+                "graph_utilities_installed": networkx_py,
+                "reason": None if graphify_py and networkx_py else "knowledge_graph_engine_missing" if not graphify_py else "graph_utilities_missing",
+                "install_hint": "pip install cutctx-ai[knowledge-graph]",
+            },
+            "log_template_mining": {
+                "requested": bool(getattr(proxy.config, "use_drain3", False)),
+                "available": drain3_ready,
+                "reason": None if drain3_ready else "log_template_mining_missing",
+                "install_hint": "pip install cutctx-ai[log-ml]",
+            },
+            "structural_diff_engine": {
+                "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
+                "available": difft_path is not None,
+                "binary": str(difft_path) if difft_path else None,
+                "reason": None if difft_path is not None else "difft_binary_missing",
+                "install_hint": "brew install structural-diff-engine or cargo install structural-diff-engine",
+            },
+            "text_compression_engine": {
+                "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
+                "available": llmlingua_py and llmlingua_module_py,
+                "reason": None if llmlingua_py and llmlingua_module_py else "text_compression_runtime_missing" if llmlingua_py else "text_compression_engine_missing",
+                "install_hint": "pip install cutctx-ai[llmlingua]",
+            },
+            "multimodal_image": {
+                "requested": False,
+                "available": pillow_py,
+                "reason": None if pillow_py else "pillow_missing",
+                "install_hint": "pip install cutctx-ai[image]",
+            },
+            "smart_crusher": {
+                "requested": True,
+                "available": rust_core_py,
+                "reason": None if rust_core_py else "rust_extension_not_built",
+                "install_hint": "pip install cutctx-ai",
+            },
+            "kompress": {
+                "requested": False,
+                "available": onnxruntime_py,
+                "reason": None if onnxruntime_py else "ml_inference_runtime_missing",
+                "install_hint": "pip install cutctx-ai[proxy]",
+            },
+            "html_extractor": {
+                "requested": False,
+                "available": trafilatura_py,
+                "reason": None if trafilatura_py else "html_extraction_engine_missing",
+                "install_hint": "pip install cutctx-ai[html]",
+            },
+            "voice_filler": {
+                "requested": False,
+                "available": torch_py,
+                "reason": None if torch_py else "ml_framework_missing",
+                "install_hint": "pip install cutctx-ai[voice]",
+            },
+            "code_ast": {
+                "requested": False,
+                "available": tree_sitter_py,
+                "reason": None if tree_sitter_py else "code_parsing_engine_missing",
                 "install_hint": "pip install cutctx-ai[code]",
             },
             "audio": {
@@ -3930,6 +4080,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ),
                 **(_kg_indexer.stats if _kg_indexer else {}),
             },
+            "stack_graph": {
+                "enabled": bool(getattr(proxy, "stack_graph_resolver", None)),
+                "files_indexed": getattr(proxy.stack_graph_resolver, "file_count", lambda: 0)()
+                    if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+                "nodes": getattr(proxy.stack_graph_resolver, "node_count", lambda: 0)()
+                    if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+            },
             "feature_availability": _feature_availability_snapshot(),
             "anon_telemetry_shipping": is_telemetry_enabled(),
             "telemetry": {
@@ -4013,6 +4170,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.ccr_handle_responses = ccr_enabled
         if "memory" in payload:
             config.episodic_memory_enabled = bool(payload["memory"])
+            if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
+                try:
+                    from cutctx.memory.session_tracker import EpisodicSessionTracker
+                    from cutctx.memory.store import EpisodicMemoryStore
+                    from cutctx.intelligence_pipeline import IntelligencePipeline
+                    
+                    store = EpisodicMemoryStore()
+                    intel = IntelligencePipeline(config)
+                    proxy.episodic_tracker = EpisodicSessionTracker(store, intel, proxy.logger)
+                except ImportError as e:
+                    logger.warning(f"Could not load memory dependencies: {e}")
         if "firewall" in payload:
             config.firewall_enabled = bool(payload["firewall"])
         if "rate_limiter" in payload:
@@ -4426,6 +4594,361 @@ def _proxy_config_from_env() -> ProxyConfig:
 # suite green at the same time. Will be removed in the next
 # minor release.
 CutctxProxy = CutctxProxy
+
+
+def create_app(config: ProxyConfig | None = None) -> FastAPI:
+    """Create the runtime FastAPI app for dashboard and proxy surfaces."""
+    if not FASTAPI_AVAILABLE:
+        raise ImportError("FastAPI required. Install: pip install fastapi uvicorn httpx")
+
+    _setup_file_logging()
+    from cutctx.proxy.airgap import check_offline_compat
+
+    check_offline_compat()
+    config = config or ProxyConfig()
+    proxy = CutctxProxy(config)
+
+    @contextlib.asynccontextmanager
+    async def _lifespan(_: FastAPI):
+        await proxy.startup()
+        try:
+            yield
+        finally:
+            await proxy.shutdown()
+
+    app = FastAPI(
+        title="Cutctx Proxy",
+        description="Production-ready LLM optimization proxy",
+        version=__version__,
+        lifespan=_lifespan,
+    )
+    app.state.proxy = proxy
+    app.state.started_at = time.time()
+    app.state.ready = True
+    app.state.startup_error = None
+    app.state.rust_core_status = "missing"
+    app.state.rust_core_error = None
+
+    stats_cache_ttl_seconds = 5.0
+    stats_snapshot: dict[str, Any] = {"value": None, "expires_at": 0.0}
+    stats_snapshot_lock = asyncio.Lock()
+
+    async def _build_stats_payload() -> dict[str, Any]:
+        m = proxy.metrics
+        store = get_compression_store()
+        compression_stats = store.get_stats()
+        telemetry = get_telemetry_collector()
+        telemetry_stats = telemetry.get_stats()
+        feedback = get_compression_feedback()
+        feedback_stats = feedback.get_stats()
+        prefix_cache_stats = _build_prefix_cache_stats(m, proxy.cost_tracker)
+        cli_filtering_stats = await asyncio.to_thread(_get_context_tool_stats)
+        cli_filtering_tool = str(cli_filtering_stats.get("tool", "rtk")) if cli_filtering_stats else "rtk"
+        cli_filtering_label = str(cli_filtering_stats.get("label", "RTK")) if cli_filtering_stats else "RTK"
+        cli_tokens_avoided = int(cli_filtering_stats.get("tokens_saved", 0) if cli_filtering_stats else 0)
+        graphify_py = importlib.util.find_spec("graphifyy") is not None or importlib.util.find_spec("graphify") is not None
+        networkx_py = importlib.util.find_spec("networkx") is not None
+        llmlingua_py = importlib.util.find_spec("llmlingua") is not None
+        llmlingua_runtime_py = importlib.util.find_spec("cutctx.transforms.llmlingua_compressor") is not None
+        pillow_py = importlib.util.find_spec("PIL") is not None
+        rust_core_py = importlib.util.find_spec("cutctx._core") is not None
+        onnxruntime_py = importlib.util.find_spec("onnxruntime") is not None
+        trafilatura_py = importlib.util.find_spec("trafilatura") is not None
+        torch_py = importlib.util.find_spec("torch") is not None
+        tree_sitter_py = importlib.util.find_spec("tree_sitter_language_pack") is not None
+
+        try:
+            from cutctx.binaries import find_difftastic
+
+            difft_path = find_difftastic(getattr(proxy.config, "difftastic_binary", "difft"))
+        except Exception:
+            difft_path = None
+
+        try:
+            from cutctx.transforms.drain3_compressor import drain3_available
+
+            drain3_ready = bool(drain3_available())
+        except Exception:
+            drain3_ready = False
+
+        persistent_savings = m.savings_tracker.stats_preview()
+        display_session = persistent_savings.get("display_session", {})
+        cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
+        cli_filtering_lifetime = cli_filtering_stats.get("lifetime", {}) if cli_filtering_stats else {}
+        kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
+        kg_idx = None
+        if kg_indexer is not None:
+            try:
+                ensure_ready = getattr(kg_indexer, "ensure_ready", None)
+                if callable(ensure_ready):
+                    kg_idx = ensure_ready()
+            except Exception:
+                kg_idx = None
+
+        total_tokens_before = int(getattr(m, "tokens_input_total", getattr(m, "prompt_tokens_total", 0)) or 0)
+        proxy_total_before_compression = int(getattr(m, "attempted_prompt_tokens_total", total_tokens_before) or total_tokens_before)
+        attempted_input_tokens = proxy_total_before_compression
+        proxy_compression_tokens = int(getattr(m, "tokens_saved_total", getattr(m, "prompt_tokens_saved", 0)) or 0)
+        rtk_tokens_avoided = int(cli_filtering_stats.get("rtk_tokens_saved", 0) if cli_filtering_stats else 0)
+        lean_ctx_tokens_avoided = int(cli_filtering_stats.get("lean_ctx_tokens_saved", 0) if cli_filtering_stats else 0)
+        if cli_tokens_avoided > 0 and rtk_tokens_avoided == 0 and lean_ctx_tokens_avoided == 0:
+            if cli_filtering_tool == "lean-ctx":
+                lean_ctx_tokens_avoided = cli_tokens_avoided
+            else:
+                rtk_tokens_avoided = cli_tokens_avoided
+        all_layers_tokens_saved = proxy_compression_tokens + cli_tokens_avoided
+        requests_total = int(getattr(m, "requests_total", 0) or 0)
+
+        summary = {
+            "saved": all_layers_tokens_saved,
+            "input": total_tokens_before,
+            "proxy_compression_saved": proxy_compression_tokens,
+            "cli_filtering_saved": cli_tokens_avoided,
+            "rtk_saved": rtk_tokens_avoided,
+            "lean_ctx_saved": lean_ctx_tokens_avoided,
+            "cli_tokens_avoided": cli_tokens_avoided,
+            "proxy_total_before_compression": proxy_total_before_compression,
+            "total_before_compression": total_tokens_before,
+            "all_layers_saved": all_layers_tokens_saved,
+            "proxy_attempted_tokens": attempted_input_tokens,
+            "active_savings_percent": round((proxy_compression_tokens / attempted_input_tokens * 100) if attempted_input_tokens > 0 else 0, 2),
+            "proxy_savings_percent": round((proxy_compression_tokens / proxy_total_before_compression * 100) if proxy_total_before_compression > 0 else 0, 2),
+            "savings_percent": round((all_layers_tokens_saved / total_tokens_before * 100) if total_tokens_before > 0 else 0, 2),
+            "all_layers_savings_percent": round((all_layers_tokens_saved / total_tokens_before * 100) if total_tokens_before > 0 else 0, 2),
+        }
+
+        return {
+            "summary": summary,
+            "tokens": summary,
+            "requests": {
+                "total": requests_total,
+                "by_model": dict(getattr(m, "requests_by_model", {})),
+            },
+            "savings": {
+                "by_layer": {
+                    "cli_filtering": {
+                        "tool": cli_filtering_tool,
+                        "label": cli_filtering_tool,
+                        "tokens": cli_tokens_avoided,
+                        "tokens_saved": cli_tokens_avoided,
+                        "session": cli_filtering_session,
+                        "lifetime": cli_filtering_lifetime,
+                        "session_savings_pct": cli_filtering_stats.get("session_savings_pct") if cli_filtering_stats else None,
+                        "lifetime_savings_pct": cli_filtering_stats.get("lifetime_avg_savings_pct") if cli_filtering_stats else None,
+                    },
+                    "compression": {
+                        "tokens": proxy_compression_tokens,
+                        "proxy_tokens": proxy_compression_tokens,
+                        "cli_filtering_tokens": cli_tokens_avoided,
+                        "rtk_tokens": rtk_tokens_avoided,
+                        "lean_ctx_tokens": lean_ctx_tokens_avoided,
+                        "all_layers_tokens": all_layers_tokens_saved,
+                    },
+                }
+            },
+            "context_tool": {
+                "configured": cli_filtering_tool,
+                "label": cli_filtering_label,
+                "available": bool(cli_filtering_stats and cli_filtering_stats.get("installed", False)),
+                "stats": cli_filtering_stats,
+            },
+            "cli_filtering": cli_filtering_stats,
+            "savings_history": getattr(m, "savings_history", [])[-100:],
+            "display_session": display_session,
+            "persistent_savings": persistent_savings,
+            "prefix_cache": prefix_cache_stats,
+            "cost": _merge_cost_stats(proxy.cost_tracker.stats() if proxy.cost_tracker else None, prefix_cache_stats, cli_tokens_avoided=cli_tokens_avoided),
+            "compression": {
+                "ccr_entries": compression_stats.get("entry_count", 0),
+                "ccr_max_entries": compression_stats.get("max_entries", 0),
+                "original_tokens_cached": compression_stats.get("total_original_tokens", 0),
+                "compressed_tokens_cached": compression_stats.get("total_compressed_tokens", 0),
+                "ccr_retrievals": compression_stats.get("total_retrievals", 0),
+            },
+            "knowledge_graph": {
+                **getattr(proxy, "knowledge_graph_status", {}),
+                "active": kg_idx is not None,
+                "status": "ready" if kg_idx is not None else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled"),
+                **(getattr(kg_indexer, "stats", {}) if kg_indexer else {}),
+            },
+            "feature_availability": {
+                "knowledge_graph": {
+                    "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
+                    "available": graphify_py and networkx_py,
+                    "knowledge_graph_engine_installed": graphify_py,
+                    "graph_utilities_installed": networkx_py,
+                    "reason": None if graphify_py and networkx_py else "knowledge_graph_engine_missing" if not graphify_py else "graph_utilities_missing",
+                    "install_hint": "pip install cutctx-ai[knowledge-graph]",
+                },
+                "log_template_mining": {
+                    "requested": bool(getattr(proxy.config, "use_drain3", False)),
+                    "available": drain3_ready,
+                    "reason": None if drain3_ready else "log_template_mining_missing",
+                    "install_hint": "pip install cutctx-ai[log-ml]",
+                },
+                "structural_diff_engine": {
+                    "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
+                    "available": difft_path is not None,
+                    "binary": str(difft_path) if difft_path else None,
+                    "reason": None if difft_path is not None else "difft_binary_missing",
+                    "install_hint": "brew install structural-diff-engine or cargo install structural-diff-engine",
+                },
+                "text_compression_engine": {
+                    "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
+                    "available": llmlingua_py and llmlingua_runtime_py,
+                    "reason": None if llmlingua_py and llmlingua_runtime_py else "text_compression_runtime_missing" if llmlingua_py else "text_compression_engine_missing",
+                    "install_hint": "pip install cutctx-ai[llmlingua]",
+                },
+                "multimodal_image": {
+                    "requested": False,
+                    "available": pillow_py,
+                    "reason": None if pillow_py else "pillow_missing",
+                    "install_hint": "pip install cutctx-ai[image]",
+                },
+                "smart_crusher": {
+                    "requested": True,
+                    "available": rust_core_py,
+                    "reason": None if rust_core_py else "rust_extension_not_built",
+                    "install_hint": "pip install cutctx-ai",
+                },
+                "kompress": {
+                    "requested": False,
+                    "available": onnxruntime_py,
+                    "reason": None if onnxruntime_py else "ml_inference_runtime_missing",
+                    "install_hint": "pip install cutctx-ai[proxy]",
+                },
+                "html_extractor": {
+                    "requested": False,
+                    "available": trafilatura_py,
+                    "reason": None if trafilatura_py else "html_extraction_engine_missing",
+                    "install_hint": "pip install cutctx-ai[html]",
+                },
+                "voice_filler": {
+                    "requested": False,
+                    "available": torch_py,
+                    "reason": None if torch_py else "ml_framework_missing",
+                    "install_hint": "pip install cutctx-ai[voice]",
+                },
+                "code_ast": {
+                    "requested": False,
+                    "available": tree_sitter_py,
+                    "reason": None if tree_sitter_py else "code_parsing_engine_missing",
+                    "install_hint": "pip install cutctx-ai[code]",
+                },
+                "audio": {
+                    "requested": True,
+                    "available": True,
+                    "compression": "pass-through",
+                    "reason": "audio_proxy_only_no_token_compression",
+                    "install_hint": None,
+                },
+            },
+            "telemetry": telemetry_stats,
+            "feedback": feedback_stats,
+            "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
+        }
+
+    def _uptime_seconds() -> float:
+        return max(0.0, time.time() - float(app.state.started_at))
+
+    def _iso_utc_now() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _health_payload(include_config: bool = False) -> dict[str, Any]:
+        payload = {
+            "service": "cutctx-proxy",
+            "status": "healthy" if app.state.ready else "starting",
+            "ready": bool(app.state.ready),
+            "alive": True,
+            "version": __version__,
+            "timestamp": _iso_utc_now(),
+            "uptime_seconds": _uptime_seconds(),
+        }
+        if include_config:
+            payload["mode"] = getattr(proxy.config, "mode", None)
+            payload["backend"] = getattr(proxy.config, "backend", None)
+        return payload
+
+    async def _get_cached_payload() -> dict[str, Any]:
+        async with stats_snapshot_lock:
+            now = time.monotonic()
+            cached_payload = cast(dict[str, Any] | None, stats_snapshot.get("value"))
+            if cached_payload is not None and now < float(stats_snapshot["expires_at"]):
+                return cached_payload
+            payload = await _build_stats_payload()
+            stats_snapshot["value"] = payload
+            stats_snapshot["expires_at"] = time.monotonic() + stats_cache_ttl_seconds
+            return payload
+
+    @app.get("/stats")
+    @app.get("/v1/stats")
+    async def stats(cached: bool = False):
+        if cached:
+            return await _get_cached_payload()
+        return await _build_stats_payload()
+
+    @app.post("/stats/reset")
+    async def stats_reset():
+        await proxy.metrics.reset_runtime()
+        if proxy.cost_tracker:
+            proxy.cost_tracker.reset_runtime()
+        await initialize_context_tool_session_baseline()
+        async with stats_snapshot_lock:
+            stats_snapshot["value"] = None
+            stats_snapshot["expires_at"] = 0.0
+        return {"ok": True}
+
+    @app.get("/livez")
+    async def livez():
+        return JSONResponse(status_code=200, content=_health_payload(include_config=False))
+
+    @app.get("/readyz")
+    async def readyz():
+        payload = _health_payload(include_config=False)
+        return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
+
+    @app.get("/health")
+    async def health():
+        return JSONResponse(status_code=200, content=_health_payload(include_config=True))
+
+    @app.get("/v1/version")
+    async def get_v1_version():
+        return JSONResponse(status_code=200, content={"version": __version__})
+
+    @app.get("/stats-history")
+    async def stats_history(format: str = "json", series: str = "daily", history_mode: str = "compact"):
+        if format == "csv":
+            filename = f"cutctx-stats-history-{series}.csv"
+            return Response(
+                content=proxy.metrics.savings_tracker.export_csv(series=series),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
+
+    @app.post("/v1/compress")
+    async def compress_endpoint(request: Request):
+        return await proxy.handle_compress(request)
+
+    from pathlib import Path as _Path
+    _react_assets = _Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist" / "assets"
+    if _react_assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_react_assets)), name="assets")
+
+    @app.get("/favicon.svg", include_in_schema=False)
+    async def _favicon():
+        fav = _react_assets.parent / "favicon.svg"
+        if fav.is_file():
+            return FileResponse(str(fav), media_type="image/svg+xml")
+        return Response(status_code=404)
+
+    @app.get("/dashboard", response_class=HTMLResponse)
+    @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
+    async def dashboard(path: str = ""):
+        return HTMLResponse(get_dashboard_html(prefer_react=True))
+
+    register_provider_routes(app, proxy)
+    return app
 
 
 def create_app_from_env() -> FastAPI:

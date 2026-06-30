@@ -13,7 +13,8 @@
 //! IPC / subprocess / RPC bridge would dominate the cost we're trying to
 //! save. PyO3 calls cost ~microseconds; staying in-process is ~free.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Mutex;
 
 use cutctx_core::signals::{
     ImportanceCategory, ImportanceContext, KeywordDetector, KeywordRegistry, LineImportanceDetector,
@@ -1624,6 +1625,93 @@ fn compress_openai_responses_live_zone(
     }
 }
 
+// ─── StackGraphManager ────────────────────────────────────────────────────
+
+/// Bindings for the Rust stack graph manager for cross-file code navigation.
+///
+/// Wraps `cutctx_core::stack_graph::StackGraphManager` in a `Mutex` for
+/// thread safety (the inner struct is not `Send`/`Sync` by default).
+#[pyclass(name = "StackGraphManager", module = "cutctx._core")]
+struct PyStackGraphManager {
+    inner: Mutex<cutctx_core::stack_graph::StackGraphManager>,
+}
+
+#[pymethods]
+impl PyStackGraphManager {
+    #[new]
+    fn new() -> Self {
+        Self {
+            inner: Mutex::new(cutctx_core::stack_graph::StackGraphManager::new()),
+        }
+    }
+
+    /// Add a source file to the stack graph.
+    ///
+    /// Parses `source`, walks the CST, and creates definition/reference
+    /// nodes in the graph. Returns `ValueError` for unsupported languages
+    /// or duplicate files.
+    fn add_file(&self, path: &str, source: &str) -> PyResult<()> {
+        let mut inner = self.inner.lock().unwrap();
+        inner
+            .add_file(path, source)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+    }
+
+    /// Resolve a symbol reference at (`line`, `column`) in `path`.
+    ///
+    /// Lines and columns are 0-indexed. Returns `None` when the file is
+    /// not indexed or no matching node is found. Otherwise returns a dict:
+    ///
+    /// ```python
+    /// {
+    ///     "target_file": str,
+    ///     "target_line": int,
+    ///     "target_column": int,
+    ///     "symbol_name": str,
+    ///     "confidence": float,
+    /// }
+    /// ```
+    fn resolve_reference(
+        &self,
+        path: &str,
+        line: usize,
+        column: usize,
+    ) -> Option<HashMap<String, PyObject>> {
+        let inner = self.inner.lock().unwrap();
+        let result = inner.resolve_reference(path, line, column)?;
+        let map = Python::with_gil(|py| {
+            let mut m = HashMap::new();
+            m.insert("target_file".to_string(), result.target_file.into_py(py));
+            m.insert("target_line".to_string(), result.target_line.into_py(py));
+            m.insert("target_column".to_string(), result.target_column.into_py(py));
+            m.insert("symbol_name".to_string(), result.symbol_name.into_py(py));
+            m.insert("confidence".to_string(), result.confidence.into_py(py));
+            m
+        });
+        Some(map)
+    }
+
+    /// Number of files currently indexed.
+    fn file_count(&self) -> usize {
+        self.inner.lock().unwrap().file_count()
+    }
+
+    /// Number of nodes in the global graph.
+    fn node_count(&self) -> usize {
+        self.inner.lock().unwrap().node_count()
+    }
+
+    /// Reset all state.
+    fn clear(&self) {
+        self.inner.lock().unwrap().clear();
+    }
+
+    fn __repr__(&self) -> String {
+        let count = self.file_count();
+        format!("StackGraphManager(file_count={})", count)
+    }
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hello, m)?)?;
@@ -1655,6 +1743,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(content_has_error_indicators, m)?)?;
     m.add_function(wrap_pyfunction!(keyword_registry_snapshot, m)?)?;
     m.add_function(wrap_pyfunction!(compress_openai_responses_live_zone, m)?)?;
+    m.add_class::<PyStackGraphManager>()?;
     // Activate anti-debug protection on module load
     if rust_deny_debugger_attach() {
         return Err(pyo3::exceptions::PyRuntimeError::new_err(

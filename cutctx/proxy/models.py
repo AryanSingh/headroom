@@ -194,6 +194,9 @@ class ProxyConfig:
     drain3_max_clusters: int = 1000
     drain3_sim_threshold: float = 0.4
 
+    # Stack-graph code navigation (opt-in)
+    stack_graph_enabled: bool = False
+
     # Knowledge-graph compression via Graphify (opt-in)
     knowledge_graph_enabled: bool = False
     knowledge_graph_bfs_depth: int = 2

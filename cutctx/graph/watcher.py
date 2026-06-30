@@ -25,6 +25,20 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Module-level stack-graph resolver for incremental indexing
+_stack_graph_resolver: "StackGraphResolver | None" = None
+
+
+def set_stack_graph_resolver(resolver: "StackGraphResolver | None") -> None:
+    """Set the active stack-graph resolver for incremental file indexing.
+
+    Called by the proxy server when it initializes the stack-graph resolver.
+    The resolver's ``index_file()`` will be invoked on each file change.
+    """
+    global _stack_graph_resolver
+    _stack_graph_resolver = resolver
+
+
 # Source file extensions worth reindexing for
 _SOURCE_EXTENSIONS = frozenset(
     {
@@ -126,6 +140,7 @@ class CodeGraphWatcher:
         self._running = False
         self._reindex_count = 0
         self._last_reindex: float = 0
+        self._latest_changed_path: Path | None = None
 
     def start(self) -> bool:
         """Start watching in a background thread. Returns True if started."""
@@ -164,6 +179,9 @@ class CodeGraphWatcher:
                 # Skip temporary/swap files
                 if path.name.startswith(".") or path.name.endswith("~"):
                     return
+
+                # Track the most recently changed file for incremental indexing
+                self._watcher._latest_changed_path = path
 
                 self._watcher._schedule_reindex()
 
@@ -271,6 +289,15 @@ class CodeGraphWatcher:
                 kg_indexer.schedule_refresh()
         except Exception:
             logger.debug("Code graph: failed to notify KG indexer", exc_info=True)
+
+        # Incrementally update stack-graph index if resolver is active
+        if _stack_graph_resolver is not None:
+            try:
+                changed_path = self._latest_changed_path
+                if changed_path is not None:
+                    _stack_graph_resolver.index_file(str(changed_path))
+            except Exception:
+                logger.debug("Code graph: failed to update stack-graph index", exc_info=True)
 
     @property
     def stats(self) -> dict:

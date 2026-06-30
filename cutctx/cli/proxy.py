@@ -711,6 +711,14 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--stack-graph",
+    "stack_graph_enabled",
+    is_flag=True,
+    default=False,
+    envvar="CUTCTX_STACK_GRAPH",
+    help="Enable stack-graph based code navigation for cross-file symbol resolution",
+)
+@click.option(
     "--knowledge-graph",
     "knowledge_graph_enabled",
     is_flag=True,
@@ -902,6 +910,7 @@ def proxy(
     drain3_enabled: bool,
     drain3_max_clusters: int | None,
     drain3_sim_threshold: float | None,
+    stack_graph_enabled: bool,
     knowledge_graph_enabled: bool,
     knowledge_graph_bfs_depth: int | None,
     knowledge_graph_max_nodes: int | None,
@@ -1122,6 +1131,8 @@ def proxy(
         drain3_sim_threshold=drain3_sim_threshold
         if drain3_sim_threshold is not None
         else 0.4,
+        # Stack-graph code navigation
+        stack_graph_enabled=stack_graph_enabled,
         # Knowledge-graph compression via Graphify
         knowledge_graph_enabled=knowledge_graph_enabled,
         knowledge_graph_bfs_depth=(
