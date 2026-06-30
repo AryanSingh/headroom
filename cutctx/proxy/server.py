@@ -4950,8 +4950,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.post("/admin/config/flags")
     async def update_config_flags(request: Request):
         """Update live intelligence layer feature flags at runtime."""
-        # Inline admin auth check (auth deps only defined in the other create_app)
-        if request.headers.get("x-headroom-admin-key") != config.admin_api_key:
+        auth_header = request.headers.get("authorization", "")
+        bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        admin_header = request.headers.get("x-cutctx-admin-key", "")
+        legacy_header = request.headers.get("x-headroom-admin-key", "")
+        expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
+
+        # Keep the legacy x-headroom-admin-key accepted for older dashboards,
+        # but align the active route with the documented admin auth contract.
+        if expected_admin_key not in {bearer_token, admin_header, legacy_header}:
             raise HTTPException(status_code=401, detail="Unauthorized")
         payload = await request.json()
         if "cache" in payload:
@@ -4962,6 +4969,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.ccr_handle_responses = ccr_enabled
         if "memory" in payload:
             config.episodic_memory_enabled = bool(payload["memory"])
+            if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
+                try:
+                    from cutctx.intelligence_pipeline import IntelligencePipeline
+                    from cutctx.memory.session_tracker import EpisodicSessionTracker
+                    from cutctx.memory.store import EpisodicMemoryStore
+
+                    store = EpisodicMemoryStore()
+                    intel = IntelligencePipeline(config)
+                    proxy.episodic_tracker = EpisodicSessionTracker(store, intel, proxy.logger)
+                except ImportError as e:
+                    logger.warning(f"Could not load memory dependencies: {e}")
         if "firewall" in payload:
             config.firewall_enabled = bool(payload["firewall"])
         if "rate_limiter" in payload:

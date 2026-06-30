@@ -1033,15 +1033,27 @@ export default function Overview() {
   const prefixCache = stats?.prefix_cache || {};
   const knowledgeGraph = stats?.knowledge_graph || {};
   const featureAvailability = stats?.feature_availability || {};
+  const sessionTokensSaved = Number(tokens.saved || 0);
+  const lifetimeTokensSaved = Number(lifetime.tokens_saved || 0);
+  const useLifetimeHeadline = lifetimeTokensSaved > sessionTokensSaved;
+  const sessionInputTokens = Math.max(
+    Number(tokens.total_before_compression || 0),
+    Number(tokens.input || 0),
+  );
+  const lifetimeInputTokens = Number(lifetime.total_input_tokens || 0);
 
   const effectiveTokensSaved = Math.max(
-    Number(tokens.saved || 0),
-    Number(lifetime.tokens_saved || 0),
+    sessionTokensSaved,
+    lifetimeTokensSaved,
   );
   const effectiveRequests = Math.max(
     Number(requests.total || 0),
     Number(lifetime.requests || 0),
   );
+  const effectiveInputTokens = useLifetimeHeadline ? lifetimeInputTokens : sessionInputTokens;
+  const effectiveSavingsPercent = effectiveInputTokens > 0
+    ? (effectiveTokensSaved / effectiveInputTokens) * 100
+    : Number(tokens.savings_percent || 0);
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
   const sessionCostBreakdown = summary?.cost?.breakdown || {};
@@ -1130,7 +1142,7 @@ export default function Overview() {
             iconColor="green"
             label="Tokens saved"
             value={formatNumber(effectiveTokensSaved)}
-            footnote={`${formatPercent(tokens.savings_percent || 0)} total reduction`}
+            footnote={`${formatPercent(effectiveSavingsPercent)} total reduction`}
             sparkline={recentRequests.slice(0, 10).map((request) => getRequestTotalSaved(request))}
             sparklineColor="var(--accent)"
           />
@@ -1139,7 +1151,9 @@ export default function Overview() {
             iconColor="blue"
             label="Requests"
             value={formatInteger(effectiveRequests)}
-            footnote={`${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`}
+            footnote={useLifetimeHeadline
+              ? 'Lifetime requests tracked'
+              : `${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`}
           />
           <MetricCard
             icon={Layers}

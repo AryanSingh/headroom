@@ -32,7 +32,7 @@ re-verified here.
 | Establish handoff log and commit discipline | Complete | commit `4fdc265d` | Tracker established and checkpoint committed |
 | Re-verify high-risk runtime paths | In progress | `tests/test_proxy_runtime_truthfulness.py` bundle passed | Need more live/manual coverage beyond the core audited slice |
 | Re-verify new USearch and stack-graph work | In progress | stack-graph Python-facing tests passed; USearch tests skipped without dependency | Rust build itself not verified because `cargo` is unavailable in this environment |
-| Re-verify dashboard stats and operator surfaces | Pending |  | Must validate UI with live backend payloads |
+| Re-verify dashboard stats and operator surfaces | In progress | live `/dashboard` check and dashboard Playwright slices passed | Headline/footnote mismatch fixed; more end-to-end capability coverage still needed |
 | Refresh release verdict and remaining risks | Pending |  | Final task after independent verification |
 
 ### Next Actions
@@ -40,6 +40,19 @@ re-verified here.
 1. Continue the widened runtime verification: provider routing, health, stats, and dashboard-facing contracts.
 2. Validate whether the new stack-graph/USearch work is actually release-ready or merely test-green in a partial environment.
 3. Audit the dashboard/operator surfaces live and record any broken stats or capability drift.
+
+### Active Findings
+
+- The live dashboard was mixing lifetime token totals with current-session
+  percentage/request footnotes. Fixed in `dashboard/src/pages/Overview.jsx`
+  and covered by `tests/test_dashboard_overview_lifetime_headline.py`.
+- The active `/admin/config/flags` route was still using the legacy
+  `x-headroom-admin-key` header and did not initialize episodic memory when
+  toggled on. Fixed in `cutctx/proxy/server.py` so the active route now accepts
+  bearer auth, `x-cutctx-admin-key`, and the legacy header for compatibility.
+- Several stray script-style Playwright files were present in `tests/` and
+  depended on `localhost:5173`. Those were replaced/removed in favor of
+  deterministic route-mocked coverage.
 
 ### Evidence Log
 
@@ -54,6 +67,22 @@ re-verified here.
   - result: `114 passed, 3 warnings`
 - `cargo test -p cutctx-core ...`
   - not runnable here because `cargo` is not installed in the current environment
+
+#### 2026-06-30 2nd verification checkpoint
+
+- Live dashboard check on `http://127.0.0.1:8787/dashboard`
+  - before fix: headline showed lifetime tokens saved with misleading
+    session-level reduction/request footnotes
+  - after fix: headline and supporting metrics align on the same lifetime data source
+- `uv run python -m pytest -q tests/test_docs_page.py tests/test_docs_proxy.py tests/test_proxy_dynamic_init.py tests/test_openai_responses_subscription_compat.py`
+  - result: `6 passed, 1 skipped`
+- `uv run python -m pytest -q tests/test_dashboard_overview_lifetime_headline.py tests/test_dashboard_surfaces_playwright.py tests/test_dashboard_savings_by_model.py tests/test_provider_codex_runtime.py tests/test_provider_gemini_runtime.py tests/test_openai_codex_routing.py`
+  - result: `23 passed`
+- Verified and fixed active `/admin/config/flags` behavior
+  - old active route accepted only `x-headroom-admin-key` and did not create
+    `proxy.episodic_tracker`
+  - current active route accepts bearer auth, `x-cutctx-admin-key`, and legacy
+    `x-headroom-admin-key`, and dynamically initializes episodic memory
 
 **Date:** 2026-06-30  
 **Version target:** v0.29.0 → v0.29.1 (production release)  
