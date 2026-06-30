@@ -3975,6 +3975,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "memory": getattr(proxy.config, "episodic_memory_enabled", False) if proxy else False,
                 "firewall": getattr(proxy.config, "firewall_enabled", False) if proxy else False,
                 "rate_limiter": getattr(proxy.config, "rate_limit_enabled", False) if proxy else False,
+                "orchestrator": bool(getattr(proxy, "_model_router", None) and getattr(proxy._model_router, "config", None) and proxy._model_router.config.enabled) if proxy else False,
             },
             **get_quota_registry().get_all_stats(),
         }
@@ -4016,6 +4017,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.firewall_enabled = bool(payload["firewall"])
         if "rate_limiter" in payload:
             config.rate_limit_enabled = bool(payload["rate_limiter"])
+        if "orchestrator" in payload:
+            if hasattr(proxy, "_model_router") and proxy._model_router is not None:
+                proxy._model_router.config.enabled = bool(payload["orchestrator"])
             
         logger.info(f"Runtime configuration updated: {payload}")
         return {
@@ -4026,6 +4030,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "memory": getattr(config, "episodic_memory_enabled", False),
                 "firewall": getattr(config, "firewall_enabled", False),
                 "rate_limiter": getattr(config, "rate_limit_enabled", False),
+                "orchestrator": bool(getattr(proxy, "_model_router", None) and getattr(proxy._model_router, "config", None) and proxy._model_router.config.enabled) if proxy else False,
             }
         }
 
