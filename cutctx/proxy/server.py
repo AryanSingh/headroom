@@ -3137,20 +3137,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "reason": "audio_proxy_only_no_token_compression",
                 "install_hint": None,
             },
-            # Canonical user-facing aliases for optional feature modules
-            "difftastic": {
-                "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
-                "available": difft_path is not None,
-                "binary": str(difft_path) if difft_path else None,
-                "reason": None if difft_path is not None else "difft_binary_missing",
-                "install_hint": "brew install difftastic or cargo install difftastic",
-            },
-            "llmlingua": {
-                "requested": bool(getattr(proxy.config, "use_llmlingua", False)) or llmlingua_py,
-                "available": llmlingua_module_py,
-                "reason": None if llmlingua_module_py else "text_compression_runtime_missing",
-                "install_hint": "pip install cutctx-ai[llmlingua]",
-            },
         }
 
     # ── SSO token validation dependency ────────────────────────────────
