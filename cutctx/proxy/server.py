@@ -3460,8 +3460,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         raise HTTPException(status_code=404, detail="Not found")
 
     @app.get("/dashboard", response_class=HTMLResponse)
-    async def dashboard():
-        """Serve the Cutctx dashboard UI."""
+    @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
+    async def dashboard(path: str = ""):
+        """Serve the Cutctx dashboard UI, handling client-side routing."""
         return get_dashboard_html(prefer_react=True)
 
     DASHBOARD_STATS_CACHE_TTL_SECONDS = 5.0
@@ -3968,6 +3969,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "rate_limiter": await proxy.rate_limiter.stats() if proxy.rate_limiter else None,
             "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
             "log_full_messages": proxy.config.log_full_messages if proxy else False,
+            "config": {
+                "cache": getattr(proxy.config, "cache_enabled", False) if proxy else False,
+                "ccr": getattr(proxy.config, "ccr_context_tracking", False) if proxy else False,
+                "memory": getattr(proxy.config, "episodic_memory_enabled", False) if proxy else False,
+                "firewall": getattr(proxy.config, "firewall_enabled", False) if proxy else False,
+                "rate_limiter": getattr(proxy.config, "rate_limit_enabled", False) if proxy else False,
+            },
             **get_quota_registry().get_all_stats(),
         }
 
@@ -3988,6 +3996,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             _stats_snapshot["value"] = payload
             _stats_snapshot["expires_at"] = time.monotonic() + DASHBOARD_STATS_CACHE_TTL_SECONDS
             return payload
+
+    @app.post("/admin/config/flags", dependencies=[Depends(_require_admin_auth)])
+    async def update_config_flags(request: Request):
+        """Update live intelligence layer feature flags at runtime."""
+        # Wait for the payload
+        payload = await request.json()
+        
+        # Apply the changes to the global config object
+        if "cache" in payload:
+            config.cache_enabled = bool(payload["cache"])
+        if "ccr" in payload:
+            ccr_enabled = bool(payload["ccr"])
+            config.ccr_context_tracking = ccr_enabled
+            config.ccr_handle_responses = ccr_enabled
+        if "memory" in payload:
+            config.episodic_memory_enabled = bool(payload["memory"])
+        if "firewall" in payload:
+            config.firewall_enabled = bool(payload["firewall"])
+        if "rate_limiter" in payload:
+            config.rate_limit_enabled = bool(payload["rate_limiter"])
+            
+        logger.info(f"Runtime configuration updated: {payload}")
+        return {
+            "status": "success", 
+            "config": {
+                "cache": getattr(config, "cache_enabled", False),
+                "ccr": getattr(config, "ccr_context_tracking", False),
+                "memory": getattr(config, "episodic_memory_enabled", False),
+                "firewall": getattr(config, "firewall_enabled", False),
+                "rate_limiter": getattr(config, "rate_limit_enabled", False),
+            }
+        }
 
     @app.get("/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
     @app.get("/v1/stats", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.read"))])
