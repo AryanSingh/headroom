@@ -7,7 +7,9 @@ location.
 """
 
 from cutctx.mcp_server import (
+    CCR_TOOL_NAME,
     SHARED_STATS_FILE,
+    _HAS_FCNTL,
     CutctxMCPServer,
     create_ccr_mcp_server,
     _append_shared_event,
@@ -15,7 +17,9 @@ from cutctx.mcp_server import (
 )
 
 __all__ = [
+    "CCR_TOOL_NAME",
     "SHARED_STATS_FILE",
+    "_HAS_FCNTL",
     "CutctxMCPServer",
     "create_ccr_mcp_server",
     "_append_shared_event",
