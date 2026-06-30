@@ -237,7 +237,7 @@ export default function Governance({ searchQuery = '' }) {
         }),
       );
       if (cancelled) return;
-      setSections(Object.fromEntries(entries));
+      setSections((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
       setLoading(false);
       setLastUpdated(new Date().toISOString());
     };

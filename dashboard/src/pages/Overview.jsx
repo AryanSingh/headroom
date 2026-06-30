@@ -145,6 +145,19 @@ function buildClientRows(stats) {
     .sort((a, b) => b.tokens - a.tokens);
 }
 
+function buildModelRows(stats) {
+  const byModel = stats?.summary?.cost?.per_model || {};
+
+  return Object.entries(byModel)
+    .map(([model, data]) => ({
+      key: model,
+      label: model,
+      tokens: Number(data.tokens_saved || 0),
+      usd: Number(data.savings_usd || 0),
+    }))
+    .sort((a, b) => b.tokens - a.tokens);
+}
+
 function getRequestDirectSaved(request) {
   if (request?.tokens_saved == null) {
     return null;
@@ -1071,11 +1084,15 @@ export default function Overview() {
   const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
   const clientRows = buildClientRows(stats);
   const activeClientRows = clientRows.filter((row) => row.tokens > 0);
+  const modelRows = buildModelRows(stats);
+  const activeModelRows = modelRows.filter((row) => row.tokens > 0);
   const totalSourceTokens =
     activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
     Number(tokens.total_before_compression || 0);
   const totalClientTokens =
     activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
+  const totalModelTokens =
+    activeModelRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
   const activeCompressionPercent =
     tokens.active_savings_percent != null ? Number(tokens.active_savings_percent || 0) : null;
   const proxyCompressionPercent =
@@ -1228,6 +1245,18 @@ export default function Overview() {
               emptyIcon={Sparkles}
               emptyTitle="No client data yet"
               emptyDescription="Client-level attribution appears once requests include client tags."
+            />
+          ) : null}
+
+          {activeModelRows.length > 0 ? (
+            <SavingsPanel
+              title="Savings by model"
+              eyebrow="Attribution"
+              rows={activeModelRows}
+              totalTokens={totalModelTokens}
+              emptyIcon={Layers}
+              emptyTitle="No model data yet"
+              emptyDescription="Model-level attribution appears once requests flow through the proxy."
             />
           ) : null}
 

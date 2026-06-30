@@ -978,6 +978,7 @@ class CostTracker:
                 "reduction_pct": round(saved / (saved + sent) * 100, 1)
                 if (saved + sent) > 0
                 else 0,
+                "savings_usd": 0.0,
             }
 
         # Compute actual input cost using API-reported cache breakdown and
@@ -1020,7 +1021,10 @@ class CostTracker:
             prices = self._get_cache_prices(model)
             if prices:
                 _cr_price, _cw_price, uncached_price = prices
-                savings_usd += saved * uncached_price
+                model_savings = saved * uncached_price
+                savings_usd += model_savings
+                if model in per_model:
+                    per_model[model]["savings_usd"] = round(model_savings, 4)
 
         return {
             "total_tokens_saved": total_saved,
