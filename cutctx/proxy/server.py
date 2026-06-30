@@ -3216,6 +3216,19 @@ def _require_rbac_permission(permission: str):
         except Exception:
             drain3_ready = False
 
+        try:
+            from cutctx.memory.backends.usearch_store import usearch_available
+
+            usearch_ready = bool(usearch_available())
+        except Exception:
+            usearch_ready = False
+
+        model_router = getattr(proxy, "_model_router", None)
+        model_router_config = getattr(model_router, "config", None)
+        model_router_enabled = bool(getattr(model_router_config, "enabled", False))
+        model_router_routes = list(getattr(model_router_config, "routes", []) or [])
+        model_router_route_count = len(model_router_routes)
+
         return {
             "knowledge_graph": {
                 "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
@@ -3279,6 +3292,32 @@ def _require_rbac_permission(permission: str):
                 "available": tree_sitter_py,
                 "reason": None if tree_sitter_py else "code_parsing_engine_missing",
                 "install_hint": "pip install cutctx-ai[code]",
+            },
+            "stack_graph": {
+                "requested": bool(getattr(proxy.config, "stack_graph_enabled", False)),
+                "available": stack_graph_available(),
+                "active": bool(getattr(proxy, "stack_graph_resolver", None)),
+                "reason": None if stack_graph_available() else "stack_graph_extension_not_built",
+                "install_hint": "pip install cutctx-ai[dev] or build the Rust extension for stack-graph support",
+            },
+            "usearch": {
+                "requested": False,
+                "available": usearch_ready,
+                "reason": None if usearch_ready else "usearch_package_missing",
+                "install_hint": "pip install cutctx-ai[memory] or pip install usearch",
+            },
+            "model_routing": {
+                "requested": model_router_enabled,
+                "available": model_router is not None,
+                "configured_routes": model_router_route_count,
+                "reason": (
+                    "router_uninitialized"
+                    if model_router is None
+                    else "no_routes_configured"
+                    if model_router_enabled and model_router_route_count == 0
+                    else None
+                ),
+                "install_hint": "configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml",
             },
             "audio": {
                 "requested": True,
@@ -4671,6 +4710,31 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         except Exception:
             drain3_ready = False
 
+        try:
+            from cutctx.memory.backends.usearch_store import usearch_available
+
+            usearch_ready = bool(usearch_available())
+        except Exception:
+            usearch_ready = False
+
+        model_router = getattr(proxy, "_model_router", None)
+        model_router_config = getattr(model_router, "config", None)
+        model_router_enabled = bool(getattr(model_router_config, "enabled", False))
+        model_router_routes = list(getattr(model_router_config, "routes", []) or [])
+        model_routing_status = {
+            "requested": model_router_enabled,
+            "available": model_router is not None,
+            "configured_routes": len(model_router_routes),
+            "reason": (
+                "router_uninitialized"
+                if model_router is None
+                else "no_routes_configured"
+                if model_router_enabled and not model_router_routes
+                else None
+            ),
+            "install_hint": "configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml",
+        }
+
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
         cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
@@ -4771,6 +4835,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "status": "ready" if kg_idx is not None else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled"),
                 **(getattr(kg_indexer, "stats", {}) if kg_indexer else {}),
             },
+            "stack_graph": {
+                "enabled": bool(getattr(proxy, "stack_graph_resolver", None)),
+                "files_indexed": getattr(proxy.stack_graph_resolver, "file_count", lambda: 0)()
+                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+                "nodes": getattr(proxy.stack_graph_resolver, "node_count", lambda: 0)()
+                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+            },
+            "model_routing": model_routing_status,
             "feature_availability": {
                 "knowledge_graph": {
                     "requested": bool(getattr(proxy.config, "knowledge_graph_enabled", False)),
@@ -4835,6 +4907,20 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "reason": None if tree_sitter_py else "code_parsing_engine_missing",
                     "install_hint": "pip install cutctx-ai[code]",
                 },
+                "stack_graph": {
+                    "requested": bool(getattr(proxy.config, "stack_graph_enabled", False)),
+                    "available": stack_graph_available(),
+                    "active": bool(getattr(proxy, "stack_graph_resolver", None)),
+                    "reason": None if stack_graph_available() else "stack_graph_extension_not_built",
+                    "install_hint": "pip install cutctx-ai[dev] or build the Rust extension for stack-graph support",
+                },
+                "usearch": {
+                    "requested": False,
+                    "available": usearch_ready,
+                    "reason": None if usearch_ready else "usearch_package_missing",
+                    "install_hint": "pip install cutctx-ai[memory] or pip install usearch",
+                },
+                "model_routing": model_routing_status,
                 "audio": {
                     "requested": True,
                     "available": True,

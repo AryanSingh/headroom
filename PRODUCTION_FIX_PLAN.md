@@ -32,7 +32,7 @@ re-verified here.
 | Establish handoff log and commit discipline | Complete | commit `4fdc265d` | Tracker established and checkpoint committed |
 | Re-verify high-risk runtime paths | In progress | `tests/test_proxy_runtime_truthfulness.py` bundle passed | Need more live/manual coverage beyond the core audited slice |
 | Re-verify new USearch and stack-graph work | In progress | stack-graph Python-facing tests passed; USearch tests skipped without dependency | Rust build itself not verified because `cargo` is unavailable in this environment |
-| Re-verify dashboard stats and operator surfaces | In progress | live `/dashboard` check and dashboard Playwright slices passed | Headline/footnote mismatch fixed; more end-to-end capability coverage still needed |
+| Re-verify dashboard stats and operator surfaces | In progress | live `/dashboard` check, stats contract tests, and dashboard Playwright slices passed | Headline/footnote mismatch fixed; `/stats` now surfaces Graphify, stack-graph, USearch, and routing capability truth |
 | Refresh release verdict and remaining risks | Pending |  | Final task after independent verification |
 
 ### Next Actions
@@ -53,6 +53,11 @@ re-verified here.
 - Several stray script-style Playwright files were present in `tests/` and
   depended on `localhost:5173`. Those were replaced/removed in favor of
   deterministic route-mocked coverage.
+- Live savings on the currently running proxy are still dominated by provider
+  prompt cache. The current `persistent_savings` payload shows
+  `model_routing_savings_usd=0.0` and `self_hosted_prefix_cache_savings_usd=0.0`
+  for this session, so "all savings sources firing in real traffic" remains
+  unproven in this environment.
 
 ### Evidence Log
 
@@ -83,6 +88,24 @@ re-verified here.
     `proxy.episodic_tracker`
   - current active route accepts bearer auth, `x-cutctx-admin-key`, and legacy
     `x-headroom-admin-key`, and dynamically initializes episodic memory
+
+#### 2026-06-30 3rd verification checkpoint
+
+- `uv run python -m pytest -q tests/test_product_capabilities.py tests/test_modality_matrix.py tests/test_docs_truthfulness.py tests/test_graphify_index.py tests/test_proxy_dashboard_stats_cache.py tests/test_request_outcome.py tests/test_smart_orchestrator_bdd.py`
+  - result: `148 passed`
+- `uv run python -m pytest -q tests/test_dashboard_capabilities_toggles_e2e.py tests/test_dashboard_governance_e2e.py tests/test_proxy_warmup.py tests/test_memory_sync.py tests/test_cli_capabilities.py tests/test_proxy_runtime_truthfulness.py`
+  - result: `47 passed`
+- `uv run python -m pytest -q tests/test_proxy_dashboard_stats_cache.py tests/test_product_capabilities.py tests/test_modality_matrix.py tests/test_docs_truthfulness.py tests/test_graphify_index.py tests/test_request_outcome.py tests/test_smart_orchestrator_bdd.py tests/test_dashboard_capabilities_toggles_e2e.py tests/test_dashboard_governance_e2e.py`
+  - result: `150 passed`
+- Stats contract improvement verified with `TestClient`
+  - `feature_availability` now includes `knowledge_graph`, `stack_graph`,
+    `usearch`, and `model_routing` capability truth in the lightweight app path
+- Live proxy snapshot at `http://127.0.0.1:8787/stats?cached=1`
+  - Graphify capability is visible (`feature_availability.knowledge_graph`)
+  - running instance still reports `model_routing_savings_usd=0.0` and
+    `self_hosted_prefix_cache_savings_usd=0.0`
+  - note: the already-running proxy process must be restarted to pick up the
+    latest `/stats` code changes from this pass
 
 **Date:** 2026-06-30  
 **Version target:** v0.29.0 → v0.29.1 (production release)  

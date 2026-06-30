@@ -547,9 +547,15 @@ def test_stats_surface_optional_feature_availability(monkeypatch: pytest.MonkeyP
         "html_extractor",
         "smart_crusher",
         "code_ast",
+        "stack_graph",
+        "usearch",
+        "model_routing",
         "voice_filler",
         "audio",
     }
     assert "available" in features["knowledge_graph"]
+    assert "available" in features["stack_graph"]
+    assert "available" in features["usearch"]
+    assert "available" in features["model_routing"]
     assert features["audio"]["compression"] == "pass-through"
     assert features["audio"]["reason"] == "audio_proxy_only_no_token_compression"
