@@ -335,3 +335,28 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     return sorted(set(globals()) | set(__all__))
+
+
+# --- Protect compress() from submodule shadowing ---
+# When any code does `from cutctx.compress import ...`, Python sets
+# `cutctx.compress = <module>`, overwriting the callable in the package dict.
+# We override __getattribute__ on the module class to detect this and return
+# the function instead of the module object.
+import sys as _sys
+import types as _types
+
+
+class _CutctxModule(_types.ModuleType):
+    def __getattribute__(self, name: str) -> object:
+        val = super().__getattribute__(name)
+        if name == "compress" and isinstance(val, _types.ModuleType):
+            # The submodule was imported and shadowed our compress() function.
+            # Fetch the function directly from the submodule and re-bind it.
+            fn = getattr(val, "compress", None)
+            if callable(fn):
+                super().__setattr__("compress", fn)
+                return fn
+        return val
+
+
+_sys.modules[__name__].__class__ = _CutctxModule

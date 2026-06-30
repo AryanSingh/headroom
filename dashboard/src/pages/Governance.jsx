@@ -16,13 +16,15 @@ import { getAdminAuthHeaders } from '../lib/admin-auth';
 import { getProxyUrl } from '../lib/api';
 
 const GOVERNANCE_PATHS = {
-  audit: '/audit/stats',
-  orgs: '/orgs',
-  quota: '/quota',
+  audit: '/audit/events',
   rbac: '/rbac/roles',
-  retention: '/retention/stats',
-  subscription: '/subscription-window',
 };
+
+// TODO: The following endpoints are planned but not yet implemented in admin.py:
+// - /orgs: organization management
+// - /quota: quota tracking
+// - /retention/stats: data retention statistics
+// - /subscription-window: subscription lifecycle
 
 // liveToggle=true means the proxy can apply the change immediately (per-request flag).
 // liveToggle=false means a proxy restart is required.

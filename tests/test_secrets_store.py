@@ -184,3 +184,31 @@ class TestSecretsRoute:
         # Delete of missing returns 404
         resp = client.delete("/v1/secrets/alpha")
         assert resp.status_code == 404
+
+    def test_routes_factory_uses_strict_mode(self, tmp_path: Path, monkeypatch):
+        """The secrets router factory must use strict=True by default (Issue P1-002).
+
+        This ensures that in production, the secrets router will refuse to start
+        if CUTCTX_SECRETS_KEY / CUTCTX_LICENSE_HMAC_SECRET is not set, rather
+        than silently using process-unique ephemeral keys that don't persist.
+        """
+        monkeypatch.delenv("CUTCTX_SECRETS_KEY", raising=False)
+        monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
+
+        from fastapi import FastAPI
+        from cutctx.proxy.routes.secrets import create_secrets_router
+
+        # Create the router without a pre-built store (triggers lazy initialization)
+        app = FastAPI()
+        router = create_secrets_router()
+        app.include_router(router)
+
+        from fastapi.testclient import TestClient
+        client = TestClient(app)
+
+        # Attempting to use the router should fail loudly because strict=True
+        # and no encryption key is configured.
+        with pytest.raises(RuntimeError, match="no encryption key configured"):
+            # The error will be raised on the first API call since the store
+            # is lazily initialized.
+            client.get("/v1/secrets/")

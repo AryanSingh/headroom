@@ -65,7 +65,7 @@ def create_secrets_router(
         if _store_ref["store"] is None:
             from cutctx.security.secrets_store import SecretsStore
 
-            _store_ref["store"] = SecretsStore(strict=False)
+            _store_ref["store"] = SecretsStore(strict=True)
         return _store_ref["store"]
 
     @router.get("/", dependencies=read_deps)

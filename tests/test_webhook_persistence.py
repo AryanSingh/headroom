@@ -217,3 +217,123 @@ class TestDispatcherIntegration:
         subs = d2.list_subscriptions()
         assert len(subs) == 1
         assert subs[0]["url"] == "https://example.com/hook"
+
+
+class TestWebhookSecretEncryption:
+    """Verify webhook secrets are encrypted at rest (Issue P1-001)."""
+
+    def test_secret_encrypted_in_database(self, tmp_path: Path):
+        """Secrets stored in DB must be encrypted, not plaintext."""
+        import os
+        import sqlite3
+
+        # Set up encryption key
+        from cryptography.fernet import Fernet
+        key = Fernet.generate_key()
+        os.environ["CUTCTX_SECRETS_KEY"] = key.decode("ascii")
+
+        from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
+
+        store = WebhookSubscriptionStore(db_path=str(tmp_path / "test.db"))
+        secret_plaintext = "super_secret_webhook_key_12345"
+
+        sub = store.upsert(
+            url="https://example.com/hook",
+            secret=secret_plaintext,
+            event_types=("test.event",),
+        )
+
+        # Read the database directly to verify the secret is encrypted
+        conn = sqlite3.connect(str(tmp_path / "test.db"))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT secret_ciphertext FROM webhook_subscriptions WHERE id = ?",
+            (sub.id,),
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        ciphertext = row["secret_ciphertext"]
+
+        # Verify:
+        # 1. The ciphertext is binary (BLOB), not text
+        assert isinstance(ciphertext, bytes), "Secret must be stored as BLOB (encrypted)"
+
+        # 2. The ciphertext does NOT contain the plaintext secret
+        assert secret_plaintext.encode() not in ciphertext, \
+            "Plaintext secret found in database"
+
+        # 3. When loaded via the store API, it's decrypted correctly
+        loaded = store.get(sub.id)
+        assert loaded.secret == secret_plaintext, \
+            "Store must decrypt secret on retrieval"
+
+    def test_secret_decrypted_on_list_all(self, tmp_path: Path):
+        """Listing subscriptions must decrypt secrets."""
+        import os
+        from cryptography.fernet import Fernet
+
+        key = Fernet.generate_key()
+        os.environ["CUTCTX_SECRETS_KEY"] = key.decode("ascii")
+
+        from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
+
+        store = WebhookSubscriptionStore(db_path=str(tmp_path / "test.db"))
+        secrets = ["secret1", "secret2", "secret3"]
+
+        for i, secret in enumerate(secrets):
+            store.upsert(
+                url=f"https://example.com/hook{i}",
+                secret=secret,
+            )
+
+        listing = store.list_all()
+        assert len(listing) == 3
+
+        # Verify all secrets are decrypted
+        for i, sub in enumerate(listing):
+            assert sub.secret == secrets[i], \
+                f"Secret {i} not decrypted correctly"
+
+    def test_secret_overwrite_encrypted(self, tmp_path: Path):
+        """Updating a secret must re-encrypt it."""
+        import os
+        import sqlite3
+        from cryptography.fernet import Fernet
+
+        key = Fernet.generate_key()
+        os.environ["CUTCTX_SECRETS_KEY"] = key.decode("ascii")
+
+        from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
+
+        store = WebhookSubscriptionStore(db_path=str(tmp_path / "test.db"))
+
+        sub = store.upsert(
+            url="https://example.com/hook",
+            secret="old_secret",
+        )
+
+        # Update with new secret
+        sub_updated = store.upsert(
+            url="https://example.com/hook",
+            secret="new_secret",
+            sub_id=sub.id,
+        )
+
+        conn = sqlite3.connect(str(tmp_path / "test.db"))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT secret_ciphertext FROM webhook_subscriptions WHERE id = ?",
+            (sub.id,),
+        ).fetchone()
+        conn.close()
+
+        # New ciphertext should not contain old plaintext
+        ciphertext = row["secret_ciphertext"]
+        assert b"old_secret" not in ciphertext, \
+            "Old plaintext found in updated row"
+
+        # But it should decrypt to the new secret
+        loaded = store.get(sub.id)
+        assert loaded.secret == "new_secret", \
+            "Updated secret not decrypted correctly"

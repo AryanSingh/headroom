@@ -427,6 +427,18 @@ class BatchHandlerMixin:
             )
             body_content = outbound_bytes
 
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
+
         response = await self.http_client.post(  # type: ignore[union-attr]
             url,
             headers=headers,
@@ -515,6 +527,18 @@ class BatchHandlerMixin:
                 url = f"{url}?key={api_key}"
 
         body = await request.body()
+
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
 
         response = await self.http_client.request(  # type: ignore[union-attr]
             method=request.method,
@@ -661,6 +685,18 @@ class BatchHandlerMixin:
                 url = f"{url}&key={api_key}"
             else:
                 url = f"{url}?key={api_key}"
+
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
 
         response = await self.http_client.get(url, headers=headers)  # type: ignore[union-attr]
 
@@ -963,6 +999,17 @@ class BatchHandlerMixin:
                 request_id=request_id,
                 source=outbound_source,
             )
+            # Enforce egress policy before opening HTTP connection
+            from cutctx.proxy.egress import get_egress_enforcer
+
+            egress_decision = get_egress_enforcer().check(url)
+            if not egress_decision.allowed:
+                from fastapi import HTTPException
+
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+                )
             response = await self.http_client.post(  # type: ignore[union-attr]
                 url, content=outbound_bytes, headers=outbound_headers
             )
@@ -1032,6 +1079,13 @@ class BatchHandlerMixin:
         """Download file content from OpenAI."""
         url = f"{self.OPENAI_API_URL}/v1/files/{file_id}/content"
         try:
+            # Enforce egress policy before opening HTTP connection
+            from cutctx.proxy.egress import get_egress_enforcer
+
+            egress_decision = get_egress_enforcer().check(url)
+            if not egress_decision.allowed:
+                logger.error(f"Egress to {url} blocked by policy: {egress_decision.reason}")
+                return None
             response = await self.http_client.get(url, headers=headers)  # type: ignore[union-attr]
             if response.status_code == 200:
                 return str(response.text)
@@ -1058,6 +1112,13 @@ class BatchHandlerMixin:
         upload_headers = {k: v for k, v in headers.items() if k.lower() != "content-type"}
 
         try:
+            # Enforce egress policy before opening HTTP connection
+            from cutctx.proxy.egress import get_egress_enforcer
+
+            egress_decision = get_egress_enforcer().check(url)
+            if not egress_decision.allowed:
+                logger.error(f"Egress to {url} blocked by policy: {egress_decision.reason}")
+                return None
             response = await self.http_client.post(  # type: ignore[union-attr]
                 url, files=files, data=data, headers=upload_headers
             )
@@ -1236,6 +1297,17 @@ class BatchHandlerMixin:
             request_id=None,
             source=outbound_source,
         )
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
         response = await self.http_client.post(  # type: ignore[union-attr]
             url, content=outbound_bytes, headers=outbound_headers
         )

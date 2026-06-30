@@ -1538,6 +1538,19 @@ class CutctxProxy(
             source=source,
         )
 
+        # Audit-Deep-2026-06-21 Blocker 3b: enforce egress policy before
+        # opening HTTP connection to provider
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
+
         for attempt in range(self.config.retry_max_attempts):
             try:
                 if stream:
@@ -3031,6 +3044,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         networkx_py = importlib.util.find_spec("networkx") is not None
         pillow_py = importlib.util.find_spec("PIL") is not None
         llmlingua_py = importlib.util.find_spec("llmlingua") is not None
+        # Use module-level check so tests can monkeypatch the cutctx transform availability
+        llmlingua_module_py = importlib.util.find_spec("cutctx.transforms.llmlingua_compressor") is not None
 
         try:
             from cutctx.binaries import find_difftastic
@@ -3121,6 +3136,20 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "compression": "pass-through",
                 "reason": "audio_proxy_only_no_token_compression",
                 "install_hint": None,
+            },
+            # Canonical user-facing aliases for optional feature modules
+            "difftastic": {
+                "requested": bool(getattr(proxy.config, "difftastic_enabled", False)),
+                "available": difft_path is not None,
+                "binary": str(difft_path) if difft_path else None,
+                "reason": None if difft_path is not None else "difft_binary_missing",
+                "install_hint": "brew install difftastic or cargo install difftastic",
+            },
+            "llmlingua": {
+                "requested": bool(getattr(proxy.config, "use_llmlingua", False)) or llmlingua_py,
+                "available": llmlingua_module_py,
+                "reason": None if llmlingua_module_py else "text_compression_runtime_missing",
+                "install_hint": "pip install cutctx-ai[llmlingua]",
             },
         }
 

@@ -873,7 +873,7 @@ class AnthropicHandlerMixin:
                             attempted_input_tokens=0,
                             from_response_cache=True,
                             semantic_cache_hit=True,
-                            semantic_cache_avoided_tokens=cached.tokens_saved_per_hit,
+                            semantic_cache_avoided_tokens=0,
                             # Self-hosted prefix cache and model
                             # routing do not apply to a response-cache
                             # hit: the proxy never reached the
@@ -2415,6 +2415,15 @@ class AnthropicHandlerMixin:
                                 request_id=request_id,
                                 source=ccr_outbound_source,
                             )
+                            # Enforce egress policy before opening HTTP connection
+                            from cutctx.proxy.egress import get_egress_enforcer
+
+                            egress_decision = get_egress_enforcer().check(url)
+                            if not egress_decision.allowed:
+                                raise HTTPException(
+                                    status_code=503,
+                                    detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+                                )
                             try:
                                 cont_response = await self.http_client.post(
                                     url,
@@ -3209,6 +3218,16 @@ class AnthropicHandlerMixin:
 
         body = await request.body()
 
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
+
         response = await self.http_client.request(  # type: ignore[union-attr]
             method=request.method,
             url=url,
@@ -3342,6 +3361,16 @@ class AnthropicHandlerMixin:
             stripped_count=_pre_strip_count,
             request_id=None,
         )
+
+        # Enforce egress policy before opening HTTP connection
+        from cutctx.proxy.egress import get_egress_enforcer
+
+        egress_decision = get_egress_enforcer().check(url)
+        if not egress_decision.allowed:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
+            )
 
         response = await self.http_client.get(url, headers=headers)  # type: ignore[union-attr]
 

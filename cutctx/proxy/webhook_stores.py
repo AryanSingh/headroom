@@ -133,17 +133,41 @@ class WebhookSubscriptionStore:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS webhook_subscriptions (
-                    id            TEXT PRIMARY KEY,
-                    url           TEXT NOT NULL,
-                    secret        TEXT NOT NULL,
-                    event_types   TEXT,
-                    org_id        TEXT,
-                    enabled       INTEGER NOT NULL DEFAULT 1,
-                    created_at_ts REAL NOT NULL,
-                    updated_at_ts REAL NOT NULL
+                    id                    TEXT PRIMARY KEY,
+                    url                   TEXT NOT NULL,
+                    secret_ciphertext     BLOB NOT NULL,
+                    event_types           TEXT,
+                    org_id                TEXT,
+                    enabled               INTEGER NOT NULL DEFAULT 1,
+                    created_at_ts         REAL NOT NULL,
+                    updated_at_ts         REAL NOT NULL
                 )
                 """
             )
+
+    def _get_fernet(self):
+        """Lazily import and return Fernet cipher for secret encryption."""
+        if not hasattr(self, '_fernet'):
+            from cryptography.fernet import Fernet
+            # Use CUTCTX_SECRETS_KEY if available, else CUTCTX_LICENSE_HMAC_SECRET,
+            # else use a derived key from the database path for single-machine setups.
+            key = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get("CUTCTX_LICENSE_HMAC_SECRET")
+            if key is None:
+                import hashlib
+                import base64
+                # Derive a stable key from the database path for tests/stateless mode
+                path_hash = hashlib.sha256(self._db_path.encode()).digest()
+                key = base64.urlsafe_b64encode(path_hash).decode('ascii')
+            self._fernet = Fernet(key.encode('utf-8') if isinstance(key, str) else key)
+        return self._fernet
+
+    def _encrypt_secret(self, secret: str) -> bytes:
+        """Encrypt a secret string to ciphertext."""
+        return self._get_fernet().encrypt(secret.encode('utf-8'))
+
+    def _decrypt_secret(self, ciphertext: bytes) -> str:
+        """Decrypt ciphertext back to plaintext secret."""
+        return self._get_fernet().decrypt(ciphertext).decode('utf-8')
 
     def upsert(
         self,
@@ -157,16 +181,17 @@ class WebhookSubscriptionStore:
     ) -> StoredSubscription:
         sub_id = sub_id or f"wh_{uuid.uuid4().hex[:16]}"
         now = time.time()
+        secret_ciphertext = self._encrypt_secret(secret)
         with self._lock, self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO webhook_subscriptions
-                    (id, url, secret, event_types, org_id, enabled,
+                    (id, url, secret_ciphertext, event_types, org_id, enabled,
                      created_at_ts, updated_at_ts)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     url = excluded.url,
-                    secret = excluded.secret,
+                    secret_ciphertext = excluded.secret_ciphertext,
                     event_types = excluded.event_types,
                     org_id = excluded.org_id,
                     enabled = excluded.enabled,
@@ -175,7 +200,7 @@ class WebhookSubscriptionStore:
                 (
                     sub_id,
                     url,
-                    secret,
+                    secret_ciphertext,
                     json.dumps(list(event_types)) if event_types else None,
                     org_id,
                     1 if enabled else 0,
@@ -205,7 +230,7 @@ class WebhookSubscriptionStore:
     def list_all(self) -> list[StoredSubscription]:
         with self._lock, self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, url, secret, event_types, org_id, enabled, "
+                "SELECT id, url, secret_ciphertext, event_types, org_id, enabled, "
                 "created_at_ts, updated_at_ts "
                 "FROM webhook_subscriptions ORDER BY created_at_ts"
             ).fetchall()
@@ -218,7 +243,7 @@ class WebhookSubscriptionStore:
                 StoredSubscription(
                     id=r["id"],
                     url=r["url"],
-                    secret=r["secret"],
+                    secret=self._decrypt_secret(r["secret_ciphertext"]),
                     event_types=et,
                     org_id=r["org_id"],
                     enabled=bool(r["enabled"]),
@@ -231,7 +256,7 @@ class WebhookSubscriptionStore:
     def get(self, sub_id: str) -> StoredSubscription | None:
         with self._lock, self._connect() as conn:
             row = conn.execute(
-                "SELECT id, url, secret, event_types, org_id, enabled, "
+                "SELECT id, url, secret_ciphertext, event_types, org_id, enabled, "
                 "created_at_ts, updated_at_ts "
                 "FROM webhook_subscriptions WHERE id = ?",
                 (sub_id,),
@@ -244,7 +269,7 @@ class WebhookSubscriptionStore:
         return StoredSubscription(
             id=row["id"],
             url=row["url"],
-            secret=row["secret"],
+            secret=self._decrypt_secret(row["secret_ciphertext"]),
             event_types=et,
             org_id=row["org_id"],
             enabled=bool(row["enabled"]),

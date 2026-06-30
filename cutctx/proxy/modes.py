@@ -17,6 +17,11 @@ PROXY_MODE_CACHE = "cache"
 _MODE_ALIASES = {
     "token": PROXY_MODE_TOKEN,
     "cache": PROXY_MODE_CACHE,
+    # Legacy / user-friendly aliases
+    "token_cutctx": PROXY_MODE_TOKEN,
+    "token_savings": PROXY_MODE_TOKEN,
+    "cost_savings": PROXY_MODE_CACHE,
+    "cache_mode": PROXY_MODE_CACHE,
 }
 
 
