@@ -457,3 +457,23 @@ Add a `v0.29.1` entry covering:
 - `/stats` with `X-Cutctx-Admin-Key` → `200`
 - `/dashboard` with `X-Cutctx-Admin-Key` → `200`
 - `/debug/warmup` on loopback → `200`
+
+## 2026-07-01 Broad Sweep Addendum
+
+- Continued a broad non-Playwright `pytest -x` sweep after the runtime-app fixes.
+- Confirmed the sweep moved materially farther after each repair:
+- first blocker fixed: runtime `/debug/*` routes missing from exported `create_app`
+- next blocker fixed: exported app left `/stats`, `/stats-history`, and `/dashboard` public despite admin key
+- next blocker fixed: exported app dropped `/v1/retrieve`, `/v1/retrieve/stats`, and `GET /v1/retrieve/{hash}` CCR surfaces
+- next blocker fixed: `cutctx unwrap codex` safe no-op with explicit `CODEX_HOME` still emitted unrelated proxy-port warning
+- next blocker fixed: exported `/stats` and `/admin/config/flags` lacked the `config.orchestrator` contract the dashboard tests expect
+- Additional regression coverage added:
+- [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_runtime_app_admin_auth.py)
+- [tests/test_sqlite_like_escaping.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_sqlite_like_escaping.py)
+- [tests/test_transforms/test_kompress_max_words.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_transforms/test_kompress_max_words.py)
+- Verification slices now green:
+- `uv run python -m pytest -q tests/test_runtime_app_admin_auth.py tests/test_proxy_debug_endpoints.py tests/test_security_validations.py tests/test_openai_responses_subscription_compat.py` → `47 passed`
+- `uv run python -m pytest -q tests/test_sqlite_like_escaping.py tests/test_transforms/test_kompress_max_words.py tests/test_security_validations.py tests/test_transforms/test_kompress_compressor.py` → `43 passed`
+- `uv run python -m pytest -q tests/test_dashboard_orchestrator.py tests/test_cli/test_wrap_codex.py::test_unwrap_codex_is_safe_noop_with_explicit_codex_home tests/test_ccr_row_drop_store_bridge.py::test_v1_compress_then_v1_retrieve_resolves_marker_hash` → `3 passed`
+- Broad sweep evidence after these fixes:
+- `uv run python -m pytest tests/ -x --ignore=tests/playwright -q` reached `1962 passed, 48 skipped` before the orchestrator contract failure, which is now fixed

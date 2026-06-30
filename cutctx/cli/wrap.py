@@ -4639,6 +4639,7 @@ def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
     except Exception as e:  # pragma: no cover - filesystem-level errors
         raise click.ClickException(f"could not unwrap Codex config: {e}") from e
 
+    changed = status in {"restored", "cleaned", "removed"}
     if status == "restored":
         click.echo(f"  Restored prior {config_file} from pre-wrap backup.")
     elif status == "cleaned":
@@ -4648,8 +4649,8 @@ def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
     else:
         if not os.environ.get("CODEX_HOME"):
             click.echo(
-                "  Warning: found no Cutctx wrap markers in the default Codex config. "
-                "If you wrapped Codex with CODEX_HOME, rerun unwrap with the same "
+                "  Warning: found no Cutctx wrap markers in default Codex config. "
+                "If you wrapped Codex with CODEX_HOME, rerun unwrap with same "
                 "environment variable, e.g. CODEX_HOME=/path/to/codex-home "
                 "cutctx unwrap codex."
             )
@@ -4657,6 +4658,7 @@ def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
 
     click.echo()
     click.echo("✓ Codex is no longer routed through the Cutctx proxy.")
-    if not no_stop_proxy:
+    if changed and not no_stop_proxy:
         _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(port), port)
+    click.echo()
     click.echo()

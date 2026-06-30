@@ -5036,18 +5036,26 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "install_hint": "pip install cutctx-ai[memory] or pip install usearch",
                 },
                 "model_routing": model_routing_status,
-                "audio": {
-                    "requested": True,
-                    "available": True,
-                    "compression": "pass-through",
-                    "reason": "audio_proxy_only_no_token_compression",
-                    "install_hint": None,
-                },
+            "audio": {
+                "requested": True,
+                "available": True,
+                "compression": "pass-through",
+                "reason": "audio_proxy_only_no_token_compression",
+                "install_hint": None,
             },
-            "telemetry": telemetry_stats,
-            "feedback": feedback_stats,
-            "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
-        }
+        },
+        "config": {
+            "cache": bool(getattr(config, "cache_enabled", False)),
+            "ccr": bool(getattr(config, "ccr_context_tracking", False)),
+            "memory": bool(getattr(config, "episodic_memory_enabled", False)),
+            "firewall": bool(getattr(config, "firewall_enabled", False)),
+            "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
+            "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
+        },
+        "telemetry": telemetry_stats,
+        "feedback": feedback_stats,
+        "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
+    }
 
     def _uptime_seconds() -> float:
         return max(0.0, time.time() - float(app.state.started_at))
@@ -5222,6 +5230,70 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def compress_endpoint(request: Request):
         return await proxy.handle_compress(request)
 
+    @app.get("/v1/retrieve/stats")
+    async def retrieve_stats_endpoint():
+        store = get_compression_store()
+        return JSONResponse(status_code=200, content={"store": store.get_stats()})
+
+    def _retrieve_entry(hash_key: str, query: str | None = None):
+        store = get_compression_store()
+        entry = store.retrieve(hash_key, query=query)
+        backend_keys: list[str] = []
+        if entry is None:
+            backend = getattr(store, "_backend", None)
+            items = getattr(backend, "items", None)
+            if callable(items):
+                for stored_hash, _candidate in items():
+                    backend_keys.append(stored_hash)
+                    if (
+                        stored_hash == hash_key
+                        or stored_hash.startswith(hash_key)
+                        or hash_key.startswith(stored_hash)
+                    ):
+                        entry = store.retrieve(stored_hash, query=query)
+                        if entry is not None:
+                            break
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        return entry
+
+    @app.post("/v1/retrieve")
+    async def retrieve_endpoint(request: Request):
+        payload = await request.json()
+        hash_key = str(payload.get("hash", "") or "").strip()
+        query = payload.get("query")
+        if not hash_key:
+            raise HTTPException(status_code=400, detail="hash is required")
+
+        entry = _retrieve_entry(hash_key, query=query)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "hash": hash_key,
+                "original_content": entry.original_content,
+                "compressed_content": entry.compressed_content,
+                "original_tokens": entry.original_tokens,
+                "compressed_tokens": entry.compressed_tokens,
+                "retrieval_count": entry.retrieval_count,
+            },
+        )
+
+    @app.get("/v1/retrieve/{hash_key}")
+    async def retrieve_by_hash_endpoint(hash_key: str, query: str | None = None):
+        entry = _retrieve_entry(hash_key, query=query)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "hash": hash_key,
+                "original_content": entry.original_content,
+                "compressed_content": entry.compressed_content,
+                "original_tokens": entry.original_tokens,
+                "compressed_tokens": entry.compressed_tokens,
+                "retrieval_count": entry.retrieval_count,
+            },
+        )
+
     from pathlib import Path as _Path
     _react_assets = _Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist" / "assets"
     if _react_assets.is_dir():
@@ -5239,7 +5311,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def dashboard(request: Request, path: str = ""):
         await _require_local_admin_auth(request)
         return HTMLResponse(get_dashboard_html(prefer_react=True))
-
     @app.post("/admin/config/flags")
     async def update_config_flags(request: Request):
         """Update live intelligence layer feature flags at runtime."""
@@ -5249,10 +5320,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         legacy_header = request.headers.get("x-headroom-admin-key", "")
         expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
 
-        # Keep the legacy x-headroom-admin-key accepted for older dashboards,
-        # but align the active route with the documented admin auth contract.
         if expected_admin_key not in {bearer_token, admin_header, legacy_header}:
             raise HTTPException(status_code=401, detail="Unauthorized")
+
         payload = await request.json()
         if "cache" in payload:
             config.cache_enabled = bool(payload["cache"])
@@ -5278,10 +5348,28 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if "rate_limiter" in payload:
             config.rate_limit_enabled = bool(payload["rate_limiter"])
         if "orchestrator" in payload:
+            config.orchestrator_enabled = bool(payload["orchestrator"])
             if hasattr(proxy, "_model_router") and proxy._model_router is not None:
                 proxy._model_router.config.enabled = bool(payload["orchestrator"])
+
         logger.info(f"Runtime configuration updated: {payload}")
-        return {"status": "success", "payload": payload}
+        return {
+            "status": "success",
+            "config": {
+                "cache": bool(getattr(config, "cache_enabled", False)),
+                "ccr": bool(getattr(config, "ccr_context_tracking", False)),
+                "memory": bool(getattr(config, "episodic_memory_enabled", False)),
+                "firewall": bool(getattr(config, "firewall_enabled", False)),
+                "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
+                "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
+            },
+            "payload": payload,
+        }
+
+    register_provider_routes(app, proxy)
+    return app
+
+
 
     register_provider_routes(app, proxy)
     return app
