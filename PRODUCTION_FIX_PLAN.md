@@ -59,6 +59,20 @@ re-verified here.
   for this session, so "all savings sources firing in real traffic" remains
   unproven in this environment.
 
+### Current Release Call
+
+- Not yet independently proven as "best in class" or "best in market".
+- Not ready for a fully trust-based READY verdict while:
+  - the worktree remains heavily dirty from unrelated in-flight changes
+  - Rust/cargo-backed verification is not reproducible in this environment
+  - live traffic in this environment does not show model-routing or self-hosted
+    prefix-cache savings actually firing
+- Reasonable candidate for a constrained OSS release only after:
+  - the worktree is cleaned and release scope is frozen
+  - the running proxy is restarted onto the verified code
+  - Rust build/test verification is reproduced on a machine with `cargo`
+  - release messaging is precise about which savings sources are proven live
+
 ### Evidence Log
 
 #### 2026-06-30 1st verification checkpoint
