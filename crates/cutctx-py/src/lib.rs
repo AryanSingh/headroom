@@ -1657,6 +1657,28 @@ impl PyStackGraphManager {
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
     }
 
+    /// Remove a file from the stack graph.
+    ///
+    /// Returns `ValueError` if the file was not previously indexed.
+    fn remove_file(&self, path: &str) -> PyResult<()> {
+        let mut inner = self.inner.lock().unwrap();
+        inner
+            .remove_file(path)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+    }
+
+    /// Re-index a file that may already be in the graph.
+    ///
+    /// If the file was previously indexed, removes the old data then
+    /// re-parses and re-indexes the new source.  Useful for incremental
+    /// updates from a file watcher.
+    fn reindex_file(&self, path: &str, source: &str) -> PyResult<()> {
+        let mut inner = self.inner.lock().unwrap();
+        inner
+            .reindex_file(path, source)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+    }
+
     /// Resolve a symbol reference at (`line`, `column`) in `path`.
     ///
     /// Lines and columns are 0-indexed. Returns `None` when the file is

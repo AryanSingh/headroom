@@ -974,7 +974,7 @@ class CutctxProxy(
             else:
                 try:
                     resolver = StackGraphResolver()
-                    count = resolver.index_project(os.getcwd())
+                    count = resolver.index_project(os.getcwd(), max_files=config.stack_graph_max_files)
                     self.stack_graph_resolver = resolver
                     # Wire incremental re-indexing through the file watcher
                     try:
@@ -4946,6 +4946,31 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
     async def dashboard(path: str = ""):
         return HTMLResponse(get_dashboard_html(prefer_react=True))
+
+    @app.post("/admin/config/flags")
+    async def update_config_flags(request: Request):
+        """Update live intelligence layer feature flags at runtime."""
+        # Inline admin auth check (auth deps only defined in the other create_app)
+        if request.headers.get("x-headroom-admin-key") != config.admin_api_key:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        payload = await request.json()
+        if "cache" in payload:
+            config.cache_enabled = bool(payload["cache"])
+        if "ccr" in payload:
+            ccr_enabled = bool(payload["ccr"])
+            config.ccr_context_tracking = ccr_enabled
+            config.ccr_handle_responses = ccr_enabled
+        if "memory" in payload:
+            config.episodic_memory_enabled = bool(payload["memory"])
+        if "firewall" in payload:
+            config.firewall_enabled = bool(payload["firewall"])
+        if "rate_limiter" in payload:
+            config.rate_limit_enabled = bool(payload["rate_limiter"])
+        if "orchestrator" in payload:
+            if hasattr(proxy, "_model_router") and proxy._model_router is not None:
+                proxy._model_router.config.enabled = bool(payload["orchestrator"])
+        logger.info(f"Runtime configuration updated: {payload}")
+        return {"status": "success", "payload": payload}
 
     register_provider_routes(app, proxy)
     return app

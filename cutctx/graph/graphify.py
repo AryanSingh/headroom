@@ -12,6 +12,8 @@ Provides:
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import json
 import logging
 import subprocess
@@ -748,3 +750,93 @@ def set_global_indexer(indexer: GraphifyIndexer | None) -> None:
     with _global_indexer_lock:
         global _global_indexer
         _global_indexer = indexer
+
+
+def _graphify_module_name() -> str | None:
+    """Return the installed Graphify module name, if any."""
+    for name in ("graphifyy", "graphify"):
+        if importlib.util.find_spec(name) is not None:
+            return name
+    return None
+
+
+def graphify_available() -> bool:
+    """Return True if a supported Graphify Python package is installed."""
+    return _graphify_module_name() is not None
+
+
+def _graphify_cli_module_name() -> str:
+    module_name = _graphify_module_name()
+    return f"{module_name}.cli" if module_name else "graphify.cli"
+
+
+def _graphify_build_with_alias_support(self: GraphifyIndexer) -> bool:
+    """Run graphify build, accepting either ``graphify`` or ``graphifyy``."""
+    module_name = _graphify_module_name()
+    if module_name:
+        try:
+            graphify_module = importlib.import_module(module_name)
+
+            if hasattr(graphify_module, "run"):
+                graphify_module.run(
+                    project_dir=str(self.project_dir),
+                    output_dir=str(self.output_dir),
+                )
+                graph_json = self.output_dir / "graph.json"
+                if not graph_json.exists():
+                    logger.warning("Graphify API completed but graph.json not found")
+                    return False
+                return True
+
+            if hasattr(graphify_module, "build_graph"):
+                graphify_module.build_graph(
+                    project_dir=str(self.project_dir),
+                    output_path=str(self.output_dir / "graph.json"),
+                )
+                graph_json = self.output_dir / "graph.json"
+                if not graph_json.exists():
+                    logger.warning("Graphify API completed but graph.json not found")
+                    return False
+                return True
+        except Exception as exc:
+            logger.debug(
+                "GraphifyIndexer: Python API failed, falling back to subprocess: %s",
+                exc,
+            )
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                _graphify_cli_module_name(),
+                "build",
+                "--project-dir",
+                str(self.project_dir),
+                "--output-dir",
+                str(self.output_dir),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode == 0:
+            return True
+        logger.warning(
+            "GraphifyIndexer: subprocess exited %d: %s",
+            result.returncode,
+            (result.stderr or "")[:500],
+        )
+        return False
+    except FileNotFoundError:
+        logger.warning("GraphifyIndexer: graphify CLI module not found")
+        return False
+    except subprocess.TimeoutExpired:
+        logger.warning("GraphifyIndexer: subprocess timed out after 300s")
+        return False
+    except Exception as exc:
+        logger.warning("GraphifyIndexer: subprocess error: %s", exc)
+        return False
+
+
+GraphifyIndexer._run_graphify_build = _graphify_build_with_alias_support

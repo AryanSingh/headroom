@@ -351,7 +351,7 @@ pip install "cutctx-ai[magika]"
 # With AST-based code handling
 pip install "cutctx-ai[code]"
 
-# Everything
+# Broad bundle
 pip install "cutctx-ai[all]"
 ```
 

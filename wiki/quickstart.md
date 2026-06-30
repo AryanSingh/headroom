@@ -15,7 +15,7 @@ pip install cutctx-ai
 # With proxy server
 pip install "cutctx-ai[proxy]"
 
-# Everything
+# Broad bundle
 pip install "cutctx-ai[all]"
 ```
 

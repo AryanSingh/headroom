@@ -56,6 +56,10 @@ pub struct StackGraphManager {
     partial_paths: PartialPaths,
     parsers: HashMap<String, tree_sitter::Parser>,
     file_handles: HashMap<PathBuf, Handle<File>>,
+    /// Cached source content for each indexed file.
+    /// Used to rebuild the entire graph when a file is reindexed or removed,
+    /// since `stack_graphs::StackGraph` has no individual file removal API.
+    source_cache: HashMap<PathBuf, String>,
 }
 
 impl StackGraphManager {
@@ -66,6 +70,7 @@ impl StackGraphManager {
             partial_paths: PartialPaths::new(),
             parsers: HashMap::new(),
             file_handles: HashMap::new(),
+            source_cache: HashMap::new(),
         }
     }
 
@@ -102,7 +107,7 @@ impl StackGraphManager {
     }
 
     // -----------------------------------------------------------------------
-    // File addition
+    // File addition / removal / reindex
     // -----------------------------------------------------------------------
 
     /// Add a source file to the stack graph.
@@ -186,6 +191,64 @@ impl StackGraphManager {
         }
 
         self.file_handles.insert(file_path.to_path_buf(), file_handle);
+        self.source_cache
+            .insert(file_path.to_path_buf(), source.to_string());
+        Ok(())
+    }
+
+    /// Remove a file from the stack graph.
+    ///
+    /// Removes the file from the source cache and rebuilds the entire graph
+    /// without it. Returns an error if the file was not previously indexed.
+    ///
+    /// Note: `stack_graphs::StackGraph` has no individual file removal API,
+    /// so we rebuild the full graph from the cached source content.
+    pub fn remove_file(&mut self, path: &str) -> Result<(), String> {
+        let file_path = Path::new(path);
+        if !self.source_cache.contains_key(file_path) {
+            return Err(format!("File not indexed: {}", path));
+        }
+        self.source_cache.remove(file_path);
+        self.rebuild_from_cache()
+    }
+
+    /// Re-index a file that may already be in the graph.
+    ///
+    /// Updates the cached source for the given file, then rebuilds the
+    /// entire graph from the cache. This is the method to use for
+    /// incremental updates (e.g. from a file watcher).
+    ///
+    /// Note: `stack_graphs::StackGraph` has no individual file removal API,
+    /// so we rebuild the full graph from the cached source content rather
+    /// than trying to remove and re-add a single file.
+    pub fn reindex_file(&mut self, path: &str, source: &str) -> Result<(), String> {
+        self.source_cache
+            .insert(Path::new(path).to_path_buf(), source.to_string());
+        self.rebuild_from_cache()
+    }
+
+    /// Rebuild the entire graph from the cached source content.
+    ///
+    /// Clears the current graph and partial paths, then re-adds every file
+    /// from `source_cache`. This is necessary because `stack_graphs::StackGraph`
+    /// is append-only and has no individual file removal API.
+    fn rebuild_from_cache(&mut self) -> Result<(), String> {
+        let cache = std::mem::take(&mut self.source_cache);
+
+        // Clear the entire graph
+        self.graph = StackGraph::new();
+        self.partial_paths = PartialPaths::new();
+        self.file_handles.clear();
+
+        // Re-add all files from the cache
+        for (path, source) in &cache {
+            let path_str = path.to_string_lossy();
+            self.add_file(&path_str, source)?;
+        }
+
+        // Restore the cache (add_file repopulated source_cache entries)
+        self.source_cache = cache;
+
         Ok(())
     }
 
@@ -307,6 +370,7 @@ impl StackGraphManager {
         self.graph = StackGraph::new();
         self.partial_paths = PartialPaths::new();
         self.file_handles.clear();
+        self.source_cache.clear();
     }
 }
 

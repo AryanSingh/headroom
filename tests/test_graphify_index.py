@@ -18,6 +18,7 @@ from cutctx.graph.graphify import (  # noqa: E402
     GraphifyIndex,
     GraphifyQueryResult,
     GraphNode,
+    graphify_available,
     render_subgraph,
 )
 from cutctx.proxy.interceptors.graph_interceptor import (  # noqa: E402
@@ -312,11 +313,11 @@ class TestGraphifyInterceptor:
         key = interceptor.progressive_disclosure_key("Read", {"file_path": "src/main.py"})
         assert key == "graphify:src/main.py"
 
-    def test_no_key_for_grep(self) -> None:
-        """progressive_disclosure_key returns None for Grep (no file path)."""
-        interceptor = GraphifyInterceptor()
-        key = interceptor.progressive_disclosure_key("Grep", {"pattern": "foo"})
-        assert key is None
+def test_no_key_for_grep() -> None:
+    """progressive_disclosure_key returns None for Grep (no file path)."""
+    interceptor = GraphifyInterceptor()
+    key = interceptor.progressive_disclosure_key("Grep", {"pattern": "foo"})
+    assert key is None
 
 
 # =========================================================================
@@ -332,3 +333,22 @@ class _FakeIndexer:
 
     def get_index(self) -> GraphifyIndex:
         return self._index
+
+
+def test_graphify_available_accepts_graphify_alias(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cutctx.graph.graphify as graphify_mod
+
+    original_find_spec = graphify_mod.importlib.util.find_spec
+
+    def fake_find_spec(name: str):  # type: ignore[no-untyped-def]
+        if name == "graphifyy":
+            return None
+        if name == "graphify":
+            return object()
+        return original_find_spec(name)
+
+    monkeypatch.setattr(graphify_mod.importlib.util, "find_spec", fake_find_spec)
+
+    assert graphify_available() is True

@@ -295,7 +295,7 @@ class CodeGraphWatcher:
             try:
                 changed_path = self._latest_changed_path
                 if changed_path is not None:
-                    _stack_graph_resolver.index_file(str(changed_path))
+                    _stack_graph_resolver.reindex_file(str(changed_path))
             except Exception:
                 logger.debug("Code graph: failed to update stack-graph index", exc_info=True)
 

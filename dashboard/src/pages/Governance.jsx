@@ -214,7 +214,11 @@ export default function Governance({ searchQuery = '' }) {
   const { stats, loading: statsLoading } = useDashboardData();
   const [sections, setSections] = useState({
     audit: emptySection(),
+    orgs: emptySection(),
+    quota: emptySection(),
     rbac: emptySection(),
+    retention: emptySection(),
+    subscription: emptySection(),
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -275,18 +279,16 @@ export default function Governance({ searchQuery = '' }) {
   const rateLimiter = stats?.rate_limiter;
   const isRateLimitActive = stats?.config?.rate_limit;
 
-  const failedSections = Object.entries(sections).filter(([, s]) => !s.ok && !loading);
+  const failedSections = Object.entries(sections).filter(([k, s]) => !s.ok && !loading && GOVERNANCE_PATHS[k]);
   const isNetworkError = failedSections.some(([, s]) =>
     s.error && !s.error.includes('403') && !s.error.includes('503') && !s.error.includes('501'),
   );
 
   return (
     <section className="page-stack">
-      {!loading && failedSections.length > 0 && (
+      {!loading && failedSections.length > 0 && isNetworkError && (
         <div className="alert-card" role="alert">
-          {isNetworkError
-            ? `Some governance surfaces could not be reached: ${failedSections.map(([k]) => k).join(', ')}.`
-            : `${failedSections.length} of ${Object.keys(sections).length} governance surfaces require enterprise entitlements or additional configuration.`}
+          Some governance surfaces could not be reached: {failedSections.map(([k]) => k).join(', ')}.
         </div>
       )}
 

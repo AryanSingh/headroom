@@ -196,6 +196,7 @@ class ProxyConfig:
 
     # Stack-graph code navigation (opt-in)
     stack_graph_enabled: bool = False
+    stack_graph_max_files: int = 1000
 
     # Knowledge-graph compression via Graphify (opt-in)
     knowledge_graph_enabled: bool = False

@@ -492,6 +492,59 @@ config = MemoryConfig(
 )
 ```
 
+### Vector Backend Selection
+
+Cutctx supports multiple vector index backends for semantic search. Selection is automatic via `VectorBackend.AUTO` or explicit via the enum.
+
+| Backend | Enum | Install | Speed | Memory Efficiency |
+|---------|------|---------|-------|-------------------|
+| **USearch** (default) | `VectorBackend.USEARCH` | `pip install usearch` or `pip install cutctx-ai[memory]` | ~10× faster than sqlite-vec | f16 quantization (50% less memory than f32) |
+| SQLite Vec | `VectorBackend.SQLITE_VEC` | Bundled | Baseline | f32 |
+| HNSW | `VectorBackend.HNSW` | `pip install hnswlib` | Fast | f32 |
+
+**Auto-preference order:** `USEARCH` → `SQLITE_VEC` → `HNSW`. When `usearch` is installed, `AUTO` picks it automatically.
+
+#### USearch Backend
+
+[**USearch**](https://github.com/unum-cloud/usearch) is a fast vector search library that serves as Cutctx's primary local vector backend. It provides:
+
+- **f16 quantization** — 16-bit floats halve memory usage vs f32 with negligible accuracy loss
+- **Zero-copy memory-mapped loading** — index files map directly to memory via `index.view()`, enabling instant loading of large indexes
+- **Thread-safe concurrent access** — internal locking for read/write safety
+- **Cosine similarity** — distances normalized to [0, 1] similarity scores
+
+Configuration via `MemoryConfig`:
+
+```python
+from cutctx.memory import MemoryConfig, VectorBackend
+
+# Explicitly select USearch
+config = MemoryConfig(
+    vector_backend=VectorBackend.USEARCH,
+    vector_dimension=384,     # Must match embedder (default: 384 for bge-small)
+)
+
+# Or let AUTO detect it (preferred when usearch is installed)
+config = MemoryConfig(
+    vector_backend=VectorBackend.AUTO,  # Resolves to USEARCH if installed
+)
+```
+
+Advanced USearch parameters (passed through to `UsearchMemoryBackend`):
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `ndim` | 384 | Embedding dimension (must match embedder output) |
+| `metric` | `"cos"` | Distance metric (`"cos"`, `"l2sq"`, `"ip"`) |
+| `dtype` | `"f16"` | Quantization dtype (`"f16"`, `"f32"`, `"i8"`) |
+| `connectivity` | 16 | HNSW graph connectivity |
+| `expansion_add` | 128 | Index build quality vs speed |
+| `expansion_search` | 64 | Search accuracy vs speed |
+
+> **Note:** USearch does not support native deletion. Removed keys are tracked in a separate set and filtered from search results at query time. See `UsearchMemoryBackend.remove()` for details.
+
+**Implementation:** `cutctx/memory/backends/usearch_store.py` — `UsearchMemoryBackend` class implementing the `VectorIndex` protocol.
+
 ### Wrapper Configuration
 
 ```python
@@ -526,9 +579,16 @@ Cutctx Memory uses **Protocol interfaces** (ports) for all components, enabling 
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
 │         │                │                │                │
 │  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐        │
-│  │   SQLite    │  │    HNSW     │  │    FTS5     │        │
-│  │  Adapter    │  │   Adapter   │  │   Adapter   │        │
-│  └─────────────┘  └─────────────┘  └─────────────┘        │
+│  │   SQLite    │  │  USearch ◄──┼──│    FTS5     │        │
+│  │  Adapter    │  │ (default)   │  │   Adapter   │        │
+│  │             │  ├─────────────┤  └─────────────┘        │
+│  │             │  │    HNSW     │                          │
+│  │             │  │   Adapter   │                          │
+│  │             │  └─────────────┘                          │
+│  │             │  ┌─────────────┐                          │
+│  │             │  │  SQLite Vec │                          │
+│  │             │  │   Adapter   │                          │
+│  └─────────────┘  └─────────────┘                          │
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐                          │
 │  │  Embedder   │  │ MemoryCache │                          │
@@ -548,7 +608,7 @@ Cutctx Memory uses **Protocol interfaces** (ports) for all components, enabling 
 | Component | Protocol | Default Adapter | Purpose |
 |-----------|----------|-----------------|---------|
 | **MemoryStore** | `MemoryStore` | `SQLiteMemoryStore` | CRUD + filtering + supersession |
-| **VectorIndex** | `VectorIndex` | `HNSWVectorIndex` | Semantic similarity search |
+| **VectorIndex** | `VectorIndex` | `UsearchMemoryBackend` (AUTO → USearch → SQLite Vec → HNSW) | Semantic similarity search |
 | **TextIndex** | `TextIndex` | `FTS5TextIndex` | Full-text keyword search |
 | **Embedder** | `Embedder` | `LocalEmbedder` | Text → vector conversion |
 | **Cache** | `MemoryCache` | `LRUMemoryCache` | Hot memory caching |
@@ -631,9 +691,9 @@ bob_client = with_memory(OpenAI(), user_id="bob")
 
 | Operation | Latency | Notes |
 |-----------|---------|-------|
-| Memory injection | <50ms | Local embeddings + HNSW search |
+| Memory injection | <50ms | Local embeddings + USearch (f16, cos) |
 | Memory extraction | +50-100 tokens | Part of LLM response (inline) |
-| Memory storage | <10ms | SQLite + HNSW + FTS5 indexing |
+| Memory storage | <10ms | SQLite + USearch + FTS5 indexing |
 | Cache hit | <1ms | LRU cache lookup |
 
 **Overhead**: ~100 extra output tokens per response for the `<memory>` block.

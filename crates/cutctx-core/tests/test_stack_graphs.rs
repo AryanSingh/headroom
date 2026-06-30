@@ -92,4 +92,50 @@ mod tests {
         let mgr = StackGraphManager::default();
         assert_eq!(mgr.file_count(), 0);
     }
+
+    #[test]
+    fn test_remove_file_removes_from_graph() {
+        let mut mgr = StackGraphManager::new();
+        mgr.add_file("test.py", "x = 1\n").unwrap();
+        assert_eq!(mgr.file_count(), 1);
+        let result = mgr.remove_file("test.py");
+        assert!(result.is_ok());
+        assert_eq!(mgr.file_count(), 0);
+    }
+
+    #[test]
+    fn test_remove_file_errors_on_missing() {
+        let mut mgr = StackGraphManager::new();
+        let result = mgr.remove_file("nonexistent.py");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not indexed"));
+    }
+
+    #[test]
+    fn test_reindex_file_replaces_existing() {
+        let mut mgr = StackGraphManager::new();
+        mgr.add_file("test.py", "x = 1\n").unwrap();
+        assert_eq!(mgr.file_count(), 1);
+        // Reindex with different content
+        let result = mgr.reindex_file("test.py", "y = 2\n");
+        assert!(result.is_ok());
+        assert_eq!(mgr.file_count(), 1);
+    }
+
+    #[test]
+    fn test_reindex_file_works_on_new_file() {
+        let mut mgr = StackGraphManager::new();
+        let result = mgr.reindex_file("test.py", "x = 1\n");
+        assert!(result.is_ok());
+        assert_eq!(mgr.file_count(), 1);
+    }
+
+    #[test]
+    fn test_add_duplicate_file_returns_err() {
+        let mut mgr = StackGraphManager::new();
+        mgr.add_file("test.py", "x = 1\n").unwrap();
+        let result = mgr.add_file("test.py", "x = 2\n");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+    }
 }

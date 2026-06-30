@@ -156,7 +156,7 @@ export default function Capabilities() {
                   <span className="metric-label">{surface.label}</span>
                   {isToggleable ? (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {!loading && 'status' in surface && liveStatus(toggleState ? surface.status : 0)}
+                      {!loading && 'status' in surface && liveStatus(toggleState ? 1 : 0)}
                       <ToggleSwitch 
                         checked={toggleState} 
                         onChange={() => handleToggle(surface.configKey, toggleState)} 

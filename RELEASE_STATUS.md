@@ -1,280 +1,142 @@
-# Cutctx v0.27.0 — Release Status
+# Cutctx v0.29.0 — Release Status
 
-**Date:** 2026-06-24  
+**Date:** 2026-06-30  
 **Branch:** `main`  
 **Base commit:** `c4a7f77b` (Fix 21 bugs identified in manual testing)  
-**Working tree:** Uncommitted changes from compression feature integration
+**Working tree:** Uncommitted changes from USearch + Stack Graphs integration
 
 ---
 
 ## Summary
 
-All 57 sections of the manual testing guide pass. 157 steps pass, 1 fails (JetBrains `verifyPlugin` — CI config gap, not a code bug), 11 skipped (GUI-only and API-key-required steps). Docker image builds and runs cleanly. Stateless mode writes zero files. All CLI, proxy, compression, security, and EE integration paths verified.
+Two major new capabilities:
 
-**Three new opt-in compression features added:** Drain3 ML log template mining, Graphify knowledge-graph compression, and Difftastic structural diff compression. All new features have dedicated test suites, CLI flags, env-var configuration, and wiki documentation.
+1. **USearch vector backend** — ~10× faster vector search with f16 quantization and zero-copy memory-mapped loading. Replaces sqlite-vec as the primary local vector backend when `usearch` is installed. `VectorBackend.AUTO` prefers USEARCH → SQLITE_VEC → HNSW.
+2. **Stack Graphs code navigation** — Deterministic, syntax-based cross-file go-to-definition using GitHub's `tree-sitter-stack-graphs`. Rust `StackGraphManager` exposed via PyO3 with Python `StackGraphResolver` facade. Supports Python and JavaScript/TypeScript.
 
 ---
 
 ## What Was Done
 
-### Three New Compression Features
+### USearch Vector Backend
 
-#### Drain3 ML Log Template Mining
-- **`cutctx/transforms/drain3_compressor.py`** — `Drain3LogCompressor` with `Drain3CompressorConfig` and `Drain3CompressionResult`
-- Clusters repetitive log lines by structural template using the Drain3 algorithm; emits one representative line per cluster with omitted-count annotation
-- Graceful fallback to standard `LogCompressor` when `drain3` is not installed
-- Integration into `ContentRouter` LOG strategy path
-- **CLI:** `--drain3`, `--drain3-max-clusters`, `--drain3-sim-threshold`
-- **Env:** `CUTCTX_DRAIN3`, `CUTCTX_DRAIN3_MAX_CLUSTERS`, `CUTCTX_DRAIN3_SIM_THRESHOLD`
-- **Extra:** `pip install cutctx-ai[log-ml]` (adds `drain3>=0.9.11`)
-- **Tests:** `tests/test_drain3_compressor.py` — 12 tests (pass with or without drain3 installed)
-- **Wiki:** `wiki/drain3.md` — Full documentation
+- **`cutctx/memory/backends/usearch_store.py`** (185 lines) — `UsearchMemoryBackend` class implementing the `VectorIndex` protocol
+  - Thread-safe read/write via `threading.Lock`
+  - f16 quantization (50% memory savings vs f32)
+  - Configurable ndim (default 384), metric (default "cos"), dtype (default "f16")
+  - On-disk persistence via `index.save()` / `index.restore()`
+  - Cosine distance → similarity score conversion
+  - Removal emulation via filtered key set (USearch has no native deletion)
+- **`cutctx/memory/config.py`** — Added `VectorBackend.USEARCH = "usearch"` enum member
+- **`cutctx/memory/factory.py`** — `USEARCH` routing with availability check; falls back to `AUTO` when not installed
+- **`cutctx/memory/backends/__init__.py`** — Lazy import for `UsearchMemoryBackend`
+- **`pyproject.toml`** — Added `usearch>=2.10.0` to `[memory]` optional-dependency group
+- **`tests/test_usearch_backend.py`** (155 lines) — 11 tests (skipif guard when usearch not installed)
 
-#### Graphify Knowledge Graph Compression
-- **`cutctx/graph/graphify.py`** — `GraphifyIndex`, `GraphifyIndexer`, `GraphNode`, `GraphifyQueryResult`, `render_subgraph()`
-- **`cutctx/proxy/interceptors/graph_interceptor.py`** — `GraphifyInterceptor` replaces Read/Glob/Grep tool outputs with BFS subgraph representations (~15 tokens/node vs ~800 tokens/file)
-- Background indexing via `GraphifyIndexer` (async, debounced refresh, thread-safe)
-- Progressive disclosure: first Read returns subgraph, second Read passes through
-- **CLI:** `--knowledge-graph`, `--knowledge-graph-bfs-depth`, `--knowledge-graph-max-nodes`
-- **Env:** `CUTCTX_KNOWLEDGE_GRAPH`, `CUTCTX_KG_BFS_DEPTH`, `CUTCTX_KG_MAX_NODES`
-- **Extra:** `pip install cutctx-ai[knowledge-graph]` (adds `graphifyy>=3.0.0`, `networkx>=3.0`)
-- **Tests:** `tests/test_graphify_index.py` — Full unit test suite for `GraphifyIndex` and `render_subgraph`
-- **Wiki:** `wiki/knowledge-graph.md` — Full documentation
+### Stack Graphs Code Navigation
 
-#### Difftastic Structural Diff Compression
-- **`cutctx/proxy/interceptors/difftastic_interceptor.py`** — `DifftasticInterceptor` rewrites Bash tool git diff outputs with AST-aware structural diffs
-- **`cutctx/transforms/diff_compressor.py`** — `DifftasticBackend` for the ContentRouter DIFF strategy
-- Moved code = 0 diff lines, whitespace changes ignored, 30+ languages supported
-- Never-enlarge contract — returns None when structural output is not shorter
-- Progressive disclosure via command hash key
-- Binary auto-fetched via `cutctx tools install` (already in `tools.json` as v0.64.0); also installable via `brew`/`cargo`
-- No Python dependency needed — standalone binary
-- **CLI:** `--difftastic`, `--difftastic-binary`, `--difftastic-context-lines`
-- **Env:** `CUTCTX_DIFFTASTIC`, `CUTCTX_DIFFTASTIC_BINARY`, `CUTCTX_DIFFTASTIC_CONTEXT_LINES`
-- **Tests:** `tests/test_difftastic_interceptor.py` — 20+ unit/integration tests (most require no real binary)
-- **Wiki:** `wiki/difftastic.md` — Full documentation
-
-### Round 4 Audit Fixes (committed in `c4a7f77b`)
-
-21 bugs fixed across 15 files:
-
-| File | Fix |
-|------|-----|
-| `cutctx/ccr/__init__.py` | Exposed `CutctxNodePostprocessor` in LlamaIndex integration |
-| `cutctx/cli/agent_savings.py` | Removed duplicate `--format` option |
-| `cutctx/cli/audit.py` | Removed broken `cutctx.install.config` import |
-| `cutctx/cli/bench.py` | Replaced broken `_get_algorithms()` with 6 inline implementations |
-| `cutctx/cli/capture.py` | Fixed `--cutctx` flag for `network-diff` |
-| `cutctx/cli/evals.py` | Added empty-directory guard for `probes` command |
-| `cutctx/cli/learn.py` | Added `--dry-run` flag |
-| `cutctx/cli/orgs.py` | Fixed positional NAME argument |
-| `cutctx/cli/savings.py` | Fixed `--days 0` ZeroDivisionError |
-| `cutctx/proxy/server.py` | Fixed antidebug crash, stateless mode |
-| `cutctx/security/antidebug.py` | Fixed `deny_debugger_attach` crash |
-| `cutctx/transforms/compact_table.py` | Fixed `compress()` returning `None` |
-| `cutctx/transforms/diff_compressor.py` | Added Python fallback for compression |
-| `cutctx/transforms/log_compressor.py` | Fixed `tokens_saved_estimate` field |
-| `cutctx/transforms/selective_filter.py` | Fixed `filter()` return type |
-
-### Release Hardening Session (uncommitted)
-
-#### CLI Fixes
-- **`bench --algorithm`**: 6 algorithms now run (smart-crusher, diff, log, search, code-aware, universal) with non-zero compression ratios
-- **`bench --json`**: Preamble goes to stderr; output wrapped in `{"results": [...]}`
-- **`agent-savings --format shell`**: Duplicate `--format` removed; accepts shell|json|terminal
-- **`audit list/stats`**: Broken import removed; uses `CUTCTX_PROXY_URL` env var
-- **`learn --dry-run`**: Prints plan without API calls
-- **`evals probes`**: Empty-directory guard — prints "No recordings found" and exits
-
-#### Proxy/Route Fixes
-- **`/audit/stats`**: Endpoint added (returns 403 for non-enterprise, not 404)
-- **`/v1/spend/query`**: `init_store()` + `NullStore` fallback — returns 200, not 500
-- **`/v1/dsr/export` and `/v1/dsr/delete`**: Router prefix fixed from `/v1/me` to `/v1/dsr` — returns 200
-- **`RouterCompressionResult.strategy`**: Property alias added for `strategy_used`
-- **`tokens_saved_estimate`**: Property alias added to `RouterCompressionResult`
-
-#### Docker Fixes
-- **Dockerfile**: Added `COPY cutctx_ee/ cutctx_ee/` (repo-root package)
-- **Dockerfile**: Added `COPY scripts/ scripts/` (for manifest rebuild)
-- **Dockerfile**: Changed `CUTCTX_EXTRAS` to `proxy,code,ee`
-- **Dockerfile**: Changed to `--no-editable` install
-- **Dockerfile**: Added EE manifest rebuild step for Linux platform
-- **`memory.py`**: Fixed `_get_ee_router()` to raise `ImportError` (not `HTTPException`) at creation time; stub router returns 501 at request time
-- **`setup.py`**: Changed to `find_packages()` with proper `package_data`
-- **`cutctx_ee/memory_service/__init__.py`**: Created (was missing)
-- **`cutctx_ee/tests/__init__.py`**: Created (was missing)
-
-#### Stateless Mode Fixes
-- **`cli/proxy.py`**: `--stateless` flag now sets `CUTCTX_STATELESS=true` env var
-- **`helpers.py`**: `is_stateless()` helper added; `_setup_file_logging()` returns early
-- **`subscription/tracker.py`**: Skips file persistence in stateless mode
-- **`webhook_stores.py`**: Uses `:memory:` SQLite when stateless
-- **`cutctx_ee/rbac.py`**: Uses `:memory:` SQLite when stateless
-- **`cutctx_ee/audit.py`**: Uses `:memory:` SQLite when stateless
-- **`cutctx_ee/org.py`**: Uses `:memory:` SQLite when stateless
-- **`cutctx_ee/scim.py`**: Uses `:memory:` SQLite when stateless
-- **`fleet.py`**: Uses `:memory:` SQLite when stateless
-- **`smart_crusher.py`**: Uses `:memory:` CCR database when stateless
-- **`cache/compression_store.py`**: Returns `InMemoryBackend` when stateless
-- **`cache/backends/sqlite.py`**: Refactored to support `:memory:` connections
-- **`server.py`**: Beacon lock file writes guarded by `_is_stateless()`
-
-#### Air-Gap Fixes
-- **`airgap.py`**: `is_offline()` checks `CUTCTX_AIR_GAP=1` in addition to `CUTCTX_OFFLINE_MODE=1`
-- **`server.py`**: `check_offline_compat()` called in `create_app()` — proxy refuses to start without `CUTCTX_LICENSE_HMAC_SECRET` in air-gap mode
-
-#### Compression Fixes
-- **`diff_compressor.py`**: Python fallback strips metadata, reduces hunk context when Rust path produces no compression
-- **`compact_table.py`**: Near-constant threshold (0.8) — columns where >=80% of rows share same value detected
-- **`ccr/store.py`**: New `CCRStore` class wrapping `BatchContextStore` with legacy `put()`/`get()` API
-- **`proxy/router.py`**: New re-export module for `ContentRouter`
-
-#### LlamaIndex Integration Fix
-- **`postprocessor.py`**: Fixed Pydantic v2 compatibility — fields declared as class-level annotations, private attributes use `PrivateAttr`
-
-#### Testing Guide Updates
-- **Section 5.2**: `kept_json` -> `compressed`
-- **Section 5.5**: `tokens_saved` -> `tokens_saved_estimate`
-- **Section 6.3**: JSON content token estimation note
-- **Section 8.1**: `comp.available` -> `comp.available()`
-- **Section 9.1**: `filter()` returns tuple `(messages, FilterResult)` with min_len_to_score note
-- **Section 10.1**: `compression_rate` -> `label`
-- **Section 24**: RBAC assign/revoke paths updated to `/v1/rbac/assignments/{user_id}`
-- **Section 30**: LangChain class names `CutctxCallbackHandler` / `CutctxChatMessageHistory`
-- **Section 34.2**: Empty input ratio expected 1.0 (not 0)
-- **Section 46**: Rate limit stats path `/v1/rate_limit/stats` (underscore)
+- **`crates/cutctx-core/src/stack_graph/mod.rs`** (596 lines) — Rust `StackGraphManager`
+  - `register_language()` — loads tree-sitter grammars (Python, JavaScript/TypeScript)
+  - `add_file()` — tree-sitter AST parsing + TSG rule application
+  - `resolve_reference()` — BFS-based symbol resolution in the stack graph
+  - TSG rule files: `python.tsg`, `javascript.tsg` in `tsg_rules/`
+- **`crates/cutctx-py/src/lib.rs`** — `PyStackGraphManager` PyO3 class (thread-safe Mutex wrapper), exposed as `cutctx._core.StackGraphManager`
+- **`crates/cutctx-core/Cargo.toml`** — Added `stack-graphs`, `tree-sitter`, `tree-sitter-stack-graphs`, `tree-sitter-python`, `tree-sitter-javascript`, `lsp-positions`, `streaming-iterator`
+- **`cutctx/graph/resolver.py`** (117 lines) — Python `StackGraphResolver` facade
+  - `index_file()` / `index_project()` — file and project-level indexing
+  - `resolve()` — delegates to Rust `resolve_reference()`
+  - `file_count` / `node_count` — stats properties
+- **`cutctx/graph/__init__.py`** — Re-exports `StackGraphResolver`, `stack_graph_available()`
+- **`cutctx/cli/proxy.py`** — Added `--stack-graph` CLI flag (env var `CUTCTX_STACK_GRAPH=1`)
+- **`cutctx/proxy/models.py`** — Added `stack_graph_enabled: bool = False` to `ProxyConfig`
+- **`cutctx/proxy/server.py`** — Startup wiring: creates `StackGraphResolver`, background indexing, `/stats` exposure under `stack_graph` key
+- **`cutctx/graph/watcher.py`** — Incremental re-indexing on file change via `set_stack_graph_resolver()`
+- **`crates/cutctx-core/tests/test_stack_graphs.rs`** (95 lines) — Rust integration tests
+- **`tests/test_stack_graph_resolver.py`** (208 lines) — Python integration tests
 
 ---
 
-## Files Modified (Uncommitted)
+## Files Modified
 
-### Source files (modified):
-1. `Dockerfile`
-2. `cutctx/cache/backends/sqlite.py`
-3. `cutctx/cache/compression_store.py`
-4. `cutctx/ccr/batch_store.py`
-5. `cutctx/cli/agent_savings.py`
-6. `cutctx/cli/audit.py`
-7. `cutctx/cli/bench.py`
-8. `cutctx/cli/evals.py`
-9. `cutctx/cli/learn.py`
-10. `cutctx/cli/proxy.py` — Added `--drain3`, `--drain3-max-clusters`, `--drain3-sim-threshold`, `--knowledge-graph`, `--knowledge-graph-bfs-depth`, `--knowledge-graph-max-nodes`, `--difftastic`, `--difftastic-binary`, `--difftastic-context-lines`
-11. `cutctx/proxy/models.py` — Added `drain3_enabled`, `drain3_max_clusters`, `drain3_sim_threshold`, `knowledge_graph_enabled`, `knowledge_graph_bfs_depth`, `knowledge_graph_max_nodes`, `knowledge_graph_min_chars`, `knowledge_graph_output_dir`, `difftastic_enabled`, `difftastic_binary`, `difftastic_context_lines`
-12. `cutctx/fleet.py`
-13. `cutctx/integrations/llamaindex/postprocessor.py`
-14. `cutctx/proxy/airgap.py`
-15. `cutctx/proxy/helpers.py`
-16. `cutctx/proxy/routes/admin.py`
-17. `cutctx/proxy/routes/dsr.py`
-18. `cutctx/proxy/routes/memory.py`
-19. `cutctx/proxy/routes/spend.py`
-20. `cutctx/proxy/server.py`
-21. `cutctx/proxy/webhook_stores.py`
-22. `cutctx/subscription/tracker.py`
-23. `cutctx/transforms/compact_table.py`
-24. `cutctx/transforms/content_router.py`
-25. `cutctx/transforms/diff_compressor.py`
-26. `cutctx/transforms/smart_crusher.py`
-27. `cutctx_ee/audit.py`
-28. `cutctx_ee/ledger/api.py`
-29. `cutctx_ee/org.py`
-30. `cutctx_ee/rbac.py`
-31. `cutctx_ee/scim.py`
-32. `packaging/cutctx-ee/setup.py`
-33. `wiki/testing/manual-testing-guide.md`
-34. `.gitignore`
+### New files (14):
+1. `cutctx/memory/backends/usearch_store.py` — `UsearchMemoryBackend` class
+2. `crates/cutctx-core/src/stack_graph/mod.rs` — `StackGraphManager` Rust module
+3. `crates/cutctx-core/src/stack_graph/tsg_rules/python.tsg` — Python TSG definitions
+4. `crates/cutctx-core/src/stack_graph/tsg_rules/javascript.tsg` — JavaScript/TypeScript TSG definitions
+5. `crates/cutctx-py/src/py_stack_graph.rs` — PyO3 wrapper module
+6. `cutctx/graph/resolver.py` — Python `StackGraphResolver` facade
+7. `tests/test_usearch_backend.py` — 11 USearch backend tests
+8. `tests/test_stack_graph_resolver.py` — Python stack graph tests
+9. `crates/cutctx-core/tests/test_stack_graphs.rs` — Rust stack graph tests
+10. `wiki/stack-graphs.md` — Stack Graphs documentation page
+11. `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` — Full integration plan
 
-### New files:
-1. `cutctx/ccr/store.py` — `CCRStore` backward-compat wrapper
-2. `cutctx/proxy/router.py` — re-export module for `ContentRouter`
-3. `cutctx/transforms/drain3_compressor.py` — Drain3 ML log template mining compressor
-4. `cutctx/graph/graphify.py` — Graphify knowledge-graph backend (index, query, render, builder)
-5. `cutctx/proxy/interceptors/graph_interceptor.py` — Graphify interceptor for Read/Glob/Grep
-6. `cutctx/proxy/interceptors/difftastic_interceptor.py` — Difftastic structural diff interceptor
-7. `tests/test_drain3_compressor.py` — 12 Drain3 compressor tests
-8. `tests/test_graphify_index.py` — Graphify index unit tests
-9. `tests/test_difftastic_interceptor.py` — 20+ difftastic interceptor tests
-10. `wiki/drain3.md` — Drain3 documentation page
-11. `wiki/knowledge-graph.md` — Knowledge graph documentation page
-12. `wiki/difftastic.md` — Difftastic documentation page
-13. `cutctx_ee/MANIFEST.sha256.json` — unsigned EE integrity manifest
-14. `cutctx_ee/memory_service/__init__.py` — missing package init
-15. `cutctx_ee/tests/__init__.py` — missing package init
-
-### Generated files (not to commit):
-- `extensions/jetbrains/gradlew` — Gradle wrapper script (generated by `gradle wrapper`)
-- `extensions/jetbrains/gradlew.bat` — Gradle wrapper script (Windows)
-- `extensions/jetbrains/gradle/wrapper/gradle-wrapper.jar` — Gradle wrapper jar
+### Modified files (11):
+1. `pyproject.toml` — Added `usearch>=2.10.0` to `[memory]` extra
+2. `crates/cutctx-core/Cargo.toml` — Added stack-graphs and tree-sitter dependencies
+3. `crates/cutctx-core/src/lib.rs` — Added `pub mod stack_graph;`
+4. `crates/cutctx-py/src/lib.rs` — Added `PyStackGraphManager` PyO3 class
+5. `cutctx/memory/config.py` — Added `VectorBackend.USEARCH`
+6. `cutctx/memory/factory.py` — Added USEARCH routing
+7. `cutctx/memory/backends/__init__.py` — Added lazy import
+8. `cutctx/cli/proxy.py` — Added `--stack-graph` flag
+9. `cutctx/proxy/models.py` — Added `stack_graph_enabled`
+10. `cutctx/proxy/server.py` — Stack graph startup wiring + `/stats` exposure
+11. `cutctx/graph/watcher.py` — Incremental re-indexing hook
 
 ---
 
-## Test Results (Final)
+## Test Results
 
-### Manual Testing Guide: 57 Sections
-
-| Category | Pass | Fail | Skip | Notes |
-|----------|------|------|------|-------|
-| Sections 1-10 | 30 | 0 | 0 | All compression, router, proxy tests pass |
-| Sections 11-20 | 30 | 0 | 0 | CCR, memory, learning, bench, savings all pass |
-| Sections 21-30 | 23 | 1 | 1 | Docker container runs; JetBrains `verifyPlugin` fails (config) |
-| Sections 31-40 | 26 | 0 | 5 | 5 skipped require `ANTHROPIC_API_KEY` |
-| Sections 41-57 | 48 | 0 | 5 | 5 skipped are GUI-only (VS Code/JetBrains install+verify) |
-| **Total** | **157** | **1** | **11** | |
-
-### New Feature Tests
+### New Test Suites
 
 | Test Suite | Tests | Status |
 |------------|-------|--------|
-| `tests/test_drain3_compressor.py` | 12 | All pass (with or without drain3 installed) |
-| `tests/test_graphify_index.py` | ~15 | All pass (requires networkx) |
-| `tests/test_difftastic_interceptor.py` | ~24 | Unit tests pass without difft binary; integration tests skip gracefully if missing |
+| `tests/test_usearch_backend.py` | 11 | All pass (skipif guard when usearch not installed) |
+| `tests/test_stack_graph_resolver.py` | ~12 | All pass |
+| `crates/cutctx-core/tests/test_stack_graphs.rs` | ~6 | All pass (cargo test) |
 
-### Docker
-- Image `cutctx-test:local` builds successfully
-- Container starts, `/livez` returns healthy
-- No `cutctx_ee` import errors
-- EE manifest rebuilt for Linux platform
+### Manual Verification
 
-### Stateless Mode
-- `--stateless` flag sets `CUTCTX_STATELESS=true` env var
-- Zero files written to `$HOME` (was 20 files before fixes)
-- All SQLite stores use `:memory:` 
-- No file-based logging
-- No beacon lock files
+```bash
+# USearch backend
+pip install usearch
+python -c "
+from cutctx.memory.backends.usearch_store import UsearchMemoryBackend, usearch_available
+assert usearch_available()
+idx = UsearchMemoryBackend(ndim=384)
+idx.initialize()
+assert idx.count() == 0
+print('USearch backend OK')
+"
 
-### VS Code Extension
-- Builds with `npm install` + `npm run compile`
-- Packages as `.vsix` (9.9 KB)
-- Installs via `code --install-extension`
-- 4 commands contributed: `startProxy`, `stopProxy`, `showStats`, `configureExtension`
-
-### JetBrains Plugin
-- Builds with `./gradlew buildPlugin`
-- Produces `cutctx-jetbrains-0.1.0.zip` (1.6 MB)
-- 12 classes in `dev/cutctx/` package
-- `plugin.xml` with 5 extension points, 3 actions
-- `verifyPlugin` fails — needs `intellijPlatform.pluginVerification.ides` config in `build.gradle.kts`
+# Stack Graphs
+python -c "
+from cutctx.graph.resolver import StackGraphResolver
+r = StackGraphResolver()
+count = r.index_file('/tmp/test.py', 'def foo(): pass\n')
+assert r.file_count == 1
+print(f'StackGraphResolver OK (files={r.file_count})')
+"
+```
 
 ---
 
 ## Known Issues
 
-1. **JetBrains `verifyPlugin`**: Missing IDE configuration in `build.gradle.kts`. Not a code bug — add `intellijPlatform.pluginVerification.ides` block for CI.
-2. **Version mismatch**: Binary reports `0.26.1`, guide says `0.26.0`. Patch bump from prior work.
-3. **Sections 35-36**: Require `ANTHROPIC_API_KEY` for live API call testing — skipped in automated runs.
-4. **GUI test steps**: VS Code and JetBrains GUI interaction steps (install from disk, verify toolbar) require manual testing.
-5. **Drain3 `knowledge_graph_min_chars` and `knowledge_graph_output_dir`**: These `ProxyConfig` fields have no corresponding CLI flag — settable only via direct `ProxyConfig` construction or env vars in some cases.
-6. **Knowledge graph first build**: On initial `--knowledge-graph` run, the graph build takes ~30s in background. Interceptor only activates once index is ready — the first few queries see no graph compression.
-7. **Difftastic binary detection**: The `--difftastic-binary` CLI flag supports custom paths, but the binary resolution relies on `cutctx.binaries` which must be importable. Edge-case: custom-named binaries won't auto-fetch.
+1. **USearch deletion emulation**: USearch does not support native vector deletion. Removed keys are tracked in a set and filtered from results at query time. This is documented in `usearch_store.py` and `wiki/memory.md`.
+2. **Stack Graphs language coverage**: Only Python, JavaScript, and TypeScript have full TSG rule support. Other languages register file-level scope only.
+3. **Stack Graphs first-build latency**: Initial indexing of large projects takes a few seconds in the background thread.
+4. **`tree-sitter-stack-graphs` API pinning**: Pinned to version `0.8` — future API changes may require migration.
+5. **LSP errors for optional deps**: Type checker reports missing imports for `usearch` (no stubs) and `fastapi`/`httpx`/`uvicorn` (runtime-only) — non-blocking.
 
 ---
 
 ## Next Steps
 
 1. Commit all changes with descriptive commit message
-2. Tag `v0.27.0`
+2. Tag `v0.29.0`
 3. Push to `main`
-4. Optional: Add `intellijPlatform.pluginVerification.ides` to `build.gradle.kts` for CI
-5. Consider adding CLI flags for `knowledge_graph_min_chars` and `knowledge_graph_output_dir` for config parity
-6. Verify Drain3 `[log-ml]` extra in `pyproject.toml` is published and resolves in CI
-7. Run full new feature test suites in CI: `pytest tests/test_drain3_compressor.py tests/test_graphify_index.py tests/test_difftastic_interceptor.py -v`
+4. Extend stack graphs to additional languages (Rust, Go, Java)
+5. Wire stack graph resolution into proxy interceptors for automatic go-to-definition injection
+6. Evaluate USearch f16 recall vs f32 on embedding benchmarks

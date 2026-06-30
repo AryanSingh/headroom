@@ -16,8 +16,8 @@ pip install cutctx[proxy]
 # With semantic relevance (for smarter compression)
 pip install cutctx[relevance]
 
-# Everything
-pip install cutctx[all]
+# Broad bundle
+pip install "cutctx-ai[all]"
 ```
 
 **TypeScript / Node.js:**

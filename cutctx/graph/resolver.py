@@ -53,6 +53,18 @@ class StackGraphResolver:
         path_str = str(path)
         if source is None:
             try:
+                file_size = Path(path).stat().st_size
+            except OSError as e:
+                logger.warning("StackGraph: cannot stat %s: %s", path, e)
+                return False
+            MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+            if file_size > MAX_FILE_SIZE:
+                logger.warning(
+                    "StackGraph: skipping %s — size %d bytes exceeds 10 MB limit",
+                    path, file_size,
+                )
+                return False
+            try:
                 source = Path(path).read_text(encoding="utf-8", errors="replace")
             except (OSError, UnicodeDecodeError) as e:
                 logger.warning("StackGraph: cannot read %s: %s", path, e)
@@ -63,6 +75,39 @@ class StackGraphResolver:
             return True
         except ValueError as e:
             logger.warning("StackGraph: failed to index %s: %s", path, e)
+            return False
+
+    def reindex_file(self, path: str | Path, source: str | None = None) -> bool:
+        """Re-index a single file, replacing any existing index.
+
+        If source is None, reads from disk. This is the method to use
+        for incremental updates from the file watcher.
+        """
+        path_str = str(path)
+        if source is None:
+            try:
+                file_size = Path(path).stat().st_size
+            except OSError as e:
+                logger.warning("StackGraph: cannot stat %s: %s", path, e)
+                return False
+            MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+            if file_size > MAX_FILE_SIZE:
+                logger.warning(
+                    "StackGraph: skipping %s — size %d bytes exceeds 10 MB limit",
+                    path, file_size,
+                )
+                return False
+            try:
+                source = Path(path).read_text(encoding="utf-8", errors="replace")
+            except (OSError, UnicodeDecodeError) as e:
+                logger.warning("StackGraph: cannot read %s: %s", path, e)
+                return False
+        try:
+            self._inner.reindex_file(path_str, source)
+            self._indexed_paths.add(path_str)
+            return True
+        except ValueError as e:
+            logger.warning("StackGraph: failed to reindex %s: %s", path, e)
             return False
 
     def index_project(
@@ -83,6 +128,8 @@ class StackGraphResolver:
             if count >= max_files:
                 break
             if path.is_file() and path.suffix in extensions:
+                if not path.resolve().is_relative_to(root.resolve()):
+                    continue
                 if self.index_file(path):
                     count += 1
         logger.info("StackGraph: indexed %d files in %s", count, root)

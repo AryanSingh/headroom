@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import copy
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -52,6 +53,147 @@ from cutctx.proxy.tool_surface import (
 )
 
 logger = logging.getLogger("cutctx.proxy")
+
+_CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
+    # "stream" is included because chatgpt.com/backend-api/codex/responses
+    # does not support HTTP SSE — it always streams internally and rejects
+    # requests that include stream:true in the body with a bare 400.
+    {"client_metadata", "generate", "prompt_cache_key", "stream"}
+)
+
+# Models that the chatgpt.com Codex backend no longer accepts — map to their
+# current replacements. Updated when OpenAI deprecates a model on the
+# subscription endpoint (the API endpoint accepts both for longer).
+_CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS: dict[str, str] = {
+    "gpt-5.4": "gpt-5.5",
+    "codex-mini-latest": "gpt-5.5",  # safety alias
+}
+
+
+def _ws_connect_header_kwargs(
+    websockets_module: Any, upstream_headers: dict[str, str]
+) -> dict[str, dict[str, str]]:
+    """Use the header kwarg supported by the installed websockets client."""
+    try:
+        connect_sig = inspect.signature(websockets_module.connect)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        connect_sig = None
+    if connect_sig and "additional_headers" in connect_sig.parameters:
+        return {"additional_headers": upstream_headers}
+    return {"extra_headers": upstream_headers}
+
+
+def _sanitize_chatgpt_subscription_responses_body(
+    body: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    """Strip/translate request fields the ChatGPT Codex backend rejects."""
+    sanitized = dict(body)
+    stripped: list[str] = []
+    for key in sorted(_CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS):
+        if key in sanitized:
+            sanitized.pop(key, None)
+            stripped.append(key)
+    # Translate deprecated model names the chatgpt.com endpoint no longer accepts.
+    current_model = sanitized.get("model", "")
+    migrated = _CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS.get(current_model)
+    if migrated:
+        sanitized["model"] = migrated
+        stripped.append(f"model:{current_model}->{migrated}")
+    return sanitized, stripped
+
+
+def _truncate_body_for_chatgpt(
+    body: dict[str, Any],
+    max_bytes: int,
+    request_id: str,
+) -> dict[str, Any]:
+    """Aggressively truncate a request body so it fits within max_bytes for
+    chatgpt.com. Strategy (in order):
+    1. Truncate tool-output text within each input message to 4 KB.
+    2. Drop oldest messages from the ``input`` array (keep last N).
+    3. Truncate ``instructions`` to 200 KB if still over limit.
+    Returns a shallow copy with modified fields; never raises.
+    """
+    import copy as _copy
+
+    _MAX_TOOL_OUTPUT_CHARS = 4 * 1024        # 4 KB per tool output text
+    _MAX_INSTRUCTIONS_CHARS = 200 * 1024     # 200 KB for system instructions
+
+    body = _copy.deepcopy(body)
+
+    def _body_bytes() -> int:
+        try:
+            return len(json.dumps(body).encode("utf-8", errors="replace"))
+        except Exception:
+            return max_bytes + 1
+
+    def _truncate_content(content: Any) -> Any:
+        """Truncate text within a content item or list."""
+        if isinstance(content, str):
+            return content[:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]" if len(content) > _MAX_TOOL_OUTPUT_CHARS else content
+        if isinstance(content, list):
+            return [_truncate_content(c) for c in content]
+        if isinstance(content, dict):
+            out = dict(content)
+            if "text" in out and isinstance(out["text"], str) and len(out["text"]) > _MAX_TOOL_OUTPUT_CHARS:
+                out["text"] = out["text"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
+            if "output" in out and isinstance(out["output"], str) and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS:
+                out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
+            return out
+        return content
+
+    # Step 1: truncate large tool outputs within all messages
+    if isinstance(body.get("input"), list):
+        body["input"] = [
+            {**msg, "content": _truncate_content(msg["content"])}
+            if isinstance(msg, dict) and "content" in msg
+            else msg
+            for msg in body["input"]
+        ]
+    if _body_bytes() <= max_bytes:
+        return body
+
+    # Step 2: drop oldest messages (keep at least 1 to preserve the user turn)
+    if isinstance(body.get("input"), list) and len(body["input"]) > 1:
+        msgs = body["input"]
+        while len(msgs) > 1 and _body_bytes() > max_bytes:
+            msgs.pop(0)
+        body["input"] = msgs
+    if _body_bytes() <= max_bytes:
+        return body
+
+    # Step 3: truncate instructions
+    if isinstance(body.get("instructions"), str) and len(body["instructions"]) > _MAX_INSTRUCTIONS_CHARS:
+        body["instructions"] = body["instructions"][:_MAX_INSTRUCTIONS_CHARS] + "\n…[instructions truncated by cutctx]"
+    return body
+
+
+def _normalize_ws_http_fallback_body(
+    parsed: Any,
+    body: dict[str, Any] | None,
+    *,
+    strip_chatgpt_subscription_fields: bool = False,
+) -> tuple[dict[str, Any], list[str]]:
+    """Convert a WS response.create payload into an HTTP /v1/responses body."""
+    http_body: dict[str, Any]
+    if isinstance(parsed, dict) and isinstance(parsed.get("response"), dict):
+        http_body = dict(parsed["response"])
+    elif isinstance(parsed, dict):
+        http_body = dict(parsed)
+        if http_body.get("type") == "response.create":
+            http_body.pop("type", None)
+    else:
+        http_body = body if isinstance(body, dict) else {}
+
+    if http_body.get("type") in {"response.create", "response"}:
+        http_body.pop("type", None)
+
+    stripped: list[str] = []
+    if strip_chatgpt_subscription_fields:
+        http_body, stripped = _sanitize_chatgpt_subscription_responses_body(http_body)
+
+    http_body["stream"] = True
+    return http_body, stripped
 
 _CLIENT_PROVIDER_MAP: dict[str, str] = {
     "claude-code": "claude",
@@ -1319,6 +1461,13 @@ class OpenAIResponsesMixin:
         # ChatGPT session auth (codex login) uses chatgpt.com, not api.openai.com.
         if is_chatgpt_auth:
             url = "https://chatgpt.com/backend-api/codex/responses"
+            body, stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
+            if stripped_fields:
+                logger.info(
+                    "[%s] /v1/responses stripped unsupported subscription fields: %s",
+                    request_id,
+                    ", ".join(stripped_fields),
+                )
         else:
             url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/responses")
 
@@ -1446,7 +1595,35 @@ class OpenAIResponsesMixin:
                     _http_body_bytes,
                     client=client,
                 )
-                if _http_action.refuse:
+                # chatgpt.com has a strict body-size limit and returns HTTP 400
+                # "Bad Request" when the payload is too large. The default
+                # fail-open policy (refuse=False) for Codex clients would
+                # forward the uncompressed body and trigger that 400.
+                # Strategy: if routing to chatgpt.com and the body is oversized,
+                # apply aggressive structural truncation so Codex can still
+                # proceed rather than getting an opaque 400 or being blocked.
+                _CHATGPT_MAX_BODY_BYTES = 900 * 1024  # 900 KB conservative limit
+                if is_chatgpt_auth and _http_body_bytes > _CHATGPT_MAX_BODY_BYTES:
+                    logger.warning(
+                        "[%s] /v1/responses body too large for chatgpt.com "
+                        "(%d bytes > %d limit) — applying emergency truncation",
+                        request_id,
+                        _http_body_bytes,
+                        _CHATGPT_MAX_BODY_BYTES,
+                    )
+                    body = _truncate_body_for_chatgpt(
+                        body, _CHATGPT_MAX_BODY_BYTES, request_id
+                    )
+                    _truncated_bytes = len(
+                        json.dumps(body).encode("utf-8", errors="replace")
+                    )
+                    logger.info(
+                        "[%s] /v1/responses emergency truncation: %d → %d bytes",
+                        request_id,
+                        _http_body_bytes,
+                        _truncated_bytes,
+                    )
+                elif _http_action.refuse:
                     logger.error(
                         "[%s] /v1/responses REFUSING to forward request "
                         "after compression failure (reason=%s, bytes=%d); "
@@ -1456,7 +1633,7 @@ class OpenAIResponsesMixin:
                         "CUTCTX_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE=1.",
                         request_id,
                         _http_action.reason,
-                        _http_action.frame_bytes,
+                        _http_body_bytes,
                     )
                     raise HTTPException(
                         status_code=413,
@@ -1492,6 +1669,13 @@ class OpenAIResponsesMixin:
             },
         )
 
+        # chatgpt.com/backend-api/codex/responses does not support HTTP SSE
+        # (stream:true is now stripped above). Force the non-streaming code
+        # path so the proxy makes a regular POST and returns a JSON response.
+        # The WS handler handles streaming Codex sessions separately.
+        if is_chatgpt_auth:
+            stream = False
+
         try:
             if stream:
                 # Streaming for Responses API uses semantic events
@@ -1518,6 +1702,20 @@ class OpenAIResponsesMixin:
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
                 response = await self._retry_request("POST", url, headers, body)
+                if response.status_code >= 400:
+                    try:
+                        _err_body = response.text[:2000]
+                    except Exception:
+                        _err_body = "<unreadable>"
+                    logger.error(
+                        "[%s] upstream %s returned HTTP %d — url=%s body_sent=%s response_body=%s",
+                        request_id,
+                        url,
+                        response.status_code,
+                        url,
+                        json.dumps({k: v for k, v in body.items() if k != "input"})[:500],
+                        _err_body,
+                    )
                 _response_body_for_debug: Any = None
                 _response_raw_for_debug: str | None = None
                 try:
@@ -2041,9 +2239,12 @@ class OpenAIResponsesMixin:
 
             for ws_attempt in range(ws_connect_attempts):
                 try:
+                    connect_header_kwargs = _ws_connect_header_kwargs(
+                        websockets, upstream_headers
+                    )
                     upstream = await websockets.connect(
                         upstream_url,
-                        additional_headers=upstream_headers,
+                        **connect_header_kwargs,
                         subprotocols=(
                             [websockets.Subprotocol(p) for p in client_subprotocols]
                             if client_subprotocols and hasattr(websockets, "Subprotocol")
@@ -2865,7 +3066,10 @@ class OpenAIResponsesMixin:
             )
 
             if ws_connected:
-                async with upstream:
+                # websockets 13.x: an already-awaited WebSocketClientProtocol
+                # does not support the async context manager protocol — use an
+                # explicit try/finally for cleanup instead.
+                try:
                     await upstream.send(first_msg_raw)
 
                     # Unit 3: flag the upstream side flips on seeing
@@ -2899,7 +3103,7 @@ class OpenAIResponsesMixin:
                         frames in the WS session.
                         """
                         nonlocal tokens_saved, transforms_applied, attempted_input_tokens_total
-                        nonlocal ws_frames_compressed
+                        nonlocal ws_frames_compressed, ws_savings_metadata
                         if _ws_bypass:
                             _log_ws_passthrough(
                                 "bypass_header",
@@ -3807,6 +4011,13 @@ class OpenAIResponsesMixin:
                         ws_last_client_frame_type,
                         ws_last_upstream_frame_type,
                     )
+                finally:
+                    # Explicit cleanup for the upstream WS connection
+                    # (replaces the async-with context manager that
+                    # websockets 13.x no longer supports on an already-
+                    # connected WebSocketClientProtocol).
+                    with contextlib.suppress(Exception):
+                        await upstream.close()
             else:
                 # WS upgrade failed (HTTP 500 from OpenAI is common).
                 # Fall back to HTTP POST streaming and relay SSE events

@@ -20,7 +20,7 @@ _FEATURES: list[dict[str, object]] = [
     {
         "name": "knowledge_graph",
         "label": "Knowledge Graph (Graphify)",
-        "key_package": "graphifyy",
+        "key_package": "graphify",
         "extra": "knowledge-graph",
         "critical": False,
         "also_requires": ["networkx"],
@@ -145,6 +145,8 @@ def _check_feature(feature: dict[str, object]) -> dict[str, object]:
 
     main_ok = _module_available(str(key_package) if key_package else None)
     also = {pkg: _module_available(pkg) for pkg in also_requires}
+    if str(feature.get("name")) == "knowledge_graph" and not main_ok:
+        main_ok = _module_available("graphifyy")
     if str(feature.get("name")) == "llmlingua":
         also["cutctx.transforms.llmlingua_compressor"] = _module_available(
             "cutctx.transforms.llmlingua_compressor"

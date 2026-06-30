@@ -24,11 +24,13 @@ _Mem0Config = None
 _Mem0SystemAdapter = None
 _DirectMem0Adapter = None
 _DirectMem0Config = None
+_UsearchMemoryBackend = None
 
 
 def __getattr__(name: str) -> type:
     """Lazy import for optional backends."""
     global _Mem0Backend, _Mem0Config, _Mem0SystemAdapter, _DirectMem0Adapter, _DirectMem0Config
+    global _UsearchMemoryBackend
 
     if name == "Mem0Backend":
         if _Mem0Backend is None:
@@ -65,6 +67,13 @@ def __getattr__(name: str) -> type:
             _DirectMem0Config = DirectMem0Config
         return _DirectMem0Config
 
+    if name == "UsearchMemoryBackend":
+        if _UsearchMemoryBackend is None:
+            from cutctx.memory.backends.usearch_store import UsearchMemoryBackend
+
+            _UsearchMemoryBackend = UsearchMemoryBackend
+        return _UsearchMemoryBackend
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -79,4 +88,6 @@ __all__ = [
     # Direct Mem0 adapter (optimized, bypasses LLM extraction)
     "DirectMem0Adapter",
     "DirectMem0Config",
+    # Usearch backend (vector search via USearch)
+    "UsearchMemoryBackend",
 ]

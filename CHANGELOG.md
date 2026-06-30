@@ -6,27 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [0.29.0] - 2026-06-30
 
 ### Added
 - **USearch vector backend** (`cutctx/memory/backends/usearch_store.py`) — new optional vector index backend using Unum's USearch library for ~10× faster vector search with f16 quantization and zero-copy memory-mapped index loading. Added `VectorBackend.USEARCH` enum; wired into factory with `AUTO` fallback chain (USEARCH → SQLITE_VEC → HNSW). Requires `pip install usearch>=2.10.0`.
 - **Stack Graphs Rust module** (`crates/cutctx-core/src/stack_graph/`) — GitHub-style stack-graph implementation for deterministic, file-incremental cross-file code navigation. `StackGraphManager` with language registration (Python + JS/TS), tree-sitter AST parsing, TSG rule loading for scoped symbol resolution, and BFS-based `resolve_reference()` for go-to-definition across files.
-- **PyO3 binding** — `StackGraphManager` exposed to Python as `cutctx._core.StackGraphManager` with thread-safe mutex wrapping.
-- **Integration plan** — `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` documenting all phases, handoff markers for agent takeover, ADRs, and risk assessment.
+- **PyO3 binding** (`crates/cutctx-py/src/lib.rs`) — `StackGraphManager` exposed to Python as `cutctx._core.StackGraphManager` with thread-safe mutex wrapping.
+- **Python facade** (`cutctx/graph/resolver.py`) — `StackGraphResolver` with `index_project()`, `index_file()`, `resolve()`, file/node count properties.
+- **Proxy integration** (`cutctx/cli/proxy.py`, `cutctx/proxy/models.py`, `cutctx/proxy/server.py`) — `--stack-graph` CLI flag (`CUTCTX_STACK_GRAPH=1` env var), background indexing, `/stats` exposure.
+- **CodeGraphWatcher integration** (`cutctx/graph/watcher.py`) — incremental stack graph re-indexing on file change.
+- **Documentation** — `wiki/stack-graphs.md` (full feature docs), `wiki/memory.md` (USearch section), `wiki/index.md` (feature entries), `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` (integration plan with ADRs).
 
 ### Changed
 - **`pyproject.toml`** — added `usearch>=2.10.0` to `[memory]` optional-dependency group
 - **`crates/cutctx-core/Cargo.toml`** — added `stack-graphs`, `tree-sitter`, `tree-sitter-stack-graphs`, `tree-sitter-python`, `tree-sitter-javascript`, `lsp-positions`, `streaming-iterator` dependencies
+- **`crates/cutctx-core/src/lib.rs`** — added `pub mod stack_graph;`
 - **`cutctx/memory/config.py`** — added `VectorBackend.USEARCH = "usearch"` enum member
 - **`cutctx/memory/factory.py`** — added `USEARCH` routing with availability check and fallback
+- **`cutctx/memory/backends/__init__.py`** — added lazy import for `UsearchMemoryBackend`
+- **`cutctx/graph/__init__.py`** — added `StackGraphResolver` and `stack_graph_available()` to re-exports
 
 ### New Files
 - `cutctx/memory/backends/usearch_store.py` — `UsearchMemoryBackend` class (thread-safe, persistent, f16 quantization)
 - `crates/cutctx-core/src/stack_graph/mod.rs` — `StackGraphManager` with TSG rule loading and `resolve_reference()`
 - `crates/cutctx-core/src/stack_graph/tsg_rules/python.tsg` — Python TSG definitions
 - `crates/cutctx-core/src/stack_graph/tsg_rules/javascript.tsg` — JavaScript/TypeScript TSG definitions
+- `crates/cutctx-py/src/py_stack_graph.rs` — PyO3 `PyStackGraphManager` wrapper
+- `cutctx/graph/resolver.py` — `StackGraphResolver` Python facade
 - `tests/test_usearch_backend.py` — 11 tests for USearch backend (skipif guard)
+- `tests/test_stack_graph_resolver.py` — 12 Python-level stack graph tests
+- `crates/cutctx-core/tests/test_stack_graphs.rs` — 6 Rust integration tests
+- `wiki/stack-graphs.md` — Stack Graphs documentation page
 - `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` — full integration plan
+
+### Documentation
+- `wiki/memory.md` — Added USearch backend section with config options, auto-preference chain, and architecture diagram update
+- `wiki/index.md` — Added Stack Graphs feature card, updated memory entry to mention USearch, added usearch to installation extras
 
 ## [0.28.0] - 2026-06-29
 
@@ -535,7 +550,8 @@ cutctx proxy --port 8787
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 ```
 
-[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/cutctx/cutctx/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/cutctx/cutctx/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/cutctx/cutctx/compare/v0.26.1...v0.28.0
 [0.26.1]: https://github.com/cutctx/cutctx/compare/v0.26.0...v0.26.1
 [0.2.0]: https://github.com/chopratejas/cutctx/compare/v0.1.0...v0.2.0

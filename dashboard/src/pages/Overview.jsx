@@ -1262,7 +1262,7 @@ export default function Overview() {
           <FeatureAvailabilityPanel featureAvailability={featureAvailability} />
         </div>
 
-        <section className="panel panel-expanded">
+        <section className="panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Activity</div>

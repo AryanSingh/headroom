@@ -1080,6 +1080,15 @@ class StreamingMixin:
                 upstream_response.status_code,
                 url,
             )
+            # Log the sent body (minus input) and response body to aid diagnosis
+            try:
+                _sent_summary = json.dumps({k: v for k, v in body.items() if k != "input"})[:500]
+            except Exception:
+                _sent_summary = "<unserializable>"
+            logger.error(
+                "[%s] upstream %d — url=%s sent_body=%s",
+                request_id, upstream_response.status_code, url, _sent_summary,
+            )
             response_headers = dict(upstream_response.headers)
             response_headers.pop("content-length", None)
             response_headers.pop("transfer-encoding", None)
@@ -1088,6 +1097,11 @@ class StreamingMixin:
 
             try:
                 error_content = await upstream_response.aread()
+                logger.error(
+                    "[%s] upstream %d response body: %s",
+                    request_id, upstream_response.status_code,
+                    error_content[:2000].decode("utf-8", errors="replace"),
+                )
             except Exception as read_error:
                 logger.warning(
                     "[%s] Failed reading upstream error body status=%s url=%s error=%s",

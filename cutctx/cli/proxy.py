@@ -719,6 +719,14 @@ def _selected_context_tool() -> str:
     help="Enable stack-graph based code navigation for cross-file symbol resolution",
 )
 @click.option(
+    "--stack-graph-max-files",
+    envvar="CUTCTX_STACK_GRAPH_MAX_FILES",
+    default=1000,
+    show_default=True,
+    type=click.IntRange(min=10, max=100000),
+    help="Maximum files to index for stack-graph code navigation.",
+)
+@click.option(
     "--knowledge-graph",
     "knowledge_graph_enabled",
     is_flag=True,
@@ -911,6 +919,7 @@ def proxy(
     drain3_max_clusters: int | None,
     drain3_sim_threshold: float | None,
     stack_graph_enabled: bool,
+    stack_graph_max_files: int,
     knowledge_graph_enabled: bool,
     knowledge_graph_bfs_depth: int | None,
     knowledge_graph_max_nodes: int | None,
@@ -1133,6 +1142,7 @@ def proxy(
         else 0.4,
         # Stack-graph code navigation
         stack_graph_enabled=stack_graph_enabled,
+        stack_graph_max_files=stack_graph_max_files,
         # Knowledge-graph compression via Graphify
         knowledge_graph_enabled=knowledge_graph_enabled,
         knowledge_graph_bfs_depth=(

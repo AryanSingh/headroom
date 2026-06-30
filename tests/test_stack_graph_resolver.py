@@ -156,6 +156,61 @@ class TestStackGraphResolverIndexing:
             assert count == 3
 
 
+class TestStackGraphResolverReindex:
+    """Tests for reindex_file."""
+
+    @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
+    def test_reindex_file_success(self, mock_avail: MagicMock) -> None:
+        """reindex_file should delegate to inner.reindex_file."""
+        with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.reindex_file.return_value = None
+            mock_cls.return_value = mock_instance
+            resolver = StackGraphResolver()
+            result = resolver.reindex_file("/tmp/test.py", "def foo(): pass")
+            assert result is True
+            mock_instance.reindex_file.assert_called_once()
+
+    @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
+    def test_reindex_file_with_source_none_reads_disk(
+        self, mock_avail: MagicMock, tmp_path: Path
+    ) -> None:
+        """reindex_file with source=None should read from disk."""
+        test_file = tmp_path / "test.py"
+        test_file.write_text("x = 1\n")
+        with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.reindex_file.return_value = None
+            mock_cls.return_value = mock_instance
+            resolver = StackGraphResolver()
+            result = resolver.reindex_file(test_file)
+            assert result is True
+
+    @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
+    def test_reindex_file_value_error_returns_false(
+        self, mock_avail: MagicMock
+    ) -> None:
+        """reindex_file should return False when reindex_file raises ValueError."""
+        with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.reindex_file.side_effect = ValueError("unsupported language")
+            mock_cls.return_value = mock_instance
+            resolver = StackGraphResolver()
+            result = resolver.reindex_file("test.rs", "fn foo() {}")
+            assert result is False
+
+    @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
+    def test_reindex_file_tracks_path(self, mock_avail: MagicMock) -> None:
+        """reindex_file should track the path in indexed_paths."""
+        with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.reindex_file.return_value = None
+            mock_cls.return_value = mock_instance
+            resolver = StackGraphResolver()
+            resolver.reindex_file("/tmp/test.py", "x = 1")
+            assert "/tmp/test.py" in resolver.indexed_paths
+
+
 class TestStackGraphResolverResolution:
     """Tests for resolve()."""
 

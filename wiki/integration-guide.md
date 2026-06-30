@@ -185,6 +185,7 @@ Response headers include:
 The Cutctx proxy is a standalone HTTP server. Best for non-Python apps or tools that only support base URL configuration (Claude Code, Cursor, GitHub Copilot CLI).
 
 ```bash
+# Broad bundle install
 pip install "cutctx-ai[all]"
 cutctx proxy --port 8787
 ```

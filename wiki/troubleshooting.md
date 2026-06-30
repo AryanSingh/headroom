@@ -294,7 +294,7 @@ pip install "cutctx-ai[proxy]"
 # For embedding-based relevance scoring
 pip install "cutctx-ai[relevance]"
 
-# For everything
+# For the broad bundle
 pip install "cutctx-ai[all]"
 ```
 

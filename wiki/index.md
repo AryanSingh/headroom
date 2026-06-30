@@ -28,7 +28,7 @@ Compress everything your AI agent reads. Same answers, fraction of the tokens.
 <span class="label">Answer Accuracy</span>
 </div>
 <div class="stat">
-<span class="number">6</span>
+<span class="number">7</span>
 <span class="label">Compression Algorithms</span>
 </div>
 <div class="stat">
@@ -344,8 +344,8 @@ Stabilizes prefixes so provider KV caches hit. Tracks frozen messages to preserv
 
 <div class="grid-item" markdown>
 ### Persistent Memory
-Hierarchical memory (user/session/agent/turn) with SQLite + HNSW backends. Survives across conversations.
-[Learn more &rarr;](memory.md)
+Hierarchical memory (user/session/agent/turn) with USearch / SQLite + HNSW backends. Survives across conversations.
+[Memory guide &rarr;](memory.md) · [USearch backend &rarr;](usearch.md)
 </div>
 
 <div class="grid-item" markdown>
@@ -384,6 +384,12 @@ Codebase-wide semantic graph via Tree-sitter + NetworkX. BFS subgraphs replace f
 </div>
 
 <div class="grid-item" markdown>
+### Stack Graphs Code Navigation
+Deterministic cross-file go-to-definition via tree-sitter-stack-graphs. Exact symbol resolution without ML or embeddings. Supports Python, JS/TS.
+[Learn more &rarr;](stack-graphs.md)
+</div>
+
+<div class="grid-item" markdown>
 ### Structural Diff (Difftastic)
 AST-aware git diff compression. Moved code = 0 lines, whitespace ignored, 60–95% reduction on large refactors.
 [Learn more &rarr;](difftastic.md)
@@ -413,13 +419,14 @@ Or via LiteLLM for 100+ providers (Together, Groq, Fireworks, Ollama, vLLM, etc.
 
 ```bash
 pip install cutctx-ai                # Core library (Python)
-pip install "cutctx-ai[all]"         # Everything (recommended)
+pip install "cutctx-ai[all]"         # Broad bundle (heavy/proprietary extras omitted)
 npm install cutctx-ai                # TypeScript / Node.js
 pip install "cutctx-ai[proxy]"       # Proxy server + MCP tools
 pip install "cutctx-ai[ml]"          # ML compression (Kompress, requires torch)
 pip install "cutctx-ai[langchain]"   # LangChain integration
 pip install "cutctx-ai[agno]"        # Agno integration
 pip install "cutctx-ai[evals]"       # Evaluation framework
+pip install usearch                  # USearch vector backend (also in [memory])
 ```
 
 Requires Python 3.10+.
