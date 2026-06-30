@@ -1236,29 +1236,25 @@ export default function Overview() {
             )}
           </section>
 
-          {activeClientRows.length > 0 ? (
-            <SavingsPanel
-              title="Savings by client"
-              eyebrow="Attribution"
-              rows={activeClientRows}
-              totalTokens={totalClientTokens}
-              emptyIcon={Sparkles}
-              emptyTitle="No client data yet"
-              emptyDescription="Client-level attribution appears once requests include client tags."
-            />
-          ) : null}
+          <SavingsPanel
+            title="Savings by client"
+            eyebrow="Attribution"
+            rows={activeClientRows}
+            totalTokens={totalClientTokens}
+            emptyIcon={Sparkles}
+            emptyTitle="No client data yet"
+            emptyDescription="Client-level attribution appears once requests include client tags."
+          />
 
-          {activeModelRows.length > 0 ? (
-            <SavingsPanel
-              title="Savings by model"
-              eyebrow="Attribution"
-              rows={activeModelRows}
-              totalTokens={totalModelTokens}
-              emptyIcon={Layers}
-              emptyTitle="No model data yet"
-              emptyDescription="Model-level attribution appears once requests flow through the proxy."
-            />
-          ) : null}
+          <SavingsPanel
+            title="Savings by model"
+            eyebrow="Attribution"
+            rows={activeModelRows}
+            totalTokens={totalModelTokens}
+            emptyIcon={Layers}
+            emptyTitle="No model data yet"
+            emptyDescription="Model-level attribution appears once requests flow through the proxy."
+          />
 
           <DiagnosticsPanel prefixCache={prefixCache} />
           <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} />

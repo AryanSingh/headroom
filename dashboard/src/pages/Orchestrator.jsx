@@ -16,7 +16,7 @@ export default function Orchestrator() {
   const tokensSaved = stats?.savings_by_source?.tokens?.model_routing || 0;
   
   return (
-    <div className="page-shell">
+    <div className="page-stack">
       <header className="page-header">
         <div className="header-icon-container">
           <Network size={24} />
@@ -27,36 +27,38 @@ export default function Orchestrator() {
         </div>
       </header>
 
-      <section className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-card-header">
+      <section className="metric-grid metric-grid-two">
+        <article className="metric-card">
+          <div className="metric-card-header">
             <h3>Routed USD Savings</h3>
             <ArrowDownCircle className="stat-icon savings" />
           </div>
-          <div className="stat-card-value savings">
+          <div className="metric-card-value savings">
             {formatCurrency(usdSaved)}
           </div>
-          <div className="stat-card-subtitle">
+          <div className="metric-card-subtitle">
             Delta vs requested models
           </div>
-        </div>
+        </article>
 
-        <div className="stat-card">
-          <div className="stat-card-header">
+        <article className="metric-card">
+          <div className="metric-card-header">
             <h3>Routed Token Savings</h3>
             <CheckCircle2 className="stat-icon" />
           </div>
-          <div className="stat-card-value">
+          <div className="metric-card-value">
             {formatNumber(tokensSaved)}
           </div>
-          <div className="stat-card-subtitle">
+          <div className="metric-card-subtitle">
             Offloaded to local/cheaper models
           </div>
-        </div>
+        </article>
       </section>
       
-      <section className="card">
-        <h3>How it works</h3>
+      <section className="panel">
+        <div className="section-heading">
+          <h2>How it works</h2>
+        </div>
         <p style={{ marginTop: '1rem', lineHeight: '1.5' }}>
           The Smart Coding Model Orchestrator intercepts requests from your AI coding agents. 
           If it detects a simple task (e.g. fixing typos, adding docstrings) using heuristic classification, 
