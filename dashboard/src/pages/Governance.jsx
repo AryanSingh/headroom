@@ -214,11 +214,7 @@ export default function Governance({ searchQuery = '' }) {
   const { stats, loading: statsLoading } = useDashboardData();
   const [sections, setSections] = useState({
     audit: emptySection(),
-    orgs: emptySection(),
-    quota: emptySection(),
     rbac: emptySection(),
-    retention: emptySection(),
-    subscription: emptySection(),
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
