@@ -2401,7 +2401,7 @@
 <li><strong>Analysis intent protection</strong> (<code>protect_analysis_context=True</code>): If the most recent user message contains keywords like "analyze", "review", "explain", "fix", "debug", "optimize", "error", "bug" — ALL code in the conversation is protected</li>
 </ol>
 <p><strong>Why this is the right default</strong>: Code is almost always fetched because the user wants to work with it. Compressing function bodies would remove exactly what they need. LLMs like Claude are excellent at navigating large code files without compression.</p>
-<p><strong>Where code savings come from</strong>: The IntelligentContextManager drops old code messages that are no longer relevant (scoring-based), which is a better strategy than stripping function bodies from active code.</p>
+<p><strong>Where code savings come from</strong>: The RollingWindow drops old messages when the token limit is exceeded, but live-zone compression targets statistical redundancy within the active code blocks.</p>
 <p><strong>Override</strong>: Set <code>protect_analysis_context=False</code> in <code>ContentRouterConfig</code> for aggressive code compression. Requires <code>cutctx-ai[code]</code> for tree-sitter.</p>
 <h2 id="json-compression-constraints">JSON Compression Constraints<a class="headerlink" href="#json-compression-constraints" title="Permanent link">&para;</a></h2>
 <h3 id="what-gets-compressed">What gets compressed<a class="headerlink" href="#what-gets-compressed" title="Permanent link">&para;</a></h3>
@@ -2448,9 +2448,6 @@
 <li><strong>Latency</strong>: Adds overhead that doesn't break even on fast models. Use for <strong>cost savings</strong>, not speed</li>
 <li><strong>Thread safety</strong>: Single global model instance with lock — sequential access under concurrency</li>
 </ul>
-<blockquote>
-<p>The earlier LLMLingua-2 integration (<code>cutctx-ai[llmlingua]</code>) was retired and is no longer installable.</p>
-</blockquote>
 <h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
 <p>All compressors follow the same principle: <strong>fail gracefully, return original content unchanged</strong>.</p>
 <ul>

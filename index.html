@@ -2809,7 +2809,7 @@
 <pre class="mermaid"><code>graph LR
     A[Your Prompt] --&gt; B[CacheAligner]
     B --&gt; C[ContentRouter]
-    C --&gt; D[IntelligentContext]
+    C --&gt; D[RollingWindow]
     D --&gt; E[LLM Provider]
 
     C --&gt;|JSON| F[SmartCrusher]
@@ -2879,7 +2879,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Stage 3: IntelligentContext</strong> — If the conversation still exceeds the model's context limit, scores each message by importance (recency, references, density) and drops the lowest-value ones.</p>
+<p><strong>Stage 3: RollingWindow</strong> — If the conversation still exceeds the model's context limit, drops the oldest messages to strictly enforce the token budget.</p>
 <p><strong>Nothing is lost.</strong> Compressed content goes into the CCR store (Compress-Cache-Retrieve). The LLM gets a <code>cutctx_retrieve</code> tool and can fetch full originals when it needs more detail.</p>
 <p><a href="ARCHITECTURE/">Full architecture deep dive &rarr;</a></p>
 <hr />
