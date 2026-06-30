@@ -9,6 +9,7 @@ pub mod compression_policy;
 pub mod relevance;
 pub mod semantic_cache;
 pub mod signals;
+pub mod stack_graph;
 pub mod tokenizer;
 pub mod transforms;
 

@@ -31,6 +31,7 @@ class VectorBackend(Enum):
     AUTO = "auto"  # Auto-select: SQLITE_VEC if available, else HNSW
     SQLITE_VEC = "sqlite_vec"  # SQLite-based, bounded memory, recommended
     HNSW = "hnsw"  # hnswlib-based, unbounded unless max_entries set
+    USEARCH = "usearch"  # USearch-based, lightweight HNSW alternative
     EXTERNAL = "external"  # Loaded from entry_points(group="cutctx.memory_vector")
 
 

@@ -7,7 +7,9 @@ and proper wiring between components.
 
 from __future__ import annotations
 
+import logging
 import threading
+from dataclasses import replace as dataclass_replace
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +25,8 @@ from cutctx.memory.config import (
 if TYPE_CHECKING:
     from cutctx.memory.ports import Embedder, MemoryCache, MemoryStore, TextIndex, VectorIndex
 
+
+logger = logging.getLogger(__name__)
 
 # Extension groups for memory backends registered via setuptools entry points.
 _MEMORY_STORE_GROUP = "cutctx.memory_store"
@@ -241,19 +245,23 @@ def _create_vector_index(config: MemoryConfig) -> VectorIndex:
             config,
         )
 
-    # AUTO: prefer SQLITE_VEC → HNSW → fail with helpful message
+    # AUTO: prefer USEARCH → SQLITE_VEC → HNSW → fail with helpful message
     if backend == VectorBackend.AUTO:
         from cutctx.memory.adapters import HNSW_AVAILABLE, SQLITE_VEC_AVAILABLE
+        from cutctx.memory.backends.usearch_store import usearch_available
 
-        if SQLITE_VEC_AVAILABLE:
+        if usearch_available():
+            backend = VectorBackend.USEARCH
+        elif SQLITE_VEC_AVAILABLE:
             backend = VectorBackend.SQLITE_VEC
         elif HNSW_AVAILABLE:
             backend = VectorBackend.HNSW
         else:
             raise ValueError(
                 "No vector index backend available for memory. Install one:\n"
-                "  pip install sqlite-vec   (recommended, lightweight)\n"
-                "  pip install hnswlib      (alternative)\n"
+                "  pip install usearch       (fast, memory-efficient, recommended)\n"
+                "  pip install sqlite-vec    (lightweight, SQLite-based)\n"
+                "  pip install hnswlib       (alternative)\n"
                 "Or install the full proxy bundle: pip install cutctx-ai[proxy]"
             )
 
@@ -307,6 +315,31 @@ def _create_vector_index(config: MemoryConfig) -> VectorIndex:
             max_entries=config.hnsw_max_entries,
             save_path=hnsw_save_path,
             auto_save=True,
+        )
+
+    if backend == VectorBackend.USEARCH:
+        from cutctx.memory.backends.usearch_store import usearch_available
+
+        if not usearch_available():
+            logger.warning(
+                "usearch is not installed. Falling back to VectorBackend.AUTO. "
+                "Install with: pip install usearch"
+            )
+            return _create_vector_index(
+                dataclass_replace(config, vector_backend=VectorBackend.AUTO)
+            )
+
+        from cutctx.memory.backends.usearch_store import UsearchMemoryBackend
+
+        # Derive path: use explicit vector_db_path, or derive from db_path
+        path: str | Path | None = config.vector_db_path
+        if path is None and config.db_path:
+            path = config.db_path.with_suffix(".usearch")
+
+        return UsearchMemoryBackend(
+            ndim=config.vector_dimension,
+            dtype="f16",
+            path=path,
         )
 
     raise ValueError(f"Unknown vector backend: {config.vector_backend}")

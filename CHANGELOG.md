@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **USearch vector backend** (`cutctx/memory/backends/usearch_store.py`) — new optional vector index backend using Unum's USearch library for ~10× faster vector search with f16 quantization and zero-copy memory-mapped index loading. Added `VectorBackend.USEARCH` enum; wired into factory with `AUTO` fallback chain (USEARCH → SQLITE_VEC → HNSW). Requires `pip install usearch>=2.10.0`.
+- **Stack Graphs Rust module** (`crates/cutctx-core/src/stack_graph/`) — GitHub-style stack-graph implementation for deterministic, file-incremental cross-file code navigation. `StackGraphManager` with language registration (Python + JS/TS), tree-sitter AST parsing, TSG rule loading for scoped symbol resolution, and BFS-based `resolve_reference()` for go-to-definition across files.
+- **PyO3 binding** — `StackGraphManager` exposed to Python as `cutctx._core.StackGraphManager` with thread-safe mutex wrapping.
+- **Integration plan** — `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` documenting all phases, handoff markers for agent takeover, ADRs, and risk assessment.
+
+### Changed
+- **`pyproject.toml`** — added `usearch>=2.10.0` to `[memory]` optional-dependency group
+- **`crates/cutctx-core/Cargo.toml`** — added `stack-graphs`, `tree-sitter`, `tree-sitter-stack-graphs`, `tree-sitter-python`, `tree-sitter-javascript`, `lsp-positions`, `streaming-iterator` dependencies
+- **`cutctx/memory/config.py`** — added `VectorBackend.USEARCH = "usearch"` enum member
+- **`cutctx/memory/factory.py`** — added `USEARCH` routing with availability check and fallback
+
+### New Files
+- `cutctx/memory/backends/usearch_store.py` — `UsearchMemoryBackend` class (thread-safe, persistent, f16 quantization)
+- `crates/cutctx-core/src/stack_graph/mod.rs` — `StackGraphManager` with TSG rule loading and `resolve_reference()`
+- `crates/cutctx-core/src/stack_graph/tsg_rules/python.tsg` — Python TSG definitions
+- `crates/cutctx-core/src/stack_graph/tsg_rules/javascript.tsg` — JavaScript/TypeScript TSG definitions
+- `tests/test_usearch_backend.py` — 11 tests for USearch backend (skipif guard)
+- `wiki/plans/2026-06-30-usearch-stack-graphs-integration-plan.md` — full integration plan
 
 ## [0.28.0] - 2026-06-29
 

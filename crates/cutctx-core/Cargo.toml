@@ -147,6 +147,16 @@ redis = { version = "0.27", optional = true, default-features = false }
 # cycling through the proxy crate. Tiny crate (no I/O, just types).
 http = "1"
 tracing-opentelemetry = "0.33.0"
+# `tree-sitter-*` for Stack Graphs cross-file code navigation (Phase 2).
+stack-graphs = "0.13"
+tree-sitter = "0.25"
+tree-sitter-stack-graphs = "0.8"
+tree-sitter-python = "0.25"
+tree-sitter-javascript = "0.25"
+# `lsp-positions` for stack-graph source position types (LSP-compatible spans).
+lsp-positions = "0.3"
+# `streaming-iterator` for tree-sitter 0.25 `QueryMatches` iteration.
+streaming-iterator = "0.1"
 # `libc` for ptrace(PT_DENY_ATTACH) on macOS in the antidebug module.
 # Already a transitive dep via many crates; pinning it here keeps the
 # type signature stable.

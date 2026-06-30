@@ -1,0 +1,30 @@
+;; Python Stack Graph Construction Rules
+;;
+;; Defines scopes for function and class definitions,
+;; and creates push/pop symbol nodes for references and definitions.
+
+;; Function definitions: exported scope + definition pop-symbol for the function name
+(function_definition
+  name: (identifier) @name) @func {
+  node func_scope
+  attr (func_scope) is_exported
+  node def
+  attr (def) type = "pop_symbol", symbol = (source-text @name), source_node = @func, is_definition, syntax_type = "function"
+  edge func_scope -> def
+}
+
+;; Class definitions: exported scope + definition pop-symbol for the class name
+(class_definition
+  name: (identifier) @name) @class {
+  node class_scope
+  attr (class_scope) is_exported
+  node def
+  attr (def) type = "pop_symbol", symbol = (source-text @name), source_node = @class, is_definition, syntax_type = "class"
+  edge class_scope -> def
+}
+
+;; Identifier references: push symbol nodes for any identifier
+(identifier) @id {
+  node ref
+  attr (ref) type = "push_symbol", symbol = (source-text @id), is_reference, source_node = @id
+}

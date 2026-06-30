@@ -110,6 +110,7 @@ ml = [
 memory = [
     "hnswlib>=0.8.0",
     "sqlite-vec>=0.1.6",
+    "usearch>=2.10.0",
     "sentence-transformers>=2.2.0,<6.0",
 ]
 # Qdrant + Neo4j memory backend helpers
