@@ -178,6 +178,9 @@ def load_policy_from_env() -> EgressPolicy:
     """
     raw = os.environ.get("CUTCTX_EGRESS_POLICY", "").strip()
     if not raw:
+        from cutctx.proxy.airgap import is_offline
+        if not is_offline():
+            return EgressPolicy(policy_id="default-connected", allow_all=True)
         return EgressPolicy(policy_id="default-empty")
     try:
         payload = json.loads(raw)
