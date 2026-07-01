@@ -790,6 +790,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stack-graphs-code-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stack Graphs Code Navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#structural-diff-difftastic" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2581,6 +2592,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stack-graphs-code-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stack Graphs Code Navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#structural-diff-difftastic" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2670,7 +2692,7 @@
 <span class="label">Answer Accuracy</span>
 </div>
 <div class="stat">
-<span class="number">6</span>
+<span class="number">7</span>
 <span class="label">Compression Algorithms</span>
 </div>
 <div class="stat">
@@ -3019,8 +3041,8 @@
 </div>
 <div class="grid-item">
 <h3 id="persistent-memory">Persistent Memory<a class="headerlink" href="#persistent-memory" title="Permanent link">&para;</a></h3>
-<p>Hierarchical memory (user/session/agent/turn) with SQLite + HNSW backends. Survives across conversations.
-<a href="memory/">Learn more &rarr;</a></p>
+<p>Hierarchical memory (user/session/agent/turn) with USearch / SQLite + HNSW backends. Survives across conversations.
+<a href="memory/">Memory guide &rarr;</a> · <a href="usearch/">USearch backend &rarr;</a></p>
 </div>
 <div class="grid-item">
 <h3 id="failure-learning">Failure Learning<a class="headerlink" href="#failure-learning" title="Permanent link">&para;</a></h3>
@@ -3052,6 +3074,11 @@
 <a href="knowledge-graph/">Learn more &rarr;</a></p>
 </div>
 <div class="grid-item">
+<h3 id="stack-graphs-code-navigation">Stack Graphs Code Navigation<a class="headerlink" href="#stack-graphs-code-navigation" title="Permanent link">&para;</a></h3>
+<p>Deterministic cross-file go-to-definition via tree-sitter-stack-graphs. Exact symbol resolution without ML or embeddings. Supports Python, JS/TS.
+<a href="stack-graphs/">Learn more &rarr;</a></p>
+</div>
+<div class="grid-item">
 <h3 id="structural-diff-difftastic">Structural Diff (Difftastic)<a class="headerlink" href="#structural-diff-difftastic" title="Permanent link">&para;</a></h3>
 <p>AST-aware git diff compression. Moved code = 0 lines, whitespace ignored, 60–95% reduction on large refactors.
 <a href="difftastic/">Learn more &rarr;</a></p>
@@ -3070,13 +3097,14 @@
 <hr />
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>pip<span class="w"> </span>install<span class="w"> </span>cutctx-ai<span class="w">                </span><span class="c1"># Core library (Python)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[all]&quot;</span><span class="w">         </span><span class="c1"># Everything (recommended)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[all]&quot;</span><span class="w">         </span><span class="c1"># Broad bundle (heavy/proprietary extras omitted)</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>npm<span class="w"> </span>install<span class="w"> </span>cutctx-ai<span class="w">                </span><span class="c1"># TypeScript / Node.js</span>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[proxy]&quot;</span><span class="w">       </span><span class="c1"># Proxy server + MCP tools</span>
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[ml]&quot;</span><span class="w">          </span><span class="c1"># ML compression (Kompress, requires torch)</span>
 </span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[langchain]&quot;</span><span class="w">   </span><span class="c1"># LangChain integration</span>
 </span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[agno]&quot;</span><span class="w">        </span><span class="c1"># Agno integration</span>
 </span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cutctx-ai[evals]&quot;</span><span class="w">       </span><span class="c1"># Evaluation framework</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>pip<span class="w"> </span>install<span class="w"> </span>usearch<span class="w">                  </span><span class="c1"># USearch vector backend (also in [memory])</span>
 </span></code></pre></div>
 <p>Requires Python 3.10+.</p>
 <hr />

@@ -1212,6 +1212,34 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#vector-backend-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector Backend Selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vector Backend Selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usearch-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        USearch Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#wrapper-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2748,6 +2776,34 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#vector-backend-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector Backend Selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vector Backend Selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usearch-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        USearch Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#wrapper-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3555,47 +3611,159 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 </span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="n">cache_max_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>           <span class="c1"># Max cached memories</span>
 </span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="p">)</span>
 </span></code></pre></div>
+<h3 id="vector-backend-selection">Vector Backend Selection<a class="headerlink" href="#vector-backend-selection" title="Permanent link">&para;</a></h3>
+<p>Cutctx supports multiple vector index backends for semantic search. Selection is automatic via <code>VectorBackend.AUTO</code> or explicit via the enum.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Enum</th>
+<th>Install</th>
+<th>Speed</th>
+<th>Memory Efficiency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>USearch</strong> (default)</td>
+<td><code>VectorBackend.USEARCH</code></td>
+<td><code>pip install usearch</code> or <code>pip install cutctx-ai[memory]</code></td>
+<td>~10× faster than sqlite-vec</td>
+<td>f16 quantization (50% less memory than f32)</td>
+</tr>
+<tr>
+<td>SQLite Vec</td>
+<td><code>VectorBackend.SQLITE_VEC</code></td>
+<td>Bundled</td>
+<td>Baseline</td>
+<td>f32</td>
+</tr>
+<tr>
+<td>HNSW</td>
+<td><code>VectorBackend.HNSW</code></td>
+<td><code>pip install hnswlib</code></td>
+<td>Fast</td>
+<td>f32</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Auto-preference order:</strong> <code>USEARCH</code> → <code>SQLITE_VEC</code> → <code>HNSW</code>. When <code>usearch</code> is installed, <code>AUTO</code> picks it automatically.</p>
+<h4 id="usearch-backend">USearch Backend<a class="headerlink" href="#usearch-backend" title="Permanent link">&para;</a></h4>
+<p><a href="https://github.com/unum-cloud/usearch"><strong>USearch</strong></a> is a fast vector search library that serves as Cutctx's primary local vector backend. It provides:</p>
+<ul>
+<li><strong>f16 quantization</strong> — 16-bit floats halve memory usage vs f32 with negligible accuracy loss</li>
+<li><strong>Zero-copy memory-mapped loading</strong> — index files map directly to memory via <code>index.view()</code>, enabling instant loading of large indexes</li>
+<li><strong>Thread-safe concurrent access</strong> — internal locking for read/write safety</li>
+<li><strong>Cosine similarity</strong> — distances normalized to [0, 1] similarity scores</li>
+</ul>
+<p>Configuration via <code>MemoryConfig</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">MemoryConfig</span><span class="p">,</span> <span class="n">VectorBackend</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="c1"># Explicitly select USearch</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">MemoryConfig</span><span class="p">(</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">vector_backend</span><span class="o">=</span><span class="n">VectorBackend</span><span class="o">.</span><span class="n">USEARCH</span><span class="p">,</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">vector_dimension</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>     <span class="c1"># Must match embedder (default: 384 for bge-small)</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="p">)</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="c1"># Or let AUTO detect it (preferred when usearch is installed)</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="n">config</span> <span class="o">=</span> <span class="n">MemoryConfig</span><span class="p">(</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="n">vector_backend</span><span class="o">=</span><span class="n">VectorBackend</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>  <span class="c1"># Resolves to USEARCH if installed</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Advanced USearch parameters (passed through to <code>UsearchMemoryBackend</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ndim</code></td>
+<td>384</td>
+<td>Embedding dimension (must match embedder output)</td>
+</tr>
+<tr>
+<td><code>metric</code></td>
+<td><code>"cos"</code></td>
+<td>Distance metric (<code>"cos"</code>, <code>"l2sq"</code>, <code>"ip"</code>)</td>
+</tr>
+<tr>
+<td><code>dtype</code></td>
+<td><code>"f16"</code></td>
+<td>Quantization dtype (<code>"f16"</code>, <code>"f32"</code>, <code>"i8"</code>)</td>
+</tr>
+<tr>
+<td><code>connectivity</code></td>
+<td>16</td>
+<td>HNSW graph connectivity</td>
+</tr>
+<tr>
+<td><code>expansion_add</code></td>
+<td>128</td>
+<td>Index build quality vs speed</td>
+</tr>
+<tr>
+<td><code>expansion_search</code></td>
+<td>64</td>
+<td>Search accuracy vs speed</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> USearch does not support native deletion. Removed keys are tracked in a separate set and filtered from search results at query time. See <code>UsearchMemoryBackend.remove()</code> for details.</p>
+</blockquote>
+<p><strong>Implementation:</strong> <code>cutctx/memory/backends/usearch_store.py</code> — <code>UsearchMemoryBackend</code> class implementing the <code>VectorIndex</code> protocol.</p>
 <h3 id="wrapper-configuration">Wrapper Configuration<a class="headerlink" href="#wrapper-configuration" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">OpenAI</span><span class="p">(),</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">db_path</span><span class="o">=</span><span class="s2">&quot;memory.db&quot;</span><span class="p">,</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>                       <span class="c1"># Memories to inject per request</span>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">session_id</span><span class="o">=</span><span class="s2">&quot;optional-session&quot;</span><span class="p">,</span>
-</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;optional-agent&quot;</span><span class="p">,</span>
-</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="n">embedder_backend</span><span class="o">=</span><span class="n">EmbedderBackend</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">,</span>
-</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>    <span class="n">OpenAI</span><span class="p">(),</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">db_path</span><span class="o">=</span><span class="s2">&quot;memory.db&quot;</span><span class="p">,</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>                       <span class="c1"># Memories to inject per request</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">session_id</span><span class="o">=</span><span class="s2">&quot;optional-session&quot;</span><span class="p">,</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;optional-agent&quot;</span><span class="p">,</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    <span class="n">embedder_backend</span><span class="o">=</span><span class="n">EmbedderBackend</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">,</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="p">)</span>
 </span></code></pre></div>
 <hr />
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <h3 id="protocol-based-design">Protocol-Based Design<a class="headerlink" href="#protocol-based-design" title="Permanent link">&para;</a></h3>
 <p>Cutctx Memory uses <strong>Protocol interfaces</strong> (ports) for all components, enabling easy swapping:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>┌─────────────────────────────────────────────────────────────┐
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>│                   HierarchicalMemory                        │
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>│                     (Orchestrator)                          │
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>├─────────────────────────────────────────────────────────────┤
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>│                                                             │
-</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>│  │ MemoryStore │  │ VectorIndex │  │  TextIndex  │        │
-</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>│  │  Protocol   │  │  Protocol   │  │  Protocol   │        │
-</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
-</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>│         │                │                │                │
-</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐        │
-</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>│  │   SQLite    │  │    HNSW     │  │    FTS5     │        │
-</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>│  │  Adapter    │  │   Adapter   │  │   Adapter   │        │
-</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>│  └─────────────┘  └─────────────┘  └─────────────┘        │
-</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>│                                                             │
-</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>│  ┌─────────────┐  ┌─────────────┐                          │
-</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>│  │  Embedder   │  │ MemoryCache │                          │
-</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>│  │  Protocol   │  │  Protocol   │                          │
-</span><span id="__span-16-19"><a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>│  └──────┬──────┘  └──────┬──────┘                          │
-</span><span id="__span-16-20"><a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>│         │                │                                  │
-</span><span id="__span-16-21"><a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>│  ┌──────▼──────┐  ┌──────▼──────┐                          │
-</span><span id="__span-16-22"><a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>│  │Local/OpenAI/│  │  LRU Cache  │                          │
-</span><span id="__span-16-23"><a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a>│  │   Ollama    │  │             │                          │
-</span><span id="__span-16-24"><a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a>│  └─────────────┘  └─────────────┘                          │
-</span><span id="__span-16-25"><a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a>│                                                             │
-</span><span id="__span-16-26"><a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a>└─────────────────────────────────────────────────────────────┘
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>┌─────────────────────────────────────────────────────────────┐
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>│                   HierarchicalMemory                        │
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>│                     (Orchestrator)                          │
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>├─────────────────────────────────────────────────────────────┤
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>│                                                             │
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>│  │ MemoryStore │  │ VectorIndex │  │  TextIndex  │        │
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>│  │  Protocol   │  │  Protocol   │  │  Protocol   │        │
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>│         │                │                │                │
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>│  ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐        │
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>│  │   SQLite    │  │  USearch ◄──┼──│    FTS5     │        │
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>│  │  Adapter    │  │ (default)   │  │   Adapter   │        │
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>│  │             │  ├─────────────┤  └─────────────┘        │
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>│  │             │  │    HNSW     │                          │
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>│  │             │  │   Adapter   │                          │
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>│  │             │  └─────────────┘                          │
+</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>│  │             │  ┌─────────────┐                          │
+</span><span id="__span-17-19"><a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>│  │             │  │  SQLite Vec │                          │
+</span><span id="__span-17-20"><a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a>│  │             │  │   Adapter   │                          │
+</span><span id="__span-17-21"><a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a>│  └─────────────┘  └─────────────┘                          │
+</span><span id="__span-17-22"><a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a>│                                                             │
+</span><span id="__span-17-23"><a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a>│  ┌─────────────┐  ┌─────────────┐                          │
+</span><span id="__span-17-24"><a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a>│  │  Embedder   │  │ MemoryCache │                          │
+</span><span id="__span-17-25"><a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a>│  │  Protocol   │  │  Protocol   │                          │
+</span><span id="__span-17-26"><a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a>│  └──────┬──────┘  └──────┬──────┘                          │
+</span><span id="__span-17-27"><a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a>│         │                │                                  │
+</span><span id="__span-17-28"><a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a>│  ┌──────▼──────┐  ┌──────▼──────┐                          │
+</span><span id="__span-17-29"><a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a>│  │Local/OpenAI/│  │  LRU Cache  │                          │
+</span><span id="__span-17-30"><a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a>│  │   Ollama    │  │             │                          │
+</span><span id="__span-17-31"><a id="__codelineno-17-31" name="__codelineno-17-31" href="#__codelineno-17-31"></a>│  └─────────────┘  └─────────────┘                          │
+</span><span id="__span-17-32"><a id="__codelineno-17-32" name="__codelineno-17-32" href="#__codelineno-17-32"></a>│                                                             │
+</span><span id="__span-17-33"><a id="__codelineno-17-33" name="__codelineno-17-33" href="#__codelineno-17-33"></a>└─────────────────────────────────────────────────────────────┘
 </span></code></pre></div>
 <h3 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h3>
 <table>
@@ -3617,7 +3785,7 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 <tr>
 <td><strong>VectorIndex</strong></td>
 <td><code>VectorIndex</code></td>
-<td><code>HNSWVectorIndex</code></td>
+<td><code>UsearchMemoryBackend</code> (AUTO → USearch → SQLite Vec → HNSW)</td>
 <td>Semantic similarity search</td>
 </tr>
 <tr>
@@ -3837,13 +4005,13 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 <hr />
 <h2 id="multi-user-isolation">Multi-User Isolation<a class="headerlink" href="#multi-user-isolation" title="Permanent link">&para;</a></h2>
 <p>Memories are isolated by <code>user_id</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Alice&#39;s memories</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">alice_client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Bob&#39;s memories (completely separate)</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">bob_client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;bob&quot;</span><span class="p">)</span>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Bob cannot see Alice&#39;s memories, even with the same database</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Alice&#39;s memories</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">alice_client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Bob&#39;s memories (completely separate)</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">bob_client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;bob&quot;</span><span class="p">)</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Bob cannot see Alice&#39;s memories, even with the same database</span>
 </span></code></pre></div>
 <hr />
 <h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
@@ -3859,7 +4027,7 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 <tr>
 <td>Memory injection</td>
 <td>&lt;50ms</td>
-<td>Local embeddings + HNSW search</td>
+<td>Local embeddings + USearch (f16, cos)</td>
 </tr>
 <tr>
 <td>Memory extraction</td>
@@ -3869,7 +4037,7 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 <tr>
 <td>Memory storage</td>
 <td>&lt;10ms</td>
-<td>SQLite + HNSW + FTS5 indexing</td>
+<td>SQLite + USearch + FTS5 indexing</td>
 </tr>
 <tr>
 <td>Cache hit</td>
@@ -3882,61 +4050,61 @@ Apple GPU instead of the default ONNX CPU embedder. Notes:</p>
 <hr />
 <h2 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h2>
 <p>Memory works with any OpenAI-compatible client:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">with_memory</span>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># OpenAI</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Azure OpenAI</span>
-</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span>
-</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>    <span class="n">OpenAI</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://your-resource.openai.azure.com/...&quot;</span><span class="p">),</span>
-</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>    <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span>
-</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="p">)</span>
-</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>
-</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="c1"># Groq</span>
-</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="kn">from</span><span class="w"> </span><span class="nn">groq</span><span class="w"> </span><span class="kn">import</span> <span class="n">Groq</span>
-</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">Groq</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
-</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>
-</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="c1"># Any OpenAI-compatible client</span>
-</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">YourClient</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
-</span></code></pre></div>
-<hr />
-<h2 id="example-full-conversation-flow">Example: Full Conversation Flow<a class="headerlink" href="#example-full-conversation-flow" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">with_memory</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;developer_jane&quot;</span><span class="p">)</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="c1"># Conversation 1: User shares context</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
-</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span>
-</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
-</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I&#39;m a Python developer at a fintech startup. We use PostgreSQL and FastAPI.&quot;</span>
-</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="p">}]</span>
-</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="p">)</span>
-</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="c1"># Memories extracted:</span>
-</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="c1">#   - [FACT] Python developer at fintech startup</span>
-</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="c1">#   - [PREFERENCE] Uses PostgreSQL for databases</span>
-</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="c1">#   - [PREFERENCE] Uses FastAPI for web APIs</span>
-</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>
-</span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="c1"># Conversation 2 (new session): User asks question</span>
-</span><span id="__span-19-20"><a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-</span><span id="__span-19-21"><a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
-</span><span id="__span-19-22"><a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span>
-</span><span id="__span-19-23"><a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a>        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
-</span><span id="__span-19-24"><a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What database should I use for my new project?&quot;</span>
-</span><span id="__span-19-25"><a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a>    <span class="p">}]</span>
-</span><span id="__span-19-26"><a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a><span class="p">)</span>
-</span><span id="__span-19-27"><a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a><span class="c1"># Response references PostgreSQL preference from memory:</span>
-</span><span id="__span-19-28"><a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="c1"># → &quot;Given your experience with PostgreSQL at your fintech company,</span>
-</span><span id="__span-19-29"><a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a><span class="c1">#    I&#39;d recommend sticking with it for consistency...&quot;</span>
-</span><span id="__span-19-30"><a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a>
-</span><span id="__span-19-31"><a id="__codelineno-19-31" name="__codelineno-19-31" href="#__codelineno-19-31"></a><span class="c1"># Check stored memories</span>
-</span><span id="__span-19-32"><a id="__codelineno-19-32" name="__codelineno-19-32" href="#__codelineno-19-32"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stored memories:&quot;</span><span class="p">)</span>
-</span><span id="__span-19-33"><a id="__codelineno-19-33" name="__codelineno-19-33" href="#__codelineno-19-33"></a><span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">memory</span><span class="o">.</span><span class="n">get_all</span><span class="p">():</span>
-</span><span id="__span-19-34"><a id="__codelineno-19-34" name="__codelineno-19-34" href="#__codelineno-19-34"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">category</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">content</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># OpenAI</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Azure OpenAI</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="n">OpenAI</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://your-resource.openai.azure.com/...&quot;</span><span class="p">),</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>    <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="p">)</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="c1"># Groq</span>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="kn">from</span><span class="w"> </span><span class="nn">groq</span><span class="w"> </span><span class="kn">import</span> <span class="n">Groq</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">Groq</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="c1"># Any OpenAI-compatible client</span>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">YourClient</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;alice&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-full-conversation-flow">Example: Full Conversation Flow<a class="headerlink" href="#example-full-conversation-flow" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx</span><span class="w"> </span><span class="kn">import</span> <span class="n">with_memory</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">with_memory</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;developer_jane&quot;</span><span class="p">)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># Conversation 1: User shares context</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span>
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+</span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I&#39;m a Python developer at a fintech startup. We use PostgreSQL and FastAPI.&quot;</span>
+</span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>    <span class="p">}]</span>
+</span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="p">)</span>
+</span><span id="__span-20-14"><a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a><span class="c1"># Memories extracted:</span>
+</span><span id="__span-20-15"><a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a><span class="c1">#   - [FACT] Python developer at fintech startup</span>
+</span><span id="__span-20-16"><a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a><span class="c1">#   - [PREFERENCE] Uses PostgreSQL for databases</span>
+</span><span id="__span-20-17"><a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a><span class="c1">#   - [PREFERENCE] Uses FastAPI for web APIs</span>
+</span><span id="__span-20-18"><a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a>
+</span><span id="__span-20-19"><a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a><span class="c1"># Conversation 2 (new session): User asks question</span>
+</span><span id="__span-20-20"><a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="__span-20-21"><a id="__codelineno-20-21" name="__codelineno-20-21" href="#__codelineno-20-21"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-20-22"><a id="__codelineno-20-22" name="__codelineno-20-22" href="#__codelineno-20-22"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span>
+</span><span id="__span-20-23"><a id="__codelineno-20-23" name="__codelineno-20-23" href="#__codelineno-20-23"></a>        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+</span><span id="__span-20-24"><a id="__codelineno-20-24" name="__codelineno-20-24" href="#__codelineno-20-24"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What database should I use for my new project?&quot;</span>
+</span><span id="__span-20-25"><a id="__codelineno-20-25" name="__codelineno-20-25" href="#__codelineno-20-25"></a>    <span class="p">}]</span>
+</span><span id="__span-20-26"><a id="__codelineno-20-26" name="__codelineno-20-26" href="#__codelineno-20-26"></a><span class="p">)</span>
+</span><span id="__span-20-27"><a id="__codelineno-20-27" name="__codelineno-20-27" href="#__codelineno-20-27"></a><span class="c1"># Response references PostgreSQL preference from memory:</span>
+</span><span id="__span-20-28"><a id="__codelineno-20-28" name="__codelineno-20-28" href="#__codelineno-20-28"></a><span class="c1"># → &quot;Given your experience with PostgreSQL at your fintech company,</span>
+</span><span id="__span-20-29"><a id="__codelineno-20-29" name="__codelineno-20-29" href="#__codelineno-20-29"></a><span class="c1">#    I&#39;d recommend sticking with it for consistency...&quot;</span>
+</span><span id="__span-20-30"><a id="__codelineno-20-30" name="__codelineno-20-30" href="#__codelineno-20-30"></a>
+</span><span id="__span-20-31"><a id="__codelineno-20-31" name="__codelineno-20-31" href="#__codelineno-20-31"></a><span class="c1"># Check stored memories</span>
+</span><span id="__span-20-32"><a id="__codelineno-20-32" name="__codelineno-20-32" href="#__codelineno-20-32"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stored memories:&quot;</span><span class="p">)</span>
+</span><span id="__span-20-33"><a id="__codelineno-20-33" name="__codelineno-20-33" href="#__codelineno-20-33"></a><span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">memory</span><span class="o">.</span><span class="n">get_all</span><span class="p">():</span>
+</span><span id="__span-20-34"><a id="__codelineno-20-34" name="__codelineno-20-34" href="#__codelineno-20-34"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">category</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">content</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
