@@ -14,12 +14,13 @@ from cutctx.scim import reset_scim_store
 from cutctx.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
 
 
-def _make_client(tmp_path, *, tier: str) -> TestClient:
+def _make_client(tmp_path, monkeypatch, *, tier: str) -> TestClient:
     reset_audit_logger()
     reset_fleet_store()
     reset_org_store()
     reset_rbac_checker()
     reset_scim_store()
+    monkeypatch.setenv("CUTCTX_RBAC_DB_PATH", str(tmp_path / f"rbac-{tier}.db"))
     config = ProxyConfig(
         admin_api_key="secret",
         entitlement_tier=tier,
@@ -36,7 +37,7 @@ def _make_client(tmp_path, *, tier: str) -> TestClient:
 
 def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
-    with _make_client(tmp_path, tier="team") as client:
+    with _make_client(tmp_path, monkeypatch, tier="team") as client:
         headers = {"X-Cutctx-Admin-Key": "secret"}
 
         dashboard = client.get("/analytics/dashboard", headers=headers)
@@ -56,7 +57,7 @@ def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tm
 
 def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
-    with _make_client(tmp_path, tier="business") as client:
+    with _make_client(tmp_path, monkeypatch, tier="business") as client:
         headers = {"X-Cutctx-Admin-Key": "secret"}
 
         orgs = client.get("/orgs", headers=headers)
@@ -85,7 +86,7 @@ def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
 
 def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
-    with _make_client(tmp_path, tier="enterprise") as client:
+    with _make_client(tmp_path, monkeypatch, tier="enterprise") as client:
         headers = {"X-Cutctx-Admin-Key": "secret"}
 
         audit = client.get("/audit/events", headers=headers)
@@ -140,7 +141,7 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
 
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
-    with _make_client(tmp_path, tier="builder") as client:
+    with _make_client(tmp_path, monkeypatch, tier="builder") as client:
         response = client.get("/license-status", headers={"X-Cutctx-Admin-Key": "secret"})
         assert response.status_code == 200
         body = response.json()

@@ -336,11 +336,13 @@ def _create_vector_index(config: MemoryConfig) -> VectorIndex:
         if path is None and config.db_path:
             path = config.db_path.with_suffix(".usearch")
 
-        return UsearchMemoryBackend(
+        backend = UsearchMemoryBackend(
             ndim=config.vector_dimension,
             dtype="f16",
             path=path,
         )
+        backend.initialize()
+        return backend
 
     raise ValueError(f"Unknown vector backend: {config.vector_backend}")
 

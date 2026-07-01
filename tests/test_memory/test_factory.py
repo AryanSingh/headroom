@@ -389,10 +389,11 @@ class TestCreateMemorySystem:
             from cutctx.memory.adapters.hnsw import HNSWVectorIndex
             from cutctx.memory.adapters.sqlite import SQLiteMemoryStore
             from cutctx.memory.adapters.sqlite_vector import SQLiteVectorIndex
+            from cutctx.memory.backends.usearch_store import UsearchMemoryBackend
 
             assert isinstance(store, SQLiteMemoryStore)
-            # Factory auto-selects best available: SQLiteVectorIndex (preferred) or HNSW (fallback)
-            assert isinstance(vector, (SQLiteVectorIndex, HNSWVectorIndex))
+            # Factory auto-selects best available: USEARCH, SQLite-vec, then HNSW.
+            assert isinstance(vector, (UsearchMemoryBackend, SQLiteVectorIndex, HNSWVectorIndex))
             assert isinstance(text, FTS5TextIndex)
             assert isinstance(embedder, LocalEmbedder)
             assert isinstance(cache, LRUMemoryCache)
@@ -419,10 +420,11 @@ class TestCreateMemorySystem:
         from cutctx.memory.adapters.hnsw import HNSWVectorIndex
         from cutctx.memory.adapters.sqlite import SQLiteMemoryStore
         from cutctx.memory.adapters.sqlite_vector import SQLiteVectorIndex
+        from cutctx.memory.backends.usearch_store import UsearchMemoryBackend
 
         assert isinstance(store, SQLiteMemoryStore)
         # Factory auto-selects best available: SQLiteVectorIndex (preferred) or HNSW (fallback)
-        assert isinstance(vector, (SQLiteVectorIndex, HNSWVectorIndex))
+        assert isinstance(vector, (UsearchMemoryBackend, SQLiteVectorIndex, HNSWVectorIndex))
         assert isinstance(text, FTS5TextIndex)
         assert isinstance(embedder, LocalEmbedder)
         assert isinstance(cache, LRUMemoryCache)

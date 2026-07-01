@@ -8,6 +8,7 @@ embedding, indexing, caching, and memory bubbling.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -870,25 +871,32 @@ class HierarchicalMemory:
         This should be called when done using the memory system to properly
         clean up resources like HTTP clients used by embedders.
         """
+        async def _close_if_present(component: Any) -> None:
+            if not hasattr(component, "close"):
+                return
+            result = component.close()
+            if inspect.isawaitable(result):
+                await result
+
         # Close embedder if it has a close method (e.g., API-based embedders)
         if hasattr(self._embedder, "close"):
-            await self._embedder.close()
+            await _close_if_present(self._embedder)
 
         # Close store if it has a close method
         if hasattr(self._store, "close"):
-            await self._store.close()
+            await _close_if_present(self._store)
 
         # Close vector index if it has a close method
         if hasattr(self._vector_index, "close"):
-            await self._vector_index.close()
+            await _close_if_present(self._vector_index)
 
         # Close text index if it has a close method
         if hasattr(self._text_index, "close"):
-            await self._text_index.close()
+            await _close_if_present(self._text_index)
 
         # Close cache if it has a close method
         if self._cache is not None and hasattr(self._cache, "close"):
-            await self._cache.close()
+            await _close_if_present(self._cache)
 
         logger.debug("HierarchicalMemory closed")
 

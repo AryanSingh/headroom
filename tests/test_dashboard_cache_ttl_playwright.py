@@ -190,7 +190,7 @@ def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot() -> 
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1720, "height": 1400}, color_scheme="dark")
         _install_dashboard_routes(page)
-        page.goto("http://cutctx.local/dashboard", wait_until="load")
+        page.goto("http://cutctx.local/dashboard", wait_until="commit")
 
         expect(page.get_by_text("Observed TTL Buckets")).to_be_visible()
         expect(page.get_by_text("Provider-reported cache write mix")).to_be_visible()

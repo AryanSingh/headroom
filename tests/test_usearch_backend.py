@@ -12,6 +12,8 @@ import uuid
 import numpy as np
 import pytest
 
+from cutctx.memory.config import MemoryConfig, VectorBackend
+from cutctx.memory.factory import create_memory_system
 from cutctx.memory.backends.usearch_store import usearch_available, UsearchMemoryBackend
 from cutctx.memory.models import Memory
 from cutctx.memory.ports import VectorFilter, VectorSearchResult
@@ -135,6 +137,35 @@ class TestUsearchMemoryBackendProtocol:
         )
         assert len(results) <= 5
         assert len(results) > 0
+
+
+@_skip_if_no_usearch
+@pytest.mark.asyncio
+async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkeypatch):
+    from cutctx.memory import factory as memory_factory
+
+    monkeypatch.setattr(memory_factory, "_create_store", lambda config: object())
+    monkeypatch.setattr(memory_factory, "_create_embedder", lambda config: object())
+    monkeypatch.setattr(memory_factory, "_create_text_index", lambda config: object())
+    monkeypatch.setattr(memory_factory, "_create_cache", lambda config: None)
+
+    config = MemoryConfig(
+        vector_backend=VectorBackend.USEARCH,
+        vector_dimension=8,
+        vector_db_path=tmp_path / "factory.usearch",
+    )
+    _, vector_index, _, _, _ = await create_memory_system(config)
+
+    try:
+        memory = _make_memory(
+            memory_id="factory-init",
+            embedding=np.ones(8, dtype=np.float32),
+        )
+        await vector_index.index(memory)
+        assert isinstance(vector_index, UsearchMemoryBackend)
+        assert vector_index.size == 1
+    finally:
+        vector_index.close()
 
     @pytest.mark.asyncio
     async def test_cosine_similarity(self, backend, unit_vector):

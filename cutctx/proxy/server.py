@@ -3761,7 +3761,7 @@ def _require_rbac_permission(permission: str):
         fav_path = react_assets.parent / "favicon.svg"
         if fav_path.exists():
             return FileResponse(fav_path, media_type="image/svg+xml")
-        raise HTTPException(status_code=404, detail=f"Entry not found (CCR TTL: {getattr(store, "default_ttl", 1800)} seconds)")
+        raise HTTPException(status_code=404, detail="favicon not found")
 
     @app.get("/dashboard", response_class=HTMLResponse)
     @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
@@ -4824,6 +4824,59 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
 
+    _firewall_scanner = None
+    _streaming_redactor = None
+    try:
+        from cutctx.security.firewall import FirewallConfig, FirewallScanner, StreamingRedactor
+
+        firewall_config = FirewallConfig(
+            enabled=bool(getattr(config, "firewall_enabled", False)),
+            block_pii=bool(getattr(config, "firewall_block_pii", True)),
+            block_injection=bool(getattr(config, "firewall_block_injection", True)),
+            block_jailbreak=bool(getattr(config, "firewall_block_jailbreak", True)),
+            redact_streaming=bool(getattr(config, "firewall_redact_streaming", True)),
+        )
+        if firewall_config.enabled:
+            _firewall_scanner = FirewallScanner(firewall_config)
+            _streaming_redactor = StreamingRedactor(
+                enabled=firewall_config.redact_streaming,
+            )
+            proxy._streaming_redactor = _streaming_redactor
+            logger.info(
+                "LLM Firewall enabled (injection=%s, pii=%s, jailbreak=%s)",
+                firewall_config.block_injection,
+                firewall_config.block_pii,
+                firewall_config.block_jailbreak,
+            )
+    except Exception:
+        logger.debug("LLM Firewall not available", exc_info=True)
+
+    try:
+        import cutctx_ee.memory_service.api as team_memory_api
+        from cutctx_ee.memory_service.store import MemoryStore as TeamMemoryStore
+
+        team_memory_db_path = getattr(config, "memory_db_path", "") or str(
+            Path.cwd() / ".cutctx" / "memory.db"
+        )
+        Path(team_memory_db_path).parent.mkdir(parents=True, exist_ok=True)
+        team_memory_api._store = TeamMemoryStore(f"sqlite:///{team_memory_db_path}")
+    except Exception:
+        logger.debug("Team memory service not available", exc_info=True)
+
+    try:
+        from cutctx.proxy.model_router import ModelRouter
+
+        proxy._model_router = ModelRouter()
+        if getattr(proxy._model_router.config, "enabled", False):
+            config.orchestrator_enabled = True
+            logger.info(
+                "ModelRouter enabled with %d routes",
+                len(getattr(proxy._model_router.config, "routes", [])),
+            )
+    except Exception:
+        logger.debug("ModelRouter not bound in runtime app", exc_info=True)
+        proxy._model_router = None
+
     stats_cache_ttl_seconds = 5.0
     stats_snapshot: dict[str, Any] = {"value": None, "expires_at": 0.0}
     stats_snapshot_lock = asyncio.Lock()
@@ -5013,6 +5066,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "tokens": summary,
             "requests": {
                 "total": requests_total,
+                "by_provider": dict(getattr(m, "requests_by_provider", {})),
                 "by_model": dict(getattr(m, "requests_by_model", {})),
             },
             "savings": {
@@ -5828,7 +5882,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 require_admin_auth=admin_dep,
                 require_rbac_permission=rbac_dep,
                 require_entitlement=entitlement_dep,
-                firewall_scanner=None,
+                firewall_scanner=_firewall_scanner,
             )
         )
         app.include_router(create_airgap_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
