@@ -41,6 +41,31 @@ const plugin: Plugin = async () => {
       // touch input.tool so it's considered used in narrow call paths
       void input.tool
     },
+    "experimental.chat.messages.transform": async (_input, output) => {
+      if (process.env.CUTCTX_DISABLED === "1") return
+      const messages = output.messages
+      if (!Array.isArray(messages) || messages.length === 0) return
+
+      const modelLimit = Number(process.env.CUTCTX_MODEL_LIMIT ?? 200_000)
+      const charBudget = modelLimit * 4 // rough chars-per-token heuristic
+      const size = JSON.stringify(messages).length
+      if (size < charBudget * 0.85) return
+
+      const protectRecent = Number(process.env.CUTCTX_PROTECT_RECENT_TURNS ?? 4)
+      const recent = messages.slice(-protectRecent)
+      const older = messages.slice(0, -protectRecent)
+      if (older.length === 0) return
+
+      try {
+        const result = await compress(older, { model: DEFAULT_MODEL })
+        output.messages = [...result.messages, ...recent]
+      } catch (err) {
+        console.warn(
+          "cutctx: history compress failed, passing through",
+          err instanceof Error ? err.message : err
+        )
+      }
+    },
   }
 }
 
