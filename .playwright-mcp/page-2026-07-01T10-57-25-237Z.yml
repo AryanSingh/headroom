@@ -1,0 +1,109 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "Cutctx" [level=1] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: Navigation
+      - navigation [ref=e12]:
+        - link "Dashboard" [ref=e13] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e19]: Dashboard
+        - link "Orchestrator" [ref=e20] [cursor=pointer]:
+          - /url: /dashboard/orchestrator
+          - img [ref=e22]
+          - generic [ref=e25]: Orchestrator
+        - link "Capabilities" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/capabilities
+          - img [ref=e28]
+          - generic [ref=e31]: Capabilities
+        - link "Governance" [ref=e32] [cursor=pointer]:
+          - /url: /dashboard/governance
+          - img [ref=e34]
+          - generic [ref=e37]: Governance
+        - link "Security" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/firewall
+          - img [ref=e40]
+          - generic [ref=e43]: Security
+        - link "Memory" [ref=e44] [cursor=pointer]:
+          - /url: /dashboard/memory
+          - img [ref=e46]
+          - generic [ref=e49]: Memory
+        - link "Playground" [ref=e50] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e52]
+          - generic [ref=e56]: Playground
+        - link "Docs" [ref=e57] [cursor=pointer]:
+          - /url: /dashboard/docs
+          - img [ref=e59]
+          - generic [ref=e62]: Docs
+    - generic [ref=e63]:
+      - generic [ref=e64]: Surfaces
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e69]:
+          - img [ref=e70]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e72]: v0.1.0
+  - generic [ref=e73]:
+    - banner [ref=e74]:
+      - generic [ref=e75]:
+        - button "Toggle sidebar" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+        - generic [ref=e81]:
+          - heading "Orchestrator" [level=2] [ref=e558]
+          - generic [ref=e83]: healthy
+      - generic [ref=e85]:
+        - generic "Search dashboard" [ref=e86]:
+          - img [ref=e87]
+          - textbox "Search" [ref=e90]
+          - generic [ref=e91]: /
+        - button "Switch to dark mode" [ref=e92] [cursor=pointer]:
+          - img [ref=e94]
+    - main [ref=e96]:
+      - generic [ref=e559]:
+        - status [ref=e615]: "Model routing is currently unavailable: router_uninitialized. configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml"
+        - generic [ref=e616]:
+          - generic [ref=e617]:
+            - img [ref=e619]
+            - generic [ref=e624]:
+              - generic [ref=e625]: Orchestrator
+              - heading "Orchestrator Insights" [level=2] [ref=e626]
+              - paragraph [ref=e627]: Smart model routing based on task complexity.
+          - generic [ref=e628]:
+            - generic [ref=e629]: Routing enabled
+            - generic [ref=e630] [cursor=pointer]:
+              - checkbox [checked]
+        - generic [ref=e633]:
+          - article [ref=e634]:
+            - generic [ref=e635]:
+              - generic [ref=e636]: Routed USD savings
+              - img [ref=e638]
+            - generic [ref=e641]: $0.000
+            - generic [ref=e642]: Delta vs requested models
+          - article [ref=e643]:
+            - generic [ref=e644]:
+              - generic [ref=e645]: Routed token savings
+              - img [ref=e647]
+            - generic [ref=e650]: "0"
+            - generic [ref=e651]: Offloaded to cheaper or local models
+        - generic [ref=e652]:
+          - generic [ref=e654]:
+            - generic [ref=e655]: Routing status
+            - heading "Why it is not routing yet" [level=2] [ref=e656]
+          - generic [ref=e657]:
+            - generic [ref=e658]:
+              - generic [ref=e659]: Configured
+              - strong [ref=e660]: "No"
+            - generic [ref=e661]:
+              - generic [ref=e662]: Router available
+              - strong [ref=e663]: "No"
+            - generic [ref=e664]:
+              - generic [ref=e665]: Configured routes
+              - strong [ref=e666]: "0"
+            - generic [ref=e667]:
+              - generic [ref=e668]: Reason
+              - strong [ref=e669]: router_uninitialized

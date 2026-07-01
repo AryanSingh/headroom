@@ -59,6 +59,34 @@ class MemoryStore:
             session.commit()
             return {"server_deltas": server_deltas, "new_watermark": now}
 
+    def query(
+        self,
+        *,
+        org_id: str | None = None,
+        workspace_id: str | None = None,
+        limit: int = 20,
+        include_deprecated: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return recent memory rows for dashboard and manual verification."""
+        bounded_limit = max(1, min(int(limit), 100))
+        with self.SessionLocal() as session:
+            query = session.query(MemoryRecord)
+            if org_id:
+                query = query.filter(MemoryRecord.org_id == org_id)
+            if workspace_id:
+                query = query.filter(MemoryRecord.workspace_id == workspace_id)
+            if not include_deprecated:
+                query = query.filter(MemoryRecord.review_state != "DEPRECATED")
+            rows = (
+                query.order_by(
+                    MemoryRecord.updated_at_ts.desc(),
+                    MemoryRecord.created_at.desc(),
+                )
+                .limit(bounded_limit)
+                .all()
+            )
+            return [self._record_to_dict(row) for row in rows]
+
     def update_review_state(self, org_id: str, memory_id: str, new_state: str) -> None:
         """Update the review state of a memory record."""
         with self.SessionLocal() as session:

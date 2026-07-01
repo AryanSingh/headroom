@@ -1625,16 +1625,23 @@ def create_admin_router(
         except Exception as exc:
             return {"enabled": False, "error": "Unable to retrieve policy status"}
 
+
+
     # ── Runtime feature flag toggle API ──────────────────────────────────────
-    # These flags are stored in the intelligence_pipeline module's _RUNTIME_FLAGS
-    # dict and are read per-request, allowing live toggling without proxy restart.
-    # Startup-time features (cache, rate_limiter, firewall) still require restart.
+    # The dashboard uses this route as the canonical config surface. Keep it
+    # compatible with both the newer *_enabled feature keys and the legacy
+    # /admin/config/flags payload shape used by older dashboard cards.
 
     _LIVE_TOGGLE_KEYS = {
         "task_aware_enabled",
         "dedup_enabled",
         "context_budget_enabled",
         "profiles_enabled",
+        "shared_context_enabled",
+        "cost_forecast_enabled",
+        "episodic_memory_enabled",
+        "orchestrator",
+        "ccr_context_tracking",
     }
     _RESTART_REQUIRED_KEYS = {
         "cache_enabled",
@@ -1642,26 +1649,119 @@ def create_admin_router(
         "firewall_enabled",
         "text_compression_engine_enabled",
         "log_template_mining_enabled",
+        "audit_enabled",
     }
+    _LEGACY_FLAG_ALIASES = {
+        "cache": "cache_enabled",
+        "ccr": "ccr_context_tracking",
+        "memory": "episodic_memory_enabled",
+        "firewall": "firewall_enabled",
+        "rate_limiter": "rate_limit_enabled",
+    }
+    _CONFIG_ATTR_ALIASES = {
+        "text_compression_engine_enabled": "use_llmlingua",
+        "log_template_mining_enabled": "drain3_enabled",
+    }
+    _RESTART_ENV_VARS = {
+        "cache_enabled": "CUTCTX_CACHE_ENABLED",
+        "rate_limit_enabled": "CUTCTX_RATE_LIMIT_ENABLED",
+        "firewall_enabled": "CUTCTX_FIREWALL_ENABLED",
+        "text_compression_engine_enabled": "CUTCTX_TEXT_COMPRESSION_ENABLED",
+        "log_template_mining_enabled": "CUTCTX_LOG_TEMPLATE_MINING_ENABLED",
+        "audit_enabled": "CUTCTX_AUDIT_DISABLED=0",
+    }
+
+    def _normalize_flag_key(key: str) -> str:
+        return _LEGACY_FLAG_ALIASES.get(key, key)
+
+    def _config_attr_name(key: str) -> str:
+        return _CONFIG_ATTR_ALIASES.get(key, key)
+
+    def _set_flag_on_config(key: str, value: bool) -> None:
+        attr_name = _config_attr_name(key)
+        if key == "orchestrator":
+            setattr(_config, "orchestrator_enabled", value)
+            return
+        if hasattr(_config, attr_name):
+            setattr(_config, attr_name, value)
+        if key == "ccr_context_tracking":
+            setattr(_config, "ccr_context_tracking", value)
+            setattr(_config, "ccr_handle_responses", value)
+
+    def _flag_state(key: str, runtime: dict[str, Any]) -> dict[str, Any]:
+        if key == "orchestrator":
+            model_router = getattr(_proxy, "_model_router", None)
+            enabled = bool(
+                model_router
+                and getattr(model_router, "config", None)
+                and getattr(model_router.config, "enabled", False)
+            )
+            return {
+                "enabled": enabled,
+                "source": "runtime",
+                "config_default": bool(getattr(_config, "orchestrator_enabled", False)),
+            }
+
+        attr_name = _config_attr_name(key)
+        config_val = bool(getattr(_config, attr_name, False))
+        if key in runtime:
+            return {
+                "enabled": bool(runtime[key]),
+                "source": "runtime",
+                "config_default": config_val,
+            }
+        return {"enabled": config_val, "source": "config", "config_default": config_val}
+
+    def _apply_episodic_memory_toggle(value: bool) -> None:
+        _set_flag_on_config("episodic_memory_enabled", value)
+        tracker = getattr(_proxy, "episodic_tracker", None)
+        if value:
+            if tracker is None:
+                from cutctx.memory.session_tracker import EpisodicSessionTracker
+                from cutctx.memory.store import EpisodicMemoryStore
+
+                tracker = EpisodicSessionTracker(
+                    EpisodicMemoryStore(),
+                    idle_timeout_seconds=getattr(_config, "episodic_idle_timeout_seconds", 300),
+                    enabled=True,
+                    extraction_model=getattr(_config, "episodic_extraction_model", "claude-3-haiku-20240307"),
+                )
+                tracker.start_sweeper()
+                _proxy.episodic_tracker = tracker
+            else:
+                tracker._enabled = True
+                tracker.start_sweeper()
+        elif tracker is not None:
+            tracker._enabled = False
+            tracker.stop_sweeper()
+
+    def _apply_orchestrator_toggle(value: bool) -> None:
+        _set_flag_on_config("orchestrator", value)
+        model_router = getattr(_proxy, "_model_router", None)
+        if model_router is None:
+            try:
+                from cutctx.proxy.model_router import ModelRouter
+
+                model_router = ModelRouter()
+                _proxy._model_router = model_router
+            except Exception:
+                model_router = None
+        if model_router is not None and getattr(model_router, "config", None) is not None:
+            model_router.config.enabled = value
 
     @router.get(
         "/config/flags",
         dependencies=[_Dep(require_admin_auth)],
     )
     async def get_config_flags():
-        """Return current feature flag states (config defaults + runtime overrides)."""
+        """Return current feature flag states defaults + runtime overrides."""
         from cutctx.proxy.intelligence_pipeline import get_all_runtime_flags
+
         runtime = get_all_runtime_flags()
-
-        def _state(key: str) -> dict:
-            config_val = bool(getattr(_config, key, False))
-            if key in runtime:
-                return {"enabled": bool(runtime[key]), "source": "runtime", "config_default": config_val}
-            return {"enabled": config_val, "source": "config", "config_default": config_val}
-
         return {
-            "live_toggleable": {k: _state(k) for k in _LIVE_TOGGLE_KEYS},
-            "restart_required": {k: _state(k) for k in _RESTART_REQUIRED_KEYS},
+            "live_toggleable": {k: _flag_state(k, runtime) for k in sorted(_LIVE_TOGGLE_KEYS)},
+            "restart_required": {k: _flag_state(k, runtime) for k in sorted(_RESTART_REQUIRED_KEYS)},
+            "legacy_aliases": _LEGACY_FLAG_ALIASES,
             "runtime_overrides": runtime,
         }
 
@@ -1671,50 +1771,57 @@ def create_admin_router(
     )
     async def set_config_flags(body: dict):
         """
-        Toggle feature flags at runtime.
+        Toggle feature flags for the dashboard.
 
-        Live-toggleable (take effect on next request):
-          task_aware_enabled, dedup_enabled, context_budget_enabled, profiles_enabled
-
-        Restart-required (flag is saved but proxy must restart to apply):
-          cache_enabled, rate_limit_enabled, firewall_enabled, text_compression_engine_enabled, log_template_mining_enabled
+        Live-toggleable features apply to the next request immediately.
+        Restart-required features update desired config and surface the restart hint.
         """
-        from cutctx.proxy.intelligence_pipeline import set_runtime_flag, clear_runtime_flag
-        applied_live = {}
-        needs_restart = {}
-        unknown = {}
+        from cutctx.proxy.intelligence_pipeline import set_runtime_flag
 
-        # Map user-facing flag names to internal config attribute names
-        flag_name_to_attr = {
-            "text_compression_engine_enabled": "use_llmlingua",
-            "log_template_mining_enabled": "drain3_enabled",
+        applied_live: dict[str, Any] = {}
+        needs_restart: dict[str, Any] = {}
+        unknown: dict[str, str] = {}
+        runtime_keys = {
+            "task_aware_enabled",
+            "dedup_enabled",
+            "context_budget_enabled",
+            "profiles_enabled",
+            "shared_context_enabled",
+            "cost_forecast_enabled",
         }
 
-        for key, value in body.items():
-            # Resolve the actual config attribute name
-            attr_name = flag_name_to_attr.get(key, key)
+        for raw_key, value in body.items():
+            key = _normalize_flag_key(raw_key)
+            enabled = bool(value)
 
             if key in _LIVE_TOGGLE_KEYS:
-                if value is None:
-                    clear_runtime_flag(key)
-                    applied_live[key] = {"cleared": True}
-                else:
-                    set_runtime_flag(key, bool(value))
-                    applied_live[key] = {"enabled": bool(value)}
-            elif key in _RESTART_REQUIRED_KEYS:
+                if key in runtime_keys:
+                    set_runtime_flag(key, enabled)
+                    _set_flag_on_config(key, enabled)
+                elif key == "episodic_memory_enabled":
+                    _apply_episodic_memory_toggle(enabled)
+                elif key == "orchestrator":
+                    _apply_orchestrator_toggle(enabled)
+                elif key == "ccr_context_tracking":
+                    _set_flag_on_config(key, enabled)
+
+                applied_live[key] = {"enabled": enabled}
+                if raw_key != key:
+                    applied_live[raw_key] = {"enabled": enabled, "normalized_to": key}
+                continue
+
+            if key in _RESTART_REQUIRED_KEYS:
+                _set_flag_on_config(key, enabled)
                 needs_restart[key] = {
-                    "requested": bool(value),
-                    "current": bool(getattr(_config, attr_name, False)),
-                    "env_var": {
-                        "cache_enabled": "CUTCTX_CACHE_ENABLED",
-                        "rate_limit_enabled": "CUTCTX_RATE_LIMIT_ENABLED",
-                        "firewall_enabled": "CUTCTX_FIREWALL_ENABLED",
-                        "text_compression_engine_enabled": "CUTCTX_TEXT_COMPRESSION_ENABLED",
-                        "log_template_mining_enabled": "CUTCTX_LOG_TEMPLATE_MINING_ENABLED",
-                    }.get(key, key.upper()),
+                    "requested": enabled,
+                    "current": bool(_flag_state(key, {}).get("enabled")),
+                    "env_var": _RESTART_ENV_VARS.get(key, key.upper()),
                 }
-            else:
-                unknown[key] = "unknown flag"
+                if raw_key != key:
+                    needs_restart[raw_key] = {"requested": enabled, "normalized_to": key}
+                continue
+
+            unknown[raw_key] = "unknown flag"
 
         return {
             "applied_live": applied_live,

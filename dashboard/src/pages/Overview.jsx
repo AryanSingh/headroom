@@ -66,6 +66,25 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
+const LIFETIME_SAVINGS_SOURCES = [
+  ['compression_savings_usd', 'cutctx_compression'],
+  ['cache_savings_usd', 'provider_prompt_cache'],
+  ['semantic_cache_savings_usd', 'semantic_cache'],
+  ['self_hosted_prefix_cache_savings_usd', 'prefix_cache_self_hosted'],
+  ['model_routing_savings_usd', 'model_routing'],
+  ['tool_schema_compaction_savings_usd', 'tool_schema_compaction'],
+  ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
+];
+
+function getLifetimeTotalSavingsUsd(stats) {
+  const lifetime = stats?.persistent_savings?.lifetime || {};
+  const sourceUsd = stats?.savings_by_source?.usd || {};
+
+  return LIFETIME_SAVINGS_SOURCES.reduce((sum, [lifetimeKey, sourceKey]) => {
+    return sum + Math.max(Number(lifetime[lifetimeKey] || 0), Number(sourceUsd[sourceKey] || 0));
+  }, 0);
+}
+
 function buildSourceRows(stats) {
 const cost = stats?.cost || stats?.summary?.cost || {};
 const costSavingsBySource = cost?.savings_by_source || {};
@@ -1242,15 +1261,19 @@ export default function Overview() {
     Number(sessionCostBreakdown.compression_savings_usd || 0)
       + Number(sessionCostBreakdown.cache_savings_usd || 0),
   );
-  const lifetimeSavingsUsd = Number(lifetime.compression_savings_usd || 0);
-  const effectiveSavingsUsd = sessionCostWithoutCutctx > 0
-    ? sessionSavingsUsd
-    : lifetimeSavingsUsd;
-  const moneySavedFootnote = sessionCostWithoutCutctx > 0
-    ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
-    : lifetimeSavingsUsd > 0
-      ? 'Lifetime compression savings'
-      : 'No cost data yet';
+const lifetimeSavingsUsd = getLifetimeTotalSavingsUsd(stats);
+const useLifetimeSavingsHeadline = lifetimeSavingsUsd > 0
+  && (lifetimeSavingsUsd >= sessionSavingsUsd || useLifetimeHeadline);
+const effectiveSavingsUsd = useLifetimeSavingsHeadline
+  ? lifetimeSavingsUsd
+  : sessionSavingsUsd;
+const moneySavedFootnote = useLifetimeSavingsHeadline
+  ? 'Lifetime savings across compression, cache, and routing'
+  : sessionCostWithoutCutctx > 0
+  ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
+  : lifetimeSavingsUsd > 0
+  ? 'Lifetime savings recorded'
+  : 'No cost data yet';
 
   const persistentHistory = Array.isArray(persistent.recent_history)
     ? persistent.recent_history.slice(-8).reverse().map((entry) => ({

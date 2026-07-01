@@ -1,0 +1,286 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "Cutctx" [level=1] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: Navigation
+      - navigation [ref=e12]:
+        - link "Dashboard" [ref=e13] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e19]: Dashboard
+        - link "Orchestrator" [ref=e20] [cursor=pointer]:
+          - /url: /dashboard/orchestrator
+          - img [ref=e22]
+          - generic [ref=e25]: Orchestrator
+        - link "Capabilities" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/capabilities
+          - img [ref=e28]
+          - generic [ref=e31]: Capabilities
+        - link "Governance" [active] [ref=e32] [cursor=pointer]:
+          - /url: /dashboard/governance
+          - img [ref=e34]
+          - generic [ref=e37]: Governance
+        - link "Security" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/firewall
+          - img [ref=e40]
+          - generic [ref=e43]: Security
+        - link "Memory" [ref=e44] [cursor=pointer]:
+          - /url: /dashboard/memory
+          - img [ref=e46]
+          - generic [ref=e49]: Memory
+        - link "Playground" [ref=e50] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e52]
+          - generic [ref=e56]: Playground
+        - link "Docs" [ref=e57] [cursor=pointer]:
+          - /url: /dashboard/docs
+          - img [ref=e59]
+          - generic [ref=e62]: Docs
+    - generic [ref=e63]:
+      - generic [ref=e64]: Surfaces
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e69]:
+          - img [ref=e70]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e72]: v0.1.0
+  - generic [ref=e73]:
+    - banner [ref=e74]:
+      - generic [ref=e75]:
+        - button "Toggle sidebar" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+        - generic [ref=e81]:
+          - heading "Governance" [level=2] [ref=e670]
+          - generic [ref=e83]: healthy
+      - generic [ref=e85]:
+        - generic "Search dashboard" [ref=e86]:
+          - img [ref=e87]
+          - textbox "Search" [ref=e90]
+          - generic [ref=e91]: /
+        - button "Switch to dark mode" [ref=e92] [cursor=pointer]:
+          - img [ref=e94]
+    - main [ref=e96]:
+      - generic [ref=e671]:
+        - generic [ref=e672]:
+          - generic [ref=e673]:
+            - generic [ref=e674]:
+              - generic [ref=e675]: Live control
+              - heading "Rate limiting" [level=2] [ref=e676]
+            - paragraph [ref=e677]: Rate limiting is not enabled yet.
+          - generic [ref=e678]:
+            - article [ref=e679]:
+              - generic [ref=e680]: Status
+              - generic [ref=e681]: Inactive
+              - generic [ref=e682]: Dashboard toggle updates config. Restart may still be required.
+            - article [ref=e683]:
+              - generic [ref=e684]: Active keys
+              - generic [ref=e685]: "0"
+              - generic [ref=e686]: Keys with live rate state
+            - article [ref=e687]:
+              - generic [ref=e688]: Token limit
+              - generic [ref=e689]: —
+              - generic [ref=e690]: Tokens per minute per key
+            - article [ref=e691]:
+              - generic [ref=e692]: Request limit
+              - generic [ref=e693]: —
+              - generic [ref=e694]: Requests per minute per key
+        - generic [ref=e695]:
+          - generic [ref=e696]:
+            - generic [ref=e697]:
+              - generic [ref=e698]: Feature configuration
+              - heading "Enable optional features" [level=2] [ref=e699]
+            - paragraph [ref=e700]: Dashboard toggles write to the proxy config when supported. Some features apply on the next request, while others need a restart to take effect fully.
+          - generic [ref=e701]:
+            - generic [ref=e702]:
+              - generic [ref=e703]:
+                - generic [ref=e704]:
+                  - generic [ref=e705]: Request firewall
+                  - generic [ref=e706]:
+                    - img [ref=e707]
+                    - text: Restart required
+                  - generic [ref=e712]:
+                    - img [ref=e713]
+                    - text: Inactive
+                - paragraph [ref=e715]: Scan every request for prompt injection, jailbreaks, and PII before it reaches the model.
+              - generic [ref=e716]:
+                - button "Enable feature" [ref=e717] [cursor=pointer]
+                - generic [ref=e718]:
+                  - code [ref=e719]: CUTCTX_FIREWALL_ENABLED=1
+                  - button "Copy to clipboard" [ref=e720] [cursor=pointer]:
+                    - img [ref=e721]
+            - generic [ref=e724]:
+              - generic [ref=e725]:
+                - generic [ref=e726]:
+                  - generic [ref=e727]: Rate limiting
+                  - generic [ref=e728]:
+                    - img [ref=e729]
+                    - text: Restart required
+                  - generic [ref=e734]:
+                    - img [ref=e735]
+                    - text: Inactive
+                - paragraph [ref=e737]: Token-bucket rate limiting per API key. Configure limits with CUTCTX_RATE_LIMIT_TPM and CUTCTX_RATE_LIMIT_RPM.
+              - generic [ref=e738]:
+                - button "Enable feature" [ref=e739] [cursor=pointer]
+                - generic [ref=e740]:
+                  - code [ref=e741]: CUTCTX_RATE_LIMIT_ENABLED=true
+                  - button "Copy to clipboard" [ref=e742] [cursor=pointer]:
+                    - img [ref=e743]
+            - generic [ref=e746]:
+              - generic [ref=e747]:
+                - generic [ref=e748]:
+                  - generic [ref=e749]: Task-aware compression
+                  - generic [ref=e750]:
+                    - img [ref=e751]
+                    - text: Inactive
+                - paragraph [ref=e753]: Modulate compression depth based on relevance to the active task.
+              - generic [ref=e754]:
+                - button "Enable feature" [ref=e755] [cursor=pointer]
+                - generic [ref=e756]:
+                  - code [ref=e757]: CUTCTX_TASK_AWARE_ENABLED=1
+                  - button "Copy to clipboard" [ref=e758] [cursor=pointer]:
+                    - img [ref=e759]
+            - generic [ref=e762]:
+              - generic [ref=e763]:
+                - generic [ref=e764]:
+                  - generic [ref=e765]: Semantic deduplication
+                  - generic [ref=e766]:
+                    - img [ref=e767]
+                    - text: Inactive
+                - paragraph [ref=e769]: Detect and collapse repeated content across messages using reversible CCR pointers.
+              - generic [ref=e770]:
+                - button "Enable feature" [ref=e771] [cursor=pointer]
+                - generic [ref=e772]:
+                  - code [ref=e773]: CUTCTX_DEDUP_ENABLED=1
+                  - button "Copy to clipboard" [ref=e774] [cursor=pointer]:
+                    - img [ref=e775]
+            - generic [ref=e778]:
+              - generic [ref=e779]:
+                - generic [ref=e780]:
+                  - generic [ref=e781]: Context budget controller
+                  - generic [ref=e782]:
+                    - img [ref=e783]
+                    - text: Inactive
+                - paragraph [ref=e785]: Progressively increase compression as the context window fills.
+              - generic [ref=e786]:
+                - button "Enable feature" [ref=e787] [cursor=pointer]
+                - generic [ref=e788]:
+                  - code [ref=e789]: CUTCTX_CONTEXT_BUDGET_ENABLED=1
+                  - button "Copy to clipboard" [ref=e790] [cursor=pointer]:
+                    - img [ref=e791]
+            - generic [ref=e794]:
+              - generic [ref=e795]:
+                - generic [ref=e796]:
+                  - generic [ref=e797]: Compression profiles
+                  - generic [ref=e798]:
+                    - img [ref=e799]
+                    - text: Inactive
+                - paragraph [ref=e801]: Learn per-workspace compression patterns across sessions and reuse them later.
+              - generic [ref=e802]:
+                - button "Enable feature" [ref=e803] [cursor=pointer]
+                - generic [ref=e804]:
+                  - code [ref=e805]: CUTCTX_PROFILES_ENABLED=1
+                  - button "Copy to clipboard" [ref=e806] [cursor=pointer]:
+                    - img [ref=e807]
+            - generic [ref=e810]:
+              - generic [ref=e811]:
+                - generic [ref=e812]:
+                  - generic [ref=e813]: Cross-agent memory
+                  - generic [ref=e814]: Enterprise
+                  - generic [ref=e815]:
+                    - img [ref=e816]
+                    - text: Inactive
+                - paragraph [ref=e818]: Share compressed context and cache hits across agents working in the same workspace.
+              - generic [ref=e819]:
+                - button "Enable feature" [ref=e820] [cursor=pointer]
+                - generic [ref=e821]:
+                  - code [ref=e822]: CUTCTX_SHARED_CONTEXT_ENABLED=1
+                  - button "Copy to clipboard" [ref=e823] [cursor=pointer]:
+                    - img [ref=e824]
+            - generic [ref=e827]:
+              - generic [ref=e828]:
+                - generic [ref=e829]:
+                  - generic [ref=e830]: Episodic memory
+                  - generic [ref=e831]: Enterprise
+                  - generic [ref=e832]:
+                    - img [ref=e833]
+                    - text: Inactive
+                - paragraph [ref=e835]: Store and reinject project memories across sessions.
+              - generic [ref=e836]:
+                - button "Enable feature" [ref=e837] [cursor=pointer]
+                - generic [ref=e838]:
+                  - code [ref=e839]: CUTCTX_EPISODIC_MEMORY_ENABLED=1
+                  - button "Copy to clipboard" [ref=e840] [cursor=pointer]:
+                    - img [ref=e841]
+            - generic [ref=e844]:
+              - generic [ref=e845]:
+                - generic [ref=e846]:
+                  - generic [ref=e847]: Cost forecasting
+                  - generic [ref=e848]:
+                    - img [ref=e849]
+                    - text: Inactive
+                - paragraph [ref=e851]: Estimate request cost up front and feed policy decisions before compression runs.
+              - generic [ref=e852]:
+                - button "Enable feature" [ref=e853] [cursor=pointer]
+                - generic [ref=e854]:
+                  - code [ref=e855]: CUTCTX_COST_FORECAST_ENABLED=1
+                  - button "Copy to clipboard" [ref=e856] [cursor=pointer]:
+                    - img [ref=e857]
+            - generic [ref=e860]:
+              - generic [ref=e861]:
+                - generic [ref=e862]:
+                  - generic [ref=e863]: Audit trail
+                  - generic [ref=e864]: Enterprise
+                  - generic [ref=e865]:
+                    - img [ref=e866]
+                    - text: Restart required
+                  - generic [ref=e871]:
+                    - img [ref=e872]
+                    - text: Active
+                - paragraph [ref=e875]: Persist admin and governance activity to the audit log. Restart required to fully apply changes.
+              - generic [ref=e876]:
+                - button "Disable feature" [ref=e877] [cursor=pointer]
+                - generic [ref=e878]:
+                  - code [ref=e879]: CUTCTX_AUDIT_DISABLED=0
+                  - button "Copy to clipboard" [ref=e880] [cursor=pointer]:
+                    - img [ref=e881]
+            - generic [ref=e884]:
+              - generic [ref=e885]:
+                - generic [ref=e886]:
+                  - generic [ref=e887]: RBAC admin controls
+                  - generic [ref=e888]: Enterprise
+                  - generic [ref=e889]:
+                    - img [ref=e890]
+                    - text: Active
+                - paragraph [ref=e893]: Role assignment and permission enforcement surfaces. This is a control plane, not a simple boolean flag.
+              - code [ref=e896]: Enterprise entitlement required
+        - generic [ref=e897]:
+          - generic [ref=e898]:
+            - generic [ref=e899]:
+              - generic [ref=e900]:
+                - generic [ref=e901]: Enterprise
+                - heading "Audit surface" [level=2] [ref=e902]
+              - paragraph [ref=e903]: Refreshed 0s ago
+            - generic [ref=e904]:
+              - generic [ref=e905]:
+                - generic [ref=e906]: Status
+                - strong [ref=e907]: Reachable
+              - generic [ref=e908]:
+                - generic [ref=e909]: Recent events
+                - strong [ref=e910]: "0"
+          - generic [ref=e911]:
+            - generic [ref=e912]:
+              - generic [ref=e913]:
+                - generic [ref=e914]: Enterprise
+                - heading "RBAC surface" [level=2] [ref=e915]
+              - paragraph [ref=e916]: Refreshed 0s ago
+            - generic [ref=e917]:
+              - generic [ref=e918]:
+                - generic [ref=e919]: Status
+                - strong [ref=e920]: Reachable
+              - generic [ref=e921]:
+                - generic [ref=e922]: Assignments
+                - strong [ref=e923]: "1"

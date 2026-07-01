@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from cutctx_ee.memory_service.models import MemoryRecord
 from cutctx_ee.memory_service.store import MemoryStore
 
 _store: MemoryStore | None = None
@@ -31,6 +32,39 @@ class SyncRequest(BaseModel):
 class SyncResponse(BaseModel):
     server_deltas: list[dict[str, Any]]
     new_watermark: float
+
+
+@router.get("/query")
+async def query_memory(
+    limit: int = 20,
+    org_id: str | None = None,
+    workspace_id: str | None = None,
+    include_deprecated: bool = False,
+    store: MemoryStore = Depends(get_store),
+):
+    """Return recent team memories for dashboard and operator verification."""
+    try:
+        bounded_limit = max(1, min(int(limit), 100))
+        with store.SessionLocal() as session:
+            query = session.query(MemoryRecord)
+            if org_id:
+                query = query.filter(MemoryRecord.org_id == org_id)
+            if workspace_id:
+                query = query.filter(MemoryRecord.workspace_id == workspace_id)
+            if not include_deprecated:
+                query = query.filter(MemoryRecord.review_state != "DEPRECATED")
+            rows = (
+                query.order_by(
+                    MemoryRecord.updated_at_ts.desc(),
+                    MemoryRecord.created_at.desc(),
+                )
+                .limit(bounded_limit)
+                .all()
+            )
+            items = [store._record_to_dict(row) for row in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"items": items}
 
 
 @router.post("/sync", response_model=SyncResponse)

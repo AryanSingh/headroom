@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+import cutctx_ee.memory_service.api as memory_api
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import cutctx_ee.memory_service.api as memory_api
 from cutctx.proxy.routes.memory import create_memory_router
 from cutctx_ee.memory_service.models import MemoryRecord
 from cutctx_ee.memory_service.store import MemoryStore
@@ -23,7 +23,7 @@ def _allow_rbac(_permission: str) -> Callable[[], None]:
     return _dependency
 
 
-def test_memory_router_mounts_sync_and_review(tmp_path, monkeypatch) -> None:
+def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> None:
     db_path = tmp_path / "memory.db"
     store = MemoryStore(f"sqlite:///{db_path}")
     monkeypatch.setattr(memory_api, "_store", store, raising=False)
@@ -35,19 +35,12 @@ def test_memory_router_mounts_sync_and_review(tmp_path, monkeypatch) -> None:
             require_rbac_permission=_allow_rbac,
         )
     )
-
     client = TestClient(app)
-    # The route requires admin auth, so a GET should return 401 or 405 (Method Not Allowed since it's a POST)
-    # Either way, if it returns 404, it means the route is not mounted.
-    r_sync = client.post("/v1/memory/sync", json={})
-    assert r_sync.status_code != 404
-    r_review = client.post("/v1/memory/review", json={})
-    assert r_review.status_code != 404
-    r_query = client.post("/v1/memory/query", json={})
-    # Query is typically not exposed here unless we have it, wait the original test asserted it is NOT in router paths
-    assert r_query.status_code == 404
 
-    client = TestClient(app)
+    assert client.post("/v1/memory/sync", json={}).status_code != 404
+    assert client.post("/v1/memory/review", json={}).status_code != 404
+    assert client.get("/v1/memory/query").status_code != 404
+
     now = datetime.now(UTC).isoformat()
     sync_resp = client.post(
         "/v1/memory/sync",
@@ -66,7 +59,6 @@ def test_memory_router_mounts_sync_and_review(tmp_path, monkeypatch) -> None:
             ],
         },
     )
-
     assert sync_resp.status_code == 200, sync_resp.text
     assert sync_resp.json()["server_deltas"] == []
 
@@ -78,9 +70,15 @@ def test_memory_router_mounts_sync_and_review(tmp_path, monkeypatch) -> None:
             "action": "APPROVE",
         },
     )
-
     assert review_resp.status_code == 200, review_resp.text
     assert review_resp.json()["state"] == "APPROVE"
+
+    query_resp = client.get("/v1/memory/query?org_id=org-a&workspace_id=ws-a&limit=5")
+    assert query_resp.status_code == 200, query_resp.text
+    items = query_resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == "mem-1"
+    assert items[0]["content"] == "The first shared memory"
 
     with store.SessionLocal() as session:
         record = (
