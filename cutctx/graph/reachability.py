@@ -45,7 +45,8 @@ def extract_symbol_names(text: str) -> list[str]:
 
     Returns:
         Deduplicated list of extracted symbol names (lowercase for
-        snake_case, preserved case for CamelCase/backtick).
+        snake_case, preserved case for CamelCase/backtick), capped at
+        20 symbols to bound downstream BFS cost.
     """
     symbols: list[str] = []
 
@@ -60,7 +61,8 @@ def extract_symbol_names(text: str) -> list[str]:
     camel_words = re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b", text)
     symbols.extend(w for w in camel_words if w.lower() not in _STOPWORDS)
 
-    return list(set(symbols))
+    unique_symbols = list(set(symbols))
+    return unique_symbols[:20]
 
 
 def resolve_entry_points(

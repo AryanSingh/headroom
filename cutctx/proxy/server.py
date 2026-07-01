@@ -3829,6 +3829,22 @@ def _require_rbac_permission(permission: str):
         feedback = get_compression_feedback()
         feedback_stats = feedback.get_stats()
 
+        # Load compression profile for stats exposure (best-effort)
+        try:
+            from cutctx.profiles import CompressionProfile
+
+            _profile_summary = CompressionProfile.load().summary()
+        except Exception:
+            _profile_summary = None
+
+        # Compute content router overrides count
+        _content_router = getattr(proxy, "_content_router", None)
+        _router_overrides_count = (
+            len(_content_router.config.per_type_overrides)
+            if _content_router is not None and getattr(_content_router, "config", None) is not None
+            else 0
+        )
+
         # Build prefix cache stats once (used in both prefix_cache and cost)
         prefix_cache_stats = _build_prefix_cache_stats(m, proxy.cost_tracker)
 
@@ -4293,6 +4309,8 @@ def _require_rbac_permission(permission: str):
                 ),
             },
             "toin": get_toin().get_stats(),
+            "profile": _profile_summary,
+            "content_router_overrides_count": _router_overrides_count,
             "context_tool": {
                 "configured": cli_filtering_tool,
                 "label": cli_filtering_label,

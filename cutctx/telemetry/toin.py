@@ -496,6 +496,9 @@ class ToolIntelligenceNetwork:
             import os
             import socket
 
+            # The raw hostname is immediately SHA256-hashed and never stored/logged
+            # in plaintext form (only the hash is persisted), so hostname is not
+            # reversible from the final instance_id.
             machine_info = (
                 f"{socket.gethostname()}:{os.getuid() if hasattr(os, 'getuid') else 'unknown'}"
             )
@@ -1025,6 +1028,11 @@ class ToolIntelligenceNetwork:
         # Remove if it's just generic
         if pattern in ("*", ""):
             return None
+
+        # Detect unstructured prose: if query contains newlines or the regex found
+        # nothing (no : or * remain in the pattern), replace with generic placeholder
+        if "\n" in query or (":" not in pattern and "*" not in pattern):
+            return "<prose>"
 
         return pattern
 

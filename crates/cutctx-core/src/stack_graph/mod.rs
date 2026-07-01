@@ -364,6 +364,11 @@ impl StackGraphManager {
         symbol_name: &str,
         max_depth: usize,
     ) -> Vec<ResolvedReference> {
+        // Avoid O(N×E) traversal on large graphs; defense-in-depth against future regression.
+        if self.node_count() > 5000 {
+            return Vec::new();
+        }
+
         let file_path = Path::new(path);
         let file_handle = match self.file_handles.get(file_path) {
             Some(h) => h,

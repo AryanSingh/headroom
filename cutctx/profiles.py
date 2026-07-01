@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_COMPRESSION_RATIO = 0.5  # Default target: compress to 50% of original
+_MAX_RECOMMENDED_RATIO = 0.95  # Security cap: ensure compression never fully disables
 
 
 @dataclass
@@ -105,16 +106,16 @@ class ContentTypeStats:
         # Increase the ratio (compress less aggressively)
         if retrieval_rate > 0.5:
             # Over 50% retrieval rate: compress much less
-            self.recommended_ratio = min(1.0, self.avg_compression_ratio + 0.2)
+            self.recommended_ratio = min(_MAX_RECOMMENDED_RATIO, self.avg_compression_ratio + 0.2)
         elif retrieval_rate > 0.2:
             # 20-50% retrieval rate: compress slightly less
-            self.recommended_ratio = min(1.0, self.avg_compression_ratio + 0.1)
+            self.recommended_ratio = min(_MAX_RECOMMENDED_RATIO, self.avg_compression_ratio + 0.1)
         else:
             # Under 20% retrieval rate: current compression is good
             self.recommended_ratio = self.avg_compression_ratio
 
-        # Clamp to [0.0, 1.0]
-        self.recommended_ratio = max(0.0, min(1.0, self.recommended_ratio))
+        # Clamp to [0.0, _MAX_RECOMMENDED_RATIO]
+        self.recommended_ratio = max(0.0, min(_MAX_RECOMMENDED_RATIO, self.recommended_ratio))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""

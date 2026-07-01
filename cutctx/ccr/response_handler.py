@@ -43,7 +43,10 @@ def _strategy_to_content_type(strategy: str | None) -> str:
         "kompress": "plain_text",
         "llmlingua": "plain_text",
     }
-    return mapping.get(strategy.lower() if strategy else "", "unknown")
+    result = mapping.get(strategy.lower() if strategy else "", "unknown")
+    if result == "unknown":
+        logger.debug("Unmapped compression strategy %r, defaulting content type to 'unknown'", strategy)
+    return result
 
 
 @dataclass

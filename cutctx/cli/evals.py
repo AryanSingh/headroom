@@ -13,12 +13,13 @@ from .main import main
 
 @main.group()
 def evals() -> None:
-    """Memory evaluation commands.
+    """Memory evaluation and compressor benchmark commands.
 
     \b
     Examples:
         cutctx evals memory       Run LoCoMo memory evaluation
         cutctx evals memory-v2    Run V2 evaluation with LLM-controlled tools
+        cutctx evals benchmark    Run cross-compressor benchmark (ratio, F1, ROUGE-L)
     """
     pass
 

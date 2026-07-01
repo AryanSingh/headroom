@@ -683,6 +683,7 @@ class CodeAwareCompressor(Transform):
             startup overhead when the compressor isn't used.
         """
         self.config = config or CodeCompressorConfig()
+        self._protected_symbols_local = threading.local()
 
     # =========================================================================
     # Token estimation
@@ -945,16 +946,23 @@ class CodeAwareCompressor(Transform):
     # Core compression
     # =========================================================================
 
-    # Protected symbols set (set by proxy when stack graph is wired)
-    _protected_symbols: set[str] | None = None
+    # Protected symbols are thread-local: the compressor instance is shared
+    # across concurrent requests, so per-request state must not live on
+    # the instance directly (that would leak one request's protected
+    # symbols into another concurrent request's compression).
+    @property
+    def _protected_symbols(self) -> set[str] | None:
+        return getattr(self._protected_symbols_local, "value", None)
 
     def set_protected_symbols(self, symbols: set[str] | None) -> None:
         """Set the set of symbol names that must keep their full bodies.
 
         Called by the content router / proxy before compression to
         preserve functions on the call-path from the user's task.
+        Stored thread-locally so concurrent requests never see each
+        other's protected symbols.
         """
-        self._protected_symbols = symbols
+        self._protected_symbols_local.value = symbols
 
     def compress(
         self,
