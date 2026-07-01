@@ -1,0 +1,199 @@
+- generic [ref=e3] [box=0,0,1440,1724]:
+  - complementary [ref=e4] [box=0,0,250,1100]:
+    - generic [ref=e5] [box=16,20,217,32]:
+      - img [ref=e7] [box=24,28,16,16]
+      - heading "Cutctx" [level=1] [ref=e9] [box=60,22,58,29]
+    - generic [ref=e10] [box=16,72,217,490]:
+      - generic [ref=e11] [box=16,72,217,18]: Navigation
+      - navigation [ref=e12] [box=16,100,217,462]:
+        - link "Dashboard" [ref=e13] [cursor=pointer] [box=16,100,217,56]:
+          - /url: /dashboard
+          - img [ref=e15] [box=36,120,16,16]
+          - generic [ref=e19] [box=72,117,69,21]: Dashboard
+        - link "Orchestrator" [ref=e20] [cursor=pointer] [box=16,158,217,56]:
+          - /url: /dashboard/orchestrator
+          - img [ref=e22] [box=36,178,16,16]
+          - generic [ref=e25] [box=72,175,80,21]: Orchestrator
+        - link "Capabilities" [ref=e26] [cursor=pointer] [box=16,216,217,56]:
+          - /url: /dashboard/capabilities
+          - img [ref=e28] [box=36,236,16,16]
+          - generic [ref=e31] [box=72,233,74,21]: Capabilities
+        - link "Governance" [active] [ref=e32] [cursor=pointer] [box=16,274,217,56]:
+          - /url: /dashboard/governance
+          - img [ref=e34] [box=36,294,16,16]
+          - generic [ref=e37] [box=72,291,76,21]: Governance
+        - link "Security" [ref=e38] [cursor=pointer] [box=16,332,217,56]:
+          - /url: /dashboard/firewall
+          - img [ref=e40] [box=36,352,16,16]
+          - generic [ref=e43] [box=72,349,53,21]: Security
+        - link "Memory" [ref=e44] [cursor=pointer] [box=16,390,217,56]:
+          - /url: /dashboard/memory
+          - img [ref=e46] [box=36,410,16,16]
+          - generic [ref=e49] [box=72,407,52,21]: Memory
+        - link "Playground" [ref=e50] [cursor=pointer] [box=16,448,217,56]:
+          - /url: /dashboard/playground
+          - img [ref=e52] [box=36,468,16,16]
+          - generic [ref=e56] [box=72,465,71,21]: Playground
+        - link "Docs" [ref=e57] [cursor=pointer] [box=16,506,217,56]:
+          - /url: /dashboard/docs
+          - img [ref=e59] [box=36,526,16,16]
+          - generic [ref=e62] [box=72,523,32,21]: Docs
+    - generic [ref=e63] [box=16,929,217,151]:
+      - generic [ref=e64] [box=16,950,217,18]: Surfaces
+      - generic [ref=e65] [box=16,977,217,77]:
+        - generic [ref=e66] [box=33,994,183,18]:
+          - img [ref=e67] [box=33,997,12,12]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e69] [box=33,1020,183,18]:
+          - img [ref=e70] [box=33,1023,12,12]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e72] [box=16,1062,217,18]: v0.1.0
+  - generic [ref=e73] [box=250,0,1190,1724]:
+    - banner [ref=e74] [box=250,0,1190,69]:
+      - generic [ref=e75] [box=282,16,251,36]:
+        - button "Toggle sidebar" [ref=e76] [cursor=pointer] [box=282,16,36,36]:
+          - img [ref=e77] [box=291,25,18,18]
+        - generic [ref=e81] [box=334,18,199,32]:
+          - heading "Governance" [level=2] [ref=e670] [box=334,18,111,32]
+          - generic [ref=e83] [box=453,20,80,28]: healthy
+      - generic [ref=e85] [box=1120,16,288,36]:
+        - generic "Search dashboard" [ref=e86] [box=1120,16,240,36]:
+          - img [ref=e87] [box=1133,27,11,14]
+          - textbox "Search" [ref=e90] [box=1152,23,171,23]
+          - generic [ref=e91] [box=1331,24,16,20]: /
+        - button "Switch to dark mode" [ref=e92] [cursor=pointer] [box=1372,16,36,36]:
+          - img [ref=e94] [box=1382,24,16,16]
+    - main [ref=e96] [box=250,69,1190,1655]:
+      - generic [ref=e671] [box=282,101,1126,1583]:
+        - generic [ref=e672] [box=282,101,1126,255]:
+          - generic [ref=e673] [box=303,122,1084,54]:
+            - generic [ref=e674] [box=303,122,119,54]:
+              - generic [ref=e675] [box=303,122,119,18]: Live control
+              - heading "Rate limiting" [level=2] [ref=e676] [box=303,144,119,32]
+            - paragraph [ref=e677] [box=1196,155,191,21]: Rate limiting is not enabled yet.
+          - generic [ref=e678] [box=303,196,1084,139]:
+            - article [ref=e679] [box=303,196,259,139]:
+              - generic [ref=e680] [box=320,213,225,24]: Status
+              - generic [ref=e681] [box=320,245,225,26]: Inactive
+              - generic [ref=e682] [box=320,279,225,39]: Dashboard toggle updates config. Restart may still be required.
+            - article [ref=e683] [box=578,196,259,139]:
+              - generic [ref=e684] [box=595,213,225,31]: Active keys
+              - generic [ref=e685] [box=595,251,225,33]: "0"
+              - generic [ref=e686] [box=595,292,225,26]: Keys with live rate state
+            - article [ref=e687] [box=853,196,259,139]:
+              - generic [ref=e688] [box=870,213,225,31]: Token limit
+              - generic [ref=e689] [box=870,251,225,33]: —
+              - generic [ref=e690] [box=870,292,225,26]: Tokens per minute per key
+            - article [ref=e691] [box=1128,196,259,139]:
+              - generic [ref=e692] [box=1145,213,225,31]: Request limit
+              - generic [ref=e693] [box=1145,251,225,33]: —
+              - generic [ref=e694] [box=1145,292,225,26]: Requests per minute per key
+        - generic [ref=e695] [box=282,380,1126,1096]:
+          - generic [ref=e696] [box=303,401,1084,86]:
+            - generic [ref=e697] [box=303,401,215,86]:
+              - generic [ref=e698] [box=303,401,215,18]: Feature configuration
+              - heading "Enable optional features" [level=2] [ref=e699] [box=303,423,215,64]
+            - paragraph [ref=e700] [box=534,445,853,42]: Dashboard toggles write to the proxy config when supported. Some features apply on the next request, while others need a restart to take effect fully.
+          - generic [ref=e701] [box=303,507,1084,948]:
+            - generic [ref=e702] [box=303,507,1084,80]:
+              - generic [ref=e703] [box=320,524,779,46]:
+                - generic [ref=e704] [box=320,524,779,22]
+                - paragraph [ref=e715] [box=320,550,779,20]: Scan every request for prompt injection, jailbreaks, and PII before it reaches the model.
+              - generic [ref=e716] [box=1119,524,251,22]:
+                - button "Enable feature" [ref=e717] [cursor=pointer] [box=1119,524,36,20]
+                - generic [ref=e718] [box=1163,524,207,22]
+            - generic [ref=e724] [box=303,594,1084,80]:
+              - generic [ref=e725] [box=320,611,746,46]:
+                - generic [ref=e726] [box=320,611,746,22]
+                - paragraph [ref=e737] [box=320,637,746,20]: Token-bucket rate limiting per API key. Configure limits with CUTCTX_RATE_LIMIT_TPM and CUTCTX_RATE_LIMIT_RPM.
+              - generic [ref=e738] [box=1086,611,284,22]:
+                - button "Enable feature" [ref=e739] [cursor=pointer] [box=1086,612,36,20]
+                - generic [ref=e740] [box=1130,611,240,22]
+            - generic [ref=e746] [box=303,682,1084,78]:
+              - generic [ref=e747] [box=320,699,766,44]:
+                - generic [ref=e748] [box=320,699,766,21]
+                - paragraph [ref=e753] [box=320,723,766,20]: Modulate compression depth based on relevance to the active task.
+              - generic [ref=e754] [box=1106,699,264,22]:
+                - button "Enable feature" [ref=e755] [cursor=pointer] [box=1106,699,36,20]
+                - generic [ref=e756] [box=1150,699,220,22]
+            - generic [ref=e762] [box=303,768,1084,78]:
+              - generic [ref=e763] [box=320,785,799,44]:
+                - generic [ref=e764] [box=320,785,799,21]
+                - paragraph [ref=e769] [box=320,810,799,20]: Detect and collapse repeated content across messages using reversible CCR pointers.
+              - generic [ref=e770] [box=1139,785,231,22]:
+                - button "Enable feature" [ref=e771] [cursor=pointer] [box=1139,786,36,20]
+                - generic [ref=e772] [box=1183,785,187,22]
+            - generic [ref=e778] [box=303,854,1084,78]:
+              - generic [ref=e779] [box=320,871,740,44]:
+                - generic [ref=e780] [box=320,871,740,21]
+                - paragraph [ref=e785] [box=320,896,740,20]: Progressively increase compression as the context window fills.
+              - generic [ref=e786] [box=1080,871,290,22]:
+                - button "Enable feature" [ref=e787] [cursor=pointer] [box=1080,872,36,20]
+                - generic [ref=e788] [box=1124,871,246,22]
+            - generic [ref=e794] [box=303,940,1084,78]:
+              - generic [ref=e795] [box=320,957,779,44]:
+                - generic [ref=e796] [box=320,957,779,21]
+                - paragraph [ref=e801] [box=320,982,779,20]: Learn per-workspace compression patterns across sessions and reuse them later.
+              - generic [ref=e802] [box=1119,957,251,22]:
+                - button "Enable feature" [ref=e803] [cursor=pointer] [box=1119,958,36,20]
+                - generic [ref=e804] [box=1163,957,207,22]
+            - generic [ref=e810] [box=303,1027,1084,80]:
+              - generic [ref=e811] [box=320,1044,740,46]:
+                - generic [ref=e812] [box=320,1044,740,22]
+                - paragraph [ref=e818] [box=320,1070,740,20]: Share compressed context and cache hits across agents working in the same workspace.
+              - generic [ref=e819] [box=1080,1044,290,22]:
+                - button "Enable feature" [ref=e820] [cursor=pointer] [box=1080,1045,36,20]
+                - generic [ref=e821] [box=1124,1044,246,22]
+            - generic [ref=e827] [box=303,1114,1084,80]:
+              - generic [ref=e828] [box=320,1131,733,46]:
+                - generic [ref=e829] [box=320,1131,733,22]
+                - paragraph [ref=e835] [box=320,1157,733,20]: Store and reinject project memories across sessions.
+              - generic [ref=e836] [box=1073,1131,297,22]:
+                - button "Enable feature" [ref=e837] [cursor=pointer] [box=1073,1132,36,20]
+                - generic [ref=e838] [box=1117,1131,253,22]
+            - generic [ref=e844] [box=303,1202,1084,78]:
+              - generic [ref=e845] [box=320,1219,746,44]:
+                - generic [ref=e846] [box=320,1219,746,21]
+                - paragraph [ref=e851] [box=320,1244,746,20]: Estimate request cost up front and feed policy decisions before compression runs.
+              - generic [ref=e852] [box=1086,1219,284,22]:
+                - button "Enable feature" [ref=e853] [cursor=pointer] [box=1086,1220,36,20]
+                - generic [ref=e854] [box=1130,1219,240,22]
+            - generic [ref=e860] [box=303,1288,1084,80]:
+              - generic [ref=e861] [box=320,1305,793,46]:
+                - generic [ref=e862] [box=320,1305,793,22]
+                - paragraph [ref=e875] [box=320,1331,793,20]: Persist admin and governance activity to the audit log. Restart required to fully apply changes.
+              - generic [ref=e876] [box=1133,1305,237,22]:
+                - button "Disable feature" [ref=e877] [cursor=pointer] [box=1133,1306,36,20]
+                - generic [ref=e878] [box=1177,1305,193,22]
+            - generic [ref=e884] [box=303,1376,1084,80]:
+              - generic [ref=e885] [box=320,1393,813,46]:
+                - generic [ref=e886] [box=320,1393,813,22]
+                - paragraph [ref=e893] [box=320,1419,813,20]: Role assignment and permission enforcement surfaces. This is a control plane, not a simple boolean flag.
+              - code [ref=e896] [box=1153,1393,217,22]: Enterprise entitlement required
+        - generic [ref=e897] [box=282,1500,1126,184]:
+          - generic [ref=e898] [box=282,1500,555,184]:
+            - generic [ref=e899] [box=303,1521,513,54]:
+              - generic [ref=e900] [box=303,1521,129,54]:
+                - generic [ref=e901] [box=303,1521,129,18]: Enterprise
+                - heading "Audit surface" [level=2] [ref=e902] [box=303,1543,129,32]
+              - paragraph [ref=e903] [box=702,1554,114,21]: Refreshed 14s ago
+            - generic [ref=e904] [box=303,1595,513,68]:
+              - generic [ref=e905] [box=303,1595,251,68]:
+                - generic [ref=e906] [box=316,1608,225,18]: Status
+                - strong [ref=e907] [box=316,1629,225,21]: Reachable
+              - generic [ref=e908] [box=566,1595,251,68]:
+                - generic [ref=e909] [box=579,1608,225,18]: Recent events
+                - strong [ref=e910] [box=579,1629,225,21]: "0"
+          - generic [ref=e911] [box=853,1500,555,184]:
+            - generic [ref=e912] [box=874,1521,513,54]:
+              - generic [ref=e913] [box=874,1521,128,54]:
+                - generic [ref=e914] [box=874,1521,128,18]: Enterprise
+                - heading "RBAC surface" [level=2] [ref=e915] [box=874,1543,128,32]
+              - paragraph [ref=e916] [box=1273,1554,114,21]: Refreshed 14s ago
+            - generic [ref=e917] [box=874,1595,513,68]:
+              - generic [ref=e918] [box=874,1595,251,68]:
+                - generic [ref=e919] [box=887,1608,225,18]: Status
+                - strong [ref=e920] [box=887,1629,225,21]: Reachable
+              - generic [ref=e921] [box=1137,1595,251,68]:
+                - generic [ref=e922] [box=1150,1608,225,18]: Assignments
+                - strong [ref=e923] [box=1150,1629,225,21]: "1"

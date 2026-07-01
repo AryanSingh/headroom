@@ -139,7 +139,17 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | SQuAD v2   | QA       | 100 |        — |  **97%** | 19% compression |
 | BFCL       | Tools    | 100 |        — |  **97%** | 32% compression |
 
-Reproduce: `python -m cutctx.evals suite --tier 1` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
+Reproduce: `cutctx evals benchmark --dataset tool_outputs --dataset hotpotqa --dataset squad --compressors all --metrics ratio --metrics tokens_saved --metrics f1 --metrics rouge_l --markdown` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
+
+**Real output from the command above** (seed `42`, zero-LLM):
+
+| Dataset | N | Code | ContentRouter | Kompress | LLMLingua |
+|---|---|---:|---:|---:|---:|
+| ToolOutputSamples | 8 | 80.5% | 78.2% | 78.8% | 45.4% |
+| HotpotQA | 50 | 81.6% | 81.7% | 81.6% | 54.3% |
+| SQuAD v2 | 50 | 93.1% | 93.3% | 93.3% | 54.5% |
+
+Full per-compressor breakdown (all 10 compressors × ratio/tokens-saved/F1/ROUGE-L) in `benchmark_results.md` at the repo root.
 
 <a href="https://www.star-history.com/?repos=cutctx%2Fcutctx&type=date&legend=top-left">
  <picture>

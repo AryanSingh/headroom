@@ -66,6 +66,35 @@ Two major new capabilities:
 - **`crates/cutctx-core/tests/test_stack_graphs.rs`** (95 lines) — Rust integration tests
 - **`tests/test_stack_graph_resolver.py`** (208 lines) — Python integration tests
 
+### Stack Graph Reachability Bridge
+
+- **`cutctx/graph/reachability.py`** — `extract_symbol_names()` + `resolve_entry_points()`, bridging Rust `reachable_definitions()` BFS results into Python
+  - Protects on-call-path symbols during aggressive compression (prevents breaking dependent code paths)
+  - Wired into `CodeAwareCompressor.set_protected_symbols()` from `cutctx/proxy/server.py` (`_apply_stack_graph_to_compressor()`) via `content_router.py`
+- **`cutctx/cli/stack_graph.py`** — New CLI subcommand: `cutctx stack-graph explain <query>`
+  - Uses `stack_graph_available()`, `StackGraphResolver().index_project()`, `resolve_entry_points()`
+  - Options: `--project-root`, `--max-files`
+
+### Feedback Loop (Data Flywheel)
+
+- **`cutctx/profiles.py`** — Per-workspace `CompressionProfile` persistence
+  - Tracks per-content-type stats: `sessions_seen`, `total_compressions`, `total_retrievals`, `retrieval_rate`, `avg_compression_ratio`, `recommended_ratio`
+  - Persisted as JSON at `~/.cutctx/profiles/<workspace_hash>.json` (`_get_profile_path()`)
+  - `recommended_ratio` is clamped to a max of 0.95 (`_MAX_RECOMMENDED_RATIO`) so feedback can never fully disable compression (M-1 security fix)
+  - Flows into `ContentRouterConfig.per_type_overrides` at proxy startup (`server.py`), biasing future compression per content type
+- **`cutctx/cli/profile.py`** — New CLI subcommand: `cutctx profile show [--json]`
+  - Calls `CompressionProfile.load()` / `.summary()`; friendly empty-state message when no profile exists yet
+- **`/stats`** — now exposes a `"profile"` block (`CompressionProfile.load().summary()`) and `"content_router_overrides_count"` so operators can verify the flywheel is actually running end-to-end
+
+### Benchmark CLI
+
+- **`cutctx/cli/evals.py`** — `cutctx evals benchmark` command (`@evals.command("benchmark")`)
+  - `--dataset` (multiple, default `tool_outputs`): `tool_outputs`, `longbench`, `squad`, `hotpotqa`, plus `--longbench-task` for LongBench subtasks
+  - `--compressors` (multiple, default `all`): `smart_crusher`, `log`, `search`, `diff`, `code`, `kompress`, `llmlingua`, `drain3`, `content_router`, `all`
+  - `--metrics` (multiple, default `ratio,f1,information_recall`): `ratio`, `tokens_saved`, `f1`, `rouge_l`, `information_recall`, `exact_match`
+  - `--n` samples per dataset, `--parallel` worker count, `--output PATH` for JSON, `--markdown` for an LLMLingua-paper-style comparison table
+  - Zero-LLM by default; still surfaced under the `evals` command group in `cutctx --help` (relabeled from "Memory evaluation commands" to also mention benchmarking)
+
 ---
 
 ## Files Modified
