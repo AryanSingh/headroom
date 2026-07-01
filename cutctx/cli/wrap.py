@@ -3984,9 +3984,9 @@ def opencode(
     """Launch opencode through Cutctx proxy.
 
     \b
-    opencode is an OpenAI-compatible terminal coding agent. This command
-    starts the proxy and launches opencode with OPENAI_BASE_URL pointed
-    at the local proxy.
+    opencode accepts OpenAI- and Anthropic-compatible providers; route both.
+    This command starts the proxy and launches opencode with OPENAI_BASE_URL
+    and ANTHROPIC_BASE_URL pointed at the local proxy.
 
     \b
     Examples:
@@ -3994,8 +3994,6 @@ def opencode(
         cutctx wrap opencode --port 9999            # Custom proxy port
         cutctx wrap opencode -- --model claude-sonnet-4-5
     """
-    from cutctx.providers.codex import build_launch_env as _build_opencode_launch_env
-
     agents_md = Path.cwd() / "AGENTS.md"
     if not no_rtk:
         _setup_context_tool_for_agent(
@@ -4012,7 +4010,17 @@ def opencode(
         click.echo("Install opencode: https://opencode.ai")
         raise SystemExit(1)
 
-    env, env_vars_display = _build_opencode_launch_env(port, os.environ)
+    # opencode accepts OpenAI- and Anthropic-compatible providers; route both.
+    env = os.environ.copy()
+    openai_base = f"http://127.0.0.1:{port}/v1"
+    anthropic_base = _claude_proxy_base_url(port)
+    env["OPENAI_BASE_URL"] = openai_base
+    env["OPENAI_API_BASE"] = openai_base
+    env["ANTHROPIC_BASE_URL"] = anthropic_base
+    env_vars_display = [
+        f"OPENAI_BASE_URL={openai_base}",
+        f"ANTHROPIC_BASE_URL={anthropic_base}",
+    ]
     _apply_project_header_env(env)
 
     _launch_tool(
