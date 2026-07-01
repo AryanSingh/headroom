@@ -1,9 +1,20 @@
 # Cutctx v0.29.0 — Release Status
 
-**Date:** 2026-06-30  
+**Date:** 2026-07-01  
 **Branch:** `main`  
-**Base commit:** `c4a7f77b` (Fix 21 bugs identified in manual testing)  
-**Working tree:** Uncommitted changes from USearch + Stack Graphs integration
+**Base commit:** `9f27e3d0` (`Fix audio compression and dashboard verification`)  
+**Working tree:** Release checkpoint being finalized on `main`
+
+## 2026-07-01 Checkpoint
+
+- Admin/runtime source boot restored after `cutctx/proxy/routes/admin.py` was returned to a clean `HEAD` state.
+- Dashboard operator data path re-verified with current-source endpoints for `/health`, `/config/flags`, `/policy/status`, `/stats`, and `/stats-history`.
+- Inline multimodal audio optimization is now implemented and covered by targeted tests; dedicated `/v1/audio/*` routes remain pass-through by design.
+- Current verified checkpoint:
+  - `cd dashboard && npm run build`
+  - `uv run python -m pytest -q tests/test_audio_compressor.py tests/test_inline_audio_messages.py tests/test_proxy_compress_endpoint.py tests/test_handler_outcome_tag_invariant.py tests/test_modality_matrix.py -q`
+
+USearch + Stack Graphs integration
 
 ---
 
@@ -13,6 +24,7 @@ Two major new capabilities:
 
 1. **USearch vector backend** — ~10× faster vector search with f16 quantization and zero-copy memory-mapped loading. Replaces sqlite-vec as the primary local vector backend when `usearch` is installed. `VectorBackend.AUTO` prefers USEARCH → SQLITE_VEC → HNSW.
 2. **Stack Graphs code navigation** — Deterministic, syntax-based cross-file go-to-definition using GitHub's `tree-sitter-stack-graphs`. Rust `StackGraphManager` exposed via PyO3 with Python `StackGraphResolver` facade. Supports Python and JavaScript/TypeScript.
+3. **Phase 1 Security fixes** — Four critical/high security patches: loopback auth bypass closure for `/dashboard`, `/api/savings`, `/api/models`; LIKE wildcard injection fix with `_escape_like()` helper; Kompress max-input DoS guard via `CUTCTX_KOMPRESS_MAX_WORDS`; startup warning when `CUTCTX_ALLOW_DEBUG` is set.
 
 ---
 
@@ -129,6 +141,10 @@ print(f'StackGraphResolver OK (files={r.file_count})')
 3. **Stack Graphs first-build latency**: Initial indexing of large projects takes a few seconds in the background thread.
 4. **`tree-sitter-stack-graphs` API pinning**: Pinned to version `0.8` — future API changes may require migration.
 5. **LSP errors for optional deps**: Type checker reports missing imports for `usearch` (no stubs) and `fastapi`/`httpx`/`uvicorn` (runtime-only) — non-blocking.
+6. **Auth bypass fixed**: `/dashboard`, `/api/savings`, and `/api/models` were stripped from the loopback auth bypass path in `server.py:213` — localhost no longer skips auth for these endpoints. Verified via manual curl against local proxy.
+7. **LIKE injection guard applied**: `_escape_like()` helper and `ESCAPE "\\"` clause added for `entity_ref` LIKE queries in `sqlite.py`. Existing DB rows with unescaped wildcards are safe at read time; new writes are sanitized.
+8. **Kompress DoS limit added**: `CUTCTX_KOMPRESS_MAX_WORDS` env var (default 80,000) caps per-call text input to the Kompress transformer. Backward compatible for typical usage; deployments with very long prompts may need to raise the limit.
+9. **Ruff lint cleanup**: 56 auto-fixable lint errors resolved across the codebase (F401 unused imports, trailing whitespace, etc.). No behavioral changes.
 
 ---
 

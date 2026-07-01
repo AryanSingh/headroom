@@ -313,7 +313,6 @@ class UsearchMemoryBackend(VectorIndex):
         Note: This is a low-level helper. Prefer the protocol-compliant
         ``index_batch()`` method instead.
         """
-        import numpy as np
 
         with self._lock:
             if self._index is None:

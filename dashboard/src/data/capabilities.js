@@ -17,7 +17,7 @@ export const capabilityGroups = [
       { name: 'CodeCompressor', detail: 'AST-aware source code reduction across Python, JS, Go, Rust, Java, and C++.' },
       { name: 'Log & Diff Compression', detail: 'Structural log pattern analysis, semantic diff compression, and multi-format optimization across 40+ log and diff formats.' },
       { name: 'Schema Compaction', detail: 'Tool schema metadata stripping for OpenAI / Codex tool-heavy payloads.' },
-      { name: 'Image Optimization & Audio Pass-through', detail: 'Inline base64 images are compressed; audio routes are proxied unchanged for fidelity.' },
+      { name: 'Image Optimization & Inline Audio', detail: 'Inline base64 images are compressed; inline WAV audio can be downsampled while dedicated `/v1/audio/*` routes stay pass-through for fidelity.' },
       { name: 'Cache Alignment', detail: 'Prefix stabilization to improve provider prompt-cache hit rates.' },
     ],
   },

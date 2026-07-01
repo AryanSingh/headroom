@@ -1713,6 +1713,68 @@ impl PyStackGraphManager {
         Some(map)
     }
 
+    /// BFS from definitions matching `symbol_name` in the file at `path`,
+    /// collecting all reachable definitions up to `max_depth` hops.
+    ///
+    /// Returns a list of dicts, each with keys: ``target_file``,
+    /// ``target_line``, ``target_column``, ``symbol_name``, ``confidence``.
+    /// Returns an empty list when the file is not indexed or the symbol
+    /// cannot be found.
+    #[pyo3(signature = (path, symbol_name, max_depth = 10))]
+    fn reachable_definitions(
+        &self,
+        path: &str,
+        symbol_name: &str,
+        max_depth: usize,
+    ) -> Vec<HashMap<String, PyObject>> {
+        let inner = self.inner.lock().unwrap();
+        let results = inner.reachable_definitions(path, symbol_name, max_depth);
+        Python::with_gil(|py| {
+            results
+                .into_iter()
+                .map(|r| {
+                    let mut m = HashMap::new();
+                    m.insert("target_file".to_string(), r.target_file.into_py(py));
+                    m.insert("target_line".to_string(), r.target_line.into_py(py));
+                    m.insert("target_column".to_string(), r.target_column.into_py(py));
+                    m.insert("symbol_name".to_string(), r.symbol_name.into_py(py));
+                    m.insert("confidence".to_string(), r.confidence.into_py(py));
+                    m
+                })
+                .collect()
+        })
+    }
+
+    /// Reverse BFS: find definitions whose forward traversal reaches the
+    /// definition of `symbol_name` in the file at `path`.
+    ///
+    /// Same return shape as ``reachable_definitions``. Returns an empty
+    /// list when the file is not indexed or the symbol cannot be found.
+    #[pyo3(signature = (path, symbol_name, max_depth = 10))]
+    fn callers_of(
+        &self,
+        path: &str,
+        symbol_name: &str,
+        max_depth: usize,
+    ) -> Vec<HashMap<String, PyObject>> {
+        let inner = self.inner.lock().unwrap();
+        let results = inner.callers_of(path, symbol_name, max_depth);
+        Python::with_gil(|py| {
+            results
+                .into_iter()
+                .map(|r| {
+                    let mut m = HashMap::new();
+                    m.insert("target_file".to_string(), r.target_file.into_py(py));
+                    m.insert("target_line".to_string(), r.target_line.into_py(py));
+                    m.insert("target_column".to_string(), r.target_column.into_py(py));
+                    m.insert("symbol_name".to_string(), r.symbol_name.into_py(py));
+                    m.insert("confidence".to_string(), r.confidence.into_py(py));
+                    m
+                })
+                .collect()
+        })
+    }
+
     /// Number of files currently indexed.
     fn file_count(&self) -> usize {
         self.inner.lock().unwrap().file_count()

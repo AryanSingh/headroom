@@ -53,7 +53,6 @@ if TYPE_CHECKING:
         HTMLExtractorConfig,
         is_html_content,
     )
-
     from cutctx.transforms.log_compressor import (  # noqa: F401
         LogCompressionResult,
         LogCompressor,

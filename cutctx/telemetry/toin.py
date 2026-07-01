@@ -66,7 +66,6 @@ import logging
 import os
 import threading
 import time
-import warnings
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Final

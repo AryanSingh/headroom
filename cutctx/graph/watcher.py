@@ -26,10 +26,10 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Module-level stack-graph resolver for incremental indexing
-_stack_graph_resolver: "StackGraphResolver | None" = None
+_stack_graph_resolver: StackGraphResolver | None = None
 
 
-def set_stack_graph_resolver(resolver: "StackGraphResolver | None") -> None:
+def set_stack_graph_resolver(resolver: StackGraphResolver | None) -> None:
     """Set the active stack-graph resolver for incremental file indexing.
 
     Called by the proxy server when it initializes the stack-graph resolver.

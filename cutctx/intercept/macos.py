@@ -19,8 +19,8 @@ import shutil
 import socket
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 INTERCEPT_DOMAINS: list[str] = [
     "api.anthropic.com",

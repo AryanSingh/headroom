@@ -177,7 +177,7 @@ def status_cmd() -> None:
     if sys.platform != "darwin":
         raise click.ClickException("cutctx intercept is only supported on macOS.")
 
-    from cutctx.intercept.macos import status, INTERCEPT_DOMAINS
+    from cutctx.intercept.macos import INTERCEPT_DOMAINS, status
 
     s = status()
     ok = "\033[32m✓\033[0m"

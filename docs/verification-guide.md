@@ -110,6 +110,10 @@ curl -s -i -X POST http://127.0.0.1:8787/v1/audio/transcriptions \
 kill %1
 ```
 
+### B1b. Inline Audio Block Optimization
+
+Inline WAV audio embedded inside multimodal message blocks is a separate surface from `/v1/audio/*`. That path may be optimized for payload size before request forwarding, while dedicated audio routes remain lossless pass-through.
+
 ### B2. Code Compressor (AST slicing)
 
 ```bash

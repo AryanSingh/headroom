@@ -1212,7 +1212,7 @@ def proxy(
         firewall_block_injection=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_INJECTION", False),
         firewall_block_jailbreak=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_JAILBREAK", False),
         firewall_redact_streaming=not _get_env_bool("CUTCTX_FIREWALL_NO_REDACT_STREAMING", False),
-        
+
         # Intelligence Layer
         task_aware_enabled=enable_task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False),
         dedup_enabled=enable_semantic_dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False),
@@ -1220,10 +1220,10 @@ def proxy(
         profiles_enabled=enable_cross_session or _get_env_bool("CUTCTX_PROFILES_ENABLED", False),
         shared_context_enabled=enable_multi_agent or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),
         cost_forecast_enabled=enable_cost_forecasting or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False),
-        
+
         # Cache Aligner
         cache_aligner_enabled=enable_cache_aligner or _get_env_bool("CUTCTX_CACHE_ALIGNER_ENABLED", False),
-        
+
         # Ensemble
         ensemble_enabled=enable_ensemble or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False),
     )

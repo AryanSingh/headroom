@@ -207,9 +207,9 @@ async def sync_team_memory(
             for _s_delta in server_deltas:
                 action = _s_delta.get("action", "upsert")
                 server_id = _s_delta.get("id")
-                
+
                 shared_user_id = f"team_{org_id}"
-                
+
                 try:
                     if action == "delete" and server_id:
                         # Find local memory by server_id and delete it
@@ -221,7 +221,7 @@ async def sync_team_memory(
                         content = _s_delta.get("content")
                         if not content:
                             continue
-                            
+
                         await backend.save_memory(
                             content=content,
                             user_id=shared_user_id,

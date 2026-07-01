@@ -325,8 +325,18 @@ function AppFrame() {
 }
 
 export default function App() {
+  const configuredBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/';
+  const pathname = window.location.pathname;
+  const basename = pathname.startsWith('/admin')
+    ? '/admin'
+    : pathname.startsWith('/dashboard')
+      ? '/dashboard'
+      : configuredBase === '/'
+        ? '/'
+        : configuredBase;
+
   return (
-    <BrowserRouter basename={window.location.pathname.startsWith('/admin') ? '/admin' : '/dashboard'}>
+    <BrowserRouter basename={basename}>
       <ThemeProvider>
         <DashboardDataProvider>
           <AppFrame />

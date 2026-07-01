@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from ..config import (
     CacheAlignerConfig,
-    DiffArtifact,
     CutctxConfig,
+    DiffArtifact,
     TransformDiff,
     TransformResult,
     WasteSignals,

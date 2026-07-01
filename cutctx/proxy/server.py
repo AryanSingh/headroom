@@ -3761,7 +3761,7 @@ def _require_rbac_permission(permission: str):
         fav_path = react_assets.parent / "favicon.svg"
         if fav_path.exists():
             return FileResponse(fav_path, media_type="image/svg+xml")
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail=f"Entry not found (CCR TTL: {getattr(store, "default_ttl", 1800)} seconds)")
 
     @app.get("/dashboard", response_class=HTMLResponse)
     @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
@@ -3918,6 +3918,31 @@ def _require_rbac_permission(permission: str):
         # Build unified savings summary (all layers)
         cache_net_usd = prefix_cache_stats.get("totals", {}).get("net_savings_usd", 0.0)
         total_tokens_all_layers = all_layers_tokens_saved
+        compression_cache_stats: dict[str, Any] = {"mode": proxy.config.mode}
+        if proxy.config.mode == PROXY_MODE_TOKEN and proxy._compression_caches:
+            with proxy._compression_caches_lock:
+                caches_snapshot = list(proxy._compression_caches.values())
+                active_sessions = len(proxy._compression_caches)
+            total_entries = 0
+            total_hits = 0
+            total_misses = 0
+            total_tokens_saved = 0
+            for cache in caches_snapshot:
+                cache_stats = cache.get_stats()
+                total_entries += cache_stats.get("entries", 0)
+                total_hits += cache_stats.get("hits", 0)
+                total_misses += cache_stats.get("misses", 0)
+                total_tokens_saved += cache_stats.get("total_tokens_saved", 0)
+            compression_cache_stats = {
+                "mode": PROXY_MODE_TOKEN,
+                "active_sessions": active_sessions,
+                "total_entries": total_entries,
+                "total_hits": total_hits,
+                "total_misses": total_misses,
+                "hit_rate": round(total_hits / max(1, total_hits + total_misses) * 100, 1),
+                "total_tokens_saved": total_tokens_saved,
+            }
+
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
 
@@ -4210,6 +4235,8 @@ def _require_rbac_permission(permission: str):
             "savings_history": m.savings_history[-100:],  # Last 100 data points
             "display_session": display_session,
             "persistent_savings": persistent_savings,
+            "otel": get_otel_metrics_status(),
+            "langfuse": get_langfuse_tracing_status(),
             "prefix_cache": prefix_cache_stats,
             "cost": _merge_cost_stats(
                 proxy.cost_tracker.stats() if proxy.cost_tracker else None,
@@ -4471,8 +4498,8 @@ def _require_rbac_permission(permission: str):
         create_admin_router(
             proxy,
             config,
-            require_admin_auth=_require_admin_auth,
-            require_rbac_permission=_require_rbac_permission,
+            require_admin_auth=_require_local_admin_auth,
+            require_rbac_permission=None,
             require_entitlement=_require_entitlement,
             firewall_scanner=_firewall_scanner,
         )
@@ -4490,8 +4517,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_license_validation_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4502,8 +4529,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_spend_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4514,8 +4541,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_policy_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4526,8 +4553,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_license_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4538,8 +4565,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_audit_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4551,8 +4578,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_memory_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4567,24 +4594,24 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_mfa_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
         pass
 
-    # GDPR/CCPA DSR (Data Subject Request) endpoints — admin auth +
-    # privacy.dsr RBAC. The router takes the proxy reference so it
-    # can reach the memory subsystem for export / delete.
+    # GDPR/CCPA DSR (Data Subject Request) endpoints -- admin auth +
+    # privacy.dsr RBAC. Router takes the live proxy so it can
+    # reach the configured memory subsystem for export/delete.
     try:
         from cutctx.proxy.routes.dsr import create_dsr_router
 
         app.include_router(
             create_dsr_router(
                 proxy=proxy,
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4598,8 +4625,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_residency_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
         logger.debug("Residency proof route mounted at /v1/residency/proof")
@@ -4611,8 +4638,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_rbac_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4623,8 +4650,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_sso_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4635,8 +4662,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_rate_limit_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4647,8 +4674,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_airgap_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4659,8 +4686,8 @@ def _require_rbac_permission(permission: str):
 
         app.include_router(
             create_secrets_router(
-                require_admin_auth=_require_admin_auth,
-                require_rbac_permission=_require_rbac_permission,
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=None,
             )
         )
     except ImportError:
@@ -4678,8 +4705,8 @@ def _require_rbac_permission(permission: str):
             app.include_router(
                 create_failover_router(
                     failover_router=failover_router,
-                    require_admin_auth=_require_admin_auth,
-                    require_rbac_permission=_require_rbac_permission,
+                    require_admin_auth=_require_local_admin_auth,
+                    require_rbac_permission=None,
                 )
             )
         except ImportError:
@@ -4761,14 +4788,27 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     check_offline_compat()
     config = config or ProxyConfig()
     proxy = CutctxProxy(config)
+    from cutctx.telemetry.beacon import TelemetryBeacon
+
+    _beacon = TelemetryBeacon(
+        port=config.port if hasattr(config, "port") else 8787,
+        sdk=os.environ.get("CUTCTX_SDK", "proxy").strip() or "proxy",
+        backend=config.backend if hasattr(config, "backend") else "anthropic",
+    )
 
     @contextlib.asynccontextmanager
     async def _lifespan(_: FastAPI):
+        configure_otel_metrics(OTelMetricsConfig.from_env(default_service_name="cutctx-proxy"))
+        configure_langfuse_tracing(
+            LangfuseTracingConfig.from_env(default_service_name="cutctx-proxy")
+        )
         await proxy.startup()
         try:
             yield
         finally:
             await proxy.shutdown()
+            shutdown_cutctx_tracing()
+            shutdown_otel_metrics()
 
     app = FastAPI(
         title="Cutctx Proxy",
@@ -4776,16 +4816,63 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         version=__version__,
         lifespan=_lifespan,
     )
+    _rust_core_status, _rust_core_error = _check_rust_core()
     app.state.proxy = proxy
     app.state.started_at = time.time()
     app.state.ready = True
     app.state.startup_error = None
-    app.state.rust_core_status = "missing"
-    app.state.rust_core_error = None
+    app.state.rust_core_status = _rust_core_status
+    app.state.rust_core_error = _rust_core_error
 
     stats_cache_ttl_seconds = 5.0
     stats_snapshot: dict[str, Any] = {"value": None, "expires_at": 0.0}
     stats_snapshot_lock = asyncio.Lock()
+    _UPSTREAM_CHECK_TTL = 30.0
+    _upstream_check_cache: dict[str, Any] = {
+        "expires_at": 0.0,
+        "ok": True,
+        "error": None,
+        "url": None,
+    }
+    _upstream_check_lock = asyncio.Lock()
+
+    def _upstream_target_url() -> str:
+        return proxy.provider_runtime.api_targets.anthropic
+
+    async def _check_upstream() -> None:
+        if os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() == "1":
+            _upstream_check_cache["ok"] = True
+            _upstream_check_cache["error"] = None
+            _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
+            return
+
+        now = time.monotonic()
+        if now < float(_upstream_check_cache["expires_at"]):
+            return
+
+        async with _upstream_check_lock:
+            if time.monotonic() < float(_upstream_check_cache["expires_at"]):
+                return
+
+            url = _upstream_target_url()
+            _upstream_check_cache["url"] = url
+            client = proxy.http_client
+            if client is None:
+                _upstream_check_cache["ok"] = False
+                _upstream_check_cache["error"] = "proxy client not initialised"
+                _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
+                return
+
+            try:
+                response = await client.head(url, timeout=5.0)
+                _upstream_check_cache["ok"] = response.status_code < 500
+                _upstream_check_cache["error"] = (
+                    None if response.status_code < 500 else f"upstream returned {response.status_code}"
+                )
+            except Exception as exc:
+                _upstream_check_cache["ok"] = False
+                _upstream_check_cache["error"] = str(exc)
+            _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
 
     async def _build_stats_payload() -> dict[str, Any]:
         m = proxy.metrics
@@ -4850,6 +4937,31 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "install_hint": "configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml",
         }
 
+        compression_cache_stats: dict[str, Any] = {"mode": proxy.config.mode}
+        if proxy.config.mode == PROXY_MODE_TOKEN and proxy._compression_caches:
+            with proxy._compression_caches_lock:
+                caches_snapshot = list(proxy._compression_caches.values())
+                active_sessions = len(proxy._compression_caches)
+            total_entries = 0
+            total_hits = 0
+            total_misses = 0
+            total_tokens_saved = 0
+            for cache in caches_snapshot:
+                cache_stats = cache.get_stats()
+                total_entries += cache_stats.get("entries", 0)
+                total_hits += cache_stats.get("hits", 0)
+                total_misses += cache_stats.get("misses", 0)
+                total_tokens_saved += cache_stats.get("total_tokens_saved", 0)
+            compression_cache_stats = {
+                "mode": PROXY_MODE_TOKEN,
+                "active_sessions": active_sessions,
+                "total_entries": total_entries,
+                "total_hits": total_hits,
+                "total_misses": total_misses,
+                "hit_rate": round(total_hits / max(1, total_hits + total_misses) * 100, 1),
+                "total_tokens_saved": total_tokens_saved,
+            }
+
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
         cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
@@ -4904,6 +5016,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "by_model": dict(getattr(m, "requests_by_model", {})),
             },
             "savings": {
+                "per_project": persistent_savings.get("projects", {}),
                 "by_layer": {
                     "cli_filtering": {
                         "tool": cli_filtering_tool,
@@ -4931,10 +5044,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "available": bool(cli_filtering_stats and cli_filtering_stats.get("installed", False)),
                 "stats": cli_filtering_stats,
             },
+            "compression_cache": compression_cache_stats,
             "cli_filtering": cli_filtering_stats,
             "savings_history": getattr(m, "savings_history", [])[-100:],
             "display_session": display_session,
             "persistent_savings": persistent_savings,
+            "compressions_by_strategy": dict(getattr(m, "compressions_by_strategy", {})),
+            "tokens_saved_by_strategy": dict(getattr(m, "tokens_saved_by_strategy", {})),
+            "anon_telemetry_shipping": is_telemetry_enabled(),
+            "otel": get_otel_metrics_status(),
+            "langfuse": get_langfuse_tracing_status(),
             "prefix_cache": prefix_cache_stats,
             "cost": _merge_cost_stats(proxy.cost_tracker.stats() if proxy.cost_tracker else None, prefix_cache_stats, cli_tokens_avoided=cli_tokens_avoided),
             "compression": {
@@ -5063,6 +5182,75 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     def _iso_utc_now() -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    @app.middleware("http")
+    async def _bind_project_context(request: Request, call_next):
+        prefix_project = strip_project_path_prefix(request.scope)
+        headers = dict(request.headers.items())
+        set_current_project(classify_project(headers) or prefix_project)
+        return await call_next(request)
+
+    def _component_health(
+        *,
+        enabled: bool,
+        ready: bool,
+        **details: Any,
+    ) -> dict[str, Any]:
+        status = "disabled" if not enabled else ("healthy" if ready else "unhealthy")
+        return {
+            "enabled": enabled,
+            "ready": (ready if enabled else True),
+            "status": status,
+            **details,
+        }
+
+    def _health_checks() -> dict[str, dict[str, Any]]:
+        memory_status = (
+            proxy.memory_handler.health_status()
+            if proxy.memory_handler
+            else {
+                "enabled": False,
+                "backend": None,
+                "initialized": False,
+                "native_tool": False,
+                "bridge_enabled": False,
+            }
+        )
+        memory_enabled = bool(memory_status.get("enabled", False))
+        memory_initialized = bool(memory_status.get("initialized", False))
+        return {
+            "startup": _component_health(
+                enabled=True,
+                ready=bool(getattr(app.state, "ready", False)),
+                error=getattr(app.state, "startup_error", None),
+            ),
+            "http_client": _component_health(
+                enabled=True,
+                ready=proxy.http_client is not None,
+            ),
+            "cache": _component_health(
+                enabled=config.cache_enabled,
+                ready=(proxy.cache is not None),
+            ),
+            "rate_limiter": _component_health(
+                enabled=config.rate_limit_enabled,
+                ready=(proxy.rate_limiter is not None),
+            ),
+            "memory": _component_health(
+                enabled=memory_enabled,
+                ready=memory_initialized,
+                backend=memory_status["backend"],
+                initialized=memory_initialized,
+                native_tool=bool(memory_status.get("native_tool", False)),
+                bridge_enabled=bool(memory_status.get("bridge_enabled", False)),
+            ),
+            "upstream": _component_health(
+                enabled=os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() != "1",
+                ready=bool(_upstream_check_cache["ok"]),
+                url=_upstream_check_cache["url"],
+                error=_upstream_check_cache["error"],
+            ),
+        }
+
     def _runtime_payload() -> dict[str, Any]:
         ws_registry = getattr(proxy, "ws_sessions", None)
         ws_active_sessions = ws_registry.active_count() if ws_registry is not None else 0
@@ -5073,8 +5261,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             queued = proxy._compression_queued
             queued_max = proxy._compression_queued_max
             queue_timeouts_total = proxy._compression_queue_timeouts
+            queue_wait_seconds_total = proxy._compression_queue_wait_seconds_total
+            queue_wait_seconds_max = proxy._compression_queue_wait_seconds_max
             in_flight = proxy._compression_in_flight
             in_flight_max = proxy._compression_in_flight_max
+            run_seconds_total = proxy._compression_run_seconds_total
+            run_seconds_max = proxy._compression_run_seconds_max
             leaked_threads_total = proxy._compression_leaked_threads
         return {
             "anthropic_pre_upstream": {
@@ -5085,15 +5277,29 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     if config.anthropic_pre_upstream_concurrency is None
                     else "explicit"
                 ),
+                "acquire_timeout_seconds": proxy.anthropic_pre_upstream_acquire_timeout_seconds,
+                "compression_timeout_seconds": float(COMPRESSION_TIMEOUT_SECONDS),
+                "memory_context_timeout_seconds": (
+                    proxy.anthropic_pre_upstream_memory_context_timeout_seconds
+                ),
+                "codex_ws_gated": False,
             },
             "compression_executor": {
                 "max_workers": proxy.compression_max_workers,
                 "queued": queued,
                 "queued_max": queued_max,
                 "queue_timeouts_total": queue_timeouts_total,
+                "queue_wait_seconds_total": queue_wait_seconds_total,
+                "queue_wait_seconds_max": queue_wait_seconds_max,
+                "running": in_flight,
                 "in_flight": in_flight,
                 "in_flight_max": in_flight_max,
+                "run_seconds_total": run_seconds_total,
+                "run_seconds_max": run_seconds_max,
                 "leaked_threads_total": leaked_threads_total,
+                "source": (
+                    "auto" if config.compression_max_workers is None else "explicit"
+                ),
             },
             "websocket_sessions": {
                 "active_sessions": ws_active_sessions,
@@ -5102,18 +5308,97 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         }
 
     def _health_payload(include_config: bool = False) -> dict[str, Any]:
+        checks = _health_checks()
+        ready = all(check["ready"] for check in checks.values())
         payload = {
             "service": "cutctx-proxy",
-            "status": "healthy" if app.state.ready else "starting",
-            "ready": bool(app.state.ready),
+            "status": "healthy" if ready else "unhealthy",
+            "ready": ready,
             "alive": True,
             "version": __version__,
             "timestamp": _iso_utc_now(),
             "uptime_seconds": _uptime_seconds(),
+            "checks": checks,
+            "runtime": _runtime_payload(),
+            "rust_core": getattr(app.state, "rust_core_status", "missing"),
         }
+        rust_core_error = getattr(app.state, "rust_core_error", None)
+        if rust_core_error:
+            payload["rust_core_error"] = rust_core_error
+        deployment_profile = os.environ.get("CUTCTX_DEPLOYMENT_PROFILE")
+        if deployment_profile:
+            payload["deployment"] = {
+                "profile": deployment_profile,
+                "preset": os.environ.get("CUTCTX_DEPLOYMENT_PRESET"),
+                "runtime": os.environ.get("CUTCTX_DEPLOYMENT_RUNTIME"),
+                "supervisor": os.environ.get("CUTCTX_DEPLOYMENT_SUPERVISOR"),
+                "scope": os.environ.get("CUTCTX_DEPLOYMENT_SCOPE"),
+            }
         if include_config:
+            profile_kwargs = proxy_pipeline_kwargs(config)
+            effective_target_ratio = cast(
+                float | None,
+                profile_kwargs.get("target_ratio", config.target_ratio),
+            )
             payload["mode"] = getattr(proxy.config, "mode", None)
             payload["backend"] = getattr(proxy.config, "backend", None)
+            payload["config"] = {
+                "backend": config.backend,
+                "optimize": config.optimize,
+                "cache": config.cache_enabled,
+                "rate_limit": config.rate_limit_enabled,
+                "disable_kompress": config.disable_kompress,
+                "memory": config.memory_enabled,
+                "learn": config.traffic_learning_enabled,
+                "code_graph": config.code_graph_watcher,
+                "savings_profile": config.savings_profile,
+                "target_ratio": effective_target_ratio,
+                "target_savings_percent": (
+                    round(max(0.0, min(1.0, 1.0 - float(effective_target_ratio))) * 100, 1)
+                    if effective_target_ratio is not None
+                    else None
+                ),
+                "compress_user_messages": bool(
+                    profile_kwargs.get(
+                        "compress_user_messages",
+                        config.compress_user_messages,
+                    )
+                ),
+                "compress_system_messages": bool(
+                    profile_kwargs.get(
+                        "compress_system_messages",
+                        config.compress_system_messages,
+                    )
+                ),
+                "protect_recent": profile_kwargs.get(
+                    "read_protection_window",
+                    config.protect_recent,
+                ),
+                "protect_analysis_context": profile_kwargs.get(
+                    "protect_analysis_context",
+                    config.protect_analysis_context,
+                ),
+                "min_tokens_to_crush": profile_kwargs.get(
+                    "min_tokens_to_compress",
+                    config.min_tokens_to_crush,
+                ),
+                "max_items_after_crush": profile_kwargs.get(
+                    "max_items_after_crush",
+                    config.max_items_after_crush,
+                ),
+                "smart_crusher_with_compaction": profile_kwargs.get(
+                    "smart_crusher_with_compaction",
+                    config.smart_crusher_with_compaction,
+                ),
+                "force_kompress": bool(profile_kwargs.get("force_kompress", False)),
+                "accuracy_guard": config.accuracy_guard,
+                "pid": os.getpid(),
+                "task_aware_enabled": config.task_aware_enabled,
+                "dedup_enabled": config.dedup_enabled,
+                "context_budget_enabled": config.context_budget_enabled,
+                "profiles_enabled": config.profiles_enabled,
+                "firewall_enabled": getattr(config, "firewall_enabled", False),
+            }
         return payload
 
     async def _get_cached_payload() -> dict[str, Any]:
@@ -5129,21 +5414,98 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     async def _require_local_admin_auth(request: Request) -> None:
         expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
-        if not expected_admin_key:
-            return
         auth_header = request.headers.get("authorization", "")
         bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
         admin_header = request.headers.get("x-cutctx-admin-key", "") or request.query_params.get("key", "")
         legacy_header = request.headers.get("x-headroom-admin-key", "")
         import hmac as _hmac
 
-        if (
+        if expected_admin_key and (
             _hmac.compare_digest(bearer_token, expected_admin_key)
             or _hmac.compare_digest(admin_header, expected_admin_key)
             or _hmac.compare_digest(legacy_header, expected_admin_key)
         ):
             return
+
+        sso_configured = bool(
+            getattr(config, "sso_provider_type", None)
+            and getattr(config, "sso_jwks_uri", None)
+            and getattr(config, "sso_issuer", None)
+            and getattr(config, "sso_audience", None)
+        )
+        if sso_configured:
+            if not bearer_token:
+                raise HTTPException(status_code=401, detail="Unauthorized")
+            try:
+                from cutctx.sso import SsoConfig, SsoValidator
+
+                sso_config = SsoConfig.from_proxy_config(config)
+                validator = SsoValidator(sso_config)
+                claims = await validator.validate_token(bearer_token)
+                if getattr(claims, "role", None):
+                    request.state.cutctx_role = claims.role
+                if getattr(claims, "subject", None):
+                    request.state.cutctx_user_id = claims.subject
+                request.state.cutctx_sso_claims = claims
+                return
+            except Exception as exc:
+                logger.debug("SSO validation failed in runtime app", exc_info=True)
+                raise HTTPException(status_code=401, detail="Unauthorized") from exc
+
+        if not expected_admin_key:
+            return
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    def _runtime_require_rbac_permission(permission: str):
+        async def _check(request: Request) -> None:
+            await _require_local_admin_auth(request)
+            try:
+                from cutctx.rbac import get_rbac_checker
+            except ImportError:
+                return
+            try:
+                checker = get_rbac_checker()
+            except Exception:
+                logger.debug("RBAC checker unavailable in runtime app", exc_info=True)
+                return
+            if checker is None:
+                return
+            role = checker.resolve_role(request)
+            checker.check_permission(role, permission)
+
+        return _check
+
+    def _runtime_require_entitlement(feature: str):
+        min_tier_by_feature = {
+            "usage_reports": "team",
+            "workspace_model": "business",
+            "project_model": "business",
+            "audit_logs": "enterprise",
+            "retention_controls": "enterprise",
+            "rbac": "enterprise",
+            "fleet_management": "enterprise",
+            "scim": "enterprise",
+        }
+        tier_rank = {"builder": 0, "team": 1, "business": 2, "enterprise": 3}
+
+        async def _check(_request: Request) -> None:
+            required_tier = min_tier_by_feature.get(feature)
+            if required_tier is None:
+                return
+            current_tier = str(getattr(config, "entitlement_tier", "enterprise") or "enterprise").lower()
+            if tier_rank.get(current_tier, 99) < tier_rank[required_tier]:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "feature_not_available",
+                        "feature": feature,
+                        "required_tier": required_tier,
+                        "current_tier": current_tier,
+                    },
+                )
+
+        return _check
+
 
     @app.get("/stats")
     @app.get("/v1/stats")
@@ -5171,11 +5533,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/readyz")
     async def readyz():
+        await _check_upstream()
         payload = _health_payload(include_config=False)
         return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
 
     @app.get("/health")
     async def health():
+        await _check_upstream()
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 
     # Loopback-only debug introspection surfaces.
@@ -5226,6 +5590,34 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
+    @app.get("/transformations/feed")
+    async def transformations_feed(limit: int = 50):
+        transformations = []
+        log_full_messages = proxy.config.log_full_messages if proxy else False
+
+        if proxy and proxy.logger:
+            logs = proxy.logger.get_recent_with_messages(limit)
+            for log in logs:
+                transformations.append(
+                    {
+                        "request_id": log.get("request_id"),
+                        "timestamp": log.get("timestamp"),
+                        "provider": log.get("provider"),
+                        "model": log.get("model"),
+                        "input_tokens_original": log.get("input_tokens_original"),
+                        "input_tokens_optimized": log.get("input_tokens_optimized"),
+                        "tokens_saved": log.get("tokens_saved"),
+                        "savings_percent": log.get("savings_percent"),
+                        "transforms_applied": log.get("transforms_applied", []),
+                        "request_messages": log.get("request_messages"),
+                        "compressed_messages": log.get("compressed_messages"),
+                        "response_content": log.get("response_content"),
+                        "turn_id": log.get("turn_id"),
+                    }
+                )
+
+        return {"transformations": transformations, "log_full_messages": log_full_messages}
+
     @app.post("/v1/compress")
     async def compress_endpoint(request: Request):
         return await proxy.handle_compress(request)
@@ -5233,29 +5625,47 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.get("/v1/retrieve/stats")
     async def retrieve_stats_endpoint():
         store = get_compression_store()
-        return JSONResponse(status_code=200, content={"store": store.get_stats()})
+        stats = store.get_stats()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "store": stats,
+                "recent_retrievals": _json_ready(store.get_retrieval_events()),
+            },
+        )
 
     def _retrieve_entry(hash_key: str, query: str | None = None):
+        from cutctx.cache.compression_store import format_retrieval_miss_detail
+
         store = get_compression_store()
+        status = store.get_entry_status(hash_key, clean_expired=False)
+        if status.get("status") == "expired":
+            raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
+
         entry = store.retrieve(hash_key, query=query)
-        backend_keys: list[str] = []
-        if entry is None:
-            backend = getattr(store, "_backend", None)
-            items = getattr(backend, "items", None)
-            if callable(items):
-                for stored_hash, _candidate in items():
-                    backend_keys.append(stored_hash)
-                    if (
-                        stored_hash == hash_key
-                        or stored_hash.startswith(hash_key)
-                        or hash_key.startswith(stored_hash)
-                    ):
-                        entry = store.retrieve(stored_hash, query=query)
-                        if entry is not None:
-                            break
-        if entry is None:
-            raise HTTPException(status_code=404, detail="Not found")
-        return entry
+        if entry is not None:
+            return entry
+
+        backend = getattr(store, "_backend", None)
+        items = getattr(backend, "items", None)
+        if callable(items):
+            for stored_hash, _candidate in items():
+                if (
+                    stored_hash == hash_key
+                    or stored_hash.startswith(hash_key)
+                    or hash_key.startswith(stored_hash)
+                ):
+                    status = store.get_entry_status(stored_hash, clean_expired=False)
+                    if status.get("status") == "expired":
+                        raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
+                    entry = store.retrieve(stored_hash, query=query)
+                    if entry is not None:
+                        return entry
+                    hash_key = stored_hash
+                    break
+
+        status = store.get_entry_status(hash_key, clean_expired=False)
+        raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
 
     @app.post("/v1/retrieve")
     async def retrieve_endpoint(request: Request):
@@ -5263,33 +5673,67 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         hash_key = str(payload.get("hash", "") or "").strip()
         query = payload.get("query")
         if not hash_key:
-            raise HTTPException(status_code=400, detail="hash is required")
+            raise HTTPException(status_code=400, detail="hash required")
 
+        store = get_compression_store()
         entry = _retrieve_entry(hash_key, query=query)
+        resolved_hash = entry.hash
+
+        if query:
+            results = store.search(resolved_hash, str(query))
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "hash": resolved_hash,
+                    "query": query,
+                    "results": results,
+                    "count": len(results),
+                },
+            )
 
         return JSONResponse(
             status_code=200,
             content={
-                "hash": hash_key,
+                "hash": resolved_hash,
                 "original_content": entry.original_content,
                 "compressed_content": entry.compressed_content,
                 "original_tokens": entry.original_tokens,
                 "compressed_tokens": entry.compressed_tokens,
+                "original_item_count": entry.original_item_count,
+                "compressed_item_count": entry.compressed_item_count,
+                "tool_name": entry.tool_name,
+                "query_context": entry.query_context,
                 "retrieval_count": entry.retrieval_count,
             },
         )
 
     @app.get("/v1/retrieve/{hash_key}")
     async def retrieve_by_hash_endpoint(hash_key: str, query: str | None = None):
+        store = get_compression_store()
         entry = _retrieve_entry(hash_key, query=query)
+        if query:
+            results = store.search(entry.hash, str(query))
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "hash": entry.hash,
+                    "query": query,
+                    "results": results,
+                    "count": len(results),
+                },
+            )
         return JSONResponse(
             status_code=200,
             content={
-                "hash": hash_key,
+                "hash": entry.hash,
                 "original_content": entry.original_content,
                 "compressed_content": entry.compressed_content,
                 "original_tokens": entry.original_tokens,
                 "compressed_tokens": entry.compressed_tokens,
+                "original_item_count": entry.original_item_count,
+                "compressed_item_count": entry.compressed_item_count,
+                "tool_name": entry.tool_name,
+                "query_context": entry.query_context,
                 "retrieval_count": entry.retrieval_count,
             },
         )
@@ -5314,16 +5758,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.post("/admin/config/flags")
     async def update_config_flags(request: Request):
         """Update live intelligence layer feature flags at runtime."""
-        auth_header = request.headers.get("authorization", "")
-        bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-        admin_header = request.headers.get("x-cutctx-admin-key", "")
-        legacy_header = request.headers.get("x-headroom-admin-key", "")
-        expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
-
-        if expected_admin_key not in {bearer_token, admin_header, legacy_header}:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
+        await _require_local_admin_auth(request)
         payload = await request.json()
+
         if "cache" in payload:
             config.cache_enabled = bool(payload["cache"])
         if "ccr" in payload:
@@ -5341,8 +5778,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     store = EpisodicMemoryStore()
                     intel = IntelligencePipeline(config)
                     proxy.episodic_tracker = EpisodicSessionTracker(store, intel, proxy.logger)
-                except ImportError as e:
-                    logger.warning(f"Could not load memory dependencies: {e}")
+                except ImportError as exc:
+                    logger.warning("Could not load memory dependencies: %s", exc)
         if "firewall" in payload:
             config.firewall_enabled = bool(payload["firewall"])
         if "rate_limiter" in payload:
@@ -5352,7 +5789,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             if hasattr(proxy, "_model_router") and proxy._model_router is not None:
                 proxy._model_router.config.enabled = bool(payload["orchestrator"])
 
-        logger.info(f"Runtime configuration updated: {payload}")
+        logger.info("Runtime configuration updated: %s", payload)
         return {
             "status": "success",
             "config": {
@@ -5366,14 +5803,68 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "payload": payload,
         }
 
+    try:
+        from cutctx.proxy.routes import create_admin_router
+        from cutctx.proxy.routes.airgap import create_airgap_router
+        from cutctx.proxy.routes.audit import create_audit_router
+        from cutctx.proxy.routes.dsr import create_dsr_router
+        from cutctx.proxy.routes.memory import create_memory_router
+        from cutctx.proxy.routes.policy import create_policy_router
+        from cutctx.proxy.routes.rate_limit import create_rate_limit_router
+        from cutctx.proxy.routes.rbac import create_rbac_router
+        from cutctx.proxy.routes.residency import create_residency_router
+        from cutctx.proxy.routes.secrets import create_secrets_router
+        from cutctx.proxy.routes.spend import create_spend_router
+        from cutctx.proxy.routes.sso import create_sso_router
+
+        admin_dep = _require_local_admin_auth
+        rbac_dep = _runtime_require_rbac_permission
+        entitlement_dep = _runtime_require_entitlement
+
+        app.include_router(
+            create_admin_router(
+                proxy,
+                config,
+                require_admin_auth=admin_dep,
+                require_rbac_permission=rbac_dep,
+                require_entitlement=entitlement_dep,
+                firewall_scanner=None,
+            )
+        )
+        app.include_router(create_airgap_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_rate_limit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_rbac_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_secrets_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_sso_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_audit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_spend_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_policy_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_memory_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(
+            create_dsr_router(
+                proxy=proxy,
+                require_admin_auth=admin_dep,
+                require_rbac_permission=rbac_dep,
+            )
+        )
+        app.include_router(create_residency_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+    except ImportError:
+        pass
+
+    try:
+        from cutctx.proxy.routes.mfa import create_mfa_router
+
+        app.include_router(
+            create_mfa_router(
+                require_admin_auth=_require_local_admin_auth,
+                require_rbac_permission=_runtime_require_rbac_permission,
+            )
+        )
+    except ImportError:
+        pass
+
     register_provider_routes(app, proxy)
     return app
-
-
-
-    register_provider_routes(app, proxy)
-    return app
-
 
 def create_app_from_env() -> FastAPI:
     return create_app(_proxy_config_from_env())

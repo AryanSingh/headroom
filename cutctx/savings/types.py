@@ -19,7 +19,7 @@ class SavingsSource(str, Enum):
     MODEL_ROUTING = "model_routing"
 
     @classmethod
-    def from_str(cls, value: str) -> "SavingsSource":
+    def from_str(cls, value: str) -> SavingsSource:
         try:
             return cls(value)
         except ValueError:
@@ -107,7 +107,7 @@ class SavingsBySource:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any] | None) -> "SavingsBySource":
+    def from_dict(cls, payload: dict[str, Any] | None) -> SavingsBySource:
         if not isinstance(payload, dict):
             return cls()
 
@@ -137,7 +137,7 @@ class RequestSavingsBreakdown:
     def has_any_savings(self) -> bool:
         return self.total_tokens_saved > 0 or self.by_source.total_tokens > 0
 
-    def merge(self, other: "RequestSavingsBreakdown") -> None:
+    def merge(self, other: RequestSavingsBreakdown) -> None:
         self.raw_input_tokens += other.raw_input_tokens
         self.post_cutctx_tokens += other.post_cutctx_tokens
         self.provider_cached_tokens += other.provider_cached_tokens
@@ -159,7 +159,7 @@ class RequestSavingsBreakdown:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any] | None) -> "RequestSavingsBreakdown":
+    def from_dict(cls, payload: dict[str, Any] | None) -> RequestSavingsBreakdown:
         if not isinstance(payload, dict):
             return cls()
 

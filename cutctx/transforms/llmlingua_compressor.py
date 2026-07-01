@@ -172,7 +172,7 @@ class LLMLinguaCompressor:
             compressed_tokens=compressed_tokens,
         )
 
-    def apply(self, messages: list[dict[str, Any]], tokenizer: Any = None) -> "TransformResult":
+    def apply(self, messages: list[dict[str, Any]], tokenizer: Any = None) -> TransformResult:
         """Transform interface: compress system/assistant message content.
 
         Returns a ``TransformResult``. Short messages (below ``config.min_length``)

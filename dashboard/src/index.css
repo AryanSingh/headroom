@@ -435,7 +435,7 @@ pre {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: 1400px;
+  width: 100%;
 }
 
 /* ═══════════════════════════════════════════════════════════════

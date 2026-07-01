@@ -1080,13 +1080,15 @@ class StreamingMixin:
                 upstream_response.status_code,
                 url,
             )
-            # Log the sent body (minus input) and response body to aid diagnosis
+            # Log body keys + small fields to aid diagnosis (drop large text fields)
             try:
-                _sent_summary = json.dumps({k: v for k, v in body.items() if k != "input"})[:500]
+                _body_keys = list(body.keys())
+                _small_fields = {k: v for k, v in body.items() if k not in ("input", "instructions", "tools") and not isinstance(v, str)}
+                _sent_summary = f"keys={_body_keys} small_fields={json.dumps(_small_fields)[:300]}"
             except Exception:
                 _sent_summary = "<unserializable>"
             logger.error(
-                "[%s] upstream %d — url=%s sent_body=%s",
+                "[%s] upstream %d — url=%s body_debug=%s",
                 request_id, upstream_response.status_code, url, _sent_summary,
             )
             response_headers = dict(upstream_response.headers)

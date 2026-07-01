@@ -24,8 +24,8 @@ from cutctx.subscription.copilot_quota import (
     parse_copilot_quota,
 )
 from cutctx.subscription.models import (
-    ExtraUsage,
     CutctxContribution,
+    ExtraUsage,
     RateLimitWindow,
     SubscriptionSnapshot,
     SubscriptionState,

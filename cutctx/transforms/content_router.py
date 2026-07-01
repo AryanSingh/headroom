@@ -40,6 +40,7 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
@@ -537,6 +538,13 @@ class ContentRouterConfig:
     # Set to None to use DEFAULT_EXCLUDE_TOOLS, or provide custom set
     exclude_tools: set[str] | None = None
 
+    # Per-content-type overrides from profile recommendations.
+    # Key: strategy value (e.g. "code_aware", "smart_crusher")
+    # Value: dict of override params (e.g. {"recommended_ratio": 0.8})
+    # Empty dict = no overrides (default). This is additive — existing
+    # behaviour is unchanged when empty.
+    per_type_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
+
 
 
     # Read lifecycle management (stale/superseded detection)
@@ -567,6 +575,13 @@ class ContentRouterConfig:
     selective_filter_min_score: float = 0.15
     selective_filter_protect_recent: int = 6
     selective_filter_scorer: str = "bm25"  # "bm25" or "hybrid"
+
+    # Pre-compress hook: called before each `compress()` invocation with
+    # ``(router, content, context)``.  The proxy uses this to resolve the
+    # user query through the stack graph and set protected symbols on the
+    # code compressor.  Hook failures are caught and logged at debug level
+    # — they must never crash compression.
+    pre_compress_hook: Callable | None = None
 
 
 # Patterns for detecting mixed content
@@ -945,6 +960,7 @@ class ContentRouter(Transform):
         context: str = "",
         question: str | None = None,
         bias: float = 1.0,
+        ctx: Any = None,
     ) -> RouterCompressionResult:
         """Compress content using optimal strategy based on content detection.
 
@@ -954,6 +970,9 @@ class ContentRouter(Transform):
             question: Optional question for QA-aware compression. When provided,
                 tokens relevant to answering this question are preserved.
             bias: Compression bias multiplier (>1 = keep more, <1 = keep fewer).
+            ctx: Optional PipelineContext with profile_recommendations.
+                When provided, per-content-type overrides are applied
+                from the intelligence profile feedback.
 
         Returns:
             RouterCompressionResult with compressed content and routing metadata.
@@ -999,6 +1018,17 @@ class ContentRouter(Transform):
                 if force_kompress
                 else self._determine_strategy(content)
             )
+            # Apply per-type overrides from profile recommendations
+            if ctx is not None and hasattr(ctx, "profile_recommendations") and ctx.profile_recommendations:
+                for content_type, recommended_ratio in ctx.profile_recommendations.items():
+                    if content_type not in self.config.per_type_overrides:
+                        self.config.per_type_overrides[content_type] = {}
+                    self.config.per_type_overrides[content_type]["recommended_ratio"] = recommended_ratio
+                    logger.debug(
+                        "ContentRouter: applied profile override %s recommended_ratio=%.2f",
+                        content_type,
+                        recommended_ratio,
+                    )
             if debug_enabled:
                 _log_router_debug(
                     "content_router_input",
@@ -1014,6 +1044,14 @@ class ContentRouter(Transform):
                         else "content_detection"
                     ),
                 )
+
+            # Pre-compress hook: lets the proxy wire stack-graph reachability
+            # before compression decisions are made.
+            if self.config.pre_compress_hook is not None:
+                try:
+                    self.config.pre_compress_hook(self, content, context)
+                except Exception:
+                    logger.debug("pre_compress_hook failed (non-fatal)", exc_info=True)
 
             if strategy == CompressionStrategy.MIXED:
                 result = self._compress_mixed(content, context, question, bias=bias)
@@ -1282,6 +1320,28 @@ class ContentRouter(Transform):
         """
         # Track original tokens for TOIN recording
         original_tokens = len(content.split())
+
+        # Apply per-content-type overrides from profile recommendations
+        if self.config.per_type_overrides:
+            override = self.config.per_type_overrides.get(strategy.value, {})
+            recommended_ratio = override.get("recommended_ratio")
+            if recommended_ratio is not None:
+                # Higher recommended_ratio (more retrievals) → less aggressive compression
+                # Map: recommended_ratio in (0, 1], adjustment >= 1.0
+                #   ratio=0.5 → bias *= 2.0 (double carefulness)
+                #   ratio=1.0 → bias *= 1.0 (no adjustment)
+                bias_multiplier = 1.0 / max(float(recommended_ratio), 0.1)
+                original_bias = bias
+                bias = bias * bias_multiplier
+                logger.debug(
+                    "ContentRouter: per-type override bias %.2f -> %.2f "
+                    "(recommended_ratio=%.2f, strategy=%s)",
+                    original_bias,
+                    bias,
+                    recommended_ratio,
+                    strategy.value,
+                )
+
         compressed: str | None = None
         compressed_tokens: int | None = None
         requested_strategy = strategy
@@ -1297,7 +1357,13 @@ class ContentRouter(Transform):
                     compressor = self._get_code_compressor()
                     if compressor:
                         compressor_name = type(compressor).__name__
-                        result = compressor.compress(content, language=language, context=context)
+                        # Pass protected symbols from the stack-graph reachability
+                        # analysis if they've been set on the compressor.
+                        ps: set[str] | None = getattr(compressor, '_protected_symbols', None)
+                        result = compressor.compress(
+                            content, language=language, context=context,
+                            protected_symbols=ps,
+                        )
                         compressed, compressed_tokens = result.compressed, result.compressed_tokens
                         decision_reason = "code_aware"
                 if compressed is None:

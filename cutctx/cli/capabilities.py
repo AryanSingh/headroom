@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import json as _json
-import sys
 
 import click
 
 from .main import main
-
 
 _FEATURES: list[dict[str, object]] = [
     {

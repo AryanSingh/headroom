@@ -25,6 +25,27 @@ from .tool_injection import CCR_TOOL_NAME, parse_tool_call
 logger = logging.getLogger(__name__)
 
 
+def _strategy_to_content_type(strategy: str | None) -> str:
+    """Map a compression strategy name to a profile content type.
+
+    Args:
+        strategy: Compression strategy name (e.g. "smart_crusher", "code_aware").
+
+    Returns:
+        Content type key for profile tracking (e.g. "json_array", "source_code").
+    """
+    mapping = {
+        "smart_crusher": "json_array",
+        "code_aware": "source_code",
+        "log": "build_output",
+        "search": "search_results",
+        "diff": "git_diff",
+        "kompress": "plain_text",
+        "llmlingua": "plain_text",
+    }
+    return mapping.get(strategy.lower() if strategy else "", "unknown")
+
+
 @dataclass
 class CCRToolCall:
     """Represents a detected CCR tool call."""
@@ -227,6 +248,22 @@ class CCRResponseHandler:
             if ccr_call.query:
                 # Search within compressed content
                 results = store.search(ccr_call.hash_key, ccr_call.query)
+                # Record search retrieval as feedback to TOIN
+                try:
+                    from ..telemetry.toin import get_toin
+
+                    toin = get_toin()
+                    if toin:
+                        toin.record_retrieval(
+                            tool_signature_hash="",
+                            retrieval_type="search",
+                            strategy=None,
+                            query=ccr_call.query,
+                            auth_mode=getattr(self, "_auth_mode", "payg"),
+                            model_family=getattr(self, "_model_family", "unknown"),
+                        )
+                except Exception:
+                    pass  # feedback recording is best-effort
                 content = json.dumps(
                     {
                         "hash": ccr_call.hash_key,
@@ -264,6 +301,46 @@ class CCRResponseHandler:
                         ep_store.record_retrieval(label)
                     except Exception as e:
                         logger.error(f"Failed to record retrieval telemetry: {e}")
+
+                    # Record full retrieval as feedback to TOIN
+                    try:
+                        from ..telemetry.toin import get_toin
+
+                        toin = get_toin()
+                        if toin:
+                            toin.record_retrieval(
+                                tool_signature_hash=(
+                                    entry.tool_signature_hash
+                                    if hasattr(entry, "tool_signature_hash") and entry.tool_signature_hash is not None
+                                    else ""
+                                ),
+                                retrieval_type="full",
+                                strategy=(
+                                    entry.compression_strategy
+                                    if hasattr(entry, "compression_strategy")
+                                    else None
+                                ),
+                                retrieved_items=None,
+                                auth_mode=getattr(self, "_auth_mode", "payg"),
+                                model_family=getattr(self, "_model_family", "unknown"),
+                            )
+                    except Exception:
+                        pass  # feedback recording is best-effort
+
+                    # Also record to the per-workspace profile
+                    try:
+                        from ..profiles import ProfileManager
+
+                        profile = ProfileManager.get_profile()
+                        if profile:
+                            content_type = _strategy_to_content_type(
+                                entry.compression_strategy
+                                if hasattr(entry, "compression_strategy")
+                                else None
+                            )
+                            profile.update_from_ccr_retrieval(content_type)
+                    except Exception:
+                        pass  # profile update is best-effort
 
                     content = json.dumps(
                         {

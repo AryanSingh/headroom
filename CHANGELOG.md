@@ -5,6 +5,16 @@ All notable changes to Cutctx will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Restored the admin/runtime source tree to a bootable state after a corrupted `cutctx/proxy/routes/admin.py` edit, and re-verified live current-source endpoints for `/health`, `/config/flags`, `/policy/status`, `/stats`, and `/stats-history`.
+- Hardened dashboard operator data loading so unsupported or absent config surfaces no longer present as broken stats in local dashboard flows.
+
+### Added
+
+- Inline multimodal audio optimization for supported chat/compress flows, with targeted regression coverage in `tests/test_audio_compressor.py`, `tests/test_inline_audio_messages.py`, and `tests/test_proxy_compress_endpoint.py`.
 
 ## [0.29.0] - 2026-06-30
 
@@ -42,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - `wiki/memory.md` — Added USearch backend section with config options, auto-preference chain, and architecture diagram update
 - `wiki/index.md` — Added Stack Graphs feature card, updated memory entry to mention USearch, added usearch to installation extras
+
+### Security
+- **CRITICAL**: Stripped `/dashboard`, `/api/savings`, `/api/models` from loopback auth bypass path (server.py:213) — localhost no longer skips auth for these endpoints
+- **CRITICAL**: LIKE wildcard injection fix — added `_escape_like()` helper and `ESCAPE "\\"` clause for entity_ref LIKE queries in sqlite.py
+- **HIGH**: Kompress max-input DoS guard — added `CUTCTX_KOMPRESS_MAX_WORDS` env var (default 80,000 words) limiting per-call text input
+- **MEDIUM**: Added startup-time `logger.warning` when `CUTCTX_ALLOW_DEBUG` is set
+
+### Fixed
+- 56 ruff auto-fixable lint errors resolved (F401 unused imports, trailing whitespace, etc.)
 
 ## [0.28.0] - 2026-06-29
 

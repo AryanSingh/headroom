@@ -67,11 +67,20 @@ function EmptyState({ icon: Icon, title, description }) {
 }
 
 function buildSourceRows(stats) {
-  const sourceTokens = stats?.savings_by_source?.tokens || {};
-  const sourceUsd = stats?.savings_by_source?.usd || {};
-  const costBreakdown = stats?.summary?.cost?.breakdown || {};
-  const sessionTokens = stats?.tokens || {};
-  const prefixTotals = stats?.prefix_cache?.totals || {};
+const cost = stats?.cost || stats?.summary?.cost || {};
+const costSavingsBySource = cost?.savings_by_source || {};
+const sourceTokens = {
+  ...(costSavingsBySource?.tokens || {}),
+  ...(stats?.savings_by_source?.tokens || {}),
+};
+const sourceUsd = {
+  ...(costSavingsBySource?.usd || {}),
+  ...(stats?.savings_by_source?.usd || {}),
+};
+const costBreakdown = cost?.breakdown || {};
+const sessionTokens = stats?.tokens || {};
+const prefixTotals = stats?.prefix_cache?.totals || {};
+const lifetime = stats?.persistent_savings?.lifetime || {};
 
   // savings_by_source is file-backed (lifetime). Session counters track the
   // same signals in-memory for the active run. Always take the higher of the
@@ -86,7 +95,11 @@ function buildSourceRows(stats) {
       key: 'cutctx_compression',
       label: 'Direct compression',
       tokens: Math.max(Number(sourceTokens.cutctx_compression || 0), sessionCompression),
-      usd: Number(sourceUsd.cutctx_compression || costBreakdown.compression_savings_usd || 0),
+usd: Math.max(
+  Number(sourceUsd.cutctx_compression || 0),
+  Number(costBreakdown.compression_savings_usd || 0),
+  Number(lifetime.compression_savings_usd || 0),
+),
       session: sessionCompression,
     },
     {
@@ -100,7 +113,13 @@ function buildSourceRows(stats) {
       key: 'provider_prompt_cache',
       label: 'Provider prompt cache',
       tokens: Math.max(Number(sourceTokens.provider_prompt_cache || 0), sessionCacheRead),
-      usd: Number(sourceUsd.provider_prompt_cache || costBreakdown.cache_savings_usd || 0),
+usd: Math.max(
+  Number(sourceUsd.provider_prompt_cache || 0),
+  Number(costBreakdown.cache_savings_usd || 0),
+  Number(prefixTotals.net_savings_usd || 0),
+  Number(prefixTotals.savings_usd || 0),
+  Number(lifetime.cache_savings_usd || 0),
+),
       session: sessionCacheRead,
     },
     {
@@ -120,42 +139,161 @@ function buildSourceRows(stats) {
       key: 'semantic_cache',
       label: 'Semantic cache',
       tokens: Number(sourceTokens.semantic_cache || 0),
-      usd: Number(sourceUsd.semantic_cache || 0),
+usd: Math.max(
+  Number(sourceUsd.semantic_cache || 0),
+  Number(lifetime.semantic_cache_savings_usd || 0),
+),
     },
     {
       key: 'model_routing',
       label: 'Model routing',
       tokens: Number(sourceTokens.model_routing || 0),
-      usd: Number(sourceUsd.model_routing || 0),
+usd: Math.max(
+  Number(sourceUsd.model_routing || 0),
+  Number(lifetime.model_routing_savings_usd || 0),
+),
     },
   ];
 }
 
 function buildClientRows(stats) {
+  const cost = stats?.cost || stats?.summary?.cost || {};
   const byClient =
-    stats?.summary?.cost?.savings_by_client || stats?.savings_by_client || {};
+    cost?.savings_by_client || stats?.summary?.cost?.savings_by_client || stats?.savings_by_client || {};
+  const byProject = stats?.savings?.per_project || stats?.persistent_savings?.projects || {};
+  const totalTokensSaved = Number(cost?.total_tokens_saved || stats?.tokens?.saved || 0);
+  const totalSavingsUsd = Number(
+    cost?.savings_usd || cost?.total_savings_usd || stats?.summary?.cost?.total_saved_usd || 0,
+  );
+  const usdPerToken =
+    totalTokensSaved > 0 && totalSavingsUsd > 0 ? totalSavingsUsd / totalTokensSaved : 0;
+  const estimateUsd = (tokens, explicitUsd = 0) => (
+    explicitUsd > 0 ? explicitUsd : tokens > 0 ? tokens * usdPerToken : 0
+  );
 
-  return Object.entries(byClient)
+  const rows = Object.entries(byClient)
     .map(([client, data]) => ({
       key: client,
       label: client,
-      tokens: Number(data.total_tokens || 0),
-      usd: Number(data.total_usd || 0),
+      tokens:
+        Number(data?.total_tokens || 0)
+        || Object.values(data?.tokens || {}).reduce((sum, value) => sum + Number(value || 0), 0),
+      usd: estimateUsd(
+        Number(data?.total_tokens || 0)
+          || Object.values(data?.tokens || {}).reduce((sum, value) => sum + Number(value || 0), 0),
+        Number(data?.total_usd || 0)
+          || Object.values(data?.usd || {}).reduce((sum, value) => sum + Number(value || 0), 0),
+      ),
+      requests: Number(data?.requests || data?.request_count || 0),
     }))
-    .sort((a, b) => b.tokens - a.tokens);
+    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+
+  if (rows.length > 0) {
+    return rows;
+  }
+
+  const projectRows = Object.entries(byProject)
+    .map(([project, data]) => ({
+      key: project,
+      label: project,
+      tokens: Number(data?.tokens_saved || data?.total_tokens_saved || 0),
+      usd: estimateUsd(
+        Number(data?.tokens_saved || data?.total_tokens_saved || 0),
+        Number(data?.compression_savings_usd || 0),
+      ),
+      requests: Number(data?.requests || 0),
+    }))
+    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+
+  if (projectRows.length > 0) {
+    return projectRows;
+  }
+
+  const requestBuckets = new Map();
+  for (const request of stats?.recent_requests || []) {
+    const client =
+      request?.client
+      || request?.client_id
+      || request?.tags?.client
+      || request?.tags?.client_id;
+    if (!client) {
+      continue;
+    }
+
+    const current = requestBuckets.get(client) || {
+      key: client,
+      label: client,
+      tokens: 0,
+      usd: 0,
+      requests: 0,
+    };
+    current.tokens += Number(request?.total_saved_tokens ?? request?.tokens_saved ?? 0);
+    current.usd += Number(request?.total_savings_usd ?? request?.savings_usd ?? 0);
+    current.requests += 1;
+    requestBuckets.set(client, current);
+  }
+
+  return Array.from(requestBuckets.values())
+    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
 }
 
 function buildModelRows(stats) {
-  const byModel = stats?.summary?.cost?.per_model || {};
+const cost = stats?.cost || stats?.summary?.cost || {};
+const byModel = cost?.per_model || stats?.summary?.cost?.per_model || {};
 
-  return Object.entries(byModel)
-    .map(([model, data]) => ({
-      key: model,
-      label: model,
-      tokens: Number(data.tokens_saved || 0),
-      usd: Number(data.savings_usd || 0),
-    }))
-    .sort((a, b) => b.tokens - a.tokens);
+const rows = Object.entries(byModel)
+.map(([model, data]) => ({
+key: model,
+label: model,
+tokens:
+  Number(data?.tokens_saved || 0)
+  || Number(data?.total_tokens_saved || 0)
+  || Number(data?.total_tokens || 0),
+usd:
+  Number(data?.savings_usd || 0)
+  || Number(data?.total_usd || 0),
+requests: Number(data?.requests || data?.request_count || 0),
+}))
+.sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+
+if (rows.length > 0) {
+return rows;
+}
+
+const requestBuckets = new Map();
+for (const request of stats?.recent_requests || []) {
+const model = request?.model;
+if (!model) {
+  continue;
+}
+
+const current = requestBuckets.get(model) || {
+  key: model,
+  label: model,
+  tokens: 0,
+  usd: 0,
+  requests: 0,
+};
+current.tokens += Number(request?.total_saved_tokens ?? request?.tokens_saved ?? 0);
+current.usd += Number(request?.total_savings_usd ?? request?.savings_usd ?? 0);
+current.requests += 1;
+requestBuckets.set(model, current);
+}
+
+if (requestBuckets.size > 0) {
+return Array.from(requestBuckets.values())
+.sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+}
+
+return Object.entries(stats?.requests?.by_model || {})
+.map(([model, count]) => ({
+key: model,
+label: model,
+tokens: 0,
+usd: 0,
+requests: Number(count || 0),
+}))
+.sort((a, b) => b.requests - a.requests);
 }
 
 function getRequestDirectSaved(request) {
@@ -684,7 +822,9 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle
                 <div className="source-labels">
                   <div className="source-name">{row.label}</div>
                   <div className="source-meta">
-                    {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
+{formatInteger(row.tokens)} tokens
+{row.requests > 0 ? ` · ${formatInteger(row.requests)} requests` : ''}
+· {formatCurrency(row.usd)}
                   </div>
                 </div>
 
@@ -857,26 +997,66 @@ function DiagnosticsPanel({ prefixCache }) {
 // as 'Log Structure Inference', and 'kompress' as 'Semantic Minification'.
 // This progressive disclosure prevents users from needing to understand the underlying ML model names.
 const STRATEGY_DISPLAY = new Map([
-  ['knowledge_graph', 'Knowledge Graph'],
-  ['log_template_mining', 'Log pattern analysis'],
-  ['structural_diff_engine', 'Structural diff'],
-  ['text_compression_engine', 'Semantic text compression'],
-  ['multimodal_image', 'Image / OCR'],
-  ['smart_crusher', 'SmartCrusher'],
-  ['kompress', 'ML compression'],
-  ['html_extractor', 'HTML Extractor'],
-  ['voice_filler', 'Voice Filler'],
-  ['code_ast', 'Code AST'],
-  ['audio', 'Audio (proxy)'],
+['knowledge_graph', 'Knowledge Graph'],
+['log_template_mining', 'Log pattern analysis'],
+['structural_diff_engine', 'Structural diff'],
+['text_compression_engine', 'Semantic text compression'],
+['multimodal_image', 'Image / OCR'],
+['smart_crusher', 'SmartCrusher'],
+['kompress', 'ML compression'],
+['html_extractor', 'HTML Extractor'],
+['voice_filler', 'Voice Filler'],
+['code_ast', 'Code AST'],
+['stack_graph', 'Stack Graph'],
+['usearch', 'Usearch'],
+['model_routing', 'Model Routing'],
+['audio', 'Audio (proxy)'],
 ]);
 
+const FEATURE_ORDER = [
+'knowledge_graph',
+'log_template_mining',
+'structural_diff_engine',
+'text_compression_engine',
+'multimodal_image',
+'smart_crusher',
+'kompress',
+'html_extractor',
+'voice_filler',
+'code_ast',
+'stack_graph',
+'usearch',
+'model_routing',
+'audio',
+];
+
 function getStrategyLabel(key) {
-  return STRATEGY_DISPLAY.get(key) || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+return STRATEGY_DISPLAY.get(key) || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function normalizeFeatureAvailability(featureAvailability) {
+if (!featureAvailability || Object.keys(featureAvailability).length === 0) return [];
+
+const normalized = new Map(
+  FEATURE_ORDER.map((key) => [
+    key,
+    {
+      available: false,
+      reason: 'not_reported_by_runtime',
+    },
+  ]),
+);
+
+for (const [key, value] of Object.entries(featureAvailability)) {
+  normalized.set(key, value || {});
+}
+
+return Array.from(normalized.entries());
 }
 
 function FeatureAvailabilityPanel({ featureAvailability }) {
-  if (!featureAvailability || Object.keys(featureAvailability).length === 0) return null;
-  const entries = Object.entries(featureAvailability);
+const entries = normalizeFeatureAvailability(featureAvailability);
+if (entries.length === 0) return null;
   const availableCount = entries.filter(
     ([, value]) => value?.available && value?.compression !== 'pass-through',
   ).length;
@@ -1095,9 +1275,9 @@ export default function Overview() {
   const sourceRows = buildSourceRows(stats);
   const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
   const clientRows = buildClientRows(stats);
-  const activeClientRows = clientRows.filter((row) => row.tokens > 0);
+  const activeClientRows = clientRows;
   const modelRows = buildModelRows(stats);
-  const activeModelRows = modelRows.filter((row) => row.tokens > 0);
+  const activeModelRows = modelRows;
   const totalSourceTokens =
     activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
     Number(tokens.total_before_compression || 0);

@@ -153,8 +153,8 @@ class WebhookSubscriptionStore:
             # else use a derived key from the database path for single-machine setups.
             key = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get("CUTCTX_LICENSE_HMAC_SECRET")
             if key is None:
-                import hashlib
                 import base64
+                import hashlib
                 # Derive a stable key from the database path for tests/stateless mode
                 path_hash = hashlib.sha256(self._db_path.encode()).digest()
                 key = base64.urlsafe_b64encode(path_hash).decode('ascii')

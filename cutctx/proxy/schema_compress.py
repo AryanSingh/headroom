@@ -368,9 +368,9 @@ def _try_compress_json_content(
     try:
         parsed = json.loads(text)
     except (json.JSONDecodeError, TypeError):
-        from cutctx.proxy.snip import Snipper
         from cutctx.proxy.deblank import Deblanker
-        
+        from cutctx.proxy.snip import Snipper
+
         trimmed = Snipper.snip(text)
         minified, _ = Deblanker.deblank(trimmed)
         return minified if len(minified) < len(text) else text

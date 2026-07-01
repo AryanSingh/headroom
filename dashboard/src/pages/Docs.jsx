@@ -373,7 +373,7 @@ cutctx savings --by-source --format json`}
               ['SearchCompressor', 'Search results with relevance scoring', '35–65%'],
               ['SchemaCompressor', 'LLM tool definitions and API schemas', '~40%'],
               ['ImageCompressor', 'Inline base64 images with format optimization', '40–90%'],
-              ['AudioCompressor', 'Inline base64 audio with smart downsampling', '30–70%'],
+              ['AudioCompressor', 'Inline WAV audio blocks with smart downsampling; `/v1/audio/*` remains pass-through', 'Payload shrink'],
               ['CacheAligner', 'All content — prefix stabilization for provider KV cache', 'Indirect'],
             ]}
           />

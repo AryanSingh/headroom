@@ -866,8 +866,21 @@ class CodeAwareCompressor(Transform):
             bare_names=bare_names,
         )
 
-    def _allocate_body_budget(self, analysis: _SymbolAnalysis, code: str) -> dict[str, int]:
+    def _allocate_body_budget(
+        self,
+        analysis: _SymbolAnalysis,
+        code: str,
+        protected_symbols: set[str] | None = None,
+    ) -> dict[str, int]:
         """Allocate body line budget across functions using target_compression_rate.
+
+        Args:
+            analysis: Symbol analysis results.
+            code: Original source code.
+            protected_symbols: Optional set of symbol names to preserve in full.
+                When a symbol's qname or short name appears in this set, its
+                body line count is kept at the full original size regardless
+                of score.
 
         Returns dict mapping symbol name to max body lines to keep.
         """
@@ -913,11 +926,35 @@ class CodeAwareCompressor(Transform):
             if short not in limits or limit > limits[short]:
                 limits[short] = limit
 
+        # Apply protected symbols override: never compress protected functions.
+        # We use a sentinel large enough that _get_body_limit's `max_body_lines`
+        # cap does not truncate the body.
+        if protected_symbols:
+            for qname in list(limits.keys()):
+                short_name = analysis.bare_names.get(qname, "")
+                if short_name in protected_symbols or qname in protected_symbols:
+                    full_size = analysis.body_line_counts.get(qname, limits[qname])
+                    # Use a sentinel that exceeds any practical max_body_lines cap
+                    limits[qname] = max(full_size, 999_999)
+                    if short_name:
+                        limits[short_name] = max(full_size, 999_999)
+
         return limits
 
     # =========================================================================
     # Core compression
     # =========================================================================
+
+    # Protected symbols set (set by proxy when stack graph is wired)
+    _protected_symbols: set[str] | None = None
+
+    def set_protected_symbols(self, symbols: set[str] | None) -> None:
+        """Set the set of symbol names that must keep their full bodies.
+
+        Called by the content router / proxy before compression to
+        preserve functions on the call-path from the user's task.
+        """
+        self._protected_symbols = symbols
 
     def compress(
         self,
@@ -925,6 +962,7 @@ class CodeAwareCompressor(Transform):
         language: str | None = None,
         context: str = "",
         tokenizer: Tokenizer | None = None,
+        protected_symbols: set[str] | None = None,
     ) -> CodeCompressionResult:
         """Compress code while preserving syntax validity.
 
@@ -1002,10 +1040,16 @@ class CodeAwareCompressor(Transform):
                 syntax_valid=True,
             )
 
+        # Merge per-call protected_symbols with instance-level set
+        effective_protected = protected_symbols
+        if effective_protected is None and self._protected_symbols is not None:
+            effective_protected = self._protected_symbols
+
         # Parse and compress
         try:
             compressed, structure, symbol_scores = self._compress_with_ast(
-                code, detected_lang, context, tokenizer
+                code, detected_lang, context, tokenizer,
+                protected_symbols=effective_protected,
             )
             compressed_tokens = self._estimate_tokens(compressed, tokenizer)
 
@@ -1109,6 +1153,7 @@ class CodeAwareCompressor(Transform):
         language: CodeLanguage,
         context: str,
         tokenizer: Tokenizer | None = None,
+        protected_symbols: set[str] | None = None,
     ) -> tuple[str, CodeStructure, dict[str, float]]:
         """Compress code using AST parsing with symbol importance analysis.
 
@@ -1130,13 +1175,14 @@ class CodeAwareCompressor(Transform):
 
         # Analyze symbol importance and allocate compression budget
         analysis = self._analyze_symbol_importance(root, code, language, context)
-        body_limits = self._allocate_body_budget(analysis, code)
+        body_limits = self._allocate_body_budget(analysis, code, protected_symbols=protected_symbols)
 
         # Extract structure using data-driven language config
         lang_config = _LANG_CONFIGS.get(language)
         if lang_config:
             structure = self._extract_structure(
-                root, code, language, lang_config, body_limits, analysis
+                root, code, language, lang_config, body_limits, analysis,
+                protected_symbols=protected_symbols,
             )
         else:
             structure = self._extract_generic_structure(root, code)
@@ -1166,6 +1212,7 @@ class CodeAwareCompressor(Transform):
         lang_config: LangConfig,
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
+        protected_symbols: set[str] | None = None,
     ) -> CodeStructure:
         """Extract structure from AST using data-driven language config.
 
@@ -1202,7 +1249,8 @@ class CodeAwareCompressor(Transform):
                     ):
                         has_func_or_class = True
                         compressed = self._compress_function_ast(
-                            child, code, language, lang_config, body_limits, analysis
+                            child, code, language, lang_config, body_limits, analysis,
+                            protected_symbols=protected_symbols,
                         )
                         # Reconstruct export with compressed inner definition
                         export_prefix = code[node.start_byte : child.start_byte]
@@ -1225,11 +1273,13 @@ class CodeAwareCompressor(Transform):
                         decorator_text.append(_get_node_text(child, code))
                     elif child.type in lang_config.function_nodes:
                         definition_compressed = self._compress_function_ast(
-                            child, code, language, lang_config, body_limits, analysis
+                            child, code, language, lang_config, body_limits, analysis,
+                            protected_symbols=protected_symbols,
                         )
                     elif child.type in lang_config.class_nodes:
                         definition_compressed = self._compress_class_ast(
-                            child, code, language, lang_config, body_limits, analysis
+                            child, code, language, lang_config, body_limits, analysis,
+                            protected_symbols=protected_symbols,
                         )
                 if decorator_text and definition_compressed:
                     full_def = "\n".join(decorator_text) + "\n" + definition_compressed
@@ -1248,7 +1298,8 @@ class CodeAwareCompressor(Transform):
             # Function/method definitions
             if node_type in lang_config.function_nodes:
                 compressed = self._compress_function_ast(
-                    node, code, language, lang_config, body_limits, analysis
+                    node, code, language, lang_config, body_limits, analysis,
+                    protected_symbols=protected_symbols,
                 )
                 structure.function_signatures.append(compressed)
                 captured_byte_ranges.append((node.start_byte, node.end_byte))
@@ -1257,7 +1308,8 @@ class CodeAwareCompressor(Transform):
             # Class definitions — compress each method individually
             if node_type in lang_config.class_nodes:
                 compressed = self._compress_class_ast(
-                    node, code, language, lang_config, body_limits, analysis
+                    node, code, language, lang_config, body_limits, analysis,
+                    protected_symbols=protected_symbols,
                 )
                 structure.class_definitions.append(compressed)
                 captured_byte_ranges.append((node.start_byte, node.end_byte))
@@ -1299,6 +1351,7 @@ class CodeAwareCompressor(Transform):
         lang_config: LangConfig,
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
+        protected_symbols: set[str] | None = None,
     ) -> str:
         """Compress a function/class/impl block using AST body detection.
 
@@ -1319,7 +1372,8 @@ class CodeAwareCompressor(Transform):
         node_text = "\n".join(node_lines)
 
         func_name = _get_definition_name(node)
-        body_limit = _get_body_limit(func_name, body_limits, self.config.max_body_lines)
+        body_limit = _get_body_limit(func_name, body_limits, self.config.max_body_lines,
+                                     protected_symbols=protected_symbols)
 
         # Small enough to keep as-is
         if len(node_lines) <= body_limit + 2:
@@ -1555,6 +1609,7 @@ class CodeAwareCompressor(Transform):
         lang_config: LangConfig,
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
+        protected_symbols: set[str] | None = None,
     ) -> str:
         """Compress a class by individually compressing each method.
 
@@ -1598,7 +1653,8 @@ class CodeAwareCompressor(Transform):
             # Methods/functions inside the class — compress individually
             if child.type in lang_config.function_nodes:
                 compressed = self._compress_function_ast(
-                    child, code, language, lang_config, body_limits, analysis
+                    child, code, language, lang_config, body_limits, analysis,
+                    protected_symbols=protected_symbols,
                 )
                 body_parts.append(compressed)
                 processed_ranges.append((child.start_byte, child.end_byte))
@@ -1611,7 +1667,8 @@ class CodeAwareCompressor(Transform):
                         decorator_lines.append(_get_node_text(deco_child, code))
                     elif deco_child.type in lang_config.function_nodes:
                         method_compressed = self._compress_function_ast(
-                            deco_child, code, language, lang_config, body_limits, analysis
+                            deco_child, code, language, lang_config, body_limits, analysis,
+                            protected_symbols=protected_symbols,
                         )
                 if decorator_lines and method_compressed:
                     body_parts.append("\n".join(decorator_lines) + "\n" + method_compressed)
@@ -1623,7 +1680,8 @@ class CodeAwareCompressor(Transform):
             # Nested classes — recurse
             elif child.type in lang_config.class_nodes:
                 compressed = self._compress_class_ast(
-                    child, code, language, lang_config, body_limits, analysis
+                    child, code, language, lang_config, body_limits, analysis,
+                    protected_symbols=protected_symbols,
                 )
                 body_parts.append(compressed)
                 processed_ranges.append((child.start_byte, child.end_byte))
@@ -1952,14 +2010,20 @@ def _get_body_limit(
     func_name: str | None,
     body_limits: dict[str, int],
     max_body_lines: int,
+    protected_symbols: set[str] | None = None,
 ) -> int:
     """Look up the allocated body line limit for a function.
 
     Falls back to max_body_lines if no budget allocation was computed.
-    max_body_lines always acts as a hard cap.
+    max_body_lines always acts as a hard cap, *unless* the function
+    name appears in *protected_symbols* — in that case the budget
+    allocation is used directly (no cap) so the full body is preserved.
     """
     if body_limits and func_name and func_name in body_limits:
-        return min(body_limits[func_name], max_body_lines)
+        limit = body_limits[func_name]
+        if protected_symbols and func_name in protected_symbols:
+            return limit
+        return min(limit, max_body_lines)
     return max_body_lines
 
 

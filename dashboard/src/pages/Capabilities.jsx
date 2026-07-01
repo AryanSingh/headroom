@@ -1,8 +1,17 @@
-import { Boxes, BrainCircuit, Cable, CheckCircle2, Lock, MinusCircle, ServerCog, Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import {
+  Boxes,
+  BrainCircuit,
+  Cable,
+  CheckCircle2,
+  Lock,
+  MinusCircle,
+  ServerCog,
+  Sparkles,
+} from 'lucide-react';
 import { capabilityGroups } from '../data/capabilities';
 import { formatCurrency, formatInteger, formatPercent, titleize } from '../lib/format';
-import { useDashboardData, patchDashboardConfig } from '../lib/use-dashboard-data';
+import { patchDashboardConfig, useDashboardData } from '../lib/use-dashboard-data';
 
 const icons = {
   'Core Deployment Modes': ServerCog,
@@ -11,51 +20,123 @@ const icons = {
   'Governance & Operations': Lock,
 };
 
-function liveStatus(value) {
-  const nonzero = value != null && value !== 0 && value !== '0' && value !== 'none' && value !== 'None';
-  return nonzero
-    ? <span className="status-active"><CheckCircle2 size={13} /> Active</span>
-    : <span className="status-inactive"><MinusCircle size={13} /> Idle</span>;
+function liveStatus(active) {
+  return active ? (
+    <span className="status-active">
+      <CheckCircle2 size={13} /> Active
+    </span>
+  ) : (
+    <span className="status-inactive">
+      <MinusCircle size={13} /> Idle
+    </span>
+  );
 }
 
 function ToggleSwitch({ checked, onChange, disabled }) {
   return (
-    <label className="toggle-switch" style={{
-      position: 'relative', display: 'inline-block', width: '36px', height: '20px', opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer'
-    }}>
-      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} style={{ opacity: 0, width: 0, height: 0 }} />
-      <span style={{
-        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: checked ? 'var(--accent)' : 'var(--surface-3)', transition: '.2s', borderRadius: '20px'
-      }}>
-        <span style={{
-          position: 'absolute', content: '""', height: '14px', width: '14px', left: '3px', bottom: '3px',
-          backgroundColor: 'white', transition: '.2s', borderRadius: '50%',
-          transform: checked ? 'translateX(16px)' : 'translateX(0)'
-        }} />
+    <label
+      className="toggle-switch"
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        width: '36px',
+        height: '20px',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        style={{ opacity: 0, width: 0, height: 0 }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          cursor: 'pointer',
+          inset: 0,
+          backgroundColor: checked ? 'var(--accent)' : 'var(--surface-3)',
+          transition: '.2s',
+          borderRadius: '20px',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            height: '14px',
+            width: '14px',
+            left: '3px',
+            bottom: '3px',
+            backgroundColor: 'white',
+            transition: '.2s',
+            borderRadius: '50%',
+            transform: checked ? 'translateX(16px)' : 'translateX(0)',
+          }}
+        />
       </span>
     </label>
   );
 }
 
-export default function Capabilities() {
-  const { stats, loading, error } = useDashboardData();
-  const [updating, setUpdating] = useState({});
+function getFlagEnabled(stats, configFlags, ...keys) {
+  for (const key of keys) {
+    if (stats?.config?.[key] != null) {
+      return Boolean(stats.config[key]);
+    }
 
+    if (configFlags?.config?.[key] != null) {
+      return Boolean(configFlags.config[key]);
+    }
+
+    if (configFlags?.live_toggleable?.[key]?.enabled != null) {
+      return Boolean(configFlags.live_toggleable[key].enabled);
+    }
+
+    if (configFlags?.restart_required?.[key]?.enabled != null) {
+      return Boolean(configFlags.restart_required[key].enabled);
+    }
+  }
+
+  return null;
+}
+
+export default function Capabilities() {
+  const { stats, loading, error, configFlags, configFlagsError, refresh } = useDashboardData();
+  const [updating, setUpdating] = useState({});
   const [optimisticState, setOptimisticState] = useState({});
 
-  const providerCacheSavingsUsd =
-    Number(stats?.savings_by_source?.usd?.provider_prompt_cache || 0)
-    || Number(stats?.summary?.cost?.breakdown?.cache_savings_usd || 0);
+  const providerCacheTokens =
+    Number(stats?.cost?.savings_by_source?.tokens?.provider_prompt_cache || 0)
+    || Number(stats?.savings_by_source?.tokens?.provider_prompt_cache || 0)
+    || Number(stats?.prefix_cache?.totals?.cache_read_tokens || 0);
+
+  const providerCacheSavingsUsd = Math.max(
+    Number(stats?.cost?.cache_savings_usd || 0),
+    Number(stats?.summary?.cost?.breakdown?.cache_savings_usd || 0),
+    Number(stats?.prefix_cache?.totals?.net_savings_usd || 0),
+    Number(stats?.prefix_cache?.totals?.savings_usd || 0),
+    Number(stats?.savings_by_source?.usd?.provider_prompt_cache || 0),
+  );
+
+  const surfaceFlags = {
+    rate_limiter: getFlagEnabled(stats, configFlags, 'rate_limiter', 'rate_limit_enabled'),
+    cache: getFlagEnabled(stats, configFlags, 'cache', 'cache_enabled'),
+    ccr: getFlagEnabled(stats, configFlags, 'ccr', 'ccr_context_tracking'),
+    memory: getFlagEnabled(stats, configFlags, 'memory', 'episodic_memory_enabled'),
+    firewall: getFlagEnabled(stats, configFlags, 'firewall', 'firewall_enabled'),
+  };
 
   const handleToggle = async (key, currentValue) => {
     setUpdating((prev) => ({ ...prev, [key]: true }));
     setOptimisticState((prev) => ({ ...prev, [key]: !currentValue }));
+
     try {
       await patchDashboardConfig({ [key]: !currentValue });
+      await refresh?.();
     } catch (err) {
       console.error('Failed to toggle config:', err);
-      // Revert optimistic state on error
       setOptimisticState((prev) => {
         const next = { ...prev };
         delete next[key];
@@ -74,7 +155,7 @@ export default function Capabilities() {
     },
     {
       label: 'Provider cache',
-      value: formatInteger(stats?.savings_by_source?.tokens?.provider_prompt_cache),
+      value: formatInteger(providerCacheTokens),
       detail: `${formatCurrency(providerCacheSavingsUsd)} saved`,
     },
     {
@@ -94,45 +175,67 @@ export default function Capabilities() {
     },
     {
       label: 'Rate limiter',
-      value: formatInteger(stats?.rate_limiter?.active_keys),
-      detail: `${formatInteger(stats?.rate_limiter?.tokens_per_minute)} tokens / min`,
-      status: stats?.rate_limiter?.active_keys,
-      configKey: 'rate_limiter',
+      value: formatInteger(stats?.rate_limiter?.active_keys || 0),
+      detail:
+        stats?.rate_limiter != null
+          ? `${formatInteger(stats?.rate_limiter?.tokens_per_minute || 0)} tokens / min`
+          : 'This proxy is not exposing live rate limiter metrics',
+      status: surfaceFlags.rate_limiter ?? stats?.rate_limiter != null,
+      configKey: surfaceFlags.rate_limiter == null ? null : 'rate_limiter',
     },
     {
       label: 'Semantic cache',
-      value: formatInteger(stats?.cache?.total_hits),
-      detail: `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.max_entries || 0)} max`,
-      status: stats?.config?.cache !== false ? (stats?.cache?.entries ?? 1) : 0,
-      configKey: 'cache',
+      value: formatInteger(stats?.cache?.total_hits || 0),
+      detail:
+        stats?.cache != null
+          ? `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.max_entries || 0)} max`
+          : 'This proxy is not exposing semantic cache metrics',
+      status: surfaceFlags.cache ?? stats?.cache != null,
+      configKey: surfaceFlags.cache == null ? null : 'cache',
     },
     {
       label: 'CCR store',
-      value: formatInteger(stats?.compression?.ccr_entries),
+      value: formatInteger(stats?.compression?.ccr_entries || 0),
       detail: `${formatInteger(stats?.compression?.ccr_retrievals || 0)} retrievals`,
-      status: stats?.compression != null ? 1 : 0,
-      configKey: 'ccr',
+      status: surfaceFlags.ccr ?? stats?.compression != null,
+      configKey: surfaceFlags.ccr == null ? null : 'ccr',
     },
     {
       label: 'Episodic memory',
       value: formatInteger(stats?.memory?.active_sessions || 0),
-      detail: `Cross-session context enabled`,
-      status: stats?.config?.memory ? 1 : 0,
-      configKey: 'memory',
+      detail:
+        stats?.memory != null
+          ? 'Cross-session context enabled'
+          : 'This proxy is not exposing episodic memory metrics',
+      status: surfaceFlags.memory ?? stats?.memory != null,
+      configKey: surfaceFlags.memory == null ? null : 'memory',
     },
     {
       label: 'Firewall',
       value: formatInteger(stats?.firewall?.scans || 0),
-      detail: `Outbound prompt scanning`,
-      status: stats?.config?.firewall ? 1 : 0,
-      configKey: 'firewall',
-    }
+      detail:
+        stats?.firewall != null
+          ? 'Outbound prompt scanning'
+          : 'This proxy is not exposing firewall scan metrics',
+      status: surfaceFlags.firewall ?? stats?.firewall != null,
+      configKey: surfaceFlags.firewall == null ? null : 'firewall',
+    },
   ];
 
   return (
     <section className="page-stack">
+      {error ? (
+        <div className="alert-card" role="alert">
+          Failed to load live capability signals: {error}
+        </div>
+      ) : null}
 
-      {error && <div className="alert-card" role="alert">Failed to load live capability signals: {error}</div>}
+      {configFlagsError ? (
+        <div className="alert-card" role="status">
+          Runtime config API unavailable: {configFlagsError}. Idle states below may reflect missing backend
+          telemetry rather than disabled features.
+        </div>
+      ) : null}
 
       <div className="panel">
         <div className="section-heading">
@@ -145,27 +248,32 @@ export default function Capabilities() {
 
         <div className="metric-grid metric-grid-three" aria-busy={loading}>
           {liveSurfaces.map((surface) => {
-            const isToggleable = surface.configKey && stats?.config != null;
-            const backendState = isToggleable ? stats.config[surface.configKey] : false;
-            // Use optimistic state if it exists, otherwise backend state
-            const toggleState = surface.configKey in optimisticState ? optimisticState[surface.configKey] : backendState;
+            const isToggleable = Boolean(surface.configKey);
+            const backendState = isToggleable ? surfaceFlags[surface.configKey] : false;
+            const toggleState =
+              isToggleable && surface.configKey in optimisticState
+                ? optimisticState[surface.configKey]
+                : backendState;
 
             return (
               <article key={surface.label} className="metric-card metric-card-compact">
-                <div className="metric-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  className="metric-header"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <span className="metric-label">{surface.label}</span>
                   {isToggleable ? (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {!loading && 'status' in surface && liveStatus(toggleState ? 1 : 0)}
-                      <ToggleSwitch 
-                        checked={toggleState} 
-                        onChange={() => handleToggle(surface.configKey, toggleState)} 
-                        disabled={loading || updating[surface.configKey]} 
+                      {!loading && liveStatus(Boolean(toggleState))}
+                      <ToggleSwitch
+                        checked={Boolean(toggleState)}
+                        onChange={() => handleToggle(surface.configKey, Boolean(toggleState))}
+                        disabled={loading || updating[surface.configKey]}
                       />
                     </div>
-                  ) : (
-                    !loading && 'status' in surface && liveStatus(surface.status)
-                  )}
+                  ) : !loading && 'status' in surface ? (
+                    liveStatus(Boolean(surface.status))
+                  ) : null}
                 </div>
                 <div className="metric-value">{loading ? '—' : surface.value}</div>
                 <div className="metric-footnote">{surface.detail}</div>

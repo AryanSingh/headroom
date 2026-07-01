@@ -1,0 +1,1 @@
+uid=1_0 RootWebArea "dashboard" url="http://localhost:5173/"

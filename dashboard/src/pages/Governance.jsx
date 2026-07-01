@@ -1,33 +1,13 @@
-import {
-  BadgeCheck,
-  Building2,
-  CheckCircle2,
-  Copy,
-  KeyRound,
-  MinusCircle,
-  RefreshCw,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Copy, MinusCircle, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatInteger, formatRelativeTime } from '../lib/format';
-import { fetchDashboardJson, useDashboardData } from '../lib/use-dashboard-data';
-import { getAdminAuthHeaders } from '../lib/admin-auth';
-import { getProxyUrl } from '../lib/api';
+import { fetchDashboardJson, patchDashboardConfig, useDashboardData } from '../lib/use-dashboard-data';
 
 const GOVERNANCE_PATHS = {
   audit: '/audit/events',
   rbac: '/rbac/roles',
 };
 
-// TODO: The following endpoints are planned but not yet implemented in admin.py:
-// - /orgs: organization management
-// - /quota: quota tracking
-// - /retention/stats: data retention statistics
-// - /subscription-window: subscription lifecycle
-
-// liveToggle=true means the proxy can apply the change immediately (per-request flag).
-// liveToggle=false means a proxy restart is required.
 const FEATURE_CONFIG = [
   {
     key: 'firewall',
@@ -37,7 +17,7 @@ const FEATURE_CONFIG = [
     description: 'Scan every request for prompt injection, jailbreaks, and PII before it reaches the model.',
     tier: 'free',
     liveToggle: false,
-    statPath: (stats) => stats?.config?.firewall_enabled,
+    statPath: (stats) => stats?.config?.firewall,
   },
   {
     key: 'rate_limit',
@@ -47,17 +27,17 @@ const FEATURE_CONFIG = [
     description: 'Token-bucket rate limiting per API key. Configure limits with CUTCTX_RATE_LIMIT_TPM and CUTCTX_RATE_LIMIT_RPM.',
     tier: 'free',
     liveToggle: false,
-    statPath: (stats) => stats?.config?.rate_limit,
+    statPath: (stats) => stats?.config?.rate_limiter,
   },
   {
     key: 'task_aware',
     flagKey: 'task_aware_enabled',
     label: 'Task-aware compression',
     envVar: 'CUTCTX_TASK_AWARE_ENABLED=1',
-    description: 'Modulate compression depth based on relevance to the active task — protect critical context, aggressively compress background material.',
+    description: 'Modulate compression depth based on relevance to the active task.',
     tier: 'free',
     liveToggle: true,
-    statPath: (stats) => stats?.config?.task_aware_enabled,
+    statPath: () => null,
   },
   {
     key: 'dedup',
@@ -67,34 +47,64 @@ const FEATURE_CONFIG = [
     description: 'Detect and collapse repeated content across messages using reversible CCR pointers.',
     tier: 'free',
     liveToggle: true,
-    statPath: (stats) => stats?.config?.dedup_enabled,
+    statPath: () => null,
   },
   {
     key: 'context_budget',
     flagKey: 'context_budget_enabled',
     label: 'Context budget controller',
     envVar: 'CUTCTX_CONTEXT_BUDGET_ENABLED=1',
-    description: 'Progressively increase compression as the context window fills — prevents silent truncation and cost spikes.',
+    description: 'Progressively increase compression as the context window fills.',
     tier: 'free',
     liveToggle: true,
-    statPath: (stats) => stats?.config?.context_budget_enabled,
+    statPath: () => null,
   },
   {
     key: 'profiles',
     flagKey: 'profiles_enabled',
     label: 'Compression profiles',
     envVar: 'CUTCTX_PROFILES_ENABLED=1',
-    description: 'Learn per-workspace compression patterns across sessions for improving accuracy over time.',
+    description: 'Learn per-workspace compression patterns across sessions and reuse them later.',
     tier: 'free',
     liveToggle: true,
-    statPath: (stats) => stats?.config?.profiles_enabled,
+    statPath: () => null,
   },
   {
-    key: 'memory',
-    flagKey: null,
+    key: 'shared_context',
+    flagKey: 'shared_context_enabled',
     label: 'Cross-agent memory',
-    envVar: 'Contact sales',
-    description: 'Persistent shared memory backend across Claude, Codex, Gemini, and other agents. Semantic search, learn signals, and correction writing.',
+    envVar: 'CUTCTX_SHARED_CONTEXT_ENABLED=1',
+    description: 'Share compressed context and cache hits across agents working in the same workspace.',
+    tier: 'enterprise',
+    liveToggle: true,
+    statPath: () => null,
+  },
+  {
+    key: 'episodic_memory',
+    flagKey: 'episodic_memory_enabled',
+    label: 'Episodic memory',
+    envVar: 'CUTCTX_EPISODIC_MEMORY_ENABLED=1',
+    description: 'Store and reinject project memories across sessions.',
+    tier: 'enterprise',
+    liveToggle: true,
+    statPath: (stats) => stats?.config?.memory,
+  },
+  {
+    key: 'cost_forecast',
+    flagKey: 'cost_forecast_enabled',
+    label: 'Cost forecasting',
+    envVar: 'CUTCTX_COST_FORECAST_ENABLED=1',
+    description: 'Estimate request cost up front and feed policy decisions before compression runs.',
+    tier: 'free',
+    liveToggle: true,
+    statPath: () => null,
+  },
+  {
+    key: 'audit',
+    flagKey: 'audit_enabled',
+    label: 'Audit trail',
+    envVar: 'CUTCTX_AUDIT_DISABLED=0',
+    description: 'Persist admin and governance activity to the audit log. Restart required to fully apply changes.',
     tier: 'enterprise',
     liveToggle: false,
     statPath: () => null,
@@ -102,12 +112,12 @@ const FEATURE_CONFIG = [
   {
     key: 'rbac',
     flagKey: null,
-    label: 'RBAC & audit trail',
-    envVar: 'Contact sales',
-    description: 'Role-based access control with admin/operator/viewer tiers. Tamper-evident audit log with hash-chain verification.',
+    label: 'RBAC admin controls',
+    envVar: 'Enterprise entitlement required',
+    description: 'Role assignment and permission enforcement surfaces. This is a control plane, not a simple boolean flag.',
     tier: 'enterprise',
     liveToggle: false,
-    statPath: () => null,
+    statPath: (_, sections) => sections?.rbac?.ok ?? null,
   },
 ];
 
@@ -115,21 +125,11 @@ function emptySection() {
   return { ok: false, data: null, error: 'Loading…' };
 }
 
-function summarizeQuotaProviders(quotaData) {
-  if (!quotaData || typeof quotaData !== 'object') return [];
-  return Object.entries(quotaData)
-    .map(([provider, stats]) => ({
-      provider,
-      limit: formatInteger(stats?.limit_tokens ?? stats?.tokens_per_minute ?? stats?.requests_per_minute ?? 0),
-      remaining: formatInteger(stats?.remaining_tokens ?? stats?.remaining_requests ?? 0),
-      reset: formatRelativeTime(stats?.reset_at ?? stats?.window_end ?? stats?.reset_time),
-    }))
-    .slice(0, 6);
-}
-
 function normalizeAssignments(rbacData) {
   const raw = rbacData?.assignments;
-  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) {
+    return raw;
+  }
   if (raw && typeof raw === 'object') {
     return Object.entries(raw).map(([userId, role]) => ({ user_id: userId, role }));
   }
@@ -138,93 +138,130 @@ function normalizeAssignments(rbacData) {
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
   };
+
   return (
-    <button className="copy-btn" onClick={handleCopy} title="Copy to clipboard">
+    <button className="copy-btn" onClick={handleCopy} title="Copy to clipboard" type="button">
       {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
     </button>
   );
 }
 
-function FeatureToggle({ flagKey, enabled, onToggle, busy }) {
+function FeatureToggle({ enabled, onToggle, busy }) {
   return (
     <button
       className={`feature-toggle ${enabled ? 'feature-toggle-on' : 'feature-toggle-off'}`}
-      onClick={() => onToggle(flagKey, !enabled)}
+      onClick={onToggle}
       disabled={busy}
-      aria-label={enabled ? 'Disable' : 'Enable'}
+      aria-label={enabled ? 'Disable feature' : 'Enable feature'}
+      type="button"
     >
       <span className="feature-toggle-knob" />
     </button>
   );
 }
 
-function FeatureRow({ feature, stats, liveFlags, onToggle, toggleBusy, restartNeeded }) {
-  const isEnterprise = feature.tier === 'enterprise';
-  const isLive = feature.liveToggle;
-  const isActive = isLive
-    ? (liveFlags[feature.flagKey] ?? feature.statPath(stats))
-    : feature.statPath(stats);
-  const pendingRestart = !isLive && restartNeeded.has(feature.flagKey);
+function resolveFeatureState(feature, stats, configFlags, liveFlags, sections) {
+  if (!feature.flagKey) {
+    return feature.statPath(stats, sections);
+  }
+
+  if (feature.flagKey in liveFlags) {
+    return liveFlags[feature.flagKey];
+  }
+
+  if (configFlags?.live_toggleable?.[feature.flagKey]?.enabled != null) {
+    return Boolean(configFlags.live_toggleable[feature.flagKey].enabled);
+  }
+
+  if (configFlags?.restart_required?.[feature.flagKey]?.enabled != null) {
+    return Boolean(configFlags.restart_required[feature.flagKey].enabled);
+  }
+
+  return feature.statPath(stats, sections);
+}
+
+function FeatureRow({
+  feature,
+  stats,
+  configFlags,
+  liveFlags,
+  sections,
+  onToggle,
+  toggleBusy,
+}) {
+  const isActive = resolveFeatureState(feature, stats, configFlags, liveFlags, sections);
+  const toggleable = Boolean(feature.flagKey);
 
   return (
     <div className="feature-config-row">
       <div className="feature-config-main">
         <div className="feature-config-header">
           <span className="feature-config-name">{feature.label}</span>
-          {isEnterprise
-            ? <span className="tier-badge tier-enterprise">Enterprise</span>
-            : pendingRestart
-              ? <span className="tier-badge tier-restart"><RefreshCw size={10} /> Restart required</span>
-              : isActive === true
-                ? <span className="status-active"><CheckCircle2 size={12} /> Active</span>
-                : isActive === false
-                  ? <span className="status-inactive"><MinusCircle size={12} /> Inactive</span>
-                  : null}
+          {feature.tier === 'enterprise' ? (
+            <span className="tier-badge tier-enterprise">Enterprise</span>
+          ) : null}
+          {toggleable && !feature.liveToggle ? (
+            <span className="tier-badge tier-restart">
+              <RefreshCw size={10} /> Restart required
+            </span>
+          ) : null}
+          {isActive === true ? (
+            <span className="status-active">
+              <CheckCircle2 size={12} /> Active
+            </span>
+          ) : isActive === false ? (
+            <span className="status-inactive">
+              <MinusCircle size={12} /> Inactive
+            </span>
+          ) : null}
         </div>
         <p className="feature-config-desc">{feature.description}</p>
       </div>
-      {!isEnterprise && (
-        <div className="feature-config-controls">
-          {isLive ? (
+
+      <div className="feature-config-controls">
+        {toggleable ? (
+          <>
             <FeatureToggle
-              flagKey={feature.flagKey}
-              enabled={!!isActive}
-              onToggle={onToggle}
+              enabled={Boolean(isActive)}
+              onToggle={() => onToggle(feature.flagKey, !Boolean(isActive))}
               busy={toggleBusy === feature.flagKey}
             />
-          ) : (
             <div className="feature-config-env">
               <code>{feature.envVar}</code>
               <CopyButton text={feature.envVar} />
             </div>
-          )}
-        </div>
-      )}
+          </>
+        ) : (
+          <div className="feature-config-env">
+            <code>{feature.envVar}</code>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function Governance({ searchQuery = '' }) {
-  const { stats, loading: statsLoading } = useDashboardData();
+  const { stats, loading: statsLoading, configFlags, configFlagsError, refresh } = useDashboardData();
   const [sections, setSections] = useState({
     audit: emptySection(),
-    orgs: emptySection(),
-    quota: emptySection(),
     rbac: emptySection(),
-    retention: emptySection(),
-    subscription: emptySection(),
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [liveFlags, setLiveFlags] = useState({});
+  const [toggleBusy, setToggleBusy] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
       const entries = await Promise.all(
         Object.entries(GOVERNANCE_PATHS).map(async ([key, path]) => {
@@ -236,63 +273,98 @@ export default function Governance({ searchQuery = '' }) {
           }
         }),
       );
-      if (cancelled) return;
-      setSections((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+
+      if (cancelled) {
+        return;
+      }
+
+      setSections(Object.fromEntries(entries));
       setLoading(false);
       setLastUpdated(new Date().toISOString());
     };
+
     load();
-    const id = setInterval(load, 15000);
-    return () => { cancelled = true; clearInterval(id); };
+    const id = setInterval(load, 15_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
-  const orgs = sections.orgs.data?.orgs || [];
-  const audit = sections.audit.data || {};
-  const assignments = useMemo(() => normalizeAssignments(sections.rbac.data), [sections.rbac.data]);
-  const quotaProviders = useMemo(() => summarizeQuotaProviders(sections.quota.data), [sections.quota.data]);
+  useEffect(() => {
+    if (!configFlags) {
+      return;
+    }
 
-  const [liveFlags, setLiveFlags] = useState({});
-  const [toggleBusy, setToggleBusy] = useState(null);
-  const [restartNeeded, setRestartNeeded] = useState(new Set());
+    setLiveFlags((prev) => {
+      const next = { ...prev };
 
-  const handleToggle = useCallback(async (flagKey, value) => {
-    setToggleBusy(flagKey);
-    try {
-      const res = await fetch(getProxyUrl('/admin/config/flags'), {
-        method: 'POST',
-        headers: { ...getAdminAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [flagKey]: value }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.applied_live?.[flagKey] != null) {
-          setLiveFlags((prev) => ({ ...prev, [flagKey]: value }));
-        }
-        if (data.restart_required?.[flagKey] != null) {
-          setRestartNeeded((prev) => new Set([...prev, flagKey]));
+      for (const [key, value] of Object.entries(configFlags.live_toggleable || {})) {
+        if (!(key in next) && value?.enabled != null) {
+          next[key] = Boolean(value.enabled);
         }
       }
-    } catch (_) { /* network error — silently ignore */ }
-    setToggleBusy(null);
-  }, []);
 
-  const rateLimiter = stats?.rate_limiter;
-  const isRateLimitActive = stats?.config?.rate_limit;
+      for (const [key, value] of Object.entries(configFlags.restart_required || {})) {
+        if (!(key in next) && value?.enabled != null) {
+          next[key] = Boolean(value.enabled);
+        }
+      }
 
-  const failedSections = Object.entries(sections).filter(([k, s]) => !s.ok && !loading && GOVERNANCE_PATHS[k]);
-  const isNetworkError = failedSections.some(([, s]) =>
-    s.error && !s.error.includes('403') && !s.error.includes('503') && !s.error.includes('501'),
+      return next;
+    });
+  }, [configFlags]);
+
+  const handleToggle = useCallback(
+    async (flagKey, value) => {
+      setToggleBusy(flagKey);
+      try {
+        const response = await patchDashboardConfig({ [flagKey]: value });
+        setLiveFlags((prev) => ({
+          ...prev,
+          [flagKey]: value,
+          ...(response?.applied_live || {}),
+        }));
+        await refresh?.();
+      } finally {
+        setToggleBusy(null);
+      }
+    },
+    [refresh],
   );
+
+  const assignments = useMemo(() => normalizeAssignments(sections.rbac.data), [sections.rbac.data]);
+  const failedSections = Object.entries(sections).filter(([, section]) => !section.ok && !loading);
+  const rateLimiter = stats?.rate_limiter || null;
+  const rateLimitEnabled =
+    stats?.config?.rate_limiter ??
+    configFlags?.restart_required?.rate_limit_enabled?.enabled ??
+    false;
+
+  const filteredFeatures = FEATURE_CONFIG.filter((feature) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      feature.label.toLowerCase().includes(query) ||
+      feature.description.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <section className="page-stack">
-      {!loading && failedSections.length > 0 && isNetworkError && (
+      {failedSections.length > 0 ? (
         <div className="alert-card" role="alert">
-          Some governance surfaces could not be reached: {failedSections.map(([k]) => k).join(', ')}.
+          Some governance surfaces could not be reached: {failedSections.map(([key]) => key).join(', ')}.
         </div>
-      )}
+      ) : null}
 
-      {/* Rate limiter — only free live governance feature */}
+      {configFlagsError ? (
+        <div className="alert-card" role="status">
+          Runtime config API unavailable: {configFlagsError}. Dashboard toggles only work once the
+          backend exposes the config flag routes.
+        </div>
+      ) : null}
+
       <div className="panel">
         <div className="section-heading">
           <div>
@@ -300,318 +372,109 @@ export default function Governance({ searchQuery = '' }) {
             <h2>Rate limiting</h2>
           </div>
           <p>
-            {isRateLimitActive
-              ? 'Token-bucket throttling is active. All LLM proxy paths are rate-limited per API key.'
-              : 'Rate limiting is not enabled. Set CUTCTX_RATE_LIMIT_ENABLED=true to activate.'}
+            {rateLimitEnabled
+              ? 'Token-bucket throttling is configured.'
+              : 'Rate limiting is not enabled yet.'}
           </p>
         </div>
+
         <div className="metric-grid metric-grid-four" aria-busy={statsLoading}>
           <article className="metric-card metric-card-compact">
-            <div className="metric-header">
-              <span className="metric-label">Status</span>
-              <Zap size={15} />
-            </div>
-            <div className="metric-value">
-              {statsLoading ? '—' : isRateLimitActive ? 'Active' : 'Inactive'}
-            </div>
-            <div className="metric-footnote">
-              {isRateLimitActive ? 'Enforcing per-key limits' : 'Set CUTCTX_RATE_LIMIT_ENABLED=true'}
-            </div>
+            <div className="metric-label">Status</div>
+            <div className="metric-value">{rateLimitEnabled ? 'Active' : 'Inactive'}</div>
+            <div className="metric-footnote">Dashboard toggle updates config. Restart may still be required.</div>
           </article>
           <article className="metric-card metric-card-compact">
-            <div className="metric-header">
-              <span className="metric-label">Active keys</span>
-            </div>
-            <div className="metric-value">
-              {statsLoading ? '—' : formatInteger(rateLimiter?.active_keys ?? 0)}
-            </div>
+            <div className="metric-label">Active keys</div>
+            <div className="metric-value">{formatInteger(rateLimiter?.active_keys || 0)}</div>
             <div className="metric-footnote">Keys with live rate state</div>
           </article>
           <article className="metric-card metric-card-compact">
-            <div className="metric-header">
-              <span className="metric-label">Token limit</span>
-            </div>
+            <div className="metric-label">Token limit</div>
             <div className="metric-value">
-              {statsLoading ? '—' : rateLimiter ? formatInteger(rateLimiter.tokens_per_minute) : '—'}
+              {rateLimiter ? formatInteger(rateLimiter.tokens_per_minute || 0) : '—'}
             </div>
             <div className="metric-footnote">Tokens per minute per key</div>
           </article>
           <article className="metric-card metric-card-compact">
-            <div className="metric-header">
-              <span className="metric-label">Request limit</span>
-            </div>
+            <div className="metric-label">Request limit</div>
             <div className="metric-value">
-              {statsLoading ? '—' : rateLimiter ? formatInteger(rateLimiter.requests_per_minute) : '—'}
+              {rateLimiter ? formatInteger(rateLimiter.requests_per_minute || 0) : '—'}
             </div>
             <div className="metric-footnote">Requests per minute per key</div>
           </article>
         </div>
       </div>
 
-      {/* Feature configuration */}
       <div className="panel">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Feature configuration</div>
             <h2>Enable optional features</h2>
           </div>
-          <p>Set these environment variables before starting the proxy. Restart required for changes to take effect.</p>
+          <p>
+            Dashboard toggles write to the proxy config when supported. Some features apply on the
+            next request, while others need a restart to take effect fully.
+          </p>
         </div>
+
         <div className="feature-config-list">
-          {FEATURE_CONFIG.filter(f => f.label.toLowerCase().includes(searchQuery) || f.description.toLowerCase().includes(searchQuery)).map((feature) => (
+          {filteredFeatures.map((feature) => (
             <FeatureRow
               key={feature.key}
               feature={feature}
               stats={stats}
+              configFlags={configFlags}
               liveFlags={liveFlags}
+              sections={sections}
               onToggle={handleToggle}
               toggleBusy={toggleBusy}
-              restartNeeded={restartNeeded}
             />
           ))}
         </div>
       </div>
 
-      {/* Enterprise surfaces */}
-      <div className="dashboard-grid" aria-busy={loading}>
-        <section className="panel panel-wide">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Enterprise</div>
-              <h2>Organizations</h2>
-            </div>
-            <p>Multi-tenant workspace model. Requires enterprise entitlements.</p>
-          </div>
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>Organization</th>
-                  <th>Slug</th>
-                  <th>Admin</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orgs.filter(o => !searchQuery || (o.name?.toLowerCase().includes(searchQuery) || o.slug?.toLowerCase().includes(searchQuery) || o.admin_email?.toLowerCase().includes(searchQuery))).length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="empty-row">
-                      {loading ? 'Loading…' : sections.orgs.ok ? 'No organizations configured.' : 'Enterprise feature — contact sales to enable.'}
-                    </td>
-                  </tr>
-                ) : (
-                  orgs.filter(o => !searchQuery || (o.name?.toLowerCase().includes(searchQuery) || o.slug?.toLowerCase().includes(searchQuery) || o.admin_email?.toLowerCase().includes(searchQuery))).slice(0, 8).map((org, index) => (
-                    <tr key={org.id || org.slug || index}>
-                      <td>{org.name || org.id || '—'}</td>
-                      <td>{org.slug || '—'}</td>
-                      <td>{org.admin_email || '—'}</td>
-                      <td>{formatRelativeTime(org.created_at)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <aside className="panel panel-side">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Control surfaces</div>
-              <h2>Governance status</h2>
-            </div>
-          </div>
-          <div className="stack-list">
-            <StatusBullet
-              icon={<Zap size={14} />}
-              title="Rate limiting"
-              detail={isRateLimitActive ? 'Active — token-bucket per key' : 'Inactive — set CUTCTX_RATE_LIMIT_ENABLED=true'}
-              active={isRateLimitActive}
-            />
-            <StatusBullet
-              icon={<BadgeCheck size={14} />}
-              title="Audit trail"
-              detail={sections.audit.ok ? 'Reachable' : 'Enterprise feature'}
-              active={sections.audit.ok}
-            />
-            <StatusBullet
-              icon={<KeyRound size={14} />}
-              title="RBAC"
-              detail={sections.rbac.ok ? `${assignments.length} roles assigned` : 'Enterprise feature'}
-              active={sections.rbac.ok}
-            />
-            <StatusBullet
-              icon={<Building2 size={14} />}
-              title="Organizations"
-              detail={sections.orgs.ok ? `${orgs.length} orgs` : 'Enterprise feature'}
-              active={sections.orgs.ok}
-            />
-            <StatusBullet
-              icon={<ShieldCheck size={14} />}
-              title="Quota controls"
-              detail={sections.quota.ok ? 'Provider ceilings active' : 'Enterprise feature'}
-              active={sections.quota.ok}
-            />
-          </div>
-        </aside>
-      </div>
-
-      {/* Audit trail (enterprise) */}
-      <div className="dashboard-grid">
-        <section className="panel panel-wide">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Enterprise · Audit</div>
-              <h2>Top admin actions</h2>
-            </div>
-            <p>Most frequent governance actions from the audit ledger.</p>
-          </div>
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr><th>Action</th><th>Count</th></tr>
-              </thead>
-              <tbody>
-                {Object.entries(audit.by_action || {}).filter(([a]) => !searchQuery || a.toLowerCase().includes(searchQuery)).length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="empty-row">
-                      {loading ? 'Loading…' : sections.audit.ok ? 'No audit activity yet.' : 'Enterprise feature — contact sales to enable.'}
-                    </td>
-                  </tr>
-                ) : (
-                  Object.entries(audit.by_action || {}).filter(([a]) => !searchQuery || a.toLowerCase().includes(searchQuery)).slice(0, 8).map(([action, count]) => (
-                    <tr key={action}><td>{action}</td><td>{formatInteger(count)}</td></tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <aside className="panel panel-side">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Enterprise · Audit</div>
-              <h2>Recent events</h2>
-            </div>
-          </div>
-          <div className="stack-list">
-            {(audit.recent_events || []).length === 0 ? (
-              <p className="empty-copy">
-                {loading ? 'Loading…' : sections.audit.ok ? 'No recent events.' : 'Enterprise feature.'}
-              </p>
-            ) : (
-              (audit.recent_events || []).slice(0, 5).map((event, index) => (
-                <article className="governance-event" key={event.event_id || index}>
-                  <div className="governance-event-meta">
-                    <strong>{event.action || 'unknown'}</strong>
-                    <span>{formatRelativeTime(event.timestamp)}</span>
-                  </div>
-                  <p>{event.actor || 'admin'}</p>
-                </article>
-              ))
-            )}
-          </div>
-        </aside>
-      </div>
-
-      {/* RBAC (enterprise) */}
       <div className="metric-grid metric-grid-two">
         <section className="panel">
           <div className="section-heading">
             <div>
-              <div className="eyebrow">Enterprise · RBAC</div>
-              <h2>Role assignments</h2>
+              <div className="eyebrow">Enterprise</div>
+              <h2>Audit surface</h2>
             </div>
-            <p>Admin, operator, and viewer tiers per user ID.</p>
+            <p>{lastUpdated ? `Refreshed ${formatRelativeTime(lastUpdated)}` : 'Polling every 15 seconds'}</p>
           </div>
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr><th>User</th><th>Role</th></tr>
-              </thead>
-              <tbody>
-                {assignments.filter(a => !searchQuery || a.user_id?.toLowerCase().includes(searchQuery) || a.role?.toLowerCase().includes(searchQuery)).length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="empty-row">
-                      {loading ? 'Loading…' : sections.rbac.ok ? 'No roles assigned yet.' : 'Enterprise feature.'}
-                    </td>
-                  </tr>
-                ) : (
-                  assignments.filter(a => !searchQuery || a.user_id?.toLowerCase().includes(searchQuery) || a.role?.toLowerCase().includes(searchQuery)).slice(0, 8).map((assignment, index) => (
-                    <tr key={assignment.user_id || index}>
-                      <td>{assignment.user_id || '—'}</td>
-                      <td><span className="transform-chip">{assignment.role || '—'}</span></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="graphify-kv-grid">
+            <div className="graphify-kv">
+              <span>Status</span>
+              <strong>{sections.audit.ok ? 'Reachable' : sections.audit.error || 'Unavailable'}</strong>
+            </div>
+            <div className="graphify-kv">
+              <span>Recent events</span>
+              <strong>{formatInteger(sections.audit.data?.events?.length || 0)}</strong>
+            </div>
           </div>
         </section>
 
         <section className="panel">
           <div className="section-heading">
             <div>
-              <div className="eyebrow">Enterprise · Quota</div>
-              <h2>Provider ceilings</h2>
+              <div className="eyebrow">Enterprise</div>
+              <h2>RBAC surface</h2>
             </div>
-            <p>Per-provider request and token quotas.</p>
+            <p>{lastUpdated ? `Refreshed ${formatRelativeTime(lastUpdated)}` : 'Polling every 15 seconds'}</p>
           </div>
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr><th>Provider</th><th>Limit</th><th>Remaining</th><th>Reset</th></tr>
-              </thead>
-              <tbody>
-                {quotaProviders.filter(q => !searchQuery || q.provider?.toLowerCase().includes(searchQuery)).length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="empty-row">
-                      {loading ? 'Loading…' : sections.quota.ok ? 'No quota configured.' : 'Enterprise feature.'}
-                    </td>
-                  </tr>
-                ) : (
-                  quotaProviders.filter(q => !searchQuery || q.provider?.toLowerCase().includes(searchQuery)).map((row, index) => (
-                    <tr key={row.provider || index}>
-                      <td>{row.provider}</td>
-                      <td>{row.limit}</td>
-                      <td>{row.remaining}</td>
-                      <td>{row.reset}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="graphify-kv-grid">
+            <div className="graphify-kv">
+              <span>Status</span>
+              <strong>{sections.rbac.ok ? 'Reachable' : sections.rbac.error || 'Unavailable'}</strong>
+            </div>
+            <div className="graphify-kv">
+              <span>Assignments</span>
+              <strong>{formatInteger(assignments.length)}</strong>
+            </div>
           </div>
         </section>
       </div>
     </section>
-  );
-}
-
-function MetricCard({ icon, label, value, note }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-header">
-        <span className="metric-label">{label}</span>
-        <div className="metric-icon">{icon}</div>
-      </div>
-      <div className="metric-value">{value}</div>
-      {note && <div className="metric-footnote">{note}</div>}
-    </article>
-  );
-}
-
-function StatusBullet({ icon, title, detail, active }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--border-default)' }}>
-      <div className={`status-bullet-indicator ${active ? 'status-bullet-active' : 'status-bullet-inactive'}`}>
-        {icon}
-      </div>
-      <div>
-        <div className="status-bullet-title">{title}</div>
-        <div className="status-bullet-detail">{detail}</div>
-      </div>
-    </div>
   );
 }

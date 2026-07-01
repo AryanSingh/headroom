@@ -1,117 +1,200 @@
-import { useDashboardData, patchDashboardConfig } from '../lib/use-dashboard-data';
 import { useState } from 'react';
-import { Network, ArrowDownCircle, CheckCircle2 } from 'lucide-react';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { ArrowDownCircle, CheckCircle2, Network } from 'lucide-react';
+import { formatCurrency, formatInteger } from '../lib/format';
+import { patchDashboardConfig, useDashboardData } from '../lib/use-dashboard-data';
 
 function ToggleSwitch({ checked, onChange, disabled }) {
   return (
-    <label className="toggle-switch" style={{
-      position: 'relative', display: 'inline-block', width: '36px', height: '20px', opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer'
-    }}>
-      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} style={{ opacity: 0, width: 0, height: 0 }} />
-      <span style={{
-        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: checked ? 'var(--accent)' : 'var(--surface-3)', transition: '.2s', borderRadius: '20px'
-      }}>
-        <span style={{
-          position: 'absolute', content: '""', height: '14px', width: '14px', left: '3px', bottom: '3px',
-          backgroundColor: 'white', transition: '.2s', borderRadius: '50%',
-          transform: checked ? 'translateX(16px)' : 'translateX(0)'
-        }} />
+    <label
+      className="toggle-switch"
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        width: '36px',
+        height: '20px',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        style={{ opacity: 0, width: 0, height: 0 }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          cursor: 'pointer',
+          inset: 0,
+          backgroundColor: checked ? 'var(--accent)' : 'var(--surface-3)',
+          transition: '.2s',
+          borderRadius: '20px',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            height: '14px',
+            width: '14px',
+            left: '3px',
+            bottom: '3px',
+            backgroundColor: 'white',
+            transition: '.2s',
+            borderRadius: '50%',
+            transform: checked ? 'translateX(16px)' : 'translateX(0)',
+          }}
+        />
       </span>
     </label>
   );
 }
 
 export default function Orchestrator() {
-  const { stats, loading, error, mutate } = useDashboardData();
+  const { stats, loading, error, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState(false);
   const [optimisticState, setOptimisticState] = useState(null);
+  const [toggleError, setToggleError] = useState(null);
 
   if (loading) {
     return <div className="page-shell">Loading...</div>;
   }
+
   if (error) {
     return <div className="page-shell error">Error loading orchestrator stats: {error}</div>;
   }
 
-  const usdSaved = stats?.savings_by_source?.usd?.model_routing || 0;
-  const tokensSaved = stats?.savings_by_source?.tokens?.model_routing || 0;
-  
-  const isActive = optimisticState !== null ? optimisticState : (stats?.config?.orchestrator ?? false);
+  const modelRouting = stats?.model_routing || {};
+  const backendState = stats?.config?.orchestrator ?? modelRouting.requested ?? false;
+  const isActive = optimisticState ?? backendState;
+  const usdSaved = Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0);
+  const tokensSaved = Number(stats?.cost?.savings_by_source?.tokens?.model_routing || 0);
+  const canToggle = stats?.config?.orchestrator != null || !configFlagsError;
 
-  const handleToggle = async (e) => {
-    const newValue = e.target.checked;
+  const handleToggle = async (event) => {
+    const newValue = event.target.checked;
     setOptimisticState(newValue);
+    setToggleError(null);
     setUpdating(true);
+
     try {
       await patchDashboardConfig({ orchestrator: newValue });
-      await mutate();
+      await refresh?.();
     } catch (err) {
       console.error('Failed to update orchestrator config', err);
-      alert('Failed to update setting');
-      setOptimisticState(null); // Revert on failure
+      setToggleError(err.message || 'Failed to update setting');
+      setOptimisticState(null);
     } finally {
       setUpdating(false);
     }
   };
-  
+
   return (
     <div className="page-stack">
-      <header className="page-header">
-        <div className="header-icon-container">
-          <Network size={24} />
+      {toggleError ? (
+        <div className="alert-card" role="alert">
+          Failed to update orchestrator setting: {toggleError}
         </div>
-        <div className="header-text" style={{ flex: 1 }}>
-          <h1>Orchestrator Insights</h1>
-          <p>Smart model routing based on task complexity.</p>
+      ) : null}
+
+      {modelRouting.reason ? (
+        <div className="alert-card" role="status">
+          Model routing is currently unavailable: {modelRouting.reason}. {modelRouting.install_hint}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--surface-2)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: isActive ? 'var(--text-1)' : 'var(--text-2)' }}>
-            {isActive ? 'Routing Enabled' : 'Routing Disabled'}
+      ) : null}
+
+      {configFlagsError ? (
+        <div className="alert-card" role="status">
+          Runtime config API unavailable in this proxy: {configFlagsError}. Toggles may require a newer
+          backend build.
+        </div>
+      ) : null}
+
+      <header className="section-heading">
+        <div className="heading-with-icon">
+          <div className="heading-icon">
+            <Network size={18} />
+          </div>
+          <div>
+            <div className="eyebrow">Orchestrator</div>
+            <h2>Orchestrator Insights</h2>
+            <p>Smart model routing based on task complexity.</p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: 'var(--surface-2)',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+            }}
+          >
+            {isActive ? 'Routing enabled' : 'Routing disabled'}
           </span>
-          <ToggleSwitch checked={isActive} onChange={handleToggle} disabled={updating} />
+          <ToggleSwitch checked={isActive} onChange={handleToggle} disabled={updating || !canToggle} />
         </div>
       </header>
 
       <section className="metric-grid metric-grid-two">
         <article className="metric-card">
-          <div className="metric-card-header">
-            <h3>Routed USD Savings</h3>
-            <ArrowDownCircle className="stat-icon savings" />
+          <div className="metric-header">
+            <span className="metric-label">Routed USD savings</span>
+            <div className="metric-icon amber">
+              <ArrowDownCircle size={16} />
+            </div>
           </div>
-          <div className="metric-card-value savings">
-            {formatCurrency(usdSaved)}
-          </div>
-          <div className="metric-card-subtitle">
-            Delta vs requested models
-          </div>
+          <div className="metric-value">{formatCurrency(usdSaved)}</div>
+          <div className="metric-footnote">Delta vs requested models</div>
         </article>
 
         <article className="metric-card">
-          <div className="metric-card-header">
-            <h3>Routed Token Savings</h3>
-            <CheckCircle2 className="stat-icon" />
+          <div className="metric-header">
+            <span className="metric-label">Routed token savings</span>
+            <div className="metric-icon green">
+              <CheckCircle2 size={16} />
+            </div>
           </div>
-          <div className="metric-card-value">
-            {formatNumber(tokensSaved)}
-          </div>
-          <div className="metric-card-subtitle">
-            Offloaded to local/cheaper models
-          </div>
+          <div className="metric-value">{formatInteger(tokensSaved)}</div>
+          <div className="metric-footnote">Offloaded to cheaper or local models</div>
         </article>
       </section>
-      
+
       <section className="panel">
         <div className="section-heading">
-          <h2>How it works</h2>
+          <div>
+            <div className="eyebrow">Routing status</div>
+            <h2>Why it is not routing yet</h2>
+          </div>
         </div>
-        <p style={{ marginTop: '1rem', lineHeight: '1.5' }}>
-          The Smart Coding Model Orchestrator intercepts requests from your AI coding agents. 
-          If it detects a simple task (e.g. fixing typos, adding docstrings) using heuristic classification, 
-          it seamlessly down-routes the request to a cheaper, faster model (like Llama 3 8B or Haiku), 
-          preserving your expensive cloud model tokens for heavy architectural work.
-        </p>
+        <div className="graphify-kv-grid">
+          <div className="graphify-kv">
+            <span>Configured</span>
+            <strong>{modelRouting.requested ? 'Yes' : 'No'}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Router available</span>
+            <strong>{modelRouting.available ? 'Yes' : 'No'}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Configured routes</span>
+            <strong>{formatInteger(modelRouting.configured_routes || 0)}</strong>
+          </div>
+          <div className="graphify-kv">
+            <span>Reason</span>
+            <strong>{modelRouting.reason || 'Ready'}</strong>
+          </div>
+        </div>
       </section>
     </div>
   );

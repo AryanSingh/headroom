@@ -84,7 +84,7 @@ def _models_list_response(models_raw: tuple[dict[str, Any], ...]) -> Response:
     for m in models_raw:
         m["id"] = m.get("slug", "unknown")
         m["object"] = "model"
-        
+
     payload = {
         "object": "list",
         "data": list(models_raw),
@@ -221,7 +221,7 @@ async def _fetch_chatgpt_codex_model_get_response(
     models_raw = await _fetch_chatgpt_codex_models_raw(proxy, headers, requested_client_version)
     if models_raw is None:
         return None
-    
+
     found_model = next((m for m in models_raw if m.get("slug") == model_id), None)
     if found_model is not None:
         return Response(

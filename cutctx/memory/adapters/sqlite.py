@@ -44,6 +44,22 @@ def _validate_metadata_key(key: str) -> bool:
     return _SAFE_METADATA_KEY_PATTERN.match(key) is not None
 
 
+def _escape_like(value: str, escape_char: str = "\\") -> str:
+    """Escape LIKE wildcards % and _ in a string.
+
+    Prevents SQL LIKE wildcard injection by escaping % and _ characters
+    so they are treated as literals rather than wildcards.
+
+    Args:
+        value: The string to escape.
+        escape_char: The escape character to use (default: backslash).
+
+    Returns:
+        The string with LIKE wildcards escaped.
+    """
+    return value.replace(escape_char, escape_char * 2).replace("%", f"{escape_char}%").replace("_", f"{escape_char}_")
+
+
 class SQLiteMemoryStore:
     """SQLite-based memory store implementing the MemoryStore protocol.
 
@@ -490,9 +506,9 @@ class SQLiteMemoryStore:
         if filter.entity_refs is not None and len(filter.entity_refs) > 0:
             entity_conditions = []
             for entity_ref in filter.entity_refs:
-                # Use JSON contains check
-                entity_conditions.append("entity_refs LIKE ?")
-                params.append(f'%"{entity_ref}"%')
+                # Use JSON contains check with LIKE wildcard escaping
+                entity_conditions.append('entity_refs LIKE ? ESCAPE "\\"')
+                params.append(f'%"{_escape_like(entity_ref)}"%')
             conditions.append(f"({' OR '.join(entity_conditions)})")
 
         # Lineage filtering

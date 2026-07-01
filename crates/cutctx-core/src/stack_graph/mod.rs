@@ -253,6 +253,193 @@ impl StackGraphManager {
     }
 
     // -----------------------------------------------------------------------
+    // BFS internals
+    // -----------------------------------------------------------------------
+
+    /// BFS forward through the graph from `start_nodes`, collecting all
+    /// definition nodes reached, up to `max_depth` steps.
+    ///
+    /// Each visited definition is returned as a `ResolvedReference`.
+    /// `start_nodes` are included in the results if they are definitions.
+    fn bfs_definitions(
+        &self,
+        start_nodes: &[Handle<Node>],
+        max_depth: usize,
+    ) -> Vec<ResolvedReference> {
+        let mut visited: HashSet<Handle<Node>> = HashSet::new();
+        let mut queue: VecDeque<(Handle<Node>, usize)> = VecDeque::new();
+        let mut results: Vec<ResolvedReference> = Vec::new();
+
+        for &node in start_nodes {
+            queue.push_back((node, 0));
+        }
+
+        while let Some((current, depth)) = queue.pop_front() {
+            if !visited.insert(current) {
+                continue;
+            }
+
+            let node = &self.graph[current];
+            if node.is_definition() {
+                if let Some(sym) = node.symbol() {
+                    if let Some(si) = self.graph.source_info(current) {
+                        let target_path = node
+                            .id()
+                            .file()
+                            .map(|f| self.graph[f].name().to_string())
+                            .unwrap_or_default();
+                        results.push(ResolvedReference {
+                            target_file: target_path,
+                            target_line: si.span.start.line,
+                            target_column: si.span.start.column.utf8_offset,
+                            symbol_name: self.graph[sym].to_string(),
+                            confidence: 0.9,
+                        });
+                    }
+                }
+            }
+
+            if depth < max_depth {
+                for edge in self.graph.outgoing_edges(current) {
+                    queue.push_back((edge.sink, depth + 1));
+                }
+            }
+        }
+
+        results
+    }
+
+    // -----------------------------------------------------------------------
+    // Reachability API
+    // -----------------------------------------------------------------------
+
+    /// BFS from definitions matching `symbol_name` in the file at `path`,
+    /// collecting all reachable definitions up to `max_depth` hops.
+    ///
+    /// Returns a `Vec<ResolvedReference>` for every definition node visited.
+    /// Returns an empty `Vec` when the file is not indexed or the symbol
+    /// cannot be found.
+    pub fn reachable_definitions(
+        &self,
+        path: &str,
+        symbol_name: &str,
+        max_depth: usize,
+    ) -> Vec<ResolvedReference> {
+        let file_path = Path::new(path);
+        let file_handle = match self.file_handles.get(file_path) {
+            Some(h) => h,
+            None => return Vec::new(),
+        };
+
+        // Find all definition nodes matching the symbol name in the file.
+        let mut start_nodes: Vec<Handle<Node>> = Vec::new();
+        for node_handle in self.graph.nodes_for_file(*file_handle) {
+            let node = &self.graph[node_handle];
+            if node.is_definition() {
+                if let Some(sym_handle) = node.symbol() {
+                    if self.graph[sym_handle].to_string() == symbol_name {
+                        start_nodes.push(node_handle);
+                    }
+                }
+            }
+        }
+
+        if start_nodes.is_empty() {
+            return Vec::new();
+        }
+
+        self.bfs_definitions(&start_nodes, max_depth)
+    }
+
+    /// Reverse BFS: find definitions whose forward traversal reaches the
+    /// definition of `symbol_name` in the file at `path`.
+    ///
+    /// This answers "what functions call this one?" — useful for
+    /// understanding impact scope.  Returns a `Vec<ResolvedReference>`
+    /// for each calling definition found (up to `max_depth` hops from
+    /// caller to callee).
+    pub fn callers_of(
+        &self,
+        path: &str,
+        symbol_name: &str,
+        max_depth: usize,
+    ) -> Vec<ResolvedReference> {
+        let file_path = Path::new(path);
+        let file_handle = match self.file_handles.get(file_path) {
+            Some(h) => h,
+            None => return Vec::new(),
+        };
+
+        // Identify the target definition node(s) we want callers for.
+        let mut target_defs: HashSet<Handle<Node>> = HashSet::new();
+        for node_handle in self.graph.nodes_for_file(*file_handle) {
+            let node = &self.graph[node_handle];
+            if node.is_definition() {
+                if let Some(sym_handle) = node.symbol() {
+                    if self.graph[sym_handle].to_string() == symbol_name {
+                        target_defs.insert(node_handle);
+                    }
+                }
+            }
+        }
+
+        if target_defs.is_empty() {
+            return Vec::new();
+        }
+
+        // Iterate every definition in the graph; for each one BFS forward
+        // up to max_depth to see whether we reach a target definition.
+        let mut callers: Vec<ResolvedReference> = Vec::new();
+        for node_handle in self.graph.iter_nodes() {
+            let node = &self.graph[node_handle];
+            if !node.is_definition() || target_defs.contains(&node_handle) {
+                continue;
+            }
+
+            let mut visited: HashSet<Handle<Node>> = HashSet::new();
+            let mut queue: VecDeque<(Handle<Node>, usize)> = VecDeque::new();
+            queue.push_back((node_handle, 0));
+
+            let mut found_target = false;
+            while let Some((current, depth)) = queue.pop_front() {
+                if !visited.insert(current) {
+                    continue;
+                }
+                if target_defs.contains(&current) {
+                    found_target = true;
+                    break;
+                }
+                if depth < max_depth {
+                    for edge in self.graph.outgoing_edges(current) {
+                        queue.push_back((edge.sink, depth + 1));
+                    }
+                }
+            }
+
+            if found_target {
+                if let Some(sym_handle) = node.symbol() {
+                    if let Some(si) = self.graph.source_info(node_handle) {
+                        let caller_path = node
+                            .id()
+                            .file()
+                            .map(|f| self.graph[f].name().to_string())
+                            .unwrap_or_default();
+                        callers.push(ResolvedReference {
+                            target_file: caller_path,
+                            target_line: si.span.start.line,
+                            target_column: si.span.start.column.utf8_offset,
+                            symbol_name: self.graph[sym_handle].to_string(),
+                            confidence: 0.8,
+                        });
+                    }
+                }
+            }
+        }
+
+        callers
+    }
+
+    // -----------------------------------------------------------------------
     // Reference resolution
     // -----------------------------------------------------------------------
 

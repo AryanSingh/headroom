@@ -157,7 +157,7 @@ This does **not** prove audio is absent everywhere, but it does prove the capabi
 
 ### Remaining work
 
-1. Identify the canonical audio compression path in code.
+1. Identify the canonical inline-audio optimization path in code.
 2. If it exists:
    - add a focused test suite
    - add verification-guide steps
@@ -381,4 +381,3 @@ Cutctx is ready for a stronger "best in class" and "release ready" statement onl
 4. The dashboard and `/stats` tell the truth even in degraded environments.
 5. Benchmarks support the exact wording of the external claim.
 6. The signoff process uses live runtime verification after restart, not just static code state.
-

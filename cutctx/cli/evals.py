@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time as time_module
 from collections.abc import Callable
 from pathlib import Path
 
@@ -706,3 +707,320 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
         json_output.parent.mkdir(parents=True, exist_ok=True)
         json_output.write_text(json_module.dumps(report.to_dict(), indent=2), encoding="utf-8")
         click.echo(f"\nWrote JSON report: {json_output}")
+
+
+# -----------------------------------------------------------------------------
+# Benchmark command
+# -----------------------------------------------------------------------------
+
+
+@evals.command("benchmark")
+@click.option(
+    "--dataset",
+    "-d",
+    multiple=True,
+    default=["tool_outputs"],
+    help="Dataset name(s). Available: tool_outputs, longbench, squad, hotpotqa, ...",
+)
+@click.option(
+    "--longbench-task",
+    default="qasper",
+    help="LongBench subtask (qasper, multifieldqa_en, narrativeqa)",
+)
+@click.option(
+    "--n",
+    "n_samples",
+    type=int,
+    default=50,
+    help="Samples per dataset",
+)
+@click.option(
+    "--compressors",
+    "-c",
+    multiple=True,
+    type=click.Choice(
+        [
+            "smart_crusher",
+            "log",
+            "search",
+            "diff",
+            "code",
+            "kompress",
+            "llmlingua",
+            "drain3",
+            "content_router",
+            "all",
+        ]
+    ),
+    default=["all"],
+    help="Compressors to benchmark",
+)
+@click.option(
+    "--metrics",
+    multiple=True,
+    type=click.Choice(
+        [
+            "ratio",
+            "tokens_saved",
+            "f1",
+            "rouge_l",
+            "information_recall",
+            "exact_match",
+        ]
+    ),
+    default=["ratio", "f1", "information_recall"],
+    help="Metrics to compute",
+)
+@click.option("--parallel", type=int, default=4)
+@click.option("--output", "-o", type=str, default=None, help="Save JSON results to PATH")
+@click.option(
+    "--markdown",
+    is_flag=True,
+    default=False,
+    help="Also save markdown table",
+)
+@click.option("--seed", type=int, default=42)
+def benchmark(
+    dataset: tuple[str, ...],
+    longbench_task: str,
+    n_samples: int,
+    compressors: tuple[str, ...],
+    metrics: tuple[str, ...],
+    parallel: int,
+    output: str | None,
+    markdown: bool,
+    seed: int,
+) -> None:
+    """Run a reproducible compressor benchmark on standard datasets.
+
+    \b
+    Compresses each dataset's contexts through every selected compressor,
+    then produces a comparison table (LLMLingua-paper style) showing
+    compression ratios, F1 retention, and information recall.
+
+    \b
+    Examples:
+        cutctx evals benchmark -d tool_outputs -n 10
+        cutctx evals benchmark -d tool_outputs -d squad --output results.json
+        cutctx evals benchmark --compressors smart_crusher content_router log
+    """
+    _run_benchmark(
+        datasets=list(dataset),
+        longbench_task=longbench_task,
+        n_samples=n_samples,
+        compressors=list(compressors),
+        metrics=list(metrics),
+        parallel=parallel,
+        output=output,
+        markdown=markdown,
+        seed=seed,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Benchmark implementation
+# -----------------------------------------------------------------------------
+
+
+def _run_benchmark(
+    *,
+    datasets: list[str],
+    longbench_task: str,
+    n_samples: int,
+    compressors: list[str],
+    metrics: list[str],
+    parallel: int,
+    output: str | None,
+    markdown: bool,
+    seed: int,
+) -> None:
+    """Core benchmark logic."""
+    import warnings
+
+    # Suppress noisy UserWarning from optional dependencies
+    warnings.filterwarnings("ignore", category=UserWarning)
+
+    from cutctx.evals.benchmark_runner import BenchmarkRunner
+    from cutctx.evals.datasets import load_dataset_by_name
+
+    # Print banner
+    click.echo(
+        f"""
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    CUTCTX COMPRESSOR BENCHMARK                       ║
+║                  Reproducible Cross-Compressor Comparison               ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Configuration:
+  Datasets:         {", ".join(datasets)}
+  Samples/dataset:  {n_samples}
+  Compressors:      {", ".join(compressors) if "all" not in compressors else "all available"}
+  Metrics:          {", ".join(metrics)}
+  Parallelism:      {parallel} workers
+  Seed:             {seed}
+"""
+    )
+
+    runner = BenchmarkRunner()
+
+    # Resolve compressor selection
+    all_comp_keys = sorted(runner._adapters.keys()) if hasattr(runner, "_adapters") else [a.name for a in runner.list_compressors()]
+    if "all" in compressors:
+        selected_compressors = all_comp_keys
+    else:
+        selected_compressors = compressors
+
+    # Warn about missing optional compressors
+    adapters = {a.name: a for a in runner.list_compressors()}
+    for comp_key in selected_compressors:
+        adapter = adapters.get(comp_key)
+        if adapter and not adapter.available:
+            click.echo(f"  ⚠  Compressor '{comp_key}' not available (install optional deps)")
+    click.echo("")
+
+    # Expand "all" datasets if needed
+    if "all" in datasets:
+        from cutctx.evals.datasets import list_available_datasets
+
+        by_cat = list_available_datasets()
+        datasets = [ds for cat_list in by_cat.values() for ds in cat_list]
+
+    # Accumulate results across datasets
+    all_results = []
+    all_datasets = []
+    total_start = time_module.time()
+
+    for ds_name in datasets:
+        click.echo(f"Loading dataset: {ds_name} ... ", nl=False)
+
+        kwargs = {}
+        if ds_name == "longbench":
+            kwargs["task"] = longbench_task
+
+        # Some datasets (e.g. tool_outputs) are fixed-size and don't accept n
+        from cutctx.evals.datasets import DATASET_REGISTRY
+
+        ds_info = DATASET_REGISTRY.get(ds_name, {})
+        if ds_info.get("default_n") is not None:
+            kwargs.setdefault("n", n_samples)
+
+        try:
+            suite = load_dataset_by_name(ds_name, **kwargs)
+        except ImportError as exc:
+            click.echo(f"SKIPPED (missing dependency: {exc})")
+            continue
+        except Exception as exc:
+            click.echo(f"ERROR: {exc}")
+            continue
+
+        click.echo(f"{len(suite.cases)} cases loaded")
+
+        # Cap to n_samples
+        n_actual = min(n_samples, len(suite.cases))
+
+        click.echo(f"  Running {len(selected_compressors)} compressors ...")
+
+        suite_result = runner.run(
+            dataset=suite,
+            compressors=selected_compressors,
+            metrics=metrics,
+            n=n_actual,
+            parallel=parallel,
+            seed=seed,
+        )
+
+        all_results.extend(suite_result.results)
+        all_datasets.append(suite.name)
+
+    total_duration = time_module.time() - total_start
+
+    # Build final result
+    from cutctx.evals.benchmark_report import BenchmarkSuiteResult
+
+    final = BenchmarkSuiteResult(
+        seed=seed,
+        compressors=selected_compressors,
+        datasets=all_datasets,
+        results=all_results,
+    )
+    final.totals["duration_seconds"] = total_duration
+    final._compute_totals()
+
+    # Print summary
+    _print_benchmark_summary(final)
+
+    # Save JSON
+    if output:
+        final.save(output)
+        click.echo(f"\nResults saved to: {output}")
+
+    # Save markdown
+    if markdown or output:
+        md_path = str(Path(output).with_suffix(".md")) if output else "benchmark_results.md"
+        if markdown:
+            md_content = _build_markdown_report(final, metrics)
+            Path(md_path).write_text(md_content, encoding="utf-8")
+            click.echo(f"Markdown saved to: {md_path}")
+
+
+def _print_benchmark_summary(result: BenchmarkSuiteResult) -> None:
+    """Print a human-readable summary of benchmark results."""
+    active = [r for r in result.results if not r.skipped]
+    skipped = [r for r in result.results if r.skipped]
+
+    click.echo(f"""
+╔═══════════════════════════════════════════════════════════════════════╗
+║                         BENCHMARK SUMMARY                            ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+  Datasets:              {len(result.datasets)}
+  Compressors tested:    {len(active)} / {len(result.results)}
+  Skipped:               {len(skipped)}
+  Errors:                {sum(r.errors for r in active)}
+  Duration:              {result.totals.get("duration_seconds", 0):.1f}s
+
+  Compression Ratios:
+""")
+
+    for r in active:
+        ratio_pct = f"{r.ratio * 100:.1f}%"
+        emoji = "✓" if r.ratio < 0.9 else " "
+        click.echo(f"    {emoji} {r.compressor:20s}  {ratio_pct:>8s}  ({r.tokens_saved:,} tokens saved)")
+
+    # Print metric tables for F1 / IR
+    for metric in ("f1", "information_recall"):
+        vals = [
+            (r.compressor, getattr(r, metric))
+            for r in active
+            if getattr(r, metric) is not None
+        ]
+        if vals:
+            label = {"f1": "F1 Score", "information_recall": "Information Recall"}.get(
+                metric, metric
+            )
+            click.echo(f"\n  {label}:")
+            for comp_name, val in vals:
+                click.echo(f"    {comp_name:20s}  {val:.3f}")
+
+
+def _build_markdown_report(
+    result: BenchmarkSuiteResult, metrics: list[str]
+) -> str:
+    """Build a full markdown report with one table per metric."""
+    lines = [
+        "# Cutctx Compressor Benchmark Report",
+        "",
+        f"Seed: `{result.seed}` | "
+        f"Duration: {result.totals.get('duration_seconds', 0):.1f}s | "
+        f"Datasets: {', '.join(result.datasets)}",
+        "",
+    ]
+    for metric in metrics:
+        lines.append(result.to_markdown(metric))
+        lines.append("")
+    lines.append(
+        "_Generated by `cutctx evals benchmark`_"
+    )
+    return "\n".join(lines)
+
+

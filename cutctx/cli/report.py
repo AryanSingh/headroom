@@ -252,14 +252,14 @@ def report_schedule(daily: bool, weekly: bool, email: str, fmt: str) -> None:
     click.echo(f"  Frequency: {schedule['frequency']}")
     click.echo(f"  Email: {email}")
     click.echo(f"  Format: {fmt}")
-    
+
     click.echo("\nTo actually run this schedule, you must set up a daemon.")
     click.echo("Option 1: crontab (Linux/macOS)")
     click.echo("-------------------------------")
     cron_freq = "0 8 * * *" if daily else "0 8 * * 1"
     click.echo("Run `crontab -e` and add the following line:")
     click.echo(f"{cron_freq} cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}")
-    
+
     click.echo("\nOption 2: launchd (macOS)")
     click.echo("-------------------------")
     click.echo("Create ~/Library/LaunchAgents/com.cutctx.report.plist:")

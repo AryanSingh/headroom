@@ -345,6 +345,7 @@ class IntelligencePipeline:
         *,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        routing_log: list[dict] | None = None,
     ) -> list[dict[str, Any]]:
         """Run post-compression intelligence steps.
 
@@ -352,6 +353,8 @@ class IntelligencePipeline:
         2. Context budget — progressive compression if approaching limits
         3. Cost estimation — track costs and savings
         4. Profile recording — update workspace profile with session stats
+           Uses ``routing_log`` when provided to record per-section stats
+           instead of a single ``"mixed"`` entry.
         5. Shared context — store compressed result for other agents
         """
         t0 = time.monotonic()
@@ -429,15 +432,30 @@ class IntelligencePipeline:
                 profile = self._get_profile()
                 # Compute compression stats per content type
                 stats_entries = []
-                orig_tokens = sum(len(str(m.get("content", ""))) // 4 for m in original_messages)
-                comp_tokens = sum(len(str(m.get("content", ""))) // 4 for m in result)
-                if orig_tokens > 0:
-                    stats_entries.append({
-                        "content_type": "mixed",
-                        "original_count": orig_tokens,
-                        "compressed_count": comp_tokens,
-                        "was_retrieved": False,
-                    })
+                if routing_log:
+                    # Use per-section routing decisions for granular stats
+                    for section in routing_log:
+                        ct = section.get("content_type", "mixed")
+                        orig_tok = section.get("original_count", 0) or section.get("original_tokens", 0)
+                        comp_tok = section.get("compressed_count", 0) or section.get("compressed_tokens", 0)
+                        if orig_tok > 0:
+                            stats_entries.append({
+                                "content_type": ct,
+                                "original_count": orig_tok,
+                                "compressed_count": comp_tok,
+                                "was_retrieved": False,
+                            })
+                else:
+                    # Fall back to aggregate estimate when routing_log is not available
+                    orig_tokens = sum(len(str(m.get("content", ""))) // 4 for m in original_messages)
+                    comp_tokens = sum(len(str(m.get("content", ""))) // 4 for m in result)
+                    if orig_tokens > 0:
+                        stats_entries.append({
+                            "content_type": "mixed",
+                            "original_count": orig_tokens,
+                            "compressed_count": comp_tokens,
+                            "was_retrieved": False,
+                        })
                 if stats_entries:
                     profile.record_session(
                         session_id=request_id,

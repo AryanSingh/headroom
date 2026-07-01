@@ -25,10 +25,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import subprocess
-import sys
 import logging
 import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1167,7 +1167,7 @@ class CutctxMCPServer:
                     type="text",
                     text=f"Org query failed ({type(exc).__name__}): {exc}",
                 )]
-        
+
         return [TextContent(type="text", text=f"Unknown proxy tool: {name}")]
 
 

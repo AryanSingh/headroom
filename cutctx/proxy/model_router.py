@@ -74,7 +74,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"rename\s*(?:the)?\s*variable",
         r"format\s*(?:the)?\s*code"
     ]
-    
+
     # If the text is short AND matches a low complexity pattern
     if len(content) < 500:
         for pattern in low_complexity_patterns:

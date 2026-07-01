@@ -64,6 +64,11 @@ KOMPRESS_COREML_CACHE_DIR_ENV = "CUTCTX_KOMPRESS_COREML_CACHE_DIR"
 KOMPRESS_MAX_CONCURRENT_ENV = "CUTCTX_KOMPRESS_MAX_CONCURRENT"
 KOMPRESS_BATCH_SIZE_ENV = "CUTCTX_KOMPRESS_BATCH_SIZE"
 
+# Upper bound on input word count to prevent ONNX inference timeout / DoS.
+# 80 000 words ≈ 600 KB of text.
+_KOMPRESS_MAX_WORDS_DEFAULT = 80_000
+KOMPRESS_MAX_WORDS_ENV = "CUTCTX_KOMPRESS_MAX_WORDS"
+
 KompressBackend = Literal["auto", "onnx", "onnx_cpu", "onnx_coreml", "pytorch", "pytorch_mps"]
 
 # HuggingFace local-lookup errors that mean "asset not in cache" rather than a
@@ -783,6 +788,20 @@ class KompressCompressor(Transform):
         if n_words < 10:
             return self._passthrough(content, n_words)
 
+        # Guard against ONNX inference timeout / DoS on very large inputs.
+        # 80 000 words ≈ 600 KB of text; above this, passthrough is safer
+        # than a 45 s+ stall.
+        _max_kompress_words = int(
+            os.environ.get(KOMPRESS_MAX_WORDS_ENV, str(_KOMPRESS_MAX_WORDS_DEFAULT))
+        )
+        if n_words > _max_kompress_words:
+            logger.warning(
+                "kompress: input (%d words) exceeds CUTCTX_KOMPRESS_MAX_WORDS=%d, passing through",
+                n_words,
+                _max_kompress_words,
+            )
+            return self._passthrough(content, n_words)
+
         try:
             model, tokenizer, backend = _load_kompress(self.config.model_id, self.config.device)
             is_onnx = backend == "onnx"
@@ -1025,9 +1044,24 @@ class KompressCompressor(Transform):
 
         # Short texts short-circuit to passthrough — no model call needed.
         max_chunk_words = self.config.chunk_words
+        _max_kompress_words = int(
+            os.environ.get(KOMPRESS_MAX_WORDS_ENV, str(_KOMPRESS_MAX_WORDS_DEFAULT))
+        )
         chunk_queue: list[tuple[int, int, list[str], float | None]] = []
         for i, (words, ratio) in enumerate(zip(word_lists, ratios, strict=True)):
             if len(words) < 10:
+                results[i] = self._passthrough(contents[i], len(words))
+                continue
+
+            # Guard against ONNX inference timeout / DoS on very large inputs.
+            if len(words) > _max_kompress_words:
+                logger.warning(
+                    "kompress batch: input %d (%d words) exceeds CUTCTX_KOMPRESS_MAX_WORDS=%d, "
+                    "passing through",
+                    i,
+                    len(words),
+                    _max_kompress_words,
+                )
                 results[i] = self._passthrough(contents[i], len(words))
                 continue
             for chunk_start in range(0, len(words), max_chunk_words):
