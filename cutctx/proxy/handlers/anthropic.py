@@ -1093,6 +1093,20 @@ class AnthropicHandlerMixin:
             _image_decision = ImageCompressionDecision.decide(
                 headers=request.headers, config=self.config, messages=messages
             )
+            if self.config.audio_optimize:
+                from cutctx.transforms.audio_messages import compress_inline_audio_messages
+
+                messages, inline_audio_metrics = compress_inline_audio_messages(
+                    messages,
+                    provider="anthropic",
+                )
+                if inline_audio_metrics.bytes_saved > 0:
+                    body_mutation_tracker.mark_mutated("inline_audio_compression")
+                    logger.info(
+                        "Inline audio optimized (%s -> %s bytes)",
+                        inline_audio_metrics.bytes_before,
+                        inline_audio_metrics.bytes_after,
+                    )
             _image_decision.apply_to_tags(tags)
             if _image_decision.should_compress and not is_cache_mode(self.config.mode):
                 compressor = None
@@ -1842,13 +1856,13 @@ class AnthropicHandlerMixin:
 
             # JSON schema compression — strip metadata keys, truncate descriptions
             try:
-                from cutctx.proxy.tool_surface import (
-                    estimate_tool_scaffolding_tokens,
-                    slim_tool_surface,
-                )
                 from cutctx.proxy.schema_compress import (
                     compress_tool_results,
                     compress_tool_schemas,
+                )
+                from cutctx.proxy.tool_surface import (
+                    estimate_tool_scaffolding_tokens,
+                    slim_tool_surface,
                 )
 
                 tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(

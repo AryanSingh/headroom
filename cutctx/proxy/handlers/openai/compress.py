@@ -50,6 +50,13 @@ class OpenAICompressMixin:
                         "tokens_after": 0,
                         "tokens_saved": 0,
                     },
+                    "audio_metrics": {
+                        "audio_blocks_seen": 0,
+                        "audio_blocks_optimized": 0,
+                        "bytes_before": 0,
+                        "bytes_after": 0,
+                        "bytes_saved": 0,
+                    },
                     "diagnostics": {
                         "profile": "bypass",
                         "warnings": [],
@@ -112,6 +119,13 @@ class OpenAICompressMixin:
                         "tokens_after": 0,
                         "tokens_saved": 0,
                     },
+                    "audio_metrics": {
+                        "audio_blocks_seen": 0,
+                        "audio_blocks_optimized": 0,
+                        "bytes_before": 0,
+                        "bytes_after": 0,
+                        "bytes_saved": 0,
+                    },
                     "diagnostics": {
                         "profile": "empty",
                         "warnings": [],
@@ -128,6 +142,29 @@ class OpenAICompressMixin:
                 "tokens_after": 0,
                 "tokens_saved": 0,
             }
+
+            audio_metrics: dict[str, int] = {
+                "audio_blocks_seen": 0,
+                "audio_blocks_optimized": 0,
+                "bytes_before": 0,
+                "bytes_after": 0,
+                "bytes_saved": 0,
+            }
+
+            if self.config.audio_optimize:
+                from cutctx.transforms.audio_messages import compress_inline_audio_messages
+
+                messages, inline_audio = compress_inline_audio_messages(
+                    messages,
+                    provider="openai",
+                )
+                audio_metrics = {
+                    "audio_blocks_seen": inline_audio.audio_blocks_seen,
+                    "audio_blocks_optimized": inline_audio.audio_blocks_optimized,
+                    "bytes_before": inline_audio.bytes_before,
+                    "bytes_after": inline_audio.bytes_after,
+                    "bytes_saved": inline_audio.bytes_saved,
+                }
 
             # Keep /v1/compress aligned with the main OpenAI chat path:
             # multimodal payloads should run through image optimization first.
@@ -228,6 +265,8 @@ class OpenAICompressMixin:
             total_tokens_saved = max(0, total_tokens_before - total_tokens_after)
 
             transforms_applied = list(result.transforms_applied)
+            if audio_metrics.get("bytes_saved", 0) > 0:
+                transforms_applied.append("audio:inline_wav")
             image_technique = image_metrics.get("technique")
             if image_technique and image_metrics.get("tokens_saved", 0):
                 transforms_applied.append(f"image:{image_technique}")
@@ -262,6 +301,7 @@ class OpenAICompressMixin:
                 "transforms_summary": result.transforms_summary,
                 "ccr_hashes": result.markers_inserted,
                 "image_metrics": image_metrics,
+                "audio_metrics": audio_metrics,
                 "diagnostics": diagnostics,
             }
 

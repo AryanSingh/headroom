@@ -86,8 +86,8 @@ def test_feature_availability_snapshot_structure() -> None:
         ), f"feature_availability snapshot missing key {key!r} in cutctx/proxy/server.py"
 
 
-def test_audio_modality_is_passthrough() -> None:
-    """Audio routes exist but are explicitly documented as pass-through."""
+def test_audio_route_modality_is_passthrough() -> None:
+    """Dedicated audio routes stay pass-through for fidelity."""
     server_src = Path("cutctx/proxy/server.py").read_text()
     assert "pass-through" in server_src, (
         "Audio must be documented as pass-through in _feature_availability_snapshot(). "
@@ -102,11 +102,11 @@ def test_audio_proxy_routes_present() -> None:
     assert "/v1/audio/speech" in routes_src
 
 
-def test_enterprise_doc_matches_audio_passthrough_claim() -> None:
-    """Public enterprise docs should not advertise audio compression."""
+def test_enterprise_doc_matches_audio_surface_claim() -> None:
+    """Public enterprise docs should distinguish inline audio from audio routes."""
     enterprise_doc = Path("docs/enterprise.html").read_text()
-    assert "audio pass-through" in enterprise_doc
-    assert "images, audio</td>" not in enterprise_doc
+    assert "inline WAV optimization" in enterprise_doc
+    assert "audio routes pass-through" in enterprise_doc
 
 
 def test_pyproject_has_recommended_extra() -> None:

@@ -157,3 +157,28 @@ def test_no_raw_image_optimize_gate_in_handlers() -> None:
             "`if _image_decision.should_compress:`. See "
             "cutctx/proxy/image_compression_decision.py for the pattern."
         )
+
+
+def test_inline_audio_optimization_is_wired_in_live_handlers() -> None:
+    """Inline audio should be wired where multimodal chat payloads flow.
+
+    Dedicated `/v1/audio/*` routes stay pass-through, but embedded WAV audio
+    blocks in chat/messages should route through the inline optimizer.
+    """
+    required = {
+        "cutctx/proxy/handlers/openai/chat.py": 'provider="openai"',
+        "cutctx/proxy/handlers/anthropic.py": 'provider="anthropic"',
+    }
+    missing: list[str] = []
+    for f in HANDLER_FILES:
+        expected_provider = required.get(str(f))
+        if not expected_provider:
+            continue
+        text = f.read_text(encoding="utf-8")
+        if "compress_inline_audio_messages" not in text or expected_provider not in text:
+            missing.append(str(f))
+    if missing:
+        pytest.fail(
+            "Inline audio optimization is not wired into all live chat handlers: "
+            + ", ".join(sorted(missing))
+        )

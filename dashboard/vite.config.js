@@ -7,7 +7,16 @@ import { defineConfig } from 'vite';
 
 const CUTCTX_PROXY_HOST = '127.0.0.1';
 const CUTCTX_PROXY_PORT = 8787;
-const CUTCTX_PROXY_PREFIXES = ['/health', '/stats', '/v1', '/admin'];
+const CUTCTX_PROXY_PREFIXES = [
+  '/health',
+  '/stats',
+  '/v1',
+  '/admin',
+  '/config',
+  '/audit',
+  '/rbac',
+  '/firewall',
+];
 const DEV_ADMIN_KEY = process.env.CUTCTX_ADMIN_API_KEY || 'headroom-local-admin';
 
 function shouldProxy(url = '') {

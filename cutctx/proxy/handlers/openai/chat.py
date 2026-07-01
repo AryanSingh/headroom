@@ -179,6 +179,20 @@ class OpenAIChatMixin:
         if _bypass:
             logger.info(f"[{request_id}] Bypass: skipping compression (header)")
 
+        if self.config.audio_optimize:
+            from cutctx.transforms.audio_messages import compress_inline_audio_messages
+
+            messages, inline_audio_metrics = compress_inline_audio_messages(
+                messages,
+                provider="openai",
+            )
+            if inline_audio_metrics.bytes_saved > 0:
+                logger.info(
+                    f"[{request_id}] Inline audio optimized "
+                    f"({inline_audio_metrics.bytes_before} -> "
+                    f"{inline_audio_metrics.bytes_after} bytes)"
+                )
+
         # Image compression: tile alignment + ML-based technique routing.
         # Gated on ImageCompressionDecision — same value-type pattern
         # as CompressionDecision + MemoryDecision; locks bypass-respect
@@ -807,13 +821,13 @@ class OpenAIChatMixin:
             body["tools"] = tools
 
         try:
-            from cutctx.proxy.tool_surface import (
-                estimate_tool_scaffolding_tokens,
-                slim_tool_surface,
-            )
             from cutctx.proxy.schema_compress import (
                 compress_tool_results,
                 compress_tool_schemas,
+            )
+            from cutctx.proxy.tool_surface import (
+                estimate_tool_scaffolding_tokens,
+                slim_tool_surface,
             )
 
             tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(

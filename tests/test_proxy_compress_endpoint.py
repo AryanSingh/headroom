@@ -253,6 +253,43 @@ class TestCompressEndpointCompression:
         assert "image:preserve" in data["transforms_applied"]
         assert data["image_metrics"]["tokens_saved"] == 660
 
+    def test_inline_audio_payload_reports_audio_metrics(self, client):
+        class _FakeInlineAudioMetrics:
+            audio_blocks_seen = 1
+            audio_blocks_optimized = 1
+            bytes_before = 4096
+            bytes_after = 2048
+            bytes_saved = 2048
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Transcribe this memo."},
+                    {
+                        "type": "input_audio",
+                        "input_audio": {"format": "wav", "data": "UklGRg=="},
+                    },
+                ],
+            }
+        ]
+
+        with patch(
+            "cutctx.transforms.audio_messages.compress_inline_audio_messages",
+            return_value=(messages, _FakeInlineAudioMetrics()),
+        ):
+            response = client.post(
+                "/v1/compress",
+                json={"messages": messages, "model": "gpt-4o"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "audio:inline_wav" in data["transforms_applied"]
+        assert data["audio_metrics"]["audio_blocks_seen"] == 1
+        assert data["audio_metrics"]["audio_blocks_optimized"] == 1
+        assert data["audio_metrics"]["bytes_saved"] == 2048
+
     def test_assistant_text_uses_max_savings_profile_and_reports_diagnostics(self, client):
         messages = [
             {

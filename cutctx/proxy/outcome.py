@@ -73,7 +73,7 @@ class RequestOutcome:
     output_tokens: int
     tokens_saved: int
     attempted_input_tokens: int
-    
+
     # ── Ghost Token Auditing ──────────────────────────────────────────
     scaffolding_tokens: int = 0
     ghost_tokens: int = 0
