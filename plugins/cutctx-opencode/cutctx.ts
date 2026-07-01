@@ -66,6 +66,12 @@ const plugin: Plugin = async () => {
         )
       }
     },
+    "experimental.session.compacting": async (_input, output) => {
+      if (process.env.CUTCTX_DISABLED === "1") return
+      output.context.push(
+        "[cutctx: this session's prior turns were compressed by cutctx. Use the cutctx_retrieve MCP tool with CCR handles to fetch any originals you need.]"
+      )
+    },
   }
 }
 
