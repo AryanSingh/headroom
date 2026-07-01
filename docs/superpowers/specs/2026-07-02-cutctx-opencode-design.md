@@ -175,16 +175,27 @@ so the model can ask for originals back (CCR — Compress-Cache-Retrieve).
 
 ### D. Streaming / SSE (lazy proxy)
 
-1. opencode begins a streaming response (the `chat.headers` carry a
-   streaming flag or the response is a `text/event-stream`).
-2. Plugin checks `proxyState.port` — if unset, spawns `cutctx proxy
-   --port 8787` once, waits for `127.0.0.1:8787/health` to return 200,
-   caches the port. 3-second timeout; on failure, fall back to no
-   streaming compression for the session.
-3. Plugin rewrites the `baseURL` for this one request to
-   `http://127.0.0.1:8787` so the proxy intercepts the SSE stream and
-   applies incremental compression between chunks.
-4. On session end, plugin sends SIGTERM to the proxy child.
+1. opencode prepares a streaming chat request. Detection: the
+   `chat.params` hook receives a `stream: true` flag, OR the request
+   carries an `Accept: text/event-stream` header. The plugin uses
+   `chat.headers` (mutate in place) to set the `Accept` header to
+   `text/event-stream` only when the model/provider supports streaming
+   and `CUTCTX_PROXY_DISABLED !== "1"`.
+2. When the plugin sees `stream: true` and `proxyState.port` is unset,
+   it spawns `cutctx proxy --port ${CUTCTX_PROXY_PORT}` once, polls
+   `http://127.0.0.1:${port}/health` until 200 (or
+   `CUTCTX_PROXY_SPAWN_TIMEOUT_MS` elapses, default 3000ms), then caches
+   the port. On timeout, sets `proxyState.disabled = true` for the rest
+   of the session and the request proceeds through the normal provider
+   baseURL (no compression on the stream).
+3. Plugin mutates the `baseURL` in `chat.params` (or rewrites the
+   outgoing request URL via `chat.headers` + a known proxy routing
+   header) for this one request to `http://127.0.0.1:${port}` so the
+   proxy intercepts the SSE stream and applies incremental compression
+   between chunks.
+4. On session end, the plugin's `event({ type: "session.end" })` handler
+   sends SIGTERM to the proxy child and awaits its exit (max 2s, then
+   SIGKILL).
 
 ### E. CCR retrieve (MCP tool path)
 
