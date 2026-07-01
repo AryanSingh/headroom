@@ -346,9 +346,18 @@ git commit -m "feat: tool.execute.after compress hook with CUTCTX_DISABLED escap
 - Modify: `plugins/cutctx-opencode/cutctx.ts`
 - Create: `plugins/cutctx-opencode/test/messages-transform.test.ts`
 
+**Real type shapes (verified from installed SDK, do not deviate):**
+- `experimental.chat.messages.transform` hook (from `@opencode-ai/plugin`):
+  - `input: {}` (empty object)
+  - `output: { messages: { info: Message; parts: Part[] }[] }`
+- `cutctx-ai` exports: `compress`, `simulate`, `SharedContext`. **No `countTokens` export.** Token counting lives on the proxy or via `SharedContext`. For this task we approximate the threshold check with a simple length/byte budget on the messages array (e.g. `JSON.stringify(messages).length` vs. the model's default 200_000 tokens × 4 chars/token).
+- `compress(messages: any[], options?: CompressOptions): Promise<CompressResult>`:
+  - `CompressOptions = { model?, baseUrl?, apiKey?, timeout?, fallback?, retries?, client?, tokenBudget?, hooks?, stack? }`. **No `targetRatio`, no `protectRecent`.** The "protect recent turns" guarantee is implemented by the plugin slicing `messages.slice(-N)` BEFORE calling `compress`, and re-attaching the recent turns AFTER.
+  - `CompressResult = { messages, tokensBefore, tokensAfter, tokensSaved, compressionRatio, transformsApplied, ccrHashes, compressed }`.
+
 **Interfaces:**
-- Consumes: the plugin from Task 3; `compress`, `countTokens` from `cutctx-ai`.
-- Produces: a new handler `experimental.chat.messages.transform` that, when total tokens > `modelLimit * 0.85`, calls `compress(messages, { protectRecent: 4, targetRatio: 0.5 })` and returns the compressed messages. Below threshold, returns the original messages unchanged.
+- Consumes: the plugin from Task 3.
+- Produces: a new handler `experimental.chat.messages.transform` that, when the serialized message size exceeds `modelLimit * 0.85 * 4` chars, slices off the last `CUTCTX_PROTECT_RECENT_TURNS` (default 4) messages, calls `compress(olderMessages, { model })`, and re-attaches the protected recent turns. The final `output.messages` is returned unchanged otherwise.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -359,22 +368,30 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("cutctx-ai", () => ({
   compress: vi.fn(),
-  retrieve: vi.fn(),
-  countTokens: vi.fn(),
-  stats: vi.fn(() => ({ recordCompression: vi.fn(), snapshot: vi.fn() })),
 }))
 
-import { compress, countTokens } from "cutctx-ai"
+import { compress } from "cutctx-ai"
 import plugin from "../cutctx"
 
-const shortMessages = [
-  { role: "user" as const, content: "hi" },
-  { role: "assistant" as const, content: "hello" },
-]
-const longMessages = Array.from({ length: 200 }, (_, i) => ({
-  role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
-  content: "long content ".repeat(500),
-}))
+const fakeInput = () => ({
+  client: {} as any,
+  project: {} as any,
+  directory: "/tmp",
+  worktree: {} as any,
+  experimental_workspace: {} as any,
+  serverUrl: {} as any,
+  $: {} as any,
+})
+
+// Build a "long" history by repeating role+content pairs.
+function longMessages(n: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    info: { role: i % 2 === 0 ? "user" : "assistant" } as any,
+    parts: [{ type: "text" as const, text: "long content ".repeat(500) }],
+  }))
+}
+
+const shortMessages = longMessages(2)
 
 describe("experimental.chat.messages.transform", () => {
   beforeEach(() => {
@@ -383,23 +400,46 @@ describe("experimental.chat.messages.transform", () => {
   })
 
   it("returns messages unchanged when under threshold", async () => {
-    vi.mocked(countTokens).mockResolvedValueOnce(100)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    const result = await handlers["experimental.chat.messages.transform"]?.({ messages: shortMessages } as any)
-    expect(result).toEqual({ messages: shortMessages })
+    const handlers = await plugin(fakeInput())
+    const output = { messages: shortMessages }
+    await handlers["experimental.chat.messages.transform"]?.({} as any, output as any)
     expect(vi.mocked(compress)).not.toHaveBeenCalled()
+    expect(output.messages).toBe(shortMessages)
   })
 
-  it("compresses messages with protectRecent:4 when over threshold", async () => {
-    vi.mocked(countTokens).mockResolvedValueOnce(180_000)
-    const compressed = longMessages.slice(-4)
-    vi.mocked(compress).mockResolvedValueOnce({ messages: compressed } as any)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    const result = await handlers["experimental.chat.messages.transform"]?.({ messages: longMessages, model: "claude-sonnet-4-5", modelLimit: 200_000 } as any)
+  it("compresses the older portion and re-attaches the recent N when over threshold", async () => {
+    const history = longMessages(200)
+    const recent = history.slice(-4)
+    const older = history.slice(0, -4)
+    vi.mocked(compress).mockResolvedValueOnce({
+      messages: [{ info: older[0]!.info, parts: [{ type: "text", text: "compacted" }] }],
+      tokensBefore: 100_000,
+      tokensAfter: 30_000,
+      tokensSaved: 70_000,
+      compressionRatio: 0.3,
+      transformsApplied: ["smart_crusher"],
+      ccrHashes: ["ccr_older"],
+      compressed: true,
+    } as any)
+    const handlers = await plugin(fakeInput())
+    const output = { messages: history }
+    await handlers["experimental.chat.messages.transform"]?.({} as any, output as any)
     expect(vi.mocked(compress)).toHaveBeenCalledOnce()
-    const call = vi.mocked(compress).mock.calls[0]
-    expect(call[1]).toMatchObject({ protectRecent: 4, targetRatio: 0.5, model: "claude-sonnet-4-5" })
-    expect(result).toEqual({ messages: compressed })
+    const call = vi.mocked(compress).mock.calls[0]!
+    // The first argument to compress must be the older portion only
+    expect(call[0]).toHaveLength(older.length)
+    // The recent N messages are preserved verbatim at the tail
+    expect(output.messages.slice(-4)).toEqual(recent)
+    // The head was replaced with the compressed result
+    expect(output.messages[0]?.parts[0]).toMatchObject({ type: "text", text: "compacted" })
+  })
+
+  it("is a no-op when CUTCTX_DISABLED=1", async () => {
+    process.env.CUTCTX_DISABLED = "1"
+    const handlers = await plugin(fakeInput())
+    const output = { messages: longMessages(200) }
+    await handlers["experimental.chat.messages.transform"]?.({} as any, output as any)
+    expect(vi.mocked(compress)).not.toHaveBeenCalled()
   })
 })
 ```
@@ -411,58 +451,49 @@ Expected: FAIL — handler not yet defined on the plugin.
 
 - [ ] **Step 3: Extend `cutctx.ts` with the messages transform**
 
-Add the following imports at the top of `cutctx.ts`:
+Add a new key to the returned object inside the `plugin` async function. The threshold check is a length/byte heuristic on the JSON-serialized messages, since `cutctx-ai` has no exported `countTokens` function. The "protect recent" guarantee is implemented by the plugin itself, NOT by `compress` (the SDK does not support it).
 
 ```ts
-import { compress, countTokens, retrieve, stats } from "cutctx-ai"
-```
+    "experimental.chat.messages.transform": async (_input, output) => {
+      if (process.env.CUTCTX_DISABLED === "1") return
+      const messages = output.messages
+      if (!Array.isArray(messages) || messages.length === 0) return
 
-Replace the `import` to also include `countTokens` and `retrieve` (retrieve is used by later tasks; OK to add now).
+      const modelLimit = Number(process.env.CUTCTX_MODEL_LIMIT ?? 200_000)
+      const charBudget = modelLimit * 4 // rough chars-per-token heuristic
+      const size = JSON.stringify(messages).length
+      if (size < charBudget * 0.85) return
 
-Inside the `plugin` async function, after the existing `return { ... }`, add a new key. The new return object should be:
+      const protectRecent = Number(process.env.CUTCTX_PROTECT_RECENT_TURNS ?? 4)
+      const recent = messages.slice(-protectRecent)
+      const older = messages.slice(0, -protectRecent)
+      if (older.length === 0) return
 
-```ts
-  return {
-    "tool.execute.after": async (input, output) => {
-      // ... existing body from Task 3 ...
-    },
-    "experimental.chat.messages.transform": async (input) => {
-      const { messages, model, modelLimit } = input as {
-        messages: Array<{ role: string; content: string }>
-        model?: string
-        modelLimit?: number
-      }
-      if (!Array.isArray(messages) || messages.length === 0) {
-        return { messages }
-      }
-      const limit = modelLimit ?? 200_000
-      const used = await countTokens(messages, { model: model ?? "claude-sonnet-4-5" })
-      if (used < limit * 0.85) {
-        return { messages }
-      }
       try {
-        const result = await compress(messages, {
-          model: model ?? "claude-sonnet-4-5",
-          protectRecent: Number(process.env.CUTCTX_PROTECT_RECENT_TURNS ?? 4),
-          targetRatio: Number(process.env.CUTCTX_HISTORY_TARGET_RATIO ?? 0.5),
-        })
-        return { messages: (result as { messages: typeof messages }).messages }
+        const result = await compress(older, { model: "claude-sonnet-4-5" })
+        output.messages = [...result.messages, ...recent]
       } catch (err) {
-        logger.warn("cutctx: history compress failed, passing through", err)
-        return { messages }
+        console.warn(
+          "cutctx: history compress failed, passing through",
+          err instanceof Error ? err.message : err
+        )
       }
     },
-  }
 ```
 
-(Keep all other Task 3 code intact. The full file should still pass Task 3 tests.)
+(Keep all Task 3 code intact. Do NOT add an import for `countTokens` — it does not exist on the real `cutctx-ai` package.)
 
-- [ ] **Step 4: Run both test files to verify they all pass**
+- [ ] **Step 4: Run all tests to verify they all pass**
 
 Run: `cd plugins/cutctx-opencode && npx vitest run`
-Expected: 6 tests passed (4 from Task 3, 2 from Task 4).
+Expected: 7 tests passed (4 from Task 3, 3 from Task 4).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Run the typecheck**
+
+Run: `cd plugins/cutctx-opencode && npx tsc --noEmit`
+Expected: exit 0, no output.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add plugins/cutctx-opencode/cutctx.ts plugins/cutctx-opencode/test/messages-transform.test.ts
@@ -477,94 +508,132 @@ git commit -m "feat: chat.messages.transform compresses long conversation histor
 - Modify: `plugins/cutctx-opencode/cutctx.ts`
 - Create: `plugins/cutctx-opencode/test/session-compacting.test.ts`
 
+**Real type shapes (verified from installed SDK, do not deviate):**
+- `experimental.session.compacting` hook signature in `@opencode-ai/plugin`: this hook may be registered as a hook on the plugin object (key name and input/output shape must be confirmed at implement time by reading `node_modules/@opencode-ai/plugin/dist/index.d.ts`). If the real hook is named differently (e.g. `session.compacting` without the `experimental.` prefix, or `experimental.session.compacting.prompt`), match the actual exported name from the type definitions. The output of the hook is typically `{ messages: ... }` or similar.
+- `compress` returns `CompressResult` with `messages` (the new array). The plugin does NOT have access to a `targetRatio` option -- if the spec calls for one, simulate it by passing the entire array to `compress` (which already runs the full cutctx pipeline; the "ratio" is whatever the compress pipeline returns).
+- The `experimental.session.compacting` hook should be implemented IF and ONLY IF the installed `@opencode-ai/plugin` version exports it as a recognized key. If it does not, register it under the actual key the type file declares. If the hook does not exist in the installed version, register a no-op and add a follow-up note in the report.
+
 **Interfaces:**
 - Consumes: the plugin from Task 4; `compress` from `cutctx-ai`.
-- Produces: a new handler `experimental.session.compacting` that calls `compress(messages, { targetRatio: 0.4 })` and returns the result. On error, returns the original messages and logs a warning.
+- Produces: a handler that delegates to `compress(messages, { model })` and replaces the messages. On error, leaves them unchanged and logs a warning.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Discover the real hook name**
 
-Create `plugins/cutctx-opencode/test/session-compacting.test.ts`:
+Read `node_modules/@opencode-ai/plugin/dist/index.d.ts` and find the session-compacting hook (search for `session.compacting` or `compacting`). Note the exact key name and the input/output types.
+
+- [ ] **Step 2: Write the failing test**
+
+Create `plugins/cutctx-opencode/test/session-compacting.test.ts` using the discovered hook name (substitute for `<HOOK_KEY>` below):
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("cutctx-ai", () => ({
   compress: vi.fn(),
-  retrieve: vi.fn(),
-  countTokens: vi.fn(),
-  stats: vi.fn(() => ({ recordCompression: vi.fn(), snapshot: vi.fn() })),
 }))
 
 import { compress } from "cutctx-ai"
 import plugin from "../cutctx"
 
+const fakeInput = () => ({
+  client: {} as any,
+  project: {} as any,
+  directory: "/tmp",
+  worktree: {} as any,
+  experimental_workspace: {} as any,
+  serverUrl: {} as any,
+  $: {} as any,
+})
+
 const messages = [
-  { role: "user" as const, content: "first" },
-  { role: "assistant" as const, content: "second" },
-  { role: "user" as const, content: "third" },
+  { info: { role: "user" }, parts: [{ type: "text", text: "first" }] },
+  { info: { role: "assistant" }, parts: [{ type: "text", text: "second" }] },
+  { info: { role: "user" }, parts: [{ type: "text", text: "third" }] },
 ]
 
-describe("experimental.session.compacting", () => {
+describe("session.compacting handler", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.CUTCTX_DISABLED
   })
 
-  it("compresses with targetRatio 0.4 and returns the result", async () => {
-    const compressed = [{ role: "user" as const, content: "compacted" }]
-    vi.mocked(compress).mockResolvedValueOnce({ messages: compressed } as any)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    const result = await handlers["experimental.session.compacting"]?.({ messages } as any)
+  it("compresses the messages and replaces them with the result", async () => {
+    const compressed = [
+      { info: { role: "user" }, parts: [{ type: "text", text: "compacted" }] },
+    ]
+    vi.mocked(compress).mockResolvedValueOnce({
+      messages: compressed,
+      tokensBefore: 1000,
+      tokensAfter: 400,
+      tokensSaved: 600,
+      compressionRatio: 0.4,
+      transformsApplied: ["smart_crusher"],
+      ccrHashes: ["ccr_session"],
+      compressed: true,
+    } as any)
+    const handlers = await plugin(fakeInput())
+    const handler = (handlers as any)["<HOOK_KEY>"]
+    expect(handler).toBeTypeOf("function")
+    // Pass the messages via the real input/output shape the hook uses
+    await handler?.({} /* fill in real input fields */, { messages } /* fill in real output shape */)
     expect(vi.mocked(compress)).toHaveBeenCalledOnce()
-    const call = vi.mocked(compress).mock.calls[0]
-    expect(call[1]).toMatchObject({ targetRatio: 0.4 })
-    expect(result).toEqual({ messages: compressed })
   })
 
   it("falls back to original messages on error", async () => {
     vi.mocked(compress).mockRejectedValueOnce(new Error("oops"))
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    const result = await handlers["experimental.session.compacting"]?.({ messages } as any)
-    expect(result).toEqual({ messages })
+    const handlers = await plugin(fakeInput())
+    const handler = (handlers as any)["<HOOK_KEY>"]
+    const output = { messages }
+    await handler?.({} /* fill in real input fields */, output)
+    // output.messages should be unchanged on error
+    expect(output.messages).toBe(messages)
   })
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 3: Run the test to verify it fails**
 
 Run: `cd plugins/cutctx-opencode && npx vitest run test/session-compacting.test.ts`
-Expected: FAIL — handler not defined.
+Expected: FAIL — handler not defined (or the `<HOOK_KEY>` does not match the real name; fix the test if so).
 
-- [ ] **Step 3: Add the handler to `cutctx.ts`**
+- [ ] **Step 4: Add the handler to `cutctx.ts`**
 
-Add the following key to the plugin's returned object (after the `experimental.chat.messages.transform` handler):
+Register a key `<HOOK_KEY>` on the returned object that delegates to `compress`:
 
 ```ts
-    "experimental.session.compacting": async (input) => {
-      const { messages } = input as { messages: Array<{ role: string; content: string }> }
-      if (!Array.isArray(messages) || messages.length === 0) {
-        return { messages }
-      }
+    "<HOOK_KEY>": async (_input, output) => {
+      if (process.env.CUTCTX_DISABLED === "1") return
+      const messages = output.messages
+      if (!Array.isArray(messages) || messages.length === 0) return
       try {
-        const result = await compress(messages, { targetRatio: 0.4 })
-        return { messages: (result as { messages: typeof messages }).messages }
+        const result = await compress(messages, { model: "claude-sonnet-4-5" })
+        output.messages = result.messages
       } catch (err) {
-        logger.warn("cutctx: session compact failed, passing through", err)
-        return { messages }
+        console.warn(
+          "cutctx: session compact failed, passing through",
+          err instanceof Error ? err.message : err
+        )
       }
     },
 ```
 
-- [ ] **Step 4: Run all tests to verify nothing regressed**
+If the discovered hook takes input (e.g. `{ sessionID }`) and output (e.g. `{ prompt }`) shaped differently, adjust the call site to match the real shape. The plugin's job is: hand the messages to `compress`, replace the hook's output messages with the result, leave alone on error.
+
+- [ ] **Step 5: Run all tests to verify nothing regressed**
 
 Run: `cd plugins/cutctx-opencode && npx vitest run`
-Expected: 8 tests passed (4 + 2 + 2).
+Expected: 9 tests passed (4 + 3 + 2).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Run the typecheck**
+
+Run: `cd plugins/cutctx-opencode && npx tsc --noEmit`
+Expected: exit 0, no output.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add plugins/cutctx-opencode/cutctx.ts plugins/cutctx-opencode/test/session-compacting.test.ts
-git commit -m "feat: session.compacting uses cutctx compress as the session compactor"
+git commit -m "feat: session.compacting delegates to cutctx compress"
 ```
 
 ---
@@ -575,31 +644,46 @@ git commit -m "feat: session.compacting uses cutctx compress as the session comp
 - Modify: `plugins/cutctx-opencode/cutctx.ts`
 - Create: `plugins/cutctx-opencode/test/proxy-lifecycle.test.ts`
 
+**Real hook shapes (verified from installed SDK, do not deviate):**
+- The exact key name for the streaming/chat-params hook must be confirmed by reading `node_modules/@opencode-ai/plugin/dist/index.d.ts`. The customizations to apply on streaming are: (a) ensure the request `baseURL` points at the local proxy; (b) keep the `stream: true` flag. If the real hook is `chat.headers` (mutate outgoing headers) or `experimental.chat.headers`, use that. If the real hook is `chat.params` (mutate request params), use that. Match the actual exported name.
+- The `event` hook (if present) carries an `Event` discriminated union. The plugin listens for `{ type: "session.end" }` to terminate the proxy. If the real type uses a different event-name string, use that.
+
 **Interfaces:**
-- Consumes: the plugin from Task 5.
-- Produces: a `chat.params` handler that, when `stream: true` and `proxyState.port` is unset and `proxyState.disabled` is false, spawns `cutctx proxy --port <CUTCTX_PROXY_PORT>` (default 8787), polls `http://127.0.0.1:<port>/health` for 200, caches the port. On timeout, sets `proxyState.disabled = true` and the request passes through. Also produces an `event` handler that on `session.end` sends SIGTERM to the proxy child (with a 2s SIGKILL fallback). The proxy is exposed as a small internal module-level singleton so tests can stub it.
+- Consumes: the plugin from Task 5; `spawn` from `node:child_process`; global `fetch`.
+- Produces: a handler that, on the first streaming chat call, spawns `cutctx proxy --port <CUTCTX_PROXY_PORT>` (default 8787), polls `http://127.0.0.1:<port>/health` for 200, caches the port. On timeout, sets `proxyState.disabled = true` and the request passes through. Also produces an `event` handler that on session-end sends SIGTERM to the proxy child (with a 2s SIGKILL fallback).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Discover the real hook names**
 
-Create `plugins/cutctx-opencode/test/proxy-lifecycle.test.ts`:
+Read `node_modules/@opencode-ai/plugin/dist/index.d.ts` and find:
+- The hook that lets the plugin mutate streaming chat requests (likely `chat.params` or `chat.headers` or both).
+- The hook (or event-type) for session lifecycle (`event` handler, or a dedicated `session.compacting`/`session.end` hook).
+- Note the exact key names, input/output types, and the event-type strings for session-end.
+
+- [ ] **Step 2: Write the failing test**
+
+Create `plugins/cutctx-opencode/test/proxy-lifecycle.test.ts` using the discovered hook names (substitute `<CHAT_HOOK_KEY>` and `<EVENT_HANDLER_KEY>` below):
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
 
 vi.mock("cutctx-ai", () => ({
   compress: vi.fn(),
-  retrieve: vi.fn(),
-  countTokens: vi.fn(),
-  stats: vi.fn(() => ({ recordCompression: vi.fn(), snapshot: vi.fn() })),
 }))
 
 vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
 }))
 
-import plugin from "../cutctx"
+const fakeInput = () => ({
+  client: {} as any,
+  project: {} as any,
+  directory: "/tmp",
+  worktree: {} as any,
+  experimental_workspace: {} as any,
+  serverUrl: {} as any,
+  $: {} as any,
+})
 
 class FakeChild extends EventEmitter {
   pid = 12345
@@ -612,59 +696,68 @@ describe("proxy lifecycle", () => {
     delete process.env.CUTCTX_DISABLED
     delete process.env.CUTCTX_PROXY_PORT
     delete process.env.CUTCTX_PROXY_SPAWN_TIMEOUT_MS
-    // Health-check stub: respond 200 immediately
     global.fetch = vi.fn(async () => ({ ok: true, status: 200 } as Response)) as any
   })
 
-  it("spawns cutctx proxy on first stream request and caches the port", async () => {
+  it("spawns cutctx proxy on first stream request and rewrites baseURL", async () => {
+    const { spawn } = await import("node:child_process")
     const child = new FakeChild()
     vi.mocked(spawn).mockReturnValueOnce(child as any)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
+    const handlers = await plugin(fakeInput())
 
-    const params = { stream: true, model: "claude-sonnet-4-5" }
-    await handlers["chat.params"]?.(params as any)
-
-    expect(vi.mocked(spawn)).toHaveBeenCalledWith("cutctx", ["proxy", "--port", "8787"], { stdio: "ignore" })
+    const chatHook = (handlers as any)["<CHAT_HOOK_KEY>"]
+    expect(chatHook).toBeTypeOf("function")
+    const params = { stream: true, model: "claude-sonnet-4-5", baseURL: undefined as string | undefined }
+    await chatHook?.(/* fill in real input */, params /* fill in real output shape */)
+    expect(vi.mocked(spawn)).toHaveBeenCalledWith("cutctx", ["proxy", "--port", "8787"], expect.any(Object))
+    // The output field used by opencode to point at the proxy must now be 127.0.0.1:8787
+    expect(params.baseURL).toBe("http://127.0.0.1:8787")
   })
 
   it("does not respawn the proxy on subsequent stream requests", async () => {
+    const { spawn } = await import("node:child_process")
     const child = new FakeChild()
     vi.mocked(spawn).mockReturnValueOnce(child as any)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    await handlers["chat.params"]?.({ stream: true } as any)
-    await handlers["chat.params"]?.({ stream: true } as any)
+    const handlers = await plugin(fakeInput())
+    const chatHook = (handlers as any)["<CHAT_HOOK_KEY>"]
+    await chatHook?.({}, { stream: true, baseURL: undefined })
+    await chatHook?.({}, { stream: true, baseURL: undefined })
     expect(vi.mocked(spawn)).toHaveBeenCalledOnce()
   })
 
   it("sets disabled=true and does not spawn when health check times out", async () => {
     process.env.CUTCTX_PROXY_SPAWN_TIMEOUT_MS = "10"
+    const { spawn } = await import("node:child_process")
     const child = new FakeChild()
     vi.mocked(spawn).mockReturnValueOnce(child as any)
     global.fetch = vi.fn(async () => ({ ok: false, status: 503 } as Response)) as any
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    await handlers["chat.params"]?.({ stream: true } as any)
-    // Second call should not spawn
-    await handlers["chat.params"]?.({ stream: true } as any)
+    const handlers = await plugin(fakeInput())
+    const chatHook = (handlers as any)["<CHAT_HOOK_KEY>"]
+    await chatHook?.({}, { stream: true, baseURL: undefined })
+    await chatHook?.({}, { stream: true, baseURL: undefined })
     expect(vi.mocked(spawn)).toHaveBeenCalledOnce()
   })
 
-  it("terminates the proxy child on session.end", async () => {
+  it("terminates the proxy child on session-end", async () => {
+    const { spawn } = await import("node:child_process")
     const child = new FakeChild()
     vi.mocked(spawn).mockReturnValueOnce(child as any)
-    const handlers = await plugin({ client: {} as any, project: {} as any, directory: "/tmp", $: {} as any })
-    await handlers["chat.params"]?.({ stream: true } as any)
-    await handlers.event?.({ type: "session.end" } as any)
+    const handlers = await plugin(fakeInput())
+    const chatHook = (handlers as any)["<CHAT_HOOK_KEY>"]
+    await chatHook?.({}, { stream: true, baseURL: undefined })
+    const eventHandler = (handlers as any)["<EVENT_HANDLER_KEY>"]
+    await eventHandler?.({ type: "session.end" } /* adjust per real Event type */)
     expect(child.kill).toHaveBeenCalledWith("SIGTERM")
   })
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 3: Run the test to verify it fails**
 
 Run: `cd plugins/cutctx-opencode && npx vitest run test/proxy-lifecycle.test.ts`
-Expected: FAIL — `chat.params` handler and `event` handler not yet defined.
+Expected: FAIL — chat-hook and event handler not yet defined.
 
-- [ ] **Step 3: Add the proxy lifecycle to `cutctx.ts`**
+- [ ] **Step 4: Add the proxy lifecycle to `cutctx.ts`**
 
 Add the following imports near the top of `cutctx.ts`:
 
@@ -713,7 +806,7 @@ async function ensureProxy(): Promise<number | null> {
     proxyState.child = child
     const ok = await waitForHealth(PROXY_PORT, PROXY_SPAWN_TIMEOUT_MS)
     if (!ok) {
-      logger.error("cutctx proxy failed health check, disabling for session", undefined)
+      console.error("cutctx proxy failed health check, disabling for session")
       child.kill("SIGKILL")
       proxyState.child = null
       proxyState.disabled = true
@@ -728,17 +821,19 @@ async function ensureProxy(): Promise<number | null> {
 }
 ```
 
-Add the following keys to the plugin's returned object:
+Add the following keys to the plugin's returned object (substituting the discovered hook names for `<CHAT_HOOK_KEY>` and `<EVENT_HANDLER_KEY>`):
 
 ```ts
-    "chat.params": async (input) => {
-      const params = input as { stream?: boolean; baseURL?: string }
-      if (params.stream !== true) return
+    "<CHAT_HOOK_KEY>": async (_input, output) => {
+      // The output object is the params/headers/whatever the hook exposes.
+      // Adapt the field name (stream, baseURL) to match the real shape.
+      const out = output as { stream?: boolean; baseURL?: string }
+      if (out.stream !== true) return
       const port = await ensureProxy()
       if (port === null) return
-      params.baseURL = `http://127.0.0.1:${port}`
+      out.baseURL = `http://127.0.0.1:${port}`
     },
-    event: async (evt) => {
+    "<EVENT_HANDLER_KEY>": async (evt) => {
       const e = evt as { type?: string }
       if (e.type !== "session.end") return
       if (!proxyState.child) return
@@ -760,12 +855,17 @@ Add the following keys to the plugin's returned object:
     },
 ```
 
-- [ ] **Step 4: Run all tests**
+- [ ] **Step 5: Run all tests**
 
 Run: `cd plugins/cutctx-opencode && npx vitest run`
-Expected: 12 tests passed (4 + 2 + 2 + 4).
+Expected: 13 tests passed (4 + 3 + 2 + 4).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Run the typecheck**
+
+Run: `cd plugins/cutctx-opencode && npx tsc --noEmit`
+Expected: exit 0, no output.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add plugins/cutctx-opencode/cutctx.ts plugins/cutctx-opencode/test/proxy-lifecycle.test.ts
