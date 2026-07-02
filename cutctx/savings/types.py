@@ -17,6 +17,9 @@ class SavingsSource(str, Enum):
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
+    # WS13: batch-API arbitrage. Additive enum member.
+    # See artifacts/savings-moat-expansion-specs.md §WS13.
+    BATCH_ROUTING = "batch_routing"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -42,6 +45,7 @@ _LABELS = {
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
+    SavingsSource.BATCH_ROUTING: "Batch Routing",
 }
 
 _DESCRIPTIONS = {
@@ -52,6 +56,13 @@ _DESCRIPTIONS = {
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
+    SavingsSource.BATCH_ROUTING: (
+        "Price delta recorded by the WS13 batch-API arbitrage pre-pass. "
+        "Eligible requests (carrying x-cutctx-batch: allow or "
+        "originating from cutctx's own bg jobs) are routed to "
+        "provider batch APIs for ~50% discount. Interactive requests "
+        "are never batched — eligibility is explicit, never inferred."
+    ),
 }
 
 

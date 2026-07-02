@@ -242,8 +242,10 @@ def test_savings_by_source_empty_state_emits_valid_json():
         )
     if result.exit_code == 0:
         payload = json.loads(result.output)
-        # All five sources must be present with zero values.
-        assert set(payload["savings_by_source"].keys()) == {
+        # Additive contract: the 5-source model has grown to N. Baseline
+        # 7 sources must be a subset; new sources (WS13 BATCH_ROUTING,
+        # etc.) must be present.
+        _expected_baseline = {
             "provider_prompt_cache",
             "cutctx_compression",
             "semantic_cache",
@@ -252,6 +254,9 @@ def test_savings_by_source_empty_state_emits_valid_json():
             "tool_schema_compaction",
             "api_surface_slimming",
         }
+        assert _expected_baseline.issubset(set(payload["savings_by_source"].keys()))
+        # New WS13 source must be present
+        assert "batch_routing" in payload["savings_by_source"]
         assert payload["sessions_count"] == 0
         assert payload["total_tokens_saved"] == 0
 
