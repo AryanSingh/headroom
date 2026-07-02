@@ -29,10 +29,10 @@ cutctx proxy --port 8787
 ## Docker
 
 ```bash
-docker pull ghcr.io/chopratejas/cutctx:latest
+docker pull ghcr.io/cutctx/cutctx:latest
 docker run -p 8787:8787 \
   -e ANTHROPIC_API_KEY=$KEY \
-  ghcr.io/chopratejas/cutctx:latest
+  ghcr.io/cutctx/cutctx:latest
 ```
 
 **Image size:** ~50MB (minimal Python + Rust binary)
@@ -49,7 +49,7 @@ docker run -p 8787:8787 \
 version: '3.8'
 services:
   cutctx:
-    image: ghcr.io/chopratejas/cutctx:latest
+    image: ghcr.io/cutctx/cutctx:latest
     ports:
       - "8787:8787"
     environment:
@@ -98,7 +98,7 @@ spec:
     spec:
       containers:
       - name: cutctx
-        image: ghcr.io/chopratejas/cutctx:latest
+        image: ghcr.io/cutctx/cutctx:latest
         ports:
         - containerPort: 8787
         env:

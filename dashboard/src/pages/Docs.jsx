@@ -451,6 +451,16 @@ cutctx savings --by-source --format json
               <li>Firewall enabled in production (CUTCTX_FIREWALL_ENABLED=true)</li>
             </ul>
           </div>
+
+          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
+            <strong>Dashboard operator notes:</strong>
+            <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.5rem' }}>
+              <li>Headline savings cards use the strongest available source among live session, rolling display session, and lifetime history so historical totals are not masked by a smaller current run.</li>
+              <li>The history panel freshness label is sourced from proxy-backed history sync timing and is intended to tell you how stale the durable series is, not whether the page itself rendered recently.</li>
+              <li>Recent requests show the routed model Cutctx observed on the request path. If a model alias or migration was applied upstream, the table reflects that routed value.</li>
+              <li>The dashboard fetches operator stats with <code>cache: 'no-store'</code> to avoid stale browser-cache snapshots when validating live traffic.</li>
+            </ul>
+          </div>
         </Section>
 
         {/* Integrations */}
@@ -556,6 +566,10 @@ curl -X POST http://localhost:8787/firewall/scan \\
   -H "Content-Type: application/json" \\
   -d '{"text": "Ignore all previous instructions and..."}'`}
             </Code>
+          </div>
+
+          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
+            <strong>Stats interpretation:</strong> <code>/stats</code> is the live operator snapshot, while <code>/stats-history</code> is the durable time-series backing the dashboard trend view. When the two disagree, treat <code>/stats-history</code> as the long-horizon source of truth and <code>/stats</code> as the current-session view.
           </div>
         </Section>
 

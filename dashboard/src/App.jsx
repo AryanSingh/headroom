@@ -39,7 +39,7 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('ErrorBoundary caught an error', error, errorInfo);
     }
   }
@@ -79,6 +79,11 @@ const navItems = [
 /* ─── Sidebar ─────────────────────────────────────────────────── */
 
 function Sidebar({ open, onClose }) {
+  const { health } = useDashboardData();
+  const versionLabel = health?.version
+    ? `v${String(health.version).replace(/^v/, '')}`
+    : `v${import.meta.env.VITE_CUTCTX_VERSION || '0.29.0'}`;
+
   return (
     <>
       <div
@@ -131,7 +136,7 @@ function Sidebar({ open, onClose }) {
               Memory, CCR, firewall, savings
             </div>
           </div>
-          <div className="sidebar-footer-label">v0.1.0</div>
+      <div className="sidebar-footer-label">{versionLabel}</div>
         </div>
       </aside>
     </>

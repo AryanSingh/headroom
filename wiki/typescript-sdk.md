@@ -200,7 +200,7 @@ The `cutctx-ai` package has no runtime dependencies. Framework SDKs (Vercel AI, 
 
 ## OpenClaw Plugin
 
-The TypeScript SDK powers the [`cutctx-openclaw`](https://www.npmjs.com/package/cutctx-openclaw) plugin for [OpenClaw](https://github.com/openclaw/openclaw) agents. The plugin uses `CutctxClient` internally to compress context during the `assemble()` lifecycle hook. The preferred install flow is `cutctx wrap openclaw`; the direct plugin command is `openclaw plugins install --dangerously-force-unsafe-install cutctx-ai/openclaw`. See the [plugin source](https://github.com/chopratejas/cutctx/tree/main/plugins/openclaw) for details.
+The TypeScript SDK powers the [`cutctx-openclaw`](https://www.npmjs.com/package/cutctx-openclaw) plugin for [OpenClaw](https://github.com/openclaw/openclaw) agents. The plugin uses `CutctxClient` internally to compress context during the `assemble()` lifecycle hook. The preferred install flow is `cutctx wrap openclaw`; the direct plugin command is `openclaw plugins install --dangerously-force-unsafe-install cutctx-ai/openclaw`. See the [plugin source](https://github.com/cutctx/cutctx/tree/main/plugins/openclaw) for details.
 
 ## Comparison with Python SDK
 

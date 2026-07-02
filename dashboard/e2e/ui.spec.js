@@ -49,7 +49,6 @@ test.describe('Navigation and Layout', () => {
     
     // Check that sidebar is collapsed (app-shell has sidebar-collapsed class)
     // Actually the sidebar itself might be hidden
-    const sidebar = page.locator('.sidebar');
     // On mobile, the sidebar might be hidden via CSS, but let's check the toggle button
     const toggleButton = page.locator('.sidebar-toggle-btn');
     await expect(toggleButton).toBeVisible();

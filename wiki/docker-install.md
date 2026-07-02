@@ -7,13 +7,13 @@ Run Cutctx without installing Python or Node.js on the host. The install scripts
 ### Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.sh | bash
 ```
 
 ### macOS (bash 4.3+)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | "$(brew --prefix bash)/bin/bash"
+curl -fsSL https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.sh | "$(brew --prefix bash)/bin/bash"
 ```
 
 Stock `/bin/bash` on macOS is 3.2, so install a newer bash first (for example via Homebrew) and run the installer with that shell. The installed wrapper pins that same bash interpreter so later invocations stay on the supported runtime.
@@ -21,13 +21,13 @@ Stock `/bin/bash` on macOS is 3.2, so install a newer bash first (for example vi
 ### Windows PowerShell
 
 ```powershell
-irm https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1 | iex
 ```
 
 ## What the installer does
 
 1. Verifies Docker is installed and available.
-2. Pulls `ghcr.io/chopratejas/cutctx:latest` by default, or reuses / pulls `CUTCTX_DOCKER_IMAGE` when you set a custom image override.
+2. Pulls `ghcr.io/cutctx/cutctx:latest` by default, or reuses / pulls `CUTCTX_DOCKER_IMAGE` when you set a custom image override.
 3. Installs a `cutctx` wrapper into `~/.local/bin` or `~/bin`.
 4. Updates shell startup files so the wrapper directory is on `PATH`.
 
@@ -41,7 +41,7 @@ The wrapper keeps Cutctx inside Docker and mounts host state back into the conta
 
 Port `8787` stays the default, so `http://localhost:8787` works the same way as a native install.
 
-Published releases also push versioned GHCR tags such as `ghcr.io/chopratejas/cutctx:0.5.26`, and those images are built with the same synced package version used for the matching PyPI and npm release.
+Published releases also push versioned GHCR tags such as `ghcr.io/cutctx/cutctx:0.29.0`, and those images are built with the same synced package version used for the matching PyPI and npm release.
 
 ## How the wrapper behaves
 
@@ -63,7 +63,7 @@ docker run --rm -it \
   -p 8787:8787 \
   -v "$PWD:/workspace" \
   -w /workspace \
-  ghcr.io/chopratejas/cutctx:latest \
+  ghcr.io/cutctx/cutctx:latest \
   cutctx proxy --host 0.0.0.0 --port 8787
 ```
 

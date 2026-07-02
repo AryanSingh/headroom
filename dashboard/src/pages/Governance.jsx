@@ -268,7 +268,7 @@ function FeatureRow({
           <>
             <FeatureToggle
               enabled={Boolean(isActive)}
-              onToggle={() => onToggle(feature.flagKey, !Boolean(isActive))}
+              onToggle={() => onToggle(feature.flagKey, !isActive)}
               busy={toggleBusy === feature.flagKey}
             />
             <div className="feature-config-env">
@@ -302,6 +302,28 @@ export default function Governance({ searchQuery = "" }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveFlags, setLiveFlags] = useState({});
   const [toggleBusy, setToggleBusy] = useState(null);
+  const configLiveFlags = useMemo(() => {
+    if (!configFlags) {
+      return {};
+    }
+
+    const next = {};
+
+    for (const [key, value] of Object.entries(configFlags.live_toggleable || {})) {
+      if (value?.enabled != null) {
+        next[key] = Boolean(value.enabled);
+      }
+    }
+
+    for (const [key, value] of Object.entries(configFlags.restart_required || {})) {
+      if (value?.enabled != null) {
+        next[key] = Boolean(value.enabled);
+      }
+    }
+
+    return next;
+  }, [configFlags]);
+  const effectiveLiveFlags = { ...configLiveFlags, ...liveFlags };
 
   useEffect(() => {
     let cancelled = false;
@@ -340,32 +362,6 @@ export default function Governance({ searchQuery = "" }) {
       clearInterval(id);
     };
   }, []);
-
-  useEffect(() => {
-    if (!configFlags) return;
-
-    setLiveFlags((prev) => {
-      const next = { ...prev };
-
-      for (const [key, value] of Object.entries(
-        configFlags.live_toggleable || {},
-      )) {
-        if (value?.enabled != null) {
-          next[key] = Boolean(value.enabled);
-        }
-      }
-
-      for (const [key, value] of Object.entries(
-        configFlags.restart_required || {},
-      )) {
-        if (value?.enabled != null) {
-          next[key] = Boolean(value.enabled);
-        }
-      }
-
-      return next;
-    });
-  }, [configFlags]);
 
   const handleToggle = useCallback(
     async (flagKey, value) => {
@@ -498,7 +494,7 @@ export default function Governance({ searchQuery = "" }) {
               feature={feature}
               stats={stats}
               configFlags={configFlags}
-              liveFlags={liveFlags}
+              liveFlags={effectiveLiveFlags}
               sections={sections}
               onToggle={handleToggle}
               toggleBusy={toggleBusy}

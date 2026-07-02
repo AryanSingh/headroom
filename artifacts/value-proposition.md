@@ -1,21 +1,23 @@
 # Cutctx Value Proposition & Messaging
 
+> Strategy update (2026-07-02): lead with "context control plane" and use token savings as proof, not the category headline.
+
 **Date:** June 13, 2026  
-**Positioning:** The context, cost, and governance layer for AI agents
+**Positioning:** The local-first context control plane for AI agents
 
 ---
 
 ## One-Liner
 
-**Cutctx reduces agent context cost by 60–95% while giving teams governance and visibility across every provider and tool.**
+**Cutctx governs what reaches the model, attributes spend and savings across every provider and tool, and compounds team context with reversible retrieval and memory.**
 
 ---
 
 ## Headline Options
 
-1. **The context and cost control layer for AI agents**
-2. **Govern AI agent context. Cut costs. Keep quality.**
-3. **Make every token count — across every provider and tool.**
+1. **The context control plane for AI agents**
+2. **Govern AI agent context. Attribute spend. Keep quality.**
+3. **Remember, govern, and optimize every provider and tool.**
 
 ## Subheadline Options
 

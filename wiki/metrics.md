@@ -302,7 +302,7 @@ curl http://localhost:8787/health
 ```json
 {
   "status": "healthy",
-  "version": "0.1.0",
+  "version": "0.29.0",
   "uptime_seconds": 3600
 }
 ```

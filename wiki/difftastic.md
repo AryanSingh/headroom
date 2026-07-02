@@ -423,4 +423,4 @@ Difftastic supports 30+ languages including: Python, TypeScript, JavaScript, Go,
 
 - [Transforms Reference](transforms.md) — Other compression transforms
 - [Compression Overview](compression.md) — Universal compression
-- [diff_compressor.py](https://github.com/chopratejas/cutctx/blob/main/cutctx/transforms/diff_compressor.py) — Source
+- [diff_compressor.py](https://github.com/cutctx/cutctx/blob/main/cutctx/transforms/diff_compressor.py) — Source

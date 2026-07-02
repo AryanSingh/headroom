@@ -29,13 +29,13 @@ npm install cutctx-ai
 **Docker-native:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.sh | bash
 ```
 
 PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1 | iex
 ```
 
 See [Docker-native install](docker-install.md) for wrapper behavior, compose usage, and host-integrated `wrap` flows.

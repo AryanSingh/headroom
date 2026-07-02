@@ -1,6 +1,6 @@
 # Cutctx
 
-> Context optimization layer for LLM applications. Compress tool outputs, logs, files, and RAG chunks before they reach the model. Same answers, 60–95% fewer tokens. Library, proxy, and MCP server. Open-core (Apache-2.0 client + proprietary commercial core), local-first.
+> Local-first context control plane for AI agents and LLM applications. Govern what reaches the model, attribute spend and savings, remember shared context, and compress tool outputs, logs, files, and RAG chunks when it helps. Library, proxy, and MCP server. Open-core (Apache-2.0 client + proprietary commercial core).
 
 Cutctx is shipped as a Python package (`cutctx-ai`), a TypeScript package (`cutctx-ai`), an OpenAI + Anthropic-compatible HTTP proxy (`cutctx proxy`), and an MCP server (`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` tools). All four modes use the same compression pipeline: per-content-type compressors (JSON, code, logs, diffs, text) feed into a Compress-Cache-Retrieve (CCR) store so compression stays reversible — the LLM can ask for the original whenever it wants.
 
@@ -11,7 +11,7 @@ The canonical, always-current documentation index lives at the docs site below. 
 - [Live llms.txt (full doc index)](https://cutctx.dev/llms.txt): Auto-generated index of every doc page with descriptions.
 - [Live llms-full.txt (every doc page concatenated)](https://cutctx.dev/llms-full.txt): One Markdown blob containing every doc page. Use when you can spend the tokens for full context.
 - [Docs site](https://cutctx.dev/docs): Human-browsable docs with search.
-- [GitHub repo](https://github.com/chopratejas/cutctx): Source, issues, releases.
+- [GitHub repo](https://github.com/cutctx/cutctx): Source, issues, releases.
 - [PyPI package](https://pypi.org/project/cutctx-ai/): Python install.
 - [npm package](https://www.npmjs.com/package/cutctx-ai): TypeScript install.
 
@@ -19,7 +19,7 @@ The canonical, always-current documentation index lives at the docs site below. 
 
 - Python: `pip install cutctx-ai` (add `[all]` for every optional extra)
 - TypeScript / Node: `npm install cutctx-ai` (or `pnpm add cutctx-ai`, `bun add cutctx-ai`)
-- Docker: `docker run -p 8787:8787 ghcr.io/chopratejas/cutctx:latest`
+- Docker: `docker run -p 8787:8787 ghcr.io/cutctx/cutctx:latest`
 - Run the proxy: `cutctx proxy --port 8787` then point any client at `http://127.0.0.1:8787`
 - Wrap an agent in one command: `cutctx wrap claude` (also: `codex`, `cursor`, `aider`, `copilot`, `gemini`)
 

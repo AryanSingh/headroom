@@ -1,8 +1,8 @@
 # Cutctx Manual Testing Guide
 
 **Product:** Cutctx (`cutctx` binary, `cutctx-ai` PyPI package, `cutctx` internal Python package)  
-**Version:** 0.26.0  
-**Last updated:** 2026-06-22
+**Version:** 0.29.0
+**Last updated:** 2026-07-02
 
 This guide covers every testable surface of the product end-to-end. Work through sections top-to-bottom on a clean machine — each section builds on the previous. Every step lists the exact command, the expected output, and the pass/fail criterion.
 
@@ -88,7 +88,7 @@ source ~/cutctx-test-env/bin/activate
 pip install cutctx-ai
 ```
 
-**PASS:** `cutctx --version` prints `cutctx 0.26.0`  
+**PASS:** `cutctx --version` prints `cutctx 0.29.0`
 **FAIL:** Import errors, missing binary, version mismatch
 
 ### Environment variables used throughout this guide
@@ -112,7 +112,7 @@ cutctx --help
 
 **PASS:**
 - `which cutctx` returns a path inside the venv
-- `--version` prints `cutctx 0.26.0` (not `cutctx`)
+- `--version` prints `cutctx 0.29.0` (not `cutctx`)
 - `--help` lists all commands: proxy, wrap, init, bench, savings, license, etc.
 
 ```bash
@@ -212,7 +212,7 @@ curl -s http://localhost:8787/v1/version | jq .
 - `/readyz` → `{"status": "ok"}` (may differ briefly on startup)
 - `/metrics` → lines starting with `# HELP` and `cutctx_` metrics
 - `/v1/stats` → JSON with `requests_total`, `tokens_saved`, `compression_ratio` fields
-- `/v1/version` → JSON with `version: "0.26.0"`
+- `/v1/version` → JSON with `version: "0.29.0"`
 
 ```bash
 kill $PROXY_PID
@@ -1095,7 +1095,7 @@ docker exec cutctx-test which cutctx
 docker exec cutctx-test cutctx --version
 ```
 
-**PASS:** binary is named `cutctx` (not `cutctx`); version is `0.26.0`
+**PASS:** binary is named `cutctx` (not `cutctx`); version is `0.29.0`
 
 ```bash
 # Verify no debug keys in container
@@ -1118,7 +1118,7 @@ helm lint helm/cutctx/
 
 # Render templates (dry-run)
 helm template cutctx-release helm/cutctx/ \
-  --set image.tag=v0.26.0 \
+  --set image.tag=v0.29.0 \
   --set adminApiKey=test-key | head -60
 ```
 
@@ -2218,10 +2218,10 @@ docker run --rm \
   -e CUTCTX_STATELESS=true \
   -e CUTCTX_ADMIN_API_KEY=test \
   -p 8941:8787 \
-  ghcr.io/cutctx/cutctx:0.26.0 &
+ghcr.io/cutctx/cutctx:0.29.0 &
 sleep 5
 curl -s http://localhost:8941/livez | jq .
-docker stop $(docker ps -q --filter ancestor=ghcr.io/cutctx/cutctx:0.26.0) 2>/dev/null || true
+docker stop $(docker ps -q --filter ancestor=ghcr.io/cutctx/cutctx:0.29.0) 2>/dev/null || true
 ```
 
 **PASS:** container runs in stateless mode; no volume mounts required; `/livez` returns ok

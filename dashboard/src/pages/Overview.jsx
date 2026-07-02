@@ -76,6 +76,91 @@ const LIFETIME_SAVINGS_SOURCES = [
   ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
 ];
 
+function sumSavingsUsd(record) {
+  return LIFETIME_SAVINGS_SOURCES.reduce(
+    (sum, [key]) => sum + Number(record?.[key] || 0),
+    0,
+  );
+}
+
+function getSessionSavingsUsd(stats) {
+  const cost = stats?.cost || {};
+  const summaryCost = stats?.summary?.cost || {};
+  const breakdown = cost?.breakdown || summaryCost?.breakdown || {};
+  const prefixTotals = stats?.prefix_cache?.totals || {};
+  const sourceUsd = {
+    ...(cost?.savings_by_source?.usd || {}),
+    ...(stats?.savings_by_source?.usd || {}),
+  };
+
+  const compressionUsd = Math.max(
+    Number(cost?.compression_savings_usd || 0),
+    Number(cost?.savings_usd || 0),
+    Number(sourceUsd.cutctx_compression || 0),
+    Number(breakdown.compression_savings_usd || 0),
+  );
+  const cacheUsd = Math.max(
+    Number(cost?.cache_savings_usd || 0),
+    Number(sourceUsd.provider_prompt_cache || 0),
+    Number(breakdown.cache_savings_usd || 0),
+    Number(prefixTotals.net_savings_usd || 0),
+    Number(prefixTotals.savings_usd || 0),
+  );
+  const semanticUsd = Math.max(
+    Number(cost?.semantic_cache_savings_usd || 0),
+    Number(sourceUsd.semantic_cache || 0),
+    Number(breakdown.semantic_cache_savings_usd || 0),
+  );
+  const selfHostedPrefixUsd = Math.max(
+    Number(cost?.self_hosted_prefix_cache_savings_usd || 0),
+    Number(sourceUsd.prefix_cache_self_hosted || 0),
+    Number(breakdown.self_hosted_prefix_cache_savings_usd || 0),
+  );
+  const modelRoutingUsd = Math.max(
+    Number(cost?.model_routing_savings_usd || 0),
+    Number(sourceUsd.model_routing || 0),
+    Number(breakdown.model_routing_savings_usd || 0),
+  );
+  const toolSchemaUsd = Math.max(
+    Number(cost?.tool_schema_compaction_savings_usd || 0),
+    Number(sourceUsd.tool_schema_compaction || 0),
+    Number(breakdown.tool_schema_compaction_savings_usd || 0),
+  );
+  const apiSurfaceUsd = Math.max(
+    Number(cost?.api_surface_slimming_savings_usd || 0),
+    Number(sourceUsd.api_surface_slimming || 0),
+    Number(breakdown.api_surface_slimming_savings_usd || 0),
+  );
+
+  return Math.max(
+    Number(cost?.total_savings_usd || 0),
+    Number(cost?.total_saved_usd || 0),
+    Number(summaryCost?.total_saved_usd || 0),
+    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd,
+  );
+}
+
+function getSessionAttributionTotals(stats) {
+  const cost = stats?.cost || stats?.summary?.cost || {};
+  const source = cost?.savings_by_source || stats?.savings_by_source || {};
+  const sourceTokens = source?.tokens || {};
+  const sourceTokenTotal = Number(source?.total_tokens || 0);
+  const summedSourceTokens = Object.values(sourceTokens).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
+
+  return {
+    totalTokensSaved: Math.max(
+      sourceTokenTotal,
+      summedSourceTokens,
+      Number(stats?.tokens?.all_layers_saved || 0),
+      Number(stats?.tokens?.saved || 0),
+    ),
+    totalSavingsUsd: getSessionSavingsUsd(stats),
+  };
+}
+
 function getLifetimeTotalSavingsUsd(stats) {
   const lifetime = stats?.persistent_savings?.lifetime || {};
   const sourceUsd = stats?.savings_by_source?.usd || {};
@@ -99,11 +184,7 @@ const sourceUsd = {
 const costBreakdown = cost?.breakdown || {};
 const sessionTokens = stats?.tokens || {};
 const prefixTotals = stats?.prefix_cache?.totals || {};
-const lifetime = stats?.persistent_savings?.lifetime || {};
 
-  // savings_by_source is file-backed (lifetime). Session counters track the
-  // same signals in-memory for the active run. Always take the higher of the
-  // two so the attribution bars reflect both fresh sessions and prior history.
   const sessionCompression = Number(sessionTokens.proxy_compression_saved || 0);
   const sessionSchemaCompaction = Number(sessionTokens.schema_compaction_saved || 0);
   const sessionCacheRead = Number(prefixTotals.cache_read_tokens || 0);
@@ -115,9 +196,9 @@ const lifetime = stats?.persistent_savings?.lifetime || {};
       label: 'Direct compression',
       tokens: Math.max(Number(sourceTokens.cutctx_compression || 0), sessionCompression),
 usd: Math.max(
+  Number(cost.compression_savings_usd || 0),
   Number(sourceUsd.cutctx_compression || 0),
   Number(costBreakdown.compression_savings_usd || 0),
-  Number(lifetime.compression_savings_usd || 0),
 ),
       session: sessionCompression,
     },
@@ -133,11 +214,11 @@ usd: Math.max(
       label: 'Provider prompt cache',
       tokens: Math.max(Number(sourceTokens.provider_prompt_cache || 0), sessionCacheRead),
 usd: Math.max(
+  Number(cost.cache_savings_usd || 0),
   Number(sourceUsd.provider_prompt_cache || 0),
   Number(costBreakdown.cache_savings_usd || 0),
   Number(prefixTotals.net_savings_usd || 0),
   Number(prefixTotals.savings_usd || 0),
-  Number(lifetime.cache_savings_usd || 0),
 ),
       session: sessionCacheRead,
     },
@@ -159,8 +240,8 @@ usd: Math.max(
       label: 'Semantic cache',
       tokens: Number(sourceTokens.semantic_cache || 0),
 usd: Math.max(
+  Number(cost.semantic_cache_savings_usd || 0),
   Number(sourceUsd.semantic_cache || 0),
-  Number(lifetime.semantic_cache_savings_usd || 0),
 ),
     },
     {
@@ -168,8 +249,8 @@ usd: Math.max(
       label: 'Model routing',
       tokens: Number(sourceTokens.model_routing || 0),
 usd: Math.max(
+  Number(cost.model_routing_savings_usd || 0),
   Number(sourceUsd.model_routing || 0),
-  Number(lifetime.model_routing_savings_usd || 0),
 ),
     },
   ];
@@ -180,10 +261,7 @@ function buildClientRows(stats) {
   const byClient =
     cost?.savings_by_client || stats?.summary?.cost?.savings_by_client || stats?.savings_by_client || {};
   const byProject = stats?.savings?.per_project || stats?.persistent_savings?.projects || {};
-  const totalTokensSaved = Number(cost?.total_tokens_saved || stats?.tokens?.saved || 0);
-  const totalSavingsUsd = Number(
-    cost?.savings_usd || cost?.total_savings_usd || stats?.summary?.cost?.total_saved_usd || 0,
-  );
+  const { totalTokensSaved, totalSavingsUsd } = getSessionAttributionTotals(stats);
   const usdPerToken =
     totalTokensSaved > 0 && totalSavingsUsd > 0 ? totalSavingsUsd / totalTokensSaved : 0;
   const estimateUsd = (tokens, explicitUsd = 0) => (
@@ -218,7 +296,7 @@ function buildClientRows(stats) {
       tokens: Number(data?.tokens_saved || data?.total_tokens_saved || 0),
       usd: estimateUsd(
         Number(data?.tokens_saved || data?.total_tokens_saved || 0),
-        Number(data?.compression_savings_usd || 0),
+        sumSavingsUsd(data),
       ),
       requests: Number(data?.requests || 0),
     }))
@@ -259,6 +337,7 @@ function buildClientRows(stats) {
 function buildModelRows(stats) {
 const cost = stats?.cost || stats?.summary?.cost || {};
 const byModel = cost?.per_model || stats?.summary?.cost?.per_model || {};
+const requestCountsByModel = stats?.requests?.by_model || {};
 
 const rows = Object.entries(byModel)
 .map(([model, data]) => ({
@@ -271,7 +350,7 @@ tokens:
 usd:
   Number(data?.savings_usd || 0)
   || Number(data?.total_usd || 0),
-requests: Number(data?.requests || data?.request_count || 0),
+requests: Number(requestCountsByModel[model] ?? data?.requests ?? data?.request_count ?? 0),
 }))
 .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
 
@@ -321,22 +400,6 @@ function getRequestDirectSaved(request) {
   }
 
   return Number(request.tokens_saved || 0);
-}
-
-function getRequestScaffoldingTokens(request) {
-  if (request?.scaffolding_tokens == null) {
-    return null;
-  }
-
-  return Number(request.scaffolding_tokens || 0);
-}
-
-function getRequestGhostTokens(request) {
-  if (request?.ghost_tokens == null) {
-    return null;
-  }
-
-  return Number(request.ghost_tokens || 0);
 }
 
 function getRequestIndirectSaved(request) {
@@ -1225,56 +1288,95 @@ export default function Overview() {
     error,
   } = useDashboardData();
   const summary = stats?.summary || {};
+  const cost = stats?.cost || summary?.cost || {};
   const requests = stats?.requests || {};
   const tokens = stats?.tokens || {};
   const persistent = stats?.persistent_savings || {};
+  const displaySession = persistent.display_session || {};
   const lifetime = persistent.lifetime || {};
   const prefixCache = stats?.prefix_cache || {};
   const knowledgeGraph = stats?.knowledge_graph || {};
   const featureAvailability = stats?.feature_availability || {};
+  const historyFreshnessLabel = historyData?.generated_at
+    ? `History synced ${formatRelativeTime(historyData.generated_at)} from proxy`
+    : 'Waiting for proxy history';
   const sessionTokensSaved = Number(tokens.saved || 0);
+  const sessionRequests = Number(requests.total || 0);
+  const sessionSavingsUsd = getSessionSavingsUsd(stats);
+  const displaySessionTokensSaved = Number(displaySession.tokens_saved || 0);
+  const displaySessionRequests = Number(displaySession.requests || 0);
+  const displaySessionSavingsUsd = sumSavingsUsd(displaySession);
   const lifetimeTokensSaved = Number(lifetime.tokens_saved || 0);
-  const useLifetimeHeadline = lifetimeTokensSaved > sessionTokensSaved;
   const sessionInputTokens = Math.max(
     Number(tokens.total_before_compression || 0),
     Number(tokens.input || 0),
   );
+  const displaySessionInputTokens = Number(displaySession.total_input_tokens || 0);
   const lifetimeInputTokens = Number(lifetime.total_input_tokens || 0);
+  const lifetimeSavingsUsd = getLifetimeTotalSavingsUsd(stats);
+  const headlineSources = [
+    {
+      key: 'session',
+      tokens: sessionTokensSaved,
+      requests: sessionRequests,
+      input: sessionInputTokens,
+      savingsUsd: sessionSavingsUsd,
+    },
+    {
+      key: 'display_session',
+      tokens: displaySessionTokensSaved,
+      requests: displaySessionRequests,
+      input: displaySessionInputTokens,
+      savingsUsd: displaySessionSavingsUsd,
+    },
+    {
+      key: 'lifetime',
+      tokens: lifetimeTokensSaved,
+      requests: Number(lifetime.requests || 0),
+      input: lifetimeInputTokens,
+      savingsUsd: lifetimeSavingsUsd,
+    },
+  ];
+  const pickHeadlineSource = (field) =>
+    headlineSources.reduce((best, candidate) =>
+      Number(candidate[field] || 0) >= Number(best[field] || 0) ? candidate : best,
+    );
 
-  const effectiveTokensSaved = Math.max(
-    sessionTokensSaved,
-    lifetimeTokensSaved,
-  );
-  const effectiveRequests = Math.max(
-    Number(requests.total || 0),
-    Number(lifetime.requests || 0),
-  );
-  const effectiveInputTokens = useLifetimeHeadline ? lifetimeInputTokens : sessionInputTokens;
-  const effectiveSavingsPercent = effectiveInputTokens > 0
-    ? (effectiveTokensSaved / effectiveInputTokens) * 100
-    : Number(tokens.savings_percent || 0);
+  const tokensHeadline = pickHeadlineSource('tokens');
+  const requestsHeadline = pickHeadlineSource('requests');
+  const inputHeadline = pickHeadlineSource('input');
+  const savingsHeadline = pickHeadlineSource('savingsUsd');
+
+  const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
+  const effectiveRequests = Number(requestsHeadline.requests || 0);
+  const effectiveInputTokens = Number(inputHeadline.input || 0);
+  const effectiveSavingsPercent =
+    effectiveInputTokens > 0
+      ? (effectiveTokensSaved / effectiveInputTokens) * 100
+      : Number(tokens.savings_percent || displaySession.savings_percent || 0);
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
-  const sessionCostBreakdown = summary?.cost?.breakdown || {};
-  const sessionSavingsUsd = Math.max(
-    Number(summary?.cost?.total_saved_usd || 0),
-    Number(sessionCostBreakdown.compression_savings_usd || 0)
-      + Number(sessionCostBreakdown.cache_savings_usd || 0),
-  );
-const lifetimeSavingsUsd = getLifetimeTotalSavingsUsd(stats);
-const useLifetimeSavingsHeadline = lifetimeSavingsUsd > 0
-  && (lifetimeSavingsUsd >= sessionSavingsUsd || useLifetimeHeadline);
-const effectiveSavingsUsd = useLifetimeSavingsHeadline
-  ? lifetimeSavingsUsd
-  : sessionSavingsUsd;
-const moneySavedFootnote = useLifetimeSavingsHeadline
-  ? 'Lifetime savings across compression, cache, and routing'
-  : sessionCostWithoutCutctx > 0
-  ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
-  : lifetimeSavingsUsd > 0
-  ? 'Lifetime savings recorded'
-  : 'No cost data yet';
-
+  const effectiveSavingsUsd = Number(savingsHeadline.savingsUsd || 0);
+  const moneySavedFootnote =
+    savingsHeadline.key === 'session'
+      ? sessionCostWithoutCutctx > 0
+        ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
+        : Number(cost.cache_savings_usd || 0) > 0
+          ? 'Includes provider-cache savings in current session'
+          : 'Current proxy-session savings'
+      : savingsHeadline.key === 'display_session'
+        ? 'Rolling session savings across compression, cache, and routing'
+        : lifetimeSavingsUsd > 0
+          ? 'Lifetime savings across compression, cache, and routing'
+          : 'No cost data yet';
+  const requestsFootnote =
+    requestsHeadline.key === 'session'
+      ? `${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`
+      : requestsHeadline.key === 'display_session'
+        ? 'Rolling session requests tracked'
+        : effectiveRequests > 0
+          ? 'Lifetime requests tracked'
+          : 'No request data yet';
   const persistentHistory = Array.isArray(persistent.recent_history)
     ? persistent.recent_history.slice(-8).reverse().map((entry) => ({
         model: entry.model,
@@ -1354,9 +1456,7 @@ const moneySavedFootnote = useLifetimeSavingsHeadline
             iconColor="blue"
             label="Requests"
             value={formatInteger(effectiveRequests)}
-            footnote={useLifetimeHeadline
-              ? 'Lifetime requests tracked'
-              : `${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`}
+            footnote={requestsFootnote}
           />
           <MetricCard
             icon={Layers}
@@ -1384,6 +1484,7 @@ const moneySavedFootnote = useLifetimeSavingsHeadline
           <div>
             <div className="eyebrow">Trend</div>
             <h2>Savings over time</h2>
+            <p>{historyFreshnessLabel}</p>
           </div>
         </div>
 
@@ -1498,12 +1599,12 @@ const moneySavedFootnote = useLifetimeSavingsHeadline
           ) : (
             <div className="table-shell">
               <table className="request-table">
-                <thead>
-                  <tr>
-                    <th>Model</th>
-                    <th>Input</th>
-                    <th>Saved</th>
-                    <th>Proxy</th>
+                  <thead>
+                    <tr>
+                      <th>Routed model</th>
+                      <th>Input</th>
+                      <th>Saved</th>
+                      <th>Proxy</th>
                     <th>Cache</th>
                     <th>When</th>
                   </tr>
@@ -1550,12 +1651,13 @@ const moneySavedFootnote = useLifetimeSavingsHeadline
                     );
                   })}
                 </tbody>
-              </table>
-              <div className="request-table-note">
-                Saved = proxy compression + cache combined.
-                Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings.
+                </table>
+                <div className="request-table-note">
+                  Saved = proxy compression + cache combined.
+                  Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings.
+                  Model = the routed model CutCtx observed on the request.
+                </div>
               </div>
-            </div>
           )}
 
           <div className="metric-grid metric-grid-three" style={{ marginTop: 'var(--space-xl)' }}>

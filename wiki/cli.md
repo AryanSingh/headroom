@@ -607,7 +607,7 @@ Options:
   --no-telemetry                  Disable anonymous telemetry in the runtime.
   --image TEXT                    Docker image to use when runtime=docker or
                                   preset=persistent-docker.  [default:
-                                  ghcr.io/chopratejas/cutctx:latest]
+                                  ghcr.io/cutctx/cutctx:latest]
   -?, --help                      Show this message and exit.
 ```
 
@@ -634,7 +634,7 @@ cutctx install apply --preset persistent-docker --scope user
 | `--mode` | `token` | Proxy optimization mode |
 | `--memory` | off | Enable persistent memory in the managed runtime |
 | `--no-telemetry` | off | Disable anonymous telemetry |
-| `--image` | `ghcr.io/chopratejas/cutctx:latest` | Docker image for Docker-backed installs |
+| `--image` | `ghcr.io/cutctx/cutctx:latest` | Docker image for Docker-backed installs |
 
 `apply` stores a manifest under
 `${CUTCTX_WORKSPACE_DIR}/deploy/<profile>/manifest.json` (default

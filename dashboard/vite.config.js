@@ -1,7 +1,8 @@
 import react from '@vitejs/plugin-react';
-import javascriptObfuscator from 'vite-plugin-javascript-obfuscator';
 import { Buffer } from 'node:buffer';
+import { readFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
+import { resolve } from 'node:path';
 import process from 'node:process';
 import { defineConfig } from 'vite';
 
@@ -21,6 +22,18 @@ const CUTCTX_PROXY_PREFIXES = [
 // SPA routes that look like they might match a proxy prefix but are not API endpoints.
 const SPA_ROUTE_PREFIXES = ['/firewall', '/governance', '/orchestrator', '/capabilities', '/memory', '/playground', '/docs', '/'];
 const DEV_ADMIN_KEY = process.env.CUTCTX_ADMIN_API_KEY || 'headroom-local-admin';
+
+function readCutctxVersion() {
+  try {
+    const pyproject = readFileSync(resolve(__dirname, '../pyproject.toml'), 'utf-8');
+    const match = pyproject.match(/^\s*version\s*=\s*"([^"]+)"/m);
+    return match?.[1] || '0.29.0';
+  } catch {
+    return '0.29.0';
+  }
+}
+
+const CUTCTX_VERSION = readCutctxVersion();
 
 function shouldProxy(url = '') {
   const pathname = url.split('?')[0].split('#')[0];
@@ -135,9 +148,10 @@ function cutctxLocalProxyPlugin() {
   };
 }
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_CUTCTX_VERSION': JSON.stringify(CUTCTX_VERSION),
+  },
   plugins: [
     react(),
     cutctxLocalProxyPlugin(),

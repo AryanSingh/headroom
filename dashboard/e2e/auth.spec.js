@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     // We will clear localStorage in each test before goto
   });
 
@@ -64,7 +64,7 @@ test.describe('Authentication Flow', () => {
     const saveButton = page.getByRole('button', { name: 'Save & Reload' });
     
     // Wait for reload navigation
-    const [response] = await Promise.all([
+    await Promise.all([
       page.waitForNavigation(),
       saveButton.click()
     ]);

@@ -17,8 +17,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.dev';
 
 export const metadata: Metadata = {
   title: {
-    default: 'CutCtx — Context Optimization Layer for AI Agents',
-    template: '%s | CutCtx',
+ default: 'Cutctx — Context Control Plane for AI Agents',
+ template: '%s | Cutctx',
   },
   description:
     'Compress everything your AI agent reads — tool outputs, logs, files, RAG chunks. Same answers, fraction of the tokens. Library, proxy, MCP server. Local-first. Apache 2.0.',
@@ -28,17 +28,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: 'CutCtx',
-    title: 'CutCtx — Context Optimization Layer for AI Agents',
+    siteName: 'Cutctx',
+    title: 'Cutctx — Context Control Plane for AI Agents',
     description:
-      'Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60–95% fewer tokens, same answers.',
+      'Local-first context control plane for AI agents: govern, attribute, remember, and compress without a SaaS hop.',
     url: '/',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CutCtx — Context Optimization Layer for AI Agents',
+    title: 'Cutctx — Context Control Plane for AI Agents',
     description:
-      'Compress tool outputs, logs, files, and RAG chunks before they reach the LLM. 60–95% fewer tokens, same answers.',
+      'Local-first context control plane for AI agents: govern, attribute, remember, and compress without a SaaS hop.',
   },
 };
 
