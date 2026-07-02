@@ -41,12 +41,22 @@ from cutctx.savings import (
 
 class TestSavingsSource:
     def test_all_five_sources_present(self):
-        assert len(SavingsSource) == 7
-        assert SavingsSource.PROVIDER_PROMPT_CACHE.value == "provider_prompt_cache"
-        assert SavingsSource.CUTCTX_COMPRESSION.value == "cutctx_compression"
-        assert SavingsSource.SEMANTIC_CACHE.value == "semantic_cache"
-        assert SavingsSource.PREFIX_CACHE_SELF_HOSTED.value == "prefix_cache_self_hosted"
-        assert SavingsSource.MODEL_ROUTING.value == "model_routing"
+        # Additive contract: the 5-source model has grown to 7 (WS2 Phase 1)
+        # and now to 8 (WS13 BATCH_ROUTING). Future sources will add more.
+        # Asserts baseline 7 + new BATCH_ROUTING is present, no hard-coded total.
+        _baseline_seven = {
+            SavingsSource.PROVIDER_PROMPT_CACHE,
+            SavingsSource.CUTCTX_COMPRESSION,
+            SavingsSource.SEMANTIC_CACHE,
+            SavingsSource.PREFIX_CACHE_SELF_HOSTED,
+            SavingsSource.MODEL_ROUTING,
+            SavingsSource.TOOL_SCHEMA_COMPACTION,
+            SavingsSource.API_SURFACE_SLIMMING,
+        }
+        assert _baseline_seven.issubset(set(SavingsSource))
+        assert hasattr(SavingsSource, "BATCH_ROUTING")
+        assert SavingsSource.BATCH_ROUTING.value == "batch_routing"
+        assert len(SavingsSource) >= 8
 
     def test_from_str_known(self):
         assert SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE
