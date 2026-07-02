@@ -52,6 +52,7 @@ from .base import Transform
 from .content_detector import ContentType, DetectionResult
 from .content_detector import detect_content_type as _regex_detect_content_type
 from .error_detection import content_has_strong_error_indicators
+from .normalize import NormalizeConfig, normalize_content
 
 logger = logging.getLogger(__name__)
 
@@ -538,6 +539,12 @@ class ContentRouterConfig:
     # Set to None to use DEFAULT_EXCLUDE_TOOLS, or provide custom set
     exclude_tools: set[str] | None = None
 
+    # WS16 Tokenizer-aware normalization pre-pass (default: all sub-flags off).
+    # When all sub-flags are off (the default), normalize_content is a
+    # no-op and compress()'s flag-off path is byte-identical to the
+    # pre-WS16 behavior. This is the spec's golden parity contract.
+    normalize_config: NormalizeConfig = field(default_factory=NormalizeConfig)
+
     # Per-content-type overrides from profile recommendations.
     # Key: strategy value (e.g. "code_aware", "smart_crusher")
     # Value: dict of override params (e.g. {"recommended_ratio": 0.8})
@@ -1009,6 +1016,37 @@ class ContentRouter(Transform):
                 routing_log=[],
             )
         else:
+            # WS16 Tokenizer-aware normalization pre-pass. Default-off
+            # via NormalizeConfig; when all sub-flags are off this is a
+            # no-op and the flag-off golden test (compress() bytes
+            # identical to pre-WS16) is preserved. The pre-pass runs
+            # BEFORE content-type detection and routing so the routing
+            # decision sees the post-normalized content (e.g. a
+            # decomposed-unicode log becomes a composed-unicode log
+            # before the JSON/code/log detectors see it).
+            _normalize_cfg = self.config.normalize_config
+            if any(
+                (
+                    _normalize_cfg.enable_unicode_normalization,
+                    _normalize_cfg.enable_whitespace_collapse,
+                    _normalize_cfg.enable_blob_to_pointer,
+                    _normalize_cfg.enable_decimal_cap,
+                )
+            ):
+                _normalize_result = normalize_content(content, _normalize_cfg)
+                if _normalize_result.tokens_saved > 0 or _normalize_result.passes_applied:
+                    content = _normalize_result.content
+                    # Update debug log to reflect normalized size
+                    if debug_enabled:
+                        request_debug["chars"] = len(content)
+                        request_debug["bytes"] = len(content.encode("utf-8", errors="replace"))
+                        request_debug["normalize_passes"] = list(
+                            _normalize_result.passes_applied
+                        )
+                        request_debug["normalize_tokens_saved"] = int(
+                            _normalize_result.tokens_saved
+                        )
+
             # Determine strategy from content analysis
             mixed = is_mixed_content(content)
             detection = _detect_content(content)

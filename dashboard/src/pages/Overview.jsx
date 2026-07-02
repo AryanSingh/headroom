@@ -74,6 +74,11 @@ const LIFETIME_SAVINGS_SOURCES = [
   ['model_routing_savings_usd', 'model_routing'],
   ['tool_schema_compaction_savings_usd', 'tool_schema_compaction'],
   ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
+  // WS16: tokenizer-aware normalization pre-pass (additive per spec).
+  // Future savings sources from the WS10-WS21 expansion will follow
+  // the same pattern: add to cutctx/savings/types.py first, then
+  // add the row here.
+  ['normalization_savings_usd', 'normalization'],
 ];
 
 function sumSavingsUsd(record) {
@@ -131,12 +136,18 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.api_surface_slimming || 0),
     Number(breakdown.api_surface_slimming_savings_usd || 0),
   );
+  // WS16: normalization source (additive per spec)
+  const normalizationUsd = Math.max(
+    Number(cost?.normalization_savings_usd || 0),
+    Number(sourceUsd.normalization || 0),
+    Number(breakdown.normalization_savings_usd || 0),
+  );
 
   return Math.max(
     Number(cost?.total_savings_usd || 0),
     Number(cost?.total_saved_usd || 0),
     Number(summaryCost?.total_saved_usd || 0),
-    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd,
+    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd + normalizationUsd,
   );
 }
 

@@ -17,6 +17,11 @@ class SavingsSource(str, Enum):
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
+    # WS16: tokenizer-aware normalization pre-pass. Additive enum member;
+    # older consumers that don't know about it should treat it like any
+    # other source and aggregate it into the total. See
+    # artifacts/savings-moat-expansion-specs.md §WS16.
+    NORMALIZATION = "normalization"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -42,6 +47,7 @@ _LABELS = {
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
+    SavingsSource.NORMALIZATION: "Tokenizer Normalization",
 }
 
 _DESCRIPTIONS = {
@@ -52,6 +58,11 @@ _DESCRIPTIONS = {
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
+    SavingsSource.NORMALIZATION: (
+        "Tokens removed by the WS16 normalization pre-pass "
+        "(NFC, whitespace collapse, blob-to-CCR-pointer, decimal-precision cap). "
+        "Universal 3-8% savings on tool-output content."
+    ),
 }
 
 
