@@ -21,10 +21,21 @@ import sys
 import textwrap
 from pathlib import Path
 
+try:
+    import tomllib
+except ImportError:  # pragma: no cover - Python 3.10 fallback
+    import tomli as tomllib
+
 # Paths
 ROOT = Path(__file__).resolve().parent.parent
 EE_SOURCE = ROOT / "cutctx_ee"
 EE_PACKAGING = ROOT / "packaging" / "cutctx-ee"
+
+
+def _read_project_version() -> str:
+    """Read the canonical package version from pyproject.toml."""
+    with open(ROOT / "pyproject.toml", "rb") as handle:
+        return str(tomllib.load(handle)["project"]["version"])
 
 
 def check_nuitka_installed() -> str:
@@ -260,14 +271,26 @@ def build_ee_wheel(
 
 def main():
     parser = argparse.ArgumentParser(description="SP-3: Compile cutctx_ee to native extensions")
-    parser.add_argument("--output-dir", default=str(ROOT / "dist-ee"),
-                        help="Output directory for compiled wheel")
-    parser.add_argument("--dev", action="store_true",
-                        help="Compile with debug symbols")
-    parser.add_argument("--verify-only", action="store_true",
-                        help="Only verify an existing wheel has no source")
-    parser.add_argument("--version", default="0.1.0",
-                        help="Version string for the compiled wheel")
+    parser.add_argument(
+        "--output-dir",
+        default=str(ROOT / "dist-ee"),
+        help="Output directory for the compiled wheel",
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Compile with debug symbols",
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Only verify an existing wheel has no source",
+    )
+    parser.add_argument(
+        "--version",
+        default=_read_project_version(),
+        help="Version string for the compiled wheel",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)

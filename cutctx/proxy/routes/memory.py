@@ -1,21 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2025-2026 Cutctx Labs.
-"""FastAPI router factory for the EE team-memory proxy.
+"""FastAPI router factory for the EE team-memory proxy surface.
 
-Blocker-1: the EE ``/v1/memory/*`` endpoints were previously mounted
-without admin auth or RBAC. The EE module's own auth TODO comments
-(``cutctx_ee/memory_service/api.py:36-85``) explicitly noted this gap.
-This factory applies the auth dependencies from ``server.py`` so
-memory sync and review require the operator role.
+This module keeps the OSS proxy bootable when the enterprise memory package is
+absent, while still enforcing admin auth and RBAC when the surface is mounted.
 """
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
@@ -23,25 +21,18 @@ logger = logging.getLogger(__name__)
 def _get_ee_router() -> APIRouter:
     try:
         from cutctx_ee.memory_service.api import router as ee_router
+
         return ee_router
-    except ImportError as e:
-        logger.error(f"Failed to import cutctx_ee.memory_service.api: {e}")
+    except ImportError as exc:
+        logger.error("Failed to import cutctx_ee.memory_service.api: %s", exc)
         raise ImportError(
             "Team Memory Service is an Enterprise Edition feature. "
             "Install the cutctx_ee package to enable it."
-        ) from e
+        ) from exc
 
 
-def _build_stub_router(
-    dependencies: list[Any],
-) -> APIRouter:
-    """Build a stub router that returns 501 for every request under
-    ``/v1/memory/{path:path}``.
-
-    This is returned when the EE module is not installed so the
-    application can start without crashing.  The 501 is issued at
-    request time instead of at import/creation time.
-    """
+def _build_stub_router(dependencies: list[Any]) -> APIRouter:
+    """Build a router that returns 501 for all memory requests."""
     router = APIRouter()
 
     @router.api_route(
@@ -55,24 +46,62 @@ def _build_stub_router(
             detail="Team Memory Service is an Enterprise Edition feature.",
         )
 
-    logger.info(
-        "Enterprise memory module not available; mounted stub 501 router."
-    )
+    logger.info("Enterprise memory module not available; mounted stub 501 router.")
     return router
+
+
+def _build_memory_permission_dependency(
+    require_rbac_permission: Callable[[str], Any] | None,
+) -> Callable[[Request], Any] | None:
+    """Return a dependency that selects read vs write memory RBAC at runtime."""
+    if require_rbac_permission is None:
+        return None
+
+    def _invoke_dependency(dependency: Any, request: Request) -> Any:
+        if not callable(dependency):
+            return dependency
+        try:
+            parameters = tuple(inspect.signature(dependency).parameters.values())
+        except (TypeError, ValueError):
+            return dependency(request)
+        accepts_request = any(
+            parameter.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.KEYWORD_ONLY,
+                inspect.Parameter.VAR_KEYWORD,
+            )
+            for parameter in parameters
+        )
+        return dependency(request) if accepts_request else dependency()
+
+    async def _check(request: Request) -> None:
+        permission = "memory.read" if request.method in {"GET", "HEAD", "OPTIONS"} else "memory.write"
+        dependency = require_rbac_permission(permission)
+        result = _invoke_dependency(dependency, request)
+        if inspect.isawaitable(result):
+            await result
+
+    return _check
 
 
 def create_memory_router(
     require_admin_auth: Callable[..., Any] | None = None,
-    require_rbac_permission: Callable[..., Any] | None = None,
+    require_rbac_permission: Callable[[str], Any] | None = None,
 ) -> APIRouter:
-    """Build the EE team-memory router with auth dependencies applied."""
+    """Build the team-memory router with auth dependencies applied."""
     router = APIRouter()
-
     dependencies: list[Any] = []
+
     if require_admin_auth is not None:
         dependencies.append(Depends(require_admin_auth))
-    if require_rbac_permission is not None:
-        dependencies.append(Depends(require_rbac_permission("memory.write")))
+
+    permission_dependency = _build_memory_permission_dependency(require_rbac_permission)
+    if permission_dependency is not None:
+        dependencies.append(Depends(permission_dependency))
+
     if not dependencies:
         logger.warning(
             "create_memory_router built without auth dependencies — "

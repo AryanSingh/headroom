@@ -1270,8 +1270,9 @@
                 <div class="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <div class="text-sm font-medium text-gray-300">Historical Proxy Compression</div>
-                        <div class="text-xs text-gray-500">
-                            Durable local savings history from <span class="font-mono">/stats-history</span>
+                        <div class="text-xs text-gray-500 flex flex-wrap items-center gap-2">
+                            <span>Durable local savings history from <span class="font-mono">/stats-history</span></span>
+                            <span class="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-gray-400" x-text="historyFreshnessLabel"></span>
                         </div>
                     </div>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -1782,9 +1783,9 @@
                     this.requestsLoading = true;
                     try {
                         const [statsRes, healthRes, ccrRes] = await Promise.all([
-                            fetch('/stats?cached=1'),
-                            fetch('/health'),
-                            fetch('/v1/retrieve/stats').catch(() => ({ json: async () => ({}) }))
+                            fetch('/stats?cached=1', { cache: 'no-store' }),
+                            fetch('/health', { cache: 'no-store' }),
+                            fetch('/v1/retrieve/stats', { cache: 'no-store' }).catch(() => ({ json: async () => ({}) }))
                         ]);
 
                         this.stats = await statsRes.json();
@@ -1823,7 +1824,7 @@
 
                 async fetchHistoryStats() {
                     try {
-                        const response = await fetch('/stats-history');
+                    const response = await fetch('/stats-history', { cache: 'no-store' });
                         if (response.ok) {
                             this.historyStats = await response.json();
                             this.lastHistoryFetchMs = Date.now();
@@ -2027,6 +2028,18 @@
                         hour: '2-digit',
                         minute: '2-digit',
                     });
+                },
+
+                formatRelativeAge(ts) {
+                    if (!ts) return '';
+                    const d = new Date(ts);
+                    const ms = d.getTime();
+                    if (Number.isNaN(ms)) return '';
+                    const seconds = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+                    if (seconds < 60) return seconds + 's ago';
+                    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+                    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+                    return Math.floor(seconds / 86400) + 'd ago';
                 },
 
                 truncateModel(model) {
@@ -2249,6 +2262,13 @@
                     const last = history[history.length - 1]?.timestamp;
                     if (!first || !last) return 'Persisted locally';
                     return this.formatDate(first) + ' to ' + this.formatDate(last);
+                },
+
+                get historyFreshnessLabel() {
+                    const syncedAt = this.lastHistoryFetchMs || this.historyStats.generated_at;
+                    if (!syncedAt) return 'Waiting for proxy sync';
+                    const age = this.formatRelativeAge(syncedAt);
+                    return age ? 'Last synced ' + age + ' from proxy' : 'Synced from proxy';
                 },
 
                 get historyAverageTokensPerDay() {

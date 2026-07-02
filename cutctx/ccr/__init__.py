@@ -29,8 +29,13 @@ from .response_handler import (
     StreamingCCRBuffer,
     StreamingCCRHandler,
 )
-from .tool_injection import (
+from .markers import (
     CCR_TOOL_NAME,
+    MARKER_PATTERNS,
+    extract_marker_hashes,
+    format_dedup_ref,
+)
+from .tool_injection import (
     CCRToolInjector,
     create_ccr_tool_definition,
     create_system_instructions,
@@ -66,6 +71,7 @@ __all__ = [
     "CutctxMCPServer",
     "ExpansionRecommendation",
     "MCP_SERVER_AVAILABLE",
+    "MARKER_PATTERNS",
     "ProcessedBatchResult",
     "ResponseHandlerConfig",
     "StreamingCCRBuffer",
@@ -73,6 +79,8 @@ __all__ = [
     "create_ccr_mcp_server",
     "create_ccr_tool_definition",
     "create_system_instructions",
+    "extract_marker_hashes",
+    "format_dedup_ref",
     "get_batch_context_store",
     "get_context_tracker",
     "parse_tool_call",

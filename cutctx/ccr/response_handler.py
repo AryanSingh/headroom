@@ -20,7 +20,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..cache.compression_store import format_retrieval_miss_detail, get_compression_store
-from .tool_injection import CCR_TOOL_NAME, parse_tool_call
+from .markers import CCR_TOOL_NAME
+from .tool_injection import parse_tool_call
 
 logger = logging.getLogger(__name__)
 

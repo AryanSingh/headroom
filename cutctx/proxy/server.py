@@ -1786,8 +1786,14 @@ def _register_memory_components(proxy: CutctxProxy, tracker: MemoryTracker) -> N
     # registered when the memory system is initialized with specific backends.
 
 
-def create_app(config: ProxyConfig | None = None) -> FastAPI:
-    """Create FastAPI application."""
+def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
+    """Legacy app builder kept only for staged migration safety.
+
+    The public runtime entrypoint is the later ``create_app`` definition in
+    this module. Keeping this legacy builder private avoids exporting two
+    competing ``create_app`` symbols while the older path is still being
+    retired incrementally.
+    """
     if not FASTAPI_AVAILABLE:
         raise ImportError("FastAPI required. Install: pip install fastapi uvicorn httpx")
 
@@ -2446,7 +2452,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     _cors_origins = getattr(config, "cors_origins", None) or []
     if "*" in _cors_origins:
         _cors_allow_origins = ["*"]
-        _cors_allow_credentials = True
+        # Wildcard origins and credentialed responses are an unsafe combo.
+        # Keep the developer-friendly open policy, but never advertise
+        # credential support when any origin may read the response.
+        _cors_allow_credentials = False
     else:
         _cors_allow_origins = _cors_origins
         _cors_allow_credentials = bool(_cors_origins)
@@ -4456,7 +4465,7 @@ def _require_rbac_permission(permission: str):
             return await _get_cached_stats_payload()
         return await _build_stats_payload()
 
-    @app.post("/stats/reset", dependencies=[Depends(_require_loopback), Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.reset"))])
+    @app.post("/stats/reset", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.reset"))])
     async def stats_reset(request: Request):
         """Reset in-memory proxy stats for local test/debug isolation."""
         await proxy.metrics.reset_runtime()
@@ -4487,8 +4496,8 @@ def _require_rbac_permission(permission: str):
                         ip_address=getattr(request.client, "host", None),
                     )
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to audit stats reset: %s", exc)
         return JSONResponse(status_code=200, content={"status": "reset"})
 
     @app.get("/stats-history", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.history"))])
@@ -4977,7 +4986,39 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             except Exception as exc:
                 _upstream_check_cache["ok"] = False
                 _upstream_check_cache["error"] = str(exc)
-            _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
+                _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
+
+    # Mirror the primary app's CORS behavior in the runtime app branch.
+    _cors_origins = getattr(config, "cors_origins", None) or []
+    if "*" in _cors_origins:
+        _cors_allow_origins = ["*"]
+        _cors_allow_credentials = False
+    else:
+        _cors_allow_origins = _cors_origins
+        _cors_allow_credentials = bool(_cors_origins)
+
+    if _cors_allow_origins == ["*"]:
+        _cors_methods: list[str] = ["*"]
+        _cors_headers: list[str] = ["*"]
+    else:
+        _cors_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+        _cors_headers = [
+            "Authorization",
+            "Content-Type",
+            "X-Cutctx-Admin-Key",
+            "X-Request-ID",
+            "X-Cutctx-MFA-Code",
+            "anthropic-version",
+            "anthropic-beta",
+        ]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_allow_origins,
+        allow_credentials=_cors_allow_credentials,
+        allow_methods=_cors_methods,
+        allow_headers=_cors_headers,
+    )
 
     async def _build_stats_payload() -> dict[str, Any]:
         m = proxy.metrics
@@ -5631,7 +5672,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         async with stats_snapshot_lock:
             stats_snapshot["value"] = None
             stats_snapshot["expires_at"] = 0.0
-        return {"ok": True}
+        if proxy.audit_logger:
+            try:
+                from cutctx.audit import AuditEvent
+                from cutctx.proxy.routes.admin import _resolve_audit_actor
+
+                await proxy.audit_logger.async_log(
+                    AuditEvent(
+                        action="stats.reset",
+                        actor=_resolve_audit_actor(request),
+                        detail={},
+                        ip_address=getattr(request.client, "host", None),
+                    )
+                )
+            except Exception as exc:
+                logger.warning("Failed to audit stats reset: %s", exc)
+        return {"ok": True, "status": "reset"}
 
     @app.get("/livez")
     async def livez():

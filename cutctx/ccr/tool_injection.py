@@ -18,8 +18,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-# Tool name constant - used for matching tool calls
-CCR_TOOL_NAME = "cutctx_retrieve"
+from .markers import CCR_TOOL_NAME, MARKER_PATTERNS, extract_marker_hashes
 
 
 def create_ccr_tool_definition(
@@ -201,25 +200,7 @@ class CCRToolInjector:
     # - SearchCompressor: [50 matches compressed to 5. Retrieve more: hash=abc123]
     # - CCR opaque: <<ccr:abc123def4567890,base64,4.5KB>> (live-zone + walker)
     # - Generic: any [... compressed ... hash=xxx] pattern
-    _marker_patterns: list[re.Pattern] = field(
-        default_factory=lambda: [
-            # All patterns require exactly 16 hex characters for hash validation
-            # CCR uses BLAKE3 truncated to 16 hex chars for collision resistance
-            # Requiring exact length prevents hash spoofing attacks with shorter hashes
-            #
-            # Standard format: [N <type> compressed to M. Retrieve more: hash=xxx]
-            # Matches items, lines, matches, or any other type
-            re.compile(r"\[(\d+) \w+ compressed to (\d+)\. Retrieve more: hash=([a-f0-9]{16})\]"),
-            # Legacy format without "to M" or "Retrieve more:" (old TextCompressor)
-            re.compile(r"\[(\d+) \w+ compressed\. hash=([a-f0-9]{16})\]"),
-            # CCR opaque-blob markers: <<ccr:HASH,KIND,SIZE>>
-            # Emitted by walker.rs emit_opaque_ccr_marker() for base64/image/audio/episodic_memory blobs.
-            # Also matches the simpler live-zone format: <<ccr:HASH>>
-            re.compile(r"<<ccr:([a-f0-9]{16})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>"),
-            # Generic fallback: any compression marker with hash (exactly 16 chars)
-            re.compile(r"\[.*?compressed.*?hash=([a-f0-9]{16})\]", re.IGNORECASE),
-        ]
-    )
+    _marker_patterns: list[re.Pattern] = field(default_factory=lambda: list(MARKER_PATTERNS))
 
     def __post_init__(self) -> None:
         # Reset detected hashes
@@ -293,16 +274,12 @@ class CCRToolInjector:
 
     def _scan_text(self, text: str) -> None:
         """Scan text for compression markers from any compressor."""
-        for pattern in self._marker_patterns:
-            matches = pattern.findall(text)
-            for match in matches:
-                # Extract hash_key from match (last group is always the hash)
-                if isinstance(match, tuple):
-                    hash_key = match[-1]  # Last capture group is the hash
-                else:
-                    hash_key = match  # Single capture group (generic pattern)
-                if hash_key and hash_key not in self._detected_hashes:
-                    self._detected_hashes.append(hash_key)
+        for hash_key in extract_marker_hashes(
+            text,
+            patterns=tuple(self._marker_patterns),
+        ):
+            if hash_key not in self._detected_hashes:
+                self._detected_hashes.append(hash_key)
 
     def inject_tool_definition(
         self,

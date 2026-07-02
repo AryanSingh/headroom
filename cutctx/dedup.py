@@ -26,6 +26,8 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from .ccr.markers import DEDUP_REF_MARKER, format_dedup_ref
+
 if TYPE_CHECKING:
     from .cache.compression_store import CompressionStore
 
@@ -35,7 +37,7 @@ logger = logging.getLogger(__name__)
 MIN_DEDUP_TOKENS = 200
 
 # Pointer marker format for deduplicated content
-DEDUP_MARKER = "[cutctx:ref:{hash}]"
+DEDUP_MARKER = DEDUP_REF_MARKER
 
 
 @dataclass
@@ -215,7 +217,7 @@ class SessionDeduplicator:
 
         if hash_key in self._hash_index:
             # We've seen this before — replace with pointer
-            pointer = DEDUP_MARKER.format(hash=hash_key)
+            pointer = format_dedup_ref(hash_key)
             msg_copy = dict(msg)
             msg_copy["content"] = pointer
             result.dedup_count += 1
