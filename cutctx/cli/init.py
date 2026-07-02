@@ -361,9 +361,16 @@ def _ensure_codex_provider(path: Path, port: int) -> None:
 
 
 def _ensure_codex_feature_flag(path: Path) -> None:
+    import re
+
     content = path.read_text(encoding="utf-8") if path.exists() else ""
+    content = re.sub(
+        r'(?m)^([ \t]*)codex_hooks[ \t]*=[ \t]*(true|false)[ \t]*\r?$',
+        r"\1hooks = true",
+        content,
+    )
     if _CODEX_FEATURE_MARKER_START in content and _CODEX_FEATURE_MARKER_END in content:
-        block = f"{_CODEX_FEATURE_MARKER_START}\ncodex_hooks = true\n{_CODEX_FEATURE_MARKER_END}"
+        block = f"{_CODEX_FEATURE_MARKER_START}\nhooks = true\n{_CODEX_FEATURE_MARKER_END}"
         content = _replace_marker_block(
             content,
             _CODEX_FEATURE_MARKER_START,
@@ -380,14 +387,14 @@ def _ensure_codex_feature_flag(path: Path) -> None:
             while section_end < len(lines) and not (
                 lines[section_end].startswith("[") and lines[section_end].endswith("]")
             ):
-                if "codex_hooks" in lines[section_end]:
+                if re.match(r"^[ \t]*hooks[ \t]*=", lines[section_end]):
                     inserted = True
                     break
                 section_end += 1
             if not inserted:
                 lines[index + 1 : index + 1] = [
                     _CODEX_FEATURE_MARKER_START,
-                    "codex_hooks = true",
+                    "hooks = true",
                     _CODEX_FEATURE_MARKER_END,
                 ]
                 inserted = True
@@ -399,7 +406,7 @@ def _ensure_codex_feature_flag(path: Path) -> None:
                 + "\n\n[features]\n"
                 + _CODEX_FEATURE_MARKER_START
                 + "\n"
-                + "codex_hooks = true\n"
+                + "hooks = true\n"
                 + _CODEX_FEATURE_MARKER_END
                 + "\n"
             )
@@ -409,7 +416,7 @@ def _ensure_codex_feature_flag(path: Path) -> None:
             + "\n\n[features]\n"
             + _CODEX_FEATURE_MARKER_START
             + "\n"
-            + "codex_hooks = true\n"
+            + "hooks = true\n"
             + _CODEX_FEATURE_MARKER_END
             + "\n"
         ).lstrip()

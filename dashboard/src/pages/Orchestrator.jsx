@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownCircle, CheckCircle2, Network } from "lucide-react";
+import { ArrowDownCircle, CheckCircle2, Network, X } from "lucide-react";
 import { formatCurrency, formatInteger } from "../lib/format";
 import {
   patchDashboardConfig,
@@ -107,7 +107,15 @@ export default function Orchestrator() {
     <div className="page-stack">
       {toggleError ? (
         <div className="alert-card" role="alert">
-          Failed update orchestrator setting: {toggleError}
+          <span>Failed update orchestrator setting: {toggleError}</span>
+          <button
+            className="ghost-button"
+            style={{ marginLeft: "auto" }}
+            onClick={() => setToggleError(null)}
+            type="button"
+          >
+            <X size={14} /> Dismiss
+          </button>
         </div>
       ) : null}
 

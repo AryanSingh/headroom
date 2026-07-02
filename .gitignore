@@ -226,6 +226,15 @@ extensions/jetbrains/.intellijPlatform/
 docs/_build/
 site/
 
+# Local dashboard and audit artifacts
+audit/screenshots/
+audit/screenshot-report.json
+audit/phase3-ui-test-results.json
+dashboard/console-log.txt
+dashboard/screenshot-report.json
+dashboard/screenshots/
+plugins/cutctx-opencode/node_modules/
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -278,4 +287,3 @@ uv.lock
 /scratch/
 fix_summary.md
 patch_*.py
-

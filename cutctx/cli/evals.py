@@ -781,6 +781,12 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
     help="Also save markdown table",
 )
 @click.option("--seed", type=int, default=42)
+@click.option(
+    "--publish",
+    is_flag=True,
+    default=False,
+    help="Append this run's results to docs/benchmarks.md (idempotent per day).",
+)
 def benchmark(
     dataset: tuple[str, ...],
     longbench_task: str,
@@ -791,6 +797,7 @@ def benchmark(
     output: str | None,
     markdown: bool,
     seed: int,
+    publish: bool,
 ) -> None:
     """Run a reproducible compressor benchmark on standard datasets.
 
@@ -815,7 +822,11 @@ def benchmark(
         output=output,
         markdown=markdown,
         seed=seed,
+        publish=publish,
     )
+
+
+main.add_command(benchmark, name="benchmark")
 
 
 # -----------------------------------------------------------------------------
@@ -834,6 +845,7 @@ def _run_benchmark(
     output: str | None,
     markdown: bool,
     seed: int,
+    publish: bool,
 ) -> None:
     """Core benchmark logic."""
     import warnings
@@ -963,6 +975,16 @@ Configuration:
             Path(md_path).write_text(md_content, encoding="utf-8")
             click.echo(f"Markdown saved to: {md_path}")
 
+    # Publish: append a dated section to docs/benchmarks.md
+    if publish:
+        publish_content = md_content if markdown else _build_markdown_report(final, metrics)
+        _publish_benchmark_results(
+            publish_content,
+            seed=seed,
+            datasets=all_datasets,
+            compressors=selected_compressors,
+        )
+
 
 def _print_benchmark_summary(result: BenchmarkSuiteResult) -> None:
     """Print a human-readable summary of benchmark results."""
@@ -1024,4 +1046,38 @@ def _build_markdown_report(
     )
     return "\n".join(lines)
 
+
+def _publish_benchmark_results(
+    md_content: str,
+    *,
+    seed: int,
+    datasets: list[str],
+    compressors: list[str],
+) -> None:
+    """Append a dated cutctx evals benchmark run to docs/benchmarks.md.
+
+    Idempotent per calendar day: re-running --publish the same day
+    replaces that day's section instead of duplicating it.
+    """
+    from datetime import date
+
+    docs_path = Path(__file__).resolve().parents[2] / "docs" / "benchmarks.md"
+    docs_path.parent.mkdir(parents=True, exist_ok=True)
+    today = date.today().isoformat()
+    heading = f"## `cutctx evals benchmark` — {today}"
+    section = (
+        f"{heading}\n\n"
+        f"Datasets: {', '.join(datasets)} · Compressors: {', '.join(compressors)} · Seed: {seed}\n\n"
+        f"{md_content}\n"
+    )
+    existing = docs_path.read_text(encoding="utf-8") if docs_path.exists() else "# Cutctx Benchmarks\n"
+    if heading in existing:
+        before, _, after = existing.partition(heading)
+        next_idx = after.find("\n## `cutctx evals benchmark` — ")
+        rest = after[next_idx:] if next_idx != -1 else ""
+        existing = before + section + rest
+    else:
+        existing = existing.rstrip("\n") + "\n\n" + section
+    docs_path.write_text(existing, encoding="utf-8")
+    click.echo(f"Published results to: {docs_path}")
 

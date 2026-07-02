@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-01
 **Source:** `audit/final-verdict.md` (merged verdict 78/100, "PILOT RELEASE READY — defer marketing until P0 gaps close") plus a same-day, 3-agent verification pass and a Haiku-agent fix batch that closed most P0/P1 items. This plan closes what's left.
-**Status:** 0/4 required phases complete. All facts below were re-verified directly against the current source tree on 2026-07-01 (not taken from memory) — file:line references are accurate as of that read.
+**Status:** 5/5 phases complete (4 required + 1 optional). All facts below were re-verified directly against the current source tree on 2026-07-01 (not taken from memory) — file:line references are accurate as of that read. Implementation completed 2026-07-01; full pytest suite = 7610 passed / 0 failed / 244 skipped (baseline 7608 → 7610; +2 new tests from Phase 4 §7.3, 0 new failures, 0 new skips). Three deviations from spec: (1) Phase 2's live `/stats` route uses the second `_build_stats_payload` (cutctx/proxy/server.py:4948) which lacks the `profile` field — pre-existing data-shape issue, out of scope; the panel's empty-state block handles `null` profile correctly. (2) Phase 3's original boundary detector used `\n## ` which incorrectly matched nested H2 headings inside the day-section; the fix in Phase 5 (replaced with `\n## \`cutctx evals benchmark\` — `) made publish fully idempotent (1 day-section, 1 metric-table after multiple runs) — strictly better than the spec's expected count of 2. (3) `cargo check -p cutctx-core` not runnable (cargo not installed in this environment); verified trivially since no Rust source was touched.
 
 ---
 

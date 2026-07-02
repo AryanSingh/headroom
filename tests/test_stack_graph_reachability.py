@@ -160,6 +160,37 @@ class TestResolveEntryPoints:
         # If no files to search, the symbol contributes nothing to the report
         assert report == {}
 
+    def test_repeated_lookup_uses_cache(self) -> None:
+        """A second call with the same resolver/generation/symbol hits the cache."""
+        mock = MagicMock()
+        mock._inner = MagicMock()
+        mock.indexed_paths = {"/src/app.py"}
+        mock.generation = 1
+        mock._inner.reachable_definitions.return_value = [
+            {"target_file": "/src/app.py", "symbol_name": "validate_input"},
+        ]
+
+        resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
+        resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
+
+        assert mock._inner.reachable_definitions.call_count == 1
+
+    def test_reindex_invalidates_cache(self) -> None:
+        """Bumping generation (simulating a re-index) forces a fresh lookup."""
+        mock = MagicMock()
+        mock._inner = MagicMock()
+        mock.indexed_paths = {"/src/app.py"}
+        mock.generation = 1
+        mock._inner.reachable_definitions.return_value = [
+            {"target_file": "/src/app.py", "symbol_name": "validate_input"},
+        ]
+
+        resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
+        mock.generation = 2
+        resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
+
+        assert mock._inner.reachable_definitions.call_count == 2
+
 
 # =========================================================================
 # CodeCompressor protected_symbols integration

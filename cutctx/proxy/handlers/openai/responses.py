@@ -2273,7 +2273,7 @@ class OpenAIResponsesMixin:
                             else client_subprotocols or None
                         ),
                         ssl=use_ssl,
-                        open_timeout=8 if is_chatgpt_auth else max(30, self.config.connect_timeout_seconds * 3),
+                        open_timeout=max(30, self.config.connect_timeout_seconds * 3),
                         close_timeout=10,
                         ping_interval=20,
                         ping_timeout=20,

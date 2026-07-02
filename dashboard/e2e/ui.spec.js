@@ -27,7 +27,7 @@ test.describe('Navigation and Layout', () => {
 
     await nav.getByRole('link', { name: 'Governance', exact: true }).click();
     await expect(currentTitle).toHaveText('Governance');
-    await expect(page.getByText('Governance surfaces')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Enable optional features' })).toBeVisible();
 
     await nav.getByRole('link', { name: 'Security', exact: true }).click();
     await expect(currentTitle).toHaveText('Security');

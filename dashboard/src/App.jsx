@@ -308,14 +308,14 @@ function AppFrame() {
         <main className="page-shell">
           <ErrorBoundary>
             <Routes>
-              <Route path="/" element={<Overview searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/capabilities" element={<Capabilities searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/" element={<Overview />} />
+              <Route path="/orchestrator" element={<Orchestrator />} />
+              <Route path="/capabilities" element={<Capabilities />} />
               <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
               <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
               <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/playground" element={<Playground searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/docs" element={<Docs searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/playground" element={<Playground />} />
+              <Route path="/docs" element={<Docs />} />
             </Routes>
           </ErrorBoundary>
         </main>

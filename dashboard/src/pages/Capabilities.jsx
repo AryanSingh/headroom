@@ -8,6 +8,7 @@ import {
   MinusCircle,
   ServerCog,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { capabilityGroups } from '../data/capabilities';
 import { formatCurrency, formatInteger, formatPercent, titleize } from '../lib/format';
@@ -106,6 +107,7 @@ export default function Capabilities() {
   const { stats, loading, error, configFlags, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState({});
   const [optimisticState, setOptimisticState] = useState({});
+  const [toggleError, setToggleError] = useState(null);
 
   const providerCacheTokens =
     Number(stats?.cost?.savings_by_source?.tokens?.provider_prompt_cache || 0)
@@ -131,12 +133,14 @@ export default function Capabilities() {
   const handleToggle = async (key, currentValue) => {
     setUpdating((prev) => ({ ...prev, [key]: true }));
     setOptimisticState((prev) => ({ ...prev, [key]: !currentValue }));
+    setToggleError(null);
 
     try {
       await patchDashboardConfig({ [key]: !currentValue });
       await refresh?.();
     } catch (err) {
       console.error('Failed to toggle config:', err);
+      setToggleError(err?.message || 'Failed to update setting');
       setOptimisticState((prev) => {
         const next = { ...prev };
         delete next[key];
@@ -234,6 +238,20 @@ export default function Capabilities() {
         <div className="alert-card" role="status">
           Runtime config API unavailable: {configFlagsError}. Idle states below may reflect missing backend
           telemetry rather than disabled features.
+        </div>
+      ) : null}
+
+      {toggleError ? (
+        <div className="alert-card" role="alert">
+          <span>Failed to update setting: {toggleError}</span>
+          <button
+            className="ghost-button"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setToggleError(null)}
+            type="button"
+          >
+            <X size={14} /> Dismiss
+          </button>
         </div>
       ) : null}
 

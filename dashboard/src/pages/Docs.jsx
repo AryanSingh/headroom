@@ -76,7 +76,7 @@ export default function Docs() {
   const [active, setActive] = useState('quickstart');
 
   return (
-    <section className="page-stack" style={{ flexDirection: 'row', gap: '1.5rem', alignItems: 'flex-start' }}>
+    <section className="page-stack docs-shell" style={{ gridTemplateColumns: '180px minmax(0, 1fr)', alignItems: 'flex-start' }}>
 
       {/* Sticky sidebar TOC */}
       <aside style={{ width: 180, flexShrink: 0, position: 'sticky', top: '1rem' }}>

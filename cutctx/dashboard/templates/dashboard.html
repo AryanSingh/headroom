@@ -374,6 +374,58 @@
             </div>
         </template>
 
+        <!-- Feedback Loop / Compression Profile -->
+        <template x-if="stats.profile">
+            <div class="bg-surface rounded-lg p-4 border border-border mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="text-sm font-medium text-gray-300">Feedback Loop (Compression Profile)</div>
+                    <div class="text-xs text-gray-500" x-text="'workspace ' + (stats.profile.workspace_hash || '').slice(0, 8)"></div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div>
+                        <div class="text-xl font-light tabular-nums text-accent" x-text="formatNumber(stats.profile.total_compressions || 0)"></div>
+                        <div class="text-xs text-gray-500">Compressions</div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-light tabular-nums text-emerald-400" x-text="formatNumber(stats.profile.total_retrievals || 0)"></div>
+                        <div class="text-xs text-gray-500">CCR Retrievals</div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-light tabular-nums" x-text="((stats.profile.overall_retrieval_rate || 0) * 100).toFixed(1) + '%'"></div>
+                        <div class="text-xs text-gray-500">Retrieval Rate</div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-light tabular-nums" x-text="formatNumber(stats.content_router_overrides_count || 0)"></div>
+                        <div class="text-xs text-gray-500">Router Overrides Active</div>
+                    </div>
+                </div>
+                <template x-if="stats.profile.stats_by_type && Object.keys(stats.profile.stats_by_type).length > 0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <template x-for="(typeStat, typeName) in stats.profile.stats_by_type" :key="typeName">
+                            <div class="border border-border rounded p-3">
+                                <div class="text-sm font-medium text-gray-300 capitalize" x-text="typeName"></div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Recommended ratio: <span class="tabular-nums text-cyan-300" x-text="(typeStat.recommended_ratio || 0).toFixed(2)"></span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    Retrieval rate: <span class="tabular-nums" x-text="((typeStat.retrieval_rate || 0) * 100).toFixed(1) + '%'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <div class="mt-3 text-xs text-gray-500">
+                    Adapts per-content-type compression aggressiveness based on how often compressed content gets retrieved back via CCR. See `cutctx profile show` for the CLI view.
+                </div>
+            </div>
+        </template>
+        <template x-if="!stats.profile">
+            <div class="bg-surface rounded-lg p-4 border border-border mb-6">
+                <div class="text-sm font-medium text-gray-300 mb-1">Feedback Loop (Compression Profile)</div>
+                <div class="text-xs text-gray-500">No profile data yet for this workspace — run a few compressions through the proxy, then refresh.</div>
+            </div>
+        </template>
+
         <!-- Anthropic Subscription Window -->
         <template x-if="stats.subscription_window && stats.subscription_window.latest">
             <div class="bg-surface rounded-lg p-4 border border-border mb-6">

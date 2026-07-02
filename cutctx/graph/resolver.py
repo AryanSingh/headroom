@@ -47,6 +47,7 @@ class StackGraphResolver:
 
         self._inner = _RustStackGraphManager()
         self._indexed_paths: set[str] = set()
+        self._generation: int = 0
 
     def index_file(self, path: str | Path, source: str | None = None) -> bool:
         """Index a single file. If source is None, reads from disk."""
@@ -72,6 +73,7 @@ class StackGraphResolver:
         try:
             self._inner.add_file(path_str, source)
             self._indexed_paths.add(path_str)
+            self._generation += 1
             return True
         except ValueError as e:
             logger.warning("StackGraph: failed to index %s: %s", path, e)
@@ -105,6 +107,7 @@ class StackGraphResolver:
         try:
             self._inner.reindex_file(path_str, source)
             self._indexed_paths.add(path_str)
+            self._generation += 1
             return True
         except ValueError as e:
             logger.warning("StackGraph: failed to reindex %s: %s", path, e)
@@ -155,6 +158,15 @@ class StackGraphResolver:
     @property
     def indexed_paths(self) -> set[str]:
         return self._indexed_paths.copy()
+
+    @property
+    def generation(self) -> int:
+        """Monotonic counter bumped on every successful index/reindex.
+
+        Used by cutctx.graph.reachability to invalidate its per-symbol
+        BFS cache when the underlying index changes.
+        """
+        return self._generation
 
     def clear(self) -> None:
         self._inner.clear()

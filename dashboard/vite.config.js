@@ -15,12 +15,19 @@ const CUTCTX_PROXY_PREFIXES = [
   '/config',
   '/audit',
   '/rbac',
-  '/firewall',
+  '/firewall/scan',
+  '/firewall/status',
 ];
+// SPA routes that look like they might match a proxy prefix but are not API endpoints.
+const SPA_ROUTE_PREFIXES = ['/firewall', '/governance', '/orchestrator', '/capabilities', '/memory', '/playground', '/docs', '/'];
 const DEV_ADMIN_KEY = process.env.CUTCTX_ADMIN_API_KEY || 'headroom-local-admin';
 
 function shouldProxy(url = '') {
-  return CUTCTX_PROXY_PREFIXES.some((prefix) => url.startsWith(prefix));
+  const pathname = url.split('?')[0].split('#')[0];
+  if (SPA_ROUTE_PREFIXES.includes(pathname)) {
+    return false;
+  }
+  return CUTCTX_PROXY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 async function readRequestBody(req) {

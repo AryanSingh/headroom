@@ -12,7 +12,9 @@
   "/rbac/roles": {
     "status_code": 200,
     "json": {
-      "assignments": {}
+      "assignments": {
+        "qa-user": "viewer"
+      }
     }
   },
   "/retention/stats": {
@@ -43,16 +45,52 @@
   "/audit/stats": {
     "status_code": 200,
     "json": {
-      "total_events": 3625,
+      "total_events": 19792,
       "by_action": {
-        "system.start": 731,
-        "system.stop": 730,
-        "entitlement.denied": 539
+        "auth.login": 1928,
+        "entitlement.denied": 38,
+        "auth.failed": 24,
+        "system.start": 7,
+        "system.stop": 3
       },
       "recent_events": [
         {
-          "event_id": "7037c42f242f420a",
-          "timestamp": "2026-06-28T17:18:11.099211+00:00",
+          "event_id": "9ca5b237cd1b4a2f",
+          "timestamp": "2026-06-30T11:33:55.847559+00:00",
+          "action": "auth.login",
+          "actor": "test-route-modul",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "testclient",
+          "user_agent": "testclient",
+          "detail": {
+            "method": "api_key",
+            "path": "/v1/secrets/"
+          },
+          "created_at": 1782819235.8478642
+        },
+        {
+          "event_id": "8964b9bc412a4a1a",
+          "timestamp": "2026-06-30T11:33:55.674413+00:00",
+          "action": "auth.login",
+          "actor": "test-route-modul",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "testclient",
+          "user_agent": "testclient",
+          "detail": {
+            "method": "api_key",
+            "path": "/v1/secrets/"
+          },
+          "created_at": 1782819235.674747
+        },
+        {
+          "event_id": "5c27f4b33e8142fa",
+          "timestamp": "2026-06-30T10:31:26.512867+00:00",
           "action": "system.stop",
           "actor": "system",
           "org_id": null,
@@ -64,165 +102,126 @@
           "detail": {
             "version": "0.29.0"
           },
-          "created_at": 1782667091.099488
+          "created_at": 1782815486.513296
         },
         {
-          "event_id": "7ebbbe0931894b92",
-          "timestamp": "2026-06-28T17:18:11.082923+00:00",
-          "action": "system.start",
-          "actor": "system",
+          "event_id": "379db41654eb4e6f",
+          "timestamp": "2026-06-30T10:31:22.946798+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
           "org_id": null,
           "workspace_id": null,
           "project_id": null,
           "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0",
-            "tier": "builder",
-            "port": 8787
-          },
-          "created_at": 1782667091.0841768
-        },
-        {
-          "event_id": "d489477ec496420f",
-          "timestamp": "2026-06-28T17:17:38.603480+00:00",
-          "action": "system.stop",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0"
-          },
-          "created_at": 1782667058.603615
-        },
-        {
-          "event_id": "203e961f1cbf45c5",
-          "timestamp": "2026-06-28T17:17:38.586842+00:00",
-          "action": "system.start",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0",
-            "tier": "builder",
-            "port": 8787
-          },
-          "created_at": 1782667058.587959
-        },
-        {
-          "event_id": "a7fe655500704369",
-          "timestamp": "2026-06-28T17:17:02.645461+00:00",
-          "action": "system.stop",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0"
-          },
-          "created_at": 1782667022.64557
-        },
-        {
-          "event_id": "5915e9957b874b96",
-          "timestamp": "2026-06-28T17:17:02.631573+00:00",
-          "action": "system.start",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0",
-            "tier": "builder",
-            "port": 8787
-          },
-          "created_at": 1782667022.6328409
-        },
-        {
-          "event_id": "3c94df1a8cea4686",
-          "timestamp": "2026-06-28T17:16:41.779118+00:00",
-          "action": "system.stop",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0"
-          },
-          "created_at": 1782667001.7792408
-        },
-        {
-          "event_id": "88833d58e6974825",
-          "timestamp": "2026-06-28T17:16:41.763481+00:00",
-          "action": "system.start",
-          "actor": "system",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": true,
-          "ip_address": null,
-          "user_agent": null,
-          "detail": {
-            "version": "0.29.0",
-            "tier": "builder",
-            "port": 8787
-          },
-          "created_at": 1782667001.764373
-        },
-        {
-          "event_id": "663c2d9db57f4767",
-          "timestamp": "2026-06-28T17:16:28.368967+00:00",
-          "action": "entitlement.denied",
-          "actor": "anonymous",
-          "org_id": null,
-          "workspace_id": null,
-          "project_id": null,
-          "success": false,
           "ip_address": "127.0.0.1",
-          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "user_agent": "",
           "detail": {
-            "feature": "retention_controls",
-            "required_tier": "ENTERPRISE",
-            "current_tier": "builder",
-            "path": "/retention/stats"
+            "method": "api_key",
+            "path": "/stats"
           },
-          "created_at": 1782666988.371152
+          "created_at": 1782815482.947175
         },
         {
-          "event_id": "1844abe1922647a9",
-          "timestamp": "2026-06-28T17:16:28.368114+00:00",
-          "action": "entitlement.denied",
-          "actor": "anonymous",
+          "event_id": "486810e551184a01",
+          "timestamp": "2026-06-30T10:31:17.944764+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
           "org_id": null,
           "workspace_id": null,
           "project_id": null,
-          "success": false,
+          "success": true,
           "ip_address": "127.0.0.1",
-          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "user_agent": "",
           "detail": {
-            "feature": "rbac",
-            "required_tier": "ENTERPRISE",
-            "current_tier": "builder",
-            "path": "/rbac/roles"
+            "method": "api_key",
+            "path": "/stats"
           },
-          "created_at": 1782666988.368432
+          "created_at": 1782815477.9451468
+        },
+        {
+          "event_id": "4b2d280ef6bc4dc6",
+          "timestamp": "2026-06-30T10:31:12.945579+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "127.0.0.1",
+          "user_agent": "",
+          "detail": {
+            "method": "api_key",
+            "path": "/stats"
+          },
+          "created_at": 1782815472.9459672
+        },
+        {
+          "event_id": "dc52e6921e754362",
+          "timestamp": "2026-06-30T10:31:07.946675+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "127.0.0.1",
+          "user_agent": "",
+          "detail": {
+            "method": "api_key",
+            "path": "/stats"
+          },
+          "created_at": 1782815467.947008
+        },
+        {
+          "event_id": "22e3aaaa17764484",
+          "timestamp": "2026-06-30T10:31:02.946640+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "127.0.0.1",
+          "user_agent": "",
+          "detail": {
+            "method": "api_key",
+            "path": "/stats"
+          },
+          "created_at": 1782815462.94709
+        },
+        {
+          "event_id": "99eb166c707d4134",
+          "timestamp": "2026-06-30T10:30:57.947700+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "127.0.0.1",
+          "user_agent": "",
+          "detail": {
+            "method": "api_key",
+            "path": "/stats"
+          },
+          "created_at": 1782815457.948149
+        },
+        {
+          "event_id": "964ef92dd6b24d53",
+          "timestamp": "2026-06-30T10:30:52.946777+00:00",
+          "action": "auth.login",
+          "actor": "headroom-local-a",
+          "org_id": null,
+          "workspace_id": null,
+          "project_id": null,
+          "success": true,
+          "ip_address": "127.0.0.1",
+          "user_agent": "",
+          "detail": {
+            "method": "api_key",
+            "path": "/stats"
+          },
+          "created_at": 1782815452.947071
         }
       ]
     }

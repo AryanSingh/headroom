@@ -2490,6 +2490,40 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
         )
 
+    # Generic HTTPException handler — converts FastAPI's default
+    # `{"detail": "..."}` shape into OpenAI's `{"error": {...}}` shape
+    # so clients (Codex, codex CLI, OpenAI SDKs) see a consistent error
+    # envelope. Without this, `RequestValidationError` and other 4xx that
+    # surface as `{"detail": "Bad Request"}` would be shown to the user
+    # verbatim, masking the real cause.
+    from fastapi import HTTPException as _HTTPException  # local alias
+
+    @app.exception_handler(_HTTPException)
+    async def _http_exception_handler(request: Request, exc: _HTTPException) -> JSONResponse:
+        # Detail may be a string, dict, or list. Preserve structure.
+        detail = exc.detail
+        if isinstance(detail, dict):
+            message = detail.get("message") or detail.get("error") or str(detail)
+        elif isinstance(detail, list):
+            message = "; ".join(str(d) for d in detail)
+        else:
+            message = str(detail)
+        logger.warning(
+            f"HTTPException path={request.url.path} method={request.method} "
+            f"status={exc.status_code} detail={detail!r}"
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error" if exc.status_code < 500 else "server_error",
+                    "message": message,
+                    "code": f"http_{exc.status_code}",
+                },
+            },
+        )
+
     # Request ID propagation — every request gets a unique ID that
     # follows through the entire middleware stack, logging, and response.
     # Clients can send X-Request-ID; we generate one if absent.

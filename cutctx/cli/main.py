@@ -15,6 +15,7 @@ sys.modules.setdefault("cutctx.cli.main", sys.modules[__name__])
 
 _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "agent-savings": "agent_savings",
+    "benchmark": "evals",
     "billing": "billing",
     "capabilities": "capabilities",
     "capture": "capture",

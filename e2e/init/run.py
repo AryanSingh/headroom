@@ -166,8 +166,8 @@ def _verify_codex_local(ctx: CaseContext) -> None:
         raise AssertionError("Codex local init missing 'supports_websockets = true'")
     if config.count("[features]") != 1:
         raise AssertionError("Codex config should keep a single [features] table")
-    if "codex_hooks = true" not in config:
-        raise AssertionError("Codex config should enable codex_hooks")
+    if "hooks = true" not in config:
+        raise AssertionError("Codex config should enable hooks")
     command = hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"]
     _expect_hook_command(command, profile)
 
@@ -206,8 +206,8 @@ def _verify_codex_global(ctx: CaseContext) -> None:
         )
     if "supports_websockets = true" not in config:
         raise AssertionError("Codex global init missing 'supports_websockets = true'")
-    if "codex_hooks = true" not in config:
-        raise AssertionError("Codex user config should enable codex_hooks")
+    if "hooks = true" not in config:
+        raise AssertionError("Codex user config should enable hooks")
     hooks = json.loads((ctx.home / ".codex" / "hooks.json").read_text(encoding="utf-8"))
     _expect_hook_command(
         hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"],

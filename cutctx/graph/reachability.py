@@ -8,10 +8,32 @@ from __future__ import annotations
 
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+_REACHABILITY_CACHE_SIZE = 512
+
+
+@lru_cache(maxsize=_REACHABILITY_CACHE_SIZE)
+def _cached_reachable_for_symbol(
+    resolver: Any,
+    generation: int,
+    symbol: str,
+    max_depth: int,
+) -> tuple[dict[str, Any], ...]:
+    reachable: list[dict[str, Any]] = []
+    for file_path in getattr(resolver, "indexed_paths", set()):
+        try:
+            result = resolver._inner.reachable_definitions(str(file_path), symbol, max_depth)
+            if result:
+                reachable.extend(result)
+        except Exception:
+            continue
+    return tuple(reachable)
 
 
 # ---------------------------------------------------------------------------
@@ -102,30 +124,20 @@ def resolve_entry_points(
     protected: set[str] = set()
     report: dict[str, list[dict[str, Any]]] = {}
 
+    generation = getattr(resolver, "generation", 0)
     for symbol in symbols:
-        reachable: list[dict[str, Any]] = []
-
-        # Try resolution for each indexed file
         indexed_paths: set[str] = getattr(resolver, "indexed_paths", set())
         if not indexed_paths:
             # Fall back: try the query as a short path fragment
             continue
 
-        for file_path in indexed_paths:
-            try:
-                result = resolver._inner.reachable_definitions(
-                    str(file_path), symbol, max_depth
-                )
-                if result:
-                    reachable.extend(result)
-                    protected.add(symbol)
-                    for ref in result:
-                        name = ref.get("symbol_name", "")
-                        if name:
-                            protected.add(name)
-            except Exception:
-                continue
-
+        reachable = list(_cached_reachable_for_symbol(resolver, generation, symbol, max_depth))
+        if reachable:
+            protected.add(symbol)
+            for ref in reachable:
+                name = ref.get("symbol_name", "")
+                if name:
+                    protected.add(name)
         report[symbol] = reachable
 
     return protected, report

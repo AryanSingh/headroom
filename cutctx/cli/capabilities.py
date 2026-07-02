@@ -114,6 +114,35 @@ _FEATURES: list[dict[str, object]] = [
         "also_requires": [],
         "mode": "pass-through",
     },
+    {
+        "name": "feedback_loop",
+        "label": "Feedback Loop (CompressionProfile)",
+        "key_package": None,
+        "extra": "built-in",
+        "critical": False,
+        "also_requires": [],
+        "mode": "pass-through",
+        "reason": "always on; run `cutctx profile show` to inspect the per-workspace profile",
+    },
+    {
+        "name": "stack_graph",
+        "label": "Stack Graphs (code reachability)",
+        "key_package": "cutctx._core",
+        "extra": "cutctx-ai (wheel)",
+        "critical": False,
+        "also_requires": [],
+        "mode": "optional",
+    },
+    {
+        "name": "benchmark_cli",
+        "label": "Benchmark CLI (evals benchmark)",
+        "key_package": None,
+        "extra": "evals (only for --dataset longbench/squad/hotpotqa)",
+        "critical": False,
+        "also_requires": [],
+        "mode": "pass-through",
+        "reason": "run `cutctx evals benchmark --help`; tool_outputs dataset works with no extra installs",
+    },
 ]
 
 
@@ -138,13 +167,16 @@ def _check_feature(feature: dict[str, object]) -> dict[str, object]:
             "critical": feature["critical"],
             "mode": "pass-through",
             "install_hint": None,
-            "reason": "proxied unchanged; no token compression applied",
+            "reason": feature.get("reason", "proxied unchanged; no token compression applied"),
         }
 
     main_ok = _module_available(str(key_package) if key_package else None)
     also = {pkg: _module_available(pkg) for pkg in also_requires}
     if str(feature.get("name")) == "knowledge_graph" and not main_ok:
         main_ok = _module_available("graphifyy")
+    if str(feature.get("name")) == "stack_graph":
+        from cutctx.graph.resolver import stack_graph_available
+        main_ok = stack_graph_available()
     if str(feature.get("name")) == "llmlingua":
         also["cutctx.transforms.llmlingua_compressor"] = _module_available(
             "cutctx.transforms.llmlingua_compressor"
@@ -175,7 +207,8 @@ def capabilities_cmd(emit_json: bool) -> None:
     """Check optional Python/runtime capabilities.
 
     Covers: knowledge-graph, log-ml, image, html, relevance,
-    code-ast, kompress, smart-crusher, voice-filler, and audio route status.
+    code-ast, kompress, smart-crusher, voice-filler, audio route status,
+    feedback-loop, stack-graph, and benchmark-cli.
     Exit code 1 only if a critical capability is missing.
     """
 
