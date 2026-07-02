@@ -41,12 +41,29 @@ from cutctx.savings import (
 
 class TestSavingsSource:
     def test_all_five_sources_present(self):
-        assert len(SavingsSource) == 7
-        assert SavingsSource.PROVIDER_PROMPT_CACHE.value == "provider_prompt_cache"
-        assert SavingsSource.CUTCTX_COMPRESSION.value == "cutctx_compression"
-        assert SavingsSource.SEMANTIC_CACHE.value == "semantic_cache"
-        assert SavingsSource.PREFIX_CACHE_SELF_HOSTED.value == "prefix_cache_self_hosted"
-        assert SavingsSource.MODEL_ROUTING.value == "model_routing"
+        # Additive contract (per artifacts/savings-moat-expansion-specs.md
+        # §WS16 step 3): the 5-source model grew to 7 (WS2 Phase 1) and
+        # now to 8 (WS16 NORMALIZATION). Future WS10/WS11/WS13 sources
+        # will add more. This test asserts the baseline 7 + the new
+        # NORMALIZATION source is present, but no longer hard-codes the
+        # total count (the model is additive, not fixed).
+        _baseline_seven = {
+            SavingsSource.PROVIDER_PROMPT_CACHE,
+            SavingsSource.CUTCTX_COMPRESSION,
+            SavingsSource.SEMANTIC_CACHE,
+            SavingsSource.PREFIX_CACHE_SELF_HOSTED,
+            SavingsSource.MODEL_ROUTING,
+            SavingsSource.TOOL_SCHEMA_COMPACTION,
+            SavingsSource.API_SURFACE_SLIMMING,
+        }
+        assert _baseline_seven.issubset(set(SavingsSource)), (
+            f"baseline sources missing: {_baseline_seven - set(SavingsSource)}"
+        )
+        # The WS16 NORMALIZATION source is the new addition this PR
+        assert hasattr(SavingsSource, "NORMALIZATION")
+        assert SavingsSource.NORMALIZATION.value == "normalization"
+        # The total count must be at least the baseline + 1
+        assert len(SavingsSource) >= 8
 
     def test_from_str_known(self):
         assert SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE

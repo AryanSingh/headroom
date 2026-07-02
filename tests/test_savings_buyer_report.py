@@ -242,8 +242,16 @@ def test_savings_by_source_empty_state_emits_valid_json():
         )
     if result.exit_code == 0:
         payload = json.loads(result.output)
-        # All five sources must be present with zero values.
-        assert set(payload["savings_by_source"].keys()) == {
+        # Additive contract (per artifacts/savings-moat-expansion-specs.md
+        # §WS16 step 3): the 5-source model has grown to N. Existing
+        # sources must remain; new sources are added without dropping
+        # older ones. The dashboard aggregator and report consumers
+        # must tolerate unknown sources. This test was originally
+        # a hard equality against the 5/7-source snapshot; we now
+        # assert subset + the explicit "normalization" addition
+        # rather than an exact set, so the next additive source
+        # (WS10/WS11/WS13/etc.) doesn't break this test.
+        _expected_baseline = {
             "provider_prompt_cache",
             "cutctx_compression",
             "semantic_cache",
@@ -252,6 +260,13 @@ def test_savings_by_source_empty_state_emits_valid_json():
             "tool_schema_compaction",
             "api_surface_slimming",
         }
+        assert _expected_baseline.issubset(set(payload["savings_by_source"].keys())), (
+            f"baseline sources missing: {_expected_baseline - set(payload['savings_by_source'].keys())}"
+        )
+        # New source from WS16 must be present
+        assert "normalization" in payload["savings_by_source"], (
+            "WS16 NORMALIZATION source must be present in the JSON output"
+        )
         assert payload["sessions_count"] == 0
         assert payload["total_tokens_saved"] == 0
 

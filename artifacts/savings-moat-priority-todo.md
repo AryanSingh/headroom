@@ -51,7 +51,12 @@ Current implementation target:
 - [x] Update `cutctx/dedup.py`, `cutctx/ccr/tool_injection.py`, and `cutctx/ccr/response_handler.py` imports with no behavior change
 - [x] Add focused tests for marker extraction/round-trip behavior
 - [x] Re-run CCR/dedup-focused tests
+- [x] `WS16` Tokenizer-aware normalization
+  - [x] `W16.1` `cutctx/transforms/normalize.py` with 4 passes (NFC, whitespace, blob, decimal)
+  - [x] `W16.2` ContentRouter pre-pass wiring, flag-gated by `CUTCTX_NORMALIZE=1`
+  - [x] `W16.3` `SavingsSource.NORMALIZATION` registration + dashboard aggregation
 
 Status:
 - `2026-07-02`: `WS21.1` shared marker contract path implemented.
 - Focused verification passed: `tests/test_ccr_markers.py`, `tests/test_ccr_tool_injection.py`, `tests/test_ccr_tool_always_on.py`, and `tests/test_ccr_response_handler_extra.py` (`56 passed`).
+- `2026-07-02`: `WS16` complete on branch `feat/ws16-normalize`. New files: `cutctx/transforms/normalize.py`, `tests/test_transforms_normalize.py` (29 tests), `tests/test_transforms_normalize_wiring.py` (9 tests), `tests/test_savings_types_normalization.py` (9 tests). Modified: `cutctx/transforms/content_router.py` (pre-pass injection), `cutctx/savings/types.py` (NORMALIZATION enum), `dashboard/src/pages/Overview.jsx` (per-source mapping), `dashboard/src/lib/use-dashboard-data.js` (caching). 2 pre-existing tests updated to be additive (`test_savings_buyer_report.py`, `test_savings_orchestration.py`). Broader regression: 552/552 tests pass on `tests/test_transforms* tests/test_savings*`. Per the strategy-implementation-notes.md: blob-to-CCR-pointer swap is read-only (deferred); live /stats doesn't yet emit normalization line items (deferred).
