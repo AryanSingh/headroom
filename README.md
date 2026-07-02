@@ -8,7 +8,7 @@
                   The context compression layer for AI agents
 </pre></div>
 
-<p align="center"><strong>60–95% fewer tokens · library · proxy · MCP · 12 algorithms · local-first · reversible · intelligence layer</strong></p>
+<p align="center"><strong>Context control plane for AI agents · govern · attribute · remember · compress · local-first · reversible</strong></p>
 
 <p align="center">
   <a href="https://github.com/cutctx/cutctx/actions/workflows/ci.yml"><img src="https://github.com/cutctx/cutctx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -314,7 +314,7 @@ Provider and tool-specific behavior lives under `cutctx/providers/` so core orch
 ```bash
 pip install "cutctx-ai[all]"          # Python, broad bundle (not every heavy/proprietary extra)
 npm install cutctx-ai                 # TypeScript / Node
-docker pull ghcr.io/aryansingh/cutctx:latest
+docker pull ghcr.io/cutctx/cutctx:latest
 ```
 
 Granular extras: `[proxy]`, `[mcp]`, `[ml]` (Kompress-base), `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.

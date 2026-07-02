@@ -9,10 +9,25 @@
 
 - Admin/runtime source boot restored after `cutctx/proxy/routes/admin.py` was returned to a clean `HEAD` state.
 - Dashboard operator data path re-verified with current-source endpoints for `/health`, `/config/flags`, `/policy/status`, `/stats`, and `/stats-history`.
+- Dashboard stats semantics tightened so operator fetches bypass browser cache, trend panels expose proxy-backed history freshness, and headline cards prefer the strongest truthful source across live session, rolling session, and lifetime history.
+- Recent request documentation now explicitly treats the dashboard model column as the routed model observed by Cutctx, which can differ from the originally requested alias during upstream migrations or routing.
 - Inline multimodal audio optimization is now implemented and covered by targeted tests; dedicated `/v1/audio/*` routes remain pass-through by design.
+- Team-memory proxy routing now distinguishes `memory.read` from `memory.write` at the route level without breaking legacy zero-argument RBAC dependency callables, and the EE stub path remains auth-gated in OSS mode.
+- The audit's claimed P0 test cluster is stale in the live worktree: `tests/test_proxy_ccr.py`, `tests/test_transforms/test_content_router.py`, and `tests/test_capability_extensions.py` all pass as-is on 2026-07-02.
+- Verified again on 2026-07-02 that the dashboard release surfaces build and pass their targeted e2e suite, including `tests/test_dashboard_surfaces_playwright.py`, `tests/test_dashboard_capabilities_toggles_e2e.py`, and `tests/test_dashboard_governance_e2e.py`.
+- Release metadata and packaging defaults were re-aligned on 2026-07-02: the dashboard sidebar now reflects the live proxy or repo package version, `SECURITY.md` advertises the current supported release line, the README and Kubernetes upgrade docs no longer point at the old GitHub namespace or pre-0.29 image tags, and Helm/Kubernetes defaults now match the `0.29.0` package line.
+- `scripts/compile_ee.py` no longer defaults proprietary wheel builds to `0.1.0`; it now reads the canonical repo version from `pyproject.toml`, and that helper re-compiles cleanly after the change.
+- The 2026-07-02 go/no-go audit's stale Docker-native install links were verified and fixed in `wiki/getting-started.md` and `wiki/quickstart.md`. The audit-chain "HMAC SHA-256" mismatch was also verified as real in Python source, but this checkout still contains compiled `cutctx_ee/audit/store*.so` modules that shadow the source path at runtime, so a safe behavioral fix needs a rebuild-aware EE change rather than source-only text edits.
+- The fresh `production-readiness-2026-07-02-v2.md` report overstated two items that were re-verified in the current worktree: `scripts/verify-versions.py` now passes after aligning all tracked plugin/SDK manifests to `0.29.0`, and the claimed `/stats` timeout did not reproduce against the live proxy snapshot here, which returned a fast `401 Unauthorized` without an admin key rather than hanging.
+- Active release-facing doc drift was reduced further on 2026-07-02: remaining stale GitHub/org links in pricing, troubleshooting, integration, benchmark, community-savings, enterprise, OpenClaw, and TypeScript SDK surfaces were switched to canonical `cutctx/cutctx`; a focused grep across live docs no longer finds old `AryanSingh/chopratejas` repository references outside intentionally excluded historical plan/audit material.
 - Current verified checkpoint:
   - `cd dashboard && npm run build`
   - `uv run python -m pytest -q tests/test_audio_compressor.py tests/test_inline_audio_messages.py tests/test_proxy_compress_endpoint.py tests/test_handler_outcome_tag_invariant.py tests/test_modality_matrix.py -q`
+  - `pytest -q tests/test_dashboard_surfaces_playwright.py tests/test_dashboard_capabilities_toggles_e2e.py tests/test_dashboard_governance_e2e.py tests/test_dashboard_orchestrator.py tests/test_docs_page.py tests/test_dashboard_filter.py tests/test_proxy_dashboard_stats_cache.py tests/test_dashboard_overview_lifetime_headline.py tests/test_dashboard_savings_by_model.py`
+  - `pytest -q tests/test_memory_route_permissions.py tests/test_memory_service_routes.py tests/test_memory_runtime_routes.py tests/test_admin_surface_guards.py tests/test_proxy_dynamic_init.py`
+  - `pytest -q tests/test_proxy_ccr.py tests/test_transforms/test_content_router.py tests/test_capability_extensions.py -q`
+  - `python3 -m py_compile scripts/compile_ee.py`
+  - `ruby -e 'require "yaml"; ["k8s/deployment.yaml","helm/cutctx/Chart.yaml","helm/cutctx/values.yaml"].each { |p| YAML.load_file(p); puts "#{p}: ok" }'`
 
 USearch + Stack Graphs integration
 

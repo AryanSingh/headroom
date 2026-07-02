@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Strategy
+
+- Public-facing copy now starts the context-control-plane repositioning from `artifacts/product-strategy-moat-analysis.md`: `README.md`, `PRODUCT_GUIDE.md`, `llms.txt`, and docs landing pages now lead with govern / attribute / remember, while token savings remain proof instead of the opening headline.
+
 ### Fixed
 
+- CCR marker parsing and formatting now flow through shared `cutctx/ccr/markers.py` helpers, reducing duplicate marker logic across dedup and tool injection while keeping focused CCR regression coverage green.
+
+- Tightened the live runtime admin surface in `cutctx/proxy/server.py`: wildcard CORS no longer advertises credential support, `/stats/reset` now logs audit failures instead of swallowing them silently, and the legacy earlier app builder is no longer exported as a second public `create_app` symbol.
+- Split team-memory RBAC in `cutctx/proxy/routes/memory.py` so safe memory reads resolve `memory.read` while sync/review mutations still require `memory.write`, and preserved compatibility with existing zero-argument RBAC dependency callables via dedicated regression coverage.
+- Dashboard operator stats now bypass browser cache for live admin fetches, expose proxy-sync freshness for history panels, and preserve lifetime totals in headline cards when the current session is smaller or tied.
+- Dashboard recent-request docs and labels now clarify that the table shows the routed model observed by Cutctx, not necessarily the originally requested alias.
+- Release metadata truthfulness improved across the dashboard and packaging surfaces: the sidebar version label now follows the live proxy or repo package version, `SECURITY.md` reflects the currently supported release line, and the README/Helm/Kubernetes defaults no longer point at stale pre-0.29 image versions or the old GitHub namespace.
+- Go/no-go onboarding drift is reduced: the Docker-native install one-liners in `wiki/getting-started.md` and `wiki/quickstart.md` now point at the canonical `cutctx/cutctx` GitHub path instead of the stale `chopratejas/cutctx` repository.
+- Release-manifest and active-doc drift are tightened further: `scripts/verify-versions.py` now passes with all tracked plugin/SDK manifests aligned at `0.29.0`, remaining active Docker-native docs now point at `cutctx/cutctx`, live troubleshooting/pricing/integration/OpenClaw docs now use canonical `cutctx/cutctx` links, the packaged EE commercial-license surface now consistently names `Cutctx Labs`, and the docs OG route no longer ships the `My App` placeholder brand.
 - Restored the admin/runtime source tree to a bootable state after a corrupted `cutctx/proxy/routes/admin.py` edit, and re-verified live current-source endpoints for `/health`, `/config/flags`, `/policy/status`, `/stats`, and `/stats-history`.
 - Hardened dashboard operator data loading so unsupported or absent config surfaces no longer present as broken stats in local dashboard flows.
 - Dashboard Capabilities and Orchestrator toggles now surface a dismissible `alert-card` on config-update failure (previously only `console.error` was emitted — toggles snapped back silently). Both pages use the same `.alert-card` + `.ghost-button` pattern as `Overview.jsx` for visual consistency.

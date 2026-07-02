@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cutctx-proxy
     app.kubernetes.io/component: proxy
-    app.kubernetes.io/version: "0.26.1"
+    app.kubernetes.io/version: "0.29.0"
 spec:
   replicas: 2
   strategy:
@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: cutctx-proxy
-          image: ghcr.io/cutctx/cutctx:v0.26.1
+          image: ghcr.io/cutctx/cutctx:v0.29.0
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

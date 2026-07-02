@@ -30,9 +30,9 @@
 
 ## 1. What is Cutctx?
 
-**Cutctx is the context compression layer for AI agents.** It sits between your AI agents (Claude Code, Cursor, Codex, etc.) and LLM providers (Anthropic, OpenAI, Google, Bedrock), and compresses everything your agents read — tool outputs, logs, code search results, file reads, RAG chunks, conversation history — before it reaches the model.
+**Cutctx is the local-first context control plane for AI agents.** It sits between your AI agents (Claude Code, Cursor, Codex, etc.) and LLM providers (Anthropic, OpenAI, Google, Bedrock), governs what reaches the model, attributes spend and savings, preserves reversible access to originals, and helps teams reuse memory across sessions and tools.
 
-**One-liner:** 60–95% fewer tokens. Same answers. Zero code changes.
+**One-liner:** Govern what enters context. Attribute where tokens go. Compound what your agents learn.
 
 **Product brand:** Cutctx  
 **PyPI package:** `cutctx-ai`  
@@ -229,7 +229,7 @@ Installs three MCP tools into Claude Code: `cutctx_compress`, `cutctx_retrieve`,
 ### Docker / Kubernetes
 
 ```bash
-docker pull ghcr.io/aryansingh/cutctx:latest
+docker pull ghcr.io/cutctx/cutctx:latest
 # Kubernetes: Helm charts available, see k8s/ directory
 ```
 
