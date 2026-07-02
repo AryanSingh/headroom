@@ -1,0 +1,3135 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The Context Optimization Layer for LLM Applications — compress everything your AI agent reads.">
+      
+      
+      
+        <link rel="canonical" href="https://cutctx.dev/plans/2026-07-01-close-remaining-audit-items-plan/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Implementation Plan: Close Remaining audit/final-verdict.md Items - Cutctx</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#implementation-plan-close-remaining-auditfinal-verdictmd-items" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Cutctx" class="md-header__button md-logo" aria-label="Cutctx" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Cutctx
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Implementation Plan: Close Remaining audit/final-verdict.md Items
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cutctx/cutctx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cutctx/cutctx
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../proxy/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integration-guide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../ARCHITECTURE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How It Works
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../benchmarks/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Benchmarks
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../macos-deployment/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Deployment
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Cutctx" class="md-nav__button md-logo" aria-label="Cutctx" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12 18.54 7.37-5.74L21 14.07l-9 7-9-7 1.62-1.26zM12 16 3 9l9-7 9 7zm0-11.47L6.26 9 12 13.47 17.74 9z"/></svg>
+
+    </a>
+    Cutctx
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cutctx/cutctx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cutctx/cutctx
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docker-install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Docker-Native Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../persistent-installs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistent Installs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proxy Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compression Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ccr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CCR (Lossless Retrieval)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../image-compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../shared-context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shared Context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../learn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Failure Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vertex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vertex AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../langchain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangChain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agno/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agno
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../strands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How It Works
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How It Works
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transforms Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../text-compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../llmlingua.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLMLingua
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Benchmarks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accuracy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../LATENCY_BENCHMARKS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../LIMITATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../network-diff-capture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differential Network Capture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics & Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deployment
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../macos-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS LaunchAgent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-already-closed-do-not-re-implement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Already Closed — Do Not Re-Implement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-ground-rules-for-the-implementing-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Ground Rules for the Implementing Agent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-phase-1-required-cutctx-capabilities-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Phase 1 (Required): cutctx capabilities visibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Phase 1 (Required): cutctx capabilities visibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-generalize-the-pass-through-branch-to-accept-a-custom-reason" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Generalize the pass-through branch to accept a custom reason
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-add-a-stack_graph-special-case-for-accurate-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Add a stack_graph special case for accurate availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-append-3-new-entries-to-_features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Append 3 new entries to _FEATURES
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-update-the-command-docstring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Update the command docstring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-phase-2-required-dashboard-feedback-loop-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Phase 2 (Required): Dashboard Feedback Loop panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Phase 2 (Required): Dashboard Feedback Loop panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-exact-shape-of-statsprofile-from-cutctxprofilespy-compressionprofilesummary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Exact shape of stats.profile (from cutctx/profiles.py, CompressionProfile.summary())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-insertion-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Insertion point
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-new-panel-markup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 New panel markup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-phase-3-required-benchmark-publication-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Phase 3 (Required): Benchmark publication workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Phase 3 (Required): Benchmark publication workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-add-the-cli-option" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Add the CLI option
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-thread-through-_run_benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Thread through _run_benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-new-helper-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 New helper function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-phase-4-required-l-1-mitigation-bounded-reachability-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Phase 4 (Required): L-1 mitigation — bounded reachability cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Phase 4 (Required): L-1 mitigation — bounded reachability cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-add-a-generation-counter-to-stackgraphresolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Add a generation counter to StackGraphResolver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-add-a-bounded-cache-in-resolve_entry_points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Add a bounded cache in resolve_entry_points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-new-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 New tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-phase-5-optional-stretch-top-level-cutctx-benchmark-alias" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Phase 5 (Optional / stretch): top-level cutctx benchmark alias
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-phase-6-not-code-documented-limitation-only-opencode-google-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Phase 6 (Not code — documented limitation only): opencode + Google routing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-dependency-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Dependency Map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-risk-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Risk Assessment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-full-verification-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Full Verification Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-changelog-entries-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. CHANGELOG Entries Required
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-definition-of-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Definition of Done
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="implementation-plan-close-remaining-auditfinal-verdictmd-items">Implementation Plan: Close Remaining <code>audit/final-verdict.md</code> Items<a class="headerlink" href="#implementation-plan-close-remaining-auditfinal-verdictmd-items" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-07-01
+<strong>Source:</strong> <code>audit/final-verdict.md</code> (merged verdict 78/100, "PILOT RELEASE READY — defer marketing until P0 gaps close") plus a same-day, 3-agent verification pass and a Haiku-agent fix batch that closed most P0/P1 items. This plan closes what's left.
+<strong>Status:</strong> 5/5 phases complete (4 required + 1 optional). All facts below were re-verified directly against the current source tree on 2026-07-01 (not taken from memory) — file:line references are accurate as of that read. Implementation completed 2026-07-01; full pytest suite = 7610 passed / 0 failed / 244 skipped (baseline 7608 → 7610; +2 new tests from Phase 4 §7.3, 0 new failures, 0 new skips). Three deviations from spec: (1) Phase 2's live <code>/stats</code> route uses the second <code>_build_stats_payload</code> (cutctx/proxy/server.py:4948) which lacks the <code>profile</code> field — pre-existing data-shape issue, out of scope; the panel's empty-state block handles <code>null</code> profile correctly. (2) Phase 3's original boundary detector used <code>\n##</code> which incorrectly matched nested H2 headings inside the day-section; the fix in Phase 5 (replaced with <code>\n## \</code>cutctx evals benchmark` — <code>) made publish fully idempotent (1 day-section, 1 metric-table after multiple runs) — strictly better than the spec's expected count of 2. (3)</code>cargo check -p cutctx-core` not runnable (cargo not installed in this environment); verified trivially since no Rust source was touched.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-executive-summary">Executive Summary</a></li>
+<li><a href="#2-already-closed--do-not-re-implement">Already Closed — Do Not Re-Implement</a></li>
+<li><a href="#3-ground-rules-for-the-implementing-agent">Ground Rules for the Implementing Agent</a></li>
+<li><a href="#4-phase-1-required-cutctx-capabilities-visibility">Phase 1 (Required): <code>cutctx capabilities</code> visibility for the 3 moat features</a></li>
+<li><a href="#5-phase-2-required-dashboard-feedback-loop-panel">Phase 2 (Required): Dashboard Feedback Loop panel</a></li>
+<li><a href="#6-phase-3-required-benchmark-publication-workflow">Phase 3 (Required): Benchmark publication workflow</a></li>
+<li><a href="#7-phase-4-required-l-1-mitigation--bounded-reachability-cache">Phase 4 (Required): L-1 mitigation — bounded reachability cache</a></li>
+<li><a href="#8-phase-5-optional--stretch-top-level-cutctx-benchmark-alias">Phase 5 (Optional / stretch): top-level <code>cutctx benchmark</code> alias</a></li>
+<li><a href="#9-phase-6-not-code--documented-limitation-only-opencode--google-routing">Phase 6 (Not code — documented limitation only): opencode + Google routing</a></li>
+<li><a href="#10-dependency-map">Dependency Map</a></li>
+<li><a href="#11-risk-assessment">Risk Assessment</a></li>
+<li><a href="#12-full-verification-checklist">Full Verification Checklist</a></li>
+<li><a href="#13-changelog-entries-required">CHANGELOG Entries Required</a></li>
+<li><a href="#14-definition-of-done">Definition of Done</a></li>
+</ol>
+<hr />
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Audit source</th>
+<th>Severity</th>
+<th>Phase</th>
+<th>Required?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>cutctx capabilities</code> doesn't list Feedback Loop / Stack Graphs / Benchmark CLI</td>
+<td>Product Health §4, friction table</td>
+<td>High</td>
+<td>1</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>No dashboard panel for Feedback Loop</td>
+<td>Product Health §4, friction table</td>
+<td>Critical</td>
+<td>2</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>3</td>
+<td>No publication workflow for benchmark results</td>
+<td>Product Health §4, friction table</td>
+<td>High</td>
+<td>3</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>4</td>
+<td>L-1: <code>pre_compress_hook</code> synchronous O(symbols × files) BFS cost on request path</td>
+<td>Security §2, L-1</td>
+<td>Low (perf)</td>
+<td>4</td>
+<td>Yes (mitigation, see caveat)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Benchmark CLI still nested under <code>evals</code> group, not a standalone top-level group</td>
+<td>Product Health §4, P0 item 3 (alternate option)</td>
+<td>High → mostly mitigated already</td>
+<td>5</td>
+<td>No, optional</td>
+</tr>
+<tr>
+<td>6</td>
+<td>opencode + Google model routing has no env-var fallback</td>
+<td>Discovered this session, not in original audit</td>
+<td>Low, single-user config</td>
+<td>6</td>
+<td>No — external, document only</td>
+</tr>
+</tbody>
+</table>
+<p>Everything else in the audit (H-1, H-2, H-3, M-1, L-2, L-3, L-4, <code>cutctx profile show</code>, README benchmark section, CHANGELOG entries, <code>cutctx stack-graph explain</code>, test-count verification) is <strong>already closed and verified</strong> — see §2. Re-verify, do not re-implement.</p>
+<hr />
+<h2 id="2-already-closed-do-not-re-implement">2. Already Closed — Do Not Re-Implement<a class="headerlink" href="#2-already-closed-do-not-re-implement" title="Permanent link">&para;</a></h2>
+<p>Confirmed directly against source on 2026-07-01. If any of these checks fail when the implementing agent starts, stop and report — it means something regressed since this plan was written, which is a different problem from this plan's scope.</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Where it lives now</th>
+<th>Verify with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H-1 (<code>extract_symbol_names</code> uncapped)</td>
+<td><code>cutctx/graph/reachability.py:65</code> — <code>return unique_symbols[:20]</code></td>
+<td><code>grep -n "unique_symbols\[:20\]" cutctx/graph/reachability.py</code></td>
+</tr>
+<tr>
+<td>H-2 (<code>callers_of</code> O(N×E) regression risk)</td>
+<td><code>crates/cutctx-core/src/stack_graph/mod.rs:367-370</code> — early return if <code>node_count() &gt; 5000</code></td>
+<td><code>grep -n "node_count() &gt; 5000" crates/cutctx-core/src/stack_graph/mod.rs</code></td>
+</tr>
+<tr>
+<td>H-3 (<code>set_protected_symbols</code> singleton leak)</td>
+<td><code>cutctx/transforms/code_compressor.py:951-963</code> — thread-local <code>_protected_symbols_local</code></td>
+<td><code>grep -n "_protected_symbols_local" cutctx/transforms/code_compressor.py</code></td>
+</tr>
+<tr>
+<td>M-1 (<code>recommended_ratio</code> unbounded)</td>
+<td><code>cutctx/profiles.py:~117</code> — clamped via <code>_MAX_RECOMMENDED_RATIO</code></td>
+<td><code>grep -n "_MAX_RECOMMENDED_RATIO" cutctx/profiles.py</code></td>
+</tr>
+<tr>
+<td>L-2 (<code>_strategy_to_content_type</code> silent fallback)</td>
+<td><code>cutctx/ccr/response_handler.py:28-46</code> — logs on <code>unknown</code> fallback</td>
+<td><code>grep -n "Unmapped compression strategy" cutctx/ccr/response_handler.py</code></td>
+</tr>
+<tr>
+<td>L-3 (hostname privacy)</td>
+<td><code>cutctx/telemetry/toin.py:~495</code> — documented, hash-only, already correct</td>
+<td><code>grep -n "machine_info" cutctx/telemetry/toin.py</code></td>
+</tr>
+<tr>
+<td>L-4 (<code>_anonymize_query_pattern</code> prose leak)</td>
+<td><code>cutctx/telemetry/toin.py:1010-1027</code> — <code>&lt;prose&gt;</code> fallback</td>
+<td><code>grep -n '"&lt;prose&gt;"' cutctx/telemetry/toin.py</code></td>
+</tr>
+<tr>
+<td><code>cutctx profile show</code> (P0 item 1)</td>
+<td><code>cutctx/cli/profile.py</code> — top-level group via <code>cli/main.py</code> <code>_SIDE_EFFECT_COMMAND_MODULES["profile"]</code></td>
+<td><code>.venv/bin/python3 -m cutctx.cli.main profile show --help</code></td>
+</tr>
+<tr>
+<td><code>cutctx stack-graph explain</code></td>
+<td><code>cutctx/cli/stack_graph.py:26-63</code> — already fully implemented</td>
+<td><code>.venv/bin/python3 -m cutctx.cli.main stack-graph explain --help</code></td>
+</tr>
+<tr>
+<td>README benchmark proof section (P0 item 2, 5)</td>
+<td><code>README.md</code> — real captured table + reproduce command using repeated <code>--dataset</code>/<code>--metrics</code> flags (not comma-separated)</td>
+<td><code>grep -n "Real output from the command above" README.md</code></td>
+</tr>
+<tr>
+<td><code>evals</code> group relabel (P0 item 3, rename option)</td>
+<td><code>cutctx/cli/evals.py</code> group docstring</td>
+<td><code>.venv/bin/python3 -m cutctx.cli.main evals --help</code></td>
+</tr>
+<tr>
+<td>CHANGELOG <code>[Unreleased]</code> entries (P0 item 4)</td>
+<td><code>CHANGELOG.md:8-20</code></td>
+<td><code>grep -n "Feedback Loop (Data Flywheel)" CHANGELOG.md</code></td>
+</tr>
+<tr>
+<td><code>wiki/feedback-loop.md</code>, <code>wiki/benchmark-cli.md</code></td>
+<td>new wiki pages, spot-checked against source</td>
+<td><code>ls wiki/feedback-loop.md wiki/benchmark-cli.md</code></td>
+</tr>
+<tr>
+<td><code>RELEASE_STATUS.md</code> accuracy</td>
+<td>rewritten after catching a fabricated first draft</td>
+<td>manual read — cross-check every named file path actually exists</td>
+</tr>
+<tr>
+<td><code>/stats</code> payload additions (<code>profile</code>, <code>content_router_overrides_count</code>)</td>
+<td><code>cutctx/proxy/server.py</code>, first <code>_build_stats_payload</code> (~line 3776)</td>
+<td><code>grep -n '"content_router_overrides_count"' cutctx/proxy/server.py</code></td>
+</tr>
+<tr>
+<td>Full test suite</td>
+<td>7608 passed, 0 failed, 244 skipped (316s) — this was a real run, not a claim</td>
+<td>re-run per §12</td>
+</tr>
+<tr>
+<td><code>cutctx wrap opencode</code> missing <code>ANTHROPIC_BASE_URL</code></td>
+<td><code>cutctx/cli/wrap.py</code> (~line 3974)</td>
+<td><code>grep -n "ANTHROPIC_BASE_URL" cutctx/cli/wrap.py</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-ground-rules-for-the-implementing-agent">3. Ground Rules for the Implementing Agent<a class="headerlink" href="#3-ground-rules-for-the-implementing-agent" title="Permanent link">&para;</a></h2>
+<p>These exist because a prior Haiku agent in this same remediation effort <strong>fabricated fictional file paths, a fake SQLite backend, a fake BLEU metric, and a fake env var</strong> while writing <code>RELEASE_STATUS.md</code>. It was caught only because the fabrication was cross-checked against independently-verified ground truth. Do not repeat that failure mode.</p>
+<ol>
+<li><strong>Verify every fact before writing it down.</strong> If you are about to claim a file, function, flag, or metric exists, <code>grep</code>/<code>Read</code> it first in <em>this</em> tree. Never extrapolate from a similar-sounding feature in a different file.</li>
+<li><strong>Read before Edit.</strong> Every file touched below must be read in full (or at minimum the exact region cited) immediately before editing it, even though this plan quotes line numbers — line numbers drift as the file changes across phases.</li>
+<li><strong>No scope creep.</strong> Do not "fix" adjacent things you notice while in a file (e.g. the pre-existing <code>install_hint</code> formatting quirk noted in Phase 1 — leave it, it is out of scope and not part of what was asked).</li>
+<li><strong>No comments explaining what the code does.</strong> Only comment on non-obvious <em>why</em> (e.g. why a cache key includes a generation counter). Match the existing terse style in each file.</li>
+<li><strong>Run the exact verification command listed for each phase before moving to the next phase.</strong> Do not batch all edits and verify once at the end — a failure in Phase 1 should not be discovered while debugging Phase 4.</li>
+<li><strong>Do not auto-commit or auto-push from inside application code.</strong> Phase 3 writes a docs file from a CLI command; it must not shell out to <code>git commit</code>. Committing the resulting diff is the developer's/agent's separate, explicit action after review — this matches this repo's existing git-safety norms.</li>
+<li><strong>Python env is <code>.venv/bin/python3</code></strong>, not system <code>python3</code> (system python lacks pytest). Rust checks use <code>cargo check -p cutctx-core</code> from repo root.</li>
+<li><strong>Click options declared <code>multiple=True</code> require repeated flags</strong> (<code>--dataset a --dataset b</code>), not comma-separated values — this exact mistake was made twice already in this project's history. Any new CLI example you write must use repeated-flag syntax and must be tested by actually running it, not assumed correct.</li>
+</ol>
+<hr />
+<h2 id="4-phase-1-required-cutctx-capabilities-visibility">4. Phase 1 (Required): <code>cutctx capabilities</code> visibility<a class="headerlink" href="#4-phase-1-required-cutctx-capabilities-visibility" title="Permanent link">&para;</a></h2>
+<p><strong>File:</strong> <code>cutctx/cli/capabilities.py</code> (224 lines total, read in full first)</p>
+<p><strong>Problem:</strong> The <code>_FEATURES</code> list (lines 17-117) and <code>_check_feature</code> (lines 126-169) drive the <code>cutctx capabilities</code> table. None of the 3 moat features (Feedback Loop, Stack Graphs, Benchmark CLI) appear — confirmed by running <code>cutctx capabilities</code> and finding no matching rows. This is the audit's "High" severity Product-Health friction: a user running the showcase command sees 11 unrelated optional-dependency rows and nothing about the new features.</p>
+<h3 id="41-generalize-the-pass-through-branch-to-accept-a-custom-reason">4.1 Generalize the <code>pass-through</code> branch to accept a custom reason<a class="headerlink" href="#41-generalize-the-pass-through-branch-to-accept-a-custom-reason" title="Permanent link">&para;</a></h3>
+<p>In <code>_check_feature</code> (around line 131-142), the <code>pass-through</code> branch currently hardcodes the reason string. Change it to allow a per-feature override, defaulting to the existing text so the current <code>audio</code> row is unaffected:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;pass-through&quot;</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="k">return</span> <span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">],</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;available&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="s2">&quot;missing_packages&quot;</span><span class="p">:</span> <span class="p">[],</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="p">[</span><span class="s2">&quot;extra&quot;</span><span class="p">],</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="s2">&quot;critical&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="p">[</span><span class="s2">&quot;critical&quot;</span><span class="p">],</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;pass-through&quot;</span><span class="p">,</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="s2">&quot;install_hint&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reason&quot;</span><span class="p">,</span> <span class="s2">&quot;proxied unchanged; no token compression applied&quot;</span><span class="p">),</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="p">}</span>
+</span></code></pre></div>
+<p>(Only the last line changes — <code>feature.get("reason", ...)</code> replaces the hardcoded literal.)</p>
+<h3 id="42-add-a-stack_graph-special-case-for-accurate-availability">4.2 Add a <code>stack_graph</code> special case for accurate availability<a class="headerlink" href="#42-add-a-stack_graph-special-case-for-accurate-availability" title="Permanent link">&para;</a></h3>
+<p><code>cutctx/graph/resolver.py:22-29</code> already exposes <code>stack_graph_available()</code>, which checks <code>from cutctx._core import StackGraphManager</code> specifically — more precise than a bare module-presence check (the <code>smart_crusher</code> row already checks <code>cutctx._core</code> for a <em>different</em> symbol, so reusing that generic check would be technically correct but less explicit). Add a special case next to the existing <code>knowledge_graph</code>/<code>llmlingua</code> special cases (currently lines 146-151):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">feature</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">))</span> <span class="o">==</span> <span class="s2">&quot;stack_graph&quot;</span><span class="p">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.graph.resolver</span><span class="w"> </span><span class="kn">import</span> <span class="n">stack_graph_available</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">main_ok</span> <span class="o">=</span> <span class="n">stack_graph_available</span><span class="p">()</span>
+</span></code></pre></div>
+<h3 id="43-append-3-new-entries-to-_features">4.3 Append 3 new entries to <code>_FEATURES</code><a class="headerlink" href="#43-append-3-new-entries-to-_features" title="Permanent link">&para;</a></h3>
+<p>Add after the existing <code>audio</code> entry (end of the list, before the closing <code>]</code> at line 117):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>    <span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;feedback_loop&quot;</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>        <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Feedback Loop (CompressionProfile)&quot;</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="s2">&quot;key_package&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>        <span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="s2">&quot;built-in&quot;</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="s2">&quot;critical&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="s2">&quot;also_requires&quot;</span><span class="p">:</span> <span class="p">[],</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;pass-through&quot;</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;always on; run `cutctx profile show` to inspect the per-workspace profile&quot;</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="p">},</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="p">{</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;stack_graph&quot;</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Stack Graphs (code reachability)&quot;</span><span class="p">,</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        <span class="s2">&quot;key_package&quot;</span><span class="p">:</span> <span class="s2">&quot;cutctx._core&quot;</span><span class="p">,</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>        <span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="s2">&quot;cutctx-ai (wheel)&quot;</span><span class="p">,</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>        <span class="s2">&quot;critical&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>        <span class="s2">&quot;also_requires&quot;</span><span class="p">:</span> <span class="p">[],</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;optional&quot;</span><span class="p">,</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="p">},</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="p">{</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;benchmark_cli&quot;</span><span class="p">,</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>        <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Benchmark CLI (evals benchmark)&quot;</span><span class="p">,</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>        <span class="s2">&quot;key_package&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>        <span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="s2">&quot;evals (only for --dataset longbench/squad/hotpotqa)&quot;</span><span class="p">,</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>        <span class="s2">&quot;critical&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>        <span class="s2">&quot;also_requires&quot;</span><span class="p">:</span> <span class="p">[],</span>
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>        <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="s2">&quot;pass-through&quot;</span><span class="p">,</span>
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>        <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;run `cutctx evals benchmark --help`; tool_outputs dataset works with no extra installs&quot;</span><span class="p">,</span>
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>    <span class="p">},</span>
+</span></code></pre></div>
+<p>Do <strong>not</strong> try to fix the pre-existing <code>install_hint</code> formatting quirk where <code>smart_crusher</code>'s <code>extra="cutctx-ai (wheel)"</code> produces the nonsensical hint <code>pip install cutctx-ai[cutctx-ai (wheel)]</code> (line 167). The new <code>stack_graph</code> entry intentionally mirrors this exact existing pattern for consistency; fixing the underlying quirk is a separate, unrelated change and out of scope here.</p>
+<h3 id="44-update-the-command-docstring">4.4 Update the command docstring<a class="headerlink" href="#44-update-the-command-docstring" title="Permanent link">&para;</a></h3>
+<p><code>capabilities_cmd</code> docstring (lines 175-179) currently lists only the original 11 features. Extend the "Covers:" line to mention the 3 new ones, e.g. append <code>, feedback-loop, stack-graph, and benchmark-cli</code> — verify the final docstring text actually matches the final <code>_FEATURES</code> list content (no drift).</p>
+<h3 id="45-verify">4.5 Verify<a class="headerlink" href="#45-verify" title="Permanent link">&para;</a></h3>
+<p><div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>capabilities<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;Feedback Loop|Stack Graphs|Benchmark CLI&quot;</span>
+</span></code></pre></div>
+Expect 3 rows. Then:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>capabilities<span class="w"> </span>--json<span class="w"> </span><span class="p">|</span><span class="w"> </span>.venv/bin/python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import json,sys; rows=json.load(sys.stdin); assert {&#39;feedback_loop&#39;,&#39;stack_graph&#39;,&#39;benchmark_cli&#39;} &lt;= {r[&#39;name&#39;] for r in rows}&quot;</span>
+</span></code></pre></div>
+No output / exit 0 means pass. Also run the full existing capabilities test file if one exists (<code>find tests -iname "*capabilit*"</code>) and the targeted pytest subset in §12.</p>
+<hr />
+<h2 id="5-phase-2-required-dashboard-feedback-loop-panel">5. Phase 2 (Required): Dashboard Feedback Loop panel<a class="headerlink" href="#5-phase-2-required-dashboard-feedback-loop-panel" title="Permanent link">&para;</a></h2>
+<p><strong>File:</strong> <code>cutctx/dashboard/templates/dashboard.html</code> (2556 lines, Alpine.js + Tailwind, no build step — this is the always-available fallback template served by <code>get_dashboard_html()</code> in <code>cutctx/dashboard/__init__.py</code> when the React bundle isn't mounted)</p>
+<p><strong>Problem:</strong> Audit friction table: "Dashboard → see feedback loop: No page: Critical." The <code>/stats</code> endpoint (<code>cutctx/proxy/server.py</code>, <code>_build_stats_payload</code>) already returns <code>stats.profile</code> (a <code>CompressionProfile.summary()</code> dict — see shape below) and <code>stats.content_router_overrides_count</code> (an int) as of this session's fix. Nothing in the dashboard renders them.</p>
+<h3 id="51-exact-shape-of-statsprofile-from-cutctxprofilespy-compressionprofilesummary">5.1 Exact shape of <code>stats.profile</code> (from <code>cutctx/profiles.py</code>, <code>CompressionProfile.summary()</code>)<a class="headerlink" href="#51-exact-shape-of-statsprofile-from-cutctxprofilespy-compressionprofilesummary" title="Permanent link">&para;</a></h3>
+<p><div class="language-json highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;workspace_hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123...&quot;</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">&quot;total_content_types&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">&quot;total_compressions&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&quot;total_retrievals&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">340</span><span class="p">,</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">&quot;overall_retrieval_rate&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.4187</span><span class="p">,</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">&quot;stats_by_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">      </span><span class="nt">&quot;sessions_seen&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">      </span><span class="nt">&quot;total_compressions&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">      </span><span class="nt">&quot;retrieval_rate&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.51</span><span class="p">,</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">      </span><span class="nt">&quot;avg_compression_ratio&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.62</span><span class="p">,</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">      </span><span class="nt">&quot;recommended_ratio&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<code>stats.profile</code> is <code>null</code> if the profile hasn't loaded (e.g. proxy just started, no workspace history yet) — the panel must handle that.</p>
+<h3 id="52-insertion-point">5.2 Insertion point<a class="headerlink" href="#52-insertion-point" title="Permanent link">&para;</a></h3>
+<p>Insert a new <code>&lt;template x-if="..."&gt;</code> block immediately after the "Savings by Provider" block ends and immediately before the <code>&lt;!-- Anthropic Subscription Window --&gt;</code> comment. Read the file around that boundary first to confirm exact current line numbers (they will have shifted from the following reference, taken 2026-07-01): the "Savings by provider" block's closing <code>&lt;/template&gt;</code> is followed by a blank line, then <code>&lt;!-- Anthropic Subscription Window --&gt;</code>.</p>
+<h3 id="53-new-panel-markup">5.3 New panel markup<a class="headerlink" href="#53-new-panel-markup" title="Permanent link">&para;</a></h3>
+<p>Follow the exact same conventions already used by every other panel in this file (<code>bg-surface rounded-lg p-4 border border-border mb-6</code> wrapper, <code>text-sm font-medium text-gray-300 mb-3</code> section title, <code>tabular-nums</code> on numeric spans, <code>formatNumber</code>/<code>.toFixed()</code> helpers already defined elsewhere in this file's <code>&lt;script&gt;</code> — do not redefine them):</p>
+<div class="language-html highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cm">&lt;!-- Feedback Loop / Compression Profile --&gt;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">&lt;</span><span class="nt">template</span> <span class="na">x-if</span><span class="o">=</span><span class="s">&quot;stats.profile&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;bg-surface rounded-lg p-4 border border-border mb-6&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;flex justify-between items-center mb-3&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>            <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-sm font-medium text-gray-300&quot;</span><span class="p">&gt;</span>Feedback Loop (Compression Profile)<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>            <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;&#39;workspace &#39; + (stats.profile.workspace_hash || &#39;&#39;).slice(0, 8)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;grid grid-cols-2 md:grid-cols-4 gap-3 mb-3&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>            <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xl font-light tabular-nums text-accent&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;formatNumber(stats.profile.total_compressions || 0)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>Compressions<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>            <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>            <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xl font-light tabular-nums text-emerald-400&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;formatNumber(stats.profile.total_retrievals || 0)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>CCR Retrievals<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>            <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>            <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xl font-light tabular-nums&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;((stats.profile.overall_retrieval_rate || 0) * 100).toFixed(1) + &#39;%&#39;&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>Retrieval Rate<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>            <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>            <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xl font-light tabular-nums&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;formatNumber(stats.content_router_overrides_count || 0)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>                <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>Router Overrides Active<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>            <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>        <span class="p">&lt;</span><span class="nt">template</span> <span class="na">x-if</span><span class="o">=</span><span class="s">&quot;stats.profile.stats_by_type &amp;&amp; Object.keys(stats.profile.stats_by_type).length &gt; 0&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a>            <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a>                <span class="p">&lt;</span><span class="nt">template</span> <span class="na">x-for</span><span class="o">=</span><span class="s">&quot;(typeStat, typeName) in stats.profile.stats_by_type&quot;</span> <span class="na">:key</span><span class="o">=</span><span class="s">&quot;typeName&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>                    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;border border-border rounded p-3&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a>                        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-sm font-medium text-gray-300 capitalize&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;typeName&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a>                        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500 mt-1&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a>                            Recommended ratio: <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;tabular-nums text-cyan-300&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;(typeStat.recommended_ratio || 0).toFixed(2)&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a>                        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a>                        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a>                            Retrieval rate: <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;tabular-nums&quot;</span> <span class="na">x-text</span><span class="o">=</span><span class="s">&quot;((typeStat.retrieval_rate || 0) * 100).toFixed(1) + &#39;%&#39;&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a>                        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a>                    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a>                <span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a>            <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a>        <span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</span><span id="__span-6-41"><a id="__codelineno-6-41" name="__codelineno-6-41" href="#__codelineno-6-41"></a>        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;mt-3 text-xs text-gray-500&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-42"><a id="__codelineno-6-42" name="__codelineno-6-42" href="#__codelineno-6-42"></a>            Adapts per-content-type compression aggressiveness based on how often compressed content gets retrieved back via CCR. See `cutctx profile show` for the CLI view.
+</span><span id="__span-6-43"><a id="__codelineno-6-43" name="__codelineno-6-43" href="#__codelineno-6-43"></a>        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-44"><a id="__codelineno-6-44" name="__codelineno-6-44" href="#__codelineno-6-44"></a>    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-45"><a id="__codelineno-6-45" name="__codelineno-6-45" href="#__codelineno-6-45"></a><span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</span><span id="__span-6-46"><a id="__codelineno-6-46" name="__codelineno-6-46" href="#__codelineno-6-46"></a><span class="p">&lt;</span><span class="nt">template</span> <span class="na">x-if</span><span class="o">=</span><span class="s">&quot;!stats.profile&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-47"><a id="__codelineno-6-47" name="__codelineno-6-47" href="#__codelineno-6-47"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;bg-surface rounded-lg p-4 border border-border mb-6&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-6-48"><a id="__codelineno-6-48" name="__codelineno-6-48" href="#__codelineno-6-48"></a>        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-sm font-medium text-gray-300 mb-1&quot;</span><span class="p">&gt;</span>Feedback Loop (Compression Profile)<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-49"><a id="__codelineno-6-49" name="__codelineno-6-49" href="#__codelineno-6-49"></a>        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;text-xs text-gray-500&quot;</span><span class="p">&gt;</span>No profile data yet for this workspace — run a few compressions through the proxy, then refresh.<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-50"><a id="__codelineno-6-50" name="__codelineno-6-50" href="#__codelineno-6-50"></a>    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-6-51"><a id="__codelineno-6-51" name="__codelineno-6-51" href="#__codelineno-6-51"></a><span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</span></code></pre></div>
+<h3 id="54-verify">5.4 Verify<a class="headerlink" href="#54-verify" title="Permanent link">&para;</a></h3>
+<ul>
+<li>No build step exists for this file (it's a static template read at request time), so verification is functional, not a compile step:</li>
+<li>Start the proxy locally (<code>.venv/bin/python3 -m cutctx.cli.main proxy</code> or the existing dev-server invocation used elsewhere in this repo).</li>
+<li><code>curl localhost:&lt;port&gt;/stats | python3 -m json.tool | grep -A5 '"profile"'</code> — confirm the field is present in the live response (it was added earlier this session; confirm it survived).</li>
+<li>Open the dashboard in a real browser (or <code>curl</code> the HTML and grep for <code>Feedback Loop (Compression Profile)</code> to confirm the markup landed), and visually confirm the panel renders with either real numbers or the "no profile data yet" fallback — do not just grep the source, actually load it once as the CLAUDE.md UI-testing rule requires.</li>
+<li>Check for any existing dashboard HTML snapshot/lint tests (<code>grep -rl "dashboard.html" tests/</code>) and run them.</li>
+</ul>
+<hr />
+<h2 id="6-phase-3-required-benchmark-publication-workflow">6. Phase 3 (Required): Benchmark publication workflow<a class="headerlink" href="#6-phase-3-required-benchmark-publication-workflow" title="Permanent link">&para;</a></h2>
+<p><strong>Files:</strong> <code>cutctx/cli/evals.py</code> (benchmark command starts at <code>@evals.command("benchmark")</code>, currently ~line 718; core logic in <code>_run_benchmark</code>, currently ~line 826), <code>docs/benchmarks.md</code> (93 lines, pre-existing, unrelated older benchmark doc using a different <code>benchmarks/run_all.py</code> script — reuse its existing convention of dated <code>##</code> sections rather than inventing a new file).</p>
+<p><strong>Problem:</strong> Audit friction table: "Publish benchmark results: JSON/MD only, no workflow: High." Today <code>cutctx evals benchmark --markdown</code> writes a local <code>benchmark_results.md</code> (or <code>&lt;output&gt;.md</code>) and stops. There is no repeatable way to get a result into a durable, shareable location.</p>
+<p><strong>Scope decision:</strong> Do not build hosting/CI infrastructure that doesn't exist in this repo. The concrete, minimal fix: a <code>--publish</code> flag that appends a dated section to the existing <code>docs/benchmarks.md</code> (idempotent per calendar day — re-running <code>--publish</code> today replaces today's section rather than duplicating it). This gives a durable, versioned (via normal git history), reviewable publication trail without inventing a fake pipeline.</p>
+<h3 id="61-add-the-cli-option">6.1 Add the CLI option<a class="headerlink" href="#61-add-the-cli-option" title="Permanent link">&para;</a></h3>
+<p>In the <code>@evals.command("benchmark")</code> decorator stack, add after the existing <code>--seed</code> option:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nd">@click</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;--publish&quot;</span><span class="p">,</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">is_flag</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Append this run&#39;s results to docs/benchmarks.md (idempotent per day).&quot;</span><span class="p">,</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Add <code>publish: bool</code> to the <code>benchmark(...)</code> function signature and thread it into the existing <code>_run_benchmark(...)</code> call (matching how <code>seed</code> is already threaded).</p>
+<h3 id="62-thread-through-_run_benchmark">6.2 Thread through <code>_run_benchmark</code><a class="headerlink" href="#62-thread-through-_run_benchmark" title="Permanent link">&para;</a></h3>
+<p>Add <code>publish: bool</code> to <code>_run_benchmark</code>'s signature. After the existing markdown-save block (currently):
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>    <span class="c1"># Save markdown</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="k">if</span> <span class="n">markdown</span> <span class="ow">or</span> <span class="n">output</span><span class="p">:</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>        <span class="n">md_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.md&quot;</span><span class="p">))</span> <span class="k">if</span> <span class="n">output</span> <span class="k">else</span> <span class="s2">&quot;benchmark_results.md&quot;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>        <span class="k">if</span> <span class="n">markdown</span><span class="p">:</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>            <span class="n">md_content</span> <span class="o">=</span> <span class="n">_build_markdown_report</span><span class="p">(</span><span class="n">final</span><span class="p">,</span> <span class="n">metrics</span><span class="p">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>            <span class="n">Path</span><span class="p">(</span><span class="n">md_path</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">md_content</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Markdown saved to: </span><span class="si">{</span><span class="n">md_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+add:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>    <span class="c1"># Publish: append a dated section to docs/benchmarks.md</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="k">if</span> <span class="n">publish</span><span class="p">:</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>        <span class="n">publish_content</span> <span class="o">=</span> <span class="n">md_content</span> <span class="k">if</span> <span class="n">markdown</span> <span class="k">else</span> <span class="n">_build_markdown_report</span><span class="p">(</span><span class="n">final</span><span class="p">,</span> <span class="n">metrics</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>        <span class="n">_publish_benchmark_results</span><span class="p">(</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>            <span class="n">publish_content</span><span class="p">,</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>            <span class="n">datasets</span><span class="o">=</span><span class="n">all_datasets</span><span class="p">,</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>            <span class="n">compressors</span><span class="o">=</span><span class="n">selected_compressors</span><span class="p">,</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>        <span class="p">)</span>
+</span></code></pre></div>
+(<code>md_content</code> is only defined inside the <code>if markdown:</code> branch above — the <code>if markdown else</code> fallback in the new block re-generates it via <code>_build_markdown_report</code> if the user passed <code>--publish</code> without <code>--markdown</code>, so <code>--publish</code> works standalone.)</p>
+<h3 id="63-new-helper-function">6.3 New helper function<a class="headerlink" href="#63-new-helper-function" title="Permanent link">&para;</a></h3>
+<p>Add near the other module-level helpers in <code>evals.py</code> (next to <code>_build_markdown_report</code>):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_publish_benchmark_results</span><span class="p">(</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">md_content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="o">*</span><span class="p">,</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">datasets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">compressors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Append a dated cutctx evals benchmark run to docs/benchmarks.md.</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="sd">    Idempotent per calendar day: re-running --publish the same day</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="sd">    replaces that day&#39;s section instead of duplicating it.</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">docs_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="s2">&quot;docs&quot;</span> <span class="o">/</span> <span class="s2">&quot;benchmarks.md&quot;</span>
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>    <span class="n">today</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>    <span class="n">heading</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;## `cutctx evals benchmark` — </span><span class="si">{</span><span class="n">today</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>    <span class="n">section</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">heading</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>        <span class="sa">f</span><span class="s2">&quot;Datasets: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datasets</span><span class="p">)</span><span class="si">}</span><span class="s2"> · Compressors: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">compressors</span><span class="p">)</span><span class="si">}</span><span class="s2"> · Seed: </span><span class="si">{</span><span class="n">seed</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-21"><a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">md_content</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-22"><a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a>    <span class="p">)</span>
+</span><span id="__span-10-23"><a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a>    <span class="n">existing</span> <span class="o">=</span> <span class="n">docs_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">docs_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;# Cutctx Benchmarks</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-24"><a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a>    <span class="k">if</span> <span class="n">heading</span> <span class="ow">in</span> <span class="n">existing</span><span class="p">:</span>
+</span><span id="__span-10-25"><a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a>        <span class="n">before</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="n">existing</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="n">heading</span><span class="p">)</span>
+</span><span id="__span-10-26"><a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a>        <span class="n">next_idx</span> <span class="o">=</span> <span class="n">after</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">## &quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-10-27"><a id="__codelineno-10-27" name="__codelineno-10-27" href="#__codelineno-10-27"></a>        <span class="n">rest</span> <span class="o">=</span> <span class="n">after</span><span class="p">[</span><span class="n">next_idx</span><span class="p">:]</span> <span class="k">if</span> <span class="n">next_idx</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+</span><span id="__span-10-28"><a id="__codelineno-10-28" name="__codelineno-10-28" href="#__codelineno-10-28"></a>        <span class="n">existing</span> <span class="o">=</span> <span class="n">before</span> <span class="o">+</span> <span class="n">section</span> <span class="o">+</span> <span class="n">rest</span>
+</span><span id="__span-10-29"><a id="__codelineno-10-29" name="__codelineno-10-29" href="#__codelineno-10-29"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-10-30"><a id="__codelineno-10-30" name="__codelineno-10-30" href="#__codelineno-10-30"></a>        <span class="n">existing</span> <span class="o">=</span> <span class="n">existing</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">section</span>
+</span><span id="__span-10-31"><a id="__codelineno-10-31" name="__codelineno-10-31" href="#__codelineno-10-31"></a>    <span class="n">docs_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">existing</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+</span><span id="__span-10-32"><a id="__codelineno-10-32" name="__codelineno-10-32" href="#__codelineno-10-32"></a>    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Published results to: </span><span class="si">{</span><span class="n">docs_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Double-check <code>Path(__file__).resolve().parents[2]</code> actually resolves to the repo root from <code>cutctx/cli/evals.py</code> (parents[0]=<code>cli</code>, [1]=<code>cutctx</code>, [2]=repo root) — verify with a one-line <code>python3 -c</code> check before relying on it, since an off-by-one here silently writes the file to the wrong place.</p>
+<p>Explicitly do <strong>not</strong> add any <code>git commit</code>/<code>git push</code>/<code>subprocess.run(["git", ...])</code> call inside this function — see Ground Rule 6. It only writes a file.</p>
+<h3 id="64-verify">6.4 Verify<a class="headerlink" href="#64-verify" title="Permanent link">&para;</a></h3>
+<p><div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>evals<span class="w"> </span>benchmark<span class="w"> </span>--dataset<span class="w"> </span>tool_outputs<span class="w"> </span>--n<span class="w"> </span><span class="m">5</span><span class="w"> </span>--publish
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>grep<span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;cutctx evals benchmark&quot;</span><span class="w"> </span>docs/benchmarks.md<span class="w">   </span><span class="c1"># confirm the new section landed</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>git<span class="w"> </span>diff<span class="w"> </span>--stat<span class="w"> </span>docs/benchmarks.md<span class="w">                    </span><span class="c1"># confirm only this file changed, no git actions were taken automatically</span>
+</span></code></pre></div>
+Then run it a second time on the same day and confirm <code>docs/benchmarks.md</code> gained no duplicate heading (<code>grep -c</code> for the exact heading string should stay at 1).</p>
+<hr />
+<h2 id="7-phase-4-required-l-1-mitigation-bounded-reachability-cache">7. Phase 4 (Required): L-1 mitigation — bounded reachability cache<a class="headerlink" href="#7-phase-4-required-l-1-mitigation-bounded-reachability-cache" title="Permanent link">&para;</a></h2>
+<p><strong>Files:</strong> <code>cutctx/graph/resolver.py</code> (<code>StackGraphResolver</code>, currently lines 40-161), <code>cutctx/graph/reachability.py</code> (<code>resolve_entry_points</code>, currently lines 68-127)</p>
+<p><strong>Problem (audit L-1, exact text):</strong> "<code>pre_compress_hook</code> runs synchronously in the request hot path; for 1000-file index, ~1000 BFS calls per request." Traced this session to <code>resolve_entry_points</code> (<code>cutctx/graph/reachability.py:99-122</code>): for every extracted symbol (capped at 20 by the already-fixed H-1), it linearly scans <strong>every</strong> indexed file and calls <code>resolver._inner.reachable_definitions(file, symbol, max_depth)</code> — a Rust BFS — once per file. Worst case is now bounded to <code>20 × file_count</code> per request (better than pre-H-1's unbounded symbol count, but still expensive on a cold cache, and every request re-does this from scratch even when the index hasn't changed and the same symbol was just queried moments ago).</p>
+<p><strong>Honest scope statement (put this in the commit/PR description, do not overclaim):</strong> This is a <em>mitigation</em>, not a full fix. It caches repeated <code>(resolver, symbol, max_depth)</code> lookups so that requests reusing the same context/query pay the BFS cost once instead of every request. It does <strong>not</strong> reduce the cold-cache, first-ever-query cost, which remains <code>O(symbols × files)</code>. A full fix would move the file scan into Rust as a symbol→file inverted index built at index time (<code>StackGraphManager</code>), which is a larger PyO3 + Rust change and is explicitly <strong>out of scope</strong> for this plan — leave it as a documented follow-up, do not attempt it here.</p>
+<h3 id="71-add-a-generation-counter-to-stackgraphresolver">7.1 Add a generation counter to <code>StackGraphResolver</code><a class="headerlink" href="#71-add-a-generation-counter-to-stackgraphresolver" title="Permanent link">&para;</a></h3>
+<p>In <code>__init__</code> (currently line 40-49), after <code>self._indexed_paths: set[str] = set()</code>:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_generation</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></div></p>
+<p>In <code>index_file</code> (currently lines 51-78), immediately after the line <code>self._indexed_paths.add(path_str)</code> inside the <code>try</code> block (currently line 74):
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_indexed_paths</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_generation</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></code></pre></div></p>
+<p>In <code>reindex_file</code> (currently lines 80-111), immediately after its own <code>self._indexed_paths.add(path_str)</code> (currently line 107):
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_indexed_paths</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_generation</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></code></pre></div></p>
+<p><code>index_project</code> calls <code>self.index_file(...)</code> internally per file, so it needs no separate change — the counter increments once per successfully indexed file, which is fine (an over-approximation of "did anything change" is safe; it only affects cache-hit rate, never correctness).</p>
+<p>Add a property next to the existing <code>indexed_paths</code> property (currently lines 155-157):
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>    <span class="nd">@property</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">generation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Monotonic counter bumped on every successful index/reindex.</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="sd">        Used by cutctx.graph.reachability to invalidate its per-symbol</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="sd">        BFS cache when the underlying index changes.</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="sd">        &quot;&quot;&quot;</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generation</span>
+</span></code></pre></div></p>
+<h3 id="72-add-a-bounded-cache-in-resolve_entry_points">7.2 Add a bounded cache in <code>resolve_entry_points</code><a class="headerlink" href="#72-add-a-bounded-cache-in-resolve_entry_points" title="Permanent link">&para;</a></h3>
+<p>In <code>cutctx/graph/reachability.py</code>, add near the top of the file (after existing imports):
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">lru_cache</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">_REACHABILITY_CACHE_SIZE</span> <span class="o">=</span> <span class="mi">512</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="n">_REACHABILITY_CACHE_SIZE</span><span class="p">)</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">_cached_reachable_for_symbol</span><span class="p">(</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    <span class="n">resolver</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="n">generation</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    <span class="n">reachable</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resolver</span><span class="p">,</span> <span class="s2">&quot;indexed_paths&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">()):</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>            <span class="n">result</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">symbol</span><span class="p">,</span> <span class="n">max_depth</span><span class="p">)</span>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>            <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>                <span class="n">reachable</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</span><span id="__span-16-19"><a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span id="__span-16-20"><a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>            <span class="k">continue</span>
+</span><span id="__span-16-21"><a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">reachable</span><span class="p">)</span>
+</span></code></pre></div>
+(<code>resolver</code> is hashable by default identity — <code>StackGraphResolver</code> does not override <code>__hash__</code>/<code>__eq__</code> — so using it directly as an <code>lru_cache</code> key is safe. <code>generation</code> in the key means any successful re-index invalidates the cache for that resolver automatically, without needing explicit cache-clearing logic.)</p>
+<p>Then rewrite the body of <code>resolve_entry_points</code>'s main loop (currently lines 99-122):</p>
+<p>Before:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">symbols</span><span class="p">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>        <span class="n">reachable</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>        <span class="n">indexed_paths</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resolver</span><span class="p">,</span> <span class="s2">&quot;indexed_paths&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">indexed_paths</span><span class="p">:</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>            <span class="k">continue</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>        <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">indexed_paths</span><span class="p">:</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>            <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>                <span class="n">result</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="p">(</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>                    <span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">symbol</span><span class="p">,</span> <span class="n">max_depth</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>                <span class="p">)</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>                <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>                    <span class="n">reachable</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>                    <span class="n">protected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>                    <span class="k">for</span> <span class="n">ref</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>                        <span class="n">name</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;symbol_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>                        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>                            <span class="n">protected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span id="__span-17-19"><a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>                <span class="k">continue</span>
+</span><span id="__span-17-20"><a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a>        <span class="n">report</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">reachable</span>
+</span></code></pre></div></p>
+<p>After:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>    <span class="n">generation</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resolver</span><span class="p">,</span> <span class="s2">&quot;generation&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">symbols</span><span class="p">:</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>        <span class="n">indexed_paths</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resolver</span><span class="p">,</span> <span class="s2">&quot;indexed_paths&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">indexed_paths</span><span class="p">:</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>            <span class="k">continue</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>        <span class="n">reachable</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">_cached_reachable_for_symbol</span><span class="p">(</span><span class="n">resolver</span><span class="p">,</span> <span class="n">generation</span><span class="p">,</span> <span class="n">symbol</span><span class="p">,</span> <span class="n">max_depth</span><span class="p">))</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>        <span class="k">if</span> <span class="n">reachable</span><span class="p">:</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>            <span class="n">protected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>            <span class="k">for</span> <span class="n">ref</span> <span class="ow">in</span> <span class="n">reachable</span><span class="p">:</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>                <span class="n">name</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;symbol_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>                <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>                    <span class="n">protected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>        <span class="n">report</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">reachable</span>
+</span></code></pre></div></p>
+<p>This preserves every existing behavior (including <code>test_resolve_exception_handled</code>'s expectation that a per-file exception is swallowed and contributes nothing — the <code>try/except</code> moved inside <code>_cached_reachable_for_symbol</code> but is otherwise identical).</p>
+<h3 id="73-new-tests">7.3 New tests<a class="headerlink" href="#73-new-tests" title="Permanent link">&para;</a></h3>
+<p>Add to <code>tests/test_stack_graph_reachability.py</code>, inside <code>class TestResolveEntryPoints</code> (existing tests use <code>unittest.mock.MagicMock</code> for the resolver — follow that exact pattern):</p>
+<p><div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_repeated_lookup_uses_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;A second call with the same resolver/generation/symbol hits the cache.&quot;&quot;&quot;</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>        <span class="n">mock</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">indexed_paths</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;/src/app.py&quot;</span><span class="p">}</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">generation</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>            <span class="p">{</span><span class="s2">&quot;target_file&quot;</span><span class="p">:</span> <span class="s2">&quot;/src/app.py&quot;</span><span class="p">,</span> <span class="s2">&quot;symbol_name&quot;</span><span class="p">:</span> <span class="s2">&quot;validate_input&quot;</span><span class="p">},</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>        <span class="p">]</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>        <span class="n">resolve_entry_points</span><span class="p">(</span><span class="n">mock</span><span class="p">,</span> <span class="s2">&quot;debug `process_payment`&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>        <span class="n">resolve_entry_points</span><span class="p">(</span><span class="n">mock</span><span class="p">,</span> <span class="s2">&quot;debug `process_payment`&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>        <span class="k">assert</span> <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">1</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_reindex_invalidates_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Bumping generation (simulating a re-index) forces a fresh lookup.&quot;&quot;&quot;</span>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>        <span class="n">mock</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+</span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span> <span class="o">=</span> <span class="n">MagicMock</span><span class="p">()</span>
+</span><span id="__span-19-20"><a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">indexed_paths</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;/src/app.py&quot;</span><span class="p">}</span>
+</span><span id="__span-19-21"><a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">generation</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span id="__span-19-22"><a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-19-23"><a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a>            <span class="p">{</span><span class="s2">&quot;target_file&quot;</span><span class="p">:</span> <span class="s2">&quot;/src/app.py&quot;</span><span class="p">,</span> <span class="s2">&quot;symbol_name&quot;</span><span class="p">:</span> <span class="s2">&quot;validate_input&quot;</span><span class="p">},</span>
+</span><span id="__span-19-24"><a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a>        <span class="p">]</span>
+</span><span id="__span-19-25"><a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a>
+</span><span id="__span-19-26"><a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a>        <span class="n">resolve_entry_points</span><span class="p">(</span><span class="n">mock</span><span class="p">,</span> <span class="s2">&quot;debug `process_payment`&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-19-27"><a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a>        <span class="n">mock</span><span class="o">.</span><span class="n">generation</span> <span class="o">=</span> <span class="mi">2</span>
+</span><span id="__span-19-28"><a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a>        <span class="n">resolve_entry_points</span><span class="p">(</span><span class="n">mock</span><span class="p">,</span> <span class="s2">&quot;debug `process_payment`&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-19-29"><a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a>
+</span><span id="__span-19-30"><a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a>        <span class="k">assert</span> <span class="n">mock</span><span class="o">.</span><span class="n">_inner</span><span class="o">.</span><span class="n">reachable_definitions</span><span class="o">.</span><span class="n">call_count</span> <span class="o">==</span> <span class="mi">2</span>
+</span></code></pre></div>
+Note: since <code>lru_cache</code> is process-global and persists across test functions, and each test creates a fresh <code>MagicMock()</code> instance (a distinct hashable identity every time), there is no cross-test pollution — but if flakiness is observed, add a <code>_cached_reachable_for_symbol.cache_clear()</code> call in a <code>setup_method</code>/fixture as a defensive measure.</p>
+<h3 id="74-verify">7.4 Verify<a class="headerlink" href="#74-verify" title="Permanent link">&para;</a></h3>
+<p><div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>cargo<span class="w"> </span>check<span class="w"> </span>-p<span class="w"> </span>cutctx-core<span class="w">   </span><span class="c1"># unaffected by this phase, but confirms nothing else broke</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_stack_graph_reachability.py<span class="w"> </span>tests/test_initiative2_e2e.py<span class="w"> </span>-v
+</span></code></pre></div>
+All existing tests plus the 2 new ones must pass. Then re-run the full suite per §12 to confirm no regression elsewhere (<code>resolver.generation</code> is a new attribute; grep for any other code that might iterate <code>vars(resolver)</code> or serialize the resolver and could be surprised by the new attribute — unlikely, but check).</p>
+<hr />
+<h2 id="8-phase-5-optional-stretch-top-level-cutctx-benchmark-alias">8. Phase 5 (Optional / stretch): top-level <code>cutctx benchmark</code> alias<a class="headerlink" href="#8-phase-5-optional-stretch-top-level-cutctx-benchmark-alias" title="Permanent link">&para;</a></h2>
+<p><strong>Not required.</strong> The audit's P0 item 3 offered two acceptable remedies: rename the <code>evals</code> group label (<strong>already done</strong>, confirmed via <code>cutctx evals --help</code>), <em>or</em> split benchmark into a separate top-level group. Only the first was done. If there's appetite to also close the friction-table row "<code>cutctx --help</code> → find benchmark CLI: Hidden under misleading group: High" more completely, do this — otherwise skip.</p>
+<p>In <code>cutctx/cli/evals.py</code>, after the <code>benchmark</code> command function is fully defined, add:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">main</span><span class="o">.</span><span class="n">add_command</span><span class="p">(</span><span class="n">benchmark</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;benchmark&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+(<code>main</code> is already imported via <code>from .main import main</code> at the top of the file.)</p>
+<p>In <code>cutctx/cli/main.py</code>, add <code>"benchmark": "evals"</code> to <code>_SIDE_EFFECT_COMMAND_MODULES</code> (currently lines 16-38) so the lazy-loader knows importing the <code>evals</code> module registers a top-level <code>benchmark</code> command too.</p>
+<p>Verify: <code>.venv/bin/python3 -m cutctx.cli.main benchmark --help</code> shows the same help as <code>.venv/bin/python3 -m cutctx.cli.main evals benchmark --help</code>, and the old form still works (backward compatible, purely additive alias).</p>
+<hr />
+<h2 id="9-phase-6-not-code-documented-limitation-only-opencode-google-routing">9. Phase 6 (Not code — documented limitation only): opencode + Google routing<a class="headerlink" href="#9-phase-6-not-code-documented-limitation-only-opencode-google-routing" title="Permanent link">&para;</a></h2>
+<p><strong>Not part of this repo's fix surface.</strong> Confirmed this session via source-level inspection of the installed <code>opencode</code> binary: its Google/Vertex provider factory only reads <code>X.baseURL</code> from <code>opencode.json</code> config, with no <code>environmentVariableName</code> fallback (unlike its OpenAI and Anthropic providers, both of which cutctx already routes correctly via <code>OPENAI_BASE_URL</code>/<code>ANTHROPIC_BASE_URL</code> after this session's fix to <code>cutctx/cli/wrap.py</code>).</p>
+<p>If this needs closing, it requires a <strong>user-machine-local</strong> <code>opencode.json</code> edit (at <code>~/.config/opencode/opencode.json</code>) adding a <code>baseURL</code> override for the Google provider pointed at the local cutctx proxy port — not a change to this repository. Do not attempt to script an edit to a file outside this repo as part of implementing this plan; if the user wants that automated, that is a distinct, separate task requiring its own explicit approval (it would modify machine-local config outside version control).</p>
+<hr />
+<h2 id="10-dependency-map">10. Dependency Map<a class="headerlink" href="#10-dependency-map" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Depends on</th>
+<th>Blocks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 (capabilities)</td>
+<td>none</td>
+<td>none</td>
+</tr>
+<tr>
+<td>2 (dashboard)</td>
+<td>Phase-independent; only depends on already-shipped <code>/stats</code> fields (<code>profile</code>, <code>content_router_overrides_count</code>) — verify those still exist before starting</td>
+<td>none</td>
+</tr>
+<tr>
+<td>3 (publish)</td>
+<td>none</td>
+<td>none</td>
+</tr>
+<tr>
+<td>4 (L-1 cache)</td>
+<td>none</td>
+<td>none</td>
+</tr>
+<tr>
+<td>5 (optional alias)</td>
+<td>Phase 3 not required, but touches the same <code>evals.py</code> file — do Phase 3 first to avoid a merge/diff conflict in the same file</td>
+<td>none</td>
+</tr>
+<tr>
+<td>6 (opencode)</td>
+<td>none (external)</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Phases 1-4 touch disjoint files (<code>capabilities.py</code>, <code>dashboard.html</code>, <code>evals.py</code>, <code>resolver.py</code>+<code>reachability.py</code>) and can be done in any order or in parallel by independent agents. Phase 5, if attempted, must come after Phase 3 since both edit <code>evals.py</code>.</p>
+<hr />
+<h2 id="11-risk-assessment">11. Risk Assessment<a class="headerlink" href="#11-risk-assessment" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Phase</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fabricated facts in docs/help text (recurred once already this effort)</td>
+<td>1, 3</td>
+<td>Ground Rule 1 — grep/Read every claim before writing it</td>
+</tr>
+<tr>
+<td><code>lru_cache</code> holding a strong reference to <code>resolver</code>, preventing GC</td>
+<td>4</td>
+<td>Acceptable: <code>stack_graph_resolver</code> is already a long-lived singleton on the proxy instance; cache is bounded to 512 entries regardless</td>
+</tr>
+<tr>
+<td><code>--publish</code> writing to the wrong path due to <code>parents[2]</code> off-by-one</td>
+<td>3</td>
+<td>Verify path resolution with a standalone one-liner before relying on it (spec'd in §6.3)</td>
+</tr>
+<tr>
+<td>Dashboard panel breaking Alpine.js rendering if <code>stats.profile</code> is <code>null</code> on a cold proxy</td>
+<td>2</td>
+<td>Both the <code>x-if="stats.profile"</code> and <code>x-if="!stats.profile"</code> branches are specified — test both states</td>
+</tr>
+<tr>
+<td>New <code>_FEATURES</code> entries changing exit-code behavior of <code>cutctx capabilities --json</code> (used potentially by external health checks)</td>
+<td>1</td>
+<td>All 3 new entries use <code>"critical": False</code>, so they cannot flip the command's exit code from 0→1</td>
+</tr>
+<tr>
+<td>Editing <code>evals.py</code> twice (Phase 3 + optional Phase 5) causing a diff conflict if done out of order</td>
+<td>3, 5</td>
+<td>Dependency map above — do Phase 3 first</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-full-verification-checklist">12. Full Verification Checklist<a class="headerlink" href="#12-full-verification-checklist" title="Permanent link">&para;</a></h2>
+<p>Run after <strong>all</strong> required phases (1-4) are complete, in this order:</p>
+<ol>
+<li><code>cargo check -p cutctx-core</code> — exit 0 (confirms Phase 4 didn't touch Rust incorrectly; it shouldn't have touched Rust at all, but this is a cheap sanity check).</li>
+<li>Targeted subset:
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>tests/test_stack_graph_reachability.py<span class="w"> </span>tests/test_initiative2_e2e.py<span class="w"> </span>tests/test_feedback_loop.py<span class="w"> </span>tests/test_evals_benchmark.py
+</span></code></pre></div>
+   Expect all passing, including the 2 new tests from §7.3.</li>
+<li>Any capabilities-specific test file found via <code>find tests -iname "*capabilit*"</code>.</li>
+<li>Any dashboard-specific test file found via <code>grep -rl "dashboard.html\|get_dashboard_html" tests/</code>.</li>
+<li>Full suite:
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q
+</span></code></pre></div>
+   Baseline from this session was <strong>7608 passed, 0 failed, 244 skipped</strong>. The number of passed tests should increase by exactly the number of new tests added in §7.3 (and any added for Phases 1-3 if the agent chooses to add them — not strictly required by this plan but encouraged for Phase 1's <code>_check_feature</code> special case). Zero new failures, zero new skips introduced by these changes.</li>
+<li>Manual CLI smoke test (do not just grep source — actually run each):
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>capabilities
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>evals<span class="w"> </span>benchmark<span class="w"> </span>--dataset<span class="w"> </span>tool_outputs<span class="w"> </span>--n<span class="w"> </span><span class="m">5</span><span class="w"> </span>--markdown<span class="w"> </span>--publish
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>profile<span class="w"> </span>show
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>.venv/bin/python3<span class="w"> </span>-m<span class="w"> </span>cutctx.cli.main<span class="w"> </span>stack-graph<span class="w"> </span>explain<span class="w"> </span><span class="s2">&quot;test query&quot;</span>
+</span></code></pre></div></li>
+<li>Dashboard: start the proxy, load the dashboard in a real browser (per CLAUDE.md's UI-testing rule — do not claim success without doing this), confirm the Feedback Loop panel renders in both the "has data" and "no data yet" states.</li>
+<li><code>git status</code> / <code>git diff --stat</code> — confirm only the files named in this plan changed, nothing unexpected (e.g. no accidental <code>docs/benchmarks.md</code> corruption from Phase 3's idempotency logic, no stray files).</li>
+</ol>
+<hr />
+<h2 id="13-changelog-entries-required">13. CHANGELOG Entries Required<a class="headerlink" href="#13-changelog-entries-required" title="Permanent link">&para;</a></h2>
+<p>Add to <code>CHANGELOG.md</code>'s existing <code>[Unreleased]</code> → <code>### Added</code> section (do not create a new <code>[Unreleased]</code> heading, one already exists at line 8):</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Capabilities visibility for moat features**</span> (<span class="sb">`cutctx/cli/capabilities.py`</span>) — <span class="sb">`cutctx capabilities`</span> now reports Feedback Loop, Stack Graphs, and Benchmark CLI availability alongside the existing optional-dependency checks.
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Dashboard Feedback Loop panel**</span> (<span class="sb">`cutctx/dashboard/templates/dashboard.html`</span>) — the fallback dashboard now surfaces per-workspace <span class="sb">`CompressionProfile`</span> stats (compressions, retrievals, retrieval rate, per-content-type recommended ratios) via the existing <span class="sb">`/stats`</span> <span class="sb">`profile`</span> field.
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Benchmark result publication**</span> (<span class="sb">`cutctx evals benchmark --publish`</span>) — appends a dated results section to <span class="sb">`docs/benchmarks.md`</span>, idempotent per calendar day.
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Bounded reachability cache**</span> (<span class="sb">`cutctx/graph/reachability.py`</span>, <span class="sb">`cutctx/graph/resolver.py`</span>) — mitigates L-1 (synchronous per-request BFS cost) by caching per-symbol stack-graph lookups, invalidated automatically on re-index via a new <span class="sb">`StackGraphResolver.generation`</span> counter.
+</span></code></pre></div>
+<p>If Phase 5 is also done, add:
+<div class="language-markdown highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Top-level `cutctx benchmark` alias**</span> — <span class="sb">`cutctx evals benchmark`</span> is now also reachable as <span class="sb">`cutctx benchmark`</span> for discoverability; both forms are equivalent.
+</span></code></pre></div></p>
+<hr />
+<h2 id="14-definition-of-done">14. Definition of Done<a class="headerlink" href="#14-definition-of-done" title="Permanent link">&para;</a></h2>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Phase 1: <code>cutctx capabilities</code> lists all 3 moat features; <code>--json</code> output includes them; docstring matches; targeted + full test suite green.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Phase 2: Dashboard renders the Feedback Loop panel in both data and no-data states, verified in an actual browser, not just by reading source.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Phase 3: <code>--publish</code> flag exists, writes/updates <code>docs/benchmarks.md</code> idempotently per day, does not perform any git operations itself.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Phase 4: <code>StackGraphResolver.generation</code> exists and increments correctly; <code>resolve_entry_points</code> caches repeated lookups; 2 new tests pass; full suite still 0 failures.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> §12 full verification checklist run end-to-end with a clean result.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> §13 CHANGELOG entries added.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> This plan's "Status" line at the top updated from "0/4 required phases complete" to reflect actual completion, and any deviations from the spec (e.g. a phase implemented differently than written here) noted inline with the reason.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/cutctx/cutctx" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/cutctx-ai/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://discord.gg/yRmaUNpsPJ" target="_blank" rel="noopener" title="discord.gg" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M492.5 69.8c-.2-.3-.4-.6-.8-.7-38.1-17.5-78.4-30-119.7-37.1-.4-.1-.8 0-1.1.1s-.6.4-.8.8c-5.5 9.9-10.5 20.2-14.9 30.6-44.6-6.8-89.9-6.8-134.4 0-4.5-10.5-9.5-20.7-15.1-30.6-.2-.3-.5-.6-.8-.8s-.7-.2-1.1-.2C162.5 39 122.2 51.5 84.1 69c-.3.1-.6.4-.8.7C7.1 183.5-13.8 294.6-3.6 404.2c0 .3.1.5.2.8s.3.4.5.6c44.4 32.9 94 58 146.8 74.2.4.1.8.1 1.1 0s.7-.4.9-.7c11.3-15.4 21.4-31.8 30-48.8.1-.2.2-.5.2-.8s0-.5-.1-.8-.2-.5-.4-.6-.4-.3-.7-.4c-15.8-6.1-31.2-13.4-45.9-21.9-.3-.2-.5-.4-.7-.6s-.3-.6-.3-.9 0-.6.2-.9.3-.5.6-.7c3.1-2.3 6.2-4.7 9.1-7.1.3-.2.6-.4.9-.4s.7 0 1 .1c96.2 43.9 200.4 43.9 295.5 0 .3-.1.7-.2 1-.2s.7.2.9.4c2.9 2.4 6 4.9 9.1 7.2.2.2.4.4.6.7s.2.6.2.9-.1.6-.3.9-.4.5-.6.6c-14.7 8.6-30 15.9-45.9 21.8-.2.1-.5.2-.7.4s-.3.4-.4.7-.1.5-.1.8.1.5.2.8c8.8 17 18.8 33.3 30 48.8.2.3.6.6.9.7s.8.1 1.1 0c52.9-16.2 102.6-41.3 147.1-74.2.2-.2.4-.4.5-.6s.2-.5.2-.8c12.3-126.8-20.5-236.9-86.9-334.5zm-302 267.7c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2m195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "content.tabs.link", "navigation.instant", "navigation.instant.progress", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest", "search.share", "toc.follow", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
