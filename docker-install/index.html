@@ -2406,19 +2406,19 @@
 <p>Run Cutctx without installing Python or Node.js on the host. The install scripts add a native <code>cutctx</code> wrapper that keeps <strong>Cutctx itself</strong> in Docker while orchestrating the rest of your workflow on the host OS.</p>
 <h2 id="one-line-install">One-line install<a class="headerlink" href="#one-line-install" title="Permanent link">&para;</a></h2>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 </span></code></pre></div>
 <h3 id="macos-bash-43">macOS (bash 4.3+)<a class="headerlink" href="#macos-bash-43" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/chopratejas/cutctx/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>bash<span class="k">)</span><span class="s2">/bin/bash&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>bash<span class="k">)</span><span class="s2">/bin/bash&quot;</span>
 </span></code></pre></div>
 <p>Stock <code>/bin/bash</code> on macOS is 3.2, so install a newer bash first (for example via Homebrew) and run the installer with that shell. The installed wrapper pins that same bash interpreter so later invocations stay on the supported runtime.</p>
 <h3 id="windows-powershell">Windows PowerShell<a class="headerlink" href="#windows-powershell" title="Permanent link">&para;</a></h3>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">irm </span><span class="n">https</span><span class="p">://</span><span class="n">raw</span><span class="p">.</span><span class="n">githubusercontent</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">chopratejas</span><span class="p">/</span><span class="n">cutctx</span><span class="p">/</span><span class="n">main</span><span class="p">/</span><span class="n">scripts</span><span class="p">/</span><span class="n">install</span><span class="p">.</span><span class="n">ps1</span> <span class="p">|</span> <span class="nb">iex</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">irm </span><span class="n">https</span><span class="p">://</span><span class="n">raw</span><span class="p">.</span><span class="n">githubusercontent</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">cutctx</span><span class="p">/</span><span class="n">cutctx</span><span class="p">/</span><span class="n">main</span><span class="p">/</span><span class="n">scripts</span><span class="p">/</span><span class="n">install</span><span class="p">.</span><span class="n">ps1</span> <span class="p">|</span> <span class="nb">iex</span>
 </span></code></pre></div>
 <h2 id="what-the-installer-does">What the installer does<a class="headerlink" href="#what-the-installer-does" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Verifies Docker is installed and available.</li>
-<li>Pulls <code>ghcr.io/chopratejas/cutctx:latest</code> by default, or reuses / pulls <code>CUTCTX_DOCKER_IMAGE</code> when you set a custom image override.</li>
+<li>Pulls <code>ghcr.io/cutctx/cutctx:latest</code> by default, or reuses / pulls <code>CUTCTX_DOCKER_IMAGE</code> when you set a custom image override.</li>
 <li>Installs a <code>cutctx</code> wrapper into <code>~/.local/bin</code> or <code>~/bin</code>.</li>
 <li>Updates shell startup files so the wrapper directory is on <code>PATH</code>.</li>
 </ol>
@@ -2431,7 +2431,7 @@
 <li><code>~/.gemini</code></li>
 </ul>
 <p>Port <code>8787</code> stays the default, so <code>http://localhost:8787</code> works the same way as a native install.</p>
-<p>Published releases also push versioned GHCR tags such as <code>ghcr.io/chopratejas/cutctx:0.5.26</code>, and those images are built with the same synced package version used for the matching PyPI and npm release.</p>
+<p>Published releases also push versioned GHCR tags such as <code>ghcr.io/cutctx/cutctx:0.29.0</code>, and those images are built with the same synced package version used for the matching PyPI and npm release.</p>
 <h2 id="how-the-wrapper-behaves">How the wrapper behaves<a class="headerlink" href="#how-the-wrapper-behaves" title="Permanent link">&para;</a></h2>
 <h3 id="native-cutctx-commands">Native Cutctx commands<a class="headerlink" href="#native-cutctx-commands" title="Permanent link">&para;</a></h3>
 <p>These run directly inside the container:</p>
@@ -2445,7 +2445,7 @@
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">8787</span>:8787<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/workspace&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>-w<span class="w"> </span>/workspace<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/chopratejas/cutctx:latest<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/cutctx/cutctx:latest<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
 </span></code></pre></div>
 <h3 id="wrap-commands"><code>wrap</code> commands<a class="headerlink" href="#wrap-commands" title="Permanent link">&para;</a></h3>

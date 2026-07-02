@@ -3059,8 +3059,8 @@
 
 <h1 id="cutctx-manual-testing-guide">Cutctx Manual Testing Guide<a class="headerlink" href="#cutctx-manual-testing-guide" title="Permanent link">&para;</a></h1>
 <p><strong>Product:</strong> Cutctx (<code>cutctx</code> binary, <code>cutctx-ai</code> PyPI package, <code>cutctx</code> internal Python package)<br />
-<strong>Version:</strong> 0.26.0<br />
-<strong>Last updated:</strong> 2026-06-22</p>
+<strong>Version:</strong> 0.29.0
+<strong>Last updated:</strong> 2026-07-02</p>
 <p>This guide covers every testable surface of the product end-to-end. Work through sections top-to-bottom on a clean machine — each section builds on the previous. Every step lists the exact command, the expected output, and the pass/fail criterion.</p>
 <hr />
 <h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
@@ -3161,7 +3161,7 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">source</span><span class="w"> </span>~/cutctx-test-env/bin/activate
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span>cutctx-ai
 </span></code></pre></div>
-<p><strong>PASS:</strong> <code>cutctx --version</code> prints <code>cutctx 0.26.0</code><br />
+<p><strong>PASS:</strong> <code>cutctx --version</code> prints <code>cutctx 0.29.0</code>
 <strong>FAIL:</strong> Import errors, missing binary, version mismatch</p>
 <h3 id="environment-variables-used-throughout-this-guide">Environment variables used throughout this guide<a class="headerlink" href="#environment-variables-used-throughout-this-guide" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span>sk-ant-...<span class="w">          </span><span class="c1"># real key for live tests</span>
@@ -3177,7 +3177,7 @@
 </span></code></pre></div>
 <p><strong>PASS:</strong>
 - <code>which cutctx</code> returns a path inside the venv
-- <code>--version</code> prints <code>cutctx 0.26.0</code> (not <code>cutctx</code>)
+- <code>--version</code> prints <code>cutctx 0.29.0</code> (not <code>cutctx</code>)
 - <code>--help</code> lists all commands: proxy, wrap, init, bench, savings, license, etc.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Verify the Rust core is linked</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from cutctx import _core; print(_core.hello())&quot;</span>
@@ -3246,7 +3246,7 @@
 - <code>/readyz</code> → <code>{"status": "ok"}</code> (may differ briefly on startup)
 - <code>/metrics</code> → lines starting with <code># HELP</code> and <code>cutctx_</code> metrics
 - <code>/v1/stats</code> → JSON with <code>requests_total</code>, <code>tokens_saved</code>, <code>compression_ratio</code> fields
-- <code>/v1/version</code> → JSON with <code>version: "0.26.0"</code></p>
+- <code>/v1/version</code> → JSON with <code>version: "0.29.0"</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">kill</span><span class="w"> </span><span class="nv">$PROXY_PID</span>
 </span></code></pre></div>
 <hr />
@@ -3878,7 +3878,7 @@
 </span><span id="__span-74-2"><a id="__codelineno-74-2" name="__codelineno-74-2" href="#__codelineno-74-2"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>which<span class="w"> </span>cutctx
 </span><span id="__span-74-3"><a id="__codelineno-74-3" name="__codelineno-74-3" href="#__codelineno-74-3"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>cutctx<span class="w"> </span>--version
 </span></code></pre></div>
-<p><strong>PASS:</strong> binary is named <code>cutctx</code> (not <code>cutctx</code>); version is <code>0.26.0</code></p>
+<p><strong>PASS:</strong> binary is named <code>cutctx</code> (not <code>cutctx</code>); version is <code>0.29.0</code></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-75-1"><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a><span class="c1"># Verify no debug keys in container</span>
 </span><span id="__span-75-2"><a id="__codelineno-75-2" name="__codelineno-75-2" href="#__codelineno-75-2"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>cutctx-test<span class="w"> </span>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;secret\|password\|key&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;^PATH&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
 </span></code></pre></div>
@@ -3892,7 +3892,7 @@
 </span><span id="__span-77-3"><a id="__codelineno-77-3" name="__codelineno-77-3" href="#__codelineno-77-3"></a>
 </span><span id="__span-77-4"><a id="__codelineno-77-4" name="__codelineno-77-4" href="#__codelineno-77-4"></a><span class="c1"># Render templates (dry-run)</span>
 </span><span id="__span-77-5"><a id="__codelineno-77-5" name="__codelineno-77-5" href="#__codelineno-77-5"></a>helm<span class="w"> </span>template<span class="w"> </span>cutctx-release<span class="w"> </span>helm/cutctx/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-77-6"><a id="__codelineno-77-6" name="__codelineno-77-6" href="#__codelineno-77-6"></a><span class="w">  </span>--set<span class="w"> </span>image.tag<span class="o">=</span>v0.26.0<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-77-6"><a id="__codelineno-77-6" name="__codelineno-77-6" href="#__codelineno-77-6"></a><span class="w">  </span>--set<span class="w"> </span>image.tag<span class="o">=</span>v0.29.0<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-77-7"><a id="__codelineno-77-7" name="__codelineno-77-7" href="#__codelineno-77-7"></a><span class="w">  </span>--set<span class="w"> </span><span class="nv">adminApiKey</span><span class="o">=</span>test-key<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-60
 </span></code></pre></div>
 <p><strong>PASS:</strong>
@@ -4896,10 +4896,10 @@
 </span><span id="__span-144-3"><a id="__codelineno-144-3" name="__codelineno-144-3" href="#__codelineno-144-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CUTCTX_STATELESS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-144-4"><a id="__codelineno-144-4" name="__codelineno-144-4" href="#__codelineno-144-4"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">CUTCTX_ADMIN_API_KEY</span><span class="o">=</span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-144-5"><a id="__codelineno-144-5" name="__codelineno-144-5" href="#__codelineno-144-5"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">8941</span>:8787<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-144-6"><a id="__codelineno-144-6" name="__codelineno-144-6" href="#__codelineno-144-6"></a><span class="w">  </span>ghcr.io/cutctx/cutctx:0.26.0<span class="w"> </span><span class="p">&amp;</span>
+</span><span id="__span-144-6"><a id="__codelineno-144-6" name="__codelineno-144-6" href="#__codelineno-144-6"></a>ghcr.io/cutctx/cutctx:0.29.0<span class="w"> </span><span class="p">&amp;</span>
 </span><span id="__span-144-7"><a id="__codelineno-144-7" name="__codelineno-144-7" href="#__codelineno-144-7"></a>sleep<span class="w"> </span><span class="m">5</span>
 </span><span id="__span-144-8"><a id="__codelineno-144-8" name="__codelineno-144-8" href="#__codelineno-144-8"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8941/livez<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
-</span><span id="__span-144-9"><a id="__codelineno-144-9" name="__codelineno-144-9" href="#__codelineno-144-9"></a>docker<span class="w"> </span>stop<span class="w"> </span><span class="k">$(</span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="w"> </span>--filter<span class="w"> </span><span class="nv">ancestor</span><span class="o">=</span>ghcr.io/cutctx/cutctx:0.26.0<span class="k">)</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+</span><span id="__span-144-9"><a id="__codelineno-144-9" name="__codelineno-144-9" href="#__codelineno-144-9"></a>docker<span class="w"> </span>stop<span class="w"> </span><span class="k">$(</span>docker<span class="w"> </span>ps<span class="w"> </span>-q<span class="w"> </span>--filter<span class="w"> </span><span class="nv">ancestor</span><span class="o">=</span>ghcr.io/cutctx/cutctx:0.29.0<span class="k">)</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
 </span></code></pre></div>
 <p><strong>PASS:</strong> container runs in stateless mode; no volume mounts required; <code>/livez</code> returns ok</p>
 <hr />
