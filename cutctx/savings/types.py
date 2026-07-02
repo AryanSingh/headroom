@@ -17,6 +17,13 @@ class SavingsSource(str, Enum):
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
+    # WS10: output-side optimization (3 levers: diff-edit steering,
+    # max_tokens auto-tuning, style shaping). Additive enum member.
+    # See artifacts/savings-moat-expansion-specs.md §WS10.
+    OUTPUT_OPTIMIZATION = "output_optimization"
+    # WS11: tool-result memoization. Additive enum member.
+    # See artifacts/savings-moat-expansion-specs.md §WS11.
+    MEMOIZATION = "memoization"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -42,6 +49,8 @@ _LABELS = {
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
+    SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
+    SavingsSource.MEMOIZATION: "Tool Memoization",
 }
 
 _DESCRIPTIONS = {
@@ -52,6 +61,18 @@ _DESCRIPTIONS = {
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
+    SavingsSource.OUTPUT_OPTIMIZATION: (
+        "Estimated tokens avoided by the WS10 output-side optimization "
+        "pre-pass (diff-edit steering, max_tokens auto-tuning, style "
+        "shaping). Labeled as estimated in the report — baseline is "
+        "counterfactual."
+    ),
+    SavingsSource.MEMOIZATION: (
+        "Tokens avoided by the WS11 tool-result memoization pre-pass. "
+        "When the same tool is called twice in a session with identical "
+        "args, the second call is short-circuited from upstream. "
+        "High payoff on agent loops that re-read files or re-run searches."
+    ),
 }
 
 

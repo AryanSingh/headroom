@@ -74,6 +74,10 @@ const LIFETIME_SAVINGS_SOURCES = [
   ['model_routing_savings_usd', 'model_routing'],
   ['tool_schema_compaction_savings_usd', 'tool_schema_compaction'],
   ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
+  // WS10: output-side optimization (additive per spec).
+  ['output_optimization_savings_usd', 'output_optimization'],
+  // WS11: tool-result memoization (additive per spec).
+  ['memoization_savings_usd', 'memoization'],
 ];
 
 function sumSavingsUsd(record) {
@@ -131,12 +135,24 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.api_surface_slimming || 0),
     Number(breakdown.api_surface_slimming_savings_usd || 0),
   );
+  // WS10: output_optimization source (additive per spec)
+  const outputOptimizationUsd = Math.max(
+    Number(cost?.output_optimization_savings_usd || 0),
+    Number(sourceUsd.output_optimization || 0),
+    Number(breakdown.output_optimization_savings_usd || 0),
+  );
+  // WS11: memoization source (additive per spec)
+  const memoizationUsd = Math.max(
+    Number(cost?.memoization_savings_usd || 0),
+    Number(sourceUsd.memoization || 0),
+    Number(breakdown.memoization_savings_usd || 0),
+  );
 
   return Math.max(
     Number(cost?.total_savings_usd || 0),
     Number(cost?.total_saved_usd || 0),
     Number(summaryCost?.total_saved_usd || 0),
-    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd,
+    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd + outputOptimizationUsd + memoizationUsd,
   );
 }
 
