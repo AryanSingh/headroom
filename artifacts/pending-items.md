@@ -19,6 +19,8 @@ Branch: `fix/ws20-memcache-optimize`
   --test license_verify` passes.
 - Codex websocket keepalive and litellm savings-tracker resilience fixes remain
   covered by regression tests.
+- End-to-end UI/API/feature bug-hunt plan exists at
+  `artifacts/end-to-end-bug-hunt-plan.md`.
 
 ## Remaining Release Items
 

@@ -59,6 +59,8 @@ Branch: `fix/ws20-memcache-optimize`
   packaging language.
 - [x] WS1-WS3 go-to-market polish docs are present for release review:
   quality-at-budget benchmark framing and current outreach positioning.
+- [x] End-to-end UI/API/feature bug-hunt plan exists:
+  `artifacts/end-to-end-bug-hunt-plan.md`.
 - [ ] Product-owner approval is still required before external campaign launch.
 - [ ] Branch cleanup can proceed only after PR/release owner confirmation for
   merged feature branches.

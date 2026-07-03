@@ -5,6 +5,8 @@
 - WS1-WS3 release polish docs added: a quality-at-budget benchmark framing
   document and current outreach positioning templates now capture
   provider-native comparison caveats and design-partner messaging.
+- Release QA planning added: `artifacts/end-to-end-bug-hunt-plan.md` defines
+  the UI, API, feature, stub/fake-state, and release-claim audit workflow.
 - WS7 Context Assurance completion gaps fixed: `cutctx report assurance`
   exists for JSON/markdown evidence export and `--verify` chain validation,
   matching the verification instructions embedded in exported bundles.
