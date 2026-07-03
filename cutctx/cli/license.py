@@ -122,7 +122,7 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
     elif resp.status_code == 401 or resp.status_code == 403:
         click.echo("Error: Invalid or expired license key.", err=True)
         click.echo(
-            "Check your key and try again, or visit https://pitchtoship.com/checkout?product=cutctx-team",
+            "Check your key and try again, or ask your Cutctx administrator for a fresh license.",
             err=True,
         )
         raise SystemExit(1) from None

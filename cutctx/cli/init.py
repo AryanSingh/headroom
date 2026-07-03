@@ -337,19 +337,18 @@ def _ensure_codex_provider(path: Path, port: int) -> None:
     logger.debug("ensure codex provider block: %s (port=%s)", path, port)
     block = (
         f"{_CODEX_PROVIDER_MARKER_START}\n"
-        'model_provider = "cutctx"\n'
-        f'openai_base_url = "http://127.0.0.1:{port}/v1"\n\n'
-        "[model_providers.cutctx]\n"
-        'name = "Cutctx init proxy"\n'
-        f'base_url = "http://127.0.0.1:{port}/v1"\n'
-        "supports_websockets = true\n"
+        f'openai_base_url = "http://127.0.0.1:{port}/v1"\n'
         f"{_CODEX_PROVIDER_MARKER_END}"
     )
     content = path.read_text(encoding="utf-8") if path.exists() else ""
     # init owns model_provider/openai_base_url: drop any prior assignment (any
     # value, including one an older version mis-scoped under a table) so we
     # replace it instead of emitting a duplicate top-level key (#260).
-    content = re.sub(r"(?m)^[ \t]*model_provider[ \t]*=.*\r?\n", "", content)
+    content = re.sub(
+        r'(?m)^[ \t]*model_provider[ \t]*=[ \t]*"(cutctx|cutctx)"[ \t]*\r?\n',
+        "",
+        content,
+    )
     content = re.sub(r"(?m)^[ \t]*openai_base_url[ \t]*=.*\r?\n", "", content)
     # The provider block carries top-level keys (model_provider, openai_base_url),
     # so it must land at the document root rather than after a trailing table (#260).

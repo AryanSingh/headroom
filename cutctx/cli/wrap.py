@@ -29,6 +29,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -268,6 +270,16 @@ def _check_proxy(port: int) -> bool:
         return False
 
 
+def _check_proxy_ready(port: int, timeout_seconds: float = 1.0) -> bool:
+    """Return whether the proxy is traffic-ready via ``/readyz``."""
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/readyz", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return False
+
+
 def _port_bind_error(port: int) -> OSError | None:
     """Return the bind error for a local proxy port, or None when it is usable."""
     try:
@@ -365,6 +377,9 @@ def _start_proxy(
     # Ensure proxy subprocess uses UTF-8 (Windows defaults to cp1252)
     proxy_env = os.environ.copy()
     proxy_env["PYTHONIOENCODING"] = "utf-8"
+    from cutctx import paths as _paths
+
+    proxy_env.setdefault("CUTCTX_LOG_FILE", str(_paths.request_history_path()))
 
     # Tell the proxy which agent is being wrapped (for traffic learning output)
     if agent_type != "unknown":
@@ -394,12 +409,12 @@ def _start_proxy(
         start_new_session=os.name == "posix",
     )
 
-    # Wait for proxy to be ready.
-    # ML components (Kompress, Magika, Tree-sitter) load synchronously before
-    # uvicorn binds the port. On slower machines this can take 20-30 seconds.
+    # Wait for proxy traffic readiness, not just the TCP port binding.
+    # ML components can finish warming after uvicorn starts listening, so a
+    # socket-level success alone is not enough for wrapped Codex requests.
     for _i in range(timeout_seconds):
         time.sleep(1)
-        if _check_proxy(port):
+        if _check_proxy_ready(port):
             click.echo(f"  Logs: {log_path}")
             return proc
         # Check if process died
@@ -1044,21 +1059,11 @@ def _inject_codex_provider_config(port: int) -> None:
     # happens to sit between the two.
     top_level_block = (
         f"{_CODEX_TOP_LEVEL_MARKER}\n"
-        f'model_provider = "{_CODEX_PROVIDER_NAME}"\n'
         f'openai_base_url = "http://127.0.0.1:{port}/v1"\n'
-        f"{_CODEX_END_MARKER}\n"
-    )
-    provider_section = (
-        f"{_CODEX_TOP_LEVEL_MARKER}\n"
-        f"[model_providers.{_CODEX_PROVIDER_NAME}]\n"
-        'name = "OpenAI via Cutctx proxy"\n'
-        f'base_url = "http://127.0.0.1:{port}/v1"\n'
-        f"supports_websockets = true\n"
         # Per-project savings: Codex sends the header only when the mapped
         # env var (CUTCTX_PROJECT, set by `cutctx wrap codex`) exists at
         # Codex runtime.  Inline table keeps the key inside this section so
         # _strip_codex_cutctx_blocks removes it with the rest of the block.
-        f'env_http_headers = {{ "{_PROJECT_HEADER_NAME}" = "CUTCTX_PROJECT" }}\n'
         f"{_CODEX_END_MARKER}\n"
     )
 
@@ -1080,14 +1085,14 @@ def _inject_codex_provider_config(port: int) -> None:
             # table at the end.  User content, if any, sits between them.
             user_content = content.strip()
             if user_content:
-                content = top_level_block + "\n" + user_content + "\n\n" + provider_section
+                content = top_level_block + "\n" + user_content + "\n"
             else:
-                content = top_level_block + "\n" + provider_section
+                content = top_level_block
         else:
-            content = top_level_block + "\n" + provider_section
+            content = top_level_block
 
         config_file.write_text(content)
-        click.echo(f"  Codex config: injected Cutctx provider (WS + HTTP) into {config_file}")
+        click.echo(f"  Codex config: routed native OpenAI provider through Cutctx in {config_file}")
     except Exception as e:
         click.echo(f"  Warning: could not update Codex config: {e}")
 
@@ -1292,6 +1297,15 @@ def _inject_rtk_instructions(file_path: Path, verbose: bool = False) -> bool:
     Idempotent — skips if marker already present. Appends to existing content.
     Returns True if instructions were written.
     """
+    import os as _os
+    # Skip if parent directory is not writable (e.g. cwd is filesystem root).
+    # If parent doesn't exist yet, check its parent since we need to create it.
+    parent_to_check = file_path.parent if file_path.parent.exists() else file_path.parent.parent
+    if not _os.access(parent_to_check, _os.W_OK):
+        if verbose:
+            click.echo(f"  Skipping rtk injection into {file_path} (parent not writable)")
+        return False
+
     if file_path.exists():
         existing = file_path.read_text()
         if _RTK_MARKER in existing:
@@ -3265,16 +3279,18 @@ def codex(
 
     env, env_vars_display = _build_codex_launch_env(port, os.environ)
 
-    # Per-project savings attribution: the injected provider config maps the
-    # X-Cutctx-Project header to CUTCTX_PROJECT via env_http_headers, so
-    # Codex sends it only when this var is set.  A user-set value wins.
-    _codex_project = _project_name_from_cwd()
-    if _codex_project and "CUTCTX_PROJECT" not in env:
-        env["CUTCTX_PROJECT"] = _codex_project
+    # NOTE: per-project savings attribution (X-Cutctx-Project) is not wired
+    # up for Codex. It previously relied on `env_http_headers` declared in a
+    # dedicated [model_providers.cutctx] table, but selecting that custom
+    # provider tagged every thread as a different `model_provider`, which
+    # fragmented session history in the Codex app (see the 2026-07-03
+    # incident writeup in artifacts/codex-session-recovery/). See
+    # TestCodexProjectHeaderConfig in tests/test_cli/test_wrap_codex.py for
+    # what a WS-aware `/p/<project>/` prefix fix would need.
 
-    # Inject Cutctx provider into Codex config so WebSocket traffic also
-    # routes through the proxy.  Codex ignores OPENAI_BASE_URL for its WS
-    # transport unless a custom provider declares supports_websockets = true.
+    # Route Codex through the native OpenAI provider so session history, usage,
+    # and settings stay visible while both HTTP and WS traffic still hit the
+    # proxy via openai_base_url.
     # NOTE: this must run BEFORE _inject_memory_mcp_config because it rewrites
     # the config file.  Re-inject MCP config after if memory is enabled.
     _inject_codex_provider_config(port)

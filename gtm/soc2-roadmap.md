@@ -25,7 +25,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 - [x] Logical access controls (SSO/OIDC, RBAC)
 - [x] Network security (firewalls, encryption in transit)
 - [x] Data encryption (Fernet AES-128-CBC + HMAC-SHA256 at rest, TLS 1.3 in transit)
-- [x] Tamper-evident audit log (HMAC hash chain) — see `cutctx_ee/audit/store.py`
+- [x] Tamper-evident audit log (secret-keyed SHA-256 hash chain) — see `cutctx_ee/audit/store.py`
 - [x] Admin API key handling (no plaintext log on auto-generation) — see `cutctx/proxy/server.py:2252-2278`
 - [x] EE route surface behind admin auth + RBAC (Blocker-1 fix in commit `2b49ee76`)
 - [ ] Vulnerability management program
@@ -36,7 +36,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 
 ### Availability
 - [x] Uptime monitoring (99.9% SLA target)
-- [x] Backup and recovery procedures (memory DB daily, spend ledger TODO)
+- [x] Backup and recovery procedures (daily backup job currently covers memory, spend-ledger, and audit DBs)
 - [x] Health endpoints (`/livez`, `/readyz`, `/health`)
 - [x] Per-provider circuit breaker (`cutctx/proxy/routing/failover.py`)
 - [x] Pipeline circuit breaker (`cutctx/transforms/pipeline.py`)
@@ -84,7 +84,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 ### Business Continuity
 | Control | Status | Owner | Notes |
 |---------|--------|-------|-------|
-| Automated backups | ✅ Implemented | DevOps | `k8s/backup-cronjob.yaml` covers `cutctx_memory.db`, `spend_ledger.db`, and `audit.db`; 30-day retention in S3; pruned via `aws s3api list-objects-v2` |
+| Automated backups | ✅ Implemented | DevOps | `k8s/backup-cronjob.yaml` covers `cutctx_memory.db`, `spend_ledger.db`, and `audit.db`; 30-day retention in S3; remaining EE stores are still out of scope |
 | Recovery procedures | 📋 To implement | DevOps | |
 | DR plan documentation | 📋 To implement | DevOps | |
 | Regular DR testing | 📋 To implement | DevOps | |

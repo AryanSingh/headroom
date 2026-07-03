@@ -34,9 +34,9 @@ curl -fsSL https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.
 
 PowerShell:
 
-```powershell
-irm https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1 | iex
-```
+There is not yet a published `scripts/install.ps1` in this repository.
+On Windows today, use WSL for the Docker-native installer or follow the
+native Python install path above.
 
 See [Docker-native install](docker-install.md) for wrapper behavior, compose usage, and host-integrated `wrap` flows.
 

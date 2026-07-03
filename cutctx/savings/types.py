@@ -17,6 +17,10 @@ class SavingsSource(str, Enum):
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
+    NORMALIZATION = "normalization"
+    BATCH_ROUTING = "batch_routing"
+    MEMOIZATION = "memoization"
+    OUTPUT_OPTIMIZATION = "output_optimization"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -42,16 +46,24 @@ _LABELS = {
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
+    SavingsSource.NORMALIZATION: "Tokenizer Normalization",
+    SavingsSource.BATCH_ROUTING: "Batch Routing",
+    SavingsSource.MEMOIZATION: "Tool Memoization",
+    SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
 }
 
 _DESCRIPTIONS = {
     SavingsSource.PROVIDER_PROMPT_CACHE: "Tokens avoided by provider-native prompt caching.",
     SavingsSource.CUTCTX_COMPRESSION: "Tokens removed by Cutctx compression layers.",
     SavingsSource.TOOL_SCHEMA_COMPACTION: "Tokens removed by compacting repeated tool definitions.",
-    SavingsSource.API_SURFACE_SLIMMING: "Tokens removed by trimming oversized tool and API surfaces.",
+    SavingsSource.API_SURFACE_SLIMMING: "Tokens removed by trimming oversized tool API surfaces.",
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
+    SavingsSource.NORMALIZATION: "Tokens removed by tokenizer-aware normalization.",
+    SavingsSource.BATCH_ROUTING: "Price delta from routing eligible traffic to provider batch APIs.",
+    SavingsSource.MEMOIZATION: "Tokens avoided when identical tool calls are short-circuited from cache.",
+    SavingsSource.OUTPUT_OPTIMIZATION: "Tokens avoided by output-side optimization passes.",
 }
 
 

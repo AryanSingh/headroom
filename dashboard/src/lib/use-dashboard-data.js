@@ -10,6 +10,7 @@ const STANDARD_FLAG_KEYS = new Set([
   'profiles_enabled',
   'shared_context_enabled',
   'cost_forecast_enabled',
+  'autopilot_enabled',
   'episodic_memory_enabled',
   'audit_enabled',
 ]);
@@ -60,6 +61,7 @@ export function isUnsupportedDashboardEndpointError(error) {
 export async function fetchDashboardJson(path) {
   const response = await fetch(getProxyUrl(path), {
     headers: getAdminAuthHeaders(),
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -123,7 +125,7 @@ export async function patchDashboardConfig(updates) {
       body: JSON.stringify(updates),
     });
 
-    let data = null;
+    let data;
     try {
       data = await response.json();
     } catch {

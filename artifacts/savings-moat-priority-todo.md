@@ -68,12 +68,13 @@ Status:
   - [x] `W13.1` Eligibility gate (explicit, never inferred) — header `x-cutctx-batch: allow` OR allowlisted internal origin
   - [x] `W13.2` Internal queue state (pending/completed/failed/total)
   - [x] `W13.5` `SavingsSource.BATCH_ROUTING` registration
-- [x] `WS19` Compression autopilot (branch feat/ws19-autopilot, PR #7)
+- [~] `WS19` Compression autopilot (branch feat/ws19-autopilot, PR #7)
   - [x] `W19.1` Signal types (QualitySignal, LevelAdjustment, AutopilotStats)
   - [x] `W19.2` Pure deterministic controller (no ML); bad-signal drops level by 1, K-clean raises by 1
   - [x] `W19.3` Bounded step + clamping (min_level=1, max_level=5, hysteresis_window=10)
-  - [x] `W19.4` Per-task-type isolation
-  - [x] `W19.5` Audit/RequestOutcome-adjacent records
+- [x] `W19.4` Per-task-type isolation within the pure controller
+- [x] `W19.5` Pipeline wiring + flag-off/persistence coverage
+- [x] `W19.6` Overview sparkline + docs
 
 Status (2026-07-02, end of session):
 - WS21.1: 56 tests pass
@@ -81,7 +82,7 @@ Status (2026-07-02, end of session):
 - WS11: 613/613 broader regression pass (branch feat/ws11-memoize, PR #4)
 - WS10: 331/331 broader regression pass (branch feat/ws10-output-optimize, PR #5)
 - WS13: 103/103 broader regression pass (branch feat/ws13-batch-routing, PR #6)
-- WS19: 736/736 broader regression pass (branch feat/ws19-autopilot, PR #7)
+- WS19: controller-only branch gap is now closed in the current worktree with stateful proxy-level pipeline wiring, `/stats` autopilot exposure, Overview surfacing, Governance/docs updates, and focused regression coverage (`56 passed` in the intelligence/autopilot/dashboard slice plus `dashboard/e2e/overview.spec.js` green)
 - 5 PRs open, 0 merged into main; no work merged this session
 - Per session policy: 5 PRs sit ready for review, each behind a clear "what / why / deferred items" section
 
@@ -106,6 +107,6 @@ Order of remaining work (per savings-moat-priority-todo.md):
 2. WS11 (done)
 3. WS10 (done)
 4. WS13 (done)
-5. WS19 (done)
+5. WS19 (current worktree wired; branch diff still unmerged into `main`)
 6. WS18 (PRIMARY MOAT — start next session)
 7. WS4-WS9 (Phase 2 from strategy-implementation-plan.md)

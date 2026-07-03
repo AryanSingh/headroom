@@ -95,4 +95,4 @@ Cutctx applies 6 specialized compression algorithms:
 
 Context compression isn't just about saving money — it's about enabling AI agents to process more information in less time. As agents become more capable, the ability to efficiently manage context will be a competitive advantage.
 
-*Ready to try it? [Start your free trial](https://cutctx.sh) or [calculate your ROI](https://cutctx.sh/roi).*
+*Ready to try it? [Read the quickstart](https://cutctx.dev/docs/quickstart) or [calculate your ROI](https://cutctx.dev/roi).*

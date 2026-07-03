@@ -70,6 +70,7 @@ _SYNC_STATE_FILE = "sync_state.json"
 _BRIDGE_STATE_FILE = "bridge_state.json"
 _LOGS_DIR = "logs"
 _PROXY_LOG_FILE = "proxy.log"
+_REQUEST_HISTORY_FILE = "request_history.jsonl"
 _DEBUG_400_DIR = "debug_400"
 _CODEX_WIRE_DEBUG_DIR = "codex_wire"
 _BIN_DIR = "bin"
@@ -252,6 +253,12 @@ def proxy_log_path() -> Path:
     return log_dir() / _PROXY_LOG_FILE
 
 
+def request_history_path() -> Path:
+    """Return the path for the durable request-history JSONL."""
+
+    return log_dir() / _REQUEST_HISTORY_FILE
+
+
 def debug_400_dir() -> Path:
     """Return the directory used to stash HTTP 400 debug payloads."""
 
@@ -361,6 +368,7 @@ __all__ = [
     "bridge_state_path",
     "log_dir",
     "proxy_log_path",
+    "request_history_path",
     "debug_400_dir",
     "codex_wire_debug_dir",
     "bin_dir",

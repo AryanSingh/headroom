@@ -182,12 +182,15 @@ export CUTCTX_CONTEXT_BUDGET_MAX_TOKENS=100000
 export CUTCTX_PROFILES_ENABLED=1
 export CUTCTX_SHARED_CONTEXT_ENABLED=1
 export CUTCTX_COST_FORECAST_ENABLED=1
+export CUTCTX_AUTOPILOT=1
 ```
 
 ```bash
 # Verify intelligence status
 curl -H "Authorization: Bearer test-admin-key" http://localhost:8787/intelligence/status
-# Expect: JSON with all 6 feature flags set to true
+# Expect: JSON with all 7 feature flags set to true
+# Verify WS19 autopilot surface
+curl -H "Authorization: Bearer test-admin-key" http://localhost:8787/intelligence/autopilot/status
 ```
 
 ---

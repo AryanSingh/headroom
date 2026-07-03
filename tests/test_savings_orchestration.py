@@ -41,12 +41,16 @@ from cutctx.savings import (
 
 class TestSavingsSource:
     def test_all_five_sources_present(self):
-        assert len(SavingsSource) == 7
+        assert len(SavingsSource) == 11
         assert SavingsSource.PROVIDER_PROMPT_CACHE.value == "provider_prompt_cache"
         assert SavingsSource.CUTCTX_COMPRESSION.value == "cutctx_compression"
         assert SavingsSource.SEMANTIC_CACHE.value == "semantic_cache"
         assert SavingsSource.PREFIX_CACHE_SELF_HOSTED.value == "prefix_cache_self_hosted"
         assert SavingsSource.MODEL_ROUTING.value == "model_routing"
+        assert SavingsSource.NORMALIZATION.value == "normalization"
+        assert SavingsSource.BATCH_ROUTING.value == "batch_routing"
+        assert SavingsSource.MEMOIZATION.value == "memoization"
+        assert SavingsSource.OUTPUT_OPTIMIZATION.value == "output_optimization"
 
     def test_from_str_known(self):
         assert SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE

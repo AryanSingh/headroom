@@ -243,8 +243,11 @@ function AppFrame() {
     const mq = window.matchMedia('(max-width: 1024px)');
     const handler = (e) => {
       setIsMobile(e.matches);
-      if (e.matches) setSidebarOpen(false);
-      else setSidebarOpen(true);
+      if (e.matches) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
     };
     handler(mq);
     mq.addEventListener('change', handler);
@@ -256,7 +259,9 @@ function AppFrame() {
   }, []);
 
   const closeSidebar = useCallback(() => {
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   }, [isMobile]);
 
   useEffect(() => {

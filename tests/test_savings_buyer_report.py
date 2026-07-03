@@ -242,7 +242,7 @@ def test_savings_by_source_empty_state_emits_valid_json():
         )
     if result.exit_code == 0:
         payload = json.loads(result.output)
-        # All five sources must be present with zero values.
+        # All registered sources must be present with zero values.
         assert set(payload["savings_by_source"].keys()) == {
             "provider_prompt_cache",
             "cutctx_compression",
@@ -251,6 +251,10 @@ def test_savings_by_source_empty_state_emits_valid_json():
             "model_routing",
             "tool_schema_compaction",
             "api_surface_slimming",
+            "normalization",
+            "memoization",
+            "batch_routing",
+            "output_optimization",
         }
         assert payload["sessions_count"] == 0
         assert payload["total_tokens_saved"] == 0

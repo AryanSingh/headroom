@@ -69,8 +69,9 @@ def test_apply_and_revert_codex_provider_scope(monkeypatch, tmp_path: Path) -> N
 
     mutation = apply_codex_provider_scope(manifest)
     content = config_path.read_text()
-    assert 'model_provider = "cutctx"' in content
-    assert 'base_url = "http://127.0.0.1:8787/v1"' in content
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
+    assert 'model_provider = "cutctx"' not in content
+    assert "[model_providers.cutctx]" not in content
     assert 'env_key = "OPENAI_API_KEY"' not in content
     assert "requires_openai_auth" not in content
 
@@ -132,8 +133,9 @@ def test_apply_codex_provider_scope_replaces_existing_managed_block(
 
     content = config_path.read_text()
     assert content.count("# --- Cutctx persistent provider ---") == 1
-    assert 'base_url = "http://127.0.0.1:9999/v1"' in content
+    assert 'openai_base_url = "http://127.0.0.1:9999/v1"' in content
     assert 'base_url = "http://127.0.0.1:1111/v1"' not in content
+    assert "[model_providers.cutctx]" not in content
     # Bug 3 (#406): the replacement block must NOT carry requires_openai_auth.
     assert "requires_openai_auth" not in content
 
@@ -148,7 +150,7 @@ def test_apply_codex_provider_scope_creates_new_config_when_missing(
     mutation = apply_codex_provider_scope(manifest)
 
     assert mutation is not None
-    assert 'base_url = "http://127.0.0.1:8787/v1"' in config_path.read_text()
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in config_path.read_text()
 
 
 def test_revert_codex_provider_scope_ignores_missing_path_and_file(tmp_path: Path) -> None:
@@ -516,8 +518,8 @@ def test_cutctx_provider_block_never_sets_requires_openai_auth(
             f"(port={port}); got:\n{content}"
         )
         # Sanity: the block itself is present and points at the right port.
-        assert f'base_url = "http://127.0.0.1:{port}/v1"' in content
-        assert "[model_providers.cutctx]" in content
+        assert f'openai_base_url = "http://127.0.0.1:{port}/v1"' in content
+        assert "[model_providers.cutctx]" not in content
 
 
 def test_inject_codex_provider_config_writes_openai_base_url(
@@ -556,8 +558,8 @@ def test_inject_codex_provider_config_writes_openai_base_url(
         f"got:\n{content}"
     )
     # Sanity: the provider block is actually there.
-    assert "[model_providers.cutctx]" in content
-    assert 'base_url = "http://127.0.0.1:8787/v1"' in content
+    assert "[model_providers.cutctx]" not in content
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
     # requires_openai_auth must also be absent (bug 3 regression guard).
     assert "requires_openai_auth" not in content, (
         f"requires_openai_auth must be absent from the injected provider block; got:\n{content}"

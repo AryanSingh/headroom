@@ -114,6 +114,9 @@ def _sanitize_chatgpt_subscription_responses_body(
         if key in sanitized:
             sanitized.pop(key, None)
             stripped.append(key)
+    # chatgpt.com/backend-api/codex/responses requires store=false and stream=true explicitly.
+    sanitized["store"] = False
+    sanitized["stream"] = True
     # Translate deprecated model names the chatgpt.com endpoint no longer accepts.
     current_model = sanitized.get("model", "")
     migrated = _CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS.get(current_model)
@@ -174,10 +177,17 @@ def _truncate_body_for_chatgpt(
     if _body_bytes() <= max_bytes:
         return body
 
-    # Step 2: drop oldest messages (keep at least 1 to preserve the user turn)
+    # Step 2: drop oldest messages (keep at least 1 to preserve the user turn).
+    # After dropping, ensure the first remaining item is a user/system message —
+    # the Codex API rejects inputs that start with function_call_output or
+    # assistant items whose preceding function_call was dropped.
+    _TOOL_RESULT_TYPES = {"function_call_output", "tool_result"}
     if isinstance(body.get("input"), list) and len(body["input"]) > 1:
         msgs = body["input"]
         while len(msgs) > 1 and _body_bytes() > max_bytes:
+            msgs.pop(0)
+        # Drop any leading tool-result items that lost their paired tool-call.
+        while len(msgs) > 1 and isinstance(msgs[0], dict) and msgs[0].get("type") in _TOOL_RESULT_TYPES:
             msgs.pop(0)
         body["input"] = msgs
     if _body_bytes() <= max_bytes:
@@ -2238,12 +2248,23 @@ class OpenAIResponsesMixin:
         )
 
         try:
+            # --- Accept the client WebSocket FIRST ---
+            # Previously we connected to upstream before accepting the client so
+            # we could forward x-codex-* rate-limit headers from chatgpt.com's
+            # 101 response.  However chatgpt.com's WebSocket handshake can take
+            # 20+ seconds, which causes Codex to time out waiting for our 101
+            # ("WebSocket protocol error: Handshake not finished").
+            #
+            # Fix: accept the client immediately, then connect upstream.
+            # The x-codex-* headers are updated into /stats state after the
+            # upstream handshake completes; they are no longer forwarded in the
+            # client-facing 101 but that is a cosmetic loss — the session works.
+            async with stage_timer.measure("accept"):
+                await websocket.accept(
+                    subprotocol=client_subprotocols[0] if client_subprotocols else None,
+                )
+
             # --- Connect to upstream OpenAI WebSocket ---
-            # NOTE: we connect *before* accepting the client. OpenAI delivers the
-            # Codex subscription/rate-limit window only on the upstream WS
-            # handshake response headers, so we must read them here and attach
-            # the x-codex-* subset to the client-facing 101 (below). Once accept()
-            # sends the 101 the headers can no longer be added.
             logger.info(f"[{request_id}] WS /v1/responses connecting to {upstream_url}")
 
             # Use ssl=True to let the websockets library handle SSL natively.
@@ -2303,31 +2324,25 @@ class OpenAIResponsesMixin:
                     )
                     await asyncio.sleep(delay_with_jitter / 1000)
 
-            # Accept the client WS, forwarding OpenAI's x-codex-* subscription
-            # window from the upstream handshake onto the client-facing 101 so
-            # Codex, /stats, and the cutctx-desktop gauge can read the live
-            # window. In API-key mode the handshake carries no x-codex-* headers,
-            # so accept_headers stays empty and this behaves exactly as before.
-            accept_headers: list[tuple[bytes, bytes]] = []
+            # Update /stats rate-limit state from chatgpt.com handshake headers
+            # (no longer forwarded in the client 101, but still tracked internally).
             if ws_connected:
                 _codex_handshake = _extract_codex_handshake_headers(upstream)
                 if _codex_handshake:
-                    accept_headers = [
-                        (name.encode("latin-1"), value.encode("latin-1"))
-                        for name, value in _codex_handshake
-                    ]
-                    # Parity with the HTTP path: also refresh Python /stats state.
                     from cutctx.subscription.codex_rate_limits import (
                         get_codex_rate_limit_state,
                     )
-
                     with contextlib.suppress(Exception):
                         get_codex_rate_limit_state().update_from_headers(dict(_codex_handshake))
-            async with stage_timer.measure("accept"):
-                await websocket.accept(
-                    subprotocol=client_subprotocols[0] if client_subprotocols else None,
-                    headers=accept_headers or None,
+            else:
+                # Upstream connect failed after all retries — close client cleanly.
+                err_msg = str(ws_last_err) if ws_last_err else "upstream connect failed"
+                logger.error(
+                    f"[{request_id}] WS upstream connect failed after all retries: {err_msg}"
                 )
+                with contextlib.suppress(Exception):
+                    await websocket.close(code=1014, reason="upstream connect failed")
+                return
 
             # --- Unit 3: register the session as soon as accept succeeds ---
             client_addr: str | None = None
