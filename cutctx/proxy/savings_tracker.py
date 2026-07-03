@@ -34,6 +34,33 @@ DEFAULT_MAX_HISTORY_AGE_DAYS = 365
 DEFAULT_MAX_RESPONSE_HISTORY_POINTS = 500
 DEFAULT_DISPLAY_SESSION_INACTIVITY_MINUTES = 60
 
+PERSISTED_SAVINGS_SOURCES = (
+    "provider_prompt_cache",
+    "cutctx_compression",
+    "tool_schema_compaction",
+    "api_surface_slimming",
+    "semantic_cache",
+    "prefix_cache_self_hosted",
+    "model_routing",
+    "output_optimization",
+    "memoization",
+    "batch_routing",
+    "normalization",
+)
+
+SESSION_SAVINGS_USD_FIELDS = (
+    "cache_savings_usd",
+    "semantic_cache_savings_usd",
+    "self_hosted_prefix_cache_savings_usd",
+    "model_routing_savings_usd",
+    "tool_schema_compaction_savings_usd",
+    "api_surface_slimming_savings_usd",
+    "output_optimization_savings_usd",
+    "memoization_savings_usd",
+    "batch_routing_savings_usd",
+    "normalization_savings_usd",
+)
+
 LITELLM_AVAILABLE = importlib.util.find_spec("litellm") is not None
 litellm: Any | None = None
 
@@ -485,7 +512,7 @@ def _normalize_display_session(entry: Any) -> dict[str, Any]:
         2,
     )
 
-    return {
+    session = {
         "requests": _coerce_int(entry.get("requests")),
         "tokens_saved": tokens_saved,
         "compression_savings_usd": round(
@@ -501,6 +528,11 @@ def _normalize_display_session(entry: Any) -> dict[str, Any]:
         "started_at": _to_utc_iso(started_at),
         "last_activity_at": _to_utc_iso(last_activity_at),
     }
+    for field in SESSION_SAVINGS_USD_FIELDS:
+        value = round(_coerce_float(entry.get(field)), 6)
+        if value > 0 or field in entry:
+            session[field] = value
+    return session
 
 
 class SavingsTracker:
@@ -1313,12 +1345,24 @@ class SavingsTracker:
         lifetime_savings_usd = 0.0
         lifetime_input_tokens = 0
         lifetime_input_cost_usd = 0.0
+        lifetime_extra_usd = {field: 0.0 for field in SESSION_SAVINGS_USD_FIELDS}
+        lifetime_source_tokens = {source: 0 for source in PERSISTED_SAVINGS_SOURCES}
+        lifetime_source_usd = {source: 0.0 for source in PERSISTED_SAVINGS_SOURCES}
         if isinstance(lifetime_raw, dict):
             lifetime_requests = _coerce_int(lifetime_raw.get("requests"))
             lifetime_tokens_saved = _coerce_int(lifetime_raw.get("tokens_saved"))
             lifetime_savings_usd = _coerce_float(lifetime_raw.get("compression_savings_usd"))
             lifetime_input_tokens = _coerce_int(lifetime_raw.get("total_input_tokens"))
             lifetime_input_cost_usd = _coerce_float(lifetime_raw.get("total_input_cost_usd"))
+            for field in SESSION_SAVINGS_USD_FIELDS:
+                lifetime_extra_usd[field] = _coerce_float(lifetime_raw.get(field))
+            for source in PERSISTED_SAVINGS_SOURCES:
+                lifetime_source_tokens[source] = _coerce_int(
+                    lifetime_raw.get(f"savings_by_source_tokens.{source}")
+                )
+                lifetime_source_usd[source] = _coerce_float(
+                    lifetime_raw.get(f"savings_by_source_usd.{source}")
+                )
 
         if normalized_history:
             last = normalized_history[-1]
@@ -1338,6 +1382,28 @@ class SavingsTracker:
                 lifetime_input_cost_usd,
                 _coerce_float(last.get("total_input_cost_usd")),
             )
+            for field in SESSION_SAVINGS_USD_FIELDS:
+                lifetime_extra_usd[field] = max(
+                    lifetime_extra_usd[field],
+                    _coerce_float(last.get(field)),
+                )
+            for source in PERSISTED_SAVINGS_SOURCES:
+                lifetime_source_tokens[source] = max(
+                    lifetime_source_tokens[source],
+                    sum(
+                        _coerce_int(row.get("savings_by_source_tokens", {}).get(source))
+                        for row in normalized_history
+                        if isinstance(row.get("savings_by_source_tokens"), dict)
+                    ),
+                )
+                lifetime_source_usd[source] = max(
+                    lifetime_source_usd[source],
+                    sum(
+                        _coerce_float(row.get("savings_by_source_usd", {}).get(source))
+                        for row in normalized_history
+                        if isinstance(row.get("savings_by_source_usd"), dict)
+                    ),
+                )
 
         state = {
             "schema_version": SCHEMA_VERSION,
@@ -1352,6 +1418,17 @@ class SavingsTracker:
             "history": normalized_history,
             "projects": _normalize_projects(raw.get("projects")),
         }
+        for field, value in lifetime_extra_usd.items():
+            if value > 0 or (isinstance(lifetime_raw, dict) and field in lifetime_raw):
+                state["lifetime"][field] = round(value, 6)
+        for source, value in lifetime_source_tokens.items():
+            key = f"savings_by_source_tokens.{source}"
+            if value > 0 or (isinstance(lifetime_raw, dict) and key in lifetime_raw):
+                state["lifetime"][key] = int(value)
+        for source, value in lifetime_source_usd.items():
+            key = f"savings_by_source_usd.{source}"
+            if value > 0 or (isinstance(lifetime_raw, dict) and key in lifetime_raw):
+                state["lifetime"][key] = round(value, 6)
 
         if normalized_history:
             reference_time = _parse_timestamp(normalized_history[-1]["timestamp"]) or _utc_now()

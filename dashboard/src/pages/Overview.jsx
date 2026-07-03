@@ -453,6 +453,35 @@ return Array.from(requestBuckets.values())
 .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
 }
 
+const historyBuckets = new Map();
+for (const entry of stats?.persistent_savings?.recent_history || []) {
+const model = entry?.model;
+if (!model || model === 'unknown') {
+  continue;
+}
+
+const current = historyBuckets.get(model) || {
+  key: model,
+  label: model,
+  tokens: 0,
+  usd: 0,
+  requests: 0,
+};
+current.tokens += Number(entry?.delta_tokens_saved ?? entry?.total_tokens_saved ?? 0);
+current.usd += Number(
+  entry?.delta_savings_usd
+  ?? entry?.compression_savings_usd
+  ?? 0,
+);
+current.requests += Number(entry?.requests ?? 1);
+historyBuckets.set(model, current);
+}
+
+if (historyBuckets.size > 0) {
+return Array.from(historyBuckets.values())
+.sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+}
+
 return Object.entries(stats?.requests?.by_model || {})
 .map(([model, count]) => ({
 key: model,
@@ -653,7 +682,13 @@ function formatBucketLabel(date, period) {
   return new Intl.DateTimeFormat('en-US', options).format(date);
 }
 
-function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsSource }) {
+function buildTrendBuckets({
+  period,
+  referenceTime,
+  historyData,
+  recentRequestsSource,
+  mode = 'historical',
+}) {
   const periodMs =
     period === '24h' ? 86_400_000 : period === '7d' ? 604_800_000 : 2_592_000_000;
   const bucketCount = 20;
@@ -673,7 +708,7 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
     };
   });
 
-  const series = historyData?.series;
+  const series = mode === 'historical' ? historyData?.series : null;
   if (series) {
     const sourceData =
       period === '24h'
@@ -732,6 +767,7 @@ function buildTrendBuckets({ period, referenceTime, historyData, recentRequestsS
 
 function TrendChart({ stats, historyData }) {
   const [period, setPeriod] = useState('24h');
+  const [mode, setMode] = useState('historical');
   const [referenceTime, setReferenceTime] = useState(() => Date.now());
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const recentRequestsSource = stats?.recent_requests;
@@ -743,8 +779,9 @@ function TrendChart({ stats, historyData }) {
         referenceTime,
         historyData,
         recentRequestsSource,
+        mode,
       }),
-    [historyData, period, recentRequestsSource, referenceTime],
+    [historyData, mode, period, recentRequestsSource, referenceTime],
   );
 
   const maxBar = Math.max(...buckets.map((bucket) => bucket.tokens), 1);
@@ -768,6 +805,22 @@ function TrendChart({ stats, historyData }) {
   return (
     <div className="trend-chart-shell">
       <div className="trend-chart-header">
+        <div className="trend-chart-tabs">
+          {['session', 'historical'].map((nextMode) => (
+            <button
+              key={nextMode}
+              className={`trend-tab ${mode === nextMode ? 'active' : ''}`}
+              onClick={() => {
+                setMode(nextMode);
+                setReferenceTime(Date.now());
+                setHoveredIndex(null);
+              }}
+              type="button"
+            >
+              {nextMode === 'session' ? 'Session' : 'Historical'}
+            </button>
+          ))}
+        </div>
         <div className="trend-chart-tabs">
           {['24h', '7d', '30d'].map((nextPeriod) => (
             <button
@@ -1754,6 +1807,10 @@ export default function Overview() {
     activeModelRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
   const activeCompressionPercent =
     tokens.active_savings_percent != null ? Number(tokens.active_savings_percent || 0) : null;
+  const effectiveActiveCompressionPercent =
+    activeCompressionPercent != null
+      ? Math.max(activeCompressionPercent, effectiveSavingsPercent)
+      : effectiveSavingsPercent;
   const proxyCompressionPercent =
     tokens.proxy_savings_percent != null ? Number(tokens.proxy_savings_percent || 0) : null;
   const directCompressionRow = sourceRows.find((row) => row.key === 'cutctx_compression');
@@ -1804,7 +1861,11 @@ export default function Overview() {
             icon={Layers}
             iconColor="purple"
             label="Active compression"
-            value={activeCompressionPercent != null ? `${activeCompressionPercent.toFixed(1)}%` : '—'}
+            value={
+              Number.isFinite(effectiveActiveCompressionPercent)
+                ? `${effectiveActiveCompressionPercent.toFixed(1)}%`
+                : '—'
+            }
             footnote={
               proxyCompressionPercent != null
                 ? `${formatPercent(proxyCompressionPercent)} whole-request proxy reduction`

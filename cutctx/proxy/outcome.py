@@ -772,6 +772,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         model_routing_usd_delta=_savings_by_source_usd.get(
             "model_routing"
         ),
+        savings_by_source_usd=_savings_by_source_usd,
     )
 
     # 2. Cost tracker (optional).

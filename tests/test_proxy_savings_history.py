@@ -916,6 +916,81 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
         assert persisted["display_session"]["requests"] == 2
 
 
+def test_restart_safe_stats_preserve_models_and_full_source_attribution(
+    tmp_path, monkeypatch
+):
+    savings_path = tmp_path / "proxy_savings.json"
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
+    monkeypatch.setattr(
+        "cutctx.proxy.server.CostTracker._get_cache_prices",
+        lambda self, model: (0.001, 0.0015, 0.002),
+    )
+
+    config = ProxyConfig(
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        log_requests=False,
+    )
+
+    with TestClient(create_app(config)) as client:
+        proxy = client.app.state.proxy
+        asyncio.run(
+            proxy.metrics.record_request(
+                provider="openai",
+                model="gpt-5.4",
+                input_tokens=1_000,
+                output_tokens=24,
+                tokens_saved=100,
+                latency_ms=15.0,
+                savings_by_source_tokens={
+                    "cutctx_compression": 100,
+                    "normalization": 30,
+                    "batch_routing": 20,
+                    "memoization": 10,
+                    "output_optimization": 5,
+                },
+                savings_by_source_usd={
+                    "cutctx_compression": 0.10,
+                    "normalization": 1.25,
+                    "batch_routing": 2.50,
+                    "memoization": 3.75,
+                    "output_optimization": 4.00,
+                },
+            )
+        )
+        asyncio.run(
+            proxy.metrics.record_request(
+                provider="openai",
+                model="gpt-4o",
+                input_tokens=500,
+                output_tokens=24,
+                tokens_saved=40,
+                latency_ms=15.0,
+                savings_by_source_tokens={"cutctx_compression": 40},
+                savings_by_source_usd={"cutctx_compression": 0.04},
+            )
+        )
+
+    with TestClient(create_app(config)) as client:
+        stats = client.get("/stats").json()
+        assert stats["requests"]["by_model"] == {}
+        assert stats["persistent_savings"]["lifetime"]["tokens_saved"] == 140
+        assert stats["savings_by_source"]["tokens"]["normalization"] == 30
+        assert stats["savings_by_source"]["tokens"]["batch_routing"] == 20
+        assert stats["savings_by_source"]["tokens"]["memoization"] == 10
+        assert stats["savings_by_source"]["tokens"]["output_optimization"] == 5
+        assert stats["savings_by_source"]["usd"]["normalization"] == pytest.approx(1.25)
+        assert stats["savings_by_source"]["usd"]["batch_routing"] == pytest.approx(2.50)
+        assert stats["savings_by_source"]["usd"]["memoization"] == pytest.approx(3.75)
+        assert stats["savings_by_source"]["usd"]["output_optimization"] == pytest.approx(4.00)
+
+        history = client.get("/stats-history").json()
+        hourly = history["series"]["hourly"][0]
+        assert set(hourly["by_model"]) == {"gpt-5.4", "gpt-4o"}
+        assert hourly["by_model"]["gpt-5.4"]["tokens_saved"] == 100
+        assert hourly["by_model"]["gpt-4o"]["tokens_saved"] == 40
+
+
 def test_stats_history_csv_export_is_frontend_friendly(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
     monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))

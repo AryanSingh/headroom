@@ -87,7 +87,7 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 - **CacheAligner** — stabilizes prefixes so provider KV caches actually hit
 - **CCR** — stores originals locally; LLM calls `cutctx_retrieve` if it needs them
 
-→ [Architecture](https://cutctx.dev/docs/architecture) · [CCR reversible compression](https://cutctx.dev/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
+→ [Architecture](docs/project-architecture.md) · [Docs architecture](https://cutctx.dev/docs/architecture) · [CCR reversible compression](https://cutctx.dev/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
 
 ## Get started (60 seconds)
 

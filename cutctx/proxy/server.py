@@ -5120,6 +5120,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
+        savings_sources = tuple(src.value for src in SavingsSource)
         cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
         cli_filtering_lifetime = cli_filtering_stats.get("lifetime", {}) if cli_filtering_stats else {}
         kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
@@ -5166,6 +5167,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return {
             "summary": summary,
+            "savings_by_source": {
+                "total_tokens": sum(
+                    int(
+                        persistent_savings.get("lifetime", {}).get(
+                            f"savings_by_source_tokens.{src}", 0
+                        )
+                        or 0
+                    )
+                    for src in savings_sources
+                ),
+                "tokens": {
+                    src: int(
+                        persistent_savings.get("lifetime", {}).get(
+                            f"savings_by_source_tokens.{src}", 0
+                        )
+                        or 0
+                    )
+                    for src in savings_sources
+                },
+                "usd": {
+                    src: round(
+                        float(
+                            persistent_savings.get("lifetime", {}).get(
+                                f"savings_by_source_usd.{src}", 0.0
+                            )
+                            or 0.0
+                        ),
+                        6,
+                    )
+                    for src in savings_sources
+                },
+            },
             "tokens": summary,
             "requests": {
                 "total": requests_total,
