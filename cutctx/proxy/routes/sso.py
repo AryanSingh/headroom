@@ -62,12 +62,25 @@ def create_sso_router(
         }
 
     @router.post("/validate", dependencies=write_deps)
-    async def validate_token(request: Request, token: str) -> dict[str, Any]:
+    async def validate_token(
+        request: Request,
+        token: str | None = None,
+    ) -> dict[str, Any]:
         if SsoValidator is None:
             raise HTTPException(
                 status_code=501,
                 detail="SSO requires cutctx_ee (Enterprise Edition)",
             )
+        body_token = None
+        try:
+            payload = await request.json()
+        except Exception:  # noqa: BLE001
+            payload = None
+        if isinstance(payload, dict) and isinstance(payload.get("token"), str):
+            body_token = payload["token"]
+        token = body_token or token
+        if not token:
+            raise HTTPException(status_code=400, detail="Missing SSO token")
         proxy = getattr(request.app.state, "proxy", None)
         sso_validator = getattr(proxy, "sso_validator", None) if proxy else None
         if sso_validator is None:

@@ -516,6 +516,118 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         click.echo(content)
 
 
+def _build_agent_context_report(days: int) -> dict[str, Any]:
+    """Build a CFO/CISO-forwardable context control-plane report."""
+
+    rows = _collect_savings_history(days)
+    total_tokens = sum(int(row.get("tokens_saved") or 0) for row in rows)
+    total_usd = sum(float(row.get("cost_savings_usd") or 0.0) for row in rows)
+    source_tokens: dict[str, int] = {}
+    for row in rows:
+        for source, tokens in (row.get("savings_by_source_tokens") or {}).items():
+            source_tokens[source] = source_tokens.get(source, 0) + int(tokens or 0)
+
+    from cutctx.proxy.session_replay import is_replay_enabled
+
+    return {
+        "schema_version": "agent_context_report_v1",
+        "period_days": days,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "summary": {
+            "requests": len(rows),
+            "tokens_saved": total_tokens,
+            "usd_saved": round(total_usd, 4),
+        },
+        "savings_by_source_tokens": dict(sorted(source_tokens.items())),
+        "quality_guard": {
+            "status": "no_data" if not rows else "observed",
+            "note": "Quality-guard stats are included when persisted outcome rows expose them.",
+        },
+        "policy": {
+            "context_policy_env": bool(
+                __import__("os").environ.get("CUTCTX_CONTEXT_POLICY")
+            ),
+        },
+        "assurance": {
+            "status": "blocked",
+            "note": "WS7 signed evidence export requires EE packaging/signing work.",
+        },
+        "session_replay": {
+            "enabled": is_replay_enabled(),
+            "status": "available" if is_replay_enabled() else "disabled",
+        },
+    }
+
+
+def _render_agent_context_report(payload: dict[str, Any], fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(payload, indent=2, sort_keys=True)
+
+    summary = payload["summary"]
+    source_tokens = payload["savings_by_source_tokens"]
+    lines = [
+        f"# Agent Context Report — last {payload['period_days']} days",
+        "",
+        "## Executive Summary",
+        "",
+        f"- Requests analyzed: {summary['requests']:,}",
+        f"- Tokens saved: {summary['tokens_saved']:,}",
+        f"- Estimated USD saved: ${summary['usd_saved']:,.2f}",
+        "",
+        "## Savings By Source",
+        "",
+    ]
+    if source_tokens:
+        lines.extend(["| Source | Tokens |", "|---|---:|"])
+        for source, tokens in source_tokens.items():
+            lines.append(f"| {source} | {tokens:,} |")
+    else:
+        lines.append("No savings-source rows found for this period.")
+    lines.extend(
+        [
+            "",
+            "## Governance And Assurance",
+            "",
+            f"- Quality guard: {payload['quality_guard']['status']}",
+            f"- Context policy configured: {payload['policy']['context_policy_env']}",
+            f"- Context Assurance: {payload['assurance']['status']} — {payload['assurance']['note']}",
+            f"- Session replay: {payload['session_replay']['status']}",
+            "",
+        ]
+    )
+    markdown = "\n".join(lines)
+    if fmt == "markdown":
+        return markdown + "\n"
+    return (
+        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<title>Agent Context Report</title></head><body>"
+        + markdown.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>\n")
+        + "</body></html>\n"
+    )
+
+
+@report_group.command("agent-context")
+@click.option("--days", "-d", default=30, help="Number of days to include.")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "html", "json"]),
+    default="markdown",
+    help="Report format.",
+)
+@click.option("--output", "-o", type=click.Path(), help="Output file path. Stdout if omitted.")
+def report_agent_context(output: str | None, days: int, fmt: str) -> None:
+    """Generate Agent Context Report v1 from existing telemetry."""
+
+    payload = _build_agent_context_report(days)
+    content = _render_agent_context_report(payload, fmt)
+    if output:
+        Path(output).write_text(content)
+        click.echo(f"Agent Context Report written to {output}")
+    else:
+        click.echo(content)
+
+
 @report_group.command("schedule-cancel")
 def report_schedule_cancel() -> None:
     """Cancel all report schedules."""

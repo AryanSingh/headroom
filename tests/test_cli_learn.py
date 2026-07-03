@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -297,3 +298,94 @@ def test_learn_handles_empty_sessions_and_no_pattern_outputs(
     assert "No conversation data found." in result.output
     assert "No failures or patterns found." in result.output
     assert "No actionable patterns found." in result.output
+
+
+def test_learn_aggregate_outputs_local_anonymized_summary(
+    monkeypatch: pytest.MonkeyPatch, runner: CliRunner, tmp_path: Path
+) -> None:
+    """Given local learn history, When --aggregate runs, Then it emits
+    anonymized pattern stats without model analysis."""
+
+    from cutctx.learn.models import ErrorCategory, SessionData, ToolCall
+
+    project = SimpleNamespace(name="project-a", project_path=tmp_path / "project-a")
+
+    class AggregatePlugin(FakePlugin):
+        def scan_project(self, project, max_workers: int = 1):  # noqa: ANN001, ANN201
+            self.scan_calls.append((project, max_workers))
+            return [
+                SessionData(
+                    session_id="session-1",
+                    tool_calls=[
+                        ToolCall(
+                            name="Read",
+                            tool_call_id="call-1",
+                            input_data={"file_path": str(project.project_path / "secret.py")},
+                            output="No such file",
+                            is_error=True,
+                            error_category=ErrorCategory.FILE_NOT_FOUND,
+                        ),
+                        ToolCall(
+                            name="Bash",
+                            tool_call_id="call-2",
+                            input_data={"command": "pytest"},
+                            output="ok",
+                            is_error=False,
+                        ),
+                    ],
+                )
+            ]
+
+    plugin = AggregatePlugin("codex", "Codex", [project])
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr(
+        "cutctx.learn.analyzer._detect_default_model",
+        lambda: (_ for _ in ()).throw(AssertionError("model detection not expected")),
+    )
+
+    result = runner.invoke(
+        main,
+        ["learn", "--agent", "codex", "--all", "--aggregate", "--workers", "2"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "learn_aggregate_v1"
+    assert payload["local_only"] is True
+    assert payload["sharing_implemented"] is False
+    assert payload["project_count"] == 1
+    assert payload["session_count"] == 1
+    assert payload["total_calls"] == 2
+    assert payload["total_failures"] == 1
+    assert payload["projects"][0]["error_categories"] == {"file_not_found": 1}
+    assert str(project.project_path) not in result.output
+    assert "secret.py" not in result.output
+    assert plugin.scan_calls == [(project, 2)]
+
+
+def test_learn_aggregate_share_flag_fails_explicitly(
+    monkeypatch: pytest.MonkeyPatch, runner: CliRunner, tmp_path: Path
+) -> None:
+    """Given CUTCTX_LEARN_SHARE=1, When --aggregate runs, Then the CLI
+    refuses fake egress with an explicit not-implemented error."""
+
+    project = SimpleNamespace(name="project-a", project_path=tmp_path / "project-a")
+    plugin = FakePlugin("codex", "Codex", [project])
+    monkeypatch.setattr("cutctx.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setenv("CUTCTX_LEARN_SHARE", "1")
+
+    result = runner.invoke(
+        main,
+        ["learn", "--agent", "codex", "--all", "--aggregate"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "Learn telemetry sharing is not implemented" in result.output
+
+
+def test_learn_aggregate_module_has_no_network_client_imports() -> None:
+    source = Path("cutctx/learn/aggregate.py").read_text()
+    assert "import httpx" not in source
+    assert "import requests" not in source

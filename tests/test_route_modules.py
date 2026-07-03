@@ -211,6 +211,14 @@ def test_sso_validate_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
+def test_sso_validate_accepts_body_token(client: TestClient) -> None:
+    r = client.post("/v1/sso/validate", headers=_auth(), json={"token": "abc"})
+    assert r.status_code in (200, 501), r.text
+    if r.status_code == 200:
+        body = r.json()
+        assert body.get("valid") is False
+
+
 def test_sso_validate_authenticated_no_ee(client: TestClient) -> None:
     """When cutctx_ee is not installed, the SSO validate
     endpoint either returns 501 (genuinely missing) or 200

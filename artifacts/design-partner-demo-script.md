@@ -1,69 +1,70 @@
 # Design-Partner Demo Script
 
-End-to-end walkthrough of the Cutctx context control plane for
-design partners. Estimated time: 30 minutes.
+End-to-end walkthrough showing Cutctx as a context control plane for design
+partners. Estimated time: 30 minutes.
 
 ## Prerequisites
 
-- Cutctx installed (`pip install cutctx-ai` or local checkout)
-- Admin key configured (`CUTCTX_ADMIN_KEY`)
-- Target model API key set (e.g., `ANTHROPIC_API_KEY`)
-- Node 18+ (for dashboard rebuild if needed)
+- Cutctx installed from the local checkout or package.
+- Admin key configured as `CUTCTX_ADMIN_KEY`.
+- Target provider/model API key configured for the proxy backend.
+- Dashboard assets rebuilt after frontend changes: `make build-dashboard`.
 
-## Step 1: Install and connect (5 min)
+## Step 1: Start Proxy
 
 ```bash
-# Start the proxy with learned policies and context policy engine
 cutctx proxy \
   --enable-learned-policies \
   --port 8080
 ```
 
-**Look for:** Proxy starts, dashboard accessible at http://localhost:8080.
-The `/stats` endpoint returns `intelligence.policies.enabled: false` since
-no policies have been trained yet.
+Look for:
 
-## Step 2: Compression visibility (5 min)
+- Proxy starts cleanly.
+- Dashboard reachable at `http://localhost:8080`.
+- `/stats` returns `intelligence.policies.enabled: false` before training.
 
-Open the dashboard Overview page at http://localhost:8080.
+## Step 2: Show Compression Visibility
 
-**Look for:**
-- "Where savings come from" panel — shows savings by source
-- Compression autopilot panel — shows WS19 status
-- Learned policies panel — shows "Disabled" with training instructions
-- Recent requests table — shows live request data as traffic flows
+Open dashboard Overview at `http://localhost:8080`.
 
-**Try:** Send a few test requests through the proxy.
+Look for:
 
-## Step 3: Train learned policies (5 min)
+- Savings-source panel explains direct compression, provider cache, and
+  semantic-cache attribution.
+- Compression autopilot panel shows WS19 status when enabled.
+- Learned-policies panel shows disabled/empty-state guidance before training.
+- Recent requests populate once traffic flows through proxy.
+
+## Step 3: Train Learned Policies
 
 Create sample outcome events:
 
 ```bash
-cat > /tmp/events.jsonl << 'EOF'
-{"tool_name": "grep", "content_type": "tool_output", "repo": "demo", "original_tokens": 1000, "compressed_tokens": 200, "retrieved": false, "guard_failed": false}
-{"tool_name": "grep", "content_type": "tool_output", "repo": "demo", "original_tokens": 1000, "compressed_tokens": 250, "retrieved": false, "guard_failed": false}
-{"tool_name": "read_file", "content_type": "tool_output", "repo": "demo", "original_tokens": 5000, "compressed_tokens": 4000, "retrieved": true, "guard_failed": false}
+cat > /tmp/events.jsonl <<'EOF'
+{"tool_name":"grep","content_type":"tool_output","repo":"demo","original_tokens":1000,"compressed_tokens":200,"retrieved":false,"guard_failed":false}
+{"tool_name":"grep","content_type":"tool_output","repo":"demo","original_tokens":900,"compressed_tokens":150,"retrieved":false,"guard_failed":false}
+{"tool_name":"read_file","content_type":"tool_output","repo":"demo","original_tokens":1000,"compressed_tokens":700,"retrieved":true,"guard_failed":false}
 EOF
 
-# Train (repeat the grep events 25 times for "aggressive" classification)
-for i in $(seq 1 23); do
-  echo '{"tool_name": "grep", "content_type": "tool_output", "repo": "demo", "original_tokens": 1000, "compressed_tokens": 200, "retrieved": false, "guard_failed": false}' >> /tmp/events.jsonl
-done
-
-cutctx policies train /tmp/events.jsonl
-cutctx policies show
+cutctx policies train --events /tmp/events.jsonl --db /tmp/policies.db
+cutctx policies show --db /tmp/policies.db
 ```
 
-**Look for:**
-- CLI output: `Learned 2 policy row(s)`
-- `cutctx policies show` lists `grep / tool_output: aggressive` and
-  `read_file / tool_output: conservative`
-- Dashboard panel now shows "Active" with policy count and distributions
+Look for:
 
-## Step 4: Context policy engine (5 min)
+- CLI output showing learned policy rows.
+- `grep / tool_output` leaning more aggressive than `read_file / tool_output`.
+- With the default policy DB, `/stats` exposes `intelligence.policies` counts
+  and distributions.
+- Overview learned-policies panel shows active policy visibility.
 
-Create a policy file:
+## Step 4: Show Context Policy Enforcement
+
+WS4 policy enforcement is opt-in through `CUTCTX_CONTEXT_POLICY`; default proxy
+behavior remains unchanged.
+
+Create policy file:
 
 ```yaml
 # /tmp/context-policy.yaml
@@ -76,60 +77,76 @@ redact_rules:
 block_rules:
   - name: block_passwd_files
     pattern: "/etc/passwd"
-    reason: "Password file access is blocked by security policy"
+    reason: "Password file access blocked by security policy"
 ```
 
-Enable it (requires proxy restart with policy file):
+Restart the proxy with policy enforcement and replay alpha enabled:
 
 ```bash
 CUTCTX_CONTEXT_POLICY=/tmp/context-policy.yaml \
-  cutctx proxy \
-  --enable-learned-policies
+CUTCTX_REPLAY=1 \
+cutctx proxy \
+  --enable-learned-policies \
+  --port 8080
 ```
 
-**Look for:**
-- Requests mentioning `sk-abc123` are redacted to `sk-***`
-- Requests mentioning `/etc/passwd` return a 403 block
+Look for:
 
-## Step 5: Org-scoped memory export (5 min)
+- Requests mentioning `sk-abc123` are redacted to `sk-***` before upstream
+  forwarding.
+- Requests mentioning `/etc/passwd` return a 403 `context_policy_blocked`
+  response.
+
+## Step 5: Show Org-Scoped Memory Export
 
 ```bash
-# Export all memories
 cutctx memory export --output /tmp/all-memories.json
-
-# Export filtered by workspace
 cutctx memory export --workspace-id demo-ws --output /tmp/ws-memories.json
-
-# Export filtered by project
 cutctx memory export --project-id demo-proj --output /tmp/proj-memories.json
 ```
 
-**Look for:** JSON output with memory objects, each having `workspace_id`
-and `project_id` fields when available. Filtered exports only include
-matching memories.
+Look for:
 
-## Step 6: Assurance and audit (5 min)
+- Exported memory objects include `workspace_id` and `project_id` when
+  available.
+- Filtered exports only include matching memories.
+
+## Step 6: Show Current Audit Signals
 
 ```bash
-# Check /stats endpoint for learned policies data
 curl -s http://localhost:8080/stats | python3 -m json.tool | grep -A 10 '"policies"'
-
-# Check context policy evaluation (simulate blocked request)
-curl -s http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $CUTCTX_ADMIN_KEY" \
-  -d '{"model": "claude-sonnet-4-5", "messages": [{"role": "user", "content": "Read /etc/passwd"}]}'
+cutctx report agent-context --format markdown --days 7
 ```
 
-**Look for:**
-- `/stats` returns `intelligence.policies` with count and distribution
-- Blocked request returns 403 with `blocked by policy` reason
+Look for:
 
-## Wrap-up
+- `/stats` returns `intelligence.policies` counts and distributions.
+- Agent Context Report summarizes savings attribution, governance posture, and
+  assurance/replay readiness.
 
-Summary of what was demonstrated:
-- Compression visibility (dashboard savings sources)
-- Adaptive compression (learned policies via WS18)
-- Content security (context policy redaction/block/allow via WS4)
-- Data portability (org-scoped memory export via WS5)
-- Audit trail (stats endpoint + policy evaluation results)
+## Step 7: Show Session Replay Alpha
+
+After sending a blocked or redacted request with
+`x-cutctx-session-id: demo-session`, open dashboard Replay or call:
+
+```bash
+curl -s http://localhost:8080/v1/sessions/demo-session/replay \
+  -H "x-cutctx-admin-key: $CUTCTX_ADMIN_KEY" \
+  | python3 -m json.tool
+```
+
+Look for:
+
+- Policy block/redaction events with matched rules.
+- Honest alpha scope: policy decisions are replayed now; compressed,
+  retrieved, injected, and CCR lifecycle replay remains follow-up work.
+
+## Close With Buyer Value
+
+- Cost control: savings attribution separates direct compression, provider
+  cache, and semantic cache.
+- Governance path: WS4 policy enforcement is live in proxy routes with policy
+  replay alpha.
+- Data portability: WS5 org-scoped memory export is available.
+- Roadmap pull: WS7 assurance and broader WS8 replay remain the next enterprise
+  proof surfaces.

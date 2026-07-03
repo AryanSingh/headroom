@@ -5,15 +5,218 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any, cast
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from cutctx.proxy.handlers.openai import _resolve_codex_routing_headers
 
 logger = logging.getLogger("cutctx.proxy.routes")
+
+
+_POLICY_PATH_ATTR = "_context_policy_path"
+_POLICY_ENGINE_ATTR = "_context_policy_engine"
+
+
+def _context_policy_path() -> str:
+    return os.environ.get("CUTCTX_CONTEXT_POLICY", "").strip()
+
+
+def _request_session_id(request: Request, body: dict[str, Any]) -> str:
+    metadata = body.get("metadata")
+    metadata_session_id = (
+        metadata.get("session_id") if isinstance(metadata, dict) else None
+    )
+    return str(
+        request.headers.get("x-cutctx-session-id")
+        or body.get("session_id")
+        or metadata_session_id
+        or request.headers.get("x-request-id")
+        or "default"
+    )
+
+
+def _get_context_policy_engine(proxy: Any):
+    policy_path = _context_policy_path()
+    if not policy_path:
+        return None
+
+    cached_path = getattr(proxy, _POLICY_PATH_ATTR, None)
+    cached_engine = getattr(proxy, _POLICY_ENGINE_ATTR, None)
+    if cached_engine is not None and cached_path == policy_path:
+        return cached_engine
+
+    from cutctx.context_policy import ContextPolicyEngine, load_context_policy
+
+    engine = ContextPolicyEngine(load_context_policy(policy_path))
+    setattr(proxy, _POLICY_PATH_ATTR, policy_path)
+    setattr(proxy, _POLICY_ENGINE_ATTR, engine)
+    return engine
+
+
+def _extract_context_policy_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
+    messages = body.get("messages")
+    if isinstance(messages, list):
+        return [message for message in messages if isinstance(message, dict)]
+
+    # Responses API accepts either string input or an array of typed items.
+    input_items = body.get("input")
+    if isinstance(input_items, str):
+        return [{"role": "user", "content": input_items}]
+    if isinstance(input_items, list):
+        extracted: list[dict[str, Any]] = []
+        for item in input_items:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if isinstance(content, str):
+                extracted.append({"role": item.get("role", "user"), "content": content})
+                continue
+            if isinstance(content, list):
+                text_parts = [
+                    part.get("text")
+                    for part in content
+                    if isinstance(part, dict) and isinstance(part.get("text"), str)
+                ]
+                if text_parts:
+                    extracted.append(
+                        {
+                            "role": item.get("role", "user"),
+                            "content": "\n".join(text_parts),
+                        }
+                    )
+        return extracted
+
+    return []
+
+
+def _apply_context_policy_messages(
+    body: dict[str, Any], redacted_messages: list[dict[str, Any]]
+) -> None:
+    if isinstance(body.get("messages"), list):
+        body["messages"] = [
+            message
+            for message in redacted_messages
+            if isinstance(message, dict) and not message.get("_policy_dropped")
+        ]
+        return
+
+    # For Responses API string/list input we can safely redact string content,
+    # but avoid structural rewrites for complex multimodal payloads.
+    if isinstance(body.get("input"), str) and redacted_messages:
+        content = redacted_messages[0].get("content")
+        if isinstance(content, str):
+            body["input"] = content
+        return
+
+    input_items = body.get("input")
+    if not isinstance(input_items, list):
+        return
+
+    redacted_iter = iter(redacted_messages)
+    for item in input_items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            redacted = next(redacted_iter)
+        except StopIteration:
+            break
+        content = redacted.get("content")
+        if not isinstance(content, str):
+            continue
+        original_content = item.get("content")
+        if isinstance(original_content, str):
+            item["content"] = content
+        elif isinstance(original_content, list):
+            for part in original_content:
+                if isinstance(part, dict) and isinstance(part.get("text"), str):
+                    part["text"] = content
+                    break
+
+
+async def _enforce_context_policy(
+    proxy: Any, request: Request, *, surface: str
+) -> JSONResponse | None:
+    engine = _get_context_policy_engine(proxy)
+    if engine is None:
+        return None
+
+    try:
+        body = await request.json()
+    except Exception:
+        return None
+    if not isinstance(body, dict):
+        return None
+
+    messages = _extract_context_policy_messages(body)
+    if not messages:
+        return None
+
+    metadata = body.get("metadata")
+    metadata_agent_id = metadata.get("agent_id") if isinstance(metadata, dict) else None
+    agent_id = (
+        request.headers.get("x-cutctx-agent-id")
+        or body.get("agent_id")
+        or metadata_agent_id
+    )
+    team_id = request.headers.get("x-cutctx-team-id") or body.get("team_id")
+    result = engine.evaluate(
+        messages,
+        agent_id=str(agent_id) if agent_id else None,
+        team_id=str(team_id) if team_id else None,
+        estimate_tokens=len(json.dumps(messages, ensure_ascii=False)),
+    )
+
+    if result.blocked or not result.budget_allowed:
+        from cutctx.proxy.session_replay import get_replay_store
+
+        replay_store = get_replay_store()
+        if replay_store is not None:
+            replay_store.record(
+                session_id=_request_session_id(request, body),
+                event_type="policy_blocked",
+                surface=surface,
+                request_id=request.headers.get("x-request-id"),
+                detail={
+                    "message": result.block_reason or result.budget_reason,
+                    "matched_rules": result.matched_block_rules,
+                },
+            )
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": {
+                    "type": "context_policy_blocked",
+                    "message": result.block_reason
+                    or result.budget_reason
+                    or "Request blocked by context policy",
+                    "surface": surface,
+                    "matched_rules": result.matched_block_rules,
+                }
+            },
+        )
+
+    if result.matched_redact_rules or result.redacted_messages != messages:
+        _apply_context_policy_messages(body, result.redacted_messages)
+        request._body = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        if hasattr(request, "_json"):
+            request._json = body
+        from cutctx.proxy.session_replay import get_replay_store
+
+        replay_store = get_replay_store()
+        if replay_store is not None:
+            replay_store.record(
+                session_id=_request_session_id(request, body),
+                event_type="policy_redacted",
+                surface=surface,
+                request_id=request.headers.get("x-request-id"),
+                detail={"matched_rules": result.matched_redact_rules},
+            )
+
+    return None
 
 
 def _api_target(proxy: Any, provider_name: str) -> str:
@@ -316,6 +519,11 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
 
     @app.post("/v1/messages")
     async def anthropic_messages(request: Request):
+        policy_response = await _enforce_context_policy(
+            proxy, request, surface="anthropic_messages"
+        )
+        if policy_response is not None:
+            return policy_response
         return await proxy.handle_anthropic_messages(request)
 
     @app.post("/v1/messages/count_tokens")
@@ -349,10 +557,20 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
 
     @app.post("/v1/chat/completions")
     async def openai_chat(request: Request):
+        policy_response = await _enforce_context_policy(
+            proxy, request, surface="openai_chat_completions"
+        )
+        if policy_response is not None:
+            return policy_response
         return await proxy.handle_openai_chat(request)
 
     @app.post("/v1/responses")
     async def openai_responses(request: Request):
+        policy_response = await _enforce_context_policy(
+            proxy, request, surface="openai_responses"
+        )
+        if policy_response is not None:
+            return policy_response
         return await proxy.handle_openai_responses(request)
 
     @app.post("/v1/codex/responses")

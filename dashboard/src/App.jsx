@@ -1,11 +1,12 @@
 import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
   BookOpen,
   Home,
+  History,
   Moon,
   PanelLeftOpen,
   Search,
@@ -22,6 +23,7 @@ import Playground from './pages/Playground';
 import Capabilities from './pages/Capabilities';
 import Docs from './pages/Docs';
 import Orchestrator from './pages/Orchestrator';
+import Replay from './pages/Replay';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
 import { ThemeProvider, useTheme } from './lib/theme-context';
@@ -72,6 +74,7 @@ const navItems = [
   { path: '/governance', label: 'Governance', icon: Activity },
   { path: '/firewall', label: 'Security', icon: Shield },
   { path: '/memory', label: 'Memory', icon: BarChart3 },
+  { path: '/replay', label: 'Replay', icon: History },
   { path: '/playground', label: 'Playground', icon: TerminalSquare },
   { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
@@ -149,6 +152,7 @@ function Topbar({
   searchQuery,
   setSearchQuery,
   searchInputRef,
+  sidebarToggleRef,
   onToggleSidebar,
 }) {
   const location = useLocation();
@@ -164,6 +168,7 @@ function Topbar({
     <header className="topbar-shell">
       <div className="topbar-left">
         <button
+          ref={sidebarToggleRef}
           className="sidebar-toggle-btn"
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
@@ -222,6 +227,7 @@ function Topbar({
 
 function AppFrame() {
   const searchInputRef = useRef(null);
+  const sidebarToggleRef = useRef(null);
 
   const { error } = useDashboardData();
   const [adminKey, setAdminKey] = useState(() => readStoredAdminKey());
@@ -261,8 +267,23 @@ function AppFrame() {
   const closeSidebar = useCallback(() => {
     if (isMobile) {
       setSidebarOpen(false);
+      sidebarToggleRef.current?.focus();
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) {
+      return undefined;
+    }
+    const handleDrawerKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleDrawerKeyDown);
+    return () => window.removeEventListener('keydown', handleDrawerKeyDown);
+  }, [closeSidebar, isMobile, sidebarOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -311,6 +332,7 @@ function AppFrame() {
       <div className="content-shell">
         <Topbar
           searchInputRef={searchInputRef}
+          sidebarToggleRef={sidebarToggleRef}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onToggleSidebar={toggleSidebar}
@@ -324,8 +346,10 @@ function AppFrame() {
               <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
               <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
               <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
+              <Route path="/replay" element={<Replay />} />
               <Route path="/playground" element={<Playground />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>

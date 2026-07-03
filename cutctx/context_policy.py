@@ -248,7 +248,6 @@ class ContextPolicyEngine:
             # Check allow rules first — when present, only pass through
             # content that matches at least one allow rule
             if has_allow:
-                content = str(msg.get("content", ""))
                 allowed = False
                 for _, compiled in self._compiled_allow:
                     texts = self._get_text_for_scope(msg, "any")
@@ -316,6 +315,23 @@ class ContextPolicyEngine:
                     budget_reason=(
                         f"Agent {agent_id} budget exceeded"
                     ),
+                budget_remaining_tokens=0,
+            )
+
+        if team_id is not None:
+            budget = self._find_team_budget(team_id)
+            state = self._team_states.setdefault(
+                team_id, BudgetState(agent_id=team_id)
+            )
+            if not state.can_accept(
+                tokens,
+                max_hour=0,
+                max_day=budget.max_tokens_per_day if budget else 0,
+            ):
+                return EvaluationResult(
+                    blocked=True,
+                    budget_allowed=False,
+                    budget_reason=f"Team {team_id} budget exceeded",
                     budget_remaining_tokens=0,
                 )
 
@@ -324,6 +340,12 @@ class ContextPolicyEngine:
     def _find_agent_budget(self, agent_id: str) -> AgentBudget | None:
         for budget in self.policy.agent_budgets:
             if budget.agent_id == agent_id:
+                return budget
+        return None
+
+    def _find_team_budget(self, team_id: str) -> TeamBudget | None:
+        for budget in self.policy.team_budgets:
+            if budget.team_id == team_id:
                 return budget
         return None
 
@@ -337,6 +359,11 @@ class ContextPolicyEngine:
         if agent_id is not None:
             state = self._budget_states.setdefault(
                 agent_id, BudgetState(agent_id=agent_id)
+            )
+            state.record(tokens)
+        if team_id is not None:
+            state = self._team_states.setdefault(
+                team_id, BudgetState(agent_id=team_id)
             )
             state.record(tokens)
 

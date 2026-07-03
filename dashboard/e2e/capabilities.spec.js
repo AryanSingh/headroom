@@ -5,6 +5,13 @@ test.describe('Capabilities Toggles', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('cutctxAdminKey', 'testkey');
     });
+    await page.route('**/health', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'healthy', ready: true }),
+      });
+    });
 
     const flagsState = {
       rate_limiter: false,
@@ -14,7 +21,7 @@ test.describe('Capabilities Toggles', () => {
       firewall: false,
     };
 
-    await page.route('**/stats*', async route => {
+    await page.route('**/stats?*', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

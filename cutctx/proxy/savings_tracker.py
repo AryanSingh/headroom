@@ -49,7 +49,19 @@ def _get_litellm_module() -> Any | None:
 
     try:
         import litellm as imported_litellm
-    except ImportError:
+    except Exception:
+        # Broad on purpose: litellm's own internal circular-import bugs
+        # surface here as AttributeError ("partially initialized module
+        # 'litellm' has no attribute 'litellm_core_utils'"), not
+        # ImportError — narrowly catching ImportError let that exception
+        # propagate out of this best-effort, optional cost-estimation path
+        # all the way up through record_request/emit_request_outcome and
+        # crash the entire proxy process on essentially any live request
+        # that needed a USD estimate. Losing the cost estimate for this
+        # request is an acceptable degradation; losing the whole proxy
+        # is not. (Reverted once already by a concurrent edit on
+        # 2026-07-03 — if you're re-narrowing this, please read the
+        # commit history for why it's broad before doing so again.)
         return None
 
     litellm = imported_litellm
@@ -721,12 +733,6 @@ class SavingsTracker:
         savings_by_source_usd = {
             str(k): float(v) for k, v in savings_by_source_usd.items()
         }
-        delta_provider_cache_tokens = int(
-            savings_by_source_tokens.get("provider_prompt_cache", 0)
-        )
-        delta_cutctx_tokens = int(
-            savings_by_source_tokens.get("cutctx_compression", 0)
-        )
         delta_semantic_cache_tokens = int(
             savings_by_source_tokens.get("semantic_cache", 0)
         )
@@ -989,8 +995,8 @@ class SavingsTracker:
                         "delta_model_routing_usd": round(
                             float(delta_model_routing_usd), 6
                         ),
-            "ghost_tokens": int(delta_ghost_tokens),
-            "scaffolding_tokens": int(delta_scaffolding_tokens),
+            "delta_ghost_tokens": int(delta_ghost_tokens),
+            "delta_scaffolding_tokens": int(delta_scaffolding_tokens),
                         "delta_tool_schema_compaction_usd": round(
                             float(delta_tool_schema_compaction_usd), 6
                         ),

@@ -6,6 +6,31 @@ Source specs:
 - `artifacts/savings-moat-expansion-specs.md`
 - `artifacts/strategy-implementation-plan.md`
 
+## Current Verified Status Override (2026-07-03)
+
+Use this section as the current source of truth before older branch-audit notes
+below:
+
+- WS18 Phase A is complete: policy CLI, watch mode, local SQLite policy table,
+  bounded hooks, proxy opt-in, `/stats` `intelligence.policies`, and Overview
+  dashboard surfacing are present.
+- WS4 is complete for the verified MVP scope. `CUTCTX_CONTEXT_POLICY` now gates
+  `/v1/messages`, `/v1/chat/completions`, and `/v1/responses` with default-off
+  behavior, pre-forward redaction, and block-rule 403 tests.
+- WS5 org-scope memory plumbing, export filtering, and export/import
+  round-trip verification for `workspace_id` and `project_id` are present.
+- WS6 local-only learn telemetry aggregation is implemented through
+  `cutctx learn --aggregate`; sharing remains explicitly unimplemented.
+- WS7 Context Assurance is not implemented.
+- WS8 session replay alpha is implemented for context-policy block/redaction
+  decisions, with replay API and dashboard page. It still needs compressed,
+  retrieved, injected, and CCR lifecycle replay events before the broader WS8
+  promise is complete.
+- WS9 design-partner artifacts exist, but the release checklist still contains
+  open release gates.
+- WS1-WS3 are partial: README positioning and Agent Context Report v1 exist;
+  quality-at-budget benchmark v1 docs and outreach updates remain pending.
+
 Working prioritization for the current repo state:
 
 1. `WS21.1` Extract CCR marker parsing/formatting into `cutctx/ccr/markers.py`

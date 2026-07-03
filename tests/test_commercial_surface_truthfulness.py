@@ -68,8 +68,8 @@ def test_soc2_and_licensing_docs_match_current_audit_chain_wording() -> None:
     roadmap = Path("gtm/soc2-roadmap.md").read_text(encoding="utf-8")
     migration = Path("docs/licensing-migration.md").read_text(encoding="utf-8")
 
-    assert "secret-keyed SHA-256 hash chain" in roadmap
-    assert "HMAC hash chain" not in roadmap
+    assert "HMAC-SHA256 hash chain" in roadmap
+    assert "secret-keyed SHA-256 hash chain" not in roadmap
     assert "configured hosted license service" in migration
     assert "validated via portal" not in migration
 

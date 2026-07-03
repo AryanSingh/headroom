@@ -6,7 +6,7 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 
-function ToggleSwitch({ checked, onChange, disabled }) {
+function ToggleSwitch({ checked, onChange, disabled, label }) {
   return (
     <label
       className="toggle-switch"
@@ -23,8 +23,9 @@ function ToggleSwitch({ checked, onChange, disabled }) {
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        disabled={disabled}
-        style={{ opacity: 0, width: 0, height: 0 }}
+disabled={disabled}
+aria-label={label}
+style={{ opacity: 0, width: 0, height: 0 }}
       />
       <span
         style={{
@@ -170,6 +171,7 @@ export default function Orchestrator() {
               checked={Boolean(isActive)}
               onChange={handleToggle}
               disabled={updating || !canToggle}
+              label={`${isActive ? "Disable" : "Enable"} orchestrator routing`}
             />
           </div>
         </div>

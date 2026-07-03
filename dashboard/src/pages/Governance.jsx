@@ -164,7 +164,7 @@ function normalizeAssignments(rbacData) {
   return [];
 }
 
-function CopyButton({ text }) {
+function CopyButton({ text, label = "Copy to clipboard" }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -178,21 +178,22 @@ function CopyButton({ text }) {
     <button
       className="copy-btn"
       onClick={handleCopy}
-      title="Copy to clipboard"
-      type="button"
+title="Copy to clipboard"
+aria-label={label}
+type="button"
     >
       {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
     </button>
   );
 }
 
-function FeatureToggle({ enabled, onToggle, busy }) {
+function FeatureToggle({ enabled, onToggle, busy, label }) {
   return (
     <button
       className={`feature-toggle ${enabled ? "feature-toggle-on" : "feature-toggle-off"}`}
       onClick={onToggle}
       disabled={busy}
-      aria-label={enabled ? "Disable feature" : "Enable feature"}
+aria-label={label || (enabled ? "Disable feature" : "Enable feature")}
       type="button"
     >
       <span className="feature-toggle-knob" />
@@ -282,11 +283,12 @@ function FeatureRow({
             <FeatureToggle
               enabled={Boolean(isActive)}
               onToggle={() => onToggle(feature.flagKey, !isActive)}
-              busy={toggleBusy === feature.flagKey}
-            />
+busy={toggleBusy === feature.flagKey}
+label={`${isActive ? "Disable" : "Enable"} ${feature.name}`}
+/>
             <div className="feature-config-env">
               <code>{feature.envVar}</code>
-              <CopyButton text={feature.envVar} />
+<CopyButton text={feature.envVar} label={`Copy ${feature.envVar}`} />
             </div>
           </>
         ) : (

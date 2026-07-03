@@ -6,11 +6,18 @@ test.describe('Overview Metrics & Panels', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('cutctxAdminKey', 'testkey');
     });
+    await page.route('**/health', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'healthy', ready: true }),
+      });
+    });
   });
 
   test('successfully loads and displays mocked stats data', async ({ page }) => {
     // Mock successful response with realistic dummy data
-    await page.route('**/stats*', async route => {
+    await page.route('**/stats?*', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -52,7 +59,7 @@ test.describe('Overview Metrics & Panels', () => {
 
   test('gracefully handles 500 Internal Server Error', async ({ page }) => {
     // Mock 500 error
-    await page.route('**/stats*', async route => {
+    await page.route('**/stats?*', async route => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -80,7 +87,7 @@ test.describe('Overview Metrics & Panels', () => {
       });
     });
 
-    await page.route('**/stats*', async route => {
+    await page.route('**/stats?*', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -238,7 +245,7 @@ test.describe('Overview Metrics & Panels', () => {
       });
     });
 
-    await page.route('**/stats*', async route => {
+    await page.route('**/stats?*', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

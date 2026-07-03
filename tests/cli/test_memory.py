@@ -470,3 +470,60 @@ class TestMemoryHelp:
         assert "--limit" in result.output
         assert "--scope" in result.output
         assert "--since" in result.output
+
+
+def test_export_import_preserves_workspace_and_project_ids(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """Given org-scoped memories, When exported and imported via the CLI,
+    Then workspace_id and project_id survive the round trip."""
+
+    source_db = str(tmp_path / "source.db")
+    target_db = str(tmp_path / "target.db")
+    export_file = tmp_path / "memories.json"
+
+    store = SQLiteMemoryStore(source_db)
+    asyncio.run(
+        store.save(
+            Memory(
+                id="org-scoped-001",
+                content="Org-scoped memory",
+                user_id="user-1",
+                workspace_id="workspace-1",
+                project_id="project-1",
+                created_at=datetime.now(),
+                valid_from=datetime.now(),
+            )
+        )
+    )
+
+    export_result = runner.invoke(
+        main,
+        [
+            "memory",
+            "export",
+            "--db-path",
+            source_db,
+            "--workspace-id",
+            "workspace-1",
+            "--output",
+            str(export_file),
+        ],
+    )
+    assert export_result.exit_code == 0, export_result.output
+
+    SQLiteMemoryStore(target_db)
+    import_result = runner.invoke(
+        main,
+        ["memory", "import", "--db-path", target_db, str(export_file), "--force"],
+    )
+    assert import_result.exit_code == 0, import_result.output
+
+    exported = json.loads(export_file.read_text())
+    assert exported[0]["workspace_id"] == "workspace-1"
+    assert exported[0]["project_id"] == "project-1"
+
+    round_trip = runner.invoke(main, ["memory", "export", "--db-path", target_db])
+    assert round_trip.exit_code == 0, round_trip.output
+    imported = json.loads(round_trip.output)
+    assert imported == exported

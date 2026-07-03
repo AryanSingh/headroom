@@ -5672,6 +5672,35 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return await _get_cached_payload()
         return await _build_stats_payload()
 
+    @app.get("/v1/sessions/{session_id}/replay")
+    async def session_replay(session_id: str, request: Request):
+        await _require_local_admin_auth(request)
+        from cutctx.proxy.session_replay import get_replay_store
+
+        replay_store = get_replay_store()
+        if replay_store is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "type": "replay_disabled",
+                        "message": "Session replay is disabled. Set CUTCTX_REPLAY=1.",
+                    }
+                },
+            )
+        payload = replay_store.get(session_id)
+        if payload["event_count"] == 0:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "type": "replay_not_found",
+                        "message": f"No replay events for session {session_id!r}.",
+                    }
+                },
+            )
+        return payload
+
     @app.post("/stats/reset")
     async def stats_reset(request: Request):
         await _require_local_admin_auth(request)
@@ -6203,6 +6232,19 @@ def run_server(
         # default. Disabling proxy_headers here guarantees the guard sees the
         # real peer address regardless of env.
         proxy_headers=False,
+        # uvicorn defaults to ws_ping_interval=20s / ws_ping_timeout=20s.
+        # Codex's WS session (/v1/responses) stays open across an entire
+        # agent turn, including local tool calls that can run for minutes
+        # (a shell command, a test suite) before the client sends anything
+        # else on the socket. A 20s pong timeout is well inside that window,
+        # so uvicorn was closing the connection server-side mid-turn —
+        # surfacing to the user as "stream disconnected before completion"
+        # followed by reconnect attempts that fail with "Bad Request" since
+        # a fresh WS can't resume the prior turn's pending tool-call state.
+        # 10 minutes comfortably covers long local tool calls without
+        # masking a genuinely dead peer for an unreasonable amount of time.
+        ws_ping_interval=600,
+        ws_ping_timeout=600,
         **uvicorn_kwargs,
     )
 

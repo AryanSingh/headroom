@@ -33,7 +33,7 @@ function liveStatus(active) {
   );
 }
 
-function ToggleSwitch({ checked, onChange, disabled }) {
+function ToggleSwitch({ checked, onChange, disabled, label }) {
   return (
     <label
       className="toggle-switch"
@@ -50,8 +50,9 @@ function ToggleSwitch({ checked, onChange, disabled }) {
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        disabled={disabled}
-        style={{ opacity: 0, width: 0, height: 0 }}
+disabled={disabled}
+aria-label={label}
+style={{ opacity: 0, width: 0, height: 0 }}
       />
       <span
         style={{
@@ -286,8 +287,9 @@ export default function Capabilities() {
                       <ToggleSwitch
                         checked={Boolean(toggleState)}
                         onChange={() => handleToggle(surface.configKey, Boolean(toggleState))}
-                        disabled={loading || updating[surface.configKey]}
-                      />
+disabled={loading || updating[surface.configKey]}
+label={`${toggleState ? "Disable" : "Enable"} ${surface.label}`}
+/>
                     </div>
                   ) : !loading && 'status' in surface ? (
                     liveStatus(Boolean(surface.status))

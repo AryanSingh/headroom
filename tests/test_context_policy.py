@@ -10,9 +10,9 @@ from cutctx.context_policy import (
     ContextPolicy,
     ContextPolicyEngine,
     RedactRule,
+    TeamBudget,
     load_context_policy_from_dict,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -257,6 +257,27 @@ def test_agent_budget_allows_within_limits():
 
     assert result.budget_allowed
     assert not result.blocked
+
+
+def test_team_budget_blocks_after_recorded_usage():
+    policy = ContextPolicy(
+        team_budgets=[
+            TeamBudget(team_id="team-1", max_tokens_per_day=100),
+        ]
+    )
+    engine = ContextPolicyEngine(policy)
+
+    engine.record_usage(agent_id="agent-1", team_id="team-1", tokens=80)
+    result = engine.evaluate(
+        [{"role": "user", "content": "x" * 40}],
+        agent_id="agent-2",
+        team_id="team-1",
+        estimate_tokens=40,
+    )
+
+    assert not result.budget_allowed
+    assert result.blocked
+    assert "Team team-1 budget exceeded" in result.budget_reason
 
 
 def test_budget_state_resets_on_expiry():

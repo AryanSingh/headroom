@@ -121,6 +121,19 @@ Use 'auto' (default) to scan all detected agents."""
     default=None,
     help="Only analyze the last N sessions.",
 )
+@click.option(
+    "--aggregate",
+    is_flag=True,
+    default=False,
+    help="Aggregate local anonymized learn patterns without LLM or network calls.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write --aggregate JSON to this file instead of stdout.",
+)
 def learn(
     project: Path | None,
     analyze_all: bool,
@@ -130,6 +143,8 @@ def learn(
     workers: int | None,
     watch: bool,
     last: int | None,
+    aggregate: bool,
+    output: Path | None,
     dry_run: bool = False,
     verbose: bool = False,
 ) -> None:
@@ -169,6 +184,48 @@ def learn(
     from ..learn.registry import auto_detect_plugins, get_plugin
 
     max_workers = workers if workers is not None else min(os.cpu_count() or 4, 8)
+
+    if aggregate:
+        from ..learn.aggregate import aggregate_projects, dumps_aggregate, share_aggregate
+
+        if agent == "auto":
+            detected = auto_detect_plugins()
+            if not detected:
+                click.echo("No coding agent data found.")
+                return
+            agent_configs = [(p.name, p) for p in detected]
+        else:
+            selected = get_plugin(agent)
+            agent_configs = [(selected.name, selected)]
+
+        aggregate_targets: list[tuple[str, LearnPlugin, list[object]]] = []
+        for agent_name, plugin in agent_configs:
+            projects = plugin.discover_projects()
+            if project is not None:
+                resolved = project.resolve()
+                projects = [p for p in projects if p.project_path == resolved]
+            elif not analyze_all:
+                cwd = Path.cwd().resolve()
+                projects = [p for p in projects if p.project_path == cwd]
+            if projects:
+                aggregate_targets.append((agent_name, plugin, projects))
+
+        payload = aggregate_projects(aggregate_targets, max_workers=max_workers)
+        rendered = dumps_aggregate(payload)
+
+        if os.environ.get("CUTCTX_LEARN_SHARE") == "1":
+            try:
+                share_aggregate(payload)
+            except NotImplementedError as exc:
+                click.echo(f"Error: {exc}", err=True)
+                raise SystemExit(1) from exc
+
+        if output is not None:
+            output.write_text(rendered)
+            click.echo(f"Wrote aggregate learn telemetry to {output}")
+        else:
+            click.echo(rendered)
+        return
 
     # Resolve model early to fail fast with a clear message
     try:
