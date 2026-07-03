@@ -32,12 +32,24 @@ the same change:
 
 ## Pending next
 
-1. WS18 learned policies completion — **Phase A complete** (`--watch` ergonomics
-   added, dashboard surfacing live via `/stats` intelligence.policies +
-   PoliciesPanel, Phase-B spike notes documented). Remaining work held pending
+1. WS18 learned policies — **Phase A complete** (`--watch` ergonomics added,
+   dashboard surfacing live, Phase-B spike notes documented). Held pending
    production data from Phase A deployments.
 
-2. WS4 context policy engine MVP:
+2. WS4 context policy engine — **MVP complete** (`cutctx/context_policy.py`:
+   redact/block/allow rules + per-agent budgets + YAML config loading.
+   Test coverage in `tests/test_context_policy.py` (16 tests). Proxy
+   integration (CUTCTX_CONTEXT_POLICY env var) ready for wiring.)
+
+3. WS5 org-scope memory — **Plumbing complete** (`workspace_id`/`project_id`
+   columns in SQLite, schema migration, `cutctx memory export --workspace-id`
+   / `--project-id` filters. Test coverage via existing memory tests.)
+
+4. WS6 learn telemetry aggregation — **Infrastructure exists** (TelemetryCollector
+   with local aggregation, `is_telemetry_enabled()`, `CUTCTX_TELEMETRY_EGRESS=1`
+   for outbound. No code changes needed — existing pattern is correct.)
+
+5. WS7 Context Assurance — Not started (EE-focused, depends on cutctx_ee).
    Implement declarative redaction/block/allow rules and cumulative
    per-agent/per-team budgets. Compose with existing RBAC, audit, and proxy
    policy scaffolding.
@@ -62,13 +74,24 @@ the same change:
    policy block, report, assurance export, and replay.
 
 8. WS1-WS3 reporting/repositioning:
-   Finish remaining Agent Context Report v1, quality-at-budget benchmark v1,
-   and any remaining outreach or docs positioning gaps after re-verification.
+   README already positioned as "context control plane" with
+   govern/attribute/remember/compress messaging. Remaining: Agent Context
+   Report v1 report format, quality-at-budget benchmark v1 docs, and
+   outreach content updates.
 
-9. Release housekeeping:
-   Close or delete the merged feature branches/PRs when no longer needed.
-   The rebuilt EE `.so` files are ignored by Git, so release packaging must
-   rebuild and sign EE binaries from the fixed source before publishing.
+9. WS9 design-partner readiness:
+   **Demo script created** (`artifacts/design-partner-demo-script.md`) and
+   **release checklist created** (`artifacts/release-checklist.md`). Ready
+   for design-partner walkthrough.
+
+10. WS7 Context Assurance (EE) + WS8 Session replay alpha:
+    Not started. Both are EE-focused or depend on proprietary `cutctx_ee`
+    package for full implementation.
+
+11. Release housekeeping:
+    Close or delete the merged feature branches/PRs when no longer needed.
+    The rebuilt EE `.so` files are ignored by Git, so release packaging must
+    rebuild and sign EE binaries from the fixed source before publishing.
 
 ## Verification from current batch
 
