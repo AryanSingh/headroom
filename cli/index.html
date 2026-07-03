@@ -3238,13 +3238,28 @@
 <td><strong>host-bridged</strong></td>
 </tr>
 <tr>
+<td><code>cutctx wrap cline</code></td>
+<td>Start proxy and configure Cline (VS Code)</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap codex</code></td>
+<td>Start proxy and launch Codex CLI</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap continue</code></td>
+<td>Start proxy and configure Continue (VS Code/JetBrains)</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
 <td><code>cutctx wrap copilot</code></td>
 <td>Start proxy and launch GitHub Copilot CLI</td>
 <td><strong>python-native only</strong></td>
 </tr>
 <tr>
-<td><code>cutctx wrap codex</code></td>
-<td>Start proxy and launch Codex CLI</td>
+<td><code>cutctx wrap cursor</code></td>
+<td>Start proxy and print Cursor config guidance</td>
 <td><strong>host-bridged</strong></td>
 </tr>
 <tr>
@@ -3253,8 +3268,28 @@
 <td><strong>host-bridged</strong></td>
 </tr>
 <tr>
-<td><code>cutctx wrap cursor</code></td>
-<td>Start proxy and print Cursor config guidance</td>
+<td><code>cutctx wrap gemini</code></td>
+<td>Start proxy and launch Gemini CLI</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap goose</code></td>
+<td>Start proxy and launch Goose CLI</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap openclaw</code></td>
+<td>Install and configure the OpenClaw plugin</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap openhands</code></td>
+<td>Start proxy and launch OpenHands CLI</td>
+<td><strong>host-bridged</strong></td>
+</tr>
+<tr>
+<td><code>cutctx wrap opencode</code></td>
+<td>Start proxy and launch opencode CLI</td>
 <td><strong>host-bridged</strong></td>
 </tr>
 <tr>
@@ -3265,16 +3300,6 @@
 <tr>
 <td><code>cutctx wrap zed</code></td>
 <td>Start proxy and print Zed <code>settings.json</code> snippet</td>
-<td><strong>host-bridged</strong></td>
-</tr>
-<tr>
-<td><code>cutctx wrap opencode</code></td>
-<td>Start proxy and launch opencode CLI</td>
-<td><strong>host-bridged</strong></td>
-</tr>
-<tr>
-<td><code>cutctx wrap openclaw</code></td>
-<td>Install and configure the OpenClaw plugin</td>
 <td><strong>host-bridged</strong></td>
 </tr>
 <tr>
@@ -3435,12 +3460,20 @@
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  Wrap CLI tools to run through Cutctx.
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>Commands:
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  aider     Launch aider through Cutctx proxy.
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>  claude    Launch Claude Code through Cutctx proxy.
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>  copilot   Launch GitHub Copilot CLI through Cutctx proxy.
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>  codex     Launch OpenAI Codex CLI through Cutctx proxy.
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>  cursor    Start Cutctx proxy for use with Cursor.
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>  openclaw  Install and configure Cutctx OpenClaw plugin in one command.
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  aider      Launch aider through Cutctx proxy.
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>  claude     Launch Claude Code through Cutctx proxy.
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>  cline      Start Cutctx proxy for use with Cline (VS Code extension).
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>  codex      Launch OpenAI Codex CLI through Cutctx proxy.
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>  continue   Start Cutctx proxy for use with Continue (VS Code / JetBrains).
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>  copilot    Launch GitHub Copilot CLI through Cutctx proxy.
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>  cursor     Start Cutctx proxy for use with Cursor.
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>  gemini     Launch Gemini CLI through Cutctx proxy.
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>  goose      Launch Goose (Block) CLI through Cutctx proxy.
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>  openclaw   Install and configure the Cutctx OpenClaw plugin in one...
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>  opencode   Launch opencode through Cutctx proxy.
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>  openhands  Launch OpenHands CLI through Cutctx proxy.
+</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>  windsurf   Start Cutctx proxy for use with Windsurf.
+</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>  zed        Start Cutctx proxy for use with Zed editor.
 </span></code></pre></div>
 
 </details>
@@ -4378,9 +4411,29 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>Proxy port</td>
 </tr>
 <tr>
-<td><code>--no-rtk</code></td>
+<td><code>--no-context-tool</code>, <code>--no-rtk</code></td>
 <td>off</td>
-<td>Skip <code>rtk</code> installation and hook registration</td>
+<td>Skip CLI context-tool setup</td>
+</tr>
+<tr>
+<td><code>--no-mcp</code></td>
+<td>off</td>
+<td>Skip Cutctx MCP server registration</td>
+</tr>
+<tr>
+<td><code>--no-serena</code></td>
+<td>off</td>
+<td>Skip Serena MCP server registration</td>
+</tr>
+<tr>
+<td><code>--code-graph</code></td>
+<td>off</td>
+<td>Enable code graph indexing</td>
+</tr>
+<tr>
+<td><code>--memory</code></td>
+<td>off</td>
+<td>Enable persistent cross-session memory</td>
 </tr>
 <tr>
 <td><code>--no-proxy</code></td>
@@ -4391,6 +4444,11 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td><code>--learn</code></td>
 <td>off</td>
 <td>Enable live traffic learning</td>
+</tr>
+<tr>
+<td><code>--tool-search</code></td>
+<td><code>true</code></td>
+<td>Keep Claude Code's on-demand tool loading active through the proxy</td>
 </tr>
 <tr>
 <td><code>--verbose</code>, <code>-v</code></td>
@@ -4425,9 +4483,24 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>Proxy port</td>
 </tr>
 <tr>
-<td><code>--no-rtk</code></td>
+<td><code>--no-context-tool</code>, <code>--no-rtk</code></td>
 <td>off</td>
-<td>Skip <code>rtk</code> installation and <code>AGENTS.md</code> injection</td>
+<td>Skip CLI context-tool setup</td>
+</tr>
+<tr>
+<td><code>--no-mcp</code></td>
+<td>off</td>
+<td>Skip Cutctx MCP server registration</td>
+</tr>
+<tr>
+<td><code>--no-serena</code></td>
+<td>off</td>
+<td>Skip Serena MCP server registration</td>
+</tr>
+<tr>
+<td><code>--code-graph</code></td>
+<td>off</td>
+<td>Enable code graph indexing</td>
 </tr>
 <tr>
 <td><code>--no-proxy</code></td>
@@ -4486,19 +4559,14 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>Proxy port</td>
 </tr>
 <tr>
-<td><code>--no-rtk</code></td>
+<td><code>--no-context-tool</code>, <code>--no-rtk</code></td>
 <td>off</td>
-<td>Skip <code>rtk</code> installation and GitHub Copilot instructions injection</td>
+<td>Skip CLI context-tool setup</td>
 </tr>
 <tr>
 <td><code>--no-proxy</code></td>
 <td>off</td>
 <td>Reuse an existing proxy</td>
-</tr>
-<tr>
-<td><code>--learn</code></td>
-<td>off</td>
-<td>Enable live traffic learning</td>
 </tr>
 <tr>
 <td><code>--backend</code></td>
@@ -4524,6 +4592,16 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td><code>--wire-api</code></td>
 <td>unset</td>
 <td>OpenAI wire API override for OpenAI-style backends</td>
+</tr>
+<tr>
+<td><code>--subscription</code></td>
+<td>off</td>
+<td>Route GitHub-authenticated traffic without requiring a provider API key</td>
+</tr>
+<tr>
+<td><code>--memory</code></td>
+<td>off</td>
+<td>Enable persistent cross-session memory</td>
 </tr>
 <tr>
 <td><code>--verbose</code>, <code>-v</code></td>
@@ -4558,9 +4636,14 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>Proxy port</td>
 </tr>
 <tr>
-<td><code>--no-rtk</code></td>
+<td><code>--no-context-tool</code>, <code>--no-rtk</code></td>
 <td>off</td>
-<td>Skip <code>rtk</code> installation and <code>CONVENTIONS.md</code> injection</td>
+<td>Skip CLI context-tool setup</td>
+</tr>
+<tr>
+<td><code>--code-graph</code></td>
+<td>off</td>
+<td>Enable code graph indexing</td>
 </tr>
 <tr>
 <td><code>--no-proxy</code></td>
@@ -4571,6 +4654,11 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td><code>--learn</code></td>
 <td>off</td>
 <td>Enable live traffic learning</td>
+</tr>
+<tr>
+<td><code>--memory</code></td>
+<td>off</td>
+<td>Enable persistent cross-session memory</td>
 </tr>
 <tr>
 <td><code>--backend</code></td>
@@ -4620,9 +4708,9 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>Proxy port</td>
 </tr>
 <tr>
-<td><code>--no-rtk</code></td>
+<td><code>--no-context-tool</code>, <code>--no-rtk</code></td>
 <td>off</td>
-<td>Skip <code>rtk</code> installation and <code>.cursorrules</code> injection</td>
+<td>Skip CLI context-tool setup</td>
 </tr>
 <tr>
 <td><code>--no-proxy</code></td>
@@ -4633,6 +4721,11 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td><code>--learn</code></td>
 <td>off</td>
 <td>Enable live traffic learning</td>
+</tr>
+<tr>
+<td><code>--memory</code></td>
+<td>off</td>
+<td>Enable persistent cross-session memory</td>
 </tr>
 <tr>
 <td><code>--verbose</code>, <code>-v</code></td>
@@ -4831,13 +4924,31 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>partial</td>
 </tr>
 <tr>
+<td><code>cutctx wrap cline</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap codex</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap continue</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
 <td><code>cutctx wrap copilot</code></td>
 <td>native</td>
 <td>not implemented in Docker-native wrapper</td>
 <td>none</td>
 </tr>
 <tr>
-<td><code>cutctx wrap codex</code></td>
+<td><code>cutctx wrap cursor</code></td>
 <td>native</td>
 <td>host-bridged</td>
 <td>partial</td>
@@ -4849,13 +4960,43 @@ configuration, starts the chosen runtime, and waits for <code>readyz</code>.</p>
 <td>partial</td>
 </tr>
 <tr>
-<td><code>cutctx wrap cursor</code></td>
+<td><code>cutctx wrap gemini</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap goose</code></td>
 <td>native</td>
 <td>host-bridged</td>
 <td>partial</td>
 </tr>
 <tr>
 <td><code>cutctx wrap openclaw</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap openhands</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap opencode</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap windsurf</code></td>
+<td>native</td>
+<td>host-bridged</td>
+<td>partial</td>
+</tr>
+<tr>
+<td><code>cutctx wrap zed</code></td>
 <td>native</td>
 <td>host-bridged</td>
 <td>partial</td>

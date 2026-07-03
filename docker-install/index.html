@@ -2413,8 +2413,13 @@
 </span></code></pre></div>
 <p>Stock <code>/bin/bash</code> on macOS is 3.2, so install a newer bash first (for example via Homebrew) and run the installer with that shell. The installed wrapper pins that same bash interpreter so later invocations stay on the supported runtime.</p>
 <h3 id="windows-powershell">Windows PowerShell<a class="headerlink" href="#windows-powershell" title="Permanent link">&para;</a></h3>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">irm </span><span class="n">https</span><span class="p">://</span><span class="n">raw</span><span class="p">.</span><span class="n">githubusercontent</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">cutctx</span><span class="p">/</span><span class="n">cutctx</span><span class="p">/</span><span class="n">main</span><span class="p">/</span><span class="n">scripts</span><span class="p">/</span><span class="n">install</span><span class="p">.</span><span class="n">ps1</span> <span class="p">|</span> <span class="nb">iex</span>
-</span></code></pre></div>
+<p>There is not yet a published <code>scripts/install.ps1</code> in this repository.
+On Windows today, use one of these supported paths instead:</p>
+<ul>
+<li>run the Linux installer inside WSL</li>
+<li>use Docker Compose manually with the examples in this guide</li>
+<li>use a native Python install from <a href="../getting-started/">getting-started.md</a></li>
+</ul>
 <h2 id="what-the-installer-does">What the installer does<a class="headerlink" href="#what-the-installer-does" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Verifies Docker is installed and available.</li>
@@ -2435,18 +2440,18 @@
 <h2 id="how-the-wrapper-behaves">How the wrapper behaves<a class="headerlink" href="#how-the-wrapper-behaves" title="Permanent link">&para;</a></h2>
 <h3 id="native-cutctx-commands">Native Cutctx commands<a class="headerlink" href="#native-cutctx-commands" title="Permanent link">&para;</a></h3>
 <p>These run directly inside the container:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cutctx<span class="w"> </span>proxy
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cutctx<span class="w"> </span>learn
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cutctx<span class="w"> </span>memory<span class="w"> </span>list
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cutctx<span class="w"> </span>proxy
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cutctx<span class="w"> </span>learn
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>cutctx<span class="w"> </span>mcp<span class="w"> </span>install
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>cutctx<span class="w"> </span>memory<span class="w"> </span>list
 </span></code></pre></div>
 <p>For <code>proxy</code>, the wrapper publishes the selected port back to the host:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">8787</span>:8787<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/workspace&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>-w<span class="w"> </span>/workspace<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/cutctx/cutctx:latest<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">8787</span>:8787<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/workspace&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>-w<span class="w"> </span>/workspace<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>ghcr.io/cutctx/cutctx:latest<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span>cutctx<span class="w"> </span>proxy<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8787</span>
 </span></code></pre></div>
 <h3 id="wrap-commands"><code>wrap</code> commands<a class="headerlink" href="#wrap-commands" title="Permanent link">&para;</a></h3>
 <p><code>wrap</code> is host-oriented in Docker-native mode:</p>
@@ -2473,10 +2478,10 @@
 </ul>
 <h2 id="persistent-docker-lifecycle-from-the-native-wrapper">Persistent Docker lifecycle from the native wrapper<a class="headerlink" href="#persistent-docker-lifecycle-from-the-native-wrapper" title="Permanent link">&para;</a></h2>
 <p>The Docker-native <code>cutctx</code> wrapper now exposes the persistent Docker lifecycle directly:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--profile<span class="w"> </span>default<span class="w"> </span>--preset<span class="w"> </span>persistent-docker
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cutctx<span class="w"> </span>install<span class="w"> </span>status
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>cutctx<span class="w"> </span>install<span class="w"> </span>restart
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>cutctx<span class="w"> </span>install<span class="w"> </span>remove
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cutctx<span class="w"> </span>install<span class="w"> </span>apply<span class="w"> </span>--profile<span class="w"> </span>default<span class="w"> </span>--preset<span class="w"> </span>persistent-docker
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cutctx<span class="w"> </span>install<span class="w"> </span>status
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cutctx<span class="w"> </span>install<span class="w"> </span>restart
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>cutctx<span class="w"> </span>install<span class="w"> </span>remove
 </span></code></pre></div>
 <p>In Docker-native mode this surface is intentionally scoped to <strong>persistent-docker</strong>:</p>
 <ul>
@@ -2490,13 +2495,13 @@
 <p>Use <code>docker/docker-compose.native.yml</code> when you want an explicit compose-managed proxy or CLI shell, or when you prefer compose over the native wrapper's <code>cutctx install ...</code> surface.</p>
 <h3 id="persistent-docker-runtime">Persistent Docker runtime<a class="headerlink" href="#persistent-docker-runtime" title="Permanent link">&para;</a></h3>
 <p>The <code>proxy</code> service now uses <code>restart: unless-stopped</code>, so compose can act as the always-on Docker runtime for Cutctx:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>proxy
 </span></code></pre></div>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">$env:CUTCTX_HOST_HOME</span> <span class="p">=</span> <span class="nv">$HOME</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nv">$env:CUTCTX_WORKSPACE</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Get-Location</span><span class="p">).</span><span class="n">Path</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">docker</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">native</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">-d</span> <span class="n">proxy</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nv">$env:CUTCTX_HOST_HOME</span> <span class="p">=</span> <span class="nv">$HOME</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nv">$env:CUTCTX_WORKSPACE</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Get-Location</span><span class="p">).</span><span class="n">Path</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">docker</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">native</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">-d</span> <span class="n">proxy</span>
 </span></code></pre></div>
 <p>This remains a supported persistent-Docker path when you want the proxy managed explicitly through Compose instead of the installed wrapper.</p>
 <h4 id="cutctx_workspace-vs-cutctx_workspace_dir"><code>CUTCTX_WORKSPACE</code> vs <code>CUTCTX_WORKSPACE_DIR</code><a class="headerlink" href="#cutctx_workspace-vs-cutctx_workspace_dir" title="Permanent link">&para;</a></h4>
@@ -2515,18 +2520,18 @@ and both are retained for backward compatibility:</p>
 <p>You do not need to set <code>CUTCTX_WORKSPACE_DIR</code> manually when using the
 shipped compose file — it is already in the <code>environment:</code> block.</p>
 <h3 id="macos-linux">macOS / Linux<a class="headerlink" href="#macos-linux" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>up<span class="w"> </span>proxy
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_HOST_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">&quot;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUTCTX_WORKSPACE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>up<span class="w"> </span>proxy
 </span></code></pre></div>
 <h3 id="windows-powershell_1">Windows PowerShell<a class="headerlink" href="#windows-powershell_1" title="Permanent link">&para;</a></h3>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">$env:CUTCTX_HOST_HOME</span> <span class="p">=</span> <span class="nv">$HOME</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nv">$env:CUTCTX_WORKSPACE</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Get-Location</span><span class="p">).</span><span class="n">Path</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">docker</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">native</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">proxy</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">$env:CUTCTX_HOST_HOME</span> <span class="p">=</span> <span class="nv">$HOME</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nv">$env:CUTCTX_WORKSPACE</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Get-Location</span><span class="p">).</span><span class="n">Path</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">docker</span> <span class="n">compose</span> <span class="o">-f</span> <span class="n">docker</span><span class="p">/</span><span class="n">docker-compose</span><span class="p">.</span><span class="n">native</span><span class="p">.</span><span class="n">yml</span> <span class="n">up</span> <span class="n">proxy</span>
 </span></code></pre></div>
 <p>You can also run one-off CLI commands through compose:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cli<span class="w"> </span>learn
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cli<span class="w"> </span>mcp<span class="w"> </span>install
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cli<span class="w"> </span>learn
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker/docker-compose.native.yml<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cli<span class="w"> </span>mcp<span class="w"> </span>install
 </span></code></pre></div>
 <h2 id="environment-passthrough">Environment passthrough<a class="headerlink" href="#environment-passthrough" title="Permanent link">&para;</a></h2>
 <p>The wrapper forwards Cutctx and provider environment variables into the container, including common prefixes such as:</p>
