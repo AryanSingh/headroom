@@ -25,6 +25,9 @@ class SavingsSource(str, Enum):
     # consumers treat it like any other source. See
     # artifacts/savings-moat-expansion-specs.md §WS11.
     MEMOIZATION = "memoization"
+    # WS13: batch-API arbitrage. Additive enum member.
+    # See artifacts/savings-moat-expansion-specs.md §WS13.
+    BATCH_ROUTING = "batch_routing"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -52,6 +55,7 @@ _LABELS = {
     SavingsSource.MODEL_ROUTING: "Model Routing",
     SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
     SavingsSource.MEMOIZATION: "Tool Memoization",
+    SavingsSource.BATCH_ROUTING: "Batch Routing",
 }
 
 _DESCRIPTIONS = {
@@ -73,6 +77,13 @@ _DESCRIPTIONS = {
         "When the same tool is called twice in a session with identical "
         "args, the second call is short-circuited from upstream. "
         "High payoff on agent loops that re-read files or re-run searches."
+    ),
+    SavingsSource.BATCH_ROUTING: (
+        "Price delta recorded by the WS13 batch-API arbitrage pre-pass. "
+        "Eligible requests (carrying x-cutctx-batch: allow or "
+        "originating from cutctx's own bg jobs) are routed to "
+        "provider batch APIs for ~50% discount. Interactive requests "
+        "are never batched — eligibility is explicit, never inferred."
     ),
 }
 
