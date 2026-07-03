@@ -4231,6 +4231,7 @@ def _require_rbac_permission(permission: str):
                     if hasattr(proxy, "intelligence_pipeline")
                     else {"enabled": False}
                 ),
+                "policies": _policies_summary(),
             },
             "compressions_by_strategy": dict(m.compressions_by_strategy),
             "tokens_saved_by_strategy": dict(m.tokens_saved_by_strategy),
@@ -6829,3 +6830,41 @@ if __name__ == "__main__":
     limit_concurrency = _get_env_int("CUTCTX_LIMIT_CONCURRENCY", args.limit_concurrency)
 
     run_server(config, workers=workers, limit_concurrency=limit_concurrency)
+
+
+def _policies_summary() -> dict[str, object]:
+    """Build a lightweight summary of learned policies for the /stats endpoint.
+
+    This is intentionally not a SavingsSource — WS18 learned policies tune
+    compression behavior rather than producing independent savings. The
+    dashboard panel shows visibility into what's been learned.
+    """
+    try:
+        from cutctx.policy_learning import default_policy_db_path, load_policies
+
+        db_path = default_policy_db_path()
+        if not db_path.exists():
+            return {"count": 0, "enabled": False}
+
+        policies = load_policies(db_path)
+        by_aggressiveness: dict[str, int] = {}
+        by_algorithm: dict[str, int] = {}
+        total_samples = 0
+        for policy in policies:
+            by_aggressiveness[policy.aggressiveness] = (
+                by_aggressiveness.get(policy.aggressiveness, 0) + 1
+            )
+            by_algorithm[policy.algorithm_hint] = (
+                by_algorithm.get(policy.algorithm_hint, 0) + 1
+            )
+            total_samples += policy.samples
+
+        return {
+            "count": len(policies),
+            "enabled": len(policies) > 0,
+            "total_samples": total_samples,
+            "by_aggressiveness": dict(sorted(by_aggressiveness.items())),
+            "by_algorithm_hint": dict(sorted(by_algorithm.items())),
+        }
+    except Exception:
+        return {"count": 0, "enabled": False}
