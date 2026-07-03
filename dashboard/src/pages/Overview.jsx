@@ -1379,6 +1379,46 @@ function getAutopilotSummary(stats) {
   };
 }
 
+function getPoliciesSummary(stats) {
+  const policies = stats?.intelligence?.policies || {};
+  const byAggressiveness = policies.by_aggressiveness || {};
+  const byAlgorithmHint = policies.by_algorithm_hint || {};
+
+  const aggressivenessLabelMap = {
+    aggressive: 'Aggressive',
+    balanced: 'Balanced',
+    conservative: 'Conservative',
+  };
+
+  const formatAlgorithmLabel = (key) =>
+    key
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+  const aggressivenessRows = Object.entries(byAggressiveness)
+    .map(([key, count]) => ({
+      label: aggressivenessLabelMap[key] || formatAlgorithmLabel(key),
+      count: Number(count || 0),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const algorithmRows = Object.entries(byAlgorithmHint)
+    .map(([key, count]) => ({
+      label: formatAlgorithmLabel(key),
+      count: Number(count || 0),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    count: Number(policies.count || 0),
+    enabled: Boolean(policies.enabled),
+    totalSamples: Number(policies.total_samples || 0),
+    aggressivenessRows,
+    algorithmRows,
+  };
+}
+
 function AutopilotPanel({ autopilot }) {
   const statusLabel = autopilot.enabled ? 'Active' : 'Disabled';
   const latestAdjustment = autopilot.latestAdjustment;
@@ -1464,6 +1504,94 @@ function AutopilotPanel({ autopilot }) {
   );
 }
 
+function PoliciesPanel({ policies }) {
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Intelligence</div>
+          <h2>Learned policies</h2>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span className={`status-pill status-${policies.enabled ? 'ready' : 'disabled'}`}>
+            {policies.enabled ? 'Active' : 'Disabled'}
+          </span>
+        </div>
+
+        {!policies.enabled ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            No learned policies yet. Train with <code>cutctx policies train &lt;events.jsonl&gt;</code> or enable --watch mode.
+          </p>
+        ) : policies.count === 0 ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Policies are enabled but no policy definitions have been learned yet.
+          </p>
+        ) : (
+          <>
+            <div className="graphify-kv-grid">
+              <div className="graphify-kv">
+                <span>Policies</span>
+                <strong>{formatInteger(policies.count)}</strong>
+              </div>
+              <div className="graphify-kv">
+                <span>Total samples</span>
+                <strong>{formatInteger(policies.totalSamples)}</strong>
+              </div>
+            </div>
+
+            {policies.aggressivenessRows.length > 0 ? (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {policies.aggressivenessRows.map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto',
+                      gap: '12px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div className="source-name">{row.label}</div>
+                      <div className="source-meta">aggressiveness</div>
+                    </div>
+                    <strong>{formatInteger(row.count)}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {policies.algorithmRows.length > 0 ? (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {policies.algorithmRows.map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto',
+                      gap: '12px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div className="source-name">{row.label}</div>
+                      <div className="source-meta">algorithm hint</div>
+                    </div>
+                    <strong>{formatInteger(row.count)}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function getRequestTotalSaved(request) {
   if (request?.total_saved_tokens != null) {
     return Number(request.total_saved_tokens || 0);
@@ -1510,6 +1638,7 @@ export default function Overview() {
   const knowledgeGraph = stats?.knowledge_graph || {};
   const featureAvailability = stats?.feature_availability || {};
   const autopilot = getAutopilotSummary(stats);
+  const policies = getPoliciesSummary(stats);
   const historyFreshnessLabel = historyData?.generated_at
     ? `History synced ${formatRelativeTime(historyData.generated_at)} from proxy`
     : 'Waiting for proxy history';
@@ -1792,6 +1921,7 @@ export default function Overview() {
           <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
           <FeatureAvailabilityPanel featureAvailability={featureAvailability} />
           <AutopilotPanel autopilot={autopilot} />
+          <PoliciesPanel policies={policies} />
         </div>
 
         <section className="panel">
