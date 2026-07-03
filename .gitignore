@@ -287,3 +287,4 @@ uv.lock
 /scratch/
 fix_summary.md
 patch_*.py
+.playwright-mcp/
