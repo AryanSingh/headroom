@@ -28,6 +28,11 @@ class SavingsSource(str, Enum):
     # WS13: batch-API arbitrage. Additive enum member.
     # See artifacts/savings-moat-expansion-specs.md §WS13.
     BATCH_ROUTING = "batch_routing"
+    # WS16: tokenizer-aware normalization pre-pass. Additive enum member;
+    # older consumers that don't know about it should treat it like any
+    # other source and aggregate it into the total. See
+    # artifacts/savings-moat-expansion-specs.md §WS16.
+    NORMALIZATION = "normalization"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -56,6 +61,7 @@ _LABELS = {
     SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
     SavingsSource.MEMOIZATION: "Tool Memoization",
     SavingsSource.BATCH_ROUTING: "Batch Routing",
+    SavingsSource.NORMALIZATION: "Tokenizer Normalization",
 }
 
 _DESCRIPTIONS = {
@@ -84,6 +90,11 @@ _DESCRIPTIONS = {
         "originating from cutctx's own bg jobs) are routed to "
         "provider batch APIs for ~50% discount. Interactive requests "
         "are never batched — eligibility is explicit, never inferred."
+    ),
+    SavingsSource.NORMALIZATION: (
+        "Tokens removed by the WS16 normalization pre-pass "
+        "(NFC, whitespace collapse, blob-to-CCR-pointer, decimal-precision cap). "
+        "Universal 3-8% savings on tool-output content."
     ),
 }
 

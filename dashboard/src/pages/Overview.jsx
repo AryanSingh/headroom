@@ -78,6 +78,11 @@ const LIFETIME_SAVINGS_SOURCES = [
   ['output_optimization_savings_usd', 'output_optimization'],
   // WS11: tool-result memoization (additive per spec).
   ['memoization_savings_usd', 'memoization'],
+  // WS16: tokenizer-aware normalization pre-pass (additive per spec).
+  // Future savings sources from the WS10-WS21 expansion will follow
+  // the same pattern: add to cutctx/savings/types.py first, then
+  // add the row here.
+  ['normalization_savings_usd', 'normalization'],
 ];
 
 function sumSavingsUsd(record) {
@@ -147,12 +152,18 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.memoization || 0),
     Number(breakdown.memoization_savings_usd || 0),
   );
+  // WS16: normalization source (additive per spec)
+  const normalizationUsd = Math.max(
+    Number(cost?.normalization_savings_usd || 0),
+    Number(sourceUsd.normalization || 0),
+    Number(breakdown.normalization_savings_usd || 0),
+  );
 
   return Math.max(
     Number(cost?.total_savings_usd || 0),
     Number(cost?.total_saved_usd || 0),
     Number(summaryCost?.total_saved_usd || 0),
-    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd + outputOptimizationUsd + memoizationUsd,
+    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd + outputOptimizationUsd + memoizationUsd + normalizationUsd,
   );
 }
 

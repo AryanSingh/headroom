@@ -59,8 +59,17 @@ Current implementation target:
   - [x] `W11.3` `cutctx/proxy/memoize_interceptor.py` — wire-format detection (OpenAI / Anthropic / Google), fabricated tool_result on hit, passthrough on miss, byte-identical payload
   - [x] `W11.4` Write-invalidation correctness: read → edit → read returns fresh content
   - [x] `W11.5` `SavingsSource.MEMOIZATION` registration + dashboard aggregation
+- [x] `WS13` Batch-API arbitrage
+  - [x] `W13.1` Eligibility gate (explicit, never inferred) — header `x-cutctx-batch: allow` OR allowlisted internal origin
+  - [x] `W13.2` Internal queue state (pending/completed/failed/total)
+  - [x] `W13.5` `SavingsSource.BATCH_ROUTING` registration
+- [x] `WS16` Tokenizer-aware normalization
+  - [x] `W16.1` `cutctx/transforms/normalize.py` with 4 passes (NFC, whitespace, blob, decimal)
+  - [x] `W16.2` ContentRouter pre-pass wiring, flag-gated by `CUTCTX_NORMALIZE=1`
+  - [x] `W16.3` `SavingsSource.NORMALIZATION` registration + dashboard aggregation
 
 Status:
 - `2026-07-02`: `WS21.1` shared marker contract path implemented.
 - Focused verification passed: `tests/test_ccr_markers.py`, `tests/test_ccr_tool_injection.py`, `tests/test_ccr_tool_always_on.py`, and `tests/test_ccr_response_handler_extra.py` (`56 passed`).
 - `2026-07-02`: `WS11` complete on branch `feat/ws11-memoize`. New files: `cutctx/proxy/memoizer.py` (module), `cutctx/proxy/memoize_interceptor.py` (interceptor), `tests/test_proxy_memoizer.py` (34 tests), `tests/test_proxy_memoize_interceptor.py` (12 tests), `tests/test_savings_types_memoization.py` (8 tests). Modified: `cutctx/savings/types.py` (MEMOIZATION enum), `dashboard/src/pages/Overview.jsx` (per-source mapping). 2 pre-existing tests updated to be additive. Broader regression: 613/613 tests pass on the WS11 surface. The interception is exposed as `MemoizeInterceptor.intercept_tool_calls(response, session_id)` — the caller wires it into the existing CCR tool handling path. The full integration into `cutctx/ccr/response_handler.py` is documented as a deferred follow-up (W11.6).
+- `2026-07-02`: `WS16` complete on branch `feat/ws16-normalize`. New files: `cutctx/transforms/normalize.py`, `tests/test_transforms_normalize.py` (29 tests), `tests/test_transforms_normalize_wiring.py` (9 tests), `tests/test_savings_types_normalization.py` (9 tests). Modified: `cutctx/transforms/content_router.py` (pre-pass injection), `cutctx/savings/types.py` (NORMALIZATION enum), `dashboard/src/pages/Overview.jsx` (per-source mapping), `dashboard/src/lib/use-dashboard-data.js` (caching). 2 pre-existing tests updated to be additive (`test_savings_buyer_report.py`, `test_savings_orchestration.py`). Broader regression: 552/552 tests pass on `tests/test_transforms* tests/test_savings*`. Per the strategy-implementation-notes.md: blob-to-CCR-pointer swap is read-only (deferred); live /stats doesn't yet emit normalization line items (deferred).
