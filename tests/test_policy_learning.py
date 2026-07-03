@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -175,6 +176,60 @@ def test_policies_cli_train_show_reset(tmp_path):
     assert json.loads(json_result.output)[0]["aggressiveness"] == "aggressive"
     assert reset_result.exit_code == 0
     assert "Deleted 1 learned policy row" in reset_result.output
+
+
+def test_policies_train_help_mentions_watch_flag(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(main, ["policies", "train", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--watch" in result.output
+    assert "--poll-interval" in result.output
+
+
+def test_policies_train_watch_initial_pass(tmp_path):
+    """Watch mode runs initial training pass, then handles Ctrl+C."""
+    runner = CliRunner()
+    db_path = tmp_path / "policies.db"
+    events_dir = tmp_path / "events"
+    events_dir.mkdir(parents=True)
+    batch = events_dir / "batch1.jsonl"
+    batch.write_text(
+        "\n".join(
+            json.dumps(
+                {
+                    "tool_name": "grep",
+                    "content_type": "tool_output",
+                    "repo": "repo-a",
+                    "original_tokens": 1000,
+                    "compressed_tokens": 250,
+                    "retrieved": False,
+                    "guard_failed": False,
+                }
+            )
+            for _ in range(25)
+        ),
+        encoding="utf-8",
+    )
+
+    with patch("time.sleep", side_effect=KeyboardInterrupt()):
+        result = runner.invoke(
+            main,
+            [
+                "policies", "train", str(batch),
+                "--db", str(db_path),
+                "--watch",
+                "--poll-interval", "30",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "Watching" in result.output
+    assert "Trained 1 policy row" in result.output
+    # Verify policies were actually written
+    policies = load_policies(db_path)
+    assert len(policies) == 1
+    assert policies[0].aggressiveness == "aggressive"
 
 
 def test_policies_cli_evict_unsafe(tmp_path):

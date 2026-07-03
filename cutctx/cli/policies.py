@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import click
@@ -61,10 +62,64 @@ def show(as_json: bool, db_path: Path | None) -> None:
     default=None,
     help="Policy database path. Defaults to ~/.cutctx/policies.db.",
 )
-def train(events_jsonl: Path, db_path: Path | None) -> None:
+@click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    help="Watch the JSONL file's directory for new/modified files and auto-train.",
+)
+@click.option(
+    "--poll-interval",
+    type=int,
+    default=30,
+    show_default=True,
+    help="Poll interval in seconds for --watch mode.",
+)
+def train(events_jsonl: Path, db_path: Path | None, watch: bool, poll_interval: int) -> None:
     """Train Phase-A policies from local JSONL outcome events."""
+    if watch:
+        _run_train_watch(events_jsonl, db_path, poll_interval)
+        return
     policies = train_from_events(read_jsonl(events_jsonl), db_path)
     click.echo(f"Learned {len(policies)} policy row(s).")
+
+
+def _run_train_watch(events_path: Path, db_path: Path | None, poll_interval: int) -> None:
+    """Watch directory for new/modified JSONL files and auto-train."""
+    watch_dir = events_path.parent if events_path.is_file() else events_path
+    click.echo(f"Watching {watch_dir} for JSONL event files (poll every {poll_interval}s)...")
+    click.echo("Press Ctrl+C to stop.")
+
+    seen: dict[str, float] = {}  # filename -> last mtime processed
+
+    def _train_new() -> None:
+        all_events: list[dict[str, object]] = []
+        for f in sorted(watch_dir.glob("*.jsonl")):
+            mtime = f.stat().st_mtime
+            if seen.get(f.name, 0) >= mtime:
+                continue
+            try:
+                events = read_jsonl(f)
+                if events:
+                    all_events.extend(events)
+                    seen[f.name] = mtime
+                    click.echo(f"  Loaded {len(events)} events from {f.name}")
+            except (json.JSONDecodeError, ValueError) as e:
+                click.echo(f"  Skipping {f.name}: {e}", err=True)
+
+        if all_events:
+            policies = train_from_events(all_events, db_path)
+            click.echo(f"Trained {len(policies)} policy row(s) from {len(all_events)} event(s).")
+
+    # Initial pass
+    _train_new()
+
+    try:
+        while True:
+            time.sleep(poll_interval)
+            _train_new()
+    except KeyboardInterrupt:
+        click.echo("\nStopped watching.")
 
 
 @policies.command("reset")
