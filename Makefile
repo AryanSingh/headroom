@@ -65,9 +65,10 @@ build-dashboard:
 	cp dashboard/dist/index.html cutctx/dashboard/index.html
 	cp dashboard/dist/favicon.svg cutctx/dashboard/favicon.svg
 	cp dashboard/dist/icons.svg cutctx/dashboard/icons.svg 2>/dev/null || true
-	rm -f cutctx/dashboard/assets/index-*.js cutctx/dashboard/assets/index-*.css
-	cp dashboard/dist/assets/index-*.js cutctx/dashboard/assets/
-	cp dashboard/dist/assets/index-*.css cutctx/dashboard/assets/
+	mkdir -p cutctx/dashboard/assets/assets
+	rm -f cutctx/dashboard/assets/assets/index-*.js cutctx/dashboard/assets/assets/index-*.css
+	cp dashboard/dist/assets/index-*.js cutctx/dashboard/assets/assets/
+	cp dashboard/dist/assets/index-*.css cutctx/dashboard/assets/assets/
 	@echo "✅ Dashboard built and assets copied."
 
 # Hotfix-A0: maturin-develop + symlink + import-verify in one shot. Run this

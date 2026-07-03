@@ -68,3 +68,12 @@ def test_evals_help_mentions_benchmarks_first_class() -> None:
     assert result.exit_code == 0, result.output
     assert "Memory evaluations and compressor benchmark commands." in result.output
     assert "cutctx evals benchmark" in result.output
+
+
+def test_proxy_help_mentions_learned_policies_flag() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["proxy", "-?"])
+
+    assert result.exit_code == 0, result.output
+    assert "--enable-learned-policies" in result.output
+    assert "CUTCTX_LEARNED_POLICIES" in result.output

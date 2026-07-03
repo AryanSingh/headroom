@@ -3,10 +3,10 @@
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
 import hashlib
+import hmac
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any
 
 from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import sessionmaker
@@ -78,26 +78,49 @@ class AuditStore:
         action: str,
         payload_json: str,
         timestamp_iso: str,
-        previous_hash: str | None,
+        previous_hash: str = None,
     ) -> str:
-        """Compute the current secret-keyed SHA-256 chain value for the event."""
-        # Current EE builds use a secret-prefixed SHA-256 chain, not an HMAC
-        # construction. Keep the wording aligned with the actual algorithm
-        # until the runtime path is upgraded and rebuilt.
-        hasher = hashlib.sha256()
-        hasher.update(self.secret_key)
-        if previous_hash:
-            hasher.update(previous_hash.encode())
-        hasher.update(tenant_id.encode())
-        hasher.update(actor.encode())
-        hasher.update(action.encode())
-        hasher.update(payload_json.encode())
-        hasher.update(timestamp_iso.encode())
-        return hasher.hexdigest()
+        """Compute the current HMAC-SHA256 chain value for the event."""
+        message = self._build_hmac_message(
+            tenant_id=tenant_id,
+            actor=actor,
+            action=action,
+            payload_json=payload_json,
+            timestamp_iso=timestamp_iso,
+            previous_hash=previous_hash,
+        )
+        return hmac.new(self.secret_key, message, hashlib.sha256).hexdigest()
+
+    @staticmethod
+    def _length_prefix(value: str) -> bytes:
+        encoded = value.encode()
+        return len(encoded).to_bytes(8, "big") + encoded
+
+    @classmethod
+    def _build_hmac_message(
+        cls,
+        tenant_id: str,
+        actor: str,
+        action: str,
+        payload_json: str,
+        timestamp_iso: str,
+        previous_hash: str = None,
+    ) -> bytes:
+        prior = previous_hash.encode() if previous_hash else b"\x00" * 32
+        return b"".join(
+            (
+                prior,
+                cls._length_prefix(tenant_id),
+                cls._length_prefix(actor),
+                cls._length_prefix(action),
+                cls._length_prefix(payload_json),
+                cls._length_prefix(timestamp_iso),
+            )
+        )
 
     def append_event(
-        self, tenant_id: str, actor: str, action: str, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, tenant_id: str, actor: str, action: str, payload: dict
+    ) -> dict:
         """Append a new event to the audit log."""
         with self.SessionLocal() as session:
             # Get the last event for this tenant to get the previous hash
@@ -147,7 +170,7 @@ class AuditStore:
                 "event_hash": event.event_hash,
             }
 
-    def get_events(self, tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    def get_events(self, tenant_id: str, limit: int = 100) -> list:
         """Retrieve recent events for a tenant."""
         with self.SessionLocal() as session:
             events = (

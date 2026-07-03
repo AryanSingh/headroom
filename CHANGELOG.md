@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- EE audit-chain source and operator-facing docs now match the intended cryptographic contract again: `cutctx_ee/audit/store.py` now uses HMAC-SHA256 over canonical length-prefixed fields, residency/compliance/SOC2 docs were updated to the same framing, and the regression suite now guards the fixed contract instead of the old truthfulness workaround.
+- Development hygiene now catches accidental line-collapsed source/docs earlier: pre-commit wiring was normalized and a dependency-free `scripts/check_text_hygiene.py` hook guards editable Python, Markdown, YAML, TOML, and JSON files before heavier lint lanes run.
+- Dashboard packaged-asset sync now copies Vite hashed JS/CSS into the directory actually mounted by the proxy (`cutctx/dashboard/assets/assets`), preventing stale bundled dashboard assets after `make build-dashboard`.
 - Public marketing surfaces are a bit more truthful and consistent: blog CTAs no longer point readers at the dead `cutctx.sh` domain, `marketing/roi-calculator/index.html` now uses visible `Cutctx` branding, and the regression suite guards both the live-domain links and public-surface casing.
 - CLI discoverability is tighter again: `cutctx evals -?` now describes the group as both memory evaluations and compressor benchmarks, with benchmark usage shown as a first-class example and guarded by a help-output test.
 - Shared docs entry copy now matches the control-plane repositioning again: `docs/components/stats.tsx` and `docs/app/layout.tsx` no longer lead with the old “context optimization / fraction of the tokens” wedge, and instead describe Cutctx as a local-first context control plane for AI agents.
@@ -47,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- WS18 Phase A learned policy-table foundation: `cutctx policies train/show/reset` now stores local SQLite policy rows at `~/.cutctx/policies.db` (or `--db`), aggregates JSONL outcome events by tool/content/repo into conservative/balanced/aggressive rows, exposes bounded runtime bias application through `LearnedPolicyHooks`, adds unsafe-row eviction via `cutctx policies evict-unsafe`, and can be enabled for the proxy with `--enable-learned-policies` / `CUTCTX_LEARNED_POLICIES=1`.
 - WS19 compression autopilot wiring is now live in the current worktree: `CUTCTX_AUTOPILOT` is threaded through proxy config/CLI/runtime toggles, the intelligence pipeline is kept stateful across requests so task-level setpoints persist, `/stats` exposes autopilot levels/history, and the Overview dashboard now renders a compression-autopilot panel with a level sparkline.
 - Governance and manual-testing docs now surface the WS19 control path (`CUTCTX_AUTOPILOT=1` and `/intelligence/autopilot/status`) so the new loop can be enabled and verified without hunting through code.
 - Inline multimodal audio optimization for supported chat/compress flows, with targeted regression coverage in `tests/test_audio_compressor.py`, `tests/test_inline_audio_messages.py`, and `tests/test_proxy_compress_endpoint.py`.

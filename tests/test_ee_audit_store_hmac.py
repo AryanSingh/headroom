@@ -503,34 +503,31 @@ def test_python_source_imports_hmac_module() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 12. Documentation/comment honesty guardrails (WS19 truthfulness pass)
-#
-# These check that comments/docs accurately describe the CURRENT algorithm
-# (secret-prefixed SHA-256, not HMAC) while the contract tests above hold
-# the implementation to the target (real HMAC) it hasn't reached yet.
+# 12. Documentation/comment alignment guardrails
 # ---------------------------------------------------------------------------
 
 from pathlib import Path
 
 
-from pathlib import Path
-
-
-def test_audit_store_source_describes_current_sha256_chain_honestly() -> None:
+def test_audit_store_source_describes_hmac_chain_honestly() -> None:
     text = Path("cutctx_ee/audit/store.py").read_text(encoding="utf-8")
 
-    assert "secret-keyed SHA-256 chain value" in text
-    assert "hashlib.sha256()" in text
-    assert "HMAC SHA-256 hash for the event" not in text
-    assert "hmac.new(" not in text
+    assert "HMAC-SHA256 chain value" in text
+    assert "hmac.new(" in text
+    assert "hashlib.sha256" in text
+    assert "secret-keyed SHA-256 chain value" not in text
+    assert "hasher.update(self.secret_key)" not in text
 
 
-def test_audit_docs_match_current_source_contract() -> None:
+def test_audit_docs_match_hmac_source_contract() -> None:
     compliance = Path("docs/audit-compliance.md").read_text(encoding="utf-8")
     residency = Path("docs/data-residency.md").read_text(encoding="utf-8")
     roadmap = Path("gtm/soc2-roadmap.md").read_text(encoding="utf-8")
+    controls = Path("docs/security/SOC2_CONTROLS.md").read_text(encoding="utf-8")
 
-    assert "secret-keyed SHA-256 chain value" in compliance
-    assert "SHA256(secret || prev_hash || payload)" in compliance
-    assert "Current EE builds use this secret-prefixed SHA-256 chain directly" in residency
-    assert "secret-keyed SHA-256 hash chain" in roadmap
+    assert "HMAC-SHA256 chain value" in compliance
+    assert "HMAC-SHA256(secret" in compliance
+    assert "Current EE builds use this secret-prefixed SHA-256 chain directly" not in residency
+    assert "HMAC-SHA256(" in residency
+    assert "HMAC-SHA256 hash chain with canonical framing" in roadmap
+    assert "HMAC-SHA256 hash chain over a canonical length-prefixed message" in controls

@@ -62,12 +62,21 @@ The **audit chain** is a tamper-evident append-only log stored in the
 `cutctx_ee` audit database.  Every event row contains an `event_hash`
 computed as:
 
-```
-SHA-256(secret_key || previous_hash || tenant_id || actor || action || payload_json || timestamp_iso)
+```text
+HMAC-SHA256(
+  secret_key,
+  previous_hash_or_genesis
+  || len(tenant_id) || tenant_id
+  || len(actor) || actor
+  || len(action) || action
+  || len(payload_json) || payload_json
+  || len(timestamp_iso) || timestamp_iso
+)
 ```
 
-Current EE builds use this secret-prefixed SHA-256 chain directly rather than
-an HMAC construction.
+Genesis events use `32` zero bytes for `previous_hash_or_genesis`, and each
+`len(...)` value is encoded as an 8-byte big-endian integer before the UTF-8
+field bytes.
 
 The **tail hash** is simply the `event_hash` of the chronologically most-recent
 event for the tenant.  By recording it in the attestation you can prove that
@@ -78,22 +87,32 @@ that exact hash exists.
 ### Verifying the tail hash manually
 
 ```python
-import hashlib, json
+import hashlib
+import hmac
+import json
 
 def verify_tail(secret_key: str, events: list[dict]) -> bool:
     """Re-compute and verify the full chain for a tenant."""
     expected_prev = None
     for e in sorted(events, key=lambda x: x["id"]):
-        h = hashlib.sha256()
-        h.update(secret_key.encode())
-        if expected_prev:
-            h.update(expected_prev.encode())
-        h.update(e["tenant_id"].encode())
-        h.update(e["actor"].encode())
-        h.update(e["action"].encode())
-        h.update(json.dumps(e["payload"], sort_keys=True).encode())
-        h.update(e["timestamp"].encode())
-        computed = h.hexdigest()
+        payload_json = json.dumps(e["payload"], sort_keys=True)
+        previous = expected_prev.encode() if expected_prev else b"\x00" * 32
+        message = b"".join(
+            [
+                previous,
+                len(e["tenant_id"].encode()).to_bytes(8, "big"),
+                e["tenant_id"].encode(),
+                len(e["actor"].encode()).to_bytes(8, "big"),
+                e["actor"].encode(),
+                len(e["action"].encode()).to_bytes(8, "big"),
+                e["action"].encode(),
+                len(payload_json.encode()).to_bytes(8, "big"),
+                payload_json.encode(),
+                len(e["timestamp"].encode()).to_bytes(8, "big"),
+                e["timestamp"].encode(),
+            ]
+        )
+        computed = hmac.new(secret_key.encode(), message, hashlib.sha256).hexdigest()
         if computed != e["event_hash"]:
             return False
         expected_prev = computed

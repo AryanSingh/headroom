@@ -257,29 +257,47 @@ deleted after the merge landed. The 5 source feature branches
 `feat/ws13-batch-routing`, `feat/ws16-normalize`, `feat/ws19-autopilot`)
 were left in place, not deleted — safe to prune once their PRs are closed.
 
+## Completed follow-up (2026-07-03)
+
+1. **HMAC audit-chain gap closed in source and local compiled runtime** —
+   `cutctx_ee/audit/store.py` now uses `hmac.new(secret, message,
+   hashlib.sha256)` over a canonical length-prefixed message. The docs and
+   `tests/test_ee_audit_store_hmac.py` now assert the real HMAC contract
+   instead of the temporary "secret-keyed SHA-256" truthfulness workaround.
+   Local verification rebuilt both ignored EE audit binaries
+   (`store.cpython-311-darwin.so` and `store.cpython-312-darwin.so`) and
+   passed `tests/test_ee_audit_store_hmac.py` with `18 passed, 16 skipped`.
+   Release packaging still needs the normal EE binary rebuild/signing step,
+   because `*.so` files are ignored by Git in this checkout.
+2. **Dashboard bundle rebuild gap closed for tracked package assets** —
+   `make build-dashboard` now copies Vite hashed JS/CSS into the directory
+   the proxy actually mounts (`cutctx/dashboard/assets/assets`), then the
+   packaged `cutctx/dashboard/index.html` was regenerated. `docs/lib/telemetry.ts`
+   exists on current `main`, so the previous "missing telemetry file" note
+   was stale. Focused dashboard/docs verification passed: `31 passed`.
+3. **Development hygiene guardrail added** — `.pre-commit-config.yaml` now
+   includes a local dependency-free `scripts/check_text_hygiene.py` hook to
+   catch accidental line-collapsed editable Python/docs/config files before
+   heavier lint lanes run.
+
 ## Pending
 
-1. **HMAC audit-chain gap (real, tracked, not blocking)** —
-   `cutctx_ee/audit/store.py`'s `_compute_hash()` concatenates the secret
-   with plain `hashlib.sha256()` instead of using `hmac.new()`, a
-   length-extension vulnerability. `tests/test_ee_audit_store_hmac.py`
-   (from WS16, `f38ca115`) is an intentionally-red 14-test contract suite
-   documenting the target fix; 4 of its tests currently fail against the
-   real implementation. No `.so` rebuild changes this — the Python source
-   itself needs `hmac.new(secret, message, hashlib.sha256)`.
-2. **Dashboard bundle needs a rebuild** — `cutctx/dashboard/assets/` is a
-   checked-in built bundle that is stale relative to `dashboard/src/`
-   across every branch (this is a `main`-wide gap, not introduced by this
-   merge). Run `npm install && npm run build` in `dashboard/` and commit
-   the regenerated assets to fix the 7 dashboard Playwright e2e failures.
-   `docs/lib/telemetry.ts` is also missing on `main`, causing 1 more
-   docs-truthfulness failure.
-3. **WS18 — Learned per-customer compression policies (PRIMARY MOAT per
-   spec)** — not started. Needs a written Phase-A spike (learned policy
-   table, no model training) before productization: the `cutctx policies`
-   CLI, `policy.db`, the `compute_biases` hook wiring, and self-healing
-   eviction.
-4. **WS4–WS9 (Phase 2, per `strategy-implementation-plan.md`)** — none
+Short current handoff lives in `artifacts/pending-items.md`. Keep it updated
+alongside this detailed tracker and `CHANGELOG.md` whenever progress changes.
+
+WS18 Phase A table/CLI/hook is started: `cutctx policies train/show/reset`
+stores deterministic local SQLite policy rows trained from JSONL outcome
+events grouped by `(tool_name, content_type, repo)`, `LearnedPolicyHooks`
+applies bounded biases through the existing `compute_biases` hook, and
+`cutctx policies evict-unsafe` removes risky rows. The proxy can opt in with
+`--enable-learned-policies` / `CUTCTX_LEARNED_POLICIES=1`; cold-start runtime
+behavior is unchanged.
+
+1. **WS18 — Learned per-customer compression policies (PRIMARY MOAT per
+   spec)** — Phase A table/CLI/hook/proxy flag is started. Remaining work:
+   `--watch`/nightly job ergonomics, report/dashboard surfacing, and Phase-B
+   spike notes.
+2. **WS4–WS9 (Phase 2, per `strategy-implementation-plan.md`)** — none
    started:
    - WS4: Context policy engine MVP (redaction rules + cumulative
      per-agent/per-team budgets)
@@ -292,9 +310,9 @@ were left in place, not deleted — safe to prune once their PRs are closed.
    - WS8: Session replay alpha: event stream + replay API + dashboard page
    - WS9: Design-partner readiness: end-to-end demo script + release
      checklist
-5. **WS1–WS3 (repositioning/reporting work)** — not started: README/docs/
+3. **WS1–WS3 (repositioning/reporting work)** — not started: README/docs/
    pitch/llms.txt/outreach content, Agent Context Report v1, and the
    quality-at-budget benchmark v1.
-6. **Housekeeping** — the 5 now-merged feature branches and their PRs can
+4. **Housekeeping** — the 5 now-merged feature branches and their PRs can
    be closed/deleted once confirmed no longer needed; `main` is 0 commits
    ahead/behind `origin/main` as of this push.

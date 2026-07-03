@@ -25,7 +25,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 - [x] Logical access controls (SSO/OIDC, RBAC)
 - [x] Network security (firewalls, encryption in transit)
 - [x] Data encryption (Fernet AES-128-CBC + HMAC-SHA256 at rest, TLS 1.3 in transit)
-- [x] Tamper-evident audit log (secret-keyed SHA-256 hash chain) — see `cutctx_ee/audit/store.py`
+- [x] Tamper-evident audit log (HMAC-SHA256 hash chain with canonical framing) — see `cutctx_ee/audit/store.py`
 - [x] Admin API key handling (no plaintext log on auto-generation) — see `cutctx/proxy/server.py:2252-2278`
 - [x] EE route surface behind admin auth + RBAC (Blocker-1 fix in commit `2b49ee76`)
 - [ ] Vulnerability management program

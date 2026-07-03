@@ -373,7 +373,6 @@ def _selected_context_tool() -> str:
         "Env: CUTCTX_DISABLE_KOMPRESS=1."
     ),
 )
-
 @click.option(
     "--query-aware",
     "query_aware_compression",
@@ -694,10 +693,7 @@ def _selected_context_tool() -> str:
     default=None,
     type=click.IntRange(min=10),
     envvar="CUTCTX_DRAIN3_MAX_CLUSTERS",
-    help=(
-        "Maximum Drain3 log clusters to track (default: 1000). "
-        "Env: CUTCTX_DRAIN3_MAX_CLUSTERS."
-    ),
+    help=("Maximum Drain3 log clusters to track (default: 1000). Env: CUTCTX_DRAIN3_MAX_CLUSTERS."),
 )
 @click.option(
     "--drain3-sim-threshold",
@@ -743,20 +739,14 @@ def _selected_context_tool() -> str:
     default=None,
     type=click.IntRange(min=1, max=10),
     envvar="CUTCTX_KG_BFS_DEPTH",
-    help=(
-        "BFS depth when querying the knowledge graph (default 2). "
-        "Env: CUTCTX_KG_BFS_DEPTH."
-    ),
+    help=("BFS depth when querying the knowledge graph (default 2). Env: CUTCTX_KG_BFS_DEPTH."),
 )
 @click.option(
     "--knowledge-graph-max-nodes",
     default=None,
     type=click.IntRange(min=5, max=200),
     envvar="CUTCTX_KG_MAX_NODES",
-    help=(
-        "Max graph nodes per response (default 40). "
-        "Env: CUTCTX_KG_MAX_NODES."
-    ),
+    help=("Max graph nodes per response (default 40). Env: CUTCTX_KG_MAX_NODES."),
 )
 @click.option(
     "--difftastic",
@@ -830,6 +820,12 @@ def _selected_context_tool() -> str:
     is_flag=True,
     envvar="CUTCTX_AUTOPILOT",
     help="Auto-tune compression aggressiveness from recent quality signals. Env: CUTCTX_AUTOPILOT=1",
+)
+@click.option(
+    "--enable-learned-policies",
+    is_flag=True,
+    envvar="CUTCTX_LEARNED_POLICIES",
+    help="Apply local learned compression policies. Env: CUTCTX_LEARNED_POLICIES=1",
 )
 @click.option(
     "--enable-firewall",
@@ -939,6 +935,7 @@ def proxy(
     enable_multi_agent: bool,
     enable_cost_forecasting: bool,
     enable_autopilot: bool,
+    enable_learned_policies: bool,
     enable_firewall: bool,
     enable_cache_aligner: bool,
     enable_ensemble: bool,
@@ -1144,9 +1141,7 @@ def proxy(
         # Drain3 ML log template mining
         drain3_enabled=drain3_enabled,
         drain3_max_clusters=drain3_max_clusters if drain3_max_clusters is not None else 1000,
-        drain3_sim_threshold=drain3_sim_threshold
-        if drain3_sim_threshold is not None
-        else 0.4,
+        drain3_sim_threshold=drain3_sim_threshold if drain3_sim_threshold is not None else 0.4,
         # Stack-graph code navigation
         stack_graph_enabled=stack_graph_enabled,
         stack_graph_max_files=stack_graph_max_files,
@@ -1159,8 +1154,7 @@ def proxy(
             knowledge_graph_max_nodes if knowledge_graph_max_nodes is not None else 40
         ),
         # Difftastic structural diff compression
-        difftastic_enabled=difftastic_enabled
-        or _get_env_bool("CUTCTX_DIFFTASTIC", False),
+        difftastic_enabled=difftastic_enabled or _get_env_bool("CUTCTX_DIFFTASTIC", False),
         difftastic_binary=difftastic_binary or os.environ.get("CUTCTX_DIFFTASTIC_BINARY", "difft"),
         difftastic_context_lines=(
             difftastic_context_lines
@@ -1219,25 +1213,32 @@ def proxy(
         firewall_block_injection=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_INJECTION", False),
         firewall_block_jailbreak=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_JAILBREAK", False),
         firewall_redact_streaming=not _get_env_bool("CUTCTX_FIREWALL_NO_REDACT_STREAMING", False),
-
         # Intelligence Layer
         task_aware_enabled=enable_task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False),
         dedup_enabled=enable_semantic_dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False),
-        context_budget_enabled=enable_context_budget or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False),
+        context_budget_enabled=enable_context_budget
+        or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False),
         profiles_enabled=enable_cross_session or _get_env_bool("CUTCTX_PROFILES_ENABLED", False),
-        shared_context_enabled=enable_multi_agent or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),
-        cost_forecast_enabled=enable_cost_forecasting or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False),
+        shared_context_enabled=enable_multi_agent
+        or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),
+        cost_forecast_enabled=enable_cost_forecasting
+        or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False),
         autopilot_enabled=enable_autopilot or _get_env_bool("CUTCTX_AUTOPILOT", False),
         autopilot_min_level=_get_env_int_optional("CUTCTX_AUTOPILOT_MIN_LEVEL") or 1,
         autopilot_max_level=_get_env_int_optional("CUTCTX_AUTOPILOT_MAX_LEVEL") or 5,
-        autopilot_hysteresis_window=_get_env_int_optional("CUTCTX_AUTOPILOT_HYSTERESIS_WINDOW") or 10,
-
+        autopilot_hysteresis_window=_get_env_int_optional("CUTCTX_AUTOPILOT_HYSTERESIS_WINDOW")
+        or 10,
         # Cache Aligner
-        cache_aligner_enabled=enable_cache_aligner or _get_env_bool("CUTCTX_CACHE_ALIGNER_ENABLED", False),
-
+        cache_aligner_enabled=enable_cache_aligner
+        or _get_env_bool("CUTCTX_CACHE_ALIGNER_ENABLED", False),
         # Ensemble
         ensemble_enabled=enable_ensemble or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False),
     )
+
+    if enable_learned_policies and not is_stateless and config.hooks is None:
+        from cutctx.policy_learning import LearnedPolicyHooks
+
+        config.hooks = LearnedPolicyHooks()
 
     memory_status = "DISABLED"
     if config.memory_enabled:

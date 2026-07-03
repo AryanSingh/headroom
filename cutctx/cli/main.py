@@ -29,6 +29,7 @@ _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "mcp": "mcp",
     "memory": "memory",
     "perf": "perf",
+    "policies": "policies",
     "profile": "profile",
     "proxy": "proxy",
     "report": "report",

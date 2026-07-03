@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "dashboard",
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "dashboard-preview-build",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "4173"],
+      "cwd": "dashboard",
+      "port": 4173,
+      "autoPort": false
+    }
+  ]
+}
