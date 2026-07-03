@@ -245,3 +245,56 @@ Second full run after that fix: expected `12 failed` (the 8 dashboard/docs
 + 4 HMAC), `7860 passed` — the only two categories of failure are the ones
 documented above, both pre-existing and neither blocking. **All 5 branches
 are merged, tested, and clean.**
+
+### Merged and pushed (2026-07-03)
+
+`integration/merge-ws-branches` was fast-forward-merged into local `main`
+as `6bb04bfd` (`main` had not diverged, so no second round of conflict
+resolution was needed), then pushed: `origin/main` moved
+`10e3f219..6bb04bfd`. The integration branch and its scratch worktree were
+deleted after the merge landed. The 5 source feature branches
+(`feat/ws10-output-optimize`, `feat/ws11-memoize`,
+`feat/ws13-batch-routing`, `feat/ws16-normalize`, `feat/ws19-autopilot`)
+were left in place, not deleted — safe to prune once their PRs are closed.
+
+## Pending
+
+1. **HMAC audit-chain gap (real, tracked, not blocking)** —
+   `cutctx_ee/audit/store.py`'s `_compute_hash()` concatenates the secret
+   with plain `hashlib.sha256()` instead of using `hmac.new()`, a
+   length-extension vulnerability. `tests/test_ee_audit_store_hmac.py`
+   (from WS16, `f38ca115`) is an intentionally-red 14-test contract suite
+   documenting the target fix; 4 of its tests currently fail against the
+   real implementation. No `.so` rebuild changes this — the Python source
+   itself needs `hmac.new(secret, message, hashlib.sha256)`.
+2. **Dashboard bundle needs a rebuild** — `cutctx/dashboard/assets/` is a
+   checked-in built bundle that is stale relative to `dashboard/src/`
+   across every branch (this is a `main`-wide gap, not introduced by this
+   merge). Run `npm install && npm run build` in `dashboard/` and commit
+   the regenerated assets to fix the 7 dashboard Playwright e2e failures.
+   `docs/lib/telemetry.ts` is also missing on `main`, causing 1 more
+   docs-truthfulness failure.
+3. **WS18 — Learned per-customer compression policies (PRIMARY MOAT per
+   spec)** — not started. Needs a written Phase-A spike (learned policy
+   table, no model training) before productization: the `cutctx policies`
+   CLI, `policy.db`, the `compute_biases` hook wiring, and self-healing
+   eviction.
+4. **WS4–WS9 (Phase 2, per `strategy-implementation-plan.md`)** — none
+   started:
+   - WS4: Context policy engine MVP (redaction rules + cumulative
+     per-agent/per-team budgets)
+   - WS5: Org-scope memory + export/import (depends on org identity
+     plumbing)
+   - WS6: Learn telemetry aggregation (design + opt-in scaffolding; egress
+     not implemented)
+   - WS7: Context Assurance package (EE): CCR ledger + retention +
+     evidence export
+   - WS8: Session replay alpha: event stream + replay API + dashboard page
+   - WS9: Design-partner readiness: end-to-end demo script + release
+     checklist
+5. **WS1–WS3 (repositioning/reporting work)** — not started: README/docs/
+   pitch/llms.txt/outreach content, Agent Context Report v1, and the
+   quality-at-budget benchmark v1.
+6. **Housekeeping** — the 5 now-merged feature branches and their PRs can
+   be closed/deleted once confirmed no longer needed; `main` is 0 commits
+   ahead/behind `origin/main` as of this push.
