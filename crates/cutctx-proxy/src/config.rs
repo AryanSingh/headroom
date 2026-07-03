@@ -566,7 +566,19 @@ pub enum CcrBackendKind {
 
 /// Resolved entitlement tier from the license key. Determines
 /// which compression features are available.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum LicenseTier {
     /// Open-source mode: no license key, all core features available.
     #[default]

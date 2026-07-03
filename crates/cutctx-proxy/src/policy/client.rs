@@ -17,9 +17,12 @@ pub async fn fetch_and_cache_policy(
     workspace_id: Option<&str>,
 ) -> Option<PolicyPayload> {
     let client = reqwest::Client::new();
-    
+
     let url = if let Some(ws) = workspace_id {
-        format!("{}/v1/policies/{}/signed?workspace_id={}", api_url, org_id, ws)
+        format!(
+            "{}/v1/policies/{}/signed?workspace_id={}",
+            api_url, org_id, ws
+        )
     } else {
         format!("{}/v1/policies/{}/signed", api_url, org_id)
     };
@@ -32,13 +35,13 @@ pub async fn fetch_and_cache_policy(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                        
+
                     let key = if let Some(ws) = workspace_id {
                         format!("{}::{}", org_id, ws)
                     } else {
                         org_id.to_string()
                     };
-                    
+
                     let mut cache = POLICY_CACHE.write().unwrap();
                     if cache.is_none() {
                         *cache = Some(HashMap::new());
@@ -46,7 +49,7 @@ pub async fn fetch_and_cache_policy(
                     if let Some(map) = cache.as_mut() {
                         map.insert(key, (payload.clone(), now));
                     }
-                    
+
                     return Some(payload);
                 }
             }
@@ -55,7 +58,11 @@ pub async fn fetch_and_cache_policy(
     None
 }
 
-pub fn get_policy(api_url: &str, org_id: &str, workspace_id: Option<&str>) -> Option<PolicyPayload> {
+pub fn get_policy(
+    api_url: &str,
+    org_id: &str,
+    workspace_id: Option<&str>,
+) -> Option<PolicyPayload> {
     let key = if let Some(ws) = workspace_id {
         format!("{}::{}", org_id, ws)
     } else {
@@ -72,7 +79,7 @@ pub fn get_policy(api_url: &str, org_id: &str, workspace_id: Option<&str>) -> Op
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
-            
+
             // 5 min TTL for refresh
             if now > timestamp + 300 {
                 needs_refresh = true;
@@ -89,7 +96,7 @@ pub fn get_policy(api_url: &str, org_id: &str, workspace_id: Option<&str>) -> Op
         let api_url = api_url.to_string();
         let org_id = org_id.to_string();
         let ws_id = workspace_id.map(String::from);
-        
+
         tokio::spawn(async move {
             fetch_and_cache_policy(&api_url, &org_id, ws_id.as_deref()).await;
         });

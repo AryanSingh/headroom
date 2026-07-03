@@ -38,7 +38,7 @@ fn public_keys() -> &'static HashMap<String, VerifyingKey> {
         let env_keys = std::env::var("CUTCTX_POLICY_PUBLIC_KEYS")
             .or_else(|_| std::env::var("CUTCTX_LICENSE_PUBLIC_KEYS"))
             .unwrap_or_default();
-            
+
         for pair in env_keys.split(',') {
             if let Some((kid, hex_key)) = pair.split_once(':') {
                 if let Ok(bytes) = hex::decode(hex_key) {

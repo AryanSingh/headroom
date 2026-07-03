@@ -89,7 +89,7 @@ fn check_sysctl_macos() -> DebuggerStatus {
                     if line.contains(&format!("pid: {}", pid)) {
                         if let Some(flags_hex) = line.split("flags: 0x").nth(1) {
                             if let Ok(flags) = u32::from_str_radix(
-                                flags_hex.trim().split_whitespace().next().unwrap_or("0"),
+                                flags_hex.split_whitespace().next().unwrap_or("0"),
                                 16,
                             ) {
                                 if flags & 0x00000800 != 0 {
@@ -308,10 +308,7 @@ mod tests {
     fn redundant_license_check_rejects_garbage() {
         assert_eq!(redundant_license_check("not-a-token"), None);
         assert_eq!(redundant_license_check(""), None);
-        assert_eq!(
-            redundant_license_check("hrk1.kid.payload.sig.extra"),
-            None
-        );
+        assert_eq!(redundant_license_check("hrk1.kid.payload.sig.extra"), None);
     }
 
     #[test]

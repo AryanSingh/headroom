@@ -5,9 +5,7 @@
 
 use std::time::Duration;
 
-use cutctx_core::ccr::backends::{
-    from_config, CcrBackendConfig, InMemoryCcrStore, SqliteCcrStore,
-};
+use cutctx_core::ccr::backends::{from_config, CcrBackendConfig, InMemoryCcrStore, SqliteCcrStore};
 use cutctx_core::ccr::{compute_key, CcrStore};
 
 #[test]

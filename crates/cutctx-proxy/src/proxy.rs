@@ -455,9 +455,9 @@ pub(crate) async fn forward_http(
     if let (Some(url), Some(org)) = (&state.config.policy_url, &org_id) {
         let ws = workspace_id.as_deref();
         let api_url = url.as_str().trim_end_matches('/');
-        
+
         let policy = crate::policy::client::get_policy(api_url, org, ws);
-        
+
         if let Some(p) = policy {
             if p.req_comp.unwrap_or(false) {
                 forced_req_comp = true;
@@ -469,15 +469,17 @@ pub(crate) async fn forward_http(
                     "forced compression required by policy"
                 );
             }
-            
+
             // Enforce budget limits
-            let exhausted_budget = if let (Some(budget), Some(spend)) = (p.budget_usd, p.mtd_spend) {
+            let exhausted_budget = if let (Some(budget), Some(spend)) = (p.budget_usd, p.mtd_spend)
+            {
                 spend >= budget
             } else {
                 false
             };
 
-            if p.rpm == Some(0) || p.tpm == Some(0) || p.budget_usd == Some(0.0) || exhausted_budget {
+            if p.rpm == Some(0) || p.tpm == Some(0) || p.budget_usd == Some(0.0) || exhausted_budget
+            {
                 tracing::warn!(
                     event = "policy_rejected",
                     request_id = %request_id,
@@ -494,19 +496,30 @@ pub(crate) async fn forward_http(
             // Enforce model allowlist
             if let Some(allowed) = &p.models {
                 let allowed_list: Vec<&str> = allowed.split(',').map(|s| s.trim()).collect();
-                
+
                 // For OpenAI endpoints we inserted it into extensions in the handler
-                let mut requested_model = req.extensions().get::<RequestedModel>().map(|m| m.0.clone());
-                
+                let mut requested_model = req
+                    .extensions()
+                    .get::<RequestedModel>()
+                    .map(|m| m.0.clone());
+
                 // For Bedrock/Vertex, we might extract from URI path
                 if requested_model.is_none() {
                     let path = uri.path();
                     if path.contains("/model/") {
-                        if let Some(m) = path.split("/model/").nth(1).and_then(|s| s.split('/').next()) {
+                        if let Some(m) = path
+                            .split("/model/")
+                            .nth(1)
+                            .and_then(|s| s.split('/').next())
+                        {
                             requested_model = Some(m.to_string());
                         }
                     } else if path.contains("/models/") {
-                        if let Some(m) = path.split("/models/").nth(1).and_then(|s| s.split(':').next()) {
+                        if let Some(m) = path
+                            .split("/models/")
+                            .nth(1)
+                            .and_then(|s| s.split(':').next())
+                        {
                             requested_model = Some(m.to_string());
                         }
                     }
@@ -1195,7 +1208,7 @@ pub(crate) async fn forward_http(
     // explicit "never block on parser readiness" contract.
     let rid = request_id.clone();
     let parser_tx = if !matches!(sse_kind, SseStreamKind::None) {
-        let (mut tx, rx) = tokio::sync::mpsc::channel(100);
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
         if is_sse {
             let rid_for_parser = request_id.clone();
             let spend_emitter = state.spend_emitter.clone();
@@ -1283,6 +1296,7 @@ pub(crate) async fn forward_http(
 /// load (~5 events/100ms typical) the parser is never blocked on
 /// queue space, yet a stalled parser can't grow memory unboundedly.
 /// Tunable via `proxy.toml` if a deployment finds this insufficient.
+#[allow(dead_code)]
 const SSE_PARSER_QUEUE_DEPTH: usize = 256;
 
 /// Which provider's state machine should run on this stream. Picked
@@ -1439,6 +1453,7 @@ fn maybe_inject_openai_prompt_cache_key(
 
 /// Drive the per-provider state machine over a stream of byte chunks.
 /// Lives in its own task; the byte path never waits on it.
+#[allow(clippy::too_many_arguments)]
 async fn run_sse_state_machine(
     kind: SseStreamKind,
     mut rx: tokio::sync::mpsc::Receiver<bytes::Bytes>,

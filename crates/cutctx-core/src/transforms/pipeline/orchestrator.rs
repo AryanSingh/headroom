@@ -183,7 +183,7 @@ impl CompressionPipeline {
 
                     let ratio = out.output.len() as f64 / current.len().max(1) as f64;
                     let estimated_tokens_saved = out.bytes_saved / 4;
-                    
+
                     span.record("compression_ratio", ratio);
                     span.record("token_savings", estimated_tokens_saved);
 
@@ -274,7 +274,7 @@ impl CompressionPipeline {
                     let ratio = out.output.len() as f64 / current.len().max(1) as f64;
                     // Token savings heuristic: roughly 4 bytes per token for plain text
                     let estimated_tokens_saved = out.bytes_saved / 4;
-                    
+
                     span.record("compression_ratio", ratio);
                     span.record("token_savings", estimated_tokens_saved);
 

@@ -210,8 +210,13 @@ fn tokenize(text: &str) -> Vec<Token> {
         if ch == '$' && i + 1 < len && (chars[i + 1].is_ascii_digit()) {
             let start = i;
             i += 1; // consume $
-            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '.'
-                || chars[i] == '-' || chars[i] == '/' || chars[i] == ':')
+            while i < len
+                && (chars[i].is_alphanumeric()
+                    || chars[i] == '_'
+                    || chars[i] == '.'
+                    || chars[i] == '-'
+                    || chars[i] == '/'
+                    || chars[i] == ':')
             {
                 i += 1;
             }
@@ -227,8 +232,13 @@ fn tokenize(text: &str) -> Vec<Token> {
         // Words: alphanumeric + underscores (keeps snake_case together)
         if ch.is_alphanumeric() || ch == '_' || ch == '.' || ch == '-' || ch == '/' || ch == ':' {
             let start = i;
-            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '.'
-                || chars[i] == '-' || chars[i] == '/' || chars[i] == ':')
+            while i < len
+                && (chars[i].is_alphanumeric()
+                    || chars[i] == '_'
+                    || chars[i] == '.'
+                    || chars[i] == '-'
+                    || chars[i] == '/'
+                    || chars[i] == ':')
             {
                 i += 1;
             }
@@ -276,14 +286,28 @@ fn char_byte_end(text: &str, char_idx: usize) -> usize {
 /// Returns the URL string (in chars) if found.
 fn try_extract_url(chars: &[char], start: usize) -> Option<String> {
     let remaining = &chars[start..];
-    let text: String = remaining.iter().take_while(|c| {
-        c.is_alphanumeric() || **c == '/' || **c == ':' || **c == '.' || **c == '-'
-            || **c == '_' || **c == '%' || **c == '&' || **c == '?' || **c == '=' || **c == '#'
-            || **c == '@'
-    }).collect();
+    let text: String = remaining
+        .iter()
+        .take_while(|c| {
+            c.is_alphanumeric()
+                || **c == '/'
+                || **c == ':'
+                || **c == '.'
+                || **c == '-'
+                || **c == '_'
+                || **c == '%'
+                || **c == '&'
+                || **c == '?'
+                || **c == '='
+                || **c == '#'
+                || **c == '@'
+        })
+        .collect();
 
-    if text.starts_with("http://") || text.starts_with("https://")
-        || text.starts_with("ftp://") || text.starts_with("www.")
+    if text.starts_with("http://")
+        || text.starts_with("https://")
+        || text.starts_with("ftp://")
+        || text.starts_with("www.")
     {
         // Only return if it has some meaningful length
         if text.len() > 5 {
@@ -308,8 +332,11 @@ fn try_extract_html_tag(chars: &[char], start: usize) -> Option<String> {
     }
     // Tag name: alphanumeric + underscores + hyphens + dots
     let name_start = i;
-    while i < remaining.len() && (remaining[i].is_alphanumeric() || remaining[i] == '_'
-        || remaining[i] == '-' || remaining[i] == '.')
+    while i < remaining.len()
+        && (remaining[i].is_alphanumeric()
+            || remaining[i] == '_'
+            || remaining[i] == '-'
+            || remaining[i] == '.')
     {
         i += 1;
     }
@@ -332,26 +359,33 @@ fn try_extract_html_tag(chars: &[char], start: usize) -> Option<String> {
 
 /// Words with low informational signal.
 const FILLER_WORDS: &[&str] = &[
-    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "shall", "can", "need", "dare", "ought",
-    "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
-    "as", "into", "through", "during", "before", "after", "above",
-    "below", "between", "out", "off", "over", "under", "again",
-    "further", "then", "once", "here", "there", "when", "where", "why",
-    "how", "all", "each", "every", "both", "few", "more", "most", "other",
-    "some", "such", "no", "nor", "not", "only", "own", "same", "so",
-    "than", "too", "very", "just", "because", "but", "and", "or", "if",
-    "while", "that", "this", "it", "its", "i", "me", "my", "we", "our",
-    "you", "your", "he", "him", "his", "she", "her", "they", "them",
-    "their", "what", "which", "who", "whom",
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "do", "does", "did", "will", "would", "could", "should", "may", "might", "shall", "can",
+    "need", "dare", "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
+    "as", "into", "through", "during", "before", "after", "above", "below", "between", "out",
+    "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where",
+    "why", "how", "all", "each", "every", "both", "few", "more", "most", "other", "some", "such",
+    "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "just", "because",
+    "but", "and", "or", "if", "while", "that", "this", "it", "its", "i", "me", "my", "we", "our",
+    "you", "your", "he", "him", "his", "she", "her", "they", "them", "their", "what", "which",
+    "who", "whom",
 ];
 
 /// Redundant connector phrases.
 const REDUNDANT_CONNECTORS: &[&str] = &[
-    "however", "furthermore", "moreover", "additionally", "consequently",
-    "nevertheless", "notwithstanding", "henceforth", "aforementioned",
-    "subsequently", "therefore", "thus", "hence",
+    "however",
+    "furthermore",
+    "moreover",
+    "additionally",
+    "consequently",
+    "nevertheless",
+    "notwithstanding",
+    "henceforth",
+    "aforementioned",
+    "subsequently",
+    "therefore",
+    "thus",
+    "hence",
 ];
 
 /// Check if a word is a filler word (case-insensitive).
@@ -387,9 +421,13 @@ fn is_code_token(word: &str) -> bool {
         return true;
     }
     // Common code patterns
-    if word.contains("()") || word.contains("{}") || word.contains("[]")
-        || word.starts_with('$') || word.starts_with('@')
-        || (word.contains('_') && word.len() > 3) // snake_case identifiers
+    if word.contains("()")
+        || word.contains("{}")
+        || word.contains("[]")
+        || word.starts_with('$')
+        || word.starts_with('@')
+        || (word.contains('_') && word.len() > 3)
+    // snake_case identifiers
     {
         return true;
     }
@@ -435,7 +473,12 @@ fn classify_token(token: &Token, context: &TokenContext) -> TokenSignal {
     }
 
     // Single punctuation → Negligible
-    if text.len() == 1 && text.chars().next().is_some_and(|c| c.is_ascii_punctuation()) {
+    if text.len() == 1
+        && text
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_punctuation())
+    {
         return TokenSignal::Negligible;
     }
 
@@ -651,7 +694,8 @@ impl DeletionCompactor {
                     // Check if there's a gap in the original text
                     let has_gap = prev_end < cur_start;
                     // Check if a kept whitespace token fills the gap
-                    let has_kept_ws = kept_indices.iter()
+                    let has_kept_ws = kept_indices
+                        .iter()
                         .filter(|&&idx| idx > prev && idx < i)
                         .any(|&idx| tokens[idx].text.chars().all(|c| c.is_whitespace()));
                     if has_gap && !has_kept_ws {
@@ -765,7 +809,9 @@ mod tests {
 
         let mut input_idx = 0;
         for output_token in &output_tokens {
-            let found = input_tokens[input_idx..].iter().position(|t| t == output_token);
+            let found = input_tokens[input_idx..]
+                .iter()
+                .position(|t| t == output_token);
             match found {
                 Some(pos) => input_idx += pos + 1,
                 None => panic!(

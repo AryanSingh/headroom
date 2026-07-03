@@ -11,9 +11,6 @@ use clap::Parser;
 use cutctx_core::ccr::backends::CcrBackendConfig;
 use cutctx_proxy::config::{CcrBackendKind, CliArgs};
 use cutctx_proxy::{build_app, AppState, Config};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -107,8 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             api_url
         );
         if let Err(e) =
-            cutctx_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id)
-                .await
+            cutctx_proxy::license::client::activate_and_fetch_crl(&api_url, key, &instance_id).await
         {
             tracing::warn!(
                 event = "license_activation_failed",
@@ -201,31 +197,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 fn init_tracing(level: &str) {
-    let filter = EnvFilter::try_new(level).unwrap_or_else(|_| EnvFilter::new("info"));
-    let json_layer = tracing_subscriber::fmt::layer()
+    // Use fmt-based subscriber for all cases. OTel layer integration is
+    // deferred for a tracing-subscriber upgrade that supports 3+ layers
+    // (tracing-subscriber 0.3.23 has Into<Dispatch> coherence issues with
+    // deeply nested Layered types).
+    let _ = tracing_subscriber::fmt()
         .json()
         .with_current_span(false)
-        .with_span_list(false);
-
-    let registry = tracing_subscriber::registry()
-        .with(filter)
-        .with(json_layer);
-
-    match cutctx_proxy::observability::otel::init_otel_tracer() {
-        Ok(provider) => {
-            let otel_layer = cutctx_proxy::observability::otel::create_otel_layer(&provider);
-            let _ = registry.with(otel_layer).try_init();
-            tracing::info!("OpenTelemetry tracing initialized");
-        }
-        Err(e) => {
-            let _ = registry.try_init();
-            tracing::warn!(
-                event = "otel_init_failed",
-                error = %e,
-                "Failed to initialize OTel exporter; continuing without distributed tracing"
-            );
-        }
-    }
+        .with_span_list(false)
+        .with_env_filter(level)
+        .try_init();
+    tracing::info!("tracing initialized (level={level})");
 }
 
 /// Initialize the CCR store based on configuration.

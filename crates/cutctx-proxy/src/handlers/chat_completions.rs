@@ -94,7 +94,8 @@ pub async fn handle_chat_completions(
     // Try to extract the model from the JSON body
     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&body) {
         if let Some(m) = json.get("model").and_then(|v| v.as_str()) {
-            req.extensions_mut().insert(crate::proxy::RequestedModel(m.to_string()));
+            req.extensions_mut()
+                .insert(crate::proxy::RequestedModel(m.to_string()));
         }
     }
 

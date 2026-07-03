@@ -106,8 +106,7 @@ pub fn verify_license_token(token: &str) -> LicenseTier {
     // Legacy compatibility: return just the tier for callers that don't
     // need the full verification result.
     match verify_license_token_detailed(token, None) {
-        LicenseVerifyResult::Valid(tier)
-        | LicenseVerifyResult::FingerprintMismatch(tier) => tier,
+        LicenseVerifyResult::Valid(tier) | LicenseVerifyResult::FingerprintMismatch(tier) => tier,
         _ => LicenseTier::OpenSource,
     }
 }

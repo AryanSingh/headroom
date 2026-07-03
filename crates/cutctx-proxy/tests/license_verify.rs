@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use ed25519_dalek::{Signer, SigningKey};
 use cutctx_proxy::config::LicenseTier;
+use ed25519_dalek::{Signer, SigningKey};
 use serde_json::json;
 
 #[test]
@@ -11,10 +11,7 @@ fn test_ed25519_license_verification() {
 
     // Convert public key to hex for env injection
     let hex_pub = hex::encode(verifying_key.as_bytes());
-    std::env::set_var(
-        "CUTCTX_LICENSE_PUBLIC_KEYS",
-        format!("testkid:{}", hex_pub),
-    );
+    std::env::set_var("CUTCTX_LICENSE_PUBLIC_KEYS", format!("testkid:{}", hex_pub));
 
     // Construct valid token
     let payload = json!({

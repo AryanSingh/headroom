@@ -117,10 +117,7 @@ impl StackGraphManager {
     /// TSG rule specification for the detected language.
     pub fn add_file(&mut self, path: &str, source: &str) -> Result<(), String> {
         let file_path = Path::new(path);
-        let ext = file_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         let language = LANGUAGE_ALIASES
             .iter()
             .find(|(alias, _)| *alias == ext)
@@ -128,7 +125,10 @@ impl StackGraphManager {
             .unwrap_or("python");
 
         if !self.register_language(language) {
-            return Err(format!("Unsupported language: {} (file: {})", language, path));
+            return Err(format!(
+                "Unsupported language: {} (file: {})",
+                language, path
+            ));
         }
 
         // Reject duplicate files
@@ -190,7 +190,8 @@ impl StackGraphManager {
             }
         }
 
-        self.file_handles.insert(file_path.to_path_buf(), file_handle);
+        self.file_handles
+            .insert(file_path.to_path_buf(), file_handle);
         self.source_cache
             .insert(file_path.to_path_buf(), source.to_string());
         Ok(())
@@ -612,7 +613,13 @@ fn build_python_nodes(
     );
 
     build_refs_from_query(
-        graph, file, source, cursor, root_node, ts_lang, "(identifier) @id",
+        graph,
+        file,
+        source,
+        cursor,
+        root_node,
+        ts_lang,
+        "(identifier) @id",
     );
 }
 
@@ -676,7 +683,13 @@ fn build_javascript_nodes(
     );
 
     build_refs_from_query(
-        graph, file, source, cursor, root_node, ts_lang, "(identifier) @id",
+        graph,
+        file,
+        source,
+        cursor,
+        root_node,
+        ts_lang,
+        "(identifier) @id",
     );
 }
 
@@ -685,6 +698,7 @@ fn build_javascript_nodes(
 // ===========================================================================
 
 /// Create a definition node (pop-symbol) for each match of `pattern`.
+#[allow(clippy::too_many_arguments)]
 fn build_def_from_query(
     graph: &mut StackGraph,
     file: Handle<File>,
@@ -710,8 +724,7 @@ fn build_def_from_query(
             .and_then(|ci| m.nodes_for_capture_index(ci).next())
             .or_else(|| name_cap.and_then(|ci| m.nodes_for_capture_index(ci).next()));
 
-        let name_node = name_cap
-            .and_then(|ci| m.nodes_for_capture_index(ci).next());
+        let name_node = name_cap.and_then(|ci| m.nodes_for_capture_index(ci).next());
 
         let (symbol_text, span_node) = match (name_node, source_node) {
             (Some(n), Some(s)) => match n.utf8_text(source.as_bytes()) {
@@ -795,7 +808,7 @@ fn span_for_node(source: &str, node: tree_sitter::Node) -> lsp_positions::Span {
 
     lsp_positions::Span {
         start: lsp_positions::Position {
-            line: start.row as usize,
+            line: start.row,
             column: lsp_positions::Offset {
                 utf8_offset: start_col,
                 utf16_offset: 0,
@@ -805,7 +818,7 @@ fn span_for_node(source: &str, node: tree_sitter::Node) -> lsp_positions::Span {
             trimmed_line: 0..0,
         },
         end: lsp_positions::Position {
-            line: end.row as usize,
+            line: end.row,
             column: lsp_positions::Offset {
                 utf8_offset: end_col,
                 utf16_offset: 0,

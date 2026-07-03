@@ -146,7 +146,6 @@ redis = { version = "0.27", optional = true, default-features = false }
 # classifier live with the other Phase B/F policy primitives without
 # cycling through the proxy crate. Tiny crate (no I/O, just types).
 http = "1"
-tracing-opentelemetry = "0.33.0"
 # `tree-sitter-*` for Stack Graphs cross-file code navigation (Phase 2).
 stack-graphs = "0.13"
 tree-sitter = "0.25"

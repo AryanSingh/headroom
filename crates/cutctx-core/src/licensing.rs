@@ -48,8 +48,8 @@ pub fn verify_license_signature(
     // Constant-time comparison of the first SIG_HEX_LEN characters.
     // We compare byte arrays (same length), not string slices, to avoid
     // any short-circuit branching that leaks timing information.
-    let expected_bytes = expected_hex[..SIG_HEX_LEN].as_bytes();
-    let provided_bytes = signature_hex[..SIG_HEX_LEN].as_bytes();
+    let expected_bytes = &expected_hex.as_bytes()[..SIG_HEX_LEN];
+    let provided_bytes = &signature_hex.as_bytes()[..SIG_HEX_LEN];
 
     // Constant-time XOR fold: result is 0 iff all bytes are equal.
     let diff: u8 = expected_bytes

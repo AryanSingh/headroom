@@ -2,10 +2,10 @@
 
 pub mod antidebug;
 pub mod auth_mode;
-pub mod licensing;
 pub mod cache_control;
 pub mod ccr;
 pub mod compression_policy;
+pub mod licensing;
 pub mod relevance;
 pub mod semantic_cache;
 pub mod signals;

@@ -145,8 +145,8 @@ impl SemanticCache {
     pub fn new(config: SemanticCacheConfig) -> Result<Self, SemanticCacheError> {
         let model = EmbeddingModel::BGESmallENV15;
         let options = InitOptions::new(model).with_show_download_progress(false);
-        let embedder =
-            TextEmbedding::try_new(options).map_err(|e| SemanticCacheError::EmbeddingInit(e.to_string()))?;
+        let embedder = TextEmbedding::try_new(options)
+            .map_err(|e| SemanticCacheError::EmbeddingInit(e.to_string()))?;
 
         Ok(Self {
             entries: DashMap::with_capacity(config.max_entries.min(4096)),
@@ -236,9 +236,8 @@ impl SemanticCache {
     /// Remove expired entries from the cache.
     pub fn evict_expired(&self) {
         let now = Instant::now();
-        self.entries.retain(|_, entry| {
-            now.duration_since(entry.created_at) <= entry.ttl
-        });
+        self.entries
+            .retain(|_, entry| now.duration_since(entry.created_at) <= entry.ttl);
     }
 
     /// Get aggregate cache statistics.

@@ -157,7 +157,7 @@ fn get_or_create_install_uuid() -> String {
     }
 
     let uuid = uuid::Uuid::new_v4().to_string();
-    let _ = std::fs::create_dir_all(uuid_path.parent().unwrap_or(&std::path::Path::new(".")));
+    let _ = std::fs::create_dir_all(uuid_path.parent().unwrap_or(std::path::Path::new(".")));
     let _ = std::fs::write(&uuid_path, &uuid);
     uuid
 }

@@ -44,8 +44,8 @@ mod tests {
     fn test_add_invalid_source_returns_err() {
         let mut mgr = StackGraphManager::new();
         let result = mgr.add_file("test.py", "\x00\x00\x00\x00"); // invalid UTF-8-ish content
-        // tree-sitter should handle this gracefully (may or may not parse)
-        // At minimum it should not panic
+                                                                  // tree-sitter should handle this gracefully (may or may not parse)
+                                                                  // At minimum it should not panic
         let _ = result; // just verify no panic
     }
 
@@ -71,7 +71,8 @@ mod tests {
     fn test_multiple_files() {
         let mut mgr = StackGraphManager::new();
         mgr.add_file("a.py", "def helper(): pass\n").unwrap();
-        mgr.add_file("b.py", "from a import helper\nhelper()\n").unwrap();
+        mgr.add_file("b.py", "from a import helper\nhelper()\n")
+            .unwrap();
         assert_eq!(mgr.file_count(), 2);
     }
 

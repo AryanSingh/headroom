@@ -38,6 +38,10 @@ pub use audio_compressor::{compress_audio, looks_like_audio_base64, AudioCompres
 pub use content_detector::{
     detect_content_type, is_json_array_of_dicts, ContentType, DetectionResult,
 };
+pub use deletion_compaction::{
+    aggressive_compactor, conservative_compactor, moderate_compactor, Aggressiveness,
+    CompactResult, DeletionCompactionError, DeletionCompactor, DeletionCompactorConfig,
+};
 pub use detection::detect;
 pub use diff_compressor::{
     DiffCompressionResult, DiffCompressor, DiffCompressorConfig, DiffCompressorStats,
@@ -67,11 +71,6 @@ pub use safety::{tool_pair_indices, ToolPair};
 pub use search_compressor::{
     FileMatches, SearchCompressionResult, SearchCompressor, SearchCompressorConfig,
     SearchCompressorStats, SearchMatch,
-};
-pub use deletion_compaction::{
-    conservative_compactor, moderate_compactor, aggressive_compactor,
-    Aggressiveness, CompactResult, DeletionCompactor, DeletionCompactorConfig,
-    DeletionCompactionError,
 };
 pub use tag_protector::{is_known_html_tag, protect_tags, restore_tags, ProtectStats};
 pub use unidiff_detector::{detect_diff, is_diff};

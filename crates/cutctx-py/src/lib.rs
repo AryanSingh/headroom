@@ -16,6 +16,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
+use cutctx_core::antidebug::deny_debugger_attach as rust_deny_debugger_attach;
+use cutctx_core::licensing::verify_license_signature as rust_verify_license_signature;
 use cutctx_core::signals::{
     ImportanceCategory, ImportanceContext, KeywordDetector, KeywordRegistry, LineImportanceDetector,
 };
@@ -41,8 +43,6 @@ use cutctx_core::transforms::{
     SearchCompressionResult as RustSearchResult, SearchCompressor as RustSearchCompressor,
     SearchCompressorConfig as RustSearchConfig, SearchCompressorStats as RustSearchStats,
 };
-use cutctx_core::antidebug::deny_debugger_attach as rust_deny_debugger_attach;
-use cutctx_core::licensing::verify_license_signature as rust_verify_license_signature;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 
@@ -53,7 +53,12 @@ fn hello() -> &'static str {
 }
 
 #[pyfunction]
-fn verify_license_signature(tier: &str, random_id: &str, customer_id: &str, signature_hex: &str) -> bool {
+fn verify_license_signature(
+    tier: &str,
+    random_id: &str,
+    customer_id: &str,
+    signature_hex: &str,
+) -> bool {
     rust_verify_license_signature(tier, random_id, customer_id, signature_hex)
 }
 
@@ -1654,7 +1659,7 @@ impl PyStackGraphManager {
         let mut inner = self.inner.lock().unwrap();
         inner
             .add_file(path, source)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+            .map_err(pyo3::exceptions::PyValueError::new_err)
     }
 
     /// Remove a file from the stack graph.
@@ -1664,7 +1669,7 @@ impl PyStackGraphManager {
         let mut inner = self.inner.lock().unwrap();
         inner
             .remove_file(path)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+            .map_err(pyo3::exceptions::PyValueError::new_err)
     }
 
     /// Re-index a file that may already be in the graph.
@@ -1676,7 +1681,7 @@ impl PyStackGraphManager {
         let mut inner = self.inner.lock().unwrap();
         inner
             .reindex_file(path, source)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+            .map_err(pyo3::exceptions::PyValueError::new_err)
     }
 
     /// Resolve a symbol reference at (`line`, `column`) in `path`.
@@ -1705,7 +1710,10 @@ impl PyStackGraphManager {
             let mut m = HashMap::new();
             m.insert("target_file".to_string(), result.target_file.into_py(py));
             m.insert("target_line".to_string(), result.target_line.into_py(py));
-            m.insert("target_column".to_string(), result.target_column.into_py(py));
+            m.insert(
+                "target_column".to_string(),
+                result.target_column.into_py(py),
+            );
             m.insert("symbol_name".to_string(), result.symbol_name.into_py(py));
             m.insert("confidence".to_string(), result.confidence.into_py(py));
             m
