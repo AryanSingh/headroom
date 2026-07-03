@@ -1,137 +1,69 @@
 # Release Checklist
 
-## Latest Verification Override - 2026-07-03
+Date: 2026-07-03
+Branch: `fix/ws20-memcache-optimize`
 
-- WS7 Context Assurance local ledger is implemented and focused-tested:
-  HMAC-SHA256 chain verification, ledger stats, Agent Context Report assurance
-  section, and `cutctx report assurance` JSON/markdown export plus `--verify`.
-- WS8 replay has env-gated pipeline-extension coverage through
-  `CUTCTX_REPLAY=1` / `ReplayPipelineExtension` for compression, retrieval,
-  injection, CCR lifecycle, response, error, and fallback timeline events.
-- Rust `cutctx-proxy --test license_verify` failure is fixed and verified.
-  The test now seeds a fresh empty CRL cache so fail-closed revocation behavior
-  does not downgrade a valid local Ed25519 test token to OpenSource.
-- Focused verification passed:
-  `rtk test .venv/bin/python -m pytest tests/test_assurance.py tests/test_agent_context_report.py tests/test_context_policy_proxy_integration.py tests/test_codex_uvicorn_keepalive.py tests/test_savings_tracker_litellm_resilience.py`
-  (26 passed), `rtk test cargo test -p cutctx-proxy --test license_verify`,
-  `rtk cargo fmt --all -- --check`, and dashboard lint/build/E2E (19 passed).
-- Full Python regression passed:
-  `rtk test .venv/bin/python -m pytest tests/` (7918 passed, 258 skipped,
-  22 warnings).
-- Rust workspace verification passed:
-  `rtk test cargo test --workspace` and
-  `rtk cargo clippy --workspace -- -D warnings`.
-- Do not run proxy iteration against shared `com.cutctx.proxy` / port 8787.
-  Use `cutctx-dev` on port 8788 for restart/reload loops.
+## Verified Closed
 
-Pre-release verification for current worktree (`fix/ws20-memcache-optimize`).
+- [x] Full Python regression: `rtk test .venv/bin/python -m pytest tests/`
+  passed with `7918 passed, 258 skipped, 22 warnings`.
+- [x] Rust workspace tests: `rtk test cargo test --workspace` passed.
+- [x] Rust clippy: `rtk cargo clippy --workspace -- -D warnings` passed.
+- [x] Rust format: `rtk cargo fmt --all -- --check` passed.
+- [x] Dashboard lint/build/E2E:
+  `cd dashboard && rtk npm run lint && rtk npm run build && rtk npx playwright test e2e/`
+  passed with 19 Playwright tests.
+- [x] Focused WS7/WS8/Codex/litellm regression set passed:
+  `tests/test_assurance.py`, `tests/test_agent_context_report.py`,
+  `tests/test_context_policy_proxy_integration.py`,
+  `tests/test_codex_uvicorn_keepalive.py`, and
+  `tests/test_savings_tracker_litellm_resilience.py`.
+- [x] Text hygiene passed for current release-tracking docs and touched source
+  files.
+- [x] `rtk git diff --check` passed.
+- [x] WS2 Agent Context Report v1 is implemented.
+- [x] WS4 Context Policy Engine and proxy enforcement are implemented for the
+  verified MVP scope.
+- [x] WS5 org-scoped memory export/import round-trip is verified.
+- [x] WS6 local-only learn telemetry aggregation is implemented; outbound share
+  remains intentionally unimplemented.
+- [x] WS7 local Context Assurance is implemented and focused-tested: SQLite
+  evidence ledger, HMAC-SHA256 chain verification, quality stats, Agent Context
+  Report assurance section, and `cutctx report assurance` JSON/markdown export
+  plus `--verify`.
+- [x] WS8 replay has context-policy replay API/dashboard coverage and
+  `CUTCTX_REPLAY=1` / `ReplayPipelineExtension` coverage for compression,
+  retrieval, injection, CCR lifecycle, response, error, and fallback timeline
+  events.
+- [x] Rust Ed25519 license verification regression is fixed:
+  `cargo test -p cutctx-proxy --test license_verify` passes after seeding a
+  fresh empty CRL cache in the test/debug path.
+- [x] Codex websocket keepalive regression coverage is present.
+- [x] Savings tracker litellm resilience regression coverage is present.
 
-## Test Suite
+## Still Open For Final Release
 
-- [x] Full pytest run: `rtk test .venv/bin/python -m pytest tests/`
-  passed on 2026-07-03: 7904 passed, 260 skipped, 22 warnings.
-- [x] Dashboard lint: `cd dashboard && npm run lint`
-- [x] Dashboard e2e: `cd dashboard && npx playwright test e2e/`
-- [x] Ruff check: `.venv/bin/python -m ruff check cutctx/ tests/`
-- [x] No pre-existing test failures beyond documented failures in the full pytest
-  run above.
+- [ ] Commitlint gate is not green for the branch range from `origin/main` to
+  `HEAD`. Several existing commit subjects are non-conventional. Closing this
+  requires commit history rewrite/reword approval.
+- [ ] EE binary release packaging/signing needs explicit release-owner signoff.
+  Source/runtime tests for HMAC assurance are green, but ignored binary
+  artifacts must be rebuilt and signed as part of the final release process.
+- [ ] Versioning decision is still open. If this is the final release cut,
+  bump `pyproject.toml` as appropriate and move `[Unreleased]` changelog notes
+  to a dated release section.
+- [ ] Security/product review must approve any future `CUTCTX_LEARN_SHARE`
+  outbound telemetry path before it is enabled.
+- [ ] Enterprise positioning must decide whether the OSS-side local assurance
+  ledger is sufficient for release claims or whether claims require EE-only
+  packaging language.
+- [ ] WS1-WS3 go-to-market polish remains partially open: quality-at-budget
+  benchmark docs and outreach content still need product-owner approval.
+- [ ] Branch cleanup can proceed only after PR/release owner confirmation for
+  merged feature branches.
 
-## Build
+## Operational Guardrail
 
-- [x] Dashboard rebuild: `make build-dashboard` (Vite bundle into
-  `cutctx/dashboard/assets/`)
-- [x] Packaged dashboard loader reads the fresh `cutctx/dashboard/index.html`
-  bundle entrypoint generated by the rebuild.
-- [ ] EE binary rebuild: run EE build script and sign `.so` files.
-- [ ] `make ci-precheck` passes. Blocked: Rust workspace has pre-existing
-  compilation failures (tracing-subscriber layer compatibility, verify_license
-  import mismatch) unrelated to OSS Python/JS changes. After Rust fix: run
-  `make ci-precheck` from the project root.
-
-## Documentation
-
-- [x] `artifacts/pending-items.md` reconciled with verified code status on
-  2026-07-03.
-- [ ] `CHANGELOG.md`: verify all entries under `[Unreleased]` are accurate.
-- [x] `artifacts/savings-moat-priority-todo.md`: update WS18/WS4/WS5/WS6 status.
-- [x] Docs reflect current WS2/WS4/WS6/WS8 behavior in the active tracking
-  artifacts and changelog.
-
-## Feature Verification
-
-### WS18 - Learned Policies
-
-- [x] `cutctx policies train --watch` starts and trains from JSONL events.
-- [x] `cutctx policies train --help` shows `--watch` and `--poll-interval`.
-- [x] Dashboard `PoliciesPanel` is wired to `stats.intelligence.policies`.
-- [x] `/stats` returns `intelligence.policies` count and distributions.
-- [x] `LearnedPolicyHooks.compute_biases()` applies bounded biases.
-- [x] `cutctx policies evict-unsafe` removes unsafe rows.
-
-### WS4 - Context Policy Engine
-
-- [x] `ContextPolicyEngine` evaluates block rules before redaction.
-- [x] Redaction rules replace matched content.
-- [x] Per-agent budgets reject requests after budget exhaustion.
-- [x] YAML/JSON loading works through `load_context_policy()`.
-- [x] Engine tests pass in `tests/test_context_policy.py`.
-- [x] Proxy enforcement wiring exists for `CUTCTX_CONTEXT_POLICY`.
-- [x] Proxy integration test proves a blocked request returns a policy failure.
-- [x] Per-team budgets are enforced and recorded.
-- [x] Codex websocket keepalive avoids uvicorn's 20-second idle disconnect
-  default for long local tool calls.
-- [x] Savings tracker litellm token-estimation errors fail soft with regression
-  coverage.
-
-### WS5 - Org-Scoped Memory
-
-- [x] `SQLiteMemoryStore._init_db()` creates `workspace_id` and `project_id`
-  columns.
-- [x] Schema migration adds missing `workspace_id` and `project_id` columns.
-- [x] `cutctx memory export --workspace-id X` filters correctly.
-- [x] `cutctx memory export --project-id Y` filters correctly.
-- [x] Round-trip export/import preserves `workspace_id` and `project_id`.
-
-### WS6 - Learn Telemetry Aggregation
-
-- [x] Focused verification proves local-only aggregation behavior.
-- [x] `CUTCTX_LEARN_SHARE=1` fails explicitly because outbound egress is not
-  implemented.
-- [ ] Security/product review explicitly approves any future outbound egress.
-
-### WS7 - Context Assurance
-
-- [ ] CCR ledger implemented and tested.
-- [ ] Retention-policy packaging implemented and tested.
-- [ ] Quality-verification stats exported.
-- [ ] Evidence export generated for enterprise audit use.
-
-### WS8 - Session Replay Alpha
-
-- [x] Alpha event stream captures context-policy blocked/redacted decisions.
-- [x] Replay API returns an authenticated session timeline.
-- [x] Dashboard replay page renders the timeline and unavailable states.
-- [ ] Extend replay coverage to compressed, retrieved, injected, and CCR
-  lifecycle context.
-
-### WS1-WS3 - Reporting And Repositioning
-
-- [x] README is positioned around context control-plane messaging.
-- [x] Agent Context Report v1 generated from existing telemetry.
-- [ ] Quality-at-budget benchmark v1 docs include provider-native comparison.
-- [ ] Outreach content updated for the current positioning.
-
-## Version
-
-- [ ] `pyproject.toml` version bumped if this is a release.
-- [ ] `CHANGELOG.md` has `[Unreleased]` moved to a dated release section if
-  this is a release.
-
-## Branch Cleanup
-
-- [ ] `feat/ws10-output-optimize` - merged, can be deleted after confirmation.
-- [ ] `feat/ws11-memoize` - merged, can be deleted after confirmation.
-- [ ] `feat/ws13-batch-routing` - merged, can be deleted after confirmation.
-- [ ] `feat/ws16-normalize` - merged, can be deleted after confirmation.
-- [ ] `feat/ws19-autopilot` - merged, can be deleted after confirmation.
-- [x] `integration/merge-ws-branches` - already deleted.
+Do not run proxy restart/reload loops against shared `com.cutctx.proxy` on port
+8787. Use `cutctx-dev` on port 8788 for proxy iteration and restart-heavy
+verification.
