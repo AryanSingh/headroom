@@ -1,5 +1,25 @@
 # Pending Items
 
+## Latest Verification Override - 2026-07-03
+
+- WS7 local Context Assurance is implemented and focused-tested. It includes
+  a durable SQLite evidence ledger, HMAC-SHA256 chain verification, quality
+  stats, Agent Context Report assurance status, and `cutctx report assurance`
+  JSON/markdown export with `--verify`.
+- WS8 replay is no longer limited to policy block/redaction events. With
+  `CUTCTX_REPLAY=1`, `ReplayPipelineExtension` records compression,
+  retrieval, injection, CCR lifecycle, response, error, and fallback events.
+- Rust license verification regression is fixed. `cargo test -p cutctx-proxy
+  --test license_verify` now passes after seeding the CRL cache in the test
+  path.
+- Full Python regression passed after these fixes: `7918 passed, 258 skipped,
+  22 warnings`.
+- Rust workspace tests and clippy pass after these fixes.
+- Remaining release work is production packaging/release approval: decide
+  whether OSS-side assurance is enough for enterprise claims, complete any EE
+  signing boundary work, and run full `make ci-precheck` only from an isolated
+  environment that will not restart the shared proxy on port 8787.
+
 Date: 2026-07-03
 
 This is the short handoff list for remaining project work. Longer branch

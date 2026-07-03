@@ -646,6 +646,33 @@ def report_agent_context(output: str | None, days: int, fmt: str) -> None:
         click.echo(content)
 
 
+@report_group.command("assurance")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Evidence bundle format.",
+)
+@click.option("--output", "-o", type=click.Path(), help="Output file path. Stdout if omitted.")
+@click.option("--verify", is_flag=True, help="Verify the local evidence ledger chain.")
+def report_assurance(output: str | None, fmt: str, verify: bool) -> None:
+    """Export or verify the WS7 Context Assurance evidence ledger."""
+    from cutctx.assurance import EvidenceLedger
+
+    ledger = EvidenceLedger()
+    if verify:
+        content = json.dumps(ledger.verify_chain(), indent=2, sort_keys=True)
+    else:
+        content = ledger.export_bundle(fmt=fmt)
+
+    if output:
+        Path(output).write_text(content)
+        click.echo(f"Context Assurance report written to {output}")
+    else:
+        click.echo(content)
+
+
 @report_group.command("schedule-cancel")
 def report_schedule_cancel() -> None:
     """Cancel all report schedules."""

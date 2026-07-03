@@ -1,5 +1,14 @@
 # Savings Moat Priority Todo
 
+## Latest Verification Override - 2026-07-03
+
+- WS7 local Context Assurance and broader WS8 replay hooks are now implemented
+  and focused-tested. Remaining work is production packaging, release approval,
+  and richer per-handler replay metadata over time rather than the initial
+  local ledger/replay-extension implementation.
+- Do not run proxy restart/reload loops against shared `com.cutctx.proxy` on
+  port 8787. Use `cutctx-dev` on port 8788 for proxy iteration.
+
 Date: 2026-07-02
 
 Source specs:

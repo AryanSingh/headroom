@@ -117,6 +117,13 @@ pub fn check_revocation(license_key: &str) -> RevocationStatus {
     }
 }
 
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn seed_crl_cache_for_test(revoked: HashSet<String>, last_successful_fetch_epoch_secs: u64) {
+    let mut cache = CRL_CACHE.write().unwrap();
+    *cache = Some((revoked, last_successful_fetch_epoch_secs));
+}
+
 /// Legacy compatibility: check if a license key is revoked (bool).
 pub fn is_revoked(license_key: &str) -> bool {
     matches!(

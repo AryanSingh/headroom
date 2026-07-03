@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from click.testing import CliRunner
+
 from cutctx.assurance import (
     EVENT_COMPRESSION,
     EVENT_POLICY_BLOCK,
@@ -11,6 +13,8 @@ from cutctx.assurance import (
     EVENT_RETRIEVAL,
     EvidenceLedger,
 )
+from cutctx.cli.main import main
+from cutctx.pipeline import discover_pipeline_extensions
 
 
 def test_ledger_append_and_read(tmp_path):
@@ -144,3 +148,40 @@ def test_ledger_details_roundtrip(tmp_path):
     restored = json.loads(events[0].detail_json)
     assert restored["reason"] == "test"
     assert restored["nested"]["key"] == "value"
+
+
+def test_report_assurance_cli_exports_and_verifies(tmp_path, monkeypatch):
+    ledger_path = tmp_path / "assurance.db"
+    monkeypatch.setenv("CUTCTX_ASSURANCE_LEDGER", str(ledger_path))
+    monkeypatch.setenv("CUTCTX_ASSURANCE_HMAC_KEY", "test-key")
+
+    ledger = EvidenceLedger(path=ledger_path, hmac_key=b"test-key")
+    ledger.record(
+        event_id="evt-cli",
+        event_type=EVENT_COMPRESSION,
+        session_id="sess-cli",
+        detail={"tokens_before": 100, "tokens_after": 40},
+    )
+
+    runner = CliRunner()
+    export = runner.invoke(main, ["report", "assurance", "--format", "json"])
+    assert export.exit_code == 0
+    payload = json.loads(export.output)
+    assert payload["event_count"] == 1
+    assert payload["chain"]["hmac_algorithm"] == "HMAC-SHA256"
+
+    verify = runner.invoke(main, ["report", "assurance", "--verify"])
+    assert verify.exit_code == 0
+    verification = json.loads(verify.output)
+    assert verification["total_events"] == 1
+    assert not verification["chain_broken"]
+
+
+def test_replay_extension_is_registered_for_discovery(monkeypatch):
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    discovered = discover_pipeline_extensions()
+
+    assert any(
+        extension.__class__.__name__ == "ReplayPipelineExtension"
+        for extension in discovered
+    )

@@ -1,5 +1,29 @@
 # Release Checklist
 
+## Latest Verification Override - 2026-07-03
+
+- WS7 Context Assurance local ledger is implemented and focused-tested:
+  HMAC-SHA256 chain verification, ledger stats, Agent Context Report assurance
+  section, and `cutctx report assurance` JSON/markdown export plus `--verify`.
+- WS8 replay has env-gated pipeline-extension coverage through
+  `CUTCTX_REPLAY=1` / `ReplayPipelineExtension` for compression, retrieval,
+  injection, CCR lifecycle, response, error, and fallback timeline events.
+- Rust `cutctx-proxy --test license_verify` failure is fixed and verified.
+  The test now seeds a fresh empty CRL cache so fail-closed revocation behavior
+  does not downgrade a valid local Ed25519 test token to OpenSource.
+- Focused verification passed:
+  `rtk test .venv/bin/python -m pytest tests/test_assurance.py tests/test_agent_context_report.py tests/test_context_policy_proxy_integration.py tests/test_codex_uvicorn_keepalive.py tests/test_savings_tracker_litellm_resilience.py`
+  (26 passed), `rtk test cargo test -p cutctx-proxy --test license_verify`,
+  `rtk cargo fmt --all -- --check`, and dashboard lint/build/E2E (19 passed).
+- Full Python regression passed:
+  `rtk test .venv/bin/python -m pytest tests/` (7918 passed, 258 skipped,
+  22 warnings).
+- Rust workspace verification passed:
+  `rtk test cargo test --workspace` and
+  `rtk cargo clippy --workspace -- -D warnings`.
+- Do not run proxy iteration against shared `com.cutctx.proxy` / port 8787.
+  Use `cutctx-dev` on port 8788 for restart/reload loops.
+
 Pre-release verification for current worktree (`fix/ws20-memcache-optimize`).
 
 ## Test Suite

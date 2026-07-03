@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
@@ -75,6 +76,13 @@ def discover_pipeline_extensions() -> list[PipelineExtension]:
     """Load registered pipeline extensions from Python entry points."""
 
     discovered: list[PipelineExtension] = []
+    if os.environ.get("CUTCTX_REPLAY", "").strip().lower() in {"1", "true", "yes", "on"}:
+        try:
+            from cutctx.proxy.session_replay import ReplayPipelineExtension
+
+            discovered.append(ReplayPipelineExtension())
+        except Exception as exc:  # noqa: BLE001 - replay must not break core pipeline.
+            log.warning("built-in replay pipeline extension failed initialize: %s", exc)
     try:
         entries = importlib.metadata.entry_points(group=ENTRY_POINT_GROUP)
     except Exception as exc:  # noqa: BLE001 - importlib metadata varies by runtime

@@ -1,5 +1,18 @@
 # Changelog
 
+## Latest Verification Notes - 2026-07-03
+
+- WS7 Context Assurance completion gaps fixed: `cutctx report assurance`
+  exists for JSON/markdown evidence export and `--verify` chain validation,
+  matching the verification instructions embedded in exported bundles.
+- WS8 replay extension discovery fixed: `ReplayPipelineExtension` is
+  registered under the actual `cutctx.pipeline_extension` entry-point group
+  and also loaded by an env-gated `CUTCTX_REPLAY=1` fallback for editable/local
+  installs.
+- Rust license verification test fixed to seed a fresh empty CRL cache in the
+  debug/test path, preserving fail-closed revocation semantics while allowing a
+  locally signed Ed25519 enterprise test token to verify as Enterprise.
+
 All notable changes to Cutctx will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

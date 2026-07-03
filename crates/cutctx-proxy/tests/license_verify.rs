@@ -12,6 +12,11 @@ fn test_ed25519_license_verification() {
     // Convert public key to hex for env injection
     let hex_pub = hex::encode(verifying_key.as_bytes());
     std::env::set_var("CUTCTX_LICENSE_PUBLIC_KEYS", format!("testkid:{}", hex_pub));
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    cutctx_proxy::license::client::seed_crl_cache_for_test(std::collections::HashSet::new(), now);
 
     // Construct valid token
     let payload = json!({

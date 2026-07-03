@@ -304,6 +304,9 @@ full = [
 [project.scripts]
 cutctx = "cutctx.cli.main:main"
 
+[project.entry-points."cutctx.pipeline_extension"]
+session_replay = "cutctx.proxy.session_replay:ReplayPipelineExtension"
+
 [project.urls]
 Homepage = "https://cutctx.dev"
 Documentation = "https://cutctx.dev/docs"
