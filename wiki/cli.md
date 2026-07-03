@@ -30,14 +30,19 @@ This page is the authoritative reference for the **Python Cutctx CLI** exposed b
 | `cutctx memory ...` | Inspect and manage stored memories | **native in container** |
 | `cutctx mcp ...` | Install, inspect, remove, or serve MCP integration | **native in container** |
 | `cutctx wrap claude` | Start proxy and launch Claude Code | **host-bridged** |
-| `cutctx wrap copilot` | Start proxy and launch GitHub Copilot CLI | **python-native only** |
+| `cutctx wrap cline` | Start proxy and configure Cline (VS Code) | **host-bridged** |
 | `cutctx wrap codex` | Start proxy and launch Codex CLI | **host-bridged** |
-| `cutctx wrap aider` | Start proxy and launch Aider | **host-bridged** |
+| `cutctx wrap continue` | Start proxy and configure Continue (VS Code/JetBrains) | **host-bridged** |
+| `cutctx wrap copilot` | Start proxy and launch GitHub Copilot CLI | **python-native only** |
 | `cutctx wrap cursor` | Start proxy and print Cursor config guidance | **host-bridged** |
+| `cutctx wrap aider` | Start proxy and launch Aider | **host-bridged** |
+| `cutctx wrap gemini` | Start proxy and launch Gemini CLI | **host-bridged** |
+| `cutctx wrap goose` | Start proxy and launch Goose CLI | **host-bridged** |
+| `cutctx wrap openclaw` | Install and configure the OpenClaw plugin | **host-bridged** |
+| `cutctx wrap openhands` | Start proxy and launch OpenHands CLI | **host-bridged** |
+| `cutctx wrap opencode` | Start proxy and launch opencode CLI | **host-bridged** |
 | `cutctx wrap windsurf` | Start proxy and print Windsurf config guidance | **host-bridged** |
 | `cutctx wrap zed` | Start proxy and print Zed `settings.json` snippet | **host-bridged** |
-| `cutctx wrap opencode` | Start proxy and launch opencode CLI | **host-bridged** |
-| `cutctx wrap openclaw` | Install and configure the OpenClaw plugin | **host-bridged** |
 | `cutctx unwrap openclaw` | Disable the Cutctx OpenClaw plugin | **host-bridged** |
 
 ## Captured `--help` output
@@ -205,12 +210,20 @@ Usage: cutctx wrap [OPTIONS] COMMAND [ARGS]...
   Wrap CLI tools to run through Cutctx.
 
 Commands:
-  aider     Launch aider through Cutctx proxy.
-  claude    Launch Claude Code through Cutctx proxy.
-  copilot   Launch GitHub Copilot CLI through Cutctx proxy.
-  codex     Launch OpenAI Codex CLI through Cutctx proxy.
-  cursor    Start Cutctx proxy for use with Cursor.
-  openclaw  Install and configure Cutctx OpenClaw plugin in one command.
+  aider      Launch aider through Cutctx proxy.
+  claude     Launch Claude Code through Cutctx proxy.
+  cline      Start Cutctx proxy for use with Cline (VS Code extension).
+  codex      Launch OpenAI Codex CLI through Cutctx proxy.
+  continue   Start Cutctx proxy for use with Continue (VS Code / JetBrains).
+  copilot    Launch GitHub Copilot CLI through Cutctx proxy.
+  cursor     Start Cutctx proxy for use with Cursor.
+  gemini     Launch Gemini CLI through Cutctx proxy.
+  goose      Launch Goose (Block) CLI through Cutctx proxy.
+  openclaw   Install and configure the Cutctx OpenClaw plugin in one...
+  opencode   Launch opencode through Cutctx proxy.
+  openhands  Launch OpenHands CLI through Cutctx proxy.
+  windsurf   Start Cutctx proxy for use with Windsurf.
+  zed        Start Cutctx proxy for use with Zed editor.
 ```
 
 </details>
@@ -710,9 +723,14 @@ cutctx wrap claude --port 9999
 | Option / arg | Default | Meaning |
 |---|---|---|
 | `--port`, `-p` | `8787` | Proxy port |
-| `--no-rtk` | off | Skip `rtk` installation and hook registration |
+| `--no-context-tool`, `--no-rtk` | off | Skip CLI context-tool setup |
+| `--no-mcp` | off | Skip Cutctx MCP server registration |
+| `--no-serena` | off | Skip Serena MCP server registration |
+| `--code-graph` | off | Enable code graph indexing |
+| `--memory` | off | Enable persistent cross-session memory |
 | `--no-proxy` | off | Reuse an existing proxy |
 | `--learn` | off | Enable live traffic learning |
+| `--tool-search` | `true` | Keep Claude Code's on-demand tool loading active through the proxy |
 | `--verbose`, `-v` | off | Verbose output |
 | `claude_args...` | passthrough | Additional Claude Code arguments |
 
@@ -729,7 +747,10 @@ cutctx wrap codex --backend anyllm --anyllm-provider groq
 | Option / arg | Default | Meaning |
 |---|---|---|
 | `--port`, `-p` | `8787` | Proxy port |
-| `--no-rtk` | off | Skip `rtk` installation and `AGENTS.md` injection |
+| `--no-context-tool`, `--no-rtk` | off | Skip CLI context-tool setup |
+| `--no-mcp` | off | Skip Cutctx MCP server registration |
+| `--no-serena` | off | Skip Serena MCP server registration |
+| `--code-graph` | off | Enable code graph indexing |
 | `--no-proxy` | off | Reuse an existing proxy |
 | `--learn` | off | Enable live traffic learning |
 | `--backend` | unset | Proxy backend override |
@@ -750,14 +771,15 @@ cutctx wrap copilot --backend anyllm --anyllm-provider groq -- --model gpt-4o
 | Option / arg | Default | Meaning |
 |---|---|---|
 | `--port`, `-p` | `8787` | Proxy port |
-| `--no-rtk` | off | Skip `rtk` installation and GitHub Copilot instructions injection |
+| `--no-context-tool`, `--no-rtk` | off | Skip CLI context-tool setup |
 | `--no-proxy` | off | Reuse an existing proxy |
-| `--learn` | off | Enable live traffic learning |
 | `--backend` | unset | Proxy backend override |
 | `--anyllm-provider` | unset | `anyllm` provider override |
 | `--region` | unset | Cloud region override |
 | `--provider-type` | `auto` | Force Copilot BYOK provider type (`anthropic` or `openai`) |
 | `--wire-api` | unset | OpenAI wire API override for OpenAI-style backends |
+| `--subscription` | off | Route GitHub-authenticated traffic without requiring a provider API key |
+| `--memory` | off | Enable persistent cross-session memory |
 | `--verbose`, `-v` | off | Verbose output |
 | `copilot_args...` | passthrough | Additional Copilot CLI arguments |
 
@@ -774,9 +796,11 @@ cutctx wrap aider --backend litellm-vertex --region us-central1
 | Option / arg | Default | Meaning |
 |---|---|---|
 | `--port`, `-p` | `8787` | Proxy port |
-| `--no-rtk` | off | Skip `rtk` installation and `CONVENTIONS.md` injection |
+| `--no-context-tool`, `--no-rtk` | off | Skip CLI context-tool setup |
+| `--code-graph` | off | Enable code graph indexing |
 | `--no-proxy` | off | Reuse an existing proxy |
 | `--learn` | off | Enable live traffic learning |
+| `--memory` | off | Enable persistent cross-session memory |
 | `--backend` | unset | Proxy backend override |
 | `--anyllm-provider` | unset | `anyllm` provider override |
 | `--region` | unset | Cloud region override |
@@ -796,9 +820,10 @@ cutctx wrap cursor --no-rtk
 | Option | Default | Meaning |
 |---|---|---|
 | `--port`, `-p` | `8787` | Proxy port |
-| `--no-rtk` | off | Skip `rtk` installation and `.cursorrules` injection |
+| `--no-context-tool`, `--no-rtk` | off | Skip CLI context-tool setup |
 | `--no-proxy` | off | Reuse an existing proxy |
 | `--learn` | off | Enable live traffic learning |
+| `--memory` | off | Enable persistent cross-session memory |
 | `--verbose`, `-v` | off | Verbose output |
 
 This command prints Cursor configuration instructions and waits while the proxy stays up. It does **not** launch Cursor directly.
@@ -867,11 +892,19 @@ Legend:
 | `cutctx mcp serve` | native | native in container | full |
 | `cutctx install apply|status|start|stop|restart|remove` | native | Docker-native wrapper for `persistent-docker`; compose remains an alternative | partial |
 | `cutctx wrap claude` | native | host-bridged | partial |
-| `cutctx wrap copilot` | native | not implemented in Docker-native wrapper | none |
+| `cutctx wrap cline` | native | host-bridged | partial |
 | `cutctx wrap codex` | native | host-bridged | partial |
-| `cutctx wrap aider` | native | host-bridged | partial |
+| `cutctx wrap continue` | native | host-bridged | partial |
+| `cutctx wrap copilot` | native | not implemented in Docker-native wrapper | none |
 | `cutctx wrap cursor` | native | host-bridged | partial |
+| `cutctx wrap aider` | native | host-bridged | partial |
+| `cutctx wrap gemini` | native | host-bridged | partial |
+| `cutctx wrap goose` | native | host-bridged | partial |
 | `cutctx wrap openclaw` | native | host-bridged | partial |
+| `cutctx wrap openhands` | native | host-bridged | partial |
+| `cutctx wrap opencode` | native | host-bridged | partial |
+| `cutctx wrap windsurf` | native | host-bridged | partial |
+| `cutctx wrap zed` | native | host-bridged | partial |
 | `cutctx unwrap openclaw` | native | host-bridged | partial |
 
 For the Docker-native execution model itself, see [Docker-Native Install](docker-install.md). For persistent service/task/docker lifecycle management, see [Persistent Installs](persistent-installs.md).

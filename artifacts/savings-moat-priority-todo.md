@@ -110,3 +110,35 @@ Order of remaining work (per savings-moat-priority-todo.md):
 5. WS19 (current worktree wired; branch diff still unmerged into `main`)
 6. WS18 (PRIMARY MOAT — start next session)
 7. WS4-WS9 (Phase 2 from strategy-implementation-plan.md)
+
+Reconciliation (2026-07-03): the 552/613/331/103 counts above are historical
+snapshots from each branch's own (smaller, now-stale) test suite and are not
+literally reproducible against today's ~7907-test suite — that's expected,
+not a red flag. Independently re-verified all four branches today against
+active source in isolated git worktrees (`git worktree add ... <branch>`,
+run the shared `.venv`'s pytest with cwd = worktree so `import cutctx`
+resolves to the branch's own source, not the main repo's editable-install
+path — and remember to copy the gitignored `cutctx/_core.abi3.so` Rust
+extension into the worktree first, since a bare worktree checkout never has
+build artifacts):
+- WS10 (`feat/ws10-output-optimize`): 1 ahead/0 behind main, clean merge,
+  zero regressions from its own diff. The 2 extra failures beyond the usual
+  7 pre-existing dashboard/docs Playwright flakiness (`test_docs_truthfulness
+  ::test_community_stats_docs_do_not_claim_realtime_fetch`,
+  `test_proxy_savings_history.py::test_dashboard_includes_history_toggle_and_endpoint`)
+  already fail on `main` itself (missing `docs/lib/telemetry.ts`, pre-rebuild
+  dashboard bundle) — not caused by this branch. **GO.**
+- WS11 (`feat/ws11-memoize`): 1 ahead/1 behind main, clean merge, zero
+  regressions — same 7 pre-existing + the same 2 main-baseline failures
+  above, nothing new. **GO.**
+- WS13 (`feat/ws13-batch-routing`): 1 ahead/0 behind main, clean merge, zero
+  regressions — batch_router/batch_routing tests pass cleanly. **GO.**
+- WS16 (`feat/ws16-normalize`): 1 ahead/1 behind main, clean merge, zero
+  regressions from its own diff. 4 extra failures (`test_ee_audit_store_hmac
+  .py`) are against a test file that only exists on `feat/ws19-autopilot`
+  (added there, not yet on `main`) — branch predates it, not a real bug.
+  **GO.**
+
+All four are safe to merge into `main` as-is; none merge-conflict against
+current `main`. Still 5 PRs open, 0 merged this session — merging is a
+deliberate follow-up action, not done automatically as part of this pass.

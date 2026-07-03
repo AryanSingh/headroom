@@ -28,8 +28,8 @@ Compress everything your AI agent reads. Same answers, fraction of the tokens.
 <span class="label">Answer Accuracy</span>
 </div>
 <div class="stat">
-<span class="number">7</span>
-<span class="label">Compression Algorithms</span>
+<span class="number">9+</span>
+<span class="label">Content Compressors</span>
 </div>
 <div class="stat">
 <span class="number">100+</span>
@@ -97,10 +97,12 @@ Cutctx works as a **transparent proxy** (zero code changes), a **Python function
 
     ```bash
     cutctx wrap claude       # Claude Code
-    cutctx wrap copilot -- --model claude-sonnet-4-20250514
+    cutctx wrap copilot      # GitHub Copilot CLI
     cutctx wrap codex        # OpenAI Codex CLI
     cutctx wrap aider        # Aider
     cutctx wrap cursor       # Cursor
+    cutctx wrap windsurf     # Windsurf
+    cutctx wrap zed          # Zed
     cutctx wrap openclaw     # OpenClaw plugin bootstrap
     ```
 
