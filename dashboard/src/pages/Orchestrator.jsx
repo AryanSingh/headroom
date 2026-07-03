@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDownCircle, CheckCircle2, Network, X } from "lucide-react";
 import { formatCurrency, formatInteger } from "../lib/format";
 import {
@@ -61,15 +61,49 @@ export default function Orchestrator() {
   const [updating, setUpdating] = useState(false);
   const [optimisticState, setOptimisticState] = useState(null);
   const [toggleError, setToggleError] = useState(null);
+  const [stalled, setStalled] = useState(false);
+
+  const handleRetry = () => {
+    setStalled(false);
+    refresh?.();
+  };
+
+  // Show a "still waiting" message after 8s of loading
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setStalled(true), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   if (loading) {
-    return <div className="page-shell">Loading...</div>;
+    return (
+      <div className="page-shell">
+        <div className="loading-message">
+          {stalled ? (
+            <>
+              <p><strong>Still loading orchestrator data...</strong></p>
+              <p className="text-secondary">The stats endpoint may be slow or unreachable. Check that the proxy is running and accepting requests.</p>
+              <button className="ghost-button" onClick={handleRetry} style={{ marginTop: '12px' }} type="button">Retry</button>
+            </>
+          ) : (
+            <p>Loading orchestrator data...</p>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
       <div className="page-shell error">
-        Error loading orchestrator stats: {error}
+        <div className="error-message">
+          <p><strong>Could not load orchestrator data</strong></p>
+          <p className="text-secondary">{error}</p>
+          <button className="ghost-button" onClick={() => refresh?.()} style={{ marginTop: '12px' }}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

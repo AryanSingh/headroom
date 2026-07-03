@@ -85,7 +85,7 @@ function Sidebar({ open, onClose }) {
   const { health } = useDashboardData();
   const versionLabel = health?.version
     ? `v${String(health.version).replace(/^v/, '')}`
-    : `v${import.meta.env.VITE_CUTCTX_VERSION || '0.29.0'}`;
+    : `v${import.meta.env.VITE_CUTCTX_VERSION || '0.30.0'}`;
 
   return (
     <>
