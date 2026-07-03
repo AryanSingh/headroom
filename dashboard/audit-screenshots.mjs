@@ -222,7 +222,9 @@ async function run() {
   await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
   // Pre-seed localStorage with the admin key to bypass the auth screen.
   await page.evaluate(() => {
-    try { localStorage.setItem('cutctxAdminKey', 'test-admin-key'); } catch {}
+  try {
+    localStorage.setItem('cutctxAdminKey', 'test-admin-key');
+  } catch {}
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitForDataLoad(page);
@@ -367,7 +369,11 @@ async function run() {
     let scanBtn = null;
     for (const sel of candidates) {
       const btn = await page.$(sel);
-      if (btn) { scanBtn = btn; log(`Found scan button via: ${sel}`); break; }
+    if (btn) {
+      scanBtn = btn;
+      log(`Found scan button via: ${sel}`);
+      break;
+    }
     }
     if (scanBtn) {
       const beforeDisabled = await scanBtn.isDisabled();
@@ -407,7 +413,10 @@ async function run() {
     let runBtn = null;
     for (const sel of candidates) {
       const btn = await page.$(sel);
-      if (btn) { runBtn = btn; break; }
+    if (btn) {
+      runBtn = btn;
+      break;
+    }
     }
     if (runBtn) {
       const beforeDisabled = await runBtn.isDisabled();
@@ -457,7 +466,9 @@ async function run() {
     await attachConsoleLogging(p, 'multi', vp.name);
     // Pre-seed localStorage with the admin key so we bypass the auth screen
     await p.addInitScript(() => {
-      try { localStorage.setItem('cutctxAdminKey', 'test-admin-key'); } catch {}
+  try {
+    localStorage.setItem('cutctxAdminKey', 'test-admin-key');
+  } catch {}
     });
     for (const route of ROUTES) {
       try {

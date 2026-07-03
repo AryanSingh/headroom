@@ -167,6 +167,7 @@ from cutctx.proxy.semantic_cache import SemanticCache  # noqa: F401
 from cutctx.proxy.ssl_context import find_ca_bundle
 from cutctx.proxy.warmup import WarmupRegistry
 from cutctx.proxy.ws_session_registry import WebSocketSessionRegistry
+from cutctx.savings import SavingsSource
 from cutctx.subscription.base import get_quota_registry, reset_quota_registry
 from cutctx.subscription.codex_rate_limits import get_codex_rate_limit_state
 from cutctx.subscription.copilot_quota import get_copilot_quota_tracker
@@ -388,6 +389,11 @@ class CutctxProxy(
             discover=config.discover_pipeline_extensions,
         )
 
+        from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
+        # Keep intelligence features stateful across requests so feedback-driven
+        # controls can adapt without restarting the proxy.
+        self.intelligence_pipeline = IntelligencePipeline.from_config(config)
         self.provider_runtime = build_proxy_provider_runtime(config)
         api_targets = self.provider_runtime.api_targets
 
@@ -2147,7 +2153,11 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
     app.state.rust_core_error = None
 
     from pathlib import Path
-    react_assets = Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist" / "assets"
+    # cutctx/dashboard/assets/assets — the packaged React build's JS/CSS
+    # directory. dashboard/dist/assets (three parents up) is the raw Vite
+    # output outside the cutctx/ package tree and is never present in an
+    # installed package, so this must stay inside cutctx/dashboard/.
+    react_assets = Path(__file__).resolve().parent.parent / "dashboard" / "assets" / "assets"
     if react_assets.is_dir():
         app.mount("/assets", StaticFiles(directory=str(react_assets)), name="assets")
 
@@ -2167,7 +2177,7 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
         **details: Any,
     ) -> dict[str, Any]:
         status = "disabled" if not enabled else ("healthy" if ready else "unhealthy")
-        return {
+    return {
             "enabled": enabled,
             "ready": (ready if enabled else True),
             "status": status,
@@ -2188,7 +2198,7 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
         )
         memory_enabled = bool(memory_status.get("enabled", False))
         memory_initialized = bool(memory_status.get("initialized", False))
-        return {
+    return {
             "startup": _component_health(
                 enabled=True,
                 ready=bool(getattr(app.state, "ready", False)),
@@ -4030,15 +4040,7 @@ def _require_rbac_permission(permission: str):
                     reason=exc.__class__.__name__,
                 )
 
-        savings_sources = (
-            "provider_prompt_cache",
-            "cutctx_compression",
-            "semantic_cache",
-            "prefix_cache_self_hosted",
-            "model_routing",
-            "tool_schema_compaction",
-            "api_surface_slimming",
-        )
+        savings_sources = tuple(src.value for src in SavingsSource)
 
         return {
             "summary": summary,
@@ -4223,6 +4225,13 @@ def _require_rbac_permission(permission: str):
             }
             if m.transform_timing_sum
             else {},
+            "intelligence": {
+                "autopilot": (
+                    proxy.intelligence_pipeline.sync_from_config(proxy.config).autopilot_snapshot()
+                    if hasattr(proxy, "intelligence_pipeline")
+                    else {"enabled": False}
+                ),
+            },
             "compressions_by_strategy": dict(m.compressions_by_strategy),
             "tokens_saved_by_strategy": dict(m.tokens_saved_by_strategy),
             "codex_ws": {
@@ -5901,7 +5910,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
 
     from pathlib import Path as _Path
-    _react_assets = _Path(__file__).resolve().parent.parent.parent / "dashboard" / "dist" / "assets"
+    # See the matching comment on the other `/assets` mount above — this
+    # must stay inside cutctx/dashboard/ to survive a real package install.
+    _react_assets = _Path(__file__).resolve().parent.parent / "dashboard" / "assets" / "assets"
     if _react_assets.is_dir():
         app.mount("/assets", StaticFiles(directory=str(_react_assets)), name="assets")
 

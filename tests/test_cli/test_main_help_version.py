@@ -59,3 +59,12 @@ def test_subcommand_verbose_flag_still_works() -> None:
 
     assert result.exit_code == 0, result.output
     assert "CUTCTX WRAP: CLAUDE" in result.output
+
+
+def test_evals_help_mentions_benchmarks_first_class() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["evals", "-?"])
+
+    assert result.exit_code == 0, result.output
+    assert "Memory evaluations and compressor benchmark commands." in result.output
+    assert "cutctx evals benchmark" in result.output

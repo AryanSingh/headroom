@@ -48,6 +48,10 @@ BASE_STATS = {
             "compression_savings_usd": 472.24,
             "cache_savings_usd": 139.34,
             "model_routing_savings_usd": 5.0,
+            "normalization_savings_usd": 1.0,
+            "batch_routing_savings_usd": 2.0,
+            "memoization_savings_usd": 3.0,
+            "output_optimization_savings_usd": 4.0,
         },
         "recent_history": [],
     },
@@ -56,6 +60,10 @@ BASE_STATS = {
             "cutctx_compression": 472.24,
             "provider_prompt_cache": 139.34,
             "model_routing": 5.0,
+            "normalization": 1.0,
+            "batch_routing": 2.0,
+            "memoization": 3.0,
+            "output_optimization": 4.0,
         },
     },
     "recent_requests": [],
@@ -163,10 +171,10 @@ def test_overview_uses_lifetime_money_saved_across_all_sources() -> None:
             expect(page.get_by_text("194.8M", exact=True)).to_be_visible(timeout=5000)
             expect(page.get_by_text("47.9% total reduction", exact=True)).to_be_visible()
             expect(page.get_by_text("15,799", exact=True)).to_be_visible()
-            expect(page.get_by_text("$616.58", exact=True)).to_be_visible()
+            expect(page.get_by_text("$626.58", exact=True)).to_be_visible()
             expect(
                 page.get_by_text(
-                    "Lifetime savings across compression, cache, and routing",
+                    "Lifetime savings across compression, cache, routing, and optimization",
                     exact=True,
                 )
             ).to_be_visible()
@@ -195,22 +203,30 @@ def test_overview_prefers_session_money_saved_when_session_exceeds_lifetime() ->
                         },
                     },
                     "persistent_savings": {
-                        "lifetime": {
-                            "requests": 4,
-                            "tokens_saved": 400,
-                            "total_input_tokens": 8_000,
-                            "compression_savings_usd": 1.2,
-                            "cache_savings_usd": 0.3,
-                            "model_routing_savings_usd": 0.0,
-                        }
-                    },
-                    "savings_by_source": {
-                        "usd": {
-                            "cutctx_compression": 1.2,
-                            "provider_prompt_cache": 0.3,
-                            "model_routing": 0.0,
-                        }
-                    },
+                    "lifetime": {
+                        "requests": 4,
+                        "tokens_saved": 400,
+                        "total_input_tokens": 8_000,
+                        "compression_savings_usd": 1.2,
+                        "cache_savings_usd": 0.3,
+                        "model_routing_savings_usd": 0.0,
+                        "normalization_savings_usd": 0.0,
+                        "batch_routing_savings_usd": 0.0,
+                        "memoization_savings_usd": 0.0,
+                        "output_optimization_savings_usd": 0.0,
+                    }
+                },
+                "savings_by_source": {
+                    "usd": {
+                        "cutctx_compression": 1.2,
+                        "provider_prompt_cache": 0.3,
+                        "model_routing": 0.0,
+                        "normalization": 0.0,
+                        "batch_routing": 0.0,
+                        "memoization": 0.0,
+                        "output_optimization": 0.0,
+                    }
+                },
                 },
             )
 

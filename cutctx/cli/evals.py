@@ -13,13 +13,13 @@ from .main import main
 
 @main.group()
 def evals() -> None:
-    """Memory evaluation and compressor benchmark commands.
+    """Memory evaluations and compressor benchmark commands.
 
     \b
     Examples:
+        cutctx evals benchmark    Run cross-compressor benchmark (ratio, F1, ROUGE-L)
         cutctx evals memory       Run LoCoMo memory evaluation
         cutctx evals memory-v2    Run V2 evaluation with LLM-controlled tools
-        cutctx evals benchmark    Run cross-compressor benchmark (ratio, F1, ROUGE-L)
     """
     pass
 
@@ -1080,4 +1080,3 @@ def _publish_benchmark_results(
         existing = existing.rstrip("\n") + "\n\n" + section
     docs_path.write_text(existing, encoding="utf-8")
     click.echo(f"Published results to: {docs_path}")
-

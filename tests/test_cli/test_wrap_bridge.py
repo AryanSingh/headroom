@@ -89,8 +89,12 @@ def test_wrap_codex_prepare_only_updates_config(monkeypatch, tmp_path: Path) -> 
     assert result.exit_code == 0, result.output
     config_file = tmp_path / ".codex" / "config.toml"
     assert config_file.exists()
-    assert 'model_provider = "cutctx"' in config_file.read_text()
-    assert 'base_url = "http://127.0.0.1:8787/v1"' in config_file.read_text()
+    content = config_file.read_text()
+    # Codex routes through the native openai provider now (session-history
+    # fragmentation incident, see artifacts/codex-session-recovery/); no
+    # custom model_provider/table is injected.
+    assert 'model_provider = "cutctx"' not in content
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
 
 
 def test_wrap_gemini_prepare_only_skips_host_binary_lookup() -> None:

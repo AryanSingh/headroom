@@ -169,7 +169,10 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         assert config_file.exists()
-        assert 'model_provider = "cutctx"' in config_file.read_text()
+        content = config_file.read_text()
+        assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
+        assert 'model_provider = "cutctx"' not in content
+        assert "[model_providers.cutctx]" not in content
 
         status, _ = wrap_mod._restore_codex_provider_config()
         # No prior config existed → the injected file is fully removed.
@@ -187,7 +190,9 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         assert config_file.exists()
-        assert 'model_provider = "cutctx"' in config_file.read_text()
+        content = config_file.read_text()
+        assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
+        assert 'model_provider = "cutctx"' not in content
         assert not (tmp_path / ".codex" / "config.toml").exists()
 
         status, _ = wrap_mod._restore_codex_provider_config()
@@ -212,8 +217,9 @@ class TestInjectAndRestoreRoundTrip:
 
         wrap_mod._inject_codex_provider_config(8787)
         wrapped = config_file.read_text()
-        assert 'model_provider = "cutctx"' in wrapped
-        assert "[model_providers.cutctx]" in wrapped
+        assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in wrapped
+        assert 'model_provider = "cutctx"' not in wrapped
+        assert "[model_providers.cutctx]" not in wrapped
 
         status, _ = wrap_mod._restore_codex_provider_config()
         assert status == "restored"
@@ -235,13 +241,12 @@ class TestInjectAndRestoreRoundTrip:
         content = config_file.read_text()
         # Exactly two Cutctx blocks — a top-level-key block and the
         # provider-table block.  Re-wrapping must not duplicate them.
-        assert content.count(wrap_mod._CODEX_TOP_LEVEL_MARKER) == 2
-        assert content.count(wrap_mod._CODEX_END_MARKER) == 2
-        # Latest port is honoured in both keys.
-        assert 'base_url = "http://127.0.0.1:9999/v1"' in content
+        assert content.count(wrap_mod._CODEX_TOP_LEVEL_MARKER) == 1
+        assert content.count(wrap_mod._CODEX_END_MARKER) == 1
+        # Latest port is honoured.
         assert 'openai_base_url = "http://127.0.0.1:9999/v1"' in content
-        assert 'base_url = "http://127.0.0.1:8787/v1"' not in content
         assert 'openai_base_url = "http://127.0.0.1:8787/v1"' not in content
+        assert "[model_providers.cutctx]" not in content
         # User's original content is preserved.
         assert 'model = "gpt-4o"' in content
 
@@ -423,7 +428,9 @@ def test_wrap_codex_prepare_only_creates_backup_and_config(
         result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
 
     assert result.exit_code == 0, result.output
-    assert 'model_provider = "cutctx"' in config_file.read_text()
+    wrapped = config_file.read_text()
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in wrapped
+    assert 'model_provider = "cutctx"' not in wrapped
     backup = tmp_path / ".codex" / "config.toml.cutctx-backup"
     assert backup.exists()
     assert backup.read_text() == original
@@ -447,7 +454,8 @@ def test_wrap_codex_prepare_only_respects_codex_home(
     config_file = codex_home / "config.toml"
     assert config_file.exists()
     content = config_file.read_text()
-    assert 'model_provider = "cutctx"' in content
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
+    assert 'model_provider = "cutctx"' not in content
     assert "[mcp_servers.cutctx]" in content
     assert not (tmp_path / ".codex" / "config.toml").exists()
 
@@ -508,13 +516,20 @@ def test_start_proxy_uses_separate_session_for_signal_isolation(
         return FakeProc()
 
     monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
-    monkeypatch.setattr(wrap_mod, "_check_proxy", lambda port: True)
+    monkeypatch.setattr(
+    "cutctx.paths.request_history_path",
+    lambda: tmp_path / "request_history.jsonl",
+    )
+    monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda port: True)
     monkeypatch.setattr(wrap_mod.subprocess, "Popen", fake_popen)
 
     proc = wrap_mod._start_proxy(8787, agent_type="codex")
 
     assert isinstance(proc, FakeProc)
     assert popen_kwargs["start_new_session"] == (wrap_mod.os.name == "posix")
+    assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(
+        tmp_path / "request_history.jsonl"
+    )
 
 
 def test_launch_tool_ignores_sigint_in_wrapper(
@@ -631,7 +646,9 @@ def test_unwrap_codex_restores_prior_config_end_to_end(
     with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
         wrap_result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
     assert wrap_result.exit_code == 0, wrap_result.output
-    assert 'model_provider = "cutctx"' in config_file.read_text()
+    wrapped = config_file.read_text()
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in wrapped
+    assert 'model_provider = "cutctx"' not in wrapped
 
     stopped: list[int] = []
 
@@ -744,19 +761,45 @@ def test_unwrap_codex_preserves_unrelated_sections(
 
 
 # ---------------------------------------------------------------------------
-# Per-project savings: env_http_headers in the injected provider block
+# Per-project savings: KNOWN GAP as of 2026-07-03.
+#
+# The previous mechanism mapped X-Cutctx-Project to CUTCTX_PROJECT via
+# `env_http_headers` declared inside a dedicated `[model_providers.cutctx]`
+# table. That table forced Codex to use a *named custom provider* instead of
+# the built-in `openai` provider, which tagged every thread's
+# `model_provider` column as "cutctx" — silently splitting session history
+# into two buckets (see the 2026-07-03 incident writeup in
+# artifacts/codex-session-recovery/). `_inject_codex_provider_config` now
+# only sets `openai_base_url`, keeping Codex on the built-in `openai`
+# provider so history/settings/usage stay unified — but that removes the
+# only place `env_http_headers` could be declared, so per-project cost
+# attribution for Codex is currently NOT wired up.
+#
+# The proxy already supports a header-free alternative for clients that
+# can't send custom headers — a `/p/<project>/` URL-path prefix
+# (`cutctx/proxy/project_context.py:with_project_prefix` /
+# `strip_project_path_prefix`), used today by aider, Copilot BYOK, and
+# Cursor. It is NOT yet usable for Codex because Codex's WebSocket traffic
+# (`handle_openai_responses_ws` in cutctx/proxy/handlers/openai/responses.py)
+# bypasses the HTTP middleware that does the prefix-stripping, and the
+# WS routes in cutctx/providers/proxy_routes.py are registered at fixed
+# paths (`/v1/responses`, `/v1/codex/responses`, etc.) with no `/p/{project}`
+# variant. Wiring that up means adding project-prefixed WS route
+# registrations (or an ASGI-level, scope-type-agnostic prefix-stripper) and
+# needs its own dedicated testing before landing on a live proxy — tracked
+# as follow-up, not bundled into the session-history fix.
 # ---------------------------------------------------------------------------
 
 
 class TestCodexProjectHeaderConfig:
-    """The injected provider maps X-Cutctx-Project to CUTCTX_PROJECT.
+    """Documents the current (intentional) absence of project attribution.
 
-    Codex's ``env_http_headers`` sends a header only when the mapped env var
-    is set at Codex runtime, so `cutctx wrap codex` exports
-    ``CUTCTX_PROJECT`` and the proxy attributes savings per project.
+    Codex no longer gets a custom `env_http_headers` mapping injected, since
+    doing so required a provider identity switch that broke session history.
+    These assertions guard against silently reintroducing that regression.
     """
 
-    def test_inject_writes_env_http_headers_mapping(
+    def test_inject_no_longer_writes_env_http_headers_mapping(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         _set_test_home(monkeypatch, tmp_path)
@@ -764,28 +807,15 @@ class TestCodexProjectHeaderConfig:
         wrap_mod._inject_codex_provider_config(8787)
 
         content = (tmp_path / ".codex" / "config.toml").read_text()
-        assert 'env_http_headers = { "X-Cutctx-Project" = "CUTCTX_PROJECT" }' in content
+        assert "env_http_headers" not in content
+        assert "[model_providers.cutctx]" not in content
+        assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
 
-    def test_env_http_headers_inside_provider_section(
+    def test_strip_is_a_noop_for_the_slimmed_block(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """The mapping must live inside [model_providers.cutctx], before
-        the closing marker, so it applies to the Cutctx provider."""
-        _set_test_home(monkeypatch, tmp_path)
-
-        wrap_mod._inject_codex_provider_config(8787)
-
-        content = (tmp_path / ".codex" / "config.toml").read_text()
-        section_start = content.index("[model_providers.cutctx]")
-        mapping_pos = content.index("env_http_headers")
-        end_marker_pos = content.index(wrap_mod._CODEX_END_MARKER, section_start)
-        assert section_start < mapping_pos < end_marker_pos
-
-    def test_strip_removes_block_with_env_http_headers(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """_strip_codex_cutctx_blocks removes the whole injected block,
-        including the new env_http_headers line, leaving user content."""
+        """_strip_codex_cutctx_blocks still removes the (now smaller)
+        injected block cleanly, leaving user content untouched."""
         _set_test_home(monkeypatch, tmp_path)
         config_dir = tmp_path / ".codex"
         config_dir.mkdir()
@@ -795,10 +825,9 @@ class TestCodexProjectHeaderConfig:
 
         wrap_mod._inject_codex_provider_config(8787)
         wrapped = config_file.read_text()
-        assert "env_http_headers" in wrapped
+        assert "openai_base_url" in wrapped
 
         cleaned = wrap_mod._strip_codex_cutctx_blocks(wrapped)
-        assert "env_http_headers" not in cleaned
-        assert "X-Cutctx-Project" not in cleaned
+        assert "openai_base_url" not in cleaned
         assert "[model_providers.cutctx]" not in cleaned
         assert 'model = "gpt-4o"' in cleaned

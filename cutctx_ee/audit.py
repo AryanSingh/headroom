@@ -388,7 +388,7 @@ class AuditLogger:
 
         Medium-32 (production-audit-progress-2026-06-20.md): the simple
         SQLite audit log used by ``routes/admin.py:237-247`` is NOT
-        tamper-evident on its own. The full HMAC hash chain lives in
+        tamper-evident on its own. The full secret-keyed SHA-256 hash chain lives in
         ``cutctx_ee.audit.store.AuditStore``. This method provides a
         lightweight alternative: a monotonicity check on timestamps
         (no row may have a timestamp before the previous row's), a

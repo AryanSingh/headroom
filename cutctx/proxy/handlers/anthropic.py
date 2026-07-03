@@ -947,6 +947,7 @@ class AnthropicHandlerMixin:
 
             # Hook: pre_compress — let hooks modify messages before compression
 
+            _hook_biases = None
             if self.config.hooks and not is_cache_mode(self.config.mode):
                 from cutctx.hooks import CompressContext
 
@@ -957,6 +958,7 @@ class AnthropicHandlerMixin:
                 )
                 try:
                     messages = self.config.hooks.pre_compress(messages, _hook_ctx)
+                    _hook_biases = self.config.hooks.compute_biases(messages, _hook_ctx)
                 except Exception as e:
                     logger.debug(f"[{request_id}] pre_compress hook error: {e}")
             else:
@@ -973,10 +975,18 @@ class AnthropicHandlerMixin:
             _intel_ctx = None
             try:
                 from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
-                _intel_pipeline = IntelligencePipeline.from_config(self.config)
+                _intel_pipeline = getattr(self, "intelligence_pipeline", None)
+                if _intel_pipeline is None:
+                    _intel_pipeline = IntelligencePipeline.from_config(self.config)
+                else:
+                    _intel_pipeline.sync_from_config(self.config)
                 if _intel_pipeline.any_enabled():
                     _intel_ctx = _intel_pipeline.pre_compression(
                         messages, model, request_id,
+                    )
+                    _hook_biases = _intel_pipeline.merge_biases(
+                        _hook_biases,
+                        _intel_ctx.autopilot_biases,
                     )
             except Exception as e:
                 logger.debug(f"[{request_id}] Intelligence pre-compression failed: {e}")
@@ -1145,11 +1155,7 @@ class AnthropicHandlerMixin:
 
                     context_limit = self.anthropic_provider.get_context_limit(model)
                     result = None
-                    biases = (
-                        self.config.hooks.compute_biases(messages, _hook_ctx)
-                        if self.config.hooks and _hook_ctx is not None
-                        else None
-                    )
+                    biases = _hook_biases
 
                     # F2.1 c5/5: derive the per-request CompressionPolicy
                     # from the auth_mode classified at request entry. The

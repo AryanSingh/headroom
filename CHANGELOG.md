@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Public marketing surfaces are a bit more truthful and consistent: blog CTAs no longer point readers at the dead `cutctx.sh` domain, `marketing/roi-calculator/index.html` now uses visible `Cutctx` branding, and the regression suite guards both the live-domain links and public-surface casing.
+- CLI discoverability is tighter again: `cutctx evals -?` now describes the group as both memory evaluations and compressor benchmarks, with benchmark usage shown as a first-class example and guarded by a help-output test.
+- Shared docs entry copy now matches the control-plane repositioning again: `docs/components/stats.tsx` and `docs/app/layout.tsx` no longer lead with the old “context optimization / fraction of the tokens” wedge, and instead describe Cutctx as a local-first context control plane for AI agents.
+- Audit/compliance documentation is more truthful: the tamper-evident EE audit store is described as a secret-keyed SHA-256 chain rather than HMAC until a rebuild-aware cryptographic upgrade lands, and the SOC 2 availability mapping now reflects the current backup scope (memory, spend ledger, and audit DBs only).
+- Customer-facing fallback paths are safer: the public pricing pages no longer route Team-tier users to the dead PitchToShip self-serve checkout, and the CLI invalid-license hint now points operators back to their administrator instead of a broken external billing URL.
+- Windows install docs no longer point at a non-existent `scripts/install.ps1`, and the SOC 2 roadmap now matches the verified audit-chain wording and current backup scope.
+- Billing documentation is more truthful about the current codebase: it no longer claims a Razorpay-based production flow and instead describes the actual hybrid state of hosted PitchToShip helpers, Stripe webhook handling, and offline-license verification.
+- Air-gap and operator-runbook docs now describe offline and commercial licensing as operator-managed workflows instead of assuming a verified PitchToShip customer portal.
+- Licensing-migration guidance is less brittle: it now points at the configured hosted license-service URL instead of hardcoding one public domain as the only valid validation path.
+- The commercial license branding is now internally consistent (`Cutctx`, not `CutCtx`), and a new docs/commercial-surface truthfulness test guards the corrected billing, installer, and SOC2 wording against drift.
+- Commercial artifacts are less misleading: the implementation checklist, management OpenAPI spec, and license-portal artifact no longer present the dead PitchToShip checkout path as a verified live customer flow.
+- Security/customer docs are more careful about scope: they no longer assume a universal live customer portal for licensing, billing MFA, or seat management when the current repo state only proves operator-led or API-driven workflows.
+- The missing on-disk EE audit-chain regression file now exists as a source-contract test: it guards the current SHA-256 chain wording and keeps the docs aligned until a rebuild-aware runtime crypto upgrade actually lands.
+- Active public HTML surfaces now use consistent `Cutctx` product branding instead of mixed `CutCtx` casing across pricing, enterprise, and license-portal artifacts.
+- Licensing migration copy is narrower again: server-side trials are described as part of the hosted licensing workflow rather than implying a universal portal surface.
+- Security questionnaire/policy language is more precise about evidence: DR exercises, incident-response exercises, and third-party pentest summaries are no longer phrased as guaranteed fresh annual artifacts in every release state.
+- Dashboard development hygiene is tighter: `dashboard/eslint.config.js` now rejects line-collapsed multi-statement code, dashboard lint runs with `--max-warnings=0`, pre-commit adds a dashboard ESLint hook, and `make ci-precheck` now includes a dashboard lint lane. Existing flattened dashboard conditionals and audit helper snippets were expanded to comply.
+- Savings-moat tracking is now more honest after a branch audit: `artifacts/savings-moat-priority-todo.md` no longer marks WS19 fully done on the strength of controller-only work; pipeline wiring and Overview surfacing remain pending.
+
 - CCR marker parsing and formatting now flow through shared `cutctx/ccr/markers.py` helpers, reducing duplicate marker logic across dedup and tool injection while keeping focused CCR regression coverage green.
 
 - Tightened the live runtime admin surface in `cutctx/proxy/server.py`: wildcard CORS no longer advertises credential support, `/stats/reset` now logs audit failures instead of swallowing them silently, and the legacy earlier app builder is no longer exported as a second public `create_app` symbol.
@@ -28,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- WS19 compression autopilot wiring is now live in the current worktree: `CUTCTX_AUTOPILOT` is threaded through proxy config/CLI/runtime toggles, the intelligence pipeline is kept stateful across requests so task-level setpoints persist, `/stats` exposes autopilot levels/history, and the Overview dashboard now renders a compression-autopilot panel with a level sparkline.
+- Governance and manual-testing docs now surface the WS19 control path (`CUTCTX_AUTOPILOT=1` and `/intelligence/autopilot/status`) so the new loop can be enabled and verified without hunting through code.
 - Inline multimodal audio optimization for supported chat/compress flows, with targeted regression coverage in `tests/test_audio_compressor.py`, `tests/test_inline_audio_messages.py`, and `tests/test_proxy_compress_endpoint.py`.
 - **Feedback Loop (Data Flywheel)** (`cutctx/ccr/response_handler.py`, `cutctx/proxy/intelligence_pipeline.py`, `cutctx/transforms/content_router.py`, `cutctx/proxy/server.py`, `cutctx/profiles.py`) — CCR response handler records retrievals as feedback → updates per-workspace `CompressionProfile` → `recommended_ratio` flows into `ContentRouterConfig.per_type_overrides` → adjusts `bias_multiplier` for affected content types. Enables adaptive compression based on retrieval patterns. Test coverage in `tests/test_feedback_loop.py` (11 tests).
 - **Stack-graph reachability bridge** (`cutctx/graph/reachability.py`, `cutctx/transforms/code_compressor.py`) — symbol reachability analysis for Stack Graphs core, with `extract_symbol_names()`, `resolve_entry_points()`, and wiring into `CodeCompressor.set_protected_symbols()` for syntax-preserving code compression. Distinct from the Stack Graphs AST/TSG core released in [0.29.0]. Test coverage in `tests/test_stack_graph_reachability.py` (17 tests) and `tests/test_initiative2_e2e.py` (5 tests).

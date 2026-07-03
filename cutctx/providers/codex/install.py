@@ -83,13 +83,7 @@ def apply_provider_scope(manifest: DeploymentManifest) -> ManagedMutation | None
     path.parent.mkdir(parents=True, exist_ok=True)
     section = (
         f"{_CODEX_MARKER_START}\n"
-        'model_provider = "cutctx"\n'
-        f'openai_base_url = "{proxy_base_url(manifest.port)}"\n\n'
-        + build_provider_section(
-            port=manifest.port,
-            name="Cutctx persistent proxy",
-            include_markers=False,
-        )
+        f'openai_base_url = "{proxy_base_url(manifest.port)}"\n'
         + f"{_CODEX_MARKER_END}\n"
     )
     if path.exists():

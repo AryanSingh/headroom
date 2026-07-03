@@ -826,6 +826,12 @@ def _selected_context_tool() -> str:
     help="Pre-task cost estimation + policy rules. Env: CUTCTX_COST_FORECAST_ENABLED=1",
 )
 @click.option(
+    "--enable-autopilot",
+    is_flag=True,
+    envvar="CUTCTX_AUTOPILOT",
+    help="Auto-tune compression aggressiveness from recent quality signals. Env: CUTCTX_AUTOPILOT=1",
+)
+@click.option(
     "--enable-firewall",
     is_flag=True,
     envvar="CUTCTX_FIREWALL_ENABLED",
@@ -932,6 +938,7 @@ def proxy(
     enable_cross_session: bool,
     enable_multi_agent: bool,
     enable_cost_forecasting: bool,
+    enable_autopilot: bool,
     enable_firewall: bool,
     enable_cache_aligner: bool,
     enable_ensemble: bool,
@@ -1220,6 +1227,10 @@ def proxy(
         profiles_enabled=enable_cross_session or _get_env_bool("CUTCTX_PROFILES_ENABLED", False),
         shared_context_enabled=enable_multi_agent or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),
         cost_forecast_enabled=enable_cost_forecasting or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False),
+        autopilot_enabled=enable_autopilot or _get_env_bool("CUTCTX_AUTOPILOT", False),
+        autopilot_min_level=_get_env_int_optional("CUTCTX_AUTOPILOT_MIN_LEVEL") or 1,
+        autopilot_max_level=_get_env_int_optional("CUTCTX_AUTOPILOT_MAX_LEVEL") or 5,
+        autopilot_hysteresis_window=_get_env_int_optional("CUTCTX_AUTOPILOT_HYSTERESIS_WINDOW") or 10,
 
         # Cache Aligner
         cache_aligner_enabled=enable_cache_aligner or _get_env_bool("CUTCTX_CACHE_ALIGNER_ENABLED", False),

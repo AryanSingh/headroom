@@ -674,7 +674,7 @@ class PrometheusMetrics:
                 total_input_cost_usd=total_input_cost_usd,
                 # Phase 1.4: extra savings sources so the durable
                 # history row and the buyer report can attribute all
-                # five sources. When ``savings_by_source_tokens`` is
+                # tracked sources. When ``savings_by_source_tokens`` is
                 # provided by the funnel it wins; otherwise we fall
                 # back to deriving from the typed fields.
                 savings_by_source_tokens=savings_by_source_tokens,

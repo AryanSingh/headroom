@@ -423,7 +423,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
                 for src in SavingsSource
             ],
             "attribution_note": (
-                "All five savings sources are tracked independently. "
+                "All tracked savings sources are tracked independently. "
                 "The total is the sum of per-source values, not a "
                 "difference, so there is no double counting. Provider "
                 "cache and semantic cache discounts are observed on the "
@@ -466,7 +466,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append("## Attribution")
         lines.append("")
         lines.append(
-            "All five savings sources are tracked independently. "
+            "All tracked savings sources are tracked independently. "
             "The total is the sum of per-source values, not a "
             "difference, so there is no double counting. Provider "
             "prompt cache and semantic cache discounts are observed "
@@ -501,7 +501,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append("")
         lines.append("Attribution:")
         lines.append(
-            "  All five sources are tracked independently. The total is"
+            "  All tracked savings sources are tracked independently. The total is"
         )
         lines.append(
             "  the sum of per-source values, not a difference, so there"

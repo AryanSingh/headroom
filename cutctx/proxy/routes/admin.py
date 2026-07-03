@@ -1625,6 +1625,20 @@ def create_admin_router(
         except Exception as exc:
             return {"enabled": False, "error": "Unable to retrieve policy status"}
 
+    @router.get(
+        "/intelligence/autopilot/status",
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+    )
+    async def autopilot_status():
+        """Get WS19 autopilot status."""
+        return {
+            "enabled": getattr(_config, "autopilot_enabled", False),
+            "min_level": getattr(_config, "autopilot_min_level", 1),
+            "max_level": getattr(_config, "autopilot_max_level", 5),
+            "hysteresis_window": getattr(_config, "autopilot_hysteresis_window", 10),
+            "description": "Auto-tune compression aggressiveness per task type from recent quality signals",
+        }
+
 
 
     # ── Runtime feature flag toggle API ──────────────────────────────────────
@@ -1639,6 +1653,7 @@ def create_admin_router(
         "profiles_enabled",
         "shared_context_enabled",
         "cost_forecast_enabled",
+        "autopilot_enabled",
         "episodic_memory_enabled",
         "orchestrator",
         "ccr_context_tracking",
@@ -1788,6 +1803,7 @@ def create_admin_router(
             "profiles_enabled",
             "shared_context_enabled",
             "cost_forecast_enabled",
+            "autopilot_enabled",
         }
 
         for raw_key, value in body.items():

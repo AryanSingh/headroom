@@ -74,15 +74,10 @@ const LIFETIME_SAVINGS_SOURCES = [
   ['model_routing_savings_usd', 'model_routing'],
   ['tool_schema_compaction_savings_usd', 'tool_schema_compaction'],
   ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
-  // WS10: output-side optimization (additive per spec).
-  ['output_optimization_savings_usd', 'output_optimization'],
-  // WS11: tool-result memoization (additive per spec).
-  ['memoization_savings_usd', 'memoization'],
-  // WS16: tokenizer-aware normalization pre-pass (additive per spec).
-  // Future savings sources from the WS10-WS21 expansion will follow
-  // the same pattern: add to cutctx/savings/types.py first, then
-  // add the row here.
   ['normalization_savings_usd', 'normalization'],
+  ['batch_routing_savings_usd', 'batch_routing'],
+  ['memoization_savings_usd', 'memoization'],
+  ['output_optimization_savings_usd', 'output_optimization'],
 ];
 
 function sumSavingsUsd(record) {
@@ -98,8 +93,8 @@ function getSessionSavingsUsd(stats) {
   const breakdown = cost?.breakdown || summaryCost?.breakdown || {};
   const prefixTotals = stats?.prefix_cache?.totals || {};
   const sourceUsd = {
+    ...(summaryCost?.savings_by_source?.usd || {}),
     ...(cost?.savings_by_source?.usd || {}),
-    ...(stats?.savings_by_source?.usd || {}),
   };
 
   const compressionUsd = Math.max(
@@ -130,6 +125,26 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.model_routing || 0),
     Number(breakdown.model_routing_savings_usd || 0),
   );
+  const normalizationUsd = Math.max(
+    Number(cost?.normalization_savings_usd || 0),
+    Number(sourceUsd.normalization || 0),
+    Number(breakdown.normalization_savings_usd || 0),
+  );
+  const batchRoutingUsd = Math.max(
+    Number(cost?.batch_routing_savings_usd || 0),
+    Number(sourceUsd.batch_routing || 0),
+    Number(breakdown.batch_routing_savings_usd || 0),
+  );
+  const memoizationUsd = Math.max(
+    Number(cost?.memoization_savings_usd || 0),
+    Number(sourceUsd.memoization || 0),
+    Number(breakdown.memoization_savings_usd || 0),
+  );
+  const outputOptimizationUsd = Math.max(
+    Number(cost?.output_optimization_savings_usd || 0),
+    Number(sourceUsd.output_optimization || 0),
+    Number(breakdown.output_optimization_savings_usd || 0),
+  );
   const toolSchemaUsd = Math.max(
     Number(cost?.tool_schema_compaction_savings_usd || 0),
     Number(sourceUsd.tool_schema_compaction || 0),
@@ -140,30 +155,22 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.api_surface_slimming || 0),
     Number(breakdown.api_surface_slimming_savings_usd || 0),
   );
-  // WS10: output_optimization source (additive per spec)
-  const outputOptimizationUsd = Math.max(
-    Number(cost?.output_optimization_savings_usd || 0),
-    Number(sourceUsd.output_optimization || 0),
-    Number(breakdown.output_optimization_savings_usd || 0),
-  );
-  // WS11: memoization source (additive per spec)
-  const memoizationUsd = Math.max(
-    Number(cost?.memoization_savings_usd || 0),
-    Number(sourceUsd.memoization || 0),
-    Number(breakdown.memoization_savings_usd || 0),
-  );
-  // WS16: normalization source (additive per spec)
-  const normalizationUsd = Math.max(
-    Number(cost?.normalization_savings_usd || 0),
-    Number(sourceUsd.normalization || 0),
-    Number(breakdown.normalization_savings_usd || 0),
-  );
 
   return Math.max(
     Number(cost?.total_savings_usd || 0),
     Number(cost?.total_saved_usd || 0),
     Number(summaryCost?.total_saved_usd || 0),
-    compressionUsd + cacheUsd + semanticUsd + selfHostedPrefixUsd + modelRoutingUsd + toolSchemaUsd + apiSurfaceUsd + outputOptimizationUsd + memoizationUsd + normalizationUsd,
+    compressionUsd
+      + cacheUsd
+      + semanticUsd
+      + selfHostedPrefixUsd
+      + modelRoutingUsd
+      + normalizationUsd
+      + batchRoutingUsd
+      + memoizationUsd
+      + outputOptimizationUsd
+      + toolSchemaUsd
+      + apiSurfaceUsd,
   );
 }
 
@@ -279,6 +286,42 @@ usd: Math.max(
   Number(cost.model_routing_savings_usd || 0),
   Number(sourceUsd.model_routing || 0),
 ),
+    },
+    {
+      key: 'normalization',
+      label: 'Tokenizer normalization',
+      tokens: Number(sourceTokens.normalization || 0),
+      usd: Math.max(
+        Number(cost.normalization_savings_usd || 0),
+        Number(sourceUsd.normalization || 0),
+      ),
+    },
+    {
+      key: 'batch_routing',
+      label: 'Batch routing',
+      tokens: Number(sourceTokens.batch_routing || 0),
+      usd: Math.max(
+        Number(cost.batch_routing_savings_usd || 0),
+        Number(sourceUsd.batch_routing || 0),
+      ),
+    },
+    {
+      key: 'memoization',
+      label: 'Tool memoization',
+      tokens: Number(sourceTokens.memoization || 0),
+      usd: Math.max(
+        Number(cost.memoization_savings_usd || 0),
+        Number(sourceUsd.memoization || 0),
+      ),
+    },
+    {
+      key: 'output_optimization',
+      label: 'Output optimization',
+      tokens: Number(sourceTokens.output_optimization || 0),
+      usd: Math.max(
+        Number(cost.output_optimization_savings_usd || 0),
+        Number(sourceUsd.output_optimization || 0),
+      ),
     },
   ];
 }
@@ -435,6 +478,10 @@ function getRequestIndirectSaved(request) {
     + Number(request?.semantic_cache_saved_tokens || 0)
     + Number(request?.self_hosted_prefix_cache_saved_tokens || 0)
     + Number(request?.model_routing_saved_tokens || 0)
+    + Number(request?.normalization_saved_tokens || 0)
+    + Number(request?.batch_routing_saved_tokens || 0)
+    + Number(request?.memoization_saved_tokens || 0)
+    + Number(request?.output_optimization_saved_tokens || 0)
   );
 }
 
@@ -1144,7 +1191,9 @@ return STRATEGY_DISPLAY.get(key) || key.replace(/_/g, ' ').replace(/\b\w/g, (c) 
 }
 
 function normalizeFeatureAvailability(featureAvailability) {
-if (!featureAvailability || Object.keys(featureAvailability).length === 0) return [];
+if (!featureAvailability || Object.keys(featureAvailability).length === 0) {
+  return [];
+}
 
 const normalized = new Map(
   FEATURE_ORDER.map((key) => [
@@ -1165,7 +1214,9 @@ return Array.from(normalized.entries());
 
 function FeatureAvailabilityPanel({ featureAvailability }) {
 const entries = normalizeFeatureAvailability(featureAvailability);
-if (entries.length === 0) return null;
+if (entries.length === 0) {
+  return null;
+}
   const availableCount = entries.filter(
     ([, value]) => value?.available && value?.compression !== 'pass-through',
   ).length;
@@ -1279,6 +1330,140 @@ function GraphStatusPanel({ knowledgeGraph }) {
   );
 }
 
+function formatAutopilotTaskType(taskType) {
+  switch (taskType) {
+    case 'code':
+      return 'Code';
+    case 'search':
+      return 'Search';
+    case 'summarize':
+      return 'Summaries';
+    default:
+      return 'General';
+  }
+}
+
+function getAutopilotSummary(stats) {
+  const autopilot = stats?.intelligence?.autopilot || {};
+  const taskStats = autopilot.task_stats || {};
+  const taskRows = Object.entries(autopilot.task_levels || {})
+    .map(([taskType, level]) => ({
+      taskType,
+      label: formatAutopilotTaskType(taskType),
+      level: Number(level || 0),
+      signals: Number(taskStats?.[taskType]?.signal_count || 0),
+      adjustments: Number(taskStats?.[taskType]?.adjustment_count || 0),
+    }))
+    .sort((a, b) => b.level - a.level || b.signals - a.signals || a.label.localeCompare(b.label));
+  const recentLevels = Array.isArray(autopilot.recent_levels)
+    ? autopilot.recent_levels
+        .slice(-12)
+        .map((entry) => Number(entry?.level || 0))
+        .filter((value) => value > 0)
+    : [];
+  const recentAdjustments = Array.isArray(autopilot.recent_adjustments)
+    ? autopilot.recent_adjustments
+    : [];
+  const latestAdjustment = recentAdjustments.at(-1) || null;
+
+  return {
+    enabled: Boolean(autopilot.enabled),
+    minLevel: Number(autopilot.min_level || 1),
+    maxLevel: Number(autopilot.max_level || 5),
+    hysteresisWindow: Number(autopilot.hysteresis_window || 10),
+    taskRows,
+    recentLevels,
+    latestAdjustment,
+    totalSignals: taskRows.reduce((sum, row) => sum + row.signals, 0),
+    totalAdjustments: taskRows.reduce((sum, row) => sum + row.adjustments, 0),
+  };
+}
+
+function AutopilotPanel({ autopilot }) {
+  const statusLabel = autopilot.enabled ? 'Active' : 'Disabled';
+  const latestAdjustment = autopilot.latestAdjustment;
+
+  return (
+    <section className="panel panel-compact">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Intelligence</div>
+          <h2>Compression autopilot</h2>
+          <p>WS19 keeps a live per-task setpoint so compression can react instead of staying static.</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <span className={`status-pill status-${autopilot.enabled ? 'ready' : 'disabled'}`}>{statusLabel}</span>
+          <Sparkline values={autopilot.recentLevels} color="var(--accent-2)" />
+        </div>
+
+        {!autopilot.enabled ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Enable <code>CUTCTX_AUTOPILOT=1</code> to adapt compression aggressiveness from recent quality signals.
+          </p>
+        ) : autopilot.taskRows.length === 0 ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Autopilot is enabled and waiting for enough request flow to establish task-level setpoints.
+          </p>
+        ) : (
+          <>
+            <div className="graphify-kv-grid">
+              <div className="graphify-kv">
+                <span>Signals</span>
+                <strong>{formatInteger(autopilot.totalSignals)}</strong>
+              </div>
+              <div className="graphify-kv">
+                <span>Adjustments</span>
+                <strong>{formatInteger(autopilot.totalAdjustments)}</strong>
+              </div>
+              <div className="graphify-kv">
+                <span>Level range</span>
+                <strong>
+                  L{autopilot.minLevel}-L{autopilot.maxLevel}
+                </strong>
+              </div>
+              <div className="graphify-kv">
+                <span>Hysteresis</span>
+                <strong>{formatInteger(autopilot.hysteresisWindow)} clean reqs</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {autopilot.taskRows.map((row) => (
+                <div
+                  key={row.taskType}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                    gap: '12px',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div className="source-name">{row.label}</div>
+                    <div className="source-meta">
+                      {formatInteger(row.signals)} signals · {formatInteger(row.adjustments)} adjustments
+                    </div>
+                  </div>
+                  <strong>L{row.level}</strong>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+              {latestAdjustment
+                ? `Latest adjustment: ${formatAutopilotTaskType(latestAdjustment.task_type)} moved from L${latestAdjustment.old_level} to L${latestAdjustment.new_level} after a ${latestAdjustment.signal_kind.replace('_', ' ')} signal.`
+                : 'No task setpoint changes have been required yet.'}
+            </p>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function getRequestTotalSaved(request) {
   if (request?.total_saved_tokens != null) {
     return Number(request.total_saved_tokens || 0);
@@ -1324,6 +1509,7 @@ export default function Overview() {
   const prefixCache = stats?.prefix_cache || {};
   const knowledgeGraph = stats?.knowledge_graph || {};
   const featureAvailability = stats?.feature_availability || {};
+  const autopilot = getAutopilotSummary(stats);
   const historyFreshnessLabel = historyData?.generated_at
     ? `History synced ${formatRelativeTime(historyData.generated_at)} from proxy`
     : 'Waiting for proxy history';
@@ -1392,9 +1578,9 @@ export default function Overview() {
           ? 'Includes provider-cache savings in current session'
           : 'Current proxy-session savings'
       : savingsHeadline.key === 'display_session'
-        ? 'Rolling session savings across compression, cache, and routing'
+        ? 'Rolling session savings across compression, cache, routing, and optimization'
         : lifetimeSavingsUsd > 0
-          ? 'Lifetime savings across compression, cache, and routing'
+          ? 'Lifetime savings across compression, cache, routing, and optimization'
           : 'No cost data yet';
   const requestsFootnote =
     requestsHeadline.key === 'session'
@@ -1535,7 +1721,7 @@ export default function Overview() {
               <div>
                 <div className="eyebrow">Attribution</div>
                 <h2>Where savings come from</h2>
-                <p>Direct compression and provider-side cache wins are split out so total savings stays legible.</p>
+                <p>Compression, cache, routing, and optimization passes are split out so total savings stays legible.</p>
               </div>
             </div>
 
@@ -1545,7 +1731,7 @@ export default function Overview() {
               <EmptyState
                 icon={Sparkles}
                 title="No savings data yet"
-                description="Savings attribution will populate as requests flow through compression and cache channels."
+                description="Savings attribution will populate as requests flow through compression, cache, routing, and optimization channels."
               />
             ) : (
               <>
@@ -1605,6 +1791,7 @@ export default function Overview() {
           <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} />
           <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
           <FeatureAvailabilityPanel featureAvailability={featureAvailability} />
+          <AutopilotPanel autopilot={autopilot} />
         </div>
 
         <section className="panel">
@@ -1680,7 +1867,7 @@ export default function Overview() {
                 </tbody>
                 </table>
                 <div className="request-table-note">
-                  Saved = proxy compression + cache combined.
+                  Saved = direct compression plus tracked cache, routing, and optimization savings.
                   Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings.
                   Model = the routed model CutCtx observed on the request.
                 </div>

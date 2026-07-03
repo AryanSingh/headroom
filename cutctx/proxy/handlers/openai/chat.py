@@ -388,10 +388,18 @@ class OpenAIChatMixin:
         _intel_ctx = None
         try:
             from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
-            _intel_pipeline = IntelligencePipeline.from_config(self.config)
+            _intel_pipeline = getattr(self, "intelligence_pipeline", None)
+            if _intel_pipeline is None:
+                _intel_pipeline = IntelligencePipeline.from_config(self.config)
+            else:
+                _intel_pipeline.sync_from_config(self.config)
             if _intel_pipeline.any_enabled():
                 _intel_ctx = _intel_pipeline.pre_compression(
                     messages, model, request_id,
+                )
+                _hook_biases = _intel_pipeline.merge_biases(
+                    _hook_biases,
+                    _intel_ctx.autopilot_biases,
                 )
         except Exception as e:
             logger.debug(f"[{request_id}] Intelligence pre-compression failed: {e}")

@@ -57,7 +57,7 @@ Yes. Cutctx provides a standard DPA aligned with GDPR Article 28 requirements. T
 
 **Q11. Is multi-factor authentication (MFA) required?**
 
-Yes, MFA is required for all Cutctx employee access to production systems, code repositories, CI/CD pipelines, and the customer billing portal. Customers are encouraged but not currently required to enable MFA on their Cutctx account portal.
+Yes, MFA is required for all Cutctx employee access to production systems, code repositories, CI/CD pipelines, and internal commercial/billing administration workflows. Customer-facing MFA requirements depend on the deployed customer-management surface and are not claimed here as a universal self-serve portal feature.
 
 **Q12. Is Single Sign-On (SSO) supported?**
 
@@ -65,7 +65,7 @@ Yes. Enterprise tier customers can configure SSO/OIDC authentication via the cut
 
 **Q13. Is SCIM-based user provisioning supported?**
 
-SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers can manage license seat assignments through the customer portal or via the management API. Contact sales@cutctx.dev to discuss provisioning integration requirements.
+SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers should treat license-seat assignment as an operator-managed or management-API workflow rather than assuming a universal self-serve customer portal. Contact sales@cutctx.dev to discuss provisioning integration requirements.
 
 **Q14. Does your product follow a least-privilege access model?**
 
@@ -101,7 +101,7 @@ Cutctx's internal infrastructure runs on AWS. Specific region and availability z
 
 **Q21. What is your disaster recovery / business continuity plan (DR/BCP)?**
 
-Cutctx maintains a documented DR/BCP for its license issuance backend. In the event of a regional outage, the service fails over to a secondary region. The DR plan is tested annually. Note that because the customer-side proxy operates locally, a Cutctx infrastructure outage does not interrupt a customer's existing compression operations — only new license validations and renewals would be affected.
+Cutctx maintains a documented DR/BCP for its license issuance backend. In the event of a regional outage, the service is intended to fail over to a secondary region. DR exercises follow the internal resilience schedule; this questionnaire should not be read as evidence of a completed annual public DR test artifact. Note that because the customer-side proxy operates locally, a Cutctx infrastructure outage does not interrupt a customer's existing compression operations — only new license validations and renewals would be affected.
 
 **Q22. What are your RTO and RPO targets?**
 
@@ -138,7 +138,7 @@ Yes. Dependabot monitors Python and Rust dependencies on a weekly schedule and o
 
 **Q29. Is penetration testing performed?**
 
-Yes. Cutctx conducts an annual third-party penetration test covering the proxy HTTP/HTTPS surface, license key validation and forgery attempts, state file cryptography, SSO/OIDC flows, and Kubernetes RBAC. Enterprise customers may request the executive summary under NDA.
+Cutctx plans third-party penetration testing for the proxy HTTP/HTTPS surface, license key validation and forgery attempts, state file cryptography, SSO/OIDC flows, and Kubernetes RBAC. When a current executive summary is available, Enterprise customers may request it under NDA. This questionnaire should not be read as a claim that a fresh report is available in every checkout or release state.
 
 **Q30. Do you operate a bug bounty program?**
 
@@ -191,7 +191,7 @@ Cutctx commits to notifying affected customers within **72 hours** of confirming
 
 **Q39. Do you have a documented incident response plan?**
 
-Yes. Cutctx's incident response plan is documented in `docs/security/SECURITY_POLICY.md` Section 6. It covers five phases: Detect, Contain, Eradicate, Recover, and Post-mortem. SLAs include 24-hour initial triage, 72-hour customer notification, and 7-day critical patch deployment. The plan is reviewed and tested annually.
+Yes. Cutctx's incident response plan is documented in `docs/security/SECURITY_POLICY.md` Section 6. It covers five phases: Detect, Contain, Eradicate, Recover, and Post-mortem. SLAs include 24-hour initial triage, 72-hour customer notification, and 7-day critical patch deployment. The plan is reviewed annually; exercise cadence should be interpreted according to internal security operations records rather than inferred from this document alone.
 
 **Q40. Who is the security contact for incidents and questions?**
 

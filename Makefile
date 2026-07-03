@@ -7,7 +7,7 @@ MATURIN ?= maturin
 PYTHON ?= python3
 FIXTURES ?= tests/parity/fixtures
 
-.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary build-cython check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-commitlint install-git-hooks verify-rust-core
+.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary build-cython check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-dashboard ci-precheck-commitlint install-git-hooks verify-rust-core
 
 help:
 	@echo "Cutctx Rust targets:"
@@ -27,9 +27,10 @@ help:
 	@echo "  make dev-ee             - uv sync --extra ee + maturin develop"
 	@echo ""
 	@echo "Pre-push verification (run BEFORE git push to catch CI failures locally):"
-	@echo "  make ci-precheck        - run all CI gates (rust + python + commitlint)"
+	@echo "  make ci-precheck        - run all CI gates (rust + python + dashboard + commitlint)"
 	@echo "  make ci-precheck-rust   - cargo fmt --check + clippy + test"
 	@echo "  make ci-precheck-python - smart_crusher-affected python tests"
+	@echo "  make ci-precheck-dashboard - dashboard lint"
 	@echo "  make ci-precheck-commitlint - lint commits since origin/main"
 	@echo "  make install-git-hooks  - install a pre-push hook that runs ci-precheck"
 
@@ -109,7 +110,7 @@ dev-ee:
 # Run before EVERY `git push`. Install the git hook (one-time) with:
 #   make install-git-hooks
 
-ci-precheck: ci-precheck-rust ci-precheck-python ci-precheck-commitlint
+ci-precheck: ci-precheck-rust ci-precheck-python ci-precheck-dashboard ci-precheck-commitlint
 	@echo ""
 	@echo "✅ ci-precheck PASSED — safe to push."
 
@@ -131,17 +132,21 @@ ci-precheck-python:
 	$(PYTHON) scripts/assert_ee_spdx_headers.py
 	bash scripts/build_rust_extension.sh
 	$(PYTHON) -m pytest -q \
-		tests/test_transforms/test_smart_crusher_bugs.py \
-		tests/test_transforms/test_smart_crusher_rust_parity.py \
-		tests/test_transforms/test_diff_compressor.py \
+	tests/test_transforms/test_smart_crusher_bugs.py \
+	tests/test_transforms/test_smart_crusher_rust_parity.py \
+	tests/test_transforms/test_diff_compressor.py \
 		tests/test_transforms/test_diff_compressor_rust_parity.py \
 		tests/test_relevance.py \
 		tests/test_relevance_extra.py \
 		tests/test_ccr.py \
-		tests/test_acceptance.py \
-		tests/test_critical_fixes.py \
-		tests/test_quality_retention.py \
-		tests/test_toin_integration.py
+	tests/test_acceptance.py \
+	tests/test_critical_fixes.py \
+	tests/test_quality_retention.py \
+	tests/test_toin_integration.py
+
+ci-precheck-dashboard:
+	@echo "── ci-precheck-dashboard ──────────────────────────────────────"
+	cd dashboard && npm run lint
 
 # Lint commits since `origin/main`. Requires npx (Node 18+) on PATH.
 # Skips silently if npx is unavailable; install nodejs to enable.

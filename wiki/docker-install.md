@@ -20,9 +20,12 @@ Stock `/bin/bash` on macOS is 3.2, so install a newer bash first (for example vi
 
 ### Windows PowerShell
 
-```powershell
-irm https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1 | iex
-```
+There is not yet a published `scripts/install.ps1` in this repository.
+On Windows today, use one of these supported paths instead:
+
+- run the Linux installer inside WSL
+- use Docker Compose manually with the examples in this guide
+- use a native Python install from [getting-started.md](getting-started.md)
 
 ## What the installer does
 

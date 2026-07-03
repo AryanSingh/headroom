@@ -381,7 +381,7 @@ def _build_savings_breakdown(
     dict[str, float],
     RequestSavingsBreakdown | None,
 ]:
-    """Merge the five savings sources on a ``RequestOutcome`` into a
+    """Merge the tracked savings sources on a ``RequestOutcome`` into a
     by-source dict, a by-source USD dict, and the breakdown object.
 
     The funnel calls this once so the Prometheus / SavingsTracker
@@ -707,7 +707,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # both step 1 (Prometheus / SavingsTracker persistence) and
     # step 2a (cost_tracker orchestrator) see the same numbers. This
     # is the only place in the code path that knows how to merge the
-    # five savings sources; handlers just set the typed fields.
+    # tracked savings sources; handlers just set the typed fields.
     _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = (
         _build_savings_breakdown(outcome)
     )

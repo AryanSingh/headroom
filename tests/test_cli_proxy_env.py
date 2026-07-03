@@ -66,7 +66,7 @@ class TestCLIWrapProxyTimeout:
         monkeypatch.delenv(wrap_mod._WRAP_PROXY_TIMEOUT_ENV, raising=False)
         monkeypatch.setattr(wrap_mod, "_ml_wrap_extras_detected", lambda: False)
         monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
-        monkeypatch.setattr(wrap_mod, "_check_proxy", lambda _port: True)
+        monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda _port: True)
         monkeypatch.setattr(wrap_mod.time, "sleep", lambda seconds: sleeps.append(seconds))
         monkeypatch.setattr(wrap_mod.subprocess, "Popen", lambda *args, **kwargs: fake_proc)
 
@@ -90,7 +90,7 @@ class TestCLIWrapProxyTimeout:
             checks.append(port)
             return len(checks) == 4
 
-        monkeypatch.setattr(wrap_mod, "_check_proxy", ready_on_fourth_check)
+        monkeypatch.setattr(wrap_mod, "_check_proxy_ready", ready_on_fourth_check)
 
         proc = wrap_mod._start_proxy(8787, agent_type="codex")
 
@@ -104,7 +104,7 @@ class TestCLIWrapProxyTimeout:
 
         monkeypatch.setenv(wrap_mod._WRAP_PROXY_TIMEOUT_ENV, "2")
         monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
-        monkeypatch.setattr(wrap_mod, "_check_proxy", lambda _port: False)
+        monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda _port: False)
         monkeypatch.setattr(wrap_mod.time, "sleep", lambda _seconds: None)
         monkeypatch.setattr(wrap_mod.subprocess, "Popen", lambda *args, **kwargs: fake_proc)
 

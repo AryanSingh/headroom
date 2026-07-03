@@ -9,6 +9,8 @@ stay in sync - it's pointless to store one without the other.
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from cutctx.proxy.models import RequestLog
 from cutctx.proxy.request_logger import RequestLogger
 
@@ -85,6 +87,20 @@ def test_jsonl_file_strips_both_sides_when_log_full_messages_disabled(tmp_path):
     assert "request_messages" not in obj
     assert "compressed_messages" not in obj
     assert "response_content" not in obj
+
+
+def test_request_logger_warms_recent_entries_from_jsonl(tmp_path):
+    log_file = tmp_path / "requests.jsonl"
+    entry = _entry(request_id="warm-1")
+    import json
+
+    log_file.write_text(json.dumps(asdict(entry)) + "\n")
+
+    logger = RequestLogger(log_file=str(log_file), log_full_messages=False)
+    recent = logger.get_recent(10)
+
+    assert len(recent) == 1
+    assert recent[0]["request_id"] == "warm-1"
 
 
 def test_get_memory_stats_accounts_for_compressed_messages():

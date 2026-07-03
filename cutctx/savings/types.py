@@ -68,7 +68,7 @@ _DESCRIPTIONS = {
     SavingsSource.PROVIDER_PROMPT_CACHE: "Tokens avoided by provider-native prompt caching.",
     SavingsSource.CUTCTX_COMPRESSION: "Tokens removed by Cutctx compression layers.",
     SavingsSource.TOOL_SCHEMA_COMPACTION: "Tokens removed by compacting repeated tool definitions.",
-    SavingsSource.API_SURFACE_SLIMMING: "Tokens removed by trimming oversized tool and API surfaces.",
+    SavingsSource.API_SURFACE_SLIMMING: "Tokens removed by trimming oversized tool API surfaces.",
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",

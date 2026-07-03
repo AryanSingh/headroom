@@ -22,9 +22,9 @@ CUTCTX_MODEL_CACHE_DIR=/opt/cutctx/models
 
 ## 2. Offline License Validation
 
-Because Cutctx cannot reach the PitchToShip servers for periodic license validation in an air-gapped environment, you must use an offline HMAC-signed license key.
+Because an air-gapped Cutctx deployment cannot reach hosted license-validation services, you must use an offline-issued enterprise license key.
 
-1. Generate your offline key in the PitchToShip vendor portal (Enterprise Tier only).
+1. Generate or obtain an offline key through your commercial licensing workflow.
 2. Pass the key to the Cutctx proxy via the environment:
 ```env
 CUTCTX_EE_LICENSE_KEY="ptsk_off_..."

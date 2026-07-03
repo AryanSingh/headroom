@@ -1,78 +1,105 @@
-# Cutctx / Cutctx — PitchToShip Billing Integration
+# Billing Integration Status
 
-Cutctx billing is managed centrally by **PitchToShip** (`pitchtoship.com`) using **Razorpay** as the payment processor. The Cutctx proxy validates licenses against the PitchToShip entitlements API at startup and on-demand.
+This document describes the **current repository state** for Cutctx billing and
+licensing. It is intentionally operational and does not claim that the hosted
+self-serve billing path is production-ready.
 
-## How it works
+## Current architecture in this repo
 
-1. Customer visits `pitchtoship.com` and subscribes to a plan via Razorpay checkout.
-2. On `subscription.activated`, the PitchToShip webhook issues a license key and tags the customer's plan in Razorpay.
-3. The Cutctx proxy reads `CUTCTX_LICENSE_KEY` and validates it by calling `CUTCTX_LICENSE_VALIDATION_URL` at startup.
-4. If the license is valid and includes `Cutctx`, the proxy starts normally. Otherwise it enters trial or blocked mode per `CUTCTX_TRIAL_ENFORCEMENT`.
+The billing surface is split across two layers:
 
-## Plans that include Cutctx
+1. **Hosted checkout / portal helpers** in the OSS and EE billing helpers
+   still default to `https://pitchtoship.com` for checkout and billing-portal
+   URLs.
+2. **Enterprise subscription mapping** in the EE webhook handler is
+   Stripe-based and reads `STRIPE_*` environment variables for tier mapping.
 
-| Plan | Products included | Monthly price |
-|------|------------------|---------------|
-| **Starter** | Cutctx only | $49/mo |
-| **Studio** | Cutctx + Bruno + VibeGuard | $149/mo |
-| **Portfolio** | All products (custom terms) | Contact sales |
+That means the current codebase reflects a **hybrid, transitional billing
+surface**, not a single polished self-serve system.
 
-## Environment variables
+## What the code does today
+
+### Checkout helpers
+
+- `cutctx/billing.py`
+- `cutctx_ee/billing/__init__.py`
+
+These helpers:
+
+- default `PITCHTOSHIP_BASE_URL` to `https://pitchtoship.com`
+- call `POST /api/billing/checkout` to request a checkout URL
+- fall back to `/checkout?plan=...` if the API call fails
+- call `POST /api/billing/portal` for a portal URL
+- fall back to `/billing` if the API call fails
+
+Current tier mapping in these helpers is:
+
+| Cutctx tier | Hosted plan key |
+|---|---|
+| `team` | `starter` |
+| `business` | `studio` |
+| `enterprise` | `portfolio` |
+
+### EE webhook handling
+
+- `cutctx_ee/billing/stripe_webhook.py`
+
+The enterprise webhook handler is Stripe-based. It currently reads:
+
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_API_KEY`
+- `STRIPE_PRICE_TEAM`
+- `STRIPE_PRICE_BUSINESS`
+- `STRIPE_PRICE_ENTERPRISE`
+
+The webhook code maps Stripe price IDs back to Cutctx tiers.
+
+### Offline / air-gapped licensing
+
+Offline licensing does **not** depend on the hosted billing URLs.
+Air-gapped and offline paths rely on signed local verification material such as:
+
+- `CUTCTX_LICENSE_HMAC_SECRET`
+- offline license data / locally cached license state
+
+See:
+
+- `docs/air-gap-deployment.md`
+
+## Environment variables in active use
+
+### Hosted helper layer
 
 ```env
-# License key issued by PitchToShip after a successful Razorpay payment
-CUTCTX_LICENSE_KEY=pts_live_...
-
-# PitchToShip entitlements endpoint — validates the license at startup
-# GET /api/billing/entitlements?email=<customer-email>
-CUTCTX_LICENSE_VALIDATION_URL=https://pitchtoship.com/api/billing/entitlements
-
-# PitchToShip/Razorpay webhook secret — required when STRICT_MODE=1
-CUTCTX_RAZORPAY_WEBHOOK_SECRET=pts_whsec_...
-
-# Set to 1 to refuse startup without a valid license
-CUTCTX_BILLING_STRICT_MODE=1
-
-# Set to 0 to disable the trial countdown
-CUTCTX_TRIAL_ENFORCEMENT=1
+PITCHTOSHIP_URL=https://pitchtoship.com
 ```
 
-## API endpoints (PitchToShip backend)
+### Stripe webhook layer
 
-### Check entitlements
-```
-GET https://pitchtoship.com/api/billing/entitlements?email=<customer-email>
-```
-Response:
-```json
-{
-  "active": true,
-  "plan": "starter",
-  "products": ["Cutctx"],
-  "validUntil": "2026-07-25T00:00:00.000Z",
-  "customerId": "cust_...",
-  "subscriptionId": "sub_..."
-}
+```env
+STRIPE_WEBHOOK_SECRET=...
+STRIPE_API_KEY=...
+STRIPE_PRICE_TEAM=...
+STRIPE_PRICE_BUSINESS=...
+STRIPE_PRICE_ENTERPRISE=...
 ```
 
-The proxy checks that `"Cutctx"` appears in `products` and that `active` is `true`.
+### Offline verification
 
-### Validate a license key directly
-```
-POST https://pitchtoship.com/api/billing/validate
-Content-Type: application/json
-
-{ "key": "pts_live_...", "product": "Cutctx" }
+```env
+CUTCTX_LICENSE_HMAC_SECRET=...
+CUTCTX_OFFLINE_MODE=1
 ```
 
-## Webhook note
+## Important release note
 
-The `CUTCTX_RAZORPAY_WEBHOOK_SECRET` replaces the old `CUTCTX_STRIPE_WEBHOOK_SECRET`. If you have the old variable set in an existing deployment, rename it to `CUTCTX_RAZORPAY_WEBHOOK_SECRET`. The billing provider changed from Stripe to Razorpay via PitchToShip.
+The repository currently contains hosted billing helpers, but those helpers
+alone are **not evidence of a working customer self-serve checkout flow**.
+Release, go/no-go, and audit work should verify the hosted endpoints separately
+before treating them as launch-ready.
 
-## Air-gap / offline mode
+## Support guidance
 
-When `CUTCTX_OFFLINE_MODE=1`, license validation falls back to `CUTCTX_LICENSE_HMAC_SECRET` for offline HMAC verification. The PitchToShip entitlements URL is not called in this mode.
-
-## Support
-
-For billing issues, direct customers to `pitchtoship.com/billing` or `hello@pitchtoship.com`.
+Until the hosted billing path is fully verified and customer-facing materials are
+updated, treat billing and licensing issues as an operator-led support flow
+rather than a self-serve flow.

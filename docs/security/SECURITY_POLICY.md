@@ -50,8 +50,8 @@ License keys encode an `EntitlementTier` (BUILDER, TEAM, BUSINESS, or ENTERPRISE
 
 **Issuance process:**
 
-1. A Cutctx account holder completes purchase or trial activation via the customer portal.
-2. The billing system invokes `cutctx license generate` with the customer's tier and optional expiry timestamp.
+1. A Cutctx operator initiates purchase, trial activation, or license issuance through the current commercial licensing workflow.
+2. The billing or licensing system invokes `cutctx license generate` with the customer's tier and optional expiry timestamp.
 3. The resulting signed key is delivered to the customer over TLS; it is never transmitted in plaintext or logged.
 4. Keys are recorded in the license registry with issuance timestamp, tier, and customer account ID.
 
@@ -233,4 +233,4 @@ Cutctx conducts an annual penetration test covering the following scope:
 
 **Findings** are tracked as security issues with severity ratings. Critical and High findings block the next release until resolved. Medium and Low findings are scheduled within the following quarter.
 
-Third-party customers may request access to the most recent penetration test executive summary under NDA.
+When a current third-party penetration test executive summary exists, Enterprise customers may request access under NDA. This policy does not by itself guarantee that a fresh report is available in every release state.

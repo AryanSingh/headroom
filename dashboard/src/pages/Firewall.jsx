@@ -16,7 +16,9 @@ export default function Firewall({ searchQuery = '' }) {
   const [scanError, setScanError] = useState(null);
 
   const handleScan = async () => {
-    if (!scanText.trim()) return;
+    if (!scanText.trim()) {
+      return;
+    }
     setScanning(true);
     setScanResult(null);
     setScanError(null);
@@ -26,7 +28,9 @@ export default function Firewall({ searchQuery = '' }) {
         headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({ text: scanText }),
       });
-      if (!response.ok) throw new Error(`Scan returned ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Scan returned ${response.status}`);
+      }
       setScanResult(await response.json());
     } catch (e) {
       setScanError(e.message || String(e));
