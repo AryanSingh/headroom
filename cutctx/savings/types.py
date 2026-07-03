@@ -21,8 +21,9 @@ class SavingsSource(str, Enum):
     # max_tokens auto-tuning, style shaping). Additive enum member.
     # See artifacts/savings-moat-expansion-specs.md §WS10.
     OUTPUT_OPTIMIZATION = "output_optimization"
-    # WS11: tool-result memoization. Additive enum member.
-    # See artifacts/savings-moat-expansion-specs.md §WS11.
+    # WS11: tool-result memoization. Additive enum member; older
+    # consumers treat it like any other source. See
+    # artifacts/savings-moat-expansion-specs.md §WS11.
     MEMOIZATION = "memoization"
 
     @classmethod

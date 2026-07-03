@@ -61,6 +61,7 @@ class TestSavingsSource:
         # The WS10 and WS11 sources are the new additions
         assert hasattr(SavingsSource, "OUTPUT_OPTIMIZATION")
         assert hasattr(SavingsSource, "MEMOIZATION")
+        assert SavingsSource.MEMOIZATION.value == "memoization"
         # The total count must be at least the baseline + 2
         assert len(SavingsSource) >= 9
 
