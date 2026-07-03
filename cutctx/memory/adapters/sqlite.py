@@ -89,6 +89,18 @@ class SQLiteMemoryStore:
         self.db_path = Path(db_path)
         self._init_db()
 
+    @staticmethod
+    def _migrate_add_column(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+        """Add a column to an existing table if it doesn't exist.
+
+        SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN,
+        so we catch the error if the column already exists.
+        """
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists — this is expected on re-init
+
     def _get_conn(self) -> sqlite3.Connection:
         """Get a new database connection (thread-safe pattern).
 
@@ -113,6 +125,10 @@ class SQLiteMemoryStore:
                     session_id TEXT,
                     agent_id TEXT,
                     turn_id TEXT,
+
+                    -- Org/workspace scoping (WS5)
+                    workspace_id TEXT,
+                    project_id TEXT,
 
                     -- Temporal
                     created_at TEXT NOT NULL,
@@ -143,6 +159,10 @@ class SQLiteMemoryStore:
                     metadata TEXT NOT NULL DEFAULT '{}'
                 )
             """)
+
+            # Migrate existing databases: add workspace_id / project_id if missing
+            self._migrate_add_column(conn, "memories", "workspace_id", "TEXT")
+            self._migrate_add_column(conn, "memories", "project_id", "TEXT")
 
             # Create indexes for efficient querying
             conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id)")
@@ -206,6 +226,8 @@ class SQLiteMemoryStore:
             "session_id": memory.session_id,
             "agent_id": memory.agent_id,
             "turn_id": memory.turn_id,
+            "workspace_id": memory.workspace_id,
+            "project_id": memory.project_id,
             "created_at": memory.created_at.isoformat(),
             "valid_from": memory.valid_from.isoformat(),
             "valid_until": memory.valid_until.isoformat() if memory.valid_until else None,
@@ -224,6 +246,15 @@ class SQLiteMemoryStore:
 
     def _row_to_memory(self, row: sqlite3.Row) -> Memory:
         """Convert database row to Memory object."""
+        # Handle columns that may be absent in older databases (graceful migration)
+        workspace_id = None
+        project_id = None
+        try:
+            workspace_id = row["workspace_id"]
+            project_id = row["project_id"]
+        except (IndexError, KeyError):
+            pass
+
         return Memory(
             id=row["id"],
             content=row["content"],
@@ -231,6 +262,8 @@ class SQLiteMemoryStore:
             session_id=row["session_id"],
             agent_id=row["agent_id"],
             turn_id=row["turn_id"],
+            workspace_id=workspace_id,
+            project_id=project_id,
             created_at=datetime.fromisoformat(row["created_at"]),
             valid_from=datetime.fromisoformat(row["valid_from"]),
             valid_until=datetime.fromisoformat(row["valid_until"]) if row["valid_until"] else None,
@@ -263,6 +296,7 @@ class SQLiteMemoryStore:
                 """
                 INSERT OR REPLACE INTO memories (
                     id, content, user_id, session_id, agent_id, turn_id,
+                    workspace_id, project_id,
                     created_at, valid_from, valid_until,
                     category, importance,
                     supersedes, superseded_by, promoted_from, promotion_chain,
@@ -270,6 +304,7 @@ class SQLiteMemoryStore:
                     entity_refs, embedding, metadata
                 ) VALUES (
                     :id, :content, :user_id, :session_id, :agent_id, :turn_id,
+                    :workspace_id, :project_id,
                     :created_at, :valid_from, :valid_until,
                     :category, :importance,
                     :supersedes, :superseded_by, :promoted_from, :promotion_chain,
@@ -297,6 +332,7 @@ class SQLiteMemoryStore:
                 """
                 INSERT OR REPLACE INTO memories (
                     id, content, user_id, session_id, agent_id, turn_id,
+                    workspace_id, project_id,
                     created_at, valid_from, valid_until,
                     category, importance,
                     supersedes, superseded_by, promoted_from, promotion_chain,
@@ -304,6 +340,7 @@ class SQLiteMemoryStore:
                     entity_refs, embedding, metadata
                 ) VALUES (
                     :id, :content, :user_id, :session_id, :agent_id, :turn_id,
+                    :workspace_id, :project_id,
                     :created_at, :valid_from, :valid_until,
                     :category, :importance,
                     :supersedes, :superseded_by, :promoted_from, :promotion_chain,
@@ -660,6 +697,7 @@ class SQLiteMemoryStore:
                 """
                 INSERT OR REPLACE INTO memories (
                     id, content, user_id, session_id, agent_id, turn_id,
+                    workspace_id, project_id,
                     created_at, valid_from, valid_until,
                     category, importance,
                     supersedes, superseded_by, promoted_from, promotion_chain,
@@ -667,6 +705,7 @@ class SQLiteMemoryStore:
                     entity_refs, embedding, metadata
                 ) VALUES (
                     :id, :content, :user_id, :session_id, :agent_id, :turn_id,
+                    :workspace_id, :project_id,
                     :created_at, :valid_from, :valid_until,
                     :category, :importance,
                     :supersedes, :superseded_by, :promoted_from, :promotion_chain,

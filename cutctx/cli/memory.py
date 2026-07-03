@@ -170,10 +170,30 @@ def _search_content(store: SQLiteMemoryStore, query: str, limit: int = 50) -> li
         return [store._row_to_memory(row) for row in cursor]
 
 
-def _export_all(store: SQLiteMemoryStore) -> list[dict[str, Any]]:
-    """Export all memories as a list of dictionaries."""
+def _export_all(
+    store: SQLiteMemoryStore,
+    *,
+    workspace_id: str | None = None,
+    project_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Export memories as a list of dictionaries, optionally filtered."""
+    query = "SELECT * FROM memories"
+    params: list[str] = []
+    conditions: list[str] = []
+
+    if workspace_id is not None:
+        conditions.append("workspace_id = ?")
+        params.append(workspace_id)
+    if project_id is not None:
+        conditions.append("project_id = ?")
+        params.append(project_id)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY created_at ASC"
+
     with store._get_conn() as conn:
-        cursor = conn.execute("SELECT * FROM memories ORDER BY created_at ASC")
+        cursor = conn.execute(query, params)
         memories = [store._row_to_memory(row) for row in cursor]
 
     return [m.to_dict() for m in memories]
@@ -194,6 +214,7 @@ def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -
                     """
                     INSERT OR REPLACE INTO memories (
                         id, content, user_id, session_id, agent_id, turn_id,
+                        workspace_id, project_id,
                         created_at, valid_from, valid_until,
                         category, importance,
                         supersedes, superseded_by, promoted_from, promotion_chain,
@@ -201,6 +222,7 @@ def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -
                         entity_refs, embedding, metadata
                     ) VALUES (
                         :id, :content, :user_id, :session_id, :agent_id, :turn_id,
+                        :workspace_id, :project_id,
                         :created_at, :valid_from, :valid_until,
                         :category, :importance,
                         :supersedes, :superseded_by, :promoted_from, :promotion_chain,
@@ -809,20 +831,36 @@ def purge_memories(ctx: click.Context, db_path: str, confirm_flag: bool) -> None
     type=click.Path(),
     help="Output file path. If not specified, outputs to stdout.",
 )
+@click.option(
+    "--workspace-id",
+    help="Filter by workspace ID. Only memories for this workspace are exported.",
+)
+@click.option(
+    "--project-id",
+    help="Filter by project ID. Only memories for this project are exported.",
+)
 @click.pass_context
-def export_memories(ctx: click.Context, db_path: str, output: str | None) -> None:
-    """Export all memories to JSON.
+def export_memories(
+    ctx: click.Context,
+    db_path: str,
+    output: str | None,
+    workspace_id: str | None,
+    project_id: str | None,
+) -> None:
+    """Export memories to JSON.
 
     \b
     Examples:
-        cutctx memory export                       Output to stdout
-        cutctx memory export --output backup.json  Save to file
-        cutctx memory export -o backup.json        Save to file (short form)
+        cutctx memory export                              Output to stdout
+        cutctx memory export --output backup.json          Save to file
+        cutctx memory export -o backup.json                Save to file (short form)
+        cutctx memory export --workspace-id org-1          Filter by workspace
+        cutctx memory export --project-id proj-42          Filter by project
     """
     store = get_store(db_path)
 
     try:
-        memories = _export_all(store)
+        memories = _export_all(store, workspace_id=workspace_id, project_id=project_id)
 
         json_output = json.dumps(memories, indent=2, default=str)
 
