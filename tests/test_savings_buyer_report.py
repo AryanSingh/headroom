@@ -242,8 +242,10 @@ def test_savings_by_source_empty_state_emits_valid_json():
         )
     if result.exit_code == 0:
         payload = json.loads(result.output)
-        # All five sources must be present with zero values.
-        assert set(payload["savings_by_source"].keys()) == {
+        # Additive contract (per artifacts/savings-moat-expansion-specs.md):
+        # the 5-source model has grown to N. The baseline 7 must be a
+        # subset, and the new WS10/WS11/WS13/WS16 sources must be present.
+        _expected_baseline = {
             "provider_prompt_cache",
             "cutctx_compression",
             "semantic_cache",
@@ -251,7 +253,21 @@ def test_savings_by_source_empty_state_emits_valid_json():
             "model_routing",
             "tool_schema_compaction",
             "api_surface_slimming",
+            "normalization",
+            "memoization",
+            "batch_routing",
+            "output_optimization",
         }
+        assert _expected_baseline.issubset(set(payload["savings_by_source"].keys())), (
+            f"baseline sources missing: {_expected_baseline - set(payload['savings_by_source'].keys())}"
+        )
+        # New sources must be present
+        assert "output_optimization" in payload["savings_by_source"]
+        assert "memoization" in payload["savings_by_source"]
+        assert "batch_routing" in payload["savings_by_source"]
+        assert "normalization" in payload["savings_by_source"], (
+            "WS16 NORMALIZATION source must be present in the JSON output"
+        )
         assert payload["sessions_count"] == 0
         assert payload["total_tokens_saved"] == 0
 

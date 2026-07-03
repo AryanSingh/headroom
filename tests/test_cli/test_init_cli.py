@@ -517,9 +517,9 @@ def test_ensure_codex_provider_keeps_root_keys_above_existing_table(
 ) -> None:
     """#260: a config ending in a table must not capture the provider root keys.
 
-    Appending the block after a trailing [features] table scoped model_provider
+    Appending the block after a trailing [features] table scoped openai_base_url
     under it, so Codex refused to start with
-    'invalid type: string "cutctx", expected a boolean in features'.
+    'invalid type: string "...", expected a boolean in features'.
     """
     init_cli, _ = _load_init_module(monkeypatch)
     path = tmp_path / "config.toml"
@@ -528,30 +528,33 @@ def test_ensure_codex_provider_keeps_root_keys_above_existing_table(
     init_cli._ensure_codex_provider(path, 8787)
 
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))
-    # model_provider belongs at the document root, not under [features].
-    assert parsed["model_provider"] == "cutctx"
-    assert "model_provider" not in parsed["features"]
+    # openai_base_url belongs at the document root, not under [features].
+    assert parsed["openai_base_url"] == "http://127.0.0.1:8787/v1"
     assert "openai_base_url" not in parsed["features"]
+    assert "model_provider" not in parsed["features"]
     # The user's existing table is preserved.
     assert parsed["features"]["hooks"] is True
-    assert parsed["model_providers"]["cutctx"]["base_url"] == "http://127.0.0.1:8787/v1"
+    # init no longer forces a model_provider or custom provider table.
+    assert "model_provider" not in parsed
+    assert "model_providers" not in parsed
 
 
-def test_ensure_codex_provider_replaces_existing_model_provider(
-    monkeypatch, tmp_path: Path
-) -> None:
-    """A pre-existing root model_provider is replaced, never duplicated (#260).
+def test_ensure_codex_provider_replaces_existing_base_url(monkeypatch, tmp_path: Path) -> None:
+    """Re-running ensure with a new port replaces the prior openai_base_url, never duplicates it.
 
-    A second top-level model_provider key would be invalid TOML; init owns it.
+    A second top-level openai_base_url key would be invalid TOML; init owns it.
+    A pre-existing root model_provider is left untouched (#406).
     """
     init_cli, _ = _load_init_module(monkeypatch)
     path = tmp_path / "config.toml"
     path.write_text('model_provider = "openai"\n[features]\nhooks = true\n', encoding="utf-8")
 
     init_cli._ensure_codex_provider(path, 8787)
+    init_cli._ensure_codex_provider(path, 9999)
 
     parsed = tomllib.loads(path.read_text(encoding="utf-8"))  # raises on a duplicate key
-    assert parsed["model_provider"] == "cutctx"
+    assert parsed["openai_base_url"] == "http://127.0.0.1:9999/v1"
+    assert parsed["model_provider"] == "openai"
     assert parsed["features"]["hooks"] is True
 
 
@@ -1212,6 +1215,23 @@ def test_init_codex_writes_openai_base_url(monkeypatch, tmp_path: Path) -> None:
     assert "requires_openai_auth" not in content, (
         f"requires_openai_auth must not appear in init codex config:\n{content}"
     )
+    assert 'model_provider = "cutctx"' not in content
+    assert "[model_providers.cutctx]" not in content
+
+
+def test_init_codex_preserves_user_model_provider(monkeypatch, tmp_path: Path) -> None:
+    """Init must not clobber a user-selected built-in provider."""
+    init_cli, _ = _load_init_module(monkeypatch)
+    path = tmp_path / ".codex" / "config.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('model_provider = "openai"\n')
+
+    init_cli._ensure_codex_provider(path, 8787)
+
+    content = path.read_text(encoding="utf-8")
+    assert 'model_provider = "openai"' in content
+    assert 'model_provider = "cutctx"' not in content
+    assert 'openai_base_url = "http://127.0.0.1:8787/v1"' in content
 
 
 def test_init_codex_strip_removes_openai_base_url(monkeypatch, tmp_path: Path) -> None:

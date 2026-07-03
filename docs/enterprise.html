@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CutCtx — Enterprise | Context Optimization for AI Agents</title>
+    <title>Cutctx — Enterprise | Context Optimization for AI Agents</title>
     <meta name="description" content="Self-hosted context optimization and governance layer for AI agents. Reduce costs 60-95%, preserve privacy, and govern AI workflows across providers.">
     <meta name="description" content="Self-hosted context optimization and governance layer for AI agents. Reduce costs 60-95%, preserve privacy, and govern AI workflows across providers.">
     <style>
@@ -155,7 +155,7 @@
 <!-- Navigation -->
 <nav class="nav">
     <div class="nav-inner">
-        <div class="nav-logo"><span>Cut</span>Ctx</div>
+        <div class="nav-logo"><span>Cut</span>ctx</div>
         <div class="nav-links">
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
@@ -234,11 +234,11 @@
     <div class="steps">
         <div class="step">
             <h3>Deploy the proxy</h3>
-            <p>Run CutCtx locally, in Docker, or in your Kubernetes cluster. Zero code changes — just point your agent at the proxy.</p>
+            <p>Run Cutctx locally, in Docker, or in your Kubernetes cluster. Zero code changes — just point your agent at the proxy.</p>
         </div>
         <div class="step">
             <h3>Context flows through</h3>
-            <p>CutCtx detects content type (JSON, code, logs, diffs) and applies the right compressor. Originals stored locally for retrieval.</p>
+            <p>Cutctx detects content type (JSON, code, logs, diffs) and applies the right compressor. Originals stored locally for retrieval.</p>
         </div>
         <div class="step">
             <h3>Save, govern, measure</h3>
@@ -288,15 +288,15 @@
 
 <!-- Why Not Native Caching -->
 <section class="section">
-    <div class="section-label">Why CutCtx</div>
+    <div class="section-label">Why Cutctx</div>
     <h2>Beyond provider-native caching</h2>
-    <p class="subtitle">Native caching helps inside a single provider. CutCtx works across the entire agent stack.</p>
+    <p class="subtitle">Native caching helps inside a single provider. Cutctx works across the entire agent stack.</p>
     <table class="comparison">
         <thead>
             <tr>
                 <th>Capability</th>
                 <th>Native Caching</th>
-                <th>CutCtx</th>
+                <th>Cutctx</th>
             </tr>
         </thead>
         <tbody>
@@ -348,15 +348,15 @@
 <section class="section">
     <div class="section-label">Savings Attribution</div>
     <h2>Five savings sources, attributed independently</h2>
-    <p class="subtitle">Every token saved is tagged with the source that produced it, so the buyer report never double-counts. Provider cache and CutCtx compression are tracked separately, not netted.</p>
+    <p class="subtitle">Every token saved is tagged with the source that produced it, so the buyer report never double-counts. Provider cache and Cutctx compression are tracked separately, not netted.</p>
     <div class="grid">
         <div class="card">
             <h3>Provider prompt cache</h3>
-            <p>Tokens served from the upstream provider's native prompt cache (Anthropic <code>cache_read_input_tokens</code>, OpenAI <code>cached_tokens</code>, Gemini <code>cachedContentTokenCount</code>). You get this for free; CutCtx only reports it.</p>
+            <p>Tokens served from the upstream provider's native prompt cache (Anthropic <code>cache_read_input_tokens</code>, OpenAI <code>cached_tokens</code>, Gemini <code>cachedContentTokenCount</code>). You get this for free; Cutctx only reports it.</p>
         </div>
         <div class="card">
-            <h3>CutCtx compression</h3>
-            <p>Tokens CutCtx itself removed via SmartCrusher, LiveZone, CodeCompressor, LogCompressor, and the other content-aware compressors. This is the value CutCtx adds on top of native caching.</p>
+            <h3>Cutctx compression</h3>
+            <p>Tokens Cutctx itself removed via SmartCrusher, LiveZone, CodeCompressor, LogCompressor, and the other content-aware compressors. This is the value Cutctx adds on top of native caching.</p>
         </div>
         <div class="card">
             <h3>Semantic cache</h3>
@@ -371,7 +371,7 @@
             <p>Tokens served by a cheaper model than the user originally requested, plus the resulting dollar savings. Routing gains are tracked in tokens <em>and</em> USD.</p>
         </div>
     </div>
-    <p class="subtitle" style="margin-top: 1.5rem;"><strong>Attribution invariant:</strong> the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of CutCtx above and beyond their existing provider cache, in dollars, with a reproducible schema.</p>
+    <p class="subtitle" style="margin-top: 1.5rem;"><strong>Attribution invariant:</strong> the total reported savings is the sum of per-source values, never the difference between raw and optimized input. The buyer's CFO sees the marginal value of Cutctx above and beyond their existing provider cache, in dollars, with a reproducible schema.</p>
 </section>
 
 <!-- ROI -->
@@ -381,7 +381,7 @@
     <div class="roi-box">
         <div class="roi-left">
             <h3>Typical pilot results</h3>
-            <p>Teams running CutCtx see immediate, measurable savings. Our pilot framework captures baseline metrics, deploys in under 30 minutes, and delivers weekly ROI reports.</p>
+            <p>Teams running Cutctx see immediate, measurable savings. Our pilot framework captures baseline metrics, deploys in under 30 minutes, and delivers weekly ROI reports.</p>
             <a href="mailto:hello@cutctx.dev" class="btn btn-primary">Start a Pilot →</a>
         </div>
         <div class="roi-metrics">
@@ -409,7 +409,7 @@
 <section class="section" id="security">
     <div class="section-label">Security & Privacy</div>
     <h2>Your data stays in your infrastructure</h2>
-    <p class="subtitle">CutCtx is local-first by default. No prompts, tool outputs, or conversation content ever leave your network.</p>
+    <p class="subtitle">Cutctx is local-first by default. No prompts, tool outputs, or conversation content ever leave your network.</p>
     <div class="security-grid">
         <div class="security-item">
             <div class="icon">🏠</div>
@@ -508,7 +508,7 @@
                 <li>Email support (business hours)</li>
                 <li>Deployment assistance</li>
             </ul>
-            <a href="https://pitchtoship.com/checkout?product=cutctx-team" class="btn btn-primary" style="width: 100%; justify-content: center;">Start Free Trial</a>
+            <a href="https://pitchtoship.com/checkout?plan=starter" class="btn btn-primary" style="width: 100%; justify-content: center;">Start Free Trial</a>
         </div>
         <div class="pricing-card">
             <div class="tier">Enterprise</div>

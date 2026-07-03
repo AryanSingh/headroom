@@ -45,6 +45,8 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
     assert sanitized == {
         "model": "gpt-5.5",
         "input": "hi",
+        "store": False,
+        "stream": True,
     }
     assert stripped == [
         "client_metadata",
@@ -73,7 +75,7 @@ def test_ws_http_fallback_normalization_unwraps_and_sanitizes_subscription_body(
         strip_chatgpt_subscription_fields=True,
     )
 
-    assert normalized == {"model": "gpt-5.5", "input": "hi", "stream": True}
+    assert normalized == {"model": "gpt-5.5", "input": "hi", "store": False, "stream": True}
     assert stripped == [
         "client_metadata",
         "generate",

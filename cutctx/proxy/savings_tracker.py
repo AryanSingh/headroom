@@ -257,7 +257,7 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
     Phase 1.4: preserves the new savings sources (semantic_cache,
     self_hosted_prefix_cache, model_routing) on reload so the buyer
     report and the dashboard see restart-safe by-source attribution
-    for all five sources.
+    for all tracked sources.
     """
     timestamp: datetime | None = None
     total_tokens_saved = 0
@@ -904,7 +904,7 @@ class SavingsTracker:
             )
 
             # Persist a history row when there is something to record:
-            # either Cutctx savings, or any of the five savings sources
+            # either Cutctx savings, or any of the tracked savings sources
             # fired (Phase 1.4). The thresholds mirror the source
             # defaults so a request with provider cache + semantic
             # cache + model routing all leaves a row.

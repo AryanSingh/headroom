@@ -41,6 +41,10 @@ def test_savings_source_enum_values() -> None:
     assert SavingsSource.SEMANTIC_CACHE.value == "semantic_cache"
     assert SavingsSource.PREFIX_CACHE_SELF_HOSTED.value == "prefix_cache_self_hosted"
     assert SavingsSource.MODEL_ROUTING.value == "model_routing"
+    assert SavingsSource.NORMALIZATION.value == "normalization"
+    assert SavingsSource.BATCH_ROUTING.value == "batch_routing"
+    assert SavingsSource.MEMOIZATION.value == "memoization"
+    assert SavingsSource.OUTPUT_OPTIMIZATION.value == "output_optimization"
 
 
 def test_savings_source_from_str_valid() -> None:

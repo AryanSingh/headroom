@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - [ ] Docker image built: `docker build -t cutctx-proxy .`
-- [ ] License key obtained from the PitchToShip checkout / billing portal
+- [ ] License key obtained through the current commercial licensing workflow
 - [ ] Upstream API key (Anthropic/OpenAI) configured
 - [ ] Admin API key generated (for dashboard/stats access)
 
@@ -14,7 +14,7 @@
 |----------|---------|-------------|
 | `CUTCTX_PROXY_COMPRESSION` | `false` | Enable compression (set to `1`) |
 | `CUTCTX_PROXY_COMPRESSION_MODE` | `off` | `live-zone` for production |
-| `CUTCTX_LICENSE_KEY` | — | License key issued by PitchToShip (required for commercial use) |
+| `CUTCTX_LICENSE_KEY` | — | Commercial license key for the deployment |
 | `CUTCTX_ADMIN_API_KEY` | — | Admin auth for /dashboard, /stats |
 | `CUTCTX_CORS_ORIGINS` | `""` (closed) | Comma-separated origins, or `*` |
 | `CUTCTX_MAX_BODY_MB` | `50` | Max request body size in MB |
@@ -82,7 +82,7 @@ process_resident_memory_bytes / 1024 / 1024
 | High latency | p99 > 30s for 5 min | Check upstream_timeout, compression_mode |
 | Memory pressure | > 80% of limit for 10 min | Scale up or reduce max_body_bytes |
 | CCR store full | > 10K entries | Consider Redis backend |
-| License expired | Grace period ending | Renew through PitchToShip checkout / billing portal |
+| License expired | Grace period ending | Renew through the current commercial licensing workflow |
 
 ## 3. Common Operations
 
@@ -263,7 +263,7 @@ curl -H "X-Cutctx-Admin-Key: YOUR_KEY" http://localhost:8080/stats | jq .license
 
 # Grace period: 7 days after expiry, features still work
 # After grace period: compression degrades, telemetry stops
-# Fix: renew license through PitchToShip, update CUTCTX_LICENSE_KEY secret
+# Fix: renew the commercial license and update the CUTCTX_LICENSE_KEY secret
 ```
 
 ## 6. Backup & Recovery

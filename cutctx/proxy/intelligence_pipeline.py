@@ -30,6 +30,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from cutctx.proxy.autopilot import (
+    AutopilotConfig,
+    AutopilotController,
+    LevelAdjustment,
+    QualitySignal,
+)
+
 logger = logging.getLogger("cutctx.intelligence")
 
 # ── Runtime flag store ────────────────────────────────────────────────────────
@@ -76,6 +83,9 @@ class PipelineContext:
 
     # Per-message relevance scores (task-aware)
     message_relevance_scores: list[float] = field(default_factory=list)
+    autopilot_task_type: str = "general"
+    autopilot_level: int | None = None
+    autopilot_biases: dict[int, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -94,6 +104,8 @@ class PipelineContext:
             "shared_context_hit": self.shared_context_hit,
             "total_latency_ms": round(self.total_latency_ms, 2),
             "message_relevance_scores": self.message_relevance_scores,
+            "autopilot_task_type": self.autopilot_task_type,
+            "autopilot_level": self.autopilot_level,
         }
 
 
@@ -116,6 +128,8 @@ class IntelligencePipeline:
         profiles: bool = False,
         shared_context: bool = False,
         cost_forecast: bool = False,
+        autopilot: bool = False,
+        autopilot_config: AutopilotConfig | None = None,
         model: str = "claude-3-5-sonnet-20241022",
     ):
         self.task_aware = task_aware
@@ -126,6 +140,8 @@ class IntelligencePipeline:
         self.profiles = profiles
         self.shared_context = shared_context
         self.cost_forecast = cost_forecast
+        self.autopilot = autopilot
+        self.autopilot_config = autopilot_config or AutopilotConfig()
         self.model = model
 
         # Stateful instances — persist across requests within same pipeline
@@ -134,34 +150,72 @@ class IntelligencePipeline:
         self._cost_tracker: Any = None
         self._profile: Any = None
         self._coordinator: Any = None
+        self._autopilot_controller: AutopilotController | None = None
+        self._autopilot_level_history: list[dict[str, Any]] = []
+        self._autopilot_adjustments: list[dict[str, Any]] = []
+        self._autopilot_history_limit = 24
+
+    def sync_from_config(self, config: Any) -> IntelligencePipeline:
+        """Refresh live flags from ProxyConfig/runtime overrides without losing state."""
+
+        def _flag(key: str, default: bool = False) -> bool:
+            if key in _RUNTIME_FLAGS:
+                return bool(_RUNTIME_FLAGS[key])
+            value = getattr(config, key, default)
+            if type(value).__module__.startswith("unittest.mock"):
+                return default
+            return bool(value)
+
+        def _get_int(key: str, default: int) -> int:
+            value = getattr(config, key, default)
+            if type(value).__module__.startswith("unittest.mock"):
+                return default
+            if isinstance(value, bool):
+                return default
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _get_str(key: str, default: str) -> str:
+            value = getattr(config, key, default)
+            if type(value).__module__.startswith("unittest.mock"):
+                return default
+            return value if isinstance(value, str) and value else default
+
+        self.task_aware = _flag("task_aware_enabled")
+        self.dedup = _flag("dedup_enabled")
+        self.context_budget = _flag("context_budget_enabled")
+        self.context_budget_max_tokens = _get_int("context_budget_max_tokens", 100_000)
+        self.context_budget_policy = _get_str("context_budget_policy", "balanced")
+        self.profiles = _flag("profiles_enabled")
+        self.shared_context = _flag("shared_context_enabled")
+        self.cost_forecast = _flag("cost_forecast_enabled")
+        self.autopilot = _flag("autopilot_enabled")
+        self.model = _get_str("default_model", self.model)
+
+        next_autopilot_config = AutopilotConfig(
+            enabled=self.autopilot,
+            min_level=_get_int("autopilot_min_level", 1),
+            max_level=_get_int("autopilot_max_level", 5),
+            hysteresis_window=_get_int("autopilot_hysteresis_window", 10),
+        )
+        if self.autopilot_config != next_autopilot_config:
+            self.autopilot_config = next_autopilot_config
+            if self._autopilot_controller is not None:
+                self._autopilot_controller.config = next_autopilot_config
+        return self
 
     @classmethod
     def from_config(cls, config: Any) -> IntelligencePipeline:
         """Create pipeline from ProxyConfig, with runtime flag overrides applied."""
-        def _flag(key: str, default: bool = False) -> bool:
-            # Runtime flags (set via /admin/config/flags) take precedence over
-            # the frozen ProxyConfig so features can be toggled without restart.
-            if key in _RUNTIME_FLAGS:
-                return bool(_RUNTIME_FLAGS[key])
-            return bool(getattr(config, key, default))
-
-        return cls(
-            task_aware=_flag("task_aware_enabled"),
-            dedup=_flag("dedup_enabled"),
-            context_budget=_flag("context_budget_enabled"),
-            context_budget_max_tokens=getattr(config, "context_budget_max_tokens", 100_000),
-            context_budget_policy=getattr(config, "context_budget_policy", "balanced"),
-            profiles=_flag("profiles_enabled"),
-            shared_context=_flag("shared_context_enabled"),
-            cost_forecast=_flag("cost_forecast_enabled"),
-            model=getattr(config, "default_model", "claude-3-5-sonnet-20241022"),
-        )
+        return cls().sync_from_config(config)
 
     def any_enabled(self) -> bool:
         """Check if any intelligence feature is enabled."""
         return any([
             self.task_aware, self.dedup, self.context_budget,
-            self.profiles, self.shared_context, self.cost_forecast,
+            self.profiles, self.shared_context, self.cost_forecast, self.autopilot,
         ])
 
     def _get_deduplicator(self) -> Any:
@@ -202,6 +256,116 @@ class IntelligencePipeline:
             from cutctx.shared_context import MultiAgentCoordinator
             self._coordinator = MultiAgentCoordinator.get_instance()
         return self._coordinator
+
+    def _get_autopilot_controller(self) -> AutopilotController:
+        """Get or create the WS19 controller."""
+        if self._autopilot_controller is None:
+            self._autopilot_controller = AutopilotController(self.autopilot_config)
+        return self._autopilot_controller
+
+    def _classify_autopilot_task_type(self, task: str | None) -> str:
+        if not task:
+            return "general"
+        lowered = task.lower()
+        if any(token in lowered for token in ("debug", "fix", "edit", "refactor", "implement", "code", "test")):
+            return "code"
+        if any(token in lowered for token in ("search", "find", "grep", "lookup", "trace", "locate")):
+            return "search"
+        if any(token in lowered for token in ("summarize", "summarise", "report", "overview", "list")):
+            return "summarize"
+        return "general"
+
+    def _bias_for_level(self, level: int) -> float:
+        span = max(1, self.autopilot_config.max_level - self.autopilot_config.min_level)
+        midpoint = self.autopilot_config.min_level + span / 2
+        normalized = (level - midpoint) / max(span / 2, 1)
+        return round(1.0 - (0.25 * normalized), 3)
+
+    def _record_autopilot_level(self, task_type: str, level: int, timestamp_seconds: float) -> None:
+        self._autopilot_level_history.append(
+            {
+                "task_type": task_type,
+                "level": level,
+                "timestamp": timestamp_seconds,
+            }
+        )
+        if len(self._autopilot_level_history) > self._autopilot_history_limit:
+            self._autopilot_level_history = self._autopilot_level_history[-self._autopilot_history_limit :]
+
+    @staticmethod
+    def merge_biases(
+        base_biases: dict[int, float] | None,
+        extra_biases: dict[int, float] | None,
+    ) -> dict[int, float] | None:
+        if not base_biases and not extra_biases:
+            return None
+        if not base_biases:
+            return dict(extra_biases or {})
+        if not extra_biases:
+            return dict(base_biases)
+
+        merged = dict(base_biases)
+        for index, value in extra_biases.items():
+            merged[index] = merged.get(index, 1.0) * value
+        return merged
+
+    def record_quality_signal(
+        self,
+        task_type: str,
+        outcome: str,
+        *,
+        timestamp_seconds: float | None = None,
+    ) -> LevelAdjustment | None:
+        if not self.autopilot:
+            return None
+
+        controller = self._get_autopilot_controller()
+        signal_timestamp = time.time() if timestamp_seconds is None else timestamp_seconds
+        adjustment = controller.ingest(
+            signal=QualitySignal(
+                task_type=task_type,
+                outcome=outcome,
+                timestamp_seconds=signal_timestamp,
+            )
+        )
+        current_level = controller.current_level(task_type)
+        self._record_autopilot_level(task_type, current_level, signal_timestamp)
+        if adjustment is not None:
+            self._autopilot_adjustments.append(
+                {
+                    "task_type": adjustment.task_type,
+                    "old_level": adjustment.old_level,
+                    "new_level": adjustment.new_level,
+                    "signal_kind": adjustment.signal_kind,
+                    "timestamp": adjustment.timestamp_seconds,
+                }
+            )
+            if len(self._autopilot_adjustments) > self._autopilot_history_limit:
+                self._autopilot_adjustments = self._autopilot_adjustments[-self._autopilot_history_limit :]
+        return adjustment
+
+    def autopilot_snapshot(self) -> dict[str, Any]:
+        controller = self._autopilot_controller
+        task_levels: dict[str, int] = {}
+        task_stats: dict[str, dict[str, int]] = {}
+        if controller is not None:
+            for task_type, stats in controller._stats.items():
+                task_levels[task_type] = controller.current_level(task_type)
+                task_stats[task_type] = {
+                    "signal_count": stats.signal_count,
+                    "clean_count": stats.clean_count,
+                    "adjustment_count": stats.adjustment_count,
+                }
+        return {
+            "enabled": self.autopilot,
+            "min_level": self.autopilot_config.min_level,
+            "max_level": self.autopilot_config.max_level,
+            "hysteresis_window": self.autopilot_config.hysteresis_window,
+            "task_levels": task_levels,
+            "task_stats": task_stats,
+            "recent_levels": list(self._autopilot_level_history),
+            "recent_adjustments": list(self._autopilot_adjustments),
+        }
 
     # ----------------------------------------------------------------
     # Pre-compression: runs BEFORE existing compression stages
@@ -328,6 +492,23 @@ class IntelligencePipeline:
                 )
             except Exception as e:
                 logger.debug("[%s] Intelligence: relevance scoring failed: %s", request_id, e)
+
+        if self.autopilot:
+            try:
+                controller = self._get_autopilot_controller()
+                ctx.autopilot_task_type = self._classify_autopilot_task_type(ctx.task)
+                ctx.autopilot_level = controller.current_level(ctx.autopilot_task_type)
+                bias = self._bias_for_level(ctx.autopilot_level)
+                ctx.autopilot_biases = {
+                    index: bias for index in range(len(messages))
+                }
+                self._record_autopilot_level(
+                    ctx.autopilot_task_type,
+                    ctx.autopilot_level,
+                    time.time(),
+                )
+            except Exception as e:
+                logger.debug("[%s] Intelligence: autopilot pre-compression failed: %s", request_id, e)
 
         ctx.total_latency_ms = (time.monotonic() - t0) * 1000
         return ctx
@@ -479,6 +660,12 @@ class IntelligencePipeline:
                     )
             except Exception as e:
                 logger.debug("[%s] Intelligence: shared context store failed: %s", request_id, e)
+
+        if self.autopilot and ctx.autopilot_task_type:
+            try:
+                self.record_quality_signal(ctx.autopilot_task_type, "clean")
+            except Exception as e:
+                logger.debug("[%s] Intelligence: autopilot clean-signal failed: %s", request_id, e)
 
         ctx.total_latency_ms += (time.monotonic() - t0) * 1000
         return result

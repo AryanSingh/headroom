@@ -115,15 +115,24 @@ test.describe('Overview Metrics & Panels', () => {
             savings_usd: 0.1387,
             compression_savings_usd: 0.1387,
             cache_savings_usd: 0.4762,
-            savings_by_source: {
-              tokens: {
-                semantic_cache: 4080,
-                cutctx_compression: 3206,
-                provider_prompt_cache: 6349824,
+              savings_by_source: {
+                tokens: {
+                  semantic_cache: 4080,
+                  cutctx_compression: 3206,
+                  provider_prompt_cache: 6349824,
+                  normalization: 4080,
+                  batch_routing: 2000,
+                  memoization: 1500,
+                  output_optimization: 900,
+                },
+                usd: {
+                  normalization: 1.0,
+                  batch_routing: 2.0,
+                  memoization: 3.0,
+                  output_optimization: 4.0,
+                },
+                total_tokens: 6365590,
               },
-              usd: {},
-              total_tokens: 6357110,
-            },
             savings_by_client: {
               codex: {
                 tokens: {
@@ -176,12 +185,16 @@ test.describe('Overview Metrics & Panels', () => {
             },
           ],
           persistent_savings: {
-            lifetime: {
-              requests: 19910,
-              tokens_saved: 264746130,
-              compression_savings_usd: 631.743039,
-              total_input_tokens: 757435929,
-            },
+              lifetime: {
+                requests: 19910,
+                tokens_saved: 264746130,
+                compression_savings_usd: 631.743039,
+                normalization_savings_usd: 1.0,
+                batch_routing_savings_usd: 2.0,
+                memoization_savings_usd: 3.0,
+                output_optimization_savings_usd: 4.0,
+                total_input_tokens: 757435929,
+              },
             display_session: {
               requests: 178,
               tokens_saved: 1425064,
@@ -196,18 +209,82 @@ test.describe('Overview Metrics & Panels', () => {
 
     await page.goto('/dashboard');
 
-    await expect(page.locator('.metric-card').filter({ hasText: 'Tokens saved' }).locator('.metric-value')).toHaveText('58.6k');
-    await expect(page.locator('.metric-card').filter({ hasText: 'Requests' }).locator('.metric-value')).toHaveText('136');
-    await expect(page.locator('.metric-card').filter({ hasText: 'Money saved' }).locator('.metric-value')).toHaveText('$0.615');
+    await expect(page.locator('.metric-card').filter({ hasText: 'Tokens saved' }).locator('.metric-value')).toHaveText('264.7M');
+    await expect(page.locator('.metric-card').filter({ hasText: 'Requests' }).locator('.metric-value')).toHaveText('19,910');
+    await expect(page.locator('.metric-card').filter({ hasText: 'Money saved' }).locator('.metric-value')).toHaveText('$641.74');
 
     const sourcePanel = page.locator('.panel').filter({ hasText: 'Where savings come from' });
-    await expect(sourcePanel.getByText('Direct compression58,617 tokens · $0.1390.9%')).toBeVisible();
-    await expect(sourcePanel.getByText('Provider prompt cache6,349,824 tokens · $0.47699.0%')).toBeVisible();
+  await expect(sourcePanel.getByText('Direct compression', { exact: true })).toBeVisible();
+  await expect(sourcePanel.getByText('Provider prompt cache', { exact: true })).toBeVisible();
+  await expect(sourcePanel.getByText('Tokenizer normalization', { exact: true })).toBeVisible();
+  await expect(sourcePanel.getByText('Batch routing', { exact: true })).toBeVisible();
+  await expect(sourcePanel.getByText('Tool memoization', { exact: true })).toBeVisible();
+  await expect(sourcePanel.getByText('Output optimization', { exact: true })).toBeVisible();
 
-    const clientPanel = page.locator('.panel').filter({ hasText: 'Savings by client' });
-    await expect(clientPanel.getByText('codex6,353,030 tokens· $0.615100%')).toBeVisible();
+  const clientPanel = page.locator('.panel').filter({ hasText: 'Savings by client' });
+  await expect(clientPanel.getByText('codex', { exact: true })).toBeVisible();
+  await expect(clientPanel.getByText('100%', { exact: true })).toBeVisible();
 
-    const modelPanel = page.locator('.panel').filter({ hasText: 'Savings by model' });
-    await expect(modelPanel.getByText('gpt-4o-mini0 tokens · 97 requests· $0.0000.0%')).toBeVisible();
+  const modelPanel = page.locator('.panel').filter({ hasText: 'Savings by model' });
+  await expect(modelPanel.getByText('gpt-4o-mini', { exact: true })).toBeVisible();
+  });
+
+  test('renders compression autopilot status when WS19 data is present', async ({ page }) => {
+    await page.route('**/stats-history*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ series: { hourly: [] } }),
+      });
+    });
+
+    await page.route('**/stats*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          summary: { saved: 1000, input: 8000, savings_percent: 12.5 },
+          tokens: { saved: 1000, input: 8000, total_before_compression: 8000, active_savings_percent: 12.5 },
+          requests: { total: 8, failed: 0, cached: 0 },
+          recent_requests: [],
+          persistent_savings: { lifetime: {}, display_session: {} },
+          intelligence: {
+            autopilot: {
+              enabled: true,
+              min_level: 1,
+              max_level: 5,
+              hysteresis_window: 10,
+              task_levels: { code: 4, summarize: 5 },
+              task_stats: {
+                code: { signal_count: 6, clean_count: 5, adjustment_count: 1 },
+                summarize: { signal_count: 3, clean_count: 3, adjustment_count: 0 },
+              },
+              recent_levels: [
+                { task_type: 'code', level: 5, timestamp: '2026-07-02T04:20:00Z' },
+                { task_type: 'code', level: 4, timestamp: '2026-07-02T04:25:00Z' },
+                { task_type: 'summarize', level: 5, timestamp: '2026-07-02T04:30:00Z' },
+              ],
+              recent_adjustments: [
+                {
+                  task_type: 'code',
+                  old_level: 5,
+                  new_level: 4,
+                  signal_kind: 'retrieval',
+                  timestamp: '2026-07-02T04:25:00Z',
+                },
+              ],
+            },
+          },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+
+    const autopilotPanel = page.locator('.panel').filter({ hasText: 'Compression autopilot' });
+    await expect(autopilotPanel.getByText('Active')).toBeVisible();
+    await expect(autopilotPanel.getByText('Code', { exact: true })).toBeVisible();
+    await expect(autopilotPanel.getByText('Summaries', { exact: true })).toBeVisible();
+    await expect(autopilotPanel.getByText('Latest adjustment: Code moved from L5 to L4 after a retrieval signal.')).toBeVisible();
   });
 });

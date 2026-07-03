@@ -458,6 +458,14 @@ class ProxyConfig:
     # Env: CUTCTX_COST_FORECAST_ENABLED=1
     cost_forecast_enabled: bool = False
 
+    # Compression Autopilot — adjust compression aggressiveness per task type
+    # from recent quality signals. Disabled by default.
+    # Env: CUTCTX_AUTOPILOT=1
+    autopilot_enabled: bool = False
+    autopilot_min_level: int = 1
+    autopilot_max_level: int = 5
+    autopilot_hysteresis_window: int = 10
+
     # Compression Hooks
     hooks: Any = None
     pipeline_extensions: list[Any] = field(default_factory=list)

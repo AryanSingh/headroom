@@ -112,6 +112,17 @@ const FEATURE_CONFIG = [
     statPath: () => null,
   },
   {
+    key: "autopilot",
+    flagKey: "autopilot_enabled",
+    label: "Compression autopilot",
+    envVar: "CUTCTX_AUTOPILOT=1",
+    description:
+      "Adjust compression aggressiveness per task type from recent quality signals.",
+    tier: "free",
+    liveToggle: true,
+    statPath: () => null,
+  },
+  {
     key: "audit",
     flagKey: "audit_enabled",
     label: "Audit trail",
@@ -141,7 +152,9 @@ function emptySection() {
 
 function normalizeAssignments(rbacData) {
   const raw = rbacData?.assignments;
-  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) {
+    return raw;
+  }
   if (raw && typeof raw === "object") {
     return Object.entries(raw).map(([userId, role]) => ({
       user_id: userId,
@@ -347,7 +360,9 @@ export default function Governance({ searchQuery = "" }) {
         }),
       );
 
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
 
       setSections(Object.fromEntries(entries));
       setLoading(false);
@@ -397,7 +412,9 @@ export default function Governance({ searchQuery = "" }) {
     false;
   const query = searchQuery.trim().toLowerCase();
   const filteredFeatures = FEATURE_CONFIG.filter((feature) => {
-    if (!query) return true;
+    if (!query) {
+      return true;
+    }
     return (
       feature.label.toLowerCase().includes(query) ||
       feature.description.toLowerCase().includes(query)

@@ -227,7 +227,7 @@ def test_codex_ws_happy_path_emits_all_stage_timings(stage_log_capture):
 
 def test_codex_ws_upstream_connect_failure_still_logs_timings(stage_log_capture):
     """A session that never connects upstream still logs a timing line
-    with ``upstream_first_event`` absent (null)."""
+    with the client accepted and immediately closed (no first frame read)."""
 
     fake_ws_mod = MagicMock()
 
@@ -242,13 +242,6 @@ def test_codex_ws_upstream_connect_failure_still_logs_timings(stage_log_capture)
     )
     client_ws = _FakeWebSocket(frames=[first_frame])
     handler = _DummyOpenAIHandler()
-    # With retry_max_attempts=1 we do not retry; fallback path attempts HTTP.
-
-    # Stub the HTTP fallback so we don't need a network mock.
-    async def _fallback(*args, **kwargs):
-        return None
-
-    handler._ws_http_fallback = _fallback  # type: ignore[assignment]
 
     with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
         anyio.run(handler.handle_openai_responses_ws, client_ws)
@@ -258,14 +251,12 @@ def test_codex_ws_upstream_connect_failure_still_logs_timings(stage_log_capture)
 
     # upstream_first_event never fired because connect failed.
     assert stages.get("upstream_first_event") is None
-    # upstream_connect is also None because we record it only after a
-    # successful ``await websockets.connect(...)``.
+    # upstream_connect is also None because we never successfully connected.
     assert stages.get("upstream_connect") is None
-    # But the envelope is still complete: the client is accepted and its
-    # first frame is read before falling back to HTTP, even on connect
-    # failure.
+    # The client is accepted and immediately closed (1014) with no fallback,
+    # so the first frame is never read.
     assert stages["accept"] is not None
-    assert stages["first_client_frame"] is not None
+    assert stages["first_client_frame"] is None
     assert stages["total_session"] > 0.0
 
 

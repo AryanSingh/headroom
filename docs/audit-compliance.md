@@ -3,9 +3,10 @@
 The Cutctx proxy includes a tamper-evident audit log to ensure the integrity of all administrative and system actions.
 
 ## Cryptographic Hash Chain
-Every audit event is cryptographically linked to the previous event using an HMAC-SHA256 signature.
+Every audit event is cryptographically linked to the previous event using a
+secret-keyed SHA-256 chain value.
 The formula for the chain is:
-`hash = HMAC_SHA256(secret, prev_hash + payload)`
+`hash = SHA256(secret || prev_hash || payload)`
 
 This makes it computationally infeasible for a malicious actor to alter, reorder, or delete historical events without invalidating the chain.
 

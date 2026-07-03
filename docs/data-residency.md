@@ -66,6 +66,9 @@ computed as:
 SHA-256(secret_key || previous_hash || tenant_id || actor || action || payload_json || timestamp_iso)
 ```
 
+Current EE builds use this secret-prefixed SHA-256 chain directly rather than
+an HMAC construction.
+
 The **tail hash** is simply the `event_hash` of the chronologically most-recent
 event for the tenant.  By recording it in the attestation you can prove that
 the audit log has not been rolled back or truncated since the attestation was

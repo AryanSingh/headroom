@@ -20,13 +20,13 @@ info:
     url: https://cutctx.dev
   license:
     name: Cutctx Commercial License
-    url: https://pitchtoship.com/legal/commercial-license
+    url: https://github.com/cutctx/cutctx/blob/main/LICENSE-COMMERCIAL
 
 servers:
   - url: http://localhost:8080
     description: Local development
-  - url: https://pitchtoship.com
-    description: PitchToShip license and billing backend
+  - url: https://cutctx.example.com
+    description: Example production deployment
 
 security:
   - BearerAuth: []

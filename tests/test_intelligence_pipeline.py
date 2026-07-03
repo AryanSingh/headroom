@@ -111,6 +111,88 @@ class TestTaskAwareCompression:
         assert "How" in ctx.task or "how" in ctx.task.lower()
 
 
+class TestCompressionAutopilot:
+    """WS19 autopilot wiring inside the intelligence pipeline."""
+
+    def test_from_config_reads_autopilot_flags(self):
+        config = MagicMock()
+        config.task_aware_enabled = False
+        config.dedup_enabled = False
+        config.context_budget_enabled = False
+        config.profiles_enabled = False
+        config.shared_context_enabled = False
+        config.cost_forecast_enabled = False
+        config.autopilot_enabled = True
+        config.autopilot_min_level = 2
+        config.autopilot_max_level = 6
+        config.autopilot_hysteresis_window = 4
+        config.default_model = "gpt-5.4-mini"
+
+        from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
+        p = IntelligencePipeline.from_config(config)
+        assert p.any_enabled()
+        assert p.autopilot
+        assert p.autopilot_config.min_level == 2
+        assert p.autopilot_config.max_level == 6
+        assert p.autopilot_config.hysteresis_window == 4
+
+    def test_pre_compression_assigns_autopilot_biases(self):
+        from cutctx.proxy.autopilot import AutopilotConfig
+        from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
+        p = IntelligencePipeline(
+            task_aware=True,
+            autopilot=True,
+            autopilot_config=AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=2),
+        )
+        messages = [
+            {"role": "user", "content": "debug the flaky test and fix the failing code path"},
+            {"role": "assistant", "content": "I will inspect the code and propose a fix."},
+        ]
+
+        ctx = p.pre_compression(messages, "gpt-5.4-mini", "req-auto-1")
+        assert ctx.autopilot_task_type == "code"
+        assert ctx.autopilot_level == 5
+        assert len(ctx.autopilot_biases) == len(messages)
+        assert all(value < 1.0 for value in ctx.autopilot_biases.values())
+
+    def test_merge_biases_multiplies_existing_values(self):
+        from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
+        merged = IntelligencePipeline.merge_biases({0: 1.2, 1: 0.9}, {0: 0.8, 2: 1.1})
+        assert merged == {0: 0.96, 1: 0.9, 2: 1.1}
+
+    def test_sync_from_config_preserves_autopilot_state(self):
+        from cutctx.proxy.autopilot import AutopilotConfig
+        from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
+        p = IntelligencePipeline(
+            autopilot=True,
+            autopilot_config=AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=2),
+        )
+        p.record_quality_signal("code", "retrieval", timestamp_seconds=1.0)
+        assert p.autopilot_snapshot()["task_levels"]["code"] == 4
+
+        config = MagicMock()
+        config.task_aware_enabled = False
+        config.dedup_enabled = False
+        config.context_budget_enabled = False
+        config.context_budget_max_tokens = 100_000
+        config.context_budget_policy = "balanced"
+        config.profiles_enabled = False
+        config.shared_context_enabled = False
+        config.cost_forecast_enabled = False
+        config.autopilot_enabled = True
+        config.autopilot_min_level = 1
+        config.autopilot_max_level = 5
+        config.autopilot_hysteresis_window = 2
+        config.default_model = "gpt-5.4-mini"
+
+        p.sync_from_config(config)
+        assert p.autopilot_snapshot()["task_levels"]["code"] == 4
+
+
 class TestSemanticDedup:
     """Feature 2: Semantic deduplication with rolling hash index."""
 

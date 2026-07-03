@@ -80,8 +80,10 @@ class AuditStore:
         timestamp_iso: str,
         previous_hash: str | None,
     ) -> str:
-        """Compute HMAC SHA-256 hash for the event."""
-        # A simple hash chain: H(secret + previous_hash + fields)
+        """Compute the current secret-keyed SHA-256 chain value for the event."""
+        # Current EE builds use a secret-prefixed SHA-256 chain, not an HMAC
+        # construction. Keep the wording aligned with the actual algorithm
+        # until the runtime path is upgraded and rebuilt.
         hasher = hashlib.sha256()
         hasher.update(self.secret_key)
         if previous_hash:

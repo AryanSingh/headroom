@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  template: '%s | Cutctx',
   },
   description:
-    'Compress everything your AI agent reads — tool outputs, logs, files, RAG chunks. Same answers, fraction of the tokens. Library, proxy, MCP server. Local-first. Apache 2.0.',
+    'Local-first context control plane for AI agents. Govern what reaches the model, attribute spend and savings, remember shared context, and compress noisy tool output when it helps.',
   metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: '/',

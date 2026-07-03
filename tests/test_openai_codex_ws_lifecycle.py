@@ -640,11 +640,8 @@ async def test_upstream_connect_failure_still_deregisters_cleanly():
 
 @pytest.mark.asyncio
 async def test_ws_connect_failure_falls_back_to_http():
-    """When every upstream connect attempt fails, the client is still
-    accepted (with no x-codex-* headers, since there is no upstream
-    window) and the request is served via the HTTP POST fallback with
-    the client's first frame. Preserves the pre-reorder WS-upgrade-
-    failure behaviour.
+    """When every upstream connect attempt fails, the client is accepted,
+    then immediately closed with code 1014 (no fallback, no first frame read).
     """
     fake_ws_mod = _make_fake_websockets_module(
         None, connect_error=RuntimeError("HTTP 500 from upstream")
@@ -654,33 +651,24 @@ async def test_ws_connect_failure_falls_back_to_http():
     client_ws = _FakeWebSocket(frames=[first])
     handler = _DummyOpenAIHandler()
 
-    fallback_calls: list[tuple] = []
-
-    async def _fallback(websocket, body, first_msg_raw, upstream_headers, request_id):
-        fallback_calls.append((body, first_msg_raw))
-
-    handler._ws_http_fallback = _fallback  # type: ignore[assignment]
-
     with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
         await handler.handle_openai_responses_ws(client_ws)
 
-    # Client was accepted with no upstream window to forward.
+    # Client was accepted (with no x-codex-* headers, since upstream connect failed).
     assert client_ws.accepted_headers is None
-    # Fallback ran with the first frame.
-    assert len(fallback_calls) == 1
-    _body, _first_raw = fallback_calls[0]
-    assert _first_raw == first
-    expected_body = json.loads(first)
-    expected_body["model"] = "gpt-5.4"
-    assert _body == expected_body
+    # Then immediately closed with code 1014 (not via fallback).
+    assert client_ws.closed is True
+    assert client_ws.close_code == 1014
     # Clean teardown.
     assert handler.ws_sessions.active_count() == 0
 
 
 @pytest.mark.asyncio
-async def test_ws_connect_happens_before_accept():
-    """The upstream connect must complete before the client 101 is sent,
-    so OpenAI's x-codex-* handshake headers are available to attach.
+async def test_ws_accept_happens_before_upstream_connect():
+    """The client must be accepted first (before connecting upstream),
+    to avoid timeouts when OpenAI's WebSocket handshake takes 20+ seconds.
+    The x-codex-* headers are recorded into /stats after upstream handshake
+    completes, but are no longer forwarded in the client 101 response.
     """
     upstream_events = [
         json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
@@ -697,17 +685,17 @@ async def test_ws_connect_happens_before_accept():
         await handler.handle_openai_responses_ws(client_ws)
 
     assert "connect" in call_log and "accept" in call_log
-    assert call_log.index("connect") < call_log.index("accept"), (
-        f"connect must precede accept, got {call_log}"
+    assert call_log.index("accept") < call_log.index("connect"), (
+        f"accept must precede connect, got {call_log}"
     )
 
 
 @pytest.mark.asyncio
 async def test_ws_forwards_codex_headers_to_client_accept():
     """OpenAI's x-codex-* subscription window from the upstream WS
-    handshake must be forwarded onto the client-facing 101 (and only
-    that subset — never set-cookie/authorization), and Python /stats
-    state must be refreshed.
+    handshake is no longer forwarded in the client-facing 101 (cosmetic loss
+    to avoid 20+ second handshake timeouts). The x-codex-* headers are still
+    recorded into Python /stats state, and the session works correctly.
     """
     upstream_events = [
         json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
@@ -746,15 +734,9 @@ async def test_ws_forwards_codex_headers_to_client_accept():
     ):
         await handler.handle_openai_responses_ws(client_ws)
 
-    assert client_ws.accepted_headers is not None
-    names = {name.decode("latin-1").lower() for name, _ in client_ws.accepted_headers}
-    assert names == {"x-codex-primary-used-percent", "x-codex-primary-window-minutes"}
-    assert "set-cookie" not in names
-    assert "authorization" not in names
-    # Original-case names preserved on the wire.
-    sent = {name.decode("latin-1") for name, _ in client_ws.accepted_headers}
-    assert "X-Codex-Primary-Window-Minutes" in sent
-    # Python /stats state refreshed with the same x-codex-* subset.
+    # x-codex-* headers are no longer forwarded in the accept response.
+    assert client_ws.accepted_headers is None
+    # But they are recorded into /stats state for internal tracking.
     assert captured == {
         "x-codex-primary-used-percent": "42",
         "X-Codex-Primary-Window-Minutes": "300",
