@@ -285,34 +285,79 @@ were left in place, not deleted — safe to prune once their PRs are closed.
 Short current handoff lives in `artifacts/pending-items.md`. Keep it updated
 alongside this detailed tracker and `CHANGELOG.md` whenever progress changes.
 
-WS18 Phase A table/CLI/hook is started: `cutctx policies train/show/reset`
-stores deterministic local SQLite policy rows trained from JSONL outcome
-events grouped by `(tool_name, content_type, repo)`, `LearnedPolicyHooks`
-applies bounded biases through the existing `compute_biases` hook, and
-`cutctx policies evict-unsafe` removes risky rows. The proxy can opt in with
-`--enable-learned-policies` / `CUTCTX_LEARNED_POLICIES=1`; cold-start runtime
-behavior is unchanged.
+### WS18 — Learned per-customer compression policies
 
-1. **WS18 — Learned per-customer compression policies (PRIMARY MOAT per
-   spec)** — Phase A table/CLI/hook/proxy flag is started. Remaining work:
-   `--watch`/nightly job ergonomics, report/dashboard surfacing, and Phase-B
-   spike notes.
-2. **WS4–WS9 (Phase 2, per `strategy-implementation-plan.md`)** — none
-   started:
-   - WS4: Context policy engine MVP (redaction rules + cumulative
-     per-agent/per-team budgets)
-   - WS5: Org-scope memory + export/import (depends on org identity
-     plumbing)
-   - WS6: Learn telemetry aggregation (design + opt-in scaffolding; egress
-     not implemented)
-   - WS7: Context Assurance package (EE): CCR ledger + retention +
-     evidence export
-   - WS8: Session replay alpha: event stream + replay API + dashboard page
-   - WS9: Design-partner readiness: end-to-end demo script + release
-     checklist
-3. **WS1–WS3 (repositioning/reporting work)** — not started: README/docs/
-   pitch/llms.txt/outreach content, Agent Context Report v1, and the
-   quality-at-budget benchmark v1.
-4. **Housekeeping** — the 5 now-merged feature branches and their PRs can
-   be closed/deleted once confirmed no longer needed; `main` is 0 commits
-   ahead/behind `origin/main` as of this push.
+**Phase A is now complete** (`fix/ws20-memcache-optimize`):
+
+| Item | Status | Details |
+|------|--------|---------|
+| Outcome aggregation + SQLite schema | ✅ Done | `policy_learning.py`: `init_db()`, `train_from_events()`, `LearnedPolicy` dataclass |
+| `cutctx policies show/train/reset` CLI | ✅ Done | `cli/policies.py`: all 4 commands |
+| `compute_biases` hook | ✅ Done | `LearnedPolicyHooks.compute_biases()` |
+| Self-healing eviction | ✅ Done | `evict_unsafe_policies()` + CLI command |
+| Proxy flag wiring | ✅ Done | `--enable-learned-policies` / `CUTCTX_LEARNED_POLICIES=1` |
+| `--watch` ergonomics | ✅ Done | `cutctx policies train --watch` with `--poll-interval` (default 30s) |
+| Dashboard surfacing | ✅ Done | `/stats` intelligence.policies section + `PoliciesPanel` in Overview |
+| Phase-B spike notes | ✅ Done | See below |
+
+#### Phase-B spike: per-customer Kompress adapters
+
+**Gate**: ≥15% headroom improvement data from Phase A production use (not yet
+available — no Phase A deployment data exists).
+
+**Concept**: Train per-customer Kompress strategy parameters from outcome
+events instead of deriving the 3-bucket aggressiveness heuristic. The Phase A
+`aggresive/balanced/conservative` labels are replaced by learned Kompress
+settings: `target_ratio`, `max_retention`, `structural_priority`,
+`delta_threshold`.
+
+**Proposed design**:
+1. Extend the `learned_policies` SQLite schema with a new
+   `kompress_config_json` column holding per-selector Kompress parameters.
+2. Add a `train --kompress` flag that runs a short Bayesian (or
+   grid-search) optimization sweep over Kompress parameter space for each
+   `(tool_name, content_type, repo)` group, using `avg_ratio` + `retrieval_rate`
+   as the objective.
+3. Add a new `KompressPolicyHooks(CompressionHooks)` that applies these
+   parameters through the existing `kompress_config` injection point (in
+   `cutctx/transforms/compression_policy.py`).
+4. Keep Phase A heuristics as the cold-start fallback until Kompress
+   parameters have converged for that selector.
+
+**Risks**:
+- Kompress is a C-extension boundary; hot-loading per-request config
+  changes needs careful benchmarking.
+- Bayesian optimization adds a training-time cost that may not justify
+  the incremental improvement over Phase A heuristics.
+- Without Phase A production data, the 15% headroom threshold is
+  conjectural.
+
+**Decision**: Revisit when Phase A has ≥3 customer deployments with
+≥1M compressed tokens each.
+
+### WS4–WS9 (Phase 2, per `strategy-implementation-plan.md`)
+
+None started:
+- **WS4**: Context policy engine MVP (redaction rules + cumulative
+  per-agent/per-team budgets)
+- **WS5**: Org-scope memory + export/import (depends on org identity
+  plumbing)
+- **WS6**: Learn telemetry aggregation (design + opt-in scaffolding; egress
+  not implemented)
+- **WS7**: Context Assurance package (EE): CCR ledger + retention +
+  evidence export
+- **WS8**: Session replay alpha: event stream + replay API + dashboard page
+- **WS9**: Design-partner readiness: end-to-end demo script + release
+  checklist
+
+### WS1–WS3 (repositioning/reporting work)
+
+Not started: README/docs/pitch/llms.txt/outreach content, Agent Context
+Report v1, and the quality-at-budget benchmark v1.
+
+### Housekeeping
+
+The 5 now-merged feature branches and their PRs can be closed/deleted once
+confirmed no longer needed; `main` is 0 commits ahead/behind `origin/main`
+as of this push. The rebuilt EE `.so` files are ignored by Git, so release
+packaging must rebuild and sign EE binaries before publishing.

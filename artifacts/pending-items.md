@@ -32,10 +32,10 @@ the same change:
 
 ## Pending next
 
-1. WS18 learned policies completion:
-   Add `--watch` or nightly-job ergonomics, report/dashboard surfacing, and a
-   Phase-B spike note for per-customer Kompress adapters. Keep cold-start
-   behavior unchanged and keep learned policy bias clamped to existing ranges.
+1. WS18 learned policies completion — **Phase A complete** (`--watch` ergonomics
+   added, dashboard surfacing live via `/stats` intelligence.policies +
+   PoliciesPanel, Phase-B spike notes documented). Remaining work held pending
+   production data from Phase A deployments.
 
 2. WS4 context policy engine MVP:
    Implement declarative redaction/block/allow rules and cumulative
