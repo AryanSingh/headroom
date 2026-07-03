@@ -51,6 +51,9 @@ Current implementation target:
 - [x] Update `cutctx/dedup.py`, `cutctx/ccr/tool_injection.py`, and `cutctx/ccr/response_handler.py` imports with no behavior change
 - [x] Add focused tests for marker extraction/round-trip behavior
 - [x] Re-run CCR/dedup-focused tests
+- [x] `WS10` Output-side optimization
+  - [x] `W10.1-4` `cutctx/proxy/output_optimizer.py` — 3 levers (diff-edit steering, max_tokens auto-tuning, style shaping) with per-session safety rail
+  - [x] `W10.5` `SavingsSource.OUTPUT_OPTIMIZATION` registration + dashboard aggregation
 
 Status:
 - `2026-07-02`: `WS21.1` shared marker contract path implemented.
