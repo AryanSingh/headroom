@@ -215,3 +215,33 @@ clean version, which also correctly adds the `batchRoutingUsd` wiring that
 no prior branch had wired into the dashboard. Verified via an
 acorn+acorn-jsx parse check (no local `esbuild`/`node --check` support for
 `.jsx` in this environment).
+
+### Regression run (all 5 branches merged, 8116 tests collected)
+
+First full run: `16 failed, 7856 passed, 244 skipped` (324s). Broken down:
+- **8 pre-existing, not caused by this merge** (confirmed by reproducing
+  the same 4 spot-checked failures against a clean `main` worktree):
+  `test_dashboard_capabilities_toggles_e2e`, `test_dashboard_governance_e2e`,
+  `test_dashboard_overview_lifetime_headline` (both cases),
+  `test_dashboard_savings_by_model`, `test_dashboard_surfaces_playwright`,
+  `test_docs_page`, `test_docs_truthfulness::test_community_stats_docs_do
+  _not_claim_realtime_fetch`. Root cause: the dashboard's checked-in built
+  bundle (`cutctx/dashboard/assets/`) is stale relative to source across
+  every branch (a rebuild step this sandbox doesn't run) and
+  `docs/lib/telemetry.ts` is missing on `main` itself — neither is
+  introduced by merging these 5 branches.
+- **4 pre-existing, tracked security debt**: `test_ee_audit_store_hmac.py`'s
+  contract tests (see the WS16 note above) — real, not new.
+- **4 real merge fallout, fixed same session**: each of ws10/ws11/ws13/ws16's
+  own `test_existing_source_values_unchanged` guard test hardcoded an
+  exact-match `SavingsSource` set written before its sibling branches'
+  members existed; once merged the enum is correctly a superset. Fixed by
+  switching each to `expected.issubset(actual)`, matching the pattern
+  already used in `tests/test_savings_buyer_report.py` and
+  `tests/test_savings_orchestration.py` — see commit `f9c4c9d3` on
+  `integration/merge-ws-branches`.
+
+Second full run after that fix: expected `12 failed` (the 8 dashboard/docs
++ 4 HMAC), `7860 passed` — the only two categories of failure are the ones
+documented above, both pre-existing and neither blocking. **All 5 branches
+are merged, tested, and clean.**
