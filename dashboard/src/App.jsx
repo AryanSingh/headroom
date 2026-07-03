@@ -164,6 +164,10 @@ function Topbar({
     [location.pathname],
   );
 
+  useEffect(() => {
+    document.title = currentNav ? `${currentNav.label} — Cutctx` : 'Cutctx Dashboard';
+  }, [currentNav]);
+
   return (
     <header className="topbar-shell">
       <div className="topbar-left">

@@ -284,7 +284,7 @@ function FeatureRow({
               enabled={Boolean(isActive)}
               onToggle={() => onToggle(feature.flagKey, !isActive)}
 busy={toggleBusy === feature.flagKey}
-label={`${isActive ? "Disable" : "Enable"} ${feature.name}`}
+label={`${isActive ? "Disable" : "Enable"} ${feature.label}`}
 />
             <div className="feature-config-env">
               <code>{feature.envVar}</code>

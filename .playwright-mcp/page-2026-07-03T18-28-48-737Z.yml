@@ -1,0 +1,322 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "Cutctx" [level=1] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: Navigation
+      - navigation [ref=e12]:
+        - link "Dashboard" [ref=e13] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e19]: Dashboard
+        - link "Orchestrator" [ref=e20] [cursor=pointer]:
+          - /url: /dashboard/orchestrator
+          - img [ref=e22]
+          - generic [ref=e25]: Orchestrator
+        - link "Capabilities" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/capabilities
+          - img [ref=e28]
+          - generic [ref=e31]: Capabilities
+        - link "Governance" [ref=e32] [cursor=pointer]:
+          - /url: /dashboard/governance
+          - img [ref=e34]
+          - generic [ref=e37]: Governance
+        - link "Security" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/firewall
+          - img [ref=e40]
+          - generic [ref=e43]: Security
+        - link "Memory" [ref=e44] [cursor=pointer]:
+          - /url: /dashboard/memory
+          - img [ref=e46]
+          - generic [ref=e49]: Memory
+        - link "Replay" [ref=e50] [cursor=pointer]:
+          - /url: /dashboard/replay
+          - img [ref=e52]
+          - generic [ref=e57]: Replay
+        - link "Playground" [ref=e58] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e60]
+          - generic [ref=e64]: Playground
+        - link "Docs" [ref=e65] [cursor=pointer]:
+          - /url: /dashboard/docs
+          - img [ref=e67]
+          - generic [ref=e70]: Docs
+    - generic [ref=e71]:
+      - generic [ref=e72]: Surfaces
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - img [ref=e75]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e77]:
+          - img [ref=e78]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e80]: v0.29.0
+  - generic [ref=e81]:
+    - banner [ref=e82]:
+      - generic [ref=e83]:
+        - button "Toggle sidebar" [ref=e84] [cursor=pointer]:
+          - img [ref=e85]
+        - generic [ref=e89]:
+          - heading "Capabilities" [level=2] [ref=e90]
+          - generic [ref=e91]: connecting
+      - generic [ref=e93]:
+        - generic "Search dashboard" [ref=e94]:
+          - img [ref=e95]
+          - textbox "Search" [ref=e98]
+          - generic [ref=e99]: /
+        - button "Switch to dark mode" [ref=e100] [cursor=pointer]:
+          - img [ref=e102]
+    - main [ref=e104]:
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - generic [ref=e107]:
+            - generic [ref=e108]:
+              - generic [ref=e109]: Live evidence
+              - heading "Runtime surfaces currently active" [level=2] [ref=e110]
+            - paragraph [ref=e111]: Connecting to proxy…
+          - generic [ref=e112]:
+            - article [ref=e113]:
+              - generic [ref=e115]: Proxy compression
+              - generic [ref=e116]: —
+              - generic [ref=e117]: 0.0% active savings
+            - article [ref=e118]:
+              - generic [ref=e120]: Provider cache
+              - generic [ref=e121]: —
+              - generic [ref=e122]: $0.000 saved
+            - article [ref=e123]:
+              - generic [ref=e125]: Codex websocket
+              - generic [ref=e126]: —
+              - generic [ref=e127]: 0 failed frames
+            - article [ref=e128]:
+              - generic [ref=e130]: Context tool
+              - generic [ref=e131]: —
+              - generic [ref=e132]: Unavailable
+            - article [ref=e133]:
+              - generic [ref=e135]: TOIN patterns
+              - generic [ref=e136]: —
+              - generic [ref=e137]: 0 with recommendations
+            - article [ref=e138]:
+              - generic [ref=e140]: Rate limiter
+              - generic [ref=e141]: —
+              - generic [ref=e142]: This proxy is not exposing live rate limiter metrics
+            - article [ref=e143]:
+              - generic [ref=e145]: Semantic cache
+              - generic [ref=e146]: —
+              - generic [ref=e147]: This proxy is not exposing semantic cache metrics
+            - article [ref=e148]:
+              - generic [ref=e150]: CCR store
+              - generic [ref=e151]: —
+              - generic [ref=e152]: 0 retrievals
+            - article [ref=e153]:
+              - generic [ref=e155]: Episodic memory
+              - generic [ref=e156]: —
+              - generic [ref=e157]: This proxy is not exposing episodic memory metrics
+            - article [ref=e158]:
+              - generic [ref=e160]: Firewall
+              - generic [ref=e161]: —
+              - generic [ref=e162]: This proxy is not exposing firewall scan metrics
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - img [ref=e167]
+              - generic [ref=e178]:
+                - generic [ref=e179]: Capability group
+                - heading "Core Deployment Modes" [level=2] [ref=e180]
+            - paragraph [ref=e181]: The main ways Cutctx shows up in a user workflow.
+          - generic [ref=e182]:
+            - article [ref=e183]:
+              - generic [ref=e184]:
+                - img [ref=e185]
+                - text: Proxy
+              - paragraph [ref=e189]: Drop-in OpenAI and Anthropic compatible proxy with live savings and observability.
+            - article [ref=e190]:
+              - generic [ref=e191]:
+                - img [ref=e192]
+                - text: Agent Wrap
+              - paragraph [ref=e196]: Wrap Codex, Claude, Copilot, OpenCode, and other agent shells without code changes.
+            - article [ref=e197]:
+              - generic [ref=e198]:
+                - img [ref=e199]
+                - text: Inline Libraries
+              - paragraph [ref=e203]: Python, TypeScript, and Go SDKs for direct compression inside apps.
+            - article [ref=e204]:
+              - generic [ref=e205]:
+                - img [ref=e206]
+                - text: MCP Server
+              - paragraph [ref=e210]: Expose compress, retrieve, and status tools to MCP clients.
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - img [ref=e215]
+              - generic [ref=e218]:
+                - generic [ref=e219]: Capability group
+                - heading "Compression & Optimization" [level=2] [ref=e220]
+            - paragraph [ref=e221]: The data-reduction layers that drive token savings.
+          - generic [ref=e222]:
+            - article [ref=e223]:
+              - generic [ref=e224]:
+                - img [ref=e225]
+                - text: SmartCrusher
+              - paragraph [ref=e229]: Structured JSON and repetitive tool output compression.
+            - article [ref=e230]:
+              - generic [ref=e231]:
+                - img [ref=e232]
+                - text: CodeCompressor
+              - paragraph [ref=e236]: AST-aware source code reduction across Python, JS, Go, Rust, Java, and C++.
+            - article [ref=e237]:
+              - generic [ref=e238]:
+                - img [ref=e239]
+                - text: Log & Diff Compression
+              - paragraph [ref=e243]: Structural log pattern analysis, semantic diff compression, and multi-format optimization across 40+ log and diff formats.
+            - article [ref=e244]:
+              - generic [ref=e245]:
+                - img [ref=e246]
+                - text: Schema Compaction
+              - paragraph [ref=e250]: Tool schema metadata stripping for OpenAI / Codex tool-heavy payloads.
+            - article [ref=e251]:
+              - generic [ref=e252]:
+                - img [ref=e253]
+                - text: Image Optimization & Inline Audio
+              - paragraph [ref=e257]: "Inline base64 images are compressed; inline WAV audio can be downsampled while dedicated `/v1/audio/*` routes stay pass-through for fidelity."
+            - article [ref=e258]:
+              - generic [ref=e259]:
+                - img [ref=e260]
+                - text: Cache Alignment
+              - paragraph [ref=e264]: Prefix stabilization to improve provider prompt-cache hit rates.
+        - generic [ref=e265]:
+          - generic [ref=e266]:
+            - generic [ref=e267]:
+              - img [ref=e269]
+              - generic [ref=e281]:
+                - generic [ref=e282]: Capability group
+                - heading "State, Retrieval, and Memory" [level=2] [ref=e283]
+            - paragraph [ref=e284]: Features that make compression reversible and persistent.
+          - generic [ref=e285]:
+            - article [ref=e286]:
+              - generic [ref=e287]:
+                - img [ref=e288]
+                - text: CCR Retrieval
+              - paragraph [ref=e292]: Compress-cache-retrieve markers with reversible expansion paths.
+            - article [ref=e293]:
+              - generic [ref=e294]:
+                - img [ref=e295]
+                - text: Cross-Agent Memory
+              - paragraph [ref=e299]: Shared memory backend across Claude, Codex, Gemini, and other agents.
+            - article [ref=e300]:
+              - generic [ref=e301]:
+                - img [ref=e302]
+                - text: Cutctx Learn
+              - paragraph [ref=e306]: Session mining and correction writing into AGENTS.md / CLAUDE.md.
+            - article [ref=e307]:
+              - generic [ref=e308]:
+                - img [ref=e309]
+                - text: Context Tools
+              - paragraph [ref=e313]: RTK and related context helpers surfaced alongside proxy activity.
+        - generic [ref=e314]:
+          - generic [ref=e315]:
+            - generic [ref=e316]:
+              - img [ref=e318]
+              - generic [ref=e321]:
+                - generic [ref=e322]: Capability group
+                - heading "Governance & Operations" [level=2] [ref=e323]
+            - paragraph [ref=e324]: Controls, security, and reporting surfaces operators care about.
+          - generic [ref=e325]:
+            - article [ref=e326]:
+              - generic [ref=e327]:
+                - img [ref=e328]
+                - text: Firewall
+              - paragraph [ref=e332]: Prompt injection, jailbreak, PII, and data-exfil detection. Enable via CUTCTX_FIREWALL=1.
+            - article [ref=e333]:
+              - generic [ref=e334]:
+                - img [ref=e335]
+                - text: Rate Limiting
+              - paragraph [ref=e339]: Per-key token and request throttling. Active keys tracked live on the Governance page.
+            - article [ref=e340]:
+              - generic [ref=e341]:
+                - img [ref=e342]
+                - text: Audit & Telemetry
+              - paragraph [ref=e346]: Tamper-evident audit log with action counts, recent events, and hash-chain verification.
+            - article [ref=e347]:
+              - generic [ref=e348]:
+                - img [ref=e349]
+                - text: RBAC
+              - paragraph [ref=e353]: Role-based access control with admin, operator, and viewer tiers. Assignable per user ID.
+            - article [ref=e354]:
+              - generic [ref=e355]:
+                - img [ref=e356]
+                - text: Retention Controls
+              - paragraph [ref=e360]: Data lifecycle management and automated retention cleanup with configurable windows.
+            - article [ref=e361]:
+              - generic [ref=e362]:
+                - img [ref=e363]
+                - text: Observability
+              - paragraph [ref=e367]: Pipeline timing, waste signals, Codex websocket metrics, and display-session history.
+        - generic [ref=e368]:
+          - generic [ref=e369]:
+            - generic [ref=e370]:
+              - img [ref=e372]
+              - generic [ref=e382]:
+                - generic [ref=e383]: Capability group
+                - heading "Intelligence Layer" [level=2] [ref=e384]
+            - paragraph [ref=e385]: Advanced compression intelligence modules. Each is independently toggleable via environment variable.
+          - generic [ref=e386]:
+            - article [ref=e387]:
+              - generic [ref=e388]:
+                - img [ref=e389]
+                - text: Task-aware compression
+              - paragraph [ref=e393]: "Modulates compression depth by relevance to the active task. Critical context is protected; background material is aggressively reduced. Enable: CUTCTX_TASK_AWARE_ENABLED=1"
+            - article [ref=e394]:
+              - generic [ref=e395]:
+                - img [ref=e396]
+                - text: Semantic deduplication
+              - paragraph [ref=e400]: "Detects and collapses repeated content across messages using reversible CCR pointers. Enable: CUTCTX_DEDUP_ENABLED=1"
+            - article [ref=e401]:
+              - generic [ref=e402]:
+                - img [ref=e403]
+                - text: Context budget controller
+              - paragraph [ref=e407]: "Progressively increases compression as the context window fills — prevents silent truncation and cost spikes. Enable: CUTCTX_CONTEXT_BUDGET_ENABLED=1"
+            - article [ref=e408]:
+              - generic [ref=e409]:
+                - img [ref=e410]
+                - text: Compression profiles
+              - paragraph [ref=e414]: "Learns per-workspace compression patterns across sessions for improved accuracy over time. Enable: CUTCTX_PROFILES_ENABLED=1"
+        - generic [ref=e415]:
+          - generic [ref=e416]:
+            - generic [ref=e417]:
+              - img [ref=e419]
+              - generic [ref=e429]:
+                - generic [ref=e430]: Capability group
+                - heading "Provider & Protocol Coverage" [level=2] [ref=e431]
+            - paragraph [ref=e432]: APIs and transport formats the proxy speaks natively.
+          - generic [ref=e433]:
+            - article [ref=e434]:
+              - generic [ref=e435]:
+                - img [ref=e436]
+                - text: OpenAI-compatible API
+              - paragraph [ref=e440]: Full /v1/chat/completions compatibility — drop-in for any OpenAI client.
+            - article [ref=e441]:
+              - generic [ref=e442]:
+                - img [ref=e443]
+                - text: Anthropic Messages API
+              - paragraph [ref=e447]: Native /v1/messages support for Claude clients with content-block handling.
+            - article [ref=e448]:
+              - generic [ref=e449]:
+                - img [ref=e450]
+                - text: Responses API / Codex
+              - paragraph [ref=e454]: WebSocket streaming aliases for OpenAI Codex and Responses API traffic.
+            - article [ref=e455]:
+              - generic [ref=e456]:
+                - img [ref=e457]
+                - text: Google Gemini
+              - paragraph [ref=e461]: Gemini model routing with automatic token budget translation.
+            - article [ref=e462]:
+              - generic [ref=e463]:
+                - img [ref=e464]
+                - text: Streaming (SSE)
+              - paragraph [ref=e468]: Server-Sent Events passthrough with in-flight compression and PII redaction.
+            - article [ref=e469]:
+              - generic [ref=e470]:
+                - img [ref=e471]
+                - text: Structured Output
+              - paragraph [ref=e475]: JSON schema validation and retry loop for reliable structured completions.
