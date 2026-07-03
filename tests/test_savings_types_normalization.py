@@ -70,10 +70,9 @@ def test_existing_source_values_unchanged() -> None:
         "normalization",
     }
     actual = {member.value for member in SavingsSource}
-    assert actual == expected, (
-        f"SavingsSource enum members changed: missing={expected-actual}, "
-        f"extra={actual-expected}"
-    )
+    assert expected.issubset(actual), (
+        f"SavingsSource enum members changed: missing={expected-actual}"
+    )  # additive: other branches may add more sources
 
 
 # ---------------------------------------------------------------------------

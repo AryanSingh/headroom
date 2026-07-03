@@ -61,7 +61,7 @@ def test_existing_source_values_unchanged() -> None:
         "memoization",  # new
     }
     actual = {member.value for member in SavingsSource}
-    assert actual == expected
+    assert expected.issubset(actual)  # additive: other branches may add more sources
 
 
 # ---------------------------------------------------------------------------
