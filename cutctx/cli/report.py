@@ -519,7 +519,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
 def _assurance_section() -> dict[str, Any]:
     """Build the assurance section for the agent context report."""
     try:
-        from cutctx.assurance import DEFAULT_LEDGER_PATH, EvidenceLedger
+        from cutctx.assurance import EvidenceLedger
 
         ledger_path = EvidenceLedger._default_path()
         if not ledger_path.exists():
