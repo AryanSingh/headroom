@@ -516,6 +516,27 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         click.echo(content)
 
 
+def _assurance_section() -> dict[str, Any]:
+    """Build the assurance section for the agent context report."""
+    try:
+        from cutctx.assurance import DEFAULT_LEDGER_PATH, EvidenceLedger
+
+        ledger_path = EvidenceLedger._default_path()
+        if not ledger_path.exists():
+            return {"status": "no_data", "note": "No local evidence ledger found."}
+
+        ledger = EvidenceLedger()
+        stats = ledger.stats()
+        return {
+            "status": "available",
+            "note": "WS7 local evidence ledger active. Run `cutctx report assurance` for bundle.",
+            "events": stats["total_events"],
+            "chain_intact": not stats["chain"]["chain_broken"],
+        }
+    except Exception as exc:
+        return {"status": "error", "note": f"Could not read assurance ledger: {exc}"}
+
+
 def _build_agent_context_report(days: int) -> dict[str, Any]:
     """Build a CFO/CISO-forwardable context control-plane report."""
 
@@ -548,10 +569,7 @@ def _build_agent_context_report(days: int) -> dict[str, Any]:
                 __import__("os").environ.get("CUTCTX_CONTEXT_POLICY")
             ),
         },
-        "assurance": {
-            "status": "blocked",
-            "note": "WS7 signed evidence export requires EE packaging/signing work.",
-        },
+        "assurance": _assurance_section(),
         "session_replay": {
             "enabled": is_replay_enabled(),
             "status": "available" if is_replay_enabled() else "disabled",

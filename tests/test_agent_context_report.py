@@ -16,7 +16,8 @@ def test_agent_context_report_markdown_no_data(monkeypatch) -> None:
     assert result.exit_code == 0, result.output
     assert "# Agent Context Report" in result.output
     assert "No savings-source rows found" in result.output
-    assert "Context Assurance: blocked" in result.output
+    assert "Context Assurance: no_data" in result.output
+    assert "No local evidence ledger found" in result.output
 
 
 def test_agent_context_report_json_aggregates_sources(monkeypatch) -> None:
