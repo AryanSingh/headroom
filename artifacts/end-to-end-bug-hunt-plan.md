@@ -21,6 +21,56 @@ test or manual verification artifact.
 - Do not claim release readiness while commitlint, EE packaging/signing,
   versioning, or product-owner approval gates remain open.
 
+## Regression-Prevention Rules
+
+These rules are mandatory for every fix in this audit.
+
+- Capture baseline before editing: `rtk git status --short --branch`,
+  `rtk git diff --stat`, and the smallest relevant passing test command.
+- Identify file ownership before editing. If a file changed unexpectedly or
+  appears to belong to another concurrent agent, do not edit it until the owner
+  or user confirms.
+- Do not revert user or other-agent work unless explicitly asked.
+- Write or update a regression test before fixing any behavior bug unless the
+  bug is purely copy/docs.
+- Prefer additive, focused tests over broad brittle snapshots.
+- Never convert a failing test to `skip`, `xfail`, or a weaker assertion just
+  to get green.
+- Never replace live behavior with fake data or static success responses.
+- Keep generated assets tied to their source command. If a dashboard bundle is
+  changed, run dashboard build/E2E and stage the matching generated files.
+- Keep release trackers honest. If a feature remains partial, mark it partial
+  with a precise blocker instead of complete.
+- Re-run the smallest affected test after every fix, then re-run the relevant
+  broader gate before committing.
+- Make atomic commits. Each commit should contain one coherent fix or one
+  coherent documentation update.
+- Leave unrelated dirty files unstaged and call them out in the final report.
+- If a fix touches routing, auth, billing, telemetry, replay, assurance, or
+  stats, add at least one negative-path test.
+- If a fix touches UI, verify loading, empty, error, success, and responsive
+  states.
+- If a fix touches proxy/runtime behavior, use `cutctx-dev` and avoid shared
+  port 8787.
+
+Regression stop conditions:
+
+- A previously passing focused test fails.
+- Full Python, Rust workspace, or dashboard gates regress.
+- A claimed feature is only implemented in docs or tests but not wired into
+  runtime.
+- A release claim becomes broader than the verified implementation.
+- Any command requires restarting shared `com.cutctx.proxy` on port 8787.
+
+When a stop condition occurs:
+
+1. Stop editing.
+2. Record the failing command and exact failure.
+3. Inspect whether the failure is from your changes, concurrent changes, or the
+   environment.
+4. Fix only your regression or ask the user how to handle concurrent conflicts.
+5. Re-run the failed command and the smallest related regression suite.
+
 ## Phase 1: Baseline And Inventory
 
 ### 1.1 Capture Workspace State
@@ -366,6 +416,25 @@ rtk git diff --check
 
 Do not run `make ci-precheck` in an environment that might restart shared
 `com.cutctx.proxy` on port 8787. If running it, use an isolated dev proxy setup.
+
+## No-Regression Signoff
+
+Before marking the bug hunt complete, confirm:
+
+- [ ] No unrelated dirty files were staged.
+- [ ] Every changed source file has a matching focused test or documented
+  reason why test coverage is not applicable.
+- [ ] Every changed UI file has at least one browser/E2E or screenshot-backed
+  verification path.
+- [ ] No new skips, xfails, fake data paths, or static success states were
+  introduced.
+- [ ] Full local Python suite still passes.
+- [ ] Rust workspace tests, clippy, and fmt still pass.
+- [ ] Dashboard lint, build, and E2E still pass.
+- [ ] Text hygiene and `git diff --check` still pass.
+- [ ] Release trackers accurately list remaining open items.
+- [ ] Shared proxy on port 8787 was not restarted or used for restart-heavy
+  iteration.
 
 ## Final Report Template
 
