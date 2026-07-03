@@ -30,8 +30,9 @@ Branch: `fix/ws20-memcache-optimize`
    and provenance is documented.
 3. Version/changelog release cut remains open. If publishing a final release,
    bump the version and move `[Unreleased]` notes into a dated section.
-4. WS1-WS3 product/marketing polish remains partially open: quality-at-budget
-   benchmark docs and outreach content need product-owner approval.
+4. WS1-WS3 product/marketing docs are present for release review:
+   quality-at-budget benchmark framing and current outreach positioning.
+   Product-owner approval is still required before external campaign launch.
 5. Future outbound learn telemetry remains intentionally disabled until
    security/product review approves it.
 6. Branch cleanup remains open until release/PR owner confirms merged branches

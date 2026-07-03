@@ -124,7 +124,7 @@ Look for:
 - Agent Context Report summarizes savings attribution, governance posture, and
   assurance/replay readiness.
 
-## Step 7: Show Session Replay Alpha
+## Step 7: Show Session Replay
 
 After sending a blocked or redacted request with
 `x-cutctx-session-id: demo-session`, open dashboard Replay or call:
@@ -138,15 +138,26 @@ curl -s http://localhost:8080/v1/sessions/demo-session/replay \
 Look for:
 
 - Policy block/redaction events with matched rules.
-- Honest alpha scope: policy decisions are replayed now; compressed,
-  retrieved, injected, and CCR lifecycle replay remains follow-up work.
+- Pipeline timeline events appear when `CUTCTX_REPLAY=1` and
+  `ReplayPipelineExtension` is active.
+
+## Step 8: Show Context Assurance Export
+
+```bash
+cutctx report assurance --format markdown --output /tmp/assurance.md
+cutctx report assurance --verify
+```
+
+Look for:
+
+- Evidence bundle names HMAC-SHA256 chain verification.
+- `--verify` returns `chain_broken: false` for an intact local ledger.
 
 ## Close With Buyer Value
 
 - Cost control: savings attribution separates direct compression, provider
-  cache, and semantic cache.
-- Governance path: WS4 policy enforcement is live in proxy routes with policy
-  replay alpha.
+  cache, semantic cache, and other tracked savings sources.
+- Governance path: WS4 policy enforcement is live in proxy routes.
+- Proof path: WS7 local assurance export and WS8 replay provide evidence of
+  what happened during an agent session.
 - Data portability: WS5 org-scoped memory export is available.
-- Roadmap pull: WS7 assurance and broader WS8 replay remain the next enterprise
-  proof surfaces.

@@ -2,6 +2,9 @@
 
 ## Latest Verification Notes - 2026-07-03
 
+- WS1-WS3 release polish docs added: a quality-at-budget benchmark framing
+  document and current outreach positioning templates now capture
+  provider-native comparison caveats and design-partner messaging.
 - WS7 Context Assurance completion gaps fixed: `cutctx report assurance`
   exists for JSON/markdown evidence export and `--verify` chain validation,
   matching the verification instructions embedded in exported bundles.

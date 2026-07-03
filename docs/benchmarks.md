@@ -2,6 +2,23 @@
 
 > **Methodology note:** Compression ratio is `1 - (output_tokens / input_tokens)`. The most trustworthy numbers are the ones reproduced from the current repo state with the scripts in [`benchmarks/`](../benchmarks/).
 
+## Quality-At-Budget V1
+
+The release-ready benchmark framing is documented in
+[`artifacts/quality-at-budget-benchmark-v1.md`](../artifacts/quality-at-budget-benchmark-v1.md).
+
+Use it to report:
+
+- Tokens saved.
+- Compression ratio.
+- F1 / information recall.
+- Latency.
+- Accepted/rejected decision outcome.
+- Whether savings came from Cutctx or provider-native cache behavior.
+
+Provider-native prompt caching and compaction are complementary. They should
+not be mixed into one undifferentiated savings number with Cutctx compression.
+
 ## Fresh Local Verification
 
 Re-run on **2026-06-29** in the current worktree:

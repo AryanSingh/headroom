@@ -1,5 +1,9 @@
 # Cutctx — 50-Client Outreach Plan
 
+Current messaging source: use
+[`artifacts/outreach-current-positioning.md`](./outreach-current-positioning.md)
+for release-safe copy, claims, and design-partner email templates.
+
 > Strategy update (2026-07-02): outbound messaging should lead with context control, governance, and attribution; token savings stays as proof for eligible workloads.
 
 *Operational plan to land 50 paying pilot customers in 60 days. Read-only. Pairs with `artifacts/pitchdeck.md` (use the deck for the actual pitch). Sources: `artifacts/value-proposition.md`, `artifacts/pilot-success-metrics.md`, `artifacts/roi-calculator.md`, `gtm/outreach-plan-smb.md`, `docs/LEAD_GEN_PLAYBOOK.md`, prior-session competitive landscape (Entroly, LeanCTX, Context Mode, Context Ledger).*

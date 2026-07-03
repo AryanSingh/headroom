@@ -57,8 +57,9 @@ Branch: `fix/ws20-memcache-optimize`
 - [ ] Enterprise positioning must decide whether the OSS-side local assurance
   ledger is sufficient for release claims or whether claims require EE-only
   packaging language.
-- [ ] WS1-WS3 go-to-market polish remains partially open: quality-at-budget
-  benchmark docs and outreach content still need product-owner approval.
+- [x] WS1-WS3 go-to-market polish docs are present for release review:
+  quality-at-budget benchmark framing and current outreach positioning.
+- [ ] Product-owner approval is still required before external campaign launch.
 - [ ] Branch cleanup can proceed only after PR/release owner confirmation for
   merged feature branches.
 
