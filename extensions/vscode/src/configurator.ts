@@ -7,29 +7,41 @@ export class AIExtensionConfigurator {
     constructor(private readonly port: number) {}
 
     async configure(): Promise<void> {
-        const detected: string[] = [];
+        const detected: string[] = ['VS Code / Cursor Global Proxy', 'GitHub Copilot'];
 
         if (vscode.extensions.getExtension('saoudrizwan.claude-dev') ||
             vscode.extensions.getExtension('cline.cline')) detected.push('Cline');
         if (vscode.extensions.getExtension('Continue.continue')) detected.push('Continue');
 
-        if (detected.length === 0) {
-            vscode.window.showInformationMessage(
-                'No supported AI extensions detected (Cline, Continue). ' +
-                `Set your API base URL to http://127.0.0.1:${this.port}/v1 manually.`
-            );
-            return;
-        }
-
         const choice = await vscode.window.showQuickPick(
             detected.map(ext => ({ label: ext, description: `Configure ${ext} to use Cutctx proxy` })),
-            { placeHolder: 'Select AI extension to configure' }
+            { placeHolder: 'Select target to configure' }
         );
 
         if (!choice) return;
 
+        if (choice.label === 'VS Code / Cursor Global Proxy') await this.configureGlobalProxy();
+        if (choice.label === 'GitHub Copilot') await this.configureCopilot();
         if (choice.label === 'Cline') await this.configureCline();
         if (choice.label === 'Continue') await this.configureContinue();
+    }
+
+    private async configureGlobalProxy(): Promise<void> {
+        const config = vscode.workspace.getConfiguration('http');
+        const proxyUrl = `http://127.0.0.1:${this.port}`;
+        await config.update('proxy', proxyUrl, vscode.ConfigurationTarget.Global);
+        await config.update('proxyStrictSSL', false, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Global http.proxy set to ${proxyUrl} (Strict SSL disabled).`);
+    }
+
+    private async configureCopilot(): Promise<void> {
+        const config = vscode.workspace.getConfiguration('github.copilot');
+        const proxyUrl = `http://127.0.0.1:${this.port}`;
+        const advanced = config.get<Record<string, unknown>>('advanced') || {};
+        advanced['debug.overrideProxyUrl'] = proxyUrl;
+        advanced['debug.chatOverrideProxyUrl'] = proxyUrl;
+        await config.update('advanced', advanced, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`GitHub Copilot proxy overrides set to ${proxyUrl}.`);
     }
 
     private async configureCline(): Promise<void> {
