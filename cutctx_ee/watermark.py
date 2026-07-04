@@ -16,6 +16,7 @@ Design principles:
 import hashlib
 import json
 import secrets
+import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -188,10 +189,16 @@ def verify_watermark_traceability(
     if not license_db_path.exists():
         return {wm.lic_id: False for wm in watermarks}
 
-    # Simple JSON check (in production, query the actual license DB)
-    results = {}
-    for wm in watermarks:
-        # Check if the lic_id exists in the license records
-        results[wm.lic_id] = True  # TODO: query actual DB
-
-    return results
+    # Query the actual license DB for each watermark lic_id
+    conn = sqlite3.connect(str(license_db_path))
+    try:
+        results = {}
+        for wm in watermarks:
+            cursor = conn.execute(
+                "SELECT 1 FROM licenses WHERE license_key = ?",
+                (wm.lic_id,),
+            )
+            results[wm.lic_id] = cursor.fetchone() is not None
+        return results
+    finally:
+        conn.close()
