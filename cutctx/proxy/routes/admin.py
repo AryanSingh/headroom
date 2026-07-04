@@ -1954,7 +1954,7 @@ def create_admin_router(
 
     @router.post(
         "/v1/retrieve",
-        dependencies=[_Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_retrieve(request: Request):
         """Retrieve original content from CCR compression cache."""

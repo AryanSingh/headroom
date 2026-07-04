@@ -125,7 +125,7 @@
 
   --text-primary: #111318;
   --text-secondary: #5c6175;
-  --text-tertiary: #9499a8;
+  --text-tertiary: #70778c;
   --text-inverse: #f0f0f4;
 
   --accent: #0d9488;
@@ -2078,6 +2078,8 @@ OVERVIEW: TREND CHART
   display: grid;
   gap: 2px;
   min-width: 150px;
+  max-width: 250px;
+  white-space: normal;
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -2383,6 +2385,7 @@ grid-template-columns: 1fr;
 
 .feature-config-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-xl);
@@ -2727,3 +2730,13 @@ grid-template-columns: 1fr;
     transition: none !important;
   }
 }
+
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none;
+  }
+  .capitalize-on-mobile {
+    text-transform: capitalize;
+  }
+}
+

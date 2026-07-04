@@ -58,20 +58,6 @@ dependencies = [
     "opentelemetry-api>=1.24.0",  # Safe no-op OTEL API for instrumentation
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
     "cryptography>=46.0.0",       # Fernet encryption for local state + HMAC for license cache
-    "keyring>=25.0.0",            # OS Auth Validation (Windows Credential Manager / Linux Secret Service)
-    "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
-    "opentelemetry-sdk>=1.24.0",
-    "graphifyy>=0.8.46",
-    "networkx>=3.4.2",
-]
-
-[project.optional-dependencies]
-# Commercial ("enterprise edition") components — proprietary; see LICENSING.md.
-# Installs the `cutctx-ee` workspace package (editable in dev via uv):
-#   uv sync --extra ee
-ee = ["cutctx-ee"]
-# Proxy server (most common install: pip install cutctx-ai[proxy])
-proxy = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
@@ -84,7 +70,20 @@ proxy = [
     "transformers>=4.30.0,<6.0",  # Tokenizer only (for Kompress)
     "watchdog>=4.0.0",            # File watcher for live code graph reindexing (--code-graph)
     "sqlite-vec>=0.1.6",          # Vector index for memory (--memory). Lightweight, no torch.
+    "keyring>=25.0.0",            # OS Auth Validation (Windows Credential Manager / Linux Secret Service)
+    "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
+    "opentelemetry-sdk>=1.24.0",
+    "graphifyy>=0.8.46",
+    "networkx>=3.4.2",
 ]
+
+[project.optional-dependencies]
+# Commercial ("enterprise edition") components — proprietary; see LICENSING.md.
+# Installs the `cutctx-ee` workspace package (editable in dev via uv):
+#   uv sync --extra ee
+ee = ["cutctx-ee"]
+# Proxy server dependencies are now included by default in the core package.
+proxy = []
 # Production ASGI/WSGI server — Unix-only (gunicorn does not support Windows).
 # Kept separate from [proxy] so that dev, CI, and Windows users are not forced
 # to install a non-functional package.  Production deployments should use:

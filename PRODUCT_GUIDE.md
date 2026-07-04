@@ -447,8 +447,7 @@ Enterprise features are in the `cutctx_ee` module (compiled Cython `.so` binarie
 
 ### LLM Firewall
 
-- 27 regex patterns: injection attacks, PII detection, jailbreak attempts, data exfiltration
-- Streaming redactor (catches sensitive data mid-stream)
+- 24 regex patterns: injection attacks, PII detection, jailbreak attempts, data exfiltration (off by default)
 - Structured output validation with 3× auto-retry on invalid JSON
 
 ### Billing & Entitlements
@@ -634,7 +633,7 @@ Monthly billing available at 20% premium over annual.
 3. **Reliability** — fewer retries, faster agent runs, more reliable workflows
 4. **Governance value** — team visibility, policy control, audit compliance
 
-### Sample ROI Calculation
+### Sample ROI Calculation (Illustrative Example)
 
 *Inputs: $15k/month LLM spend, 200 tool-output requests/day at 5,000 tokens each, $3/M token rate*
 
@@ -650,7 +649,7 @@ Monthly billing available at 20% premium over annual.
 | **ROI** | **229%** |
 | **Payback period** | **4.4 months** |
 
-### Three Real Case Studies
+### Three Case Studies (Illustrative Examples)
 
 **Case 1: Coding Agents (10-person team)**
 - 10 engineers on Claude Code, 200 tool-output requests/day

@@ -38,7 +38,7 @@ function Section({ id, title, children }) {
 
 function Table({ headers, rows }) {
   return (
-    <div className="table-shell">
+    <div className="table-shell" style={{ overflowX: 'auto' }}>
       <table>
         <thead>
           <tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr>
@@ -76,7 +76,7 @@ export default function Docs() {
   const [active, setActive] = useState('quickstart');
 
   return (
-    <section className="page-stack docs-shell" style={{ gridTemplateColumns: '180px minmax(0, 1fr)', alignItems: 'flex-start' }}>
+    <section className="page-stack docs-shell" style={{ display: 'flex', gridTemplateColumns: '180px minmax(0, 1fr)', alignItems: 'flex-start' }}>
 
       {/* Sticky sidebar TOC */}
       <aside style={{ width: 180, flexShrink: 0, position: 'sticky', top: '1rem' }}>

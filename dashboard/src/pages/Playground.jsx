@@ -203,6 +203,11 @@ export default function Playground() {
       }
 
       const payload = await response.json();
+      
+      if (payload.tokens_before > 0 && payload.tokens_before < 50 && payload.tokens_saved === 0) {
+        setError('Input too small for compression (savings are 0%). Try pasting a longer payload.');
+      }
+      
       setResult(payload);
     } catch (requestError) {
       setError(requestError.message || 'Compression request failed.');
@@ -293,7 +298,7 @@ export default function Playground() {
           <div className="playground-actions">
             <button className="primary-button" onClick={handleRun} disabled={loading} type="button">
               <Play size={16} />
-              {loading ? 'Compressing…' : 'Run live compression'}
+              {loading ? 'Compressing…' : <><span className="hide-on-mobile">Run live </span><span className="capitalize-on-mobile">compression</span></>}
             </button>
           </div>
         </section>

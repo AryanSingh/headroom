@@ -112,6 +112,7 @@ Or schedule a weekly digest:
 | OpenAI Codex | `AGENTS.md` |
 | Cursor | `.cursorrules` |
 | Aider | `.aider.conf.yml` (instructions section) |
+| Antigravity | `.antigravityrules` |
 | Custom | `--output <any file>` |
 
 ---

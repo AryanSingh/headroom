@@ -140,7 +140,8 @@ class LicenseDB:
                 ):
                     return {"valid": False, "reason": "invalid_signature"}
             except ImportError:
-                pass
+                logger.warning("cutctx._core not found, cannot verify license signature")
+                return {"valid": False, "reason": "signature_unverified"}
         if not record.active:
             return {"valid": False, "reason": "subscription_cancelled"}
         if record.expires_at < time.time():

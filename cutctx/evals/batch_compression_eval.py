@@ -686,7 +686,7 @@ class UserManager:
         if user_id in self.cache:
             return self.cache[user_id]
 
-        user = self.db.query(f"SELECT * FROM users WHERE id = {user_id}")
+        user = self.db.query("SELECT * FROM users WHERE id = ?", (user_id,))
         self.cache[user_id] = user
         return user
 

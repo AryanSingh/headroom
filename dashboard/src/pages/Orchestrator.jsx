@@ -130,7 +130,9 @@ export default function Orchestrator() {
       await patchDashboardConfig({ orchestrator: newValue });
       await refresh?.();
     } catch (err) {
-      console.error("Failed update orchestrator config", err);
+      if (import.meta.env.DEV) {
+        console.error("Failed update orchestrator config", err);
+      }
       setToggleError(err?.message || "Failed to update setting");
       setOptimisticState(null);
     } finally {

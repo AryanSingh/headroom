@@ -196,7 +196,7 @@ export default function Firewall({ searchQuery = '' }) {
 
           {stats && !stats.enabled && (
             <div className="alert-card" role="status">
-              Firewall is not initialized on this proxy. Enable it by setting <code>CUTCTX_FIREWALL_ENABLED=1</code> and restarting.
+              Firewall is not initialized on this proxy. Enable it by setting <code style={{ wordBreak: 'break-all' }}>CUTCTX_FIREWALL_ENABLED=1</code> and restarting.
             </div>
           )}
 

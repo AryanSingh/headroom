@@ -32,14 +32,14 @@ spec:
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
-        fsGroup: 65534
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: cutctx-proxy
-          image: ghcr.io/cutctx/cutctx:v0.29.0
+          image: ghcr.io/cutctx/cutctx:v0.30.0
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -47,8 +47,13 @@ spec:
                 command: ["sleep", "5"]
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8787
               protocol: TCP
+          env:
+            - name: CUTCTX_MODE
+              value: "token"
+            - name: CUTCTX_OPTIMIZE
+              value: "1"
           envFrom:
             - configMapRef:
                 name: cutctx-proxy-config
@@ -56,12 +61,10 @@ spec:
                 name: cutctx-proxy-secret
           args:
             - "--listen-addr"
-            - "0.0.0.0:8080"
-            - "--compression"
-            - "--compression-mode"
-            - "live-zone"
+            - "0.0.0.0:8787"
             - "--max-body-bytes"
             - "52428800"
+
           resources:
             requests:
               cpu: 250m
@@ -99,9 +102,14 @@ spec:
             timeoutSeconds: 2
             failureThreshold: 30
           volumeMounts:
+            - name: cutctx-data
+              mountPath: /home/nonroot/.cutctx
             - name: tmp
               mountPath: /tmp
       volumes:
+        - name: cutctx-data
+          persistentVolumeClaim:
+            claimName: cutctx-pvc
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi

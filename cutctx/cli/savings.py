@@ -561,7 +561,7 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
             ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
             for (let i = 0; i < dataPoints; i++) {{
                 const x = padding + (i * chartWidth / dataPoints);
-                const estimate = maxValue * (0.7 + Math.random() * 0.3);
+                const estimate = maxValue * (0.6 + (i % 5) * 0.05); // Deterministic pattern instead of Math.random()
                 const barHeight = (estimate / maxValue) * chartHeight;
                 ctx.fillRect(x, height - padding - barHeight, chartWidth / dataPoints - 2, barHeight);
             }}

@@ -288,3 +288,4 @@ uv.lock
 fix_summary.md
 patch_*.py
 .playwright-mcp/
+.slim/deepwork/

@@ -151,7 +151,18 @@ class TestSsoValidator(unittest.TestCase):
 
         # Skip real signature verification (stub keys have no key material)
         async def _no_sig_verify(token, key, algorithm):
-            pass
+            import base64
+            import json
+            import time
+            from cutctx_ee.sso import SsoTokenExpiredError
+
+            parts = token.split(".")
+            if len(parts) == 3:
+                payload_json = base64.urlsafe_b64decode(parts[1] + "===").decode()
+                payload = json.loads(payload_json)
+                exp = payload.get("exp")
+                if exp and time.time() > exp:
+                    raise SsoTokenExpiredError("Token expired")
 
         validator._verify_signature = _no_sig_verify
         return validator

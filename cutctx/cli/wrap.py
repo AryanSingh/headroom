@@ -2520,6 +2520,7 @@ def wrap() -> None:
         cutctx wrap windsurf            # Windsurf (prints config instructions)
         cutctx wrap zed                 # Zed (prints config instructions)
         cutctx wrap opencode            # Launch opencode CLI
+        cutctx wrap antigravity         # Antigravity (Google VS Code fork)
 
     \b
     `wrap` vs `proxy`:
@@ -3961,6 +3962,136 @@ def zed(
 
 
 # =============================================================================
+# Antigravity (Google VS Code fork)
+# =============================================================================
+
+
+@wrap.command(context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option(
+    "--no-context-tool",
+    "--no-rtk",
+    "no_rtk",
+    is_flag=True,
+    help="Skip CLI context-tool setup",
+)
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option("--learn", is_flag=True, help="Enable live traffic learning")
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option(
+    "--launch",
+    is_flag=True,
+    help="Launch the Antigravity app with ANTHROPIC_BASE_URL pre-set",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--prepare-only", is_flag=True, hidden=True)
+def antigravity(
+    port: int,
+    no_rtk: bool,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    launch: bool,
+    verbose: bool,
+    prepare_only: bool,
+) -> None:
+    """Route Antigravity (Google VS Code) Claude Code through Cutctx proxy.
+
+    \b
+    Antigravity is Google's VS Code fork, with Claude Code for VS Code
+    pre-installed. The extension reads ``ANTHROPIC_BASE_URL`` from the
+    environment at startup.
+
+    \b
+    This command starts the proxy, sets up the selected CLI context tool
+    (injecting RTK guidance into ``.antigravityrules`` at the project root),
+    and prints setup instructions.
+
+    \b
+    With ``--launch``, it also discovers the Antigravity CLI binary and
+    launches the app with the proxy env vars pre-set.
+
+    \b
+    Examples:
+        cutctx wrap antigravity                # Start proxy + .antigravityrules
+        cutctx wrap antigravity --launch        # Start proxy + launch Antigravity
+        cutctx wrap antigravity --no-context-tool  # Proxy only, no RTK
+        cutctx wrap antigravity --port 9999    # Custom proxy port
+    """
+    from cutctx.providers.antigravity import render_setup_lines as _render_antigravity_setup_lines
+
+    antigravityrules: Path | None = Path.cwd() / ".antigravityrules" if not no_rtk else None
+    if not no_rtk:
+        _setup_context_tool_for_agent(
+            agent="antigravity",
+            agent_display="Antigravity",
+            marker_path=antigravityrules,
+            on_rtk_ready=lambda _rtk: _inject_rtk_instructions(
+                cast(Path, antigravityrules), verbose=verbose
+            ),
+            verbose=verbose,
+        )
+
+    if prepare_only:
+        return
+
+    if launch:
+        from cutctx.providers.antigravity import find_cli as _find_antigravity_cli
+
+        antigravity_bin = _find_antigravity_cli()
+        if not antigravity_bin:
+            click.echo("Error: 'antigravity' not found in PATH.")
+            click.echo("Install Antigravity: https://antigravity.dev")
+            raise SystemExit(1)
+
+        openai_base = f"http://127.0.0.1:{port}/v1"
+        anthropic_base = _claude_proxy_base_url(port)
+        env = os.environ.copy()
+        env["ANTHROPIC_BASE_URL"] = anthropic_base
+        env["OPENAI_BASE_URL"] = openai_base
+        env["OPENAI_API_BASE"] = openai_base
+        env_vars_display = [
+            f"ANTHROPIC_BASE_URL={anthropic_base}",
+            f"OPENAI_BASE_URL={openai_base}",
+        ]
+
+        _launch_tool(
+            binary=str(antigravity_bin),
+            args=(),
+            env=env,
+            port=port,
+            no_proxy=no_proxy,
+            tool_label="ANTIGRAVITY",
+            env_vars_display=env_vars_display,
+            learn=learn,
+            memory=memory,
+            agent_type="antigravity",
+        )
+        return
+
+    def _print_antigravity_setup() -> None:
+        for line in _render_antigravity_setup_lines(port, project=_project_name_from_cwd()):
+            click.echo(line)
+        if not no_rtk:
+            click.echo()
+            if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
+                click.echo("  lean-ctx configured for Antigravity")
+            else:
+                click.echo("  rtk instructions injected into .antigravityrules")
+            click.echo("  Antigravity will use token-optimized commands automatically.")
+
+    _run_proxy_only_watcher(
+        agent_label="antigravity",
+        port=port,
+        no_proxy=no_proxy,
+        learn=learn,
+        memory=memory,
+        agent_type="antigravity",
+        print_setup_lines=_print_antigravity_setup,
+    )
+
+
+# =============================================================================
 # opencode
 # =============================================================================
 
@@ -4680,4 +4811,45 @@ def unwrap_codex(port: int, no_stop_proxy: bool) -> None:
     if changed and not no_stop_proxy:
         _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(port), port)
     click.echo()
+    click.echo()
+
+
+@unwrap.command("antigravity")
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option("--no-stop-proxy", is_flag=True, help="Do not stop the local Cutctx proxy")
+def unwrap_antigravity(port: int, no_stop_proxy: bool) -> None:
+    """Undo ``cutctx wrap antigravity``.
+
+    Removes the Cutctx RTK block from ``.antigravityrules`` (if present)
+    and optionally stops the local Cutctx proxy.
+    """
+    click.echo()
+
+    antigravityrules = Path.cwd() / ".antigravityrules"
+    if antigravityrules.exists():
+        content = antigravityrules.read_text()
+        marker = "<!-- cutctx:rtk-instructions -->"
+        end_marker = "<!-- /cutctx:rtk-instructions -->"
+
+        if marker in content and end_marker in content:
+            start = content.index(marker)
+            end = content.index(end_marker) + len(end_marker)
+            new_content = content[:start].rstrip() + "\n" + content[end:].lstrip()
+            new_content = new_content.strip() + "\n" if new_content.strip() else ""
+
+            if new_content.strip():
+                antigravityrules.write_text(new_content)
+                click.echo("  Removed Cutctx block from .antigravityrules; other content preserved.")
+            else:
+                antigravityrules.unlink()
+                click.echo("  Removed .antigravityrules (contained only Cutctx-written content).")
+        else:
+            click.echo("  No Cutctx markers found in .antigravityrules.")
+    else:
+        click.echo("  No .antigravityrules file found.")
+
+    click.echo()
+    click.echo("✓ Antigravity is no longer durably wrapped by Cutctx.")
+    if not no_stop_proxy:
+        _echo_unwrap_proxy_stop_status(_stop_local_proxy_for_unwrap(port), port)
     click.echo()

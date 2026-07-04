@@ -28,6 +28,7 @@ from cutctx.cli.main import main
 HINTFILE_AGENTS = [
     pytest.param("cline", ".clinerules", id="cline"),
     pytest.param("goose", ".goosehints", id="goose"),
+    pytest.param("antigravity", ".antigravityrules", id="antigravity"),
 ]
 
 

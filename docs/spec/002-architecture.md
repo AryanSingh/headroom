@@ -143,6 +143,7 @@ class CutctxClient:
 - `aider` — Wrap Aider
 - `cursor` — Wrap Cursor
 - `openclaw` — Wrap OpenClaw
+- `antigravity` — Wrap Antigravity (Google VS Code fork)
 
 ```python
 @click.command()

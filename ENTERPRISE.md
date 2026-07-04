@@ -132,7 +132,7 @@ These are not code gaps, but business workstreams:
 |---------|--------|
 | Intelligence layer (6 features: task-aware, dedup, budget, profiles, shared-state, cost-forecast) | Available |
 | JSON schema compression (40% token savings on tool definitions) | Available |
-| LLM Firewall (27 regex patterns + ML classifier) | Available |
+| LLM Firewall (24 regex patterns, off by default) | Available |
 | Structured output validation with auto-retry | Available |
 | Multi-model ensemble routing | Available |
 | Budget cut-offs with progressive compression | Available |

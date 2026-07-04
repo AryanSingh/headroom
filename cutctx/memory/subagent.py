@@ -59,7 +59,7 @@ class SubAgentBridge:
         
         context_summary = "\n".join([f"- {m.content}" for m in top_memories])
         
-        return {
+        payload = {
             "task": task,
             "context_summary": context_summary,
             "ccr_scope": {
@@ -67,6 +67,15 @@ class SubAgentBridge:
                 "session_id": self.parent_session_id
             }
         }
+        
+        if not memories:
+            logger.warning(
+                "No context found for session %s when provisioning sub-agent task: %s",
+                self.parent_session_id, task
+            )
+            payload["warning"] = "No context found for this session. Sub-agent will start with zero context."
+            
+        return payload
         
     async def merge_result(self, subagent_id: str, distilled_result: str, importance: float = 0.8) -> None:
         """Merge the distilled sub-agent result back into the parent's memory.
@@ -76,6 +85,13 @@ class SubAgentBridge:
             distilled_result: The summarized result returned by the sub-agent.
             importance: The importance score to assign to this distilled memory.
         """
+        if not subagent_id or not subagent_id.strip():
+            raise ValueError("subagent_id must be a non-empty string")
+        if not distilled_result or not distilled_result.strip():
+            raise ValueError("distilled_result must be a non-empty string")
+        if not 0.0 <= importance <= 1.0:
+            raise ValueError("importance must be between 0.0 and 1.0")
+            
         content = f"[Sub-Agent {subagent_id} Result]: {distilled_result}"
         
         await self.memory.add(

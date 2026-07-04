@@ -166,7 +166,7 @@ $ Saved by source
 
 ## Slide 9 — ROI (the CFO close)
 
-**Title:** *Three documented case studies.*
+**Title:** *Three illustrative case study examples.*
 
 | Profile | Annual spend | Cutctx tier | Annual value | ROI |
 |---|---:|---|---:|---:|

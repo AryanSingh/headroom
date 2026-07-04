@@ -5,9 +5,11 @@ import {
   Activity,
   BarChart3,
   BookOpen,
+  Globe,
   Home,
   History,
   Moon,
+  Package,
   PanelLeftOpen,
   Search,
   Shield,
@@ -131,11 +133,11 @@ function Sidebar({ open, onClose }) {
           <div className="sidebar-label">Surfaces</div>
           <div className="promo-card">
             <div className="promo-row">
-              <Shield size={12} />
+              <Globe size={12} />
               Proxy, wrap, library, MCP
             </div>
             <div className="promo-row">
-              <Zap size={12} />
+              <Package size={12} />
               Memory, CCR, firewall, savings
             </div>
           </div>
@@ -163,6 +165,10 @@ function Topbar({
     () => navItems.find((item) => item.path === location.pathname) || navItems[0],
     [location.pathname],
   );
+
+  const searchEnabled = useMemo(() => {
+    return ['/governance', '/firewall', '/memory', '/replay'].includes(location.pathname);
+  }, [location.pathname]);
 
   useEffect(() => {
     document.title = currentNav ? `${currentNav.label} — Cutctx` : 'Cutctx Dashboard';
@@ -193,18 +199,25 @@ function Topbar({
       </div>
 
       <div className="topbar-tools">
-        <label className="search-shell" aria-label="Search dashboard">
-          <Search size={14} />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search"
-            aria-label="Search"
-          />
-          <span className="search-shortcut">/</span>
-        </label>
+        {searchEnabled ? (
+          <label className="search-shell" aria-label="Search dashboard">
+            <Search size={14} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search"
+              aria-label="Search"
+            />
+            <span className="search-shortcut">/</span>
+          </label>
+        ) : (
+          <div className="search-shell" style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Search not available on this page">
+            <Search size={14} />
+            <input type="text" placeholder="Search unavailable" disabled style={{ cursor: 'not-allowed' }} />
+          </div>
+        )}
 
         <button
           className="theme-toggle"

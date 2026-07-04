@@ -2161,7 +2161,9 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
     if react_assets.is_dir():
         @app.get("/assets/{filename}", include_in_schema=False)
         async def serve_asset(filename: str):
-            asset_path = react_assets / filename
+            asset_path = (react_assets / filename).resolve()
+            if not asset_path.is_relative_to(react_assets):
+                return Response(status_code=403)
             if asset_path.is_file():
                 return FileResponse(str(asset_path))
             return Response(status_code=404)
@@ -4541,7 +4543,7 @@ def _require_rbac_permission(permission: str):
             proxy,
             config,
             require_admin_auth=_require_local_admin_auth,
-            require_rbac_permission=None,
+            require_rbac_permission=_require_rbac_permission,
             require_entitlement=_require_entitlement,
             firewall_scanner=_firewall_scanner,
         )
@@ -5770,7 +5772,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
-    @app.get("/transformations/feed")
+    @app.get("/transformations/feed", dependencies=[Depends(_require_local_admin_auth)])
     async def transformations_feed(limit: int = 50):
         transformations = []
         log_full_messages = proxy.config.log_full_messages if proxy else False
@@ -5798,11 +5800,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return {"transformations": transformations, "log_full_messages": log_full_messages}
 
-    @app.post("/v1/compress")
+    @app.post("/v1/compress", dependencies=[Depends(_require_local_admin_auth)])
     async def compress_endpoint(request: Request):
         return await proxy.handle_compress(request)
 
-    @app.get("/v1/retrieve/stats")
+    @app.get("/v1/retrieve/stats", dependencies=[Depends(_require_local_admin_auth)])
     async def retrieve_stats_endpoint():
         store = get_compression_store()
         stats = store.get_stats()
@@ -5847,7 +5849,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         status = store.get_entry_status(hash_key, clean_expired=False)
         raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
 
-    @app.post("/v1/retrieve")
+    @app.post("/v1/retrieve", dependencies=[Depends(_require_local_admin_auth)])
     async def retrieve_endpoint(request: Request):
         payload = await request.json()
         hash_key = str(payload.get("hash", "") or "").strip()
@@ -5887,7 +5889,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
         )
 
-    @app.get("/v1/retrieve/{hash_key}")
+    @app.get("/v1/retrieve/{hash_key}", dependencies=[Depends(_require_local_admin_auth)])
     async def retrieve_by_hash_endpoint(hash_key: str, query: str | None = None):
         store = get_compression_store()
         entry = _retrieve_entry(hash_key, query=query)
@@ -5925,7 +5927,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     if _react_assets.is_dir():
         @app.get("/assets/{filename}", include_in_schema=False)
         async def serve_asset_legacy(filename: str):
-            asset_path = _react_assets / filename
+            asset_path = (_react_assets / filename).resolve()
+            if not asset_path.is_relative_to(_react_assets):
+                return Response(status_code=403)
             if asset_path.is_file():
                 return FileResponse(str(asset_path))
             return Response(status_code=404)
@@ -6712,9 +6716,8 @@ if __name__ == "__main__":
     rate_limit_enabled = env_rate_limit if not args.no_rate_limit else False
     disable_kompress = args.disable_kompress or _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
 
-    # Set OpenRouter API key from CLI if provided
-    if hasattr(args, "openrouter_api_key") and args.openrouter_api_key:
-        os.environ["OPENROUTER_API_KEY"] = args.openrouter_api_key
+    # Set OpenRouter API key from env variable only.
+    # Removed writing from CLI args into process environment.
 
     # Parse per-tool compression profiles from CLI and env var
     tool_profiles = _parse_tool_profiles(args.tool_profile)

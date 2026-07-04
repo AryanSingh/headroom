@@ -61,24 +61,28 @@ export default function Memory({ searchQuery = '' }) {
 
       {error && <div className="alert-card" role="alert">Failed to load memory data: {error}</div>}
 
-      {/* Context-tool stats — always available */}
+      {/* Context-tool stats — conditionally shown if available */}
       <div className="metric-grid metric-grid-four" aria-busy={loading}>
-        <MetricCard
-          icon={<ScanSearch size={18} />}
-          label="RTK commands"
-          value={formatInteger(contextTool.total_commands)}
-          note={`${formatInteger(contextTool.tokens_saved)} tokens avoided`}
-        />
-        <MetricCard
-          icon={<History size={18} />}
-          label="Session savings"
-          value={
-            contextTool.session?.tokens_saved != null
-              ? formatInteger(contextTool.session.tokens_saved)
-              : '—'
-          }
-          note="Context-tool session contribution"
-        />
+        {stats?.context_tool && (
+          <>
+            <MetricCard
+              icon={<ScanSearch size={18} />}
+              label="RTK commands"
+              value={formatInteger(contextTool.total_commands)}
+              note={`${formatInteger(contextTool.tokens_saved)} tokens avoided`}
+            />
+            <MetricCard
+              icon={<History size={18} />}
+              label="Session savings"
+              value={
+                contextTool.session?.tokens_saved != null
+                  ? formatInteger(contextTool.session.tokens_saved)
+                  : '—'
+              }
+              note="Context-tool session contribution"
+            />
+          </>
+        )}
         <MetricCard
           icon={<BrainCircuit size={18} />}
           label="Insights"

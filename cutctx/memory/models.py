@@ -218,3 +218,31 @@ class DecisionTrace(Memory):
         self.metadata["rationale"] = self.rationale
         self.metadata["action"] = self.action
         self.metadata["outcome"] = self.outcome
+
+    def to_dict(self) -> dict[str, Any]:
+        d = super().to_dict()
+        d["situation"] = self.situation
+        d["rationale"] = self.rationale
+        d["action"] = self.action
+        d["outcome"] = self.outcome
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> DecisionTrace:
+        # Extract subclass fields before delegating to Memory.from_dict
+        situation = data.get("situation") or data.get("metadata", {}).get("situation", "")
+        rationale = data.get("rationale") or data.get("metadata", {}).get("rationale", "")
+        action = data.get("action") or data.get("metadata", {}).get("action", "")
+        outcome = data.get("outcome") or data.get("metadata", {}).get("outcome", "")
+        
+        # Fallback to parent from_dict to avoid duplicating all field parsing
+        base = Memory.from_dict(data)
+        import dataclasses
+        kwargs = {f.name: getattr(base, f.name) for f in dataclasses.fields(Memory)}
+        kwargs.update({
+            "situation": situation,
+            "rationale": rationale,
+            "action": action,
+            "outcome": outcome,
+        })
+        return cls(**kwargs)

@@ -295,7 +295,8 @@ class CutctxClient:
             import os
             import tempfile
 
-            db_path = os.path.join(tempfile.gettempdir(), "cutctx.db")
+            fd, db_path = tempfile.mkstemp(prefix="cutctx_", suffix=".db")
+            os.close(fd)
             store_url = f"sqlite:///{db_path}"
 
         self._store_url = store_url

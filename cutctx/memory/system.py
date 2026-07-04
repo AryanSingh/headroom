@@ -265,6 +265,7 @@ class MemorySystem:
             "memory_search": self._handle_search,
             "memory_update": self._handle_update,
             "memory_delete": self._handle_delete,
+            "memory_save_decision_trace": self._handle_decision_trace_save,
         }
 
         handler = handlers.get(tool_name)
@@ -581,6 +582,34 @@ class MemorySystem:
             extracted_relationships=arguments.get("extracted_relationships"),
             # Async control
             background=arguments.get("background"),
+        )
+
+    async def _handle_decision_trace_save(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Internal dispatcher for memory_save_decision_trace."""
+        situation = arguments.get("situation", "")
+        rationale = arguments.get("rationale", "")
+        action = arguments.get("action", "")
+        outcome = arguments.get("outcome", "")
+        importance = arguments.get("importance", 0.5)
+        
+        content = (
+            f"Decision Trace:\n"
+            f"Situation: {situation}\n"
+            f"Rationale: {rationale}\n"
+            f"Action: {action}\n"
+            f"Outcome: {outcome}"
+        )
+        
+        return await self.handle_memory_save(
+            content=content,
+            importance=importance,
+            metadata={
+                "type": "decision_trace",
+                "situation": situation,
+                "rationale": rationale,
+                "action": action,
+                "outcome": outcome
+            },
         )
 
     async def _handle_search(self, arguments: dict[str, Any]) -> dict[str, Any]:

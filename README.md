@@ -53,7 +53,7 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 
 - **Library** — `compress(messages)` in Python or TypeScript, inline in any app
 - **Proxy** — `cutctx proxy --port 8787`, zero code changes, any language
-- **Agent wrap** — `cutctx wrap claude|codex|cursor|aider|copilot|windsurf|zed|opencode` in one command
+- **Agent wrap** — `cutctx wrap claude|codex|cursor|aider|copilot|windsurf|zed|opencode|antigravity` in one command
 - **MCP server** — `cutctx_compress`, `cutctx_retrieve`, `cutctx_status` for any MCP client
 - **Cross-agent memory** — shared store across Claude, Codex, Gemini, auto-dedup
 - **`cutctx learn`** — agent self-improvement: mines failed sessions, detects failure patterns, writes corrections to `CLAUDE.md` / `AGENTS.md` so agents get smarter every session
@@ -167,6 +167,7 @@ Full per-compressor breakdown (all 10 compressors × ratio/tokens-saved/F1/ROUGE
 | Aider       | ✅              | starts proxy + launches          |
 | Copilot CLI | ✅              | starts proxy + launches          |
 | OpenClaw    | ✅              | installs as ContextEngine plugin |
+| Antigravity | ✅              | Google VS Code fork · `.antigravityrules` |
 
 Any OpenAI-compatible client works via `cutctx proxy`. MCP-native: `cutctx mcp install`.
 
@@ -278,7 +279,7 @@ cutctx integrations status         # which parsers are wired
 <details>
 <summary><b>Security & governance</b></summary>
 
-- **LLM Firewall** — 27 regex patterns (injection, PII, jailbreak, data exfiltration) + streaming redactor.
+- **LLM Firewall** — 24 regex patterns (injection, PII, jailbreak, data exfiltration), off by default.
 - **Structured output validation** — jsonschema enforcement with 3x auto-retry on invalid JSON.
 - **Multi-model ensemble** — asyncio.gather fan-out with evaluator model picks best response.
 - **Budget cut-offs** — token/cost hard limits with streaming SSE truncation.

@@ -69,4 +69,4 @@ spec:
           volumes:
           - name: data-volume
             persistentVolumeClaim:
-              claimName: cutctx-data
+              claimName: cutctx-pvc

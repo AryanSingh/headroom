@@ -342,6 +342,8 @@ class SsoValidator:
             # Verify signature using the public key
             try:
                 await self._verify_signature(token, key, alg)
+            except SsoTokenExpiredError:
+                raise
             except Exception as e:
                 logger.warning("JWT signature verification failed: %s", e)
                 # Signature verification failed — raise immediately
@@ -351,12 +353,7 @@ class SsoValidator:
         now = time.time()
         skew = self.config.clock_skew_tolerance
 
-        # Expiry check
-        exp = payload.get("exp")
-        if exp and now > exp + skew:
-            raise SsoTokenExpiredError(
-                f"Token expired at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(exp))}"
-            )
+        # Expiry check is handled by PyJWT during signature verification.
 
         # Issuer check (timing-safe to prevent timing side-channels)
         if self.config.issuer:
@@ -391,7 +388,7 @@ class SsoValidator:
             subject=payload.get("sub", "unknown"),
             issuer=payload.get("iss", ""),
             audience=payload.get("aud"),
-            expires_at=exp,
+            expires_at=payload.get("exp"),
             issued_at=payload.get("iat"),
             scopes=scopes,
             role=role,
@@ -501,8 +498,10 @@ class SsoValidator:
                 algorithms=[algorithm],
                 audience=self.config.audience,
                 issuer=self.config.issuer,
-                options={"verify_exp": False},  # We check expiry ourselves
+                leeway=self.config.clock_skew_tolerance,
             )
+        except pyjwt.ExpiredSignatureError as exc:
+            raise SsoTokenExpiredError(f"Token expired: {exc}") from exc
         except pyjwt.PyJWTError as exc:
             raise SsoTokenInvalidError(f"Signature verification failed: {exc}") from exc
 

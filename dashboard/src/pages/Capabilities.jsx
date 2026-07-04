@@ -140,7 +140,9 @@ export default function Capabilities() {
       await patchDashboardConfig({ [key]: !currentValue });
       await refresh?.();
     } catch (err) {
-      console.error('Failed to toggle config:', err);
+      if (import.meta.env.DEV) {
+        console.error('Failed to toggle config:', err);
+      }
       setToggleError(err?.message || 'Failed to update setting');
       setOptimisticState((prev) => {
         const next = { ...prev };
@@ -163,21 +165,21 @@ export default function Capabilities() {
       value: formatInteger(providerCacheTokens),
       detail: `${formatCurrency(providerCacheSavingsUsd)} saved`,
     },
-    {
+    stats?.codex_ws != null ? {
       label: 'Codex websocket',
       value: formatInteger(stats?.codex_ws?.frames_attempted_total),
       detail: `${formatInteger(stats?.codex_ws?.frames_failed_total)} failed frames`,
-    },
-    {
+    } : null,
+    stats?.context_tool != null ? {
       label: 'Context tool',
       value: titleize(stats?.context_tool?.configured || 'none'),
       detail: stats?.context_tool?.available ? 'Available in workspace' : 'Unavailable',
-    },
-    {
+    } : null,
+    stats?.toin != null ? {
       label: 'TOIN patterns',
       value: formatInteger(stats?.toin?.patterns_tracked),
       detail: `${formatInteger(stats?.toin?.patterns_with_recommendations)} with recommendations`,
-    },
+    } : null,
     {
       label: 'Rate limiter',
       value: formatInteger(stats?.rate_limiter?.active_keys || 0),
@@ -225,7 +227,7 @@ export default function Capabilities() {
       status: surfaceFlags.firewall ?? stats?.firewall != null,
       configKey: surfaceFlags.firewall == null ? null : 'firewall',
     },
-  ];
+  ].filter(Boolean);
 
   return (
     <section className="page-stack">
@@ -305,12 +307,19 @@ label={`${toggleState ? "Disable" : "Enable"} ${surface.label}`}
 
       {capabilityGroups.map((group) => {
         const Icon = icons[group.title] || Boxes;
+        const iconColors = {
+          'Core Deployment Modes': { bg: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9' },
+          'Compression & Optimization': { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' },
+          'State, Retrieval, and Memory': { bg: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' },
+          'Governance & Operations': { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' },
+        };
+        const colorStyle = iconColors[group.title] || { bg: 'var(--accent-muted)', color: 'var(--accent)' };
 
         return (
           <section key={group.title} className="panel capability-panel">
             <div className="section-heading">
               <div className="heading-with-icon">
-                <div className="heading-icon">
+                <div className="heading-icon" style={{ backgroundColor: colorStyle.bg, color: colorStyle.color }}>
                   <Icon size={18} />
                 </div>
                 <div>
