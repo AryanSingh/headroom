@@ -31,14 +31,18 @@ logger = logging.getLogger("cutctx.proxy.ensemble")
 # Configuration
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EnsembleConfig:
     """Configuration for multi-model ensemble execution."""
+
     enabled: bool = False
-    default_models: list[str] = field(default_factory=lambda: [
-        "claude-3-5-sonnet-20241022",
-        "gpt-4o",
-    ])
+    default_models: list[str] = field(
+        default_factory=lambda: [
+            "claude-3-5-sonnet-20241022",
+            "gpt-4o",
+        ]
+    )
     evaluator_model: str = "claude-3-haiku-20240307"
     evaluator_max_tokens: int = 256
     timeout_seconds: float = 120.0
@@ -61,9 +65,11 @@ class EnsembleConfig:
 # Model result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ModelResult:
     """Result from a single model in the ensemble."""
+
     model: str
     content: str
     latency_ms: float
@@ -76,9 +82,11 @@ class ModelResult:
 # Ensemble result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EnsembleResult:
     """Final result from ensemble execution."""
+
     content: str
     winning_model: str
     all_results: list[ModelResult]
@@ -112,6 +120,7 @@ Return ONLY a JSON object with this exact format:
 # ---------------------------------------------------------------------------
 # EnsembleCoordinator
 # ---------------------------------------------------------------------------
+
 
 class EnsembleCoordinator:
     """Fans out requests to multiple models and evaluates the best response."""
@@ -173,13 +182,15 @@ class EnsembleCoordinator:
         model_results: list[ModelResult] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                model_results.append(ModelResult(
-                    model=target_models[i],
-                    content="",
-                    latency_ms=0,
-                    error=str(result),
-                    success=False,
-                ))
+                model_results.append(
+                    ModelResult(
+                        model=target_models[i],
+                        content="",
+                        latency_ms=0,
+                        error=str(result),
+                        success=False,
+                    )
+                )
             elif isinstance(result, ModelResult):
                 model_results.append(result)
 
@@ -227,7 +238,10 @@ class EnsembleCoordinator:
 
         logger.info(
             "Ensemble: %d models queried, winner=%s (total=%.0fms, eval=%.0fms)",
-            len(successful), winning_model, total_ms, eval_ms,
+            len(successful),
+            winning_model,
+            total_ms,
+            eval_ms,
         )
 
         return EnsembleResult(
@@ -256,19 +270,31 @@ class EnsembleCoordinator:
             # Detect provider from model name
             if model.startswith("gpt-") or model.startswith("o1") or model.startswith("o3"):
                 content, tokens = await self._call_openai(
-                    client=client, model=model, messages=messages,
-                    temperature=temperature, max_tokens=max_tokens, **kwargs,
+                    client=client,
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    **kwargs,
                 )
             elif model.startswith("gemini"):
                 content, tokens = await self._call_gemini(
-                    client=client, model=model, messages=messages,
-                    temperature=temperature, max_tokens=max_tokens, **kwargs,
+                    client=client,
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    **kwargs,
                 )
             else:
                 # Default to Anthropic
                 content, tokens = await self._call_anthropic(
-                    client=client, model=model, messages=messages,
-                    temperature=temperature, max_tokens=max_tokens, **kwargs,
+                    client=client,
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    **kwargs,
                 )
 
             latency = (time.monotonic() - t0) * 1000
@@ -328,13 +354,19 @@ class EnsembleCoordinator:
             # Try calling the evaluator model
             if evaluator_model.startswith("gpt-"):
                 content, _ = await self._call_openai(
-                    client=client, model=evaluator_model, messages=eval_messages,
-                    temperature=0.0, max_tokens=self.config.evaluator_max_tokens,
+                    client=client,
+                    model=evaluator_model,
+                    messages=eval_messages,
+                    temperature=0.0,
+                    max_tokens=self.config.evaluator_max_tokens,
                 )
             else:
                 content, _ = await self._call_anthropic(
-                    client=client, model=evaluator_model, messages=eval_messages,
-                    temperature=0.0, max_tokens=self.config.evaluator_max_tokens,
+                    client=client,
+                    model=evaluator_model,
+                    messages=eval_messages,
+                    temperature=0.0,
+                    max_tokens=self.config.evaluator_max_tokens,
                 )
 
             # Parse evaluation JSON
@@ -354,11 +386,18 @@ class EnsembleCoordinator:
             }
 
     async def _call_anthropic(
-        self, *, client: Any, model: str, messages: list[dict],
-        temperature: float, max_tokens: int, **kwargs: Any,
+        self,
+        *,
+        client: Any,
+        model: str,
+        messages: list[dict],
+        temperature: float,
+        max_tokens: int,
+        **kwargs: Any,
     ) -> tuple[str, int]:
         """Call Anthropic API, return (content, tokens_used)."""
-        api_key = kwargs.pop("anthropic_api_key", os.environ.get("ANTHROPIC_API_KEY", ""))
+        from cutctx.proxy.auth_keyring import get_api_key
+        api_key = kwargs.pop("anthropic_api_key", get_api_key("anthropic"))
         base_url = kwargs.pop("anthropic_base_url", "https://api.anthropic.com")
 
         headers = {
@@ -377,7 +416,9 @@ class EnsembleCoordinator:
 
         resp = await client.post(
             f"{base_url}/v1/messages",
-            headers=headers, json=body, timeout=self.config.timeout_seconds,
+            headers=headers,
+            json=body,
+            timeout=self.config.timeout_seconds,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -392,11 +433,18 @@ class EnsembleCoordinator:
         return "\n".join(content_parts), tokens
 
     async def _call_openai(
-        self, *, client: Any, model: str, messages: list[dict],
-        temperature: float, max_tokens: int, **kwargs: Any,
+        self,
+        *,
+        client: Any,
+        model: str,
+        messages: list[dict],
+        temperature: float,
+        max_tokens: int,
+        **kwargs: Any,
     ) -> tuple[str, int]:
         """Call OpenAI API, return (content, tokens_used)."""
-        api_key = kwargs.pop("openai_api_key", os.environ.get("OPENAI_API_KEY", ""))
+        from cutctx.proxy.auth_keyring import get_api_key
+        api_key = kwargs.pop("openai_api_key", get_api_key("openai"))
         base_url = kwargs.pop("openai_base_url", "https://api.openai.com")
 
         headers = {"Content-Type": "application/json"}
@@ -412,7 +460,9 @@ class EnsembleCoordinator:
 
         resp = await client.post(
             f"{base_url}/v1/chat/completions",
-            headers=headers, json=body, timeout=self.config.timeout_seconds,
+            headers=headers,
+            json=body,
+            timeout=self.config.timeout_seconds,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -424,11 +474,18 @@ class EnsembleCoordinator:
         return content, tokens
 
     async def _call_gemini(
-        self, *, client: Any, model: str, messages: list[dict],
-        temperature: float, max_tokens: int, **kwargs: Any,
+        self,
+        *,
+        client: Any,
+        model: str,
+        messages: list[dict],
+        temperature: float,
+        max_tokens: int,
+        **kwargs: Any,
     ) -> tuple[str, int]:
         """Call Gemini API, return (content, tokens_used)."""
-        api_key = kwargs.pop("gemini_api_key", os.environ.get("GEMINI_API_KEY", ""))
+        from cutctx.proxy.auth_keyring import get_api_key
+        api_key = kwargs.pop("gemini_api_key", get_api_key("gemini"))
         base_url = kwargs.pop("gemini_base_url", "https://generativelanguage.googleapis.com")
 
         if not api_key:
@@ -441,7 +498,8 @@ class EnsembleCoordinator:
             content = msg.get("content", "")
             if isinstance(content, list):
                 content = " ".join(
-                    b.get("text", "") for b in content
+                    b.get("text", "")
+                    for b in content
                     if isinstance(b, dict) and b.get("type") == "text"
                 )
             contents.append({"role": role, "parts": [{"text": content}]})
@@ -456,7 +514,8 @@ class EnsembleCoordinator:
 
         resp = await client.post(
             f"{base_url}/v1beta/models/{model}:generateContent?key={api_key}",
-            json=body, timeout=self.config.timeout_seconds,
+            json=body,
+            timeout=self.config.timeout_seconds,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -476,6 +535,8 @@ class EnsembleCoordinator:
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class EnsembleError(Exception):
     """Raised when ensemble execution fails."""
+
     pass

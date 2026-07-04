@@ -140,8 +140,8 @@ def _truncate_body_for_chatgpt(
     """
     import copy as _copy
 
-    _MAX_TOOL_OUTPUT_CHARS = 4 * 1024        # 4 KB per tool output text
-    _MAX_INSTRUCTIONS_CHARS = 200 * 1024     # 200 KB for system instructions
+    _MAX_TOOL_OUTPUT_CHARS = 4 * 1024  # 4 KB per tool output text
+    _MAX_INSTRUCTIONS_CHARS = 200 * 1024  # 200 KB for system instructions
 
     body = _copy.deepcopy(body)
 
@@ -154,14 +154,26 @@ def _truncate_body_for_chatgpt(
     def _truncate_content(content: Any) -> Any:
         """Truncate text within a content item or list."""
         if isinstance(content, str):
-            return content[:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]" if len(content) > _MAX_TOOL_OUTPUT_CHARS else content
+            return (
+                content[:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
+                if len(content) > _MAX_TOOL_OUTPUT_CHARS
+                else content
+            )
         if isinstance(content, list):
             return [_truncate_content(c) for c in content]
         if isinstance(content, dict):
             out = dict(content)
-            if "text" in out and isinstance(out["text"], str) and len(out["text"]) > _MAX_TOOL_OUTPUT_CHARS:
+            if (
+                "text" in out
+                and isinstance(out["text"], str)
+                and len(out["text"]) > _MAX_TOOL_OUTPUT_CHARS
+            ):
                 out["text"] = out["text"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
-            if "output" in out and isinstance(out["output"], str) and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS:
+            if (
+                "output" in out
+                and isinstance(out["output"], str)
+                and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS
+            ):
                 out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
             return out
         return content
@@ -187,15 +199,24 @@ def _truncate_body_for_chatgpt(
         while len(msgs) > 1 and _body_bytes() > max_bytes:
             msgs.pop(0)
         # Drop any leading tool-result items that lost their paired tool-call.
-        while len(msgs) > 1 and isinstance(msgs[0], dict) and msgs[0].get("type") in _TOOL_RESULT_TYPES:
+        while (
+            len(msgs) > 1
+            and isinstance(msgs[0], dict)
+            and msgs[0].get("type") in _TOOL_RESULT_TYPES
+        ):
             msgs.pop(0)
         body["input"] = msgs
     if _body_bytes() <= max_bytes:
         return body
 
     # Step 3: truncate instructions
-    if isinstance(body.get("instructions"), str) and len(body["instructions"]) > _MAX_INSTRUCTIONS_CHARS:
-        body["instructions"] = body["instructions"][:_MAX_INSTRUCTIONS_CHARS] + "\n…[instructions truncated by cutctx]"
+    if (
+        isinstance(body.get("instructions"), str)
+        and len(body["instructions"]) > _MAX_INSTRUCTIONS_CHARS
+    ):
+        body["instructions"] = (
+            body["instructions"][:_MAX_INSTRUCTIONS_CHARS] + "\n…[instructions truncated by cutctx]"
+        )
     return body
 
 
@@ -225,6 +246,7 @@ def _normalize_ws_http_fallback_body(
 
     http_body["stream"] = True
     return http_body, stripped
+
 
 _CLIENT_PROVIDER_MAP: dict[str, str] = {
     "claude-code": "claude",
@@ -300,7 +322,6 @@ class OpenAIResponsesMixin:
                 self._openai_responses_unit_result_cache = cache
             return lock, cache
 
-
     def _get_openai_responses_cached_unit(self, key: str) -> Any | None:
         lock, cache = self._openai_responses_unit_cache()
         with lock:
@@ -310,7 +331,6 @@ class OpenAIResponsesMixin:
             cache.move_to_end(key)
         return _openai_responses_result_with_cache_hit(result)
 
-
     def _store_openai_responses_cached_unit(self, key: str, result: Any) -> None:
         lock, cache = self._openai_responses_unit_cache()
         with lock:
@@ -318,7 +338,6 @@ class OpenAIResponsesMixin:
             cache.move_to_end(key)
             while len(cache) > _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES:
                 cache.popitem(last=False)
-
 
     def _compress_openai_responses_live_text_units_with_router(
         self,
@@ -801,7 +820,6 @@ class OpenAIResponsesMixin:
             attempted_input_tokens,
         )
 
-
     def _compress_openai_responses_payload(
         self,
         payload: dict[str, Any],
@@ -865,6 +883,7 @@ class OpenAIResponsesMixin:
         # Use shared schema compressor (30+ key drops + description truncation)
         try:
             from cutctx.proxy.schema_compress import compress_tool_results, compress_tool_schemas
+
             _tools_list = working.get("tools")
             if isinstance(_tools_list, list) and _tools_list:
                 compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
@@ -915,6 +934,7 @@ class OpenAIResponsesMixin:
         # Compress tool results (positional array format for homogeneous data)
         try:
             from cutctx.proxy.schema_compress import compress_tool_results
+
             if working.get("input") and isinstance(working["input"], list):
                 working = {**working, "input": compress_tool_results(working["input"])}
         except Exception:
@@ -1048,7 +1068,6 @@ class OpenAIResponsesMixin:
             attempted_input_tokens,
         )
 
-
     async def _compress_openai_responses_payload_in_executor(
         self,
         payload: dict[str, Any],
@@ -1082,7 +1101,6 @@ class OpenAIResponsesMixin:
         if len(result) == 8:
             return (*result, timing)
         return result
-
 
     async def handle_openai_responses(
         self,
@@ -1530,11 +1548,7 @@ class OpenAIResponsesMixin:
                     )
                     schema_savings_metadata = merge_savings_metadata(
                         schema_savings_metadata,
-                        {
-                            "api_surface_slimming": {
-                                "tokens": tool_surface_result.tokens_saved
-                            }
-                        },
+                        {"api_surface_slimming": {"tokens": tool_surface_result.tokens_saved}},
                     )
                     transforms_applied = [
                         "openai:responses:tool_surface_slimming",
@@ -1642,12 +1656,8 @@ class OpenAIResponsesMixin:
                         _http_body_bytes,
                         _CHATGPT_MAX_BODY_BYTES,
                     )
-                    body = _truncate_body_for_chatgpt(
-                        body, _CHATGPT_MAX_BODY_BYTES, request_id
-                    )
-                    _truncated_bytes = len(
-                        json.dumps(body).encode("utf-8", errors="replace")
-                    )
+                    body = _truncate_body_for_chatgpt(body, _CHATGPT_MAX_BODY_BYTES, request_id)
+                    _truncated_bytes = len(json.dumps(body).encode("utf-8", errors="replace"))
                     logger.info(
                         "[%s] /v1/responses emergency truncation: %d → %d bytes",
                         request_id,
@@ -1745,7 +1755,13 @@ class OpenAIResponsesMixin:
                         response.status_code,
                         url,
                         list(body.keys()),
-                        json.dumps({k: v for k, v in body.items() if k not in ("input", "instructions", "tools")})[:300],
+                        json.dumps(
+                            {
+                                k: v
+                                for k, v in body.items()
+                                if k not in ("input", "instructions", "tools")
+                            }
+                        )[:300],
                         _err_body,
                     )
                 _response_body_for_debug: Any = None
@@ -1982,7 +1998,6 @@ class OpenAIResponsesMixin:
                 },
             )
 
-
     async def handle_openai_responses_ws(self, websocket: WebSocket) -> None:
         """WebSocket proxy for /v1/responses (Codex gpt-5.4+).
 
@@ -2160,7 +2175,8 @@ class OpenAIResponsesMixin:
         # Ensure Authorization header is present — fall back to OPENAI_API_KEY env var.
         # Safety net for clients that don't forward auth headers via WebSocket upgrade.
         if "authorization" not in _lower_headers:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            from cutctx.proxy.auth_keyring import get_api_key
+            api_key = get_api_key("openai")
             if api_key:
                 upstream_headers["Authorization"] = f"Bearer {api_key}"
                 logger.debug(f"[{request_id}] WS: injected Authorization from OPENAI_API_KEY env")
@@ -2282,9 +2298,7 @@ class OpenAIResponsesMixin:
 
             for ws_attempt in range(ws_connect_attempts):
                 try:
-                    connect_header_kwargs = _ws_connect_header_kwargs(
-                        websockets, upstream_headers
-                    )
+                    connect_header_kwargs = _ws_connect_header_kwargs(websockets, upstream_headers)
                     upstream = await websockets.connect(
                         upstream_url,
                         **connect_header_kwargs,
@@ -2332,6 +2346,7 @@ class OpenAIResponsesMixin:
                     from cutctx.subscription.codex_rate_limits import (
                         get_codex_rate_limit_state,
                     )
+
                     with contextlib.suppress(Exception):
                         get_codex_rate_limit_state().update_from_headers(dict(_codex_handshake))
             else:
@@ -2869,11 +2884,7 @@ class OpenAIResponsesMixin:
                                 _inner = {**_inner, "tools": _tool_surface_result.tools}
                                 ws_savings_metadata = merge_savings_metadata(
                                     ws_savings_metadata,
-                                    {
-                                        "api_surface_slimming": {
-                                            "tokens": _tool_surface_saved
-                                        }
-                                    },
+                                    {"api_surface_slimming": {"tokens": _tool_surface_saved}},
                                 )
                             if _tool_scaffolding_tokens > 0:
                                 _schema_saved = 0
@@ -2909,8 +2920,7 @@ class OpenAIResponsesMixin:
                             )
                             if (
                                 _original_ws_tools
-                                and "openai:responses:tool_schema_compaction"
-                                in _ws_transforms
+                                and "openai:responses:tool_schema_compaction" in _ws_transforms
                             ):
                                 ws_savings_metadata = merge_savings_metadata(
                                     ws_savings_metadata,
@@ -3203,30 +3213,30 @@ class OpenAIResponsesMixin:
                             _compression_started = time.perf_counter()
                             try:
                                 frame_surface_result = slim_tool_surface(
-                                    inner_payload.get("tools") if isinstance(inner_payload, dict) else None,
-                                    query=extract_responses_query(inner_payload if isinstance(inner_payload, dict) else {}),
+                                    inner_payload.get("tools")
+                                    if isinstance(inner_payload, dict)
+                                    else None,
+                                    query=extract_responses_query(
+                                        inner_payload if isinstance(inner_payload, dict) else {}
+                                    ),
                                     tokenizer=get_tokenizer(model_for_frame),
                                     tool_choice=inner_payload.get("tool_choice")
                                     if isinstance(inner_payload, dict)
                                     else None,
                                 )
                                 frame_surface_saved = frame_surface_result.tokens_saved
-                                if frame_surface_result.modified and isinstance(inner_payload, dict):
+                                if frame_surface_result.modified and isinstance(
+                                    inner_payload, dict
+                                ):
                                     inner_payload = {
                                         **inner_payload,
                                         "tools": frame_surface_result.tools,
                                     }
                                     ws_savings_metadata = merge_savings_metadata(
                                         ws_savings_metadata,
-                                        {
-                                            "api_surface_slimming": {
-                                                "tokens": frame_surface_saved
-                                            }
-                                        },
+                                        {"api_surface_slimming": {"tokens": frame_surface_saved}},
                                     )
-                                original_frame_tools = copy.deepcopy(
-                                    inner_payload.get("tools")
-                                )
+                                original_frame_tools = copy.deepcopy(inner_payload.get("tools"))
                                 (
                                     new_inner,
                                     modified,
@@ -4328,7 +4338,6 @@ class OpenAIResponsesMixin:
                 ),
                 metrics=getattr(self, "metrics", None),
             )
-
 
     async def _ws_http_fallback(
         self,

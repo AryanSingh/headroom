@@ -58,6 +58,7 @@ dependencies = [
     "opentelemetry-api>=1.24.0",  # Safe no-op OTEL API for instrumentation
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
     "cryptography>=46.0.0",       # Fernet encryption for local state + HMAC for license cache
+    "keyring>=25.0.0",            # OS Auth Validation (Windows Credential Manager / Linux Secret Service)
     "tomli>=2.0.0; python_version < '3.11'",  # tomllib backport for helper scripts
     "opentelemetry-sdk>=1.24.0",
     "graphifyy>=0.8.46",
@@ -403,6 +404,60 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
     "B905",  # zip without strict parameter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "B007",
+    "B017",
+    "B011",
+    "C408",
+    "E402",
+    "E741",
+    "E712",
+    "E731",
+    "F401",
+    "F405",
+    "F811",
+    "F841",
+    "UP038",
+    "W293",
+]
+"cutctx/tests/**" = [
+    "E731",
+    "F841",
+]
+"benchmarks/**" = [
+    "F401",
+    "F841",
+    "UP038",
+    "W293",
+]
+"gtm/**" = [
+    "B007",
+    "E702",
+    "E741",
+    "F841",
+]
+"adversarial_*.py" = [
+    "B007",
+    "W293",
+]
+"test_ast_router.py" = [
+    "W293",
+]
+"cutctx/__init__.py" = [
+    "E402",
+]
+"cutctx/graph/__init__.py" = [
+    "F401",
+]
+"cutctx/proxy/handlers/openai/__init__.py" = [
+    "F401",
+    "F811",
+]
+"cutctx/proxy/handlers/openai/responses.py" = [
+    "F405",
 ]
 
 [tool.ruff.lint.isort]
