@@ -22,6 +22,33 @@ from typing import Any
 # Memory Tool Definitions (OpenAI Function Calling Format)
 # =============================================================================
 
+MEMORY_SAVE_DECISION_TRACE: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "memory_save_decision_trace",
+        "description": """Save a Decision Trace (Situation, Rationale, Action, Outcome) to memory.
+        
+Use this to document reasoning paths so future agents understand WHY a decision was made.
+""",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "situation": {"type": "string", "description": "The context or problem being faced."},
+                "rationale": {"type": "string", "description": "The reasoning behind the chosen action."},
+                "action": {"type": "string", "description": "The action taken or decision made."},
+                "outcome": {"type": "string", "description": "The result of the action (if known)."},
+                "importance": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Importance score from 0.0 (low) to 1.0 (critical)."
+                },
+            },
+            "required": ["situation", "rationale", "action", "importance"],
+        },
+    },
+}
+
 MEMORY_TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
@@ -277,6 +304,7 @@ the `memory_id` you'd use to update / delete it.""",
             },
         },
     },
+    MEMORY_SAVE_DECISION_TRACE,
 ]
 
 
@@ -416,6 +444,7 @@ DO NOT save: transient information, sensitive data (passwords, keys), redundant 
     },
 }
 
+
 # Optimized tools list - use this for better performance with DirectMem0Adapter
 MEMORY_TOOLS_OPTIMIZED: list[dict[str, Any]] = [
     MEMORY_SAVE_OPTIMIZED,
@@ -423,6 +452,7 @@ MEMORY_TOOLS_OPTIMIZED: list[dict[str, Any]] = [
     MEMORY_TOOLS[2],  # memory_update (unchanged)
     MEMORY_TOOLS[3],  # memory_delete (unchanged)
     MEMORY_TOOLS[4],  # memory_list (new — chronological browse)
+    MEMORY_SAVE_DECISION_TRACE,
 ]
 
 

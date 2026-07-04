@@ -2159,8 +2159,12 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
     # installed package, so this must stay inside cutctx/dashboard/.
     react_assets = Path(__file__).resolve().parent.parent / "dashboard" / "assets"
     if react_assets.is_dir():
-        app.mount("/assets", StaticFiles(directory=str(react_assets)), name="assets")
-
+        @app.get("/assets/{filename}", include_in_schema=False)
+        async def serve_asset(filename: str):
+            asset_path = react_assets / filename
+            if asset_path.is_file():
+                return FileResponse(str(asset_path))
+            return Response(status_code=404)
     def _iso_utc_now() -> str:
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -5919,8 +5923,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # must stay inside cutctx/dashboard/ to survive a real package install.
     _react_assets = _Path(__file__).resolve().parent.parent / "dashboard" / "assets"
     if _react_assets.is_dir():
-        app.mount("/assets", StaticFiles(directory=str(_react_assets)), name="assets")
-
+        @app.get("/assets/{filename}", include_in_schema=False)
+        async def serve_asset_legacy(filename: str):
+            asset_path = _react_assets / filename
+            if asset_path.is_file():
+                return FileResponse(str(asset_path))
+            return Response(status_code=404)
     @app.get("/favicon.svg", include_in_schema=False)
     async def _favicon():
         fav = _react_assets.parent / "favicon.svg"

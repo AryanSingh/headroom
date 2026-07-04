@@ -344,8 +344,7 @@ class SsoValidator:
                 await self._verify_signature(token, key, alg)
             except Exception as e:
                 logger.warning("JWT signature verification failed: %s", e)
-                # In production, this should raise. For now, log and continue
-                # so the system works even without full crypto deps.
+                # Signature verification failed — raise immediately
                 raise SsoTokenInvalidError(f"Signature verification failed: {e}") from e
 
         # Validate claims

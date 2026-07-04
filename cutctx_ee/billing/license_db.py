@@ -112,6 +112,17 @@ class LicenseDB:
         cols = [d[0] for d in self._conn.execute("SELECT * FROM licenses LIMIT 0").description]
         return _LicenseRecord(**dict(zip(cols, row)))
 
+    def get_by_subscription_id(self, subscription_id: str) -> object | None:
+        """Retrieve a license by Stripe subscription ID."""
+        row = self._conn.execute(
+            "SELECT * FROM licenses WHERE stripe_subscription_id = ?",
+            (subscription_id,),
+        ).fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in self._conn.execute("SELECT * FROM licenses LIMIT 0").description]
+        return _LicenseRecord(**dict(zip(cols, row)))
+
     def validate(self, license_key: str) -> dict:
         """API-friendly validation response."""
         record = self.get(license_key)

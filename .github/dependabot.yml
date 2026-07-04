@@ -40,3 +40,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Rust crate updates
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "rust"

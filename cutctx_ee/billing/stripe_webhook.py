@@ -155,10 +155,59 @@ def handle_subscription_deleted(event_data: dict[str, Any]) -> None:
 
 
 def handle_subscription_updated(event_data: dict[str, Any]) -> None:
-    """Handle customer.subscription.updated — update tier/seats."""
+    """Handle customer.subscription.updated — update tier/seats.
+
+    Extracts the first matching price ID from the subscription items,
+    resolves the tier from PRICE_TO_TIER, reads the seat count from
+    the item quantity, and updates the corresponding license record.
+    Falls back to "team" with 5 seats if no price ID matches (the same
+    conservative default used by _resolve_tier_from_session).
+    """
     subscription = event_data["object"]
     sub_id = subscription["id"]
     logger.info("Subscription updated: %s", sub_id)
+
+    items = subscription.get("items", {}).get("data", [])
+    tier: str | None = None
+    seats: int = 5
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        price = item.get("price") or {}
+        price_id = price.get("id") if isinstance(price, dict) else None
+        if not price_id:
+            continue
+        resolved = PRICE_TO_TIER.get(price_id)
+        if resolved:
+            tier = resolved
+            seats = int(item.get("quantity", 1))
+            break
+
+    if tier is None:
+        logger.warning(
+            "Subscription %s: no matching price ID in items, defaulting tier=team seats=5",
+            sub_id,
+        )
+        tier = "team"
+
+    db = _get_db()
+    record = db.get_by_subscription_id(sub_id)
+    if record is None:
+        logger.warning("Subscription %s: no license record found, skipping update", sub_id)
+        return
+
+    record.tier = tier
+    record.seats = seats
+    db.upsert(record)
+    logger.info("License %s updated: tier=%s, seats=%d", record.license_key, tier, seats)
+
+
+def _get_db():
+    """Shortcut to get the license DB singleton."""
+    from cutctx.billing.license_db import get_license_db
+
+    return get_license_db()
 
 
 def _save_license(record: LicenseRecord) -> None:

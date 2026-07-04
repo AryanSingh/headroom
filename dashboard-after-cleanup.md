@@ -1,0 +1,536 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "Cutctx" [level=1] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: Navigation
+      - navigation [ref=e12]:
+        - link "Dashboard" [ref=e13] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e15]
+          - generic [ref=e19]: Dashboard
+        - link "Orchestrator" [ref=e20] [cursor=pointer]:
+          - /url: /dashboard/orchestrator
+          - img [ref=e22]
+          - generic [ref=e25]: Orchestrator
+        - link "Capabilities" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/capabilities
+          - img [ref=e28]
+          - generic [ref=e31]: Capabilities
+        - link "Governance" [ref=e32] [cursor=pointer]:
+          - /url: /dashboard/governance
+          - img [ref=e34]
+          - generic [ref=e37]: Governance
+        - link "Security" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/firewall
+          - img [ref=e40]
+          - generic [ref=e43]: Security
+        - link "Memory" [ref=e44] [cursor=pointer]:
+          - /url: /dashboard/memory
+          - img [ref=e46]
+          - generic [ref=e49]: Memory
+        - link "Playground" [ref=e50] [cursor=pointer]:
+          - /url: /dashboard/playground
+          - img [ref=e52]
+          - generic [ref=e56]: Playground
+        - link "Docs" [ref=e57] [cursor=pointer]:
+          - /url: /dashboard/docs
+          - img [ref=e59]
+          - generic [ref=e62]: Docs
+    - generic [ref=e63]:
+      - generic [ref=e64]: Surfaces
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - text: Proxy, wrap, library, MCP
+        - generic [ref=e69]:
+          - img [ref=e70]
+          - text: Memory, CCR, firewall, savings
+      - generic [ref=e72]: v0.29.0
+  - generic [ref=e73]:
+    - banner [ref=e74]:
+      - generic [ref=e75]:
+        - button "Toggle sidebar" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]
+        - generic [ref=e81]:
+          - heading "Dashboard" [level=2] [ref=e82]
+          - generic [ref=e83]: healthy
+      - generic [ref=e85]:
+        - generic "Search dashboard" [ref=e86]:
+          - img [ref=e87]
+          - textbox "Search" [ref=e90]
+          - generic [ref=e91]: /
+        - button "Switch to light mode" [ref=e92] [cursor=pointer]:
+          - img [ref=e94]
+    - main [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - article [ref=e266]:
+            - generic [ref=e267]:
+              - generic [ref=e268]: Tokens saved
+              - img [ref=e270]
+            - generic [ref=e273]: 284.9M
+            - img [ref=e274]
+            - generic [ref=e276]: 23.7% total reduction
+          - article [ref=e277]:
+            - generic [ref=e278]:
+              - generic [ref=e279]: Requests
+              - img [ref=e281]
+            - generic [ref=e283]: 25,642
+            - generic [ref=e284]: Lifetime requests tracked
+          - article [ref=e285]:
+            - generic [ref=e286]:
+              - generic [ref=e287]: Active compression
+              - img [ref=e289]
+            - generic [ref=e293]: 0.0%
+            - generic [ref=e294]: 0.0% whole-request proxy reduction
+          - article [ref=e295]:
+            - generic [ref=e296]:
+              - generic [ref=e297]: Money saved
+              - img [ref=e299]
+            - generic [ref=e304]: $693.45
+            - generic [ref=e305]: Lifetime savings across compression, cache, routing, and optimization
+        - generic [ref=e119]:
+          - generic [ref=e121]:
+            - generic [ref=e122]: Trend
+            - heading "Savings over time" [level=2] [ref=e123]
+            - paragraph [ref=e124]: History synced 1s ago from proxy
+          - generic [ref=e306]:
+            - generic [ref=e307]:
+              - generic [ref=e308]:
+                - button "24h" [ref=e309] [cursor=pointer]
+                - button "7d" [ref=e310] [cursor=pointer]
+                - button "30d" [ref=e311] [cursor=pointer]
+              - generic [ref=e312]:
+                - generic [ref=e313]: 7:29 PM - 8:41 PM
+                - generic [ref=e314]:
+                  - generic [ref=e315]: 6,957 tokens saved
+                  - generic [ref=e316]: 6 requests
+                  - generic [ref=e317]: "Top model: gpt-4 (6,250), gpt-4o (660)"
+            - generic [ref=e318]:
+              - generic [ref=e319]:
+                - generic [ref=e320]: 291.2k
+                - generic [ref=e321]: 145.6k
+                - generic [ref=e322]: "0"
+              - generic [ref=e323]:
+                - generic [ref=e324]:
+                  - 'button "8:41 PM - 9:53 PM 176,806 tokens saved 81 requests Top models: gpt-5.5 (162,074), gpt-4o (14,732)" [ref=e325] [cursor=pointer]':
+                    - generic:
+                      - strong: 8:41 PM - 9:53 PM
+                      - generic: 176,806 tokens saved
+                      - generic: 81 requests
+                      - generic: "Top models: gpt-5.5 (162,074), gpt-4o (14,732)"
+                  - 'button "9:53 PM - 11:05 PM 291,178 tokens saved 156 requests Top models: gpt-5.5 (278,241), gpt-4o (7,366)" [ref=e326] [cursor=pointer]':
+                    - generic:
+                      - strong: 9:53 PM - 11:05 PM
+                      - generic: 291,178 tokens saved
+                      - generic: 156 requests
+                      - generic: "Top models: gpt-5.5 (278,241), gpt-4o (7,366)"
+                  - button "11:05 PM - 12:17 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e327] [cursor=pointer]:
+                    - generic:
+                      - strong: 11:05 PM - 12:17 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - 'button "12:17 AM - 1:29 AM 47,861 tokens saved 13 requests Top models: gpt-4o-mini (33,575), gpt-4o (8,026)" [ref=e328] [cursor=pointer]':
+                    - generic:
+                      - strong: 12:17 AM - 1:29 AM
+                      - generic: 47,861 tokens saved
+                      - generic: 13 requests
+                      - generic: "Top models: gpt-4o-mini (33,575), gpt-4o (8,026)"
+                  - 'button "1:29 AM - 2:41 AM 21,699 tokens saved 16 requests Top models: gpt-4o (15,392), gpt-4 (6,250)" [ref=e329] [cursor=pointer]':
+                    - generic:
+                      - strong: 1:29 AM - 2:41 AM
+                      - generic: 21,699 tokens saved
+                      - generic: 16 requests
+                      - generic: "Top models: gpt-4o (15,392), gpt-4 (6,250)"
+                  - button "2:41 AM - 3:53 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e330] [cursor=pointer]:
+                    - generic:
+                      - strong: 2:41 AM - 3:53 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - button "3:53 AM - 5:05 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e331] [cursor=pointer]:
+                    - generic:
+                      - strong: 3:53 AM - 5:05 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - button "5:05 AM - 6:17 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e332] [cursor=pointer]:
+                    - generic:
+                      - strong: 5:05 AM - 6:17 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - button "6:17 AM - 7:29 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e333] [cursor=pointer]:
+                    - generic:
+                      - strong: 6:17 AM - 7:29 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - 'button "7:29 AM - 8:41 AM 239,625 tokens saved 161 requests Top models: gpt-5.5 (232,259), gpt-4o (7,366)" [ref=e334] [cursor=pointer]':
+                    - generic:
+                      - strong: 7:29 AM - 8:41 AM
+                      - generic: 239,625 tokens saved
+                      - generic: 161 requests
+                      - generic: "Top models: gpt-5.5 (232,259), gpt-4o (7,366)"
+                  - 'button "8:41 AM - 9:53 AM 63,535 tokens saved 46 requests Top models: gpt-5.5 (51,977), gpt-4o (7,366)" [ref=e335] [cursor=pointer]':
+                    - generic:
+                      - strong: 8:41 AM - 9:53 AM
+                      - generic: 63,535 tokens saved
+                      - generic: 46 requests
+                      - generic: "Top models: gpt-5.5 (51,977), gpt-4o (7,366)"
+                  - button "9:53 AM - 11:05 AM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e336] [cursor=pointer]:
+                    - generic:
+                      - strong: 9:53 AM - 11:05 AM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - 'button "11:05 AM - 12:17 PM 28,666 tokens saved 22 requests Top models: gpt-4o (16,052), gpt-4 (12,500)" [ref=e337] [cursor=pointer]':
+                    - generic:
+                      - strong: 11:05 AM - 12:17 PM
+                      - generic: 28,666 tokens saved
+                      - generic: 22 requests
+                      - generic: "Top models: gpt-4o (16,052), gpt-4 (12,500)"
+                  - 'button "12:17 PM - 1:29 PM 42,999 tokens saved 33 requests Top models: gpt-4o (24,078), gpt-4 (18,750)" [ref=e338] [cursor=pointer]':
+                    - generic:
+                      - strong: 12:17 PM - 1:29 PM
+                      - generic: 42,999 tokens saved
+                      - generic: 33 requests
+                      - generic: "Top models: gpt-4o (24,078), gpt-4 (18,750)"
+                  - button "1:29 PM - 2:41 PM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e339] [cursor=pointer]:
+                    - generic:
+                      - strong: 1:29 PM - 2:41 PM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - button "2:41 PM - 3:53 PM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e340] [cursor=pointer]:
+                    - generic:
+                      - strong: 2:41 PM - 3:53 PM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - button "3:53 PM - 5:05 PM 0 tokens saved Request count unavailable Model mix unavailable" [ref=e341] [cursor=pointer]:
+                    - generic:
+                      - strong: 3:53 PM - 5:05 PM
+                      - generic: 0 tokens saved
+                      - generic: Request count unavailable
+                      - generic: Model mix unavailable
+                  - 'button "5:05 PM - 6:17 PM 72,064 tokens saved 50 requests Top models: gpt-4o (46,836), gpt-4 (25,000)" [ref=e342] [cursor=pointer]':
+                    - generic:
+                      - strong: 5:05 PM - 6:17 PM
+                      - generic: 72,064 tokens saved
+                      - generic: 50 requests
+                      - generic: "Top models: gpt-4o (46,836), gpt-4 (25,000)"
+                  - 'button "6:17 PM - 7:29 PM 36,042 tokens saved 27 requests Top models: gpt-4o (23,418), gpt-4 (12,500)" [ref=e343] [cursor=pointer]':
+                    - generic:
+                      - strong: 6:17 PM - 7:29 PM
+                      - generic: 36,042 tokens saved
+                      - generic: 27 requests
+                      - generic: "Top models: gpt-4o (23,418), gpt-4 (12,500)"
+                  - 'button "7:29 PM - 8:41 PM 6,957 tokens saved 6 requests Top models: gpt-4 (6,250), gpt-4o (660)" [ref=e344] [cursor=pointer]':
+                    - generic:
+                      - strong: 7:29 PM - 8:41 PM
+                      - generic: 6,957 tokens saved
+                      - generic: 6 requests
+                      - generic: "Top models: gpt-4 (6,250), gpt-4o (660)"
+                - generic [ref=e345]:
+                  - generic [ref=e346]: 8:41 PM
+                  - generic [ref=e347]: 8:41 AM
+                  - generic [ref=e348]: Now
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e130]:
+                - generic [ref=e131]: Attribution
+                - heading "Where savings come from" [level=2] [ref=e132]
+                - paragraph [ref=e133]: Compression, cache, routing, and optimization passes are split out so total savings stays legible.
+              - generic [ref=e349]:
+                - img [ref=e351]
+                - heading "No savings data yet" [level=3] [ref=e354]
+                - paragraph [ref=e355]: Savings attribution will populate as requests flow through compression, cache, routing, and optimization channels.
+            - generic [ref=e155]:
+              - generic [ref=e157]:
+                - generic [ref=e158]: Attribution
+                - heading "Savings by client" [level=2] [ref=e159]
+              - generic [ref=e356]:
+                - generic [ref=e357]:
+                  - generic [ref=e358]:
+                    - generic [ref=e359]: aryansingh
+                    - generic [ref=e360]: 17,336,526 tokens · 1,757 requests· $36.29
+                  - generic [ref=e363]: 59.0%
+                - generic [ref=e364]:
+                  - generic [ref=e365]:
+                    - generic [ref=e366]: headroom
+                    - generic [ref=e367]: 7,614,148 tokens · 712 requests· $21.98
+                  - generic [ref=e370]: 25.9%
+                - generic [ref=e371]:
+                  - generic [ref=e372]:
+                    - generic [ref=e373]: react-ui-library
+                    - generic [ref=e374]: 4,412,722 tokens · 155 requests· $13.24
+                  - generic [ref=e377]: 15.0%
+            - generic [ref=e167]:
+              - generic [ref=e169]:
+                - generic [ref=e170]: Attribution
+                - heading "Savings by model" [level=2] [ref=e171]
+              - generic [ref=e172]:
+                - img [ref=e174]
+                - heading "No model data yet" [level=3] [ref=e178]
+                - paragraph [ref=e179]: Model-level attribution appears once requests flow through the proxy.
+            - generic [ref=e180]:
+              - generic [ref=e182]:
+                - generic [ref=e183]: Savings diagnosis
+                - heading "Why savings look low" [level=2] [ref=e184]
+                - paragraph [ref=e185]: These findings come from provider prompt-cache reads, writes, busts, and uncached volume.
+              - generic [ref=e187]:
+                - generic [ref=e188]:
+                  - strong [ref=e189]: No provider cache traffic yet
+                  - generic [ref=e190]: info
+                - paragraph [ref=e191]: Prompt-cache diagnostics appear after requests flow through the proxy.
+                - generic [ref=e192]: Run a few repeated requests against the same long prompt or coding session.
+            - generic [ref=e193]:
+              - generic [ref=e195]:
+                - generic [ref=e196]: Graphify
+                - heading "Knowledge graph status" [level=2] [ref=e197]
+                - paragraph [ref=e198]: Clear state for requested, available, building, and live graph-backed compression behavior.
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - generic [ref=e201]: Disabled
+                  - generic [ref=e202]: Not enabled for this proxy.
+                - generic [ref=e203]:
+                  - generic [ref=e204]:
+                    - generic [ref=e205]: Requested
+                    - strong [ref=e206]: "No"
+                  - generic [ref=e207]:
+                    - generic [ref=e208]: Available
+                    - strong [ref=e209]: "No"
+                  - generic [ref=e210]:
+                    - generic [ref=e211]: Interceptor
+                    - strong [ref=e212]: Not registered
+                  - generic [ref=e213]:
+                    - generic [ref=e214]: Version
+                    - strong [ref=e215]: —
+            - generic [ref=e378]:
+              - generic [ref=e379]:
+                - generic [ref=e380]:
+                  - generic [ref=e381]: Runtime capabilities
+                  - heading "Feature availability" [level=2] [ref=e382]
+                  - paragraph [ref=e383]: Which optional Python extras and binaries are installed and active in this runtime.
+                - generic [ref=e384]: 6 available · 1 pass-through
+              - generic [ref=e385]:
+                - generic "pip install cutctx-ai[knowledge-graph]" [ref=e386]:
+                  - generic [ref=e387]: Knowledge Graph
+                  - strong [ref=e388]:
+                    - generic [ref=e389]: available
+                - generic "pip install cutctx-ai[log-ml]" [ref=e390]:
+                  - generic [ref=e391]: Log pattern analysis
+                  - strong [ref=e392]:
+                    - generic [ref=e393]: missing
+                - generic "brew install structural-diff-engine or cargo install structural-diff-engine" [ref=e394]:
+                  - generic [ref=e395]: Structural diff
+                  - strong [ref=e396]:
+                    - generic [ref=e397]: available
+                - generic "pip install cutctx-ai[llmlingua]" [ref=e398]:
+                  - generic [ref=e399]: Semantic text compression
+                  - strong [ref=e400]:
+                    - generic [ref=e401]: missing
+                - generic "pip install cutctx-ai[image]" [ref=e402]:
+                  - generic [ref=e403]: Image / OCR
+                  - strong [ref=e404]:
+                    - generic [ref=e405]: missing
+                - generic "pip install cutctx-ai" [ref=e406]:
+                  - generic [ref=e407]: SmartCrusher
+                  - strong [ref=e408]:
+                    - generic [ref=e409]: available
+                - generic "pip install cutctx-ai[proxy]" [ref=e410]:
+                  - generic [ref=e411]: ML compression
+                  - strong [ref=e412]:
+                    - generic [ref=e413]: available
+                - generic "pip install cutctx-ai[html]" [ref=e414]:
+                  - generic [ref=e415]: HTML Extractor
+                  - strong [ref=e416]:
+                    - generic [ref=e417]: missing
+                - generic "pip install cutctx-ai[voice]" [ref=e418]:
+                  - generic [ref=e419]: Voice Filler
+                  - strong [ref=e420]:
+                    - generic [ref=e421]: missing
+                - generic "pip install cutctx-ai[code]" [ref=e422]:
+                  - generic [ref=e423]: Code AST
+                  - strong [ref=e424]:
+                    - generic [ref=e425]: missing
+                - generic "pip install cutctx-ai[dev] or build the Rust extension for stack-graph support" [ref=e426]:
+                  - generic [ref=e427]: Stack Graph
+                  - strong [ref=e428]:
+                    - generic [ref=e429]: available
+                - generic "pip install cutctx-ai[memory] or pip install usearch" [ref=e430]:
+                  - generic [ref=e431]: Usearch
+                  - strong [ref=e432]:
+                    - generic [ref=e433]: missing
+                - generic "configure CUTCTX_MODEL_ROUTING or a [model_routing] block in cutctx.toml" [ref=e434]:
+                  - generic [ref=e435]: Model Routing
+                  - strong [ref=e436]:
+                    - generic [ref=e437]: available
+                - generic "audio_proxy_only_no_token_compression" [ref=e438]:
+                  - generic [ref=e439]: Audio (proxy)
+                  - strong [ref=e440]:
+                    - generic [ref=e441]: pass-through
+            - generic [ref=e216]:
+              - generic [ref=e218]:
+                - generic [ref=e219]: Intelligence
+                - heading "Compression autopilot" [level=2] [ref=e220]
+                - paragraph [ref=e221]: WS19 keeps a live per-task setpoint so compression can react instead of staying static.
+              - generic [ref=e222]:
+                - generic [ref=e224]: Disabled
+                - paragraph [ref=e225]:
+                  - text: Enable
+                  - code [ref=e226]: CUTCTX_AUTOPILOT=1
+                  - text: to adapt compression aggressiveness from recent quality signals.
+          - generic [ref=e227]:
+            - generic [ref=e229]:
+              - generic [ref=e230]: Activity
+              - heading "Recent requests" [level=2] [ref=e231]
+            - generic [ref=e232]:
+              - table [ref=e442]:
+                - rowgroup [ref=e443]:
+                  - row "Routed model Input Saved Proxy Cache When" [ref=e444]:
+                    - columnheader "Routed model" [ref=e445]
+                    - columnheader "Input" [ref=e446]
+                    - columnheader "Saved" [ref=e447]
+                    - columnheader "Proxy" [ref=e448]
+                    - columnheader "Cache" [ref=e449]
+                    - columnheader "When" [ref=e450]
+                - rowgroup [ref=e451]:
+                  - row "gpt-4o-mini — 47 — — — — 1h ago" [ref=e452]:
+                    - cell "gpt-4o-mini" [ref=e453]
+                    - cell "—" [ref=e454]
+                    - cell "47 —" [ref=e455]:
+                      - generic [ref=e456]:
+                        - generic [ref=e457]: "47"
+                        - generic [ref=e458]: —
+                    - cell "— —" [ref=e459]:
+                      - generic [ref=e460]:
+                        - generic [ref=e461]: —
+                        - generic [ref=e462]: —
+                    - cell "—" [ref=e463]
+                    - cell "1h ago" [ref=e464]
+                  - row "gpt-4 — 2,199 — — — — 1h ago" [ref=e465]:
+                    - cell "gpt-4" [ref=e466]
+                    - cell "—" [ref=e467]
+                    - cell "2,199 —" [ref=e468]:
+                      - generic [ref=e469]:
+                        - generic [ref=e470]: 2,199
+                        - generic [ref=e471]: —
+                    - cell "— —" [ref=e472]:
+                      - generic [ref=e473]:
+                        - generic [ref=e474]: —
+                        - generic [ref=e475]: —
+                    - cell "—" [ref=e476]
+                    - cell "1h ago" [ref=e477]
+                  - row "gpt-4 — 26 — — — — 1h ago" [ref=e478]:
+                    - cell "gpt-4" [ref=e479]
+                    - cell "—" [ref=e480]
+                    - cell "26 —" [ref=e481]:
+                      - generic [ref=e482]:
+                        - generic [ref=e483]: "26"
+                        - generic [ref=e484]: —
+                    - cell "— —" [ref=e485]:
+                      - generic [ref=e486]:
+                        - generic [ref=e487]: —
+                        - generic [ref=e488]: —
+                    - cell "—" [ref=e489]
+                    - cell "1h ago" [ref=e490]
+                  - row "gpt-4 — 26 — — — — 1h ago" [ref=e491]:
+                    - cell "gpt-4" [ref=e492]
+                    - cell "—" [ref=e493]
+                    - cell "26 —" [ref=e494]:
+                      - generic [ref=e495]:
+                        - generic [ref=e496]: "26"
+                        - generic [ref=e497]: —
+                    - cell "— —" [ref=e498]:
+                      - generic [ref=e499]:
+                        - generic [ref=e500]: —
+                        - generic [ref=e501]: —
+                    - cell "—" [ref=e502]
+                    - cell "1h ago" [ref=e503]
+                  - row "gpt-4o — 660 — — — — 1h ago" [ref=e504]:
+                    - cell "gpt-4o" [ref=e505]
+                    - cell "—" [ref=e506]
+                    - cell "660 —" [ref=e507]:
+                      - generic [ref=e508]:
+                        - generic [ref=e509]: "660"
+                        - generic [ref=e510]: —
+                    - cell "— —" [ref=e511]:
+                      - generic [ref=e512]:
+                        - generic [ref=e513]: —
+                        - generic [ref=e514]: —
+                    - cell "—" [ref=e515]
+                    - cell "1h ago" [ref=e516]
+                  - row "gpt-4 — 3,999 — — — — 1h ago" [ref=e517]:
+                    - cell "gpt-4" [ref=e518]
+                    - cell "—" [ref=e519]
+                    - cell "3,999 —" [ref=e520]:
+                      - generic [ref=e521]:
+                        - generic [ref=e522]: 3,999
+                        - generic [ref=e523]: —
+                    - cell "— —" [ref=e524]:
+                      - generic [ref=e525]:
+                        - generic [ref=e526]: —
+                        - generic [ref=e527]: —
+                    - cell "—" [ref=e528]
+                    - cell "1h ago" [ref=e529]
+                  - row "claude-opus-4-6 — 5 — — — — 1h ago" [ref=e530]:
+                    - cell "claude-opus-4-6" [ref=e531]
+                    - cell "—" [ref=e532]
+                    - cell "5 —" [ref=e533]:
+                      - generic [ref=e534]:
+                        - generic [ref=e535]: "5"
+                        - generic [ref=e536]: —
+                    - cell "— —" [ref=e537]:
+                      - generic [ref=e538]:
+                        - generic [ref=e539]: —
+                        - generic [ref=e540]: —
+                    - cell "—" [ref=e541]
+                    - cell "1h ago" [ref=e542]
+                  - row "claude-opus-4-6 — 5 — — — — 1h ago" [ref=e543]:
+                    - cell "claude-opus-4-6" [ref=e544]
+                    - cell "—" [ref=e545]
+                    - cell "5 —" [ref=e546]:
+                      - generic [ref=e547]:
+                        - generic [ref=e548]: "5"
+                        - generic [ref=e549]: —
+                    - cell "— —" [ref=e550]:
+                      - generic [ref=e551]:
+                        - generic [ref=e552]: —
+                        - generic [ref=e553]: —
+                    - cell "—" [ref=e554]
+                    - cell "1h ago" [ref=e555]
+              - generic [ref=e556]: Saved = direct compression plus tracked cache, routing, and optimization savings. Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings. Model = the routed model CutCtx observed on the request.
+            - generic [ref=e233]:
+              - link "Run compression Test a live compression request with the playground. Open" [ref=e234] [cursor=pointer]:
+                - /url: /dashboard/playground
+                - generic [ref=e235]:
+                  - img [ref=e237]
+                  - generic [ref=e239]: Run compression
+                - paragraph [ref=e240]: Test a live compression request with the playground.
+                - generic [ref=e241]:
+                  - text: Open
+                  - img [ref=e242]
+              - link "Product surfaces See the full map of available features and capabilities. Open" [ref=e244] [cursor=pointer]:
+                - /url: /dashboard/capabilities
+                - generic [ref=e245]:
+                  - img [ref=e247]
+                  - generic [ref=e251]: Product surfaces
+                - paragraph [ref=e252]: See the full map of available features and capabilities.
+                - generic [ref=e253]:
+                  - text: Open
+                  - img [ref=e254]
+              - link "Memory signals Inspect cross-session memory and correction entries. Open" [ref=e256] [cursor=pointer]:
+                - /url: /dashboard/memory
+                - generic [ref=e257]:
+                  - img [ref=e259]
+                  - generic [ref=e261]: Memory signals
+                - paragraph [ref=e262]: Inspect cross-session memory and correction entries.
+                - generic [ref=e263]:
+                  - text: Open
+                  - img [ref=e264]

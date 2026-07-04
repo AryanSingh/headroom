@@ -114,8 +114,12 @@ class RbacChecker:
     ):
         self._org_store = org_store
         self._assignments = role_assignments or {}
-        # Default role when no RBAC is configured (backward-compatible)
-        self._default_role = AdminRole.ADMIN
+        # Default role when no RBAC is configured
+        # CUTCTX_STRICT_RBAC=1 fails closed to VIEWER (read-only) instead of ADMIN
+        self._default_role = (
+            AdminRole.VIEWER if os.environ.get("CUTCTX_STRICT_RBAC") == "1"
+            else AdminRole.ADMIN
+        )
 
     def resolve_role(self, request: Any) -> AdminRole:
         """Resolve the caller's role from the request.

@@ -193,6 +193,13 @@ async def sync_team_memory(
         headers["Authorization"] = f"Bearer {auth_token}"
 
     try:
+        from cutctx.proxy.egress import EgressEnforcer, load_policy_from_env
+
+        enforcer = EgressEnforcer(load_policy_from_env())
+        decision = enforcer.check(url)
+        if not decision.allowed:
+            logger.warning("Memory sync blocked by egress policy: %s", url)
+            return
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"{url.rstrip('/')}/v1/memory/sync", json=payload, headers=headers

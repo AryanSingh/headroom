@@ -73,4 +73,4 @@ Cutctx Labs may update these Terms from time to time. Material changes will be c
 
 ## 13. Contact
 
-Questions about these Terms? Contact us at hello@cutctx.com.
+Questions about these Terms? Contact us at sales@payzli.com.

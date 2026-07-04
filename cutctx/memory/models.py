@@ -189,3 +189,32 @@ class Memory:
             embedding=embedding,
             metadata=data.get("metadata", {}),
         )
+
+
+@dataclass
+class DecisionTrace(Memory):
+    """A reasoning trace storing Situation, Rationale, Action, and Outcome.
+    
+    This provides agents with "reasoning memory" to understand why past
+    decisions were made, avoiding repeated mistakes.
+    """
+    
+    situation: str = ""
+    rationale: str = ""
+    action: str = ""
+    outcome: str = ""
+    
+    def __post_init__(self):
+        # Ensure the content string also reflects the decision trace
+        if not self.content:
+            self.content = (
+                f"Situation: {self.situation}\n"
+                f"Rationale: {self.rationale}\n"
+                f"Action: {self.action}\n"
+                f"Outcome: {self.outcome}"
+            )
+        self.metadata["type"] = "decision_trace"
+        self.metadata["situation"] = self.situation
+        self.metadata["rationale"] = self.rationale
+        self.metadata["action"] = self.action
+        self.metadata["outcome"] = self.outcome

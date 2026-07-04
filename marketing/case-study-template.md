@@ -86,4 +86,4 @@ Interested in similar results?
 
 1. **Calculate your ROI**: [cutctx.com/roi](https://cutctx.com/roi)
 2. **Start free trial**: [cutctx.com](https://cutctx.com)
-3. **Talk to sales**: hello@cutctx.com
+3. **Talk to sales**: sales@payzli.com
