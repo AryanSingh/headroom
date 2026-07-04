@@ -6,6 +6,7 @@ Audit-Deep-2026-06-21 High-15: subscriptions + DLQ were
 in-memory only. These tests pin the SQLite-backed
 persistence.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,9 +25,7 @@ def tmp_sub_store(tmp_path: Path):
 def tmp_dlq_store(tmp_path: Path):
     from cutctx.proxy.webhook_stores import WebhookDeadLetterStore
 
-    yield WebhookDeadLetterStore(
-        db_path=str(tmp_path / "dlq.db"), max_rows=10
-    )
+    yield WebhookDeadLetterStore(db_path=str(tmp_path / "dlq.db"), max_rows=10)
 
 
 class TestSubscriptionStore:
@@ -46,29 +45,21 @@ class TestSubscriptionStore:
         assert listing[0].event_types == ("policy.upsert", "auth.failed")
 
     def test_upsert_overwrites_by_id(self, tmp_sub_store):
-        sub = tmp_sub_store.upsert(
-            url="https://example.com/hook", secret="v1"
-        )
+        sub = tmp_sub_store.upsert(url="https://example.com/hook", secret="v1")
         same_id = sub.id
         # Re-upsert with the same id, different secret.
-        tmp_sub_store.upsert(
-            url="https://example.com/hook", secret="v2", sub_id=same_id
-        )
+        tmp_sub_store.upsert(url="https://example.com/hook", secret="v2", sub_id=same_id)
         loaded = tmp_sub_store.get(same_id)
         assert loaded.secret == "v2"
 
     def test_upsert_catchall_event_types(self, tmp_sub_store):
-        sub = tmp_sub_store.upsert(
-            url="https://example.com/hook", secret="shh"
-        )
+        sub = tmp_sub_store.upsert(url="https://example.com/hook", secret="shh")
         loaded = tmp_sub_store.get(sub.id)
         # event_types is None for catch-all subscriptions
         assert loaded.event_types is None
 
     def test_delete(self, tmp_sub_store):
-        sub = tmp_sub_store.upsert(
-            url="https://example.com/hook", secret="shh"
-        )
+        sub = tmp_sub_store.upsert(url="https://example.com/hook", secret="shh")
         assert tmp_sub_store.delete(sub.id) is True
         assert tmp_sub_store.get(sub.id) is None
         # Second delete returns False
@@ -78,9 +69,7 @@ class TestSubscriptionStore:
         from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
 
         store_a = WebhookSubscriptionStore(db_path=str(tmp_path / "s.db"))
-        sub = store_a.upsert(
-            url="https://example.com/hook", secret="shh"
-        )
+        sub = store_a.upsert(url="https://example.com/hook", secret="shh")
         store_b = WebhookSubscriptionStore(db_path=str(tmp_path / "s.db"))
         loaded = store_b.get(sub.id)
         assert loaded is not None
@@ -152,9 +141,7 @@ class TestDeadLetterStore:
         """
         from cutctx.proxy.webhook_stores import WebhookDeadLetterStore
 
-        store = WebhookDeadLetterStore(
-            db_path=str(tmp_path / "dlq.db"), max_rows=5
-        )
+        store = WebhookDeadLetterStore(db_path=str(tmp_path / "dlq.db"), max_rows=5)
         for i in range(8):
             store.add(
                 event_id=f"evt-{i}",
@@ -188,15 +175,9 @@ class TestDispatcherIntegration:
             WebhookSubscription,
         )
 
-        sub_store = WebhookSubscriptionStore(
-            db_path=str(tmp_path / "subs.db")
-        )
-        dlq_store = WebhookDeadLetterStore(
-            db_path=str(tmp_path / "dlq.db")
-        )
-        d = WebhookDispatcher(
-            subscription_store=sub_store, dlq_store=dlq_store
-        )
+        sub_store = WebhookSubscriptionStore(db_path=str(tmp_path / "subs.db"))
+        dlq_store = WebhookDeadLetterStore(db_path=str(tmp_path / "dlq.db"))
+        d = WebhookDispatcher(subscription_store=sub_store, dlq_store=dlq_store)
         d.subscribe(
             WebhookSubscription(
                 url="https://example.com/hook",
@@ -207,12 +188,8 @@ class TestDispatcherIntegration:
         # Now simulate a restart: new dispatcher reads from
         # the same DB.
         d2 = WebhookDispatcher(
-            subscription_store=WebhookSubscriptionStore(
-                db_path=str(tmp_path / "subs.db")
-            ),
-            dlq_store=WebhookDeadLetterStore(
-                db_path=str(tmp_path / "dlq.db")
-            ),
+            subscription_store=WebhookSubscriptionStore(db_path=str(tmp_path / "subs.db")),
+            dlq_store=WebhookDeadLetterStore(db_path=str(tmp_path / "dlq.db")),
         )
         subs = d2.list_subscriptions()
         assert len(subs) == 1
@@ -229,6 +206,7 @@ class TestWebhookSecretEncryption:
 
         # Set up encryption key
         from cryptography.fernet import Fernet
+
         key = Fernet.generate_key()
         os.environ["CUTCTX_SECRETS_KEY"] = key.decode("ascii")
 
@@ -260,17 +238,16 @@ class TestWebhookSecretEncryption:
         assert isinstance(ciphertext, bytes), "Secret must be stored as BLOB (encrypted)"
 
         # 2. The ciphertext does NOT contain the plaintext secret
-        assert secret_plaintext.encode() not in ciphertext, \
-            "Plaintext secret found in database"
+        assert secret_plaintext.encode() not in ciphertext, "Plaintext secret found in database"
 
         # 3. When loaded via the store API, it's decrypted correctly
         loaded = store.get(sub.id)
-        assert loaded.secret == secret_plaintext, \
-            "Store must decrypt secret on retrieval"
+        assert loaded.secret == secret_plaintext, "Store must decrypt secret on retrieval"
 
     def test_secret_decrypted_on_list_all(self, tmp_path: Path):
         """Listing subscriptions must decrypt secrets."""
         import os
+
         from cryptography.fernet import Fernet
 
         key = Fernet.generate_key()
@@ -292,13 +269,13 @@ class TestWebhookSecretEncryption:
 
         # Verify all secrets are decrypted
         for i, sub in enumerate(listing):
-            assert sub.secret == secrets[i], \
-                f"Secret {i} not decrypted correctly"
+            assert sub.secret == secrets[i], f"Secret {i} not decrypted correctly"
 
     def test_secret_overwrite_encrypted(self, tmp_path: Path):
         """Updating a secret must re-encrypt it."""
         import os
         import sqlite3
+
         from cryptography.fernet import Fernet
 
         key = Fernet.generate_key()
@@ -330,10 +307,8 @@ class TestWebhookSecretEncryption:
 
         # New ciphertext should not contain old plaintext
         ciphertext = row["secret_ciphertext"]
-        assert b"old_secret" not in ciphertext, \
-            "Old plaintext found in updated row"
+        assert b"old_secret" not in ciphertext, "Old plaintext found in updated row"
 
         # But it should decrypt to the new secret
         loaded = store.get(sub.id)
-        assert loaded.secret == "new_secret", \
-            "Updated secret not decrypted correctly"
+        assert loaded.secret == "new_secret", "Updated secret not decrypted correctly"

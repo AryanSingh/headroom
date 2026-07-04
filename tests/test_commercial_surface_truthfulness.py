@@ -33,17 +33,14 @@ def test_billing_docs_describe_current_hybrid_surface_truthfully() -> None:
 
 
 def test_commercial_artifacts_do_not_present_dead_pitchtoship_checkout_as_live() -> None:
-    checklist = Path("artifacts/IMPLEMENTATION_STATUS_CHECKLIST.md").read_text(
-        encoding="utf-8"
-    )
+    checklist = Path("artifacts/IMPLEMENTATION_STATUS_CHECKLIST.md").read_text(encoding="utf-8")
     portal = Path("artifacts/license-portal.html").read_text(encoding="utf-8")
     openapi = Path("artifacts/openapi-management.yaml").read_text(encoding="utf-8")
 
     assert "PitchToShip-backed" not in checklist
     assert "PitchToShip-managed" not in checklist
     assert (
-        "Billing infrastructure works (PitchToShip checkout + license validation)"
-        not in checklist
+        "Billing infrastructure works (PitchToShip checkout + license validation)" not in checklist
     )
     assert "https://pitchtoship.com/api/billing/checkout" not in portal
     assert "https://pitchtoship.com/api/billing/checkout" not in openapi
@@ -59,8 +56,7 @@ def test_install_docs_do_not_point_to_missing_powershell_installer() -> None:
         text = path.read_text(encoding="utf-8")
         assert "scripts/install.ps1" in text
         assert (
-            "https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1"
-            not in text
+            "https://raw.githubusercontent.com/cutctx/cutctx/main/scripts/install.ps1" not in text
         )
 
 
@@ -111,4 +107,4 @@ def test_public_marketing_surfaces_do_not_link_dead_cutctx_sh_domain() -> None:
         assert "https://cutctx.sh" not in text, (
             f"{path} should not point public CTAs at the dead cutctx.sh domain"
         )
-        assert "https://cutctx.dev/docs/quickstart" in text
+        assert "https://cutctx.com/docs/quickstart" in text

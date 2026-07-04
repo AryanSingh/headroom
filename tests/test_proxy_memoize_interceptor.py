@@ -20,21 +20,13 @@ TDD requirement.
 from __future__ import annotations
 
 import json
-from typing import Any
 
-import pytest
-
-from cutctx.proxy.memoizer import (
-    MemoizeConfig,
-    MemoizeStats,
-    ToolMemoizer,
-)
 from cutctx.proxy.memoize_interceptor import (
     MemoizeInterceptor,
-    InterceptedToolCall,
-    InterceptedToolResult,
 )
-
+from cutctx.proxy.memoizer import (
+    MemoizeConfig,
+)
 
 # ---------------------------------------------------------------------------
 # Flag-off golden contract — the spec's permanent test
@@ -238,11 +230,24 @@ def test_bdd_read_edit_read_returns_fresh_content() -> None:
     call_id = "call_1"
 
     # --- 1. First read: miss ---
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": call_id, "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(args),
-        }},
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": call_id,
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(args),
+                            },
+                        },
+                    ]
+                }
+            }
+        ]
+    }
     out1 = interceptor.intercept_tool_calls(response, session_id="s1")
     assert out1.fabricated == []  # miss
     # Upstream returns "old contents"; the caller records
@@ -279,11 +284,24 @@ def test_bdd_agent_reads_same_file_twice() -> None:
     locally, upstream sees one fewer round trip'."""
     interceptor = MemoizeInterceptor(MemoizeConfig(enabled=True))
     args = {"path": "/repo/src/auth.py"}
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": "call_1", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(args),
-        }},
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(args),
+                            },
+                        },
+                    ]
+                }
+            }
+        ]
+    }
 
     # First read: miss
     out1 = interceptor.intercept_tool_calls(response, session_id="s1")
@@ -318,17 +336,40 @@ def test_interceptor_handles_mixed_tool_calls() -> None:
     interceptor.memoizer.maybe_memoize("s1", "file_read", cached_args)
     interceptor.memoizer.record("s1", "file_read", cached_args, "CACHED")
 
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": "t1", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(cached_args),
-        }},
-        {"id": "t2", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(new_args),
-        }},
-        {"id": "t3", "type": "function", "function": {
-            "name": "shell_exec", "arguments": json.dumps({"cmd": "ls"}),
-        }},
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "t1",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(cached_args),
+                            },
+                        },
+                        {
+                            "id": "t2",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(new_args),
+                            },
+                        },
+                        {
+                            "id": "t3",
+                            "type": "function",
+                            "function": {
+                                "name": "shell_exec",
+                                "arguments": json.dumps({"cmd": "ls"}),
+                            },
+                        },
+                    ]
+                }
+            }
+        ]
+    }
 
     out = interceptor.intercept_tool_calls(response, session_id="s1")
     # Only t1 fabricated
@@ -354,11 +395,25 @@ def test_interceptor_handles_multiple_cached_tool_calls() -> None:
         interceptor.memoizer.maybe_memoize("s1", "file_read", args)
         interceptor.memoizer.record("s1", "file_read", args, f"contents {i}")
 
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": f"call_{i}", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps({"path": f"/file_{i}"}),
-        }} for i in range(3)
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": f"call_{i}",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps({"path": f"/file_{i}"}),
+                            },
+                        }
+                        for i in range(3)
+                    ]
+                }
+            }
+        ]
+    }
 
     out = interceptor.intercept_tool_calls(response, session_id="s1")
     assert len(out.fabricated) == 3
@@ -379,11 +434,24 @@ def test_interceptor_sessions_are_isolated() -> None:
     interceptor.memoizer.maybe_memoize("s1", "file_read", args)
     interceptor.memoizer.record("s1", "file_read", args, "in s1")
 
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": "call_1", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(args),
-        }},
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(args),
+                            },
+                        },
+                    ]
+                }
+            }
+        ]
+    }
 
     out = interceptor.intercept_tool_calls(response, session_id="s2")
     assert out.fabricated == []  # miss in s2
@@ -408,11 +476,24 @@ def test_interceptor_fabricated_content_is_byte_identical() -> None:
     interceptor.memoizer.maybe_memoize("s1", "file_read", args)
     interceptor.memoizer.record("s1", "file_read", args, payload)
 
-    response = {"choices": [{"message": {"tool_calls": [
-        {"id": "call_1", "type": "function", "function": {
-            "name": "file_read", "arguments": json.dumps(args),
-        }},
-    ]}}]}
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "file_read",
+                                "arguments": json.dumps(args),
+                            },
+                        },
+                    ]
+                }
+            }
+        ]
+    }
 
     out = interceptor.intercept_tool_calls(response, session_id="s1")
     assert out.fabricated[0].content == payload, (

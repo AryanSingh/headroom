@@ -47,9 +47,14 @@ class TestEntitlementTier:
 class TestFeatureTiers:
     def test_core_compression_features_are_builder(self):
         core = [
-            "smart_crusher", "code_compressor", "log_compressor",
-            "diff_compressor", "search_compressor", "kompress",
-            "image_compressor", "audio_compressor",
+            "smart_crusher",
+            "code_compressor",
+            "log_compressor",
+            "diff_compressor",
+            "search_compressor",
+            "kompress",
+            "image_compressor",
+            "audio_compressor",
         ]
         for f in core:
             assert FEATURE_TIERS[f] == EntitlementTier.BUILDER, f"{f} should be BUILDER tier"
@@ -170,6 +175,7 @@ class TestRequireEntitled:
         assert "Enterprise" in msg  # friendly name
         assert "Free" in msg  # friendly name for builder
         assert "Upgrade" in msg
+
     def test_no_raise_when_entitled(self):
         c = EntitlementChecker("enterprise")
         c.require_entitled("sso_saml")  # Should not raise

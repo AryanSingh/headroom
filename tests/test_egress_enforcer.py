@@ -6,6 +6,7 @@ Audit-Deep-2026-06-21 Blocker 3a: the previous airgap module was a
 no-op; the route returned a hardcoded payload. These tests pin
 the new behavior.
 """
+
 from __future__ import annotations
 
 
@@ -22,9 +23,7 @@ class TestEgressEnforcer:
     def test_allow_all_passes(self):
         from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
-        enforcer = EgressEnforcer(
-            EgressPolicy(policy_id="allow-all", allow_all=True)
-        )
+        enforcer = EgressEnforcer(EgressPolicy(policy_id="allow-all", allow_all=True))
         d = enforcer.check("https://anywhere.example.com")
         assert d.allowed is True
         assert d.reason == "allow_all_policy"
@@ -150,8 +149,7 @@ class TestLoadPolicyFromEnv:
 
         monkeypatch.setenv(
             "CUTCTX_EGRESS_POLICY",
-            '{"policy_id": "anthropic-only", '
-            '"allowed_patterns": ["api.anthropic.com"]}',
+            '{"policy_id": "anthropic-only", "allowed_patterns": ["api.anthropic.com"]}',
         )
         p = load_policy_from_env()
         assert p.policy_id == "anthropic-only"
@@ -206,7 +204,9 @@ class TestAirgapStatusRoute:
         app.include_router(create_airgap_router())
         client = TestClient(app)
         # Allowed
-        resp = client.post("/v1/airgap/check", json={"url": "https://api.anthropic.com/v1/messages"})
+        resp = client.post(
+            "/v1/airgap/check", json={"url": "https://api.anthropic.com/v1/messages"}
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["allowed"] is True

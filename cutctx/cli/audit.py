@@ -66,12 +66,16 @@ def list_events(action: str | None, actor: str | None, limit: int, admin_key: st
 
 
 @audit.command("export")
-@click.option("--format", "fmt", type=click.Choice(["json", "jsonl"]), default="json", help="Export format")
+@click.option(
+    "--format", "fmt", type=click.Choice(["json", "jsonl"]), default="json", help="Export format"
+)
 @click.option("--output", "-o", help="Output file (default: stdout)")
 @click.option("--action", help="Filter by action type")
 @click.option("--limit", "-n", default=500, help="Max events")
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
-def export_events(fmt: str, output: str | None, action: str | None, limit: int, admin_key: str | None) -> None:
+def export_events(
+    fmt: str, output: str | None, action: str | None, limit: int, admin_key: str | None
+) -> None:
     """Export audit log as JSON or JSONL."""
     try:
         params = f"?format={fmt}&limit={limit}"

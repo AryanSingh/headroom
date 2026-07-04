@@ -25,55 +25,59 @@ logger = logging.getLogger(__name__)
 # When these appear inside a JSON Schema `properties` object's child
 # dicts, they are safe to drop because the LLM only needs: name, type,
 # description, required, enum, default, and nested properties.
-_SCHEMA_DROP_KEYS: frozenset[str] = frozenset({
-    "$id",
-    "$schema",
-    "$comment",
-    "title",        # Redundant with property name
-    "examples",     # Large, rarely needed
-    "example",      # Singular variant
-    "markdownDescription",
-    "readOnly",
-    "writeOnly",
-    "deprecated",
-    "format",       # e.g. "date-time" — redundant with type: string
-    "pattern",      # Regex constraints — LLMs rarely need these
-    "minimum",
-    "maximum",
-    "minLength",
-    "maxLength",
-    "minItems",
-    "maxItems",
-    "minProperties",
-    "maxProperties",
-    "multipleOf",
-    "exclusiveMinimum",
-    "exclusiveMaximum",
-    "uniqueItems",
-    "additionalProperties",  # Strict validation hint, not needed for LLM
-    "then",
-    "else",
-    "if",
-    "not",
-    "allOf",
-    "anyOf",
-    "oneOf",
-})
+_SCHEMA_DROP_KEYS: frozenset[str] = frozenset(
+    {
+        "$id",
+        "$schema",
+        "$comment",
+        "title",  # Redundant with property name
+        "examples",  # Large, rarely needed
+        "example",  # Singular variant
+        "markdownDescription",
+        "readOnly",
+        "writeOnly",
+        "deprecated",
+        "format",  # e.g. "date-time" — redundant with type: string
+        "pattern",  # Regex constraints — LLMs rarely need these
+        "minimum",
+        "maximum",
+        "minLength",
+        "maxLength",
+        "minItems",
+        "maxItems",
+        "minProperties",
+        "maxProperties",
+        "multipleOf",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "uniqueItems",
+        "additionalProperties",  # Strict validation hint, not needed for LLM
+        "then",
+        "else",
+        "if",
+        "not",
+        "allOf",
+        "anyOf",
+        "oneOf",
+    }
+)
 
 # Keys that should NEVER be stripped (functional for LLM tool use).
-_SCHEMA_KEEP_KEYS: frozenset[str] = frozenset({
-    "type",
-    "description",
-    "required",
-    "properties",
-    "items",
-    "enum",
-    "default",
-    "const",
-    "name",        # OpenAI tool definition top-level
-    "parameters",  # OpenAI/Anthropic tool definition top-level
-    "tool_use",    # Anthropic content block type
-})
+_SCHEMA_KEEP_KEYS: frozenset[str] = frozenset(
+    {
+        "type",
+        "description",
+        "required",
+        "properties",
+        "items",
+        "enum",
+        "default",
+        "const",
+        "name",  # OpenAI tool definition top-level
+        "parameters",  # OpenAI/Anthropic tool definition top-level
+        "tool_use",  # Anthropic content block type
+    }
+)
 
 # Maximum description length before truncation (tokens ≈ chars/4).
 _MAX_DESCRIPTION_LENGTH = 200
@@ -101,7 +105,9 @@ def compress_tool_schemas(
 
     before_bytes = _json_bytes(tools)
 
-    compacted = [_compress_tool(tool, max_description_length, aggressive, depth=0) for tool in tools]
+    compacted = [
+        _compress_tool(tool, max_description_length, aggressive, depth=0) for tool in tools
+    ]
 
     after_bytes = _json_bytes(compacted)
 
@@ -187,7 +193,9 @@ def compress_tool_results(
                         inner_content = part.get("content")
                         if isinstance(inner_content, str):
                             new_content = _try_compress_json_content(
-                                inner_content, max_array_items_for_positional, min_fields_for_positional
+                                inner_content,
+                                max_array_items_for_positional,
+                                min_fields_for_positional,
                             )
                             if new_content != inner_content:
                                 new_parts.append({**part, "content": new_content})
@@ -213,7 +221,9 @@ def compress_tool_results(
                         inner_content = part.get("content")
                         if isinstance(inner_content, str):
                             new_content = _try_compress_json_content(
-                                inner_content, max_array_items_for_positional, min_fields_for_positional
+                                inner_content,
+                                max_array_items_for_positional,
+                                min_fields_for_positional,
                             )
                             if new_content != inner_content:
                                 new_parts.append({**part, "content": new_content})
@@ -226,7 +236,9 @@ def compress_tool_results(
                                 if isinstance(ic, dict) and ic.get("type") == "text":
                                     text = ic.get("text", "")
                                     new_text = _try_compress_json_content(
-                                        text, max_array_items_for_positional, min_fields_for_positional
+                                        text,
+                                        max_array_items_for_positional,
+                                        min_fields_for_positional,
                                     )
                                     if new_text != text:
                                         new_inner.append({**ic, "text": new_text})
@@ -327,7 +339,9 @@ def _compress_parameters(
             compacted_props: dict[str, Any] = {}
             for prop_name, prop_value in value.items():
                 if isinstance(prop_value, dict):
-                    compressed_prop = _compress_tool(prop_value, max_desc_len, aggressive, depth + 1)
+                    compressed_prop = _compress_tool(
+                        prop_value, max_desc_len, aggressive, depth + 1
+                    )
                     # Aggressive mode: strip type from simple string properties
                     if aggressive and compressed_prop.get("type") == "string":
                         compressed_prop.pop("description", None)
@@ -358,32 +372,7 @@ def _truncate_description(desc: str, max_len: int) -> str:
     return truncated.rstrip(",") + "..."
 
 
-def _try_compress_json_content(
-    text: str,
-    max_items: int,
-    min_fields: int,
-) -> str:
-    """Try to compress a JSON string by converting arrays to positional format.
-    If it's not JSON, apply deblank minification and snip trimming."""
-    try:
-        parsed = json.loads(text)
-    except (json.JSONDecodeError, TypeError):
-        from cutctx.proxy.deblank import Deblanker
-        from cutctx.proxy.snip import Snipper
 
-        trimmed = Snipper.snip(text)
-        minified, _ = Deblanker.deblank(trimmed)
-        return minified if len(minified) < len(text) else text
-
-    if isinstance(parsed, list) and len(parsed) >= 2:
-        compressed = _try_positional_array(parsed, max_items, min_fields)
-        if compressed is not None:
-            result = json.dumps(compressed, separators=(",", ":"))
-            original = json.dumps(parsed, separators=(",", ":"))
-            if len(result) < len(original):
-                return result
-
-    return text
 
 
 def _try_compress_json_content(

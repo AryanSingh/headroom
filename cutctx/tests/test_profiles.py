@@ -340,9 +340,7 @@ class TestWorkspaceHash:
             workspace_dir = Path(tmpdir)
 
             # Mock git remote
-            with mock.patch(
-                "cutctx.profiles.subprocess.run"
-            ) as mock_run:
+            with mock.patch("cutctx.profiles.subprocess.run") as mock_run:
                 mock_run.return_value = mock.Mock(
                     returncode=0,
                     stdout="https://github.com/example/repo.git\n",

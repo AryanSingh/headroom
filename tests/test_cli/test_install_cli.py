@@ -27,9 +27,7 @@ def test_install_apply_starts_service_supervisor(monkeypatch) -> None:
     monkeypatch.setattr("cutctx.cli.install.load_manifest", lambda profile: None)
     monkeypatch.setattr("cutctx.cli.install.apply_mutations", lambda deployment: [])
     monkeypatch.setattr("cutctx.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr(
-        "cutctx.cli.install.save_manifest", lambda deployment: calls.append("save")
-    )
+    monkeypatch.setattr("cutctx.cli.install.save_manifest", lambda deployment: calls.append("save"))
     monkeypatch.setattr(
         "cutctx.cli.install.start_supervisor", lambda deployment: calls.append("start_service")
     )
@@ -103,9 +101,7 @@ def test_install_restart_uses_internal_helpers(monkeypatch) -> None:
     monkeypatch.setattr(
         "cutctx.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
-    monkeypatch.setattr(
-        "cutctx.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True
-    )
+    monkeypatch.setattr("cutctx.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True)
 
     result = runner.invoke(main, ["install", "restart"])
 

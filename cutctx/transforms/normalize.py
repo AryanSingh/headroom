@@ -20,11 +20,9 @@
 
 from __future__ import annotations
 
-import base64
 import logging
 import re
 import unicodedata
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -144,10 +142,10 @@ _HOMOGLYPH_WHITESPACE = {
     "\u2003": " ",  # EM SPACE
     "\u2002": " ",  # EN SPACE
     "\u2009": " ",  # THIN SPACE
-    "\u200b": "",   # ZERO WIDTH SPACE
-    "\u200c": "",   # ZERO WIDTH NON-JOINER
-    "\u200d": "",   # ZERO WIDTH JOINER
-    "\ufeff": "",   # ZERO WIDTH NO-BREAK SPACE / BOM
+    "\u200b": "",  # ZERO WIDTH SPACE
+    "\u200c": "",  # ZERO WIDTH NON-JOINER
+    "\u200d": "",  # ZERO WIDTH JOINER
+    "\ufeff": "",  # ZERO WIDTH NO-BREAK SPACE / BOM
 }
 
 
@@ -208,11 +206,7 @@ def _pass_whitespace_collapse(content: str) -> tuple[str, int]:
 # at least `threshold` chars. We scan manually (rather than regex) to
 # avoid the lookbehind-overlap problem in re.finditer that matches
 # overlapping regions when the input is a single long run of valid chars.
-_BASE64_CHARS = set(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "0123456789+/="
-)
+_BASE64_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
 _HEX_CHARS = set("0123456789abcdefABCDEF")
 
 

@@ -7,11 +7,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from cutctx import mcp_server
 from cutctx.cache.compression_store import (
     get_compression_store,
     reset_compression_store,
 )
-from cutctx import mcp_server
 
 
 def test_shared_stats_work_without_fcntl(monkeypatch, tmp_path) -> None:

@@ -126,6 +126,16 @@ impl CcrStore for SqliteCcrStore {
     fn put(&self, hash: &str, payload: &str) {
         let now = Self::now_unix_seconds();
         let conn = self.conn.lock().expect("ccr sqlite mutex poisoned");
+        
+        // Lazy purge sweep moved to the write path so reads stay fast.
+        if let Err(err) = Self::purge_expired(&conn, now) {
+            tracing::warn!(
+                target = "ccr.sqlite",
+                error = %err,
+                "ccr_sqlite_purge_failed"
+            );
+        }
+
         // Upsert by PK. ON CONFLICT REPLACE matches the in-memory
         // backend's idempotent re-store semantics.
         let res = conn.execute(
@@ -161,17 +171,6 @@ impl CcrStore for SqliteCcrStore {
     fn get(&self, hash: &str) -> Option<String> {
         let now = Self::now_unix_seconds();
         let conn = self.conn.lock().expect("ccr sqlite mutex poisoned");
-
-        // Lazy purge sweep, then the real lookup. Both happen under
-        // the same mutex so the row we read is guaranteed not to have
-        // been just-deleted by another caller.
-        if let Err(err) = Self::purge_expired(&conn, now) {
-            tracing::warn!(
-                target = "ccr.sqlite",
-                error = %err,
-                "ccr_sqlite_purge_failed"
-            );
-        }
 
         let row: Option<Vec<u8>> = conn
             .query_row(

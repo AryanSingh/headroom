@@ -80,6 +80,7 @@ class CCRStore:
 
         # Run the async store in a synchronous context
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -103,6 +104,7 @@ class CCRStore:
             The original string payload, or ``None`` if not found / expired.
         """
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -110,7 +112,7 @@ class CCRStore:
 
         if loop is not None and loop.is_running():
             # Schedule and get result via future
-            future = asyncio.ensure_future(self._store.get(key))
+            asyncio.ensure_future(self._store.get(key))
             # In an already-running loop we can't block; return None
             # so callers don't deadlock.  Production callers should use
             # the async API directly.
@@ -140,16 +142,14 @@ class CCRStore:
             A dict with keys like ``total_entries``, ``max_entries``, ``ttl_seconds``.
         """
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None
 
         if loop is not None and loop.is_running():
-            logger.debug(
-                "CCRStore.stats() called from running event loop; "
-                "returning empty dict."
-            )
+            logger.debug("CCRStore.stats() called from running event loop; returning empty dict.")
             return {}
 
         raw = asyncio.run(self._store.stats())
@@ -170,6 +170,7 @@ class CCRStore:
             True if removed, False if not found.
         """
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:

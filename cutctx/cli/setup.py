@@ -15,7 +15,8 @@ def _check_cutctx_installed() -> bool:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "show", "cutctx-ai"],
-            capture_output=True, timeout=10,
+            capture_output=True,
+            timeout=10,
         )
         return result.returncode == 0
     except Exception:
@@ -46,13 +47,15 @@ def _register_mcp(agent_id: str) -> bool:
         if agent_id == "claude":
             result = subprocess.run(
                 [sys.executable, "-m", "cutctx.cli", "mcp", "install", "--agent", "claude"],
-                capture_output=True, timeout=15,
+                capture_output=True,
+                timeout=15,
             )
             return result.returncode == 0
         elif agent_id == "codex":
             result = subprocess.run(
                 [sys.executable, "-m", "cutctx.cli", "mcp", "install", "--agent", "codex"],
-                capture_output=True, timeout=15,
+                capture_output=True,
+                timeout=15,
             )
             return result.returncode == 0
     except Exception:
@@ -71,6 +74,7 @@ def _start_proxy(port: int) -> bool:
         )
         # Poll until healthy
         import httpx
+
         for _ in range(20):
             time.sleep(0.5)
             try:
@@ -87,6 +91,7 @@ def _start_proxy(port: int) -> bool:
 def _check_health(port: int) -> dict:
     """Check proxy health."""
     import httpx
+
     try:
         r = httpx.get(f"http://127.0.0.1:{port}/livez", timeout=3)
         return {"running": r.status_code < 400, "status": r.status_code}
@@ -98,7 +103,12 @@ def _check_health(port: int) -> dict:
 @click.option("--port", default=8787, help="Proxy port", envvar="CUTCTX_PROXY_PORT")
 @click.option("--auto-detect/--no-detect", default=True, help="Auto-detect installed agents")
 @click.option("--start/--no-start", default=True, help="Start proxy after setup")
-@click.option("--register-mcp/--no-mcp", "do_register_mcp", default=True, help="Register MCP for detected agents")
+@click.option(
+    "--register-mcp/--no-mcp",
+    "do_register_mcp",
+    default=True,
+    help="Register MCP for detected agents",
+)
 def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> None:
     """Unified setup: install, detect agents, register MCP, start proxy, verify.
 

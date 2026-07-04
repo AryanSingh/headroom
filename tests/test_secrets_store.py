@@ -5,6 +5,7 @@
 Audit-Deep-2026-06-21 Blocker 3b: the previous /v1/secrets/*
 endpoints were a stub. These tests pin the new behavior.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -70,9 +71,7 @@ class TestSecretsStore:
 
         key = _tmp_key()
         db = tmp_path / "secrets.db"
-        store = SecretsStore(
-            db_path=str(db), strict=True, encryption_key=key
-        )
+        store = SecretsStore(db_path=str(db), strict=True, encryption_key=key)
         store.set("api_key", "sk-supersecretvalue")
         # Read the raw SQLite file and confirm plaintext is not present.
         with open(db, "rb") as f:
@@ -102,14 +101,10 @@ class TestSecretsStore:
         key_a = _tmp_key()
         key_b = _tmp_key()
         db = tmp_path / "secrets.db"
-        s1 = SecretsStore(
-            db_path=str(db), strict=True, encryption_key=key_a
-        )
+        s1 = SecretsStore(db_path=str(db), strict=True, encryption_key=key_a)
         s1.set("k", "v")
         s1.close()
-        s2 = SecretsStore(
-            db_path=str(db), strict=True, encryption_key=key_b
-        )
+        s2 = SecretsStore(db_path=str(db), strict=True, encryption_key=key_b)
         with pytest.raises(RuntimeError, match="failed to decrypt"):
             s2.get("k")
 
@@ -119,20 +114,14 @@ class TestSecretsStore:
         from cutctx.security.secrets_store import SecretsStore
 
         with pytest.raises(RuntimeError, match="no encryption key"):
-            SecretsStore(
-                db_path=str(tmp_path / "s.db"), strict=True
-            )
+            SecretsStore(db_path=str(tmp_path / "s.db"), strict=True)
 
-    def test_non_strict_auto_generates_key_with_warning(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_non_strict_auto_generates_key_with_warning(self, tmp_path: Path, monkeypatch):
         monkeypatch.delenv("CUTCTX_SECRETS_KEY", raising=False)
         monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
         from cutctx.security.secrets_store import SecretsStore
 
-        store = SecretsStore(
-            db_path=str(tmp_path / "s.db"), strict=False
-        )
+        store = SecretsStore(db_path=str(tmp_path / "s.db"), strict=False)
         # The store should be usable, but secrets won't survive a restart.
         store.set("a", "1")
         assert store.get("a").value == b"1"
@@ -157,9 +146,7 @@ class TestSecretsRoute:
         app.include_router(create_secrets_router(secrets_store=store))
         client = TestClient(app)
         # Create
-        resp = client.post(
-            "/v1/secrets/", json={"name": "alpha", "value": "first"}
-        )
+        resp = client.post("/v1/secrets/", json={"name": "alpha", "value": "first"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "success"
@@ -172,9 +159,7 @@ class TestSecretsRoute:
         assert listing[0]["name"] == "alpha"
         assert "value" not in listing[0]
         # Update via PUT
-        resp = client.put(
-            "/v1/secrets/alpha", json={"value": "second"}
-        )
+        resp = client.put("/v1/secrets/alpha", json={"value": "second"})
         assert resp.status_code == 200
         # Delete
         resp = client.delete("/v1/secrets/alpha")
@@ -196,6 +181,7 @@ class TestSecretsRoute:
         monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
 
         from fastapi import FastAPI
+
         from cutctx.proxy.routes.secrets import create_secrets_router
 
         # Create the router without a pre-built store (triggers lazy initialization)
@@ -204,6 +190,7 @@ class TestSecretsRoute:
         app.include_router(router)
 
         from fastapi.testclient import TestClient
+
         client = TestClient(app)
 
         # Attempting to use the router should fail loudly because strict=True

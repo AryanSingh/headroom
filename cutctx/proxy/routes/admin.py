@@ -4,6 +4,7 @@ Extracts ~50 admin/management routes from the server.py monolith into
 a standalone module.  ``create_admin_router`` returns a populated
 ``APIRouter`` that ``server.py`` mounts via ``app.include_router()``.
 """
+
 from __future__ import annotations
 
 import csv
@@ -236,7 +237,10 @@ def create_admin_router(
     # the working /dashboard route.
     _ADMIN_DASHBOARD_CANDIDATES = [
         _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "dist" / "index.html",
-        _Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "templates" / "dashboard.html",
+        _Path(__file__).resolve().parent.parent.parent.parent
+        / "dashboard"
+        / "templates"
+        / "dashboard.html",
     ]
 
     @router.get(
@@ -525,7 +529,7 @@ def create_admin_router(
             if chain_store is not None and hasattr(chain_store, "verify_chain"):
                 chain_ok = chain_store.verify_chain(tenant_id or "default")
                 chain_result = {"ok": chain_ok}
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             chain_result = {"ok": False, "error": "Health check failed"}
         if not light.get("ok", False):
             raise HTTPException(
@@ -714,17 +718,19 @@ def create_admin_router(
         }
         if reporter and reporter._license_info:
             li = reporter._license_info
-            result.update({
-                "status": li.status,
-                "plan": li.plan,
-                "org_id": li.org_id,
-                "quota_tokens": li.quota_tokens,
-                "used_tokens": getattr(li, "used_tokens", None),
-                "trial_expires_at": (
-                    li.trial_expires_at.isoformat() if li.trial_expires_at else None
-                ),
-                "last_validated_at": getattr(reporter, "_last_validated_at", None),
-            })
+            result.update(
+                {
+                    "status": li.status,
+                    "plan": li.plan,
+                    "org_id": li.org_id,
+                    "quota_tokens": li.quota_tokens,
+                    "used_tokens": getattr(li, "used_tokens", None),
+                    "trial_expires_at": (
+                        li.trial_expires_at.isoformat() if li.trial_expires_at else None
+                    ),
+                    "last_validated_at": getattr(reporter, "_last_validated_at", None),
+                }
+            )
         elif _config.license_key:
             result["status"] = "unvalidated"
         else:
@@ -773,9 +779,7 @@ def create_admin_router(
             "compression": {
                 "requests_total": m.requests_total,
                 "requests_cached": m.requests_cached,
-                "cache_hit_rate": (
-                    round(m.requests_cached / max(1, m.requests_total) * 100, 2)
-                ),
+                "cache_hit_rate": (round(m.requests_cached / max(1, m.requests_total) * 100, 2)),
                 "by_strategy": dict(m.compressions_by_strategy),
                 "tokens_by_strategy": dict(m.tokens_saved_by_strategy),
             },
@@ -1476,6 +1480,7 @@ def create_admin_router(
                 JSONSCHEMA_AVAILABLE,
                 StructuredOutputConfig,
             )
+
             cfg = StructuredOutputConfig.from_env()
             return {
                 "enabled": cfg.enabled and JSONSCHEMA_AVAILABLE,
@@ -1483,7 +1488,7 @@ def create_admin_router(
                 "max_retries": cfg.max_retries,
                 "strict_mode": cfg.strict_mode,
             }
-        except Exception as exc:
+        except Exception:
             return {"enabled": False, "error": "Unable to check structured output support"}
 
     @router.post(
@@ -1525,7 +1530,7 @@ def create_admin_router(
                 "evaluator_model": cfg.evaluator_model,
                 "timeout_seconds": cfg.timeout_seconds,
             }
-        except Exception as exc:
+        except Exception:
             return {"enabled": False, "error": "Unable to validate structured output"}
 
     # ── Budget ────────────────────────────────────────────────────────
@@ -1617,12 +1622,13 @@ def create_admin_router(
         """Get cost forecasting + policy engine status."""
         try:
             from cutctx.cost_forecast import MODEL_PRICING
+
             return {
                 "enabled": getattr(_config, "cost_forecast_enabled", False),
                 "models_priced": len(MODEL_PRICING),
                 "description": "Pre-task cost estimation and policy-driven compression",
             }
-        except Exception as exc:
+        except Exception:
             return {"enabled": False, "error": "Unable to retrieve policy status"}
 
     @router.get(
@@ -1638,8 +1644,6 @@ def create_admin_router(
             "hysteresis_window": getattr(_config, "autopilot_hysteresis_window", 10),
             "description": "Auto-tune compression aggressiveness per task type from recent quality signals",
         }
-
-
 
     # ── Runtime feature flag toggle API ──────────────────────────────────────
     # The dashboard uses this route as the canonical config surface. Keep it
@@ -1695,13 +1699,13 @@ def create_admin_router(
     def _set_flag_on_config(key: str, value: bool) -> None:
         attr_name = _config_attr_name(key)
         if key == "orchestrator":
-            setattr(_config, "orchestrator_enabled", value)
+            _config.orchestrator_enabled = value
             return
         if hasattr(_config, attr_name):
             setattr(_config, attr_name, value)
         if key == "ccr_context_tracking":
-            setattr(_config, "ccr_context_tracking", value)
-            setattr(_config, "ccr_handle_responses", value)
+            _config.ccr_context_tracking = value
+            _config.ccr_handle_responses = value
 
     def _flag_state(key: str, runtime: dict[str, Any]) -> dict[str, Any]:
         if key == "orchestrator":
@@ -1739,7 +1743,9 @@ def create_admin_router(
                     EpisodicMemoryStore(),
                     idle_timeout_seconds=getattr(_config, "episodic_idle_timeout_seconds", 300),
                     enabled=True,
-                    extraction_model=getattr(_config, "episodic_extraction_model", "claude-3-haiku-20240307"),
+                    extraction_model=getattr(
+                        _config, "episodic_extraction_model", "claude-3-haiku-20240307"
+                    ),
                 )
                 tracker.start_sweeper()
                 _proxy.episodic_tracker = tracker
@@ -1775,7 +1781,9 @@ def create_admin_router(
         runtime = get_all_runtime_flags()
         return {
             "live_toggleable": {k: _flag_state(k, runtime) for k in sorted(_LIVE_TOGGLE_KEYS)},
-            "restart_required": {k: _flag_state(k, runtime) for k in sorted(_RESTART_REQUIRED_KEYS)},
+            "restart_required": {
+                k: _flag_state(k, runtime) for k in sorted(_RESTART_REQUIRED_KEYS)
+            },
             "legacy_aliases": _LEGACY_FLAG_ALIASES,
             "runtime_overrides": runtime,
         }
@@ -1883,7 +1891,7 @@ def create_admin_router(
                     "system tries to short-circuit repeated queries."
                 ),
             }
-        except Exception as exc:
+        except Exception:
             return {"resolver_disabled": True, "error": "Unable to validate savings profile"}
 
     # ── Subscription / Quota / Metrics ────────────────────────────────
@@ -1896,6 +1904,7 @@ def create_admin_router(
         """Current Anthropic subscription window utilisation."""
         try:
             from cutctx.proxy.subscription import get_subscription_tracker
+
             tracker = get_subscription_tracker()
         except ImportError:
             tracker = None
@@ -2405,12 +2414,18 @@ def create_admin_router(
 
         error_rate = m.requests_failed / max(1, m.requests_total) * 100
         avg_latency = m.latency_sum_ms / max(1, m.latency_count)
-        health_score = max(0, min(100, round(
-            savings_pct * 0.5
-            + (100 - min(error_rate, 100)) * 0.3
-            + max(0, 100 - avg_latency / 10) * 0.2,
-            1,
-        )))
+        health_score = max(
+            0,
+            min(
+                100,
+                round(
+                    savings_pct * 0.5
+                    + (100 - min(error_rate, 100)) * 0.3
+                    + max(0, 100 - avg_latency / 10) * 0.2,
+                    1,
+                ),
+            ),
+        )
 
         result = {
             "health_score": health_score,
@@ -2437,7 +2452,9 @@ def create_admin_router(
             },
             "top_providers": dict(sorted(m.requests_by_provider.items(), key=lambda x: -x[1])[:5]),
             "top_models": dict(sorted(m.requests_by_model.items(), key=lambda x: -x[1])[:5]),
-            "top_strategies": dict(sorted(m.compressions_by_strategy.items(), key=lambda x: -x[1])[:5]),
+            "top_strategies": dict(
+                sorted(m.compressions_by_strategy.items(), key=lambda x: -x[1])[:5]
+            ),
             "generated_at": _iso_utc_now(),
         }
 
@@ -2450,8 +2467,7 @@ def create_admin_router(
                         "org_name": hierarchy.get("name", ""),
                         "workspaces": len(hierarchy.get("workspaces", [])),
                         "projects": sum(
-                            len(ws.get("projects", []))
-                            for ws in hierarchy.get("workspaces", [])
+                            len(ws.get("projects", [])) for ws in hierarchy.get("workspaces", [])
                         ),
                     }
                 else:
@@ -2491,12 +2507,14 @@ def create_admin_router(
         for name, data in projects.items():
             if org_project_paths and name not in org_project_paths:
                 continue
-            project_list.append({
-                "name": name,
-                "tokens_saved": data.get("tokens_saved", 0),
-                "requests": data.get("requests", 0),
-                "avg_savings_percent": data.get("avg_savings_percent", 0),
-            })
+            project_list.append(
+                {
+                    "name": name,
+                    "tokens_saved": data.get("tokens_saved", 0),
+                    "requests": data.get("requests", 0),
+                    "avg_savings_percent": data.get("avg_savings_percent", 0),
+                }
+            )
 
         project_list.sort(key=lambda p: p["tokens_saved"], reverse=True)
 

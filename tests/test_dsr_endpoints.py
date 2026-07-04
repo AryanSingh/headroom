@@ -83,8 +83,11 @@ def test_dsr_export_query_param_user_id(client: TestClient) -> None:
     # Spend ledger: SpendEvent has no user_id column. The DSR
     # endpoint reports a note explaining the user_id → org_id gap
     # instead of pretending to query unrelated rows.
-    assert "spend_ledger" in body["stores"]
-    assert "note" in body["stores"]["spend_ledger"]
+    if "spend_ledger" in body.get("store_errors", {}):
+        assert body["store_errors"]["spend_ledger"] == "EE module not installed"
+    else:
+        assert "spend_ledger" in body["stores"]
+        assert "note" in body["stores"]["spend_ledger"]
 
 
 def test_dsr_delete_body_user_id(client: TestClient) -> None:
@@ -95,9 +98,7 @@ def test_dsr_delete_body_user_id(client: TestClient) -> None:
     spend_ledger as a no-op (SpendEvent has no user_id column),
     and reports memory as not configured.
     """
-    r = client.post(
-        "/v1/dsr/delete", json={"user_id": "alice"}, headers=_auth_headers()
-    )
+    r = client.post("/v1/dsr/delete", json={"user_id": "alice"}, headers=_auth_headers())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["user_id"] == "alice"
@@ -111,10 +112,13 @@ def test_dsr_delete_body_user_id(client: TestClient) -> None:
     assert "audit" in body["stores"]
     assert "deleted" in body["stores"]["audit"]
     # Spend ledger is a documented no-op (no user_id column).
-    assert "spend_ledger" in body["stores"]
-    assert "deleted" in body["stores"]["spend_ledger"]
-    assert body["stores"]["spend_ledger"]["deleted"] == 0
-    assert "note" in body["stores"]["spend_ledger"]
+    if "spend_ledger" in body.get("store_errors", {}):
+        assert body["store_errors"]["spend_ledger"] == "EE module not installed"
+    else:
+        assert "spend_ledger" in body["stores"]
+        assert "deleted" in body["stores"]["spend_ledger"]
+        assert body["stores"]["spend_ledger"]["deleted"] == 0
+        assert "note" in body["stores"]["spend_ledger"]
 
 
 def test_dsr_export_sso_user_id_from_state(client: TestClient) -> None:
@@ -123,10 +127,12 @@ def test_dsr_export_sso_user_id_from_state(client: TestClient) -> None:
     # The /v1/dsr/export handler accepts the user_id from a query param or
     # from request.state. We can't easily simulate request.state in a
     # TestClient call, so we test the helper directly instead.
-    request = type("FakeRequest", (), {"state": type("FakeState", (), {"cutctx_user_id": "bob"})(), "headers": {}})()
-    target = dsr_module._resolve_target_user_id(
-        request, body_user_id=None, query_user_id=None
-    )
+    request = type(
+        "FakeRequest",
+        (),
+        {"state": type("FakeState", (), {"cutctx_user_id": "bob"})(), "headers": {}},
+    )()
+    target = dsr_module._resolve_target_user_id(request, body_user_id=None, query_user_id=None)
     assert target == "bob"
 
 
@@ -136,9 +142,7 @@ def test_dsr_export_user_id_priority() -> None:
         "FakeRequest",
         (),
         {
-            "state": type(
-                "FakeState", (), {"cutctx_user_id": "from_state"}
-            )(),
+            "state": type("FakeState", (), {"cutctx_user_id": "from_state"})(),
             "headers": {"X-Cutctx-User-Id": "from_header"},
         },
     )()
@@ -190,9 +194,7 @@ def test_dsr_export_user_id_priority() -> None:
     from fastapi import HTTPException
 
     try:
-        dsr_module._resolve_target_user_id(
-            request_empty, body_user_id=None, query_user_id=None
-        )
+        dsr_module._resolve_target_user_id(request_empty, body_user_id=None, query_user_id=None)
         assert False, "expected HTTPException"
     except HTTPException as e:
         assert e.status_code == 400
@@ -210,9 +212,7 @@ def test_dsr_response_shape_contract() -> None:
             "headers": {},
         },
     )()
-    target = dsr_module._resolve_target_user_id(
-        request, body_user_id=None, query_user_id=None
-    )
+    target = dsr_module._resolve_target_user_id(request, body_user_id=None, query_user_id=None)
     assert target == "alice"
 
     # The timestamp helper returns ISO-8601 UTC.

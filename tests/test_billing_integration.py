@@ -61,30 +61,42 @@ class TestTierToSeats:
 class TestLicenseKeyGeneration:
     def test_key_format_team(self):
         key = generate_license_key(
-            tier="team", org_name="test", seats=5,
-            expiry=None, secret=None,
+            tier="team",
+            org_name="test",
+            seats=5,
+            expiry=None,
+            secret=None,
         )
         assert key.startswith("team-")
         assert ".dryrun" in key
 
     def test_key_format_business(self):
         key = generate_license_key(
-            tier="business", org_name="test", seats=25,
-            expiry=None, secret=None,
+            tier="business",
+            org_name="test",
+            seats=25,
+            expiry=None,
+            secret=None,
         )
         assert key.startswith("biz-")
 
     def test_key_format_enterprise(self):
         key = generate_license_key(
-            tier="enterprise", org_name="test", seats=0,
-            expiry=None, secret=None,
+            tier="enterprise",
+            org_name="test",
+            seats=0,
+            expiry=None,
+            secret=None,
         )
         assert key.startswith("ent-")
 
     def test_key_with_secret_has_hmac(self):
         key = generate_license_key(
-            tier="team", org_name="Acme", seats=5,
-            expiry=None, secret="my-secret",
+            tier="team",
+            org_name="Acme",
+            seats=5,
+            expiry=None,
+            secret="my-secret",
         )
         # Should have real HMAC sig, not .dryrun
         sig = key.split(".")[-1]
@@ -93,8 +105,11 @@ class TestLicenseKeyGeneration:
 
     def test_key_with_expiry(self):
         key = generate_license_key(
-            tier="team", org_name="Acme", seats=5,
-            expiry="2026-01-01", secret=None,
+            tier="team",
+            org_name="Acme",
+            seats=5,
+            expiry="2026-01-01",
+            secret=None,
         )
         # Payload should contain expiry
         parts = key.split("-", 1)
@@ -106,15 +121,21 @@ class TestLicenseKeyGeneration:
     def test_key_with_long_org(self):
         long_org = "a" * 500
         key = generate_license_key(
-            tier="team", org_name=long_org, seats=5,
-            expiry=None, secret=None,
+            tier="team",
+            org_name=long_org,
+            seats=5,
+            expiry=None,
+            secret=None,
         )
         assert key.startswith("team-")
 
     def test_key_with_unicode_org(self):
         key = generate_license_key(
-            tier="team", org_name="株式会社テスト", seats=5,
-            expiry=None, secret=None,
+            tier="team",
+            org_name="株式会社テスト",
+            seats=5,
+            expiry=None,
+            secret=None,
         )
         assert key.startswith("team-")
 
@@ -180,7 +201,15 @@ class TestLicenseRecording:
             conn.execute(
                 """INSERT INTO licenses (email, org, plan, tier, license_key, stripe_customer_id, issued_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                ("test@example.com", "Test Org", "starter", "team", "team-abc123.def", "cus_test", "2025-01-01T00:00:00Z"),
+                (
+                    "test@example.com",
+                    "Test Org",
+                    "starter",
+                    "team",
+                    "team-abc123.def",
+                    "cus_test",
+                    "2025-01-01T00:00:00Z",
+                ),
             )
             conn.commit()
             row = conn.execute("SELECT email, tier, license_key, plan FROM licenses").fetchone()
@@ -201,7 +230,15 @@ class TestLicenseRecording:
             conn.execute(
                 """INSERT INTO licenses (email, org, plan, tier, license_key, stripe_customer_id, issued_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                ("test@example.com", "Test Org", "starter", "team", "team-abc123.def", "cus_12345", "2025-01-01T00:00:00Z"),
+                (
+                    "test@example.com",
+                    "Test Org",
+                    "starter",
+                    "team",
+                    "team-abc123.def",
+                    "cus_12345",
+                    "2025-01-01T00:00:00Z",
+                ),
             )
             conn.commit()
             row = conn.execute("SELECT stripe_customer_id FROM licenses").fetchone()
@@ -223,9 +260,7 @@ class TestEdgeCases:
             conn = sqlite3.connect(db_path)
             init_db(conn)
             # Table should exist
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             table_names = [t[0] for t in tables]
             assert "licenses" in table_names
             conn.close()

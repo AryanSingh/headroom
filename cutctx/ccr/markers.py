@@ -17,12 +17,8 @@ DEDUP_REF_MARKER = "[cutctx:ref:{hash}]"
 STANDARD_COMPRESSED_MARKER_RE = re.compile(
     r"\[(\d+) \w+ compressed to (\d+)\. Retrieve more: hash=([a-f0-9]{16})\]"
 )
-LEGACY_COMPRESSED_MARKER_RE = re.compile(
-    r"\[(\d+) \w+ compressed\. hash=([a-f0-9]{16})\]"
-)
-OPAQUE_CCR_MARKER_RE = re.compile(
-    r"<<ccr:([a-f0-9]{16})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>"
-)
+LEGACY_COMPRESSED_MARKER_RE = re.compile(r"\[(\d+) \w+ compressed\. hash=([a-f0-9]{16})\]")
+OPAQUE_CCR_MARKER_RE = re.compile(r"<<ccr:([a-f0-9]{16})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>")
 GENERIC_COMPRESSED_HASH_RE = re.compile(
     r"\[.*?compressed.*?hash=([a-f0-9]{16})\]",
     re.IGNORECASE,

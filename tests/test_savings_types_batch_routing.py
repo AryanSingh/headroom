@@ -13,12 +13,11 @@ from __future__ import annotations
 import pytest
 
 from cutctx.savings.types import (
-    SavingsBySource,
-    SavingsSource,
     _DESCRIPTIONS,
     _LABELS,
+    SavingsBySource,
+    SavingsSource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Enum registration
@@ -108,7 +107,4 @@ def test_dashboard_tolerates_unknown_source() -> None:
 
 
 def test_from_str_accepts_batch_routing() -> None:
-    assert (
-        SavingsSource.from_str("batch_routing")
-        == SavingsSource.BATCH_ROUTING
-    )
+    assert SavingsSource.from_str("batch_routing") == SavingsSource.BATCH_ROUTING

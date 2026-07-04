@@ -294,9 +294,7 @@ class TestExtractSessionInsights:
     async def test_all_filtered_messages(self):
         from cutctx.memory.extractor import extract_session_insights
 
-        result = await extract_session_insights(
-            [{"role": "system", "content": "sys msg"}]
-        )
+        result = await extract_session_insights([{"role": "system", "content": "sys msg"}])
         assert result == ""
 
     @pytest.mark.asyncio
@@ -350,9 +348,7 @@ class TestExtractSessionInsights:
 
         # httpx is imported locally inside _llm_extract, so patch at source
         with patch("httpx.AsyncClient", return_value=mock_client):
-            result = await extract_session_insights(
-                msgs, api_key="test-key-123"
-            )
+            result = await extract_session_insights(msgs, api_key="test-key-123")
 
         assert "dark mode" in result.lower()
         mock_client.post.assert_called_once()
@@ -373,9 +369,7 @@ class TestExtractSessionInsights:
         mock_client.post = AsyncMock(side_effect=Exception("Network error"))
 
         with patch("httpx.AsyncClient", return_value=mock_client):
-            result = await extract_session_insights(
-                msgs, api_key="test-key-123"
-            )
+            result = await extract_session_insights(msgs, api_key="test-key-123")
 
         # Should fall back to heuristic
         assert result != ""

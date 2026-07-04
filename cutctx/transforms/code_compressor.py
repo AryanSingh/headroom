@@ -1056,7 +1056,10 @@ class CodeAwareCompressor(Transform):
         # Parse and compress
         try:
             compressed, structure, symbol_scores = self._compress_with_ast(
-                code, detected_lang, context, tokenizer,
+                code,
+                detected_lang,
+                context,
+                tokenizer,
                 protected_symbols=effective_protected,
             )
             compressed_tokens = self._estimate_tokens(compressed, tokenizer)
@@ -1183,13 +1186,20 @@ class CodeAwareCompressor(Transform):
 
         # Analyze symbol importance and allocate compression budget
         analysis = self._analyze_symbol_importance(root, code, language, context)
-        body_limits = self._allocate_body_budget(analysis, code, protected_symbols=protected_symbols)
+        body_limits = self._allocate_body_budget(
+            analysis, code, protected_symbols=protected_symbols
+        )
 
         # Extract structure using data-driven language config
         lang_config = _LANG_CONFIGS.get(language)
         if lang_config:
             structure = self._extract_structure(
-                root, code, language, lang_config, body_limits, analysis,
+                root,
+                code,
+                language,
+                lang_config,
+                body_limits,
+                analysis,
                 protected_symbols=protected_symbols,
             )
         else:
@@ -1257,7 +1267,12 @@ class CodeAwareCompressor(Transform):
                     ):
                         has_func_or_class = True
                         compressed = self._compress_function_ast(
-                            child, code, language, lang_config, body_limits, analysis,
+                            child,
+                            code,
+                            language,
+                            lang_config,
+                            body_limits,
+                            analysis,
                             protected_symbols=protected_symbols,
                         )
                         # Reconstruct export with compressed inner definition
@@ -1281,12 +1296,22 @@ class CodeAwareCompressor(Transform):
                         decorator_text.append(_get_node_text(child, code))
                     elif child.type in lang_config.function_nodes:
                         definition_compressed = self._compress_function_ast(
-                            child, code, language, lang_config, body_limits, analysis,
+                            child,
+                            code,
+                            language,
+                            lang_config,
+                            body_limits,
+                            analysis,
                             protected_symbols=protected_symbols,
                         )
                     elif child.type in lang_config.class_nodes:
                         definition_compressed = self._compress_class_ast(
-                            child, code, language, lang_config, body_limits, analysis,
+                            child,
+                            code,
+                            language,
+                            lang_config,
+                            body_limits,
+                            analysis,
                             protected_symbols=protected_symbols,
                         )
                 if decorator_text and definition_compressed:
@@ -1306,7 +1331,12 @@ class CodeAwareCompressor(Transform):
             # Function/method definitions
             if node_type in lang_config.function_nodes:
                 compressed = self._compress_function_ast(
-                    node, code, language, lang_config, body_limits, analysis,
+                    node,
+                    code,
+                    language,
+                    lang_config,
+                    body_limits,
+                    analysis,
                     protected_symbols=protected_symbols,
                 )
                 structure.function_signatures.append(compressed)
@@ -1316,7 +1346,12 @@ class CodeAwareCompressor(Transform):
             # Class definitions — compress each method individually
             if node_type in lang_config.class_nodes:
                 compressed = self._compress_class_ast(
-                    node, code, language, lang_config, body_limits, analysis,
+                    node,
+                    code,
+                    language,
+                    lang_config,
+                    body_limits,
+                    analysis,
                     protected_symbols=protected_symbols,
                 )
                 structure.class_definitions.append(compressed)
@@ -1380,8 +1415,9 @@ class CodeAwareCompressor(Transform):
         node_text = "\n".join(node_lines)
 
         func_name = _get_definition_name(node)
-        body_limit = _get_body_limit(func_name, body_limits, self.config.max_body_lines,
-                                     protected_symbols=protected_symbols)
+        body_limit = _get_body_limit(
+            func_name, body_limits, self.config.max_body_lines, protected_symbols=protected_symbols
+        )
 
         # Small enough to keep as-is
         if len(node_lines) <= body_limit + 2:
@@ -1661,7 +1697,12 @@ class CodeAwareCompressor(Transform):
             # Methods/functions inside the class — compress individually
             if child.type in lang_config.function_nodes:
                 compressed = self._compress_function_ast(
-                    child, code, language, lang_config, body_limits, analysis,
+                    child,
+                    code,
+                    language,
+                    lang_config,
+                    body_limits,
+                    analysis,
                     protected_symbols=protected_symbols,
                 )
                 body_parts.append(compressed)
@@ -1675,7 +1716,12 @@ class CodeAwareCompressor(Transform):
                         decorator_lines.append(_get_node_text(deco_child, code))
                     elif deco_child.type in lang_config.function_nodes:
                         method_compressed = self._compress_function_ast(
-                            deco_child, code, language, lang_config, body_limits, analysis,
+                            deco_child,
+                            code,
+                            language,
+                            lang_config,
+                            body_limits,
+                            analysis,
                             protected_symbols=protected_symbols,
                         )
                 if decorator_lines and method_compressed:
@@ -1688,7 +1734,12 @@ class CodeAwareCompressor(Transform):
             # Nested classes — recurse
             elif child.type in lang_config.class_nodes:
                 compressed = self._compress_class_ast(
-                    child, code, language, lang_config, body_limits, analysis,
+                    child,
+                    code,
+                    language,
+                    lang_config,
+                    body_limits,
+                    analysis,
                     protected_symbols=protected_symbols,
                 )
                 body_parts.append(compressed)
@@ -1905,9 +1956,7 @@ class CodeAwareCompressor(Transform):
         )
 
         if not _check_tree_sitter_available():
-            warnings.append(
-                "tree-sitter not installed. Install with: pip install cutctx-ai[code]"
-            )
+            warnings.append("tree-sitter not installed. Install with: pip install cutctx-ai[code]")
 
         return TransformResult(
             messages=transformed_messages,

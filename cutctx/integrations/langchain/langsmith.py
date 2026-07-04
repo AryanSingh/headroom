@@ -288,9 +288,7 @@ class CutctxLangSmithCallbackHandler(BaseCallbackHandler):
             }
 
         total_saved = sum(m.get("cutctx.tokens_saved", 0) for m in self._run_metrics.values())
-        savings_percents = [
-            m.get("cutctx.savings_percent", 0) for m in self._run_metrics.values()
-        ]
+        savings_percents = [m.get("cutctx.savings_percent", 0) for m in self._run_metrics.values()]
 
         return {
             "total_runs": len(self._run_metrics),

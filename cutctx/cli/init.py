@@ -225,8 +225,7 @@ def _retain_non_cutctx_hook_entries(entries: list[Any], marker: str) -> list[Any
             retained.append(entry)
             continue
         has_cutctx = any(
-            isinstance(item, dict) and marker in str(item.get("command", ""))
-            for item in hook_items
+            isinstance(item, dict) and marker in str(item.get("command", "")) for item in hook_items
         )
         if not has_cutctx:
             retained.append(entry)
@@ -241,24 +240,20 @@ def _ensure_gemini_hooks(path: Path, profile: str) -> None:
     payload["tools"] = tools
 
     hooks = dict(payload.get("hooks") or {}) if isinstance(payload.get("hooks"), dict) else {}
-    command = (
-        f"{_hook_command('--profile', profile)} --marker {_GEMINI_HOOK_MARKER} --json-output"
-    )
+    command = f"{_hook_command('--profile', profile)} --marker {_GEMINI_HOOK_MARKER} --json-output"
     hook_payload = {"type": "command", "command": command, "timeout": 15000}
 
-    session_entries = list(hooks.get("SessionStart") or []) if isinstance(
-        hooks.get("SessionStart"), list
-    ) else []
+    session_entries = (
+        list(hooks.get("SessionStart") or []) if isinstance(hooks.get("SessionStart"), list) else []
+    )
     session_entries = _retain_non_cutctx_hook_entries(session_entries, _GEMINI_HOOK_MARKER)
     session_entries.append({"hooks": [hook_payload]})
     hooks["SessionStart"] = session_entries
 
-    before_tool_entries = list(hooks.get("BeforeTool") or []) if isinstance(
-        hooks.get("BeforeTool"), list
-    ) else []
-    before_tool_entries = _retain_non_cutctx_hook_entries(
-        before_tool_entries, _GEMINI_HOOK_MARKER
+    before_tool_entries = (
+        list(hooks.get("BeforeTool") or []) if isinstance(hooks.get("BeforeTool"), list) else []
     )
+    before_tool_entries = _retain_non_cutctx_hook_entries(before_tool_entries, _GEMINI_HOOK_MARKER)
     before_tool_entries.append({"matcher": ".*", "hooks": [hook_payload]})
     hooks["BeforeTool"] = before_tool_entries
 
@@ -364,7 +359,7 @@ def _ensure_codex_feature_flag(path: Path) -> None:
 
     content = path.read_text(encoding="utf-8") if path.exists() else ""
     content = re.sub(
-        r'(?m)^([ \t]*)codex_hooks[ \t]*=[ \t]*(true|false)[ \t]*\r?$',
+        r"(?m)^([ \t]*)codex_hooks[ \t]*=[ \t]*(true|false)[ \t]*\r?$",
         r"\1hooks = true",
         content,
     )
@@ -815,7 +810,9 @@ def _init_opencode(*, port: int) -> None:
 
 def _windsurf_settings_path() -> Path:
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Windsurf" / "User" / "settings.json"
+        return (
+            Path.home() / "Library" / "Application Support" / "Windsurf" / "User" / "settings.json"
+        )
     elif os.name == "nt":
         return Path(os.environ.get("APPDATA", Path.home())) / "Windsurf" / "User" / "settings.json"
     else:
@@ -862,7 +859,9 @@ def _init_zed(*, port: int) -> None:
     anthropic_cfg["api_url"] = f"http://127.0.0.1:{port}"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
-    click.echo(f"Configured Zed — language_models.openai.api_url and language_models.anthropic.api_url written to {settings_path}")
+    click.echo(
+        f"Configured Zed — language_models.openai.api_url and language_models.anthropic.api_url written to {settings_path}"
+    )
     click.echo("Restart Zed to activate Cutctx provider routing.")
 
 

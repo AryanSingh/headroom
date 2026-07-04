@@ -106,13 +106,13 @@ def _make_openai_tool(name="test_tool"):
 
 def _make_tool_result_messages(n_items=5, n_fields=4):
     """Create messages with tool_result content containing array data."""
-    items = [
-        {f"field_{i}": f"value_{j}_{i}" for i in range(n_fields)}
-        for j in range(n_items)
-    ]
+    items = [{f"field_{i}": f"value_{j}_{i}" for i in range(n_fields)} for j in range(n_items)]
     return [
         {"role": "user", "content": "Get data"},
-        {"role": "assistant", "content": [{"type": "tool_use", "id": "tu1", "name": "get_data", "input": {}}]},
+        {
+            "role": "assistant",
+            "content": [{"type": "tool_use", "id": "tu1", "name": "get_data", "input": {}}],
+        },
         {
             "role": "user",
             "content": [
@@ -207,7 +207,9 @@ class TestCompressToolSchemas:
 
     def test_description_sentence_boundary(self):
         tool = _make_anthropic_tool()
-        tool["description"] = "First sentence. Second sentence. Third sentence with lots of extra text that goes on and on."
+        tool["description"] = (
+            "First sentence. Second sentence. Third sentence with lots of extra text that goes on and on."
+        )
         compacted, _, _, _ = compress_tool_schemas([tool], max_description_length=50)
         desc = compacted[0]["description"]
         assert desc.endswith("...")
@@ -250,7 +252,9 @@ class TestCompressToolSchemas:
     def test_aggressive_mode(self):
         tools = [_make_anthropic_tool()]
         compacted_agg, modified_agg, _, after_agg = compress_tool_schemas(tools, aggressive=True)
-        compacted_norm, modified_norm, _, after_norm = compress_tool_schemas(tools, aggressive=False)
+        compacted_norm, modified_norm, _, after_norm = compress_tool_schemas(
+            tools, aggressive=False
+        )
         # Aggressive should produce smaller or equal output
         if modified_agg and modified_norm:
             assert after_agg <= after_norm
@@ -312,7 +316,16 @@ class TestCompressToolResults:
 
     def test_anthropic_tool_result_list_content(self):
         # Need enough items/fields for positional format to save bytes
-        items = [{"id": i, "name": f"user_{i}", "email": f"user{i}@example.com", "score": 90 + i, "role": "admin"} for i in range(5)]
+        items = [
+            {
+                "id": i,
+                "name": f"user_{i}",
+                "email": f"user{i}@example.com",
+                "score": 90 + i,
+                "role": "admin",
+            }
+            for i in range(5)
+        ]
         msgs = [
             {
                 "type": "tool_result",
@@ -328,7 +341,10 @@ class TestCompressToolResults:
 
     def test_openai_tool_role(self):
         # Need enough items/fields for positional format to save bytes
-        items = [{"id": i, "name": f"item_{i}", "value": i * 10, "category": "data", "active": True} for i in range(5)]
+        items = [
+            {"id": i, "name": f"item_{i}", "value": i * 10, "category": "data", "active": True}
+            for i in range(5)
+        ]
         msgs = [{"role": "tool", "content": json.dumps(items), "tool_call_id": "tc1"}]
         result = compress_tool_results(msgs)
         parsed = json.loads(result[0]["content"])

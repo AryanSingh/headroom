@@ -3,9 +3,9 @@
 **Version:** 1.0
 **Effective Date:** 2026-06-15
 **Prepared by:** Security Engineering, Cutctx
-**Contact:** security@cutctx.dev
+**Contact:** security@cutctx.com
 
-This document provides pre-filled responses to common enterprise security questionnaire questions. For questions not addressed here, or to request supporting documentation (penetration test executive summary, SOC 2 report when available), contact security@cutctx.dev.
+This document provides pre-filled responses to common enterprise security questionnaire questions. For questions not addressed here, or to request supporting documentation (penetration test executive summary, SOC 2 report when available), contact security@cutctx.com.
 
 ---
 
@@ -65,7 +65,7 @@ Yes. Enterprise tier customers can configure SSO/OIDC authentication via the cut
 
 **Q13. Is SCIM-based user provisioning supported?**
 
-SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers should treat license-seat assignment as an operator-managed or management-API workflow rather than assuming a universal self-serve customer portal. Contact sales@cutctx.dev to discuss provisioning integration requirements.
+SCIM provisioning is on the Enterprise roadmap. Current Enterprise customers should treat license-seat assignment as an operator-managed or management-API workflow rather than assuming a universal self-serve customer portal. Contact sales@cutctx.com to discuss provisioning integration requirements.
 
 **Q14. Does your product follow a least-privilege access model?**
 
@@ -146,7 +146,7 @@ Cutctx does not currently operate a public bug bounty program. We operate a priv
 
 **Q31. What is your vulnerability disclosure process?**
 
-Security vulnerabilities are reported to security@cutctx.dev. Cutctx acknowledges reports within 48 hours, assesses severity within 7 days, and targets remediation within 90 days (7 days for critical issues, CVSS 9.0+). CVEs are requested where applicable. The full process is described in `SECURITY.md` and `docs/security/SECURITY_POLICY.md` Section 7.
+Security vulnerabilities are reported to security@cutctx.com. Cutctx acknowledges reports within 48 hours, assesses severity within 7 days, and targets remediation within 90 days (7 days for critical issues, CVSS 9.0+). CVEs are requested where applicable. The full process is described in `SECURITY.md` and `docs/security/SECURITY_POLICY.md` Section 7.
 
 **Q32. How are security patches deployed?**
 
@@ -170,7 +170,7 @@ Yes. Cutctx's local-first architecture means no customer personal data (includin
 
 **Q36. Are you CCPA compliant?**
 
-Yes. Cutctx does not sell customer personal information. California residents whose personal information Cutctx processes (account and billing data) may exercise their CCPA rights by contacting privacy@cutctx.dev. Given the local-first architecture, Cutctx does not process the personal information that may appear within customer prompts.
+Yes. Cutctx does not sell customer personal information. California residents whose personal information Cutctx processes (account and billing data) may exercise their CCPA rights by contacting privacy@cutctx.com. Given the local-first architecture, Cutctx does not process the personal information that may appear within customer prompts.
 
 **Q37. Can you provide a list of sub-processors?**
 
@@ -195,6 +195,6 @@ Yes. Cutctx's incident response plan is documented in `docs/security/SECURITY_PO
 
 **Q40. Who is the security contact for incidents and questions?**
 
-**Email:** security@cutctx.dev
+**Email:** security@cutctx.com
 **Response SLA:** 48 hours for non-urgent inquiries; 24 hours for potential security incidents.
 For urgent incidents outside business hours, Enterprise customers have access to a dedicated escalation path provided in their onboarding documentation.

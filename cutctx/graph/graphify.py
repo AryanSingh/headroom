@@ -31,16 +31,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def graphify_available() -> bool:
-    """Return True if the graphifyy Python package is installed."""
-    try:
-        import graphifyy  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
-
-
 def networkx_available() -> bool:
     """Return True if networkx is installed."""
     try:
@@ -174,7 +164,8 @@ class GraphifyIndex:
 
         with self._lock:
             try:
-                import networkx as nx
+                if importlib.util.find_spec("networkx") is None:
+                    raise ImportError("networkx unavailable")
             except ImportError:
                 # NetworkX not available — return empty result
                 return GraphifyQueryResult(
@@ -264,13 +255,15 @@ class GraphifyIndex:
                 try:
                     for u, v, edata in graph.edges(data=True):
                         if u in selected_set and v in selected_set:
-                            rel = edata.get("relationship", edata.get("label", edata.get("type", "related_to")))
+                            rel = edata.get(
+                                "relationship", edata.get("label", edata.get("type", "related_to"))
+                            )
                             if isinstance(rel, bytes):
                                 rel = rel.decode("utf-8", errors="replace")
                             edges_out.append((str(u), str(v), str(rel)))
                 except Exception:
                     # Duck-typing fallback for non-standard graph types
-                    for u, v in getattr(graph, "edges", lambda: [])():
+                    for _u, _v in getattr(graph, "edges", lambda: [])():
                         if callable(getattr(graph, "edges", None)):
                             break
 
@@ -400,9 +393,7 @@ def render_subgraph(result: GraphifyQueryResult, original_content: str = "") -> 
 
     if result.fallback:
         lines.append("")
-        lines.append(
-            "[Note: No exact term match found — showing top-degree nodes as context]"
-        )
+        lines.append("[Note: No exact term match found — showing top-degree nodes as context]")
 
     return "\n".join(lines)
 
@@ -508,9 +499,7 @@ class GraphifyIndexer:
                 return
             if self._debounce_timer:
                 self._debounce_timer.cancel()
-            self._debounce_timer = threading.Timer(
-                self.DEBOUNCE_SECONDS, self._build
-            )
+            self._debounce_timer = threading.Timer(self.DEBOUNCE_SECONDS, self._build)
             self._debounce_timer.daemon = True
             self._debounce_timer.start()
 
@@ -715,9 +704,7 @@ class GraphifyIndexer:
             )
             return False
         except FileNotFoundError:
-            logger.warning(
-                "GraphifyIndexer: graphifyy.cli module not found"
-            )
+            logger.warning("GraphifyIndexer: graphifyy.cli module not found")
             return False
         except subprocess.TimeoutExpired:
             logger.warning("GraphifyIndexer: subprocess timed out after 300s")

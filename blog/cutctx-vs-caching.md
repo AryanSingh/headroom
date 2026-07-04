@@ -115,4 +115,4 @@ Caching is a partial solution for a specific problem (repeated queries). Compres
 
 For AI agents that need fresh, diverse context on every request, compression wins.
 
-*See the difference yourself: [Read the quickstart](https://cutctx.dev/docs/quickstart) or [calculate your ROI](https://cutctx.dev/roi).*
+*See the difference yourself: [Read the quickstart](https://cutctx.com/docs/quickstart) or [calculate your ROI](https://cutctx.com/roi).*

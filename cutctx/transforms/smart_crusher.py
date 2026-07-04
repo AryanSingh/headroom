@@ -365,7 +365,9 @@ class SmartCrusher(Transform):
             # codepath.
             self._rust = _RustSmartCrusher(rust_cfg, ccr_db_path=ccr_db_path)
         else:
-            self._rust = _RustSmartCrusher.with_compaction_format(rust_cfg, resolved_format, ccr_db_path=ccr_db_path)
+            self._rust = _RustSmartCrusher.with_compaction_format(
+                rust_cfg, resolved_format, ccr_db_path=ccr_db_path
+            )
 
     def crush(self, content: str, query: str = "", bias: float = 1.0) -> CrushResult:
         """Crush a single JSON content string.

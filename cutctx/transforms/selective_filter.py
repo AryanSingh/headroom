@@ -181,7 +181,9 @@ class SelectiveContextFilter:
 
             try:
                 result = scorer.score(text, effective_query)
-                score_val = getattr(result, 'score', result) if not isinstance(result, float) else result
+                score_val = (
+                    getattr(result, "score", result) if not isinstance(result, float) else result
+                )
                 scores[i] = float(score_val)
                 keep.append(float(score_val) >= self.config.min_score)
             except Exception as exc:

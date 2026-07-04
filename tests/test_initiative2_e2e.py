@@ -6,11 +6,10 @@ using mocked StackGraphManager where the Rust extension is not available.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from cutctx.graph.reachability import resolve_entry_points
 from cutctx.transforms.code_compressor import CodeAwareCompressor
-
 
 # =========================================================================
 # E2E: resolve_entry_points → CodeCompressor
@@ -26,10 +25,20 @@ def test_reachability_feeds_code_compressor() -> None:
     mock_resolver._inner = MagicMock()
     mock_resolver.indexed_paths = {"/src/app.py"}
     mock_resolver._inner.reachable_definitions.return_value = [
-        {"target_file": "/src/app.py", "target_line": 5, "target_column": 0,
-         "symbol_name": "validate", "confidence": 0.9},
-        {"target_file": "/src/app.py", "target_line": 15, "target_column": 0,
-         "symbol_name": "helper_func", "confidence": 0.9},
+        {
+            "target_file": "/src/app.py",
+            "target_line": 5,
+            "target_column": 0,
+            "symbol_name": "validate",
+            "confidence": 0.9,
+        },
+        {
+            "target_file": "/src/app.py",
+            "target_line": 15,
+            "target_column": 0,
+            "symbol_name": "helper_func",
+            "confidence": 0.9,
+        },
     ]
 
     query = "debug `process_payment`"
@@ -44,7 +53,7 @@ def test_reachability_feeds_code_compressor() -> None:
     config = CodeCompressorConfig(min_tokens_for_compression=30)
     compressor = CodeAwareCompressor(config)
 
-    code = '''\
+    code = """\
 def process_payment():
     amount = 100
     fee = 5
@@ -75,7 +84,7 @@ def other_stuff():
     u = 6
     v = 7
     return p + q + r + s + t + u + v
-'''
+"""
 
     # Without protected symbols, bodies should be compressed
     result_no_protect = compressor.compress(code, language="python")
@@ -83,7 +92,9 @@ def other_stuff():
 
     # With protected symbols, keep bodies for protected funcs
     result_protected = compressor.compress(
-        code, language="python", protected_symbols=protected,
+        code,
+        language="python",
+        protected_symbols=protected,
     )
 
     # Protected version should keep more content (higher ratio = less compression)

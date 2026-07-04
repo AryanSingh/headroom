@@ -13,6 +13,7 @@ Also provides stack-graph-based code navigation:
                           symbol resolution
     stack_graph_available() — runtime availability check
 """
+
 from cutctx.graph.graphify import (
     GraphifyIndex,
     GraphifyIndexer,

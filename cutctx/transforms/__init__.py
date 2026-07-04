@@ -124,7 +124,6 @@ __all__ = [
     "CacheAligner",
     # HTML extraction (optional)
     "_HTML_EXTRACTOR_AVAILABLE",
-
 ]
 
 # Conditionally add HTML extractor exports
@@ -216,7 +215,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "HTMLExtractorConfig": ("cutctx.transforms.html_extractor", "HTMLExtractorConfig"),
     "HTMLExtractionResult": ("cutctx.transforms.html_extractor", "HTMLExtractionResult"),
     "is_html_content": ("cutctx.transforms.html_extractor", "is_html_content"),
-
 }
 
 
@@ -225,7 +223,6 @@ def __getattr__(name: str) -> object:
         raise AttributeError(name)
     if name == "_HTML_EXTRACTOR_AVAILABLE":
         return _HTML_EXTRACTOR_AVAILABLE
-
 
     try:
         module_name, attr_name = _LAZY_EXPORTS[name]

@@ -485,9 +485,7 @@ class SsoValidator:
             unverified_header = pyjwt.get_unverified_header(token)
             kid = unverified_header.get("kid")
         except Exception as exc:
-            raise SsoTokenInvalidError(
-                f"Could not parse JWT header: {exc}"
-            ) from exc
+            raise SsoTokenInvalidError(f"Could not parse JWT header: {exc}") from exc
 
         jwks_client = self._build_jwks_client(key)
         try:
@@ -507,9 +505,7 @@ class SsoValidator:
                 options={"verify_exp": False},  # We check expiry ourselves
             )
         except pyjwt.PyJWTError as exc:
-            raise SsoTokenInvalidError(
-                f"Signature verification failed: {exc}"
-            ) from exc
+            raise SsoTokenInvalidError(f"Signature verification failed: {exc}") from exc
 
     def _build_jwks_client(self, key: Any) -> Any:
         """Build a PyJWKClient from either a JWKS dict or a JWK dict.
@@ -518,7 +514,6 @@ class SsoValidator:
         string. We serialise the dict back to a JSON string so the
         same path handles both shapes consistently.
         """
-
 
         if isinstance(key, dict):
             if "keys" in key and isinstance(key["keys"], list):

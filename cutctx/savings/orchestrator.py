@@ -96,27 +96,21 @@ class SavingsOrchestrator:
         )
 
         if provider:
-            bucket = self._aggregate.by_provider.setdefault(
-                provider, SavingsBySource()
-            )
+            bucket = self._aggregate.by_provider.setdefault(provider, SavingsBySource())
             for src, n in breakdown.by_source.tokens.items():
                 bucket.tokens[src] = bucket.tokens.get(src, 0) + n
             for src, u in breakdown.by_source.usd.items():
                 bucket.usd[src] = bucket.usd.get(src, 0.0) + u
 
         if model:
-            bucket = self._aggregate.by_model.setdefault(
-                model, SavingsBySource()
-            )
+            bucket = self._aggregate.by_model.setdefault(model, SavingsBySource())
             for src, n in breakdown.by_source.tokens.items():
                 bucket.tokens[src] = bucket.tokens.get(src, 0) + n
             for src, u in breakdown.by_source.usd.items():
                 bucket.usd[src] = bucket.usd.get(src, 0.0) + u
 
         if client:
-            bucket = self._aggregate.by_client.setdefault(
-                client, SavingsBySource()
-            )
+            bucket = self._aggregate.by_client.setdefault(client, SavingsBySource())
             for src, n in breakdown.by_source.tokens.items():
                 bucket.tokens[src] = bucket.tokens.get(src, 0) + n
             for src, u in breakdown.by_source.usd.items():

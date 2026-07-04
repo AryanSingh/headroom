@@ -17,6 +17,7 @@ logger = logging.getLogger("cutctx.proxy.budget")
 @dataclass
 class BudgetConfig:
     """Configuration for streaming budget enforcement."""
+
     enabled: bool = False
     default_budget_tokens: int = 100_000  # per-request token budget
     default_budget_usd: float = 10.0  # per-request dollar budget
@@ -26,6 +27,7 @@ class BudgetConfig:
     @classmethod
     def from_env(cls) -> BudgetConfig:
         import os
+
         return cls(
             enabled=os.environ.get("CUTCTX_BUDGET_ENABLED", "").strip() == "1",
             default_budget_tokens=int(os.environ.get("CUTCTX_BUDGET_TOKENS", "100000")),
@@ -94,12 +96,16 @@ class BudgetTracker:
                 import asyncio
 
                 from cutctx.proxy.webhooks import dispatcher
+
                 title = "Budget Exceeded"
                 message = f"Budget exceeded! {self._tokens_used}/{self.budget_tokens} tokens used."
                 asyncio.create_task(dispatcher.fire_webhook(title, message))
             except Exception as e:
                 import logging
-                logging.getLogger("cutctx.proxy.budget").error(f"Error triggering budget webhook: {e}")
+
+                logging.getLogger("cutctx.proxy.budget").error(
+                    f"Error triggering budget webhook: {e}"
+                )
 
         return exceeded
 
@@ -120,27 +126,33 @@ class BudgetTracker:
     def make_budget_exceeded_chunk(self) -> str:
         """Create an SSE chunk indicating budget exceeded."""
         import json
+
         # OpenAI format
         chunk_data = {
-            "choices": [{
-                "delta": {
-                    "content": f"\n\n[System: Budget Exceeded — {self._tokens_used}/{self.budget_tokens} tokens used. Stream terminated.]",
-                },
-                "finish_reason": "budget_exceeded",
-            }],
+            "choices": [
+                {
+                    "delta": {
+                        "content": f"\n\n[System: Budget Exceeded — {self._tokens_used}/{self.budget_tokens} tokens used. Stream terminated.]",
+                    },
+                    "finish_reason": "budget_exceeded",
+                }
+            ],
         }
         return f"data: {json.dumps(chunk_data)}\n\ndata: [DONE]\n\n"
 
     def make_budget_warning_chunk(self) -> str:
         """Create an SSE chunk with a budget warning (non-blocking)."""
         import json
+
         chunk_data = {
-            "choices": [{
-                "delta": {
-                    "content": f"\n\n[System: Budget Warning — {self.percent_used:.0f}% of token budget used ({self._tokens_used}/{self.budget_tokens})]",
-                },
-                "finish_reason": None,
-            }],
+            "choices": [
+                {
+                    "delta": {
+                        "content": f"\n\n[System: Budget Warning — {self.percent_used:.0f}% of token budget used ({self._tokens_used}/{self.budget_tokens})]",
+                    },
+                    "finish_reason": None,
+                }
+            ],
         }
         return f"data: {json.dumps(chunk_data)}\n\n"
 

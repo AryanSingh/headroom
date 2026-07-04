@@ -1298,6 +1298,7 @@ def _inject_rtk_instructions(file_path: Path, verbose: bool = False) -> bool:
     Returns True if instructions were written.
     """
     import os as _os
+
     # Skip if parent directory is not writable (e.g. cwd is filesystem root).
     # If parent doesn't exist yet, check its parent since we need to create it.
     parent_to_check = file_path.parent if file_path.parent.exists() else file_path.parent.parent
@@ -1709,9 +1710,7 @@ def _echo_unwrap_proxy_stop_status(status: str, port: int) -> None:
             f"  Warning: port {port} is in use, but it did not look like Cutctx; left it running."
         )
     elif status == "no_pid":
-        click.echo(
-            f"  Warning: Cutctx proxy on port {port} did not expose a PID; left it running."
-        )
+        click.echo(f"  Warning: Cutctx proxy on port {port} did not expose a PID; left it running.")
     else:
         click.echo(f"  Warning: failed to stop Cutctx proxy on port {port}; stop it manually.")
 
@@ -1780,8 +1779,7 @@ def _restart_persistent_proxy(manifest: Any, port: int) -> bool:
     from cutctx.install.supervisors import start_supervisor
 
     click.echo(
-        f"  Restarting persistent deployment '{manifest.profile}' "
-        f"with Cutctx {_CUTCTX_VERSION}..."
+        f"  Restarting persistent deployment '{manifest.profile}' with Cutctx {_CUTCTX_VERSION}..."
     )
     try:
         if manifest.preset == InstallPreset.PERSISTENT_DOCKER.value:
@@ -2167,7 +2165,7 @@ def _marker_pid_reused(marker: Path, pid: int) -> bool:
         return False
     src = rec.get("start_src")
     recorded = rec.get("start_time")
-    if not isinstance(src, str) or not isinstance(recorded, (int, float)):
+    if not isinstance(src, str) or not isinstance(recorded, int | float):
         return False  # legacy / identity-less marker — can't tell
     ident = _proc_identity(pid)
     if ident is None or ident[0] != src:
@@ -2826,7 +2824,9 @@ def unwrap_claude(
             if serena_status == "removed":
                 click.echo("  Removed Cutctx-installed Serena MCP server from Claude.")
             elif serena_status == "failed":
-                click.echo("  Serena MCP server matched the Cutctx ledger but could not be removed.")
+                click.echo(
+                    "  Serena MCP server matched the Cutctx ledger but could not be removed."
+                )
         else:
             click.echo("  Claude Code not detected; skipped MCP cleanup.")
     else:
@@ -2872,9 +2872,7 @@ def unwrap_claude(
     default=None,
     help="Provider for any-llm backend: openai, mistral, groq, etc. (env: CUTCTX_ANYLLM_PROVIDER)",
 )
-@click.option(
-    "--region", default=None, help="Cloud region for Bedrock/Vertex (env: CUTCTX_REGION)"
-)
+@click.option("--region", default=None, help="Cloud region for Bedrock/Vertex (env: CUTCTX_REGION)")
 @click.option(
     "--provider-type",
     type=click.Choice(["auto", "anthropic", "openai"]),
@@ -3137,9 +3135,7 @@ def copilot(
     default=None,
     help="Provider for any-llm backend: openai, mistral, groq, etc. (env: CUTCTX_ANYLLM_PROVIDER)",
 )
-@click.option(
-    "--region", default=None, help="Cloud region for Bedrock/Vertex (env: CUTCTX_REGION)"
-)
+@click.option("--region", default=None, help="Cloud region for Bedrock/Vertex (env: CUTCTX_REGION)")
 @click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--prepare-only", is_flag=True, hidden=True)
@@ -3829,7 +3825,6 @@ def continue_dev(
         agent_type="continue",
         print_setup_lines=_print_continue_setup,
     )
-
 
 
 # =============================================================================

@@ -164,9 +164,7 @@ def generate_markdown_fixture() -> str:
             f"for diff/patch content.\n"
         )
         sections.append("### Usage\n")
-        sections.append(
-            "```bash\ncutctx proxy --port 8787 --compression-mode live-zone\n```\n"
-        )
+        sections.append("```bash\ncutctx proxy --port 8787 --compression-mode live-zone\n```\n")
         sections.append("### Configuration\n")
         sections.append(
             "| Setting | Default | Description |\n"

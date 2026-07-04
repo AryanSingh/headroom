@@ -100,7 +100,7 @@ def format_retrieval_miss_detail(status: dict[str, Any]) -> str:
 
     if status.get("status") == "expired":
         age_seconds = status.get("age_seconds")
-        if isinstance(age_seconds, (int, float)):
+        if isinstance(age_seconds, int | float):
             return f"Entry expired (CCR TTL: {ttl_seconds} seconds; age: {age_seconds:.0f} seconds)"
         return f"Entry expired (CCR TTL: {ttl_seconds} seconds)"
 
@@ -224,7 +224,9 @@ class CompressionStore:
         # Some backends implement ``__len__`` and therefore evaluate falsey
         # before any entries exist; using ``or`` here silently replaced them
         # with the in-memory store and broke cross-runtime CCR interop.
-        self._backend: CompressionStoreBackend = backend if backend is not None else InMemoryBackend()
+        self._backend: CompressionStoreBackend = (
+            backend if backend is not None else InMemoryBackend()
+        )
         self._lock = threading.Lock()
         self._max_entries = max_entries
         self._default_ttl = default_ttl

@@ -105,9 +105,7 @@ def integrations_status(output_format: str) -> None:
     for name, fixture in _PROVIDER_FIXTURES.items():
         usage = fixture["usage"]
         parser_name = (
-            f"parse_{name}_savings"
-            if name != "azure_openai"
-            else "parse_azure_openai_savings"
+            f"parse_{name}_savings" if name != "azure_openai" else "parse_azure_openai_savings"
         )
         try:
             module = importlib.import_module("cutctx.savings.parsers")
@@ -201,9 +199,7 @@ def integrations_status(output_format: str) -> None:
             source_tokens = row.get("savings_by_source_tokens") or {}
             if isinstance(source_tokens, dict) and source_tokens:
                 for src_name, value in source_tokens.items():
-                    by_source_tokens[src_name] = by_source_tokens.get(src_name, 0) + int(
-                        value or 0
-                    )
+                    by_source_tokens[src_name] = by_source_tokens.get(src_name, 0) + int(value or 0)
             else:
                 delta_tokens = int(row.get("delta_tokens_saved") or 0)
                 if delta_tokens > 0:
@@ -214,9 +210,7 @@ def integrations_status(output_format: str) -> None:
             source_usd = row.get("savings_by_source_usd") or {}
             if isinstance(source_usd, dict) and source_usd:
                 for src_name, value in source_usd.items():
-                    by_source_usd[src_name] = by_source_usd.get(src_name, 0.0) + float(
-                        value or 0.0
-                    )
+                    by_source_usd[src_name] = by_source_usd.get(src_name, 0.0) + float(value or 0.0)
             else:
                 # Legacy row without per-source USD attribution. Mirror
                 # the buyer report fallback so production status still
@@ -249,26 +243,17 @@ def integrations_status(output_format: str) -> None:
                 "compression_savings_usd": round(
                     float(lifetime.get("compression_savings_usd", 0.0) or 0.0), 6
                 ),
-                "total_input_tokens": int(
-                    lifetime.get("total_input_tokens", 0) or 0
-                ),
+                "total_input_tokens": int(lifetime.get("total_input_tokens", 0) or 0),
                 "total_input_cost_usd": round(
                     float(lifetime.get("total_input_cost_usd", 0.0) or 0.0), 6
                 ),
-                "cache_savings_usd": round(
-                    float(lifetime.get("cache_savings_usd", 0.0) or 0.0), 6
-                ),
+                "cache_savings_usd": round(float(lifetime.get("cache_savings_usd", 0.0) or 0.0), 6),
                 "semantic_cache_savings_usd": round(
                     float(lifetime.get("semantic_cache_savings_usd", 0.0) or 0.0),
                     6,
                 ),
                 "self_hosted_prefix_cache_savings_usd": round(
-                    float(
-                        lifetime.get(
-                            "self_hosted_prefix_cache_savings_usd", 0.0
-                        )
-                        or 0.0
-                    ),
+                    float(lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0) or 0.0),
                     6,
                 ),
                 "model_routing_savings_usd": round(
@@ -318,11 +303,7 @@ def integrations_status(output_format: str) -> None:
         else:
             mark = "✗"
         lib = info.get("library")
-        lib_str = (
-            f", library={lib}={info.get('library_available')}"
-            if lib
-            else ""
-        )
+        lib_str = f", library={lib}={info.get('library_available')}" if lib else ""
         wiring = info.get("wiring", "user-invoked")
         click.echo(f"  {name:20s} {mark}  [{wiring}]{lib_str}")
     click.echo()

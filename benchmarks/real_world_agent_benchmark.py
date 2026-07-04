@@ -733,9 +733,7 @@ def run_full_benchmark(api_key: str = None) -> dict:
         else 0
     )
     avg_cutctx_quality = (
-        sum(r.answer_quality for r in cutctx_results) / len(cutctx_results)
-        if cutctx_results
-        else 0
+        sum(r.answer_quality for r in cutctx_results) / len(cutctx_results) if cutctx_results else 0
     )
     print(
         f"{'Avg Answer Quality':<25} {avg_baseline_quality:>14.1%} {avg_cutctx_quality:>14.1%} {'preserved' if avg_cutctx_quality >= avg_baseline_quality * 0.9 else 'degraded':>15}"

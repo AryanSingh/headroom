@@ -54,22 +54,27 @@ class TestSsoConfig(unittest.TestCase):
         cfg = SsoConfig()
         self.assertFalse(cfg.enabled)
 
-    @patch.dict(os.environ, {
-        "CUTCTX_SSO_PROVIDER_TYPE": "jwt",
-        "CUTCTX_SSO_DISCOVERY_URL": "https://idp.example.com/.well-known/openid-configuration",
-        "CUTCTX_SSO_ISSUER": "https://idp.example.com",
-        "CUTCTX_SSO_AUDIENCE": "cutctx-api",
-        "CUTCTX_SSO_ROLE_MAPPING": "groups=admin,roles=operator",
-        "CUTCTX_SSO_REQUIRED_SCOPES": "openid,profile",
-        "CUTCTX_SSO_DEFAULT_ROLE": "viewer",
-        "CUTCTX_SSO_JWKS_CACHE_TTL": "7200",
-        "CUTCTX_SSO_CLOCK_SKEW_TOLERANCE": "30",
-        "CUTCTX_SSO_HTTP_TIMEOUT": "15",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "CUTCTX_SSO_PROVIDER_TYPE": "jwt",
+            "CUTCTX_SSO_DISCOVERY_URL": "https://idp.example.com/.well-known/openid-configuration",
+            "CUTCTX_SSO_ISSUER": "https://idp.example.com",
+            "CUTCTX_SSO_AUDIENCE": "cutctx-api",
+            "CUTCTX_SSO_ROLE_MAPPING": "groups=admin,roles=operator",
+            "CUTCTX_SSO_REQUIRED_SCOPES": "openid,profile",
+            "CUTCTX_SSO_DEFAULT_ROLE": "viewer",
+            "CUTCTX_SSO_JWKS_CACHE_TTL": "7200",
+            "CUTCTX_SSO_CLOCK_SKEW_TOLERANCE": "30",
+            "CUTCTX_SSO_HTTP_TIMEOUT": "15",
+        },
+    )
     def test_from_env(self):
         cfg = SsoConfig.from_env()
         self.assertEqual(cfg.provider_type, "jwt")
-        self.assertEqual(cfg.discovery_url, "https://idp.example.com/.well-known/openid-configuration")
+        self.assertEqual(
+            cfg.discovery_url, "https://idp.example.com/.well-known/openid-configuration"
+        )
         self.assertEqual(cfg.issuer, "https://idp.example.com")
         self.assertEqual(cfg.audience, "cutctx-api")
         self.assertEqual(cfg.role_mapping, {"groups": "admin", "roles": "operator"})
@@ -143,9 +148,11 @@ class TestSsoValidator(unittest.TestCase):
         # Pre-populate JWKS cache so we don't make HTTP calls
         validator._jwks_cache._keys = {"key1": {"kty": "RSA"}}
         validator._jwks_cache._fetched_at = time.time()
+
         # Skip real signature verification (stub keys have no key material)
         async def _no_sig_verify(token, key, algorithm):
             pass
+
         validator._verify_signature = _no_sig_verify
         return validator
 
@@ -154,18 +161,21 @@ class TestSsoValidator(unittest.TestCase):
         validator = SsoValidator(cfg)
         with self.assertRaises(SsoError):
             import asyncio
+
             asyncio.run(validator.validate_token("anything"))
 
     def test_invalid_jwt_format(self):
         validator = self._make_validator()
         with self.assertRaises(SsoTokenInvalidError):
             import asyncio
+
             asyncio.run(validator.validate_token("not-a-jwt"))
 
     def test_too_few_jwt_parts(self):
         validator = self._make_validator()
         with self.assertRaises(SsoTokenInvalidError):
             import asyncio
+
             asyncio.run(validator.validate_token("only.two"))
 
     def test_unsupported_algorithm(self):
@@ -173,6 +183,7 @@ class TestSsoValidator(unittest.TestCase):
         token = _make_jwt({"alg": "HS256", "typ": "JWT"}, {"sub": "user"})
         with self.assertRaises(SsoTokenInvalidError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
     def test_expired_token(self):
@@ -183,6 +194,7 @@ class TestSsoValidator(unittest.TestCase):
         )
         with self.assertRaises(SsoTokenExpiredError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
     def test_issuer_mismatch(self):
@@ -193,6 +205,7 @@ class TestSsoValidator(unittest.TestCase):
         )
         with self.assertRaises(SsoTokenInvalidError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
     def test_audience_mismatch(self):
@@ -203,6 +216,7 @@ class TestSsoValidator(unittest.TestCase):
         )
         with self.assertRaises(SsoTokenAudienceError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
     def test_missing_kid_in_jwks(self):
@@ -213,6 +227,7 @@ class TestSsoValidator(unittest.TestCase):
         )
         with self.assertRaises(SsoTokenInvalidError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
     def test_audience_list_match(self):
@@ -222,6 +237,7 @@ class TestSsoValidator(unittest.TestCase):
             {"sub": "user", "aud": ["expected-api", "other-api"], "exp": int(time.time()) + 3600},
         )
         import asyncio
+
         claims = asyncio.run(validator.validate_token(token))
         self.assertEqual(claims.subject, "user")
 
@@ -233,6 +249,7 @@ class TestSsoValidator(unittest.TestCase):
         )
         with self.assertRaises(SsoTokenScopeError):
             import asyncio
+
             asyncio.run(validator.validate_token(token))
 
 

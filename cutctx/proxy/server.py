@@ -2157,7 +2157,7 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
     # directory. dashboard/dist/assets (three parents up) is the raw Vite
     # output outside the cutctx/ package tree and is never present in an
     # installed package, so this must stay inside cutctx/dashboard/.
-    react_assets = Path(__file__).resolve().parent.parent / "dashboard" / "assets" / "assets"
+    react_assets = Path(__file__).resolve().parent.parent / "dashboard" / "assets"
     if react_assets.is_dir():
         app.mount("/assets", StaticFiles(directory=str(react_assets)), name="assets")
 
@@ -3774,40 +3774,7 @@ def _require_rbac_permission(permission: str):
         payload = _health_payload(include_config=True)
         return JSONResponse(status_code=200, content=payload)
 
-    # Loopback-only debug introspection (Unit 5). A remote IP gets 404 —
-    # debug endpoints are invisible to external scanners.
-    from cutctx.proxy.debug_introspection import (
-        collect_tasks as _collect_tasks,
-    )
-    from cutctx.proxy.loopback_guard import require_loopback as _require_loopback
 
-    @app.get("/debug/tasks", dependencies=[Depends(_require_loopback)])
-    async def debug_tasks(stack: bool = False):
-        """Enumerate running asyncio tasks.
-
-        Default is cheap — ``stack_depth`` is ``null`` in every entry so
-        a storm snapshot does not walk 50+ coroutine frames synchronously.
-        Pass ``?stack=true`` to compute ``stack_depth`` for each task
-        (useful for single-shot human debugging).
-        """
-        ws_registry = getattr(proxy, "ws_sessions", None)
-        return JSONResponse(
-            status_code=200,
-            content=_collect_tasks(ws_registry, with_stack_depth=stack),
-        )
-
-    @app.get("/debug/ws-sessions", dependencies=[Depends(_require_loopback)])
-    async def debug_ws_sessions():
-        ws_registry = getattr(proxy, "ws_sessions", None)
-        snapshot = ws_registry.snapshot() if ws_registry is not None else []
-        return JSONResponse(status_code=200, content=snapshot)
-
-    @app.get("/debug/warmup", dependencies=[Depends(_require_loopback)])
-    async def debug_warmup():
-        warmup_registry = getattr(proxy, "warmup", None)
-        payload = warmup_registry.to_dict() if warmup_registry is not None else {}
-        payload["runtime"] = _runtime_payload()
-        return JSONResponse(status_code=200, content=payload)
 
     @app.get("/favicon.svg", include_in_schema=False)
     async def favicon():
@@ -5776,32 +5743,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         await _check_upstream()
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 
-    # Loopback-only debug introspection surfaces.
-    from cutctx.proxy.debug_introspection import (
-        collect_tasks as _collect_tasks,
-    )
-    from cutctx.proxy.loopback_guard import require_loopback as _require_loopback
 
-    @app.get("/debug/tasks", dependencies=[Depends(_require_loopback)])
-    async def debug_tasks(stack: bool = False):
-        ws_registry = getattr(proxy, "ws_sessions", None)
-        return JSONResponse(
-            status_code=200,
-            content=_collect_tasks(ws_registry, with_stack_depth=stack),
-        )
-
-    @app.get("/debug/ws-sessions", dependencies=[Depends(_require_loopback)])
-    async def debug_ws_sessions():
-        ws_registry = getattr(proxy, "ws_sessions", None)
-        snapshot = ws_registry.snapshot() if ws_registry is not None else []
-        return JSONResponse(status_code=200, content=snapshot)
-
-    @app.get("/debug/warmup", dependencies=[Depends(_require_loopback)])
-    async def debug_warmup():
-        warmup_registry = getattr(proxy, "warmup", None)
-        payload = warmup_registry.to_dict() if warmup_registry is not None else {}
-        payload["runtime"] = _runtime_payload()
-        return JSONResponse(status_code=200, content=payload)
 
     @app.get("/v1/version")
     async def get_v1_version():
@@ -5975,7 +5917,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     from pathlib import Path as _Path
     # See the matching comment on the other `/assets` mount above — this
     # must stay inside cutctx/dashboard/ to survive a real package install.
-    _react_assets = _Path(__file__).resolve().parent.parent / "dashboard" / "assets" / "assets"
+    _react_assets = _Path(__file__).resolve().parent.parent / "dashboard" / "assets"
     if _react_assets.is_dir():
         app.mount("/assets", StaticFiles(directory=str(_react_assets)), name="assets")
 
@@ -6052,6 +5994,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.proxy.routes.secrets import create_secrets_router
         from cutctx.proxy.routes.spend import create_spend_router
         from cutctx.proxy.routes.sso import create_sso_router
+        from cutctx.proxy.routes.license_validation import create_license_validation_router
 
         admin_dep = _require_local_admin_auth
         rbac_dep = _runtime_require_rbac_permission
@@ -6084,6 +6027,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         )
         app.include_router(create_residency_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(create_license_validation_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
     except ImportError:
         pass
 

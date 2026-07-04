@@ -490,9 +490,7 @@ def test_unwrap_codex_without_codex_home_warns_on_ambiguous_noop(
     unwrap_result = runner.invoke(main, ["unwrap", "codex", "--no-stop-proxy"])
 
     assert unwrap_result.exit_code == 0, unwrap_result.output
-    assert "Cutctx wrap markers" in (
-        unwrap_result.output
-    )
+    assert "Cutctx wrap markers" in (unwrap_result.output)
     assert "If you wrapped Codex with CODEX_HOME" in unwrap_result.output
     assert "CODEX_HOME=/path/to/codex-home cutctx unwrap codex" in unwrap_result.output
     assert "Nothing to undo" in unwrap_result.output
@@ -517,8 +515,8 @@ def test_start_proxy_uses_separate_session_for_signal_isolation(
 
     monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
     monkeypatch.setattr(
-    "cutctx.paths.request_history_path",
-    lambda: tmp_path / "request_history.jsonl",
+        "cutctx.paths.request_history_path",
+        lambda: tmp_path / "request_history.jsonl",
     )
     monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda port: True)
     monkeypatch.setattr(wrap_mod.subprocess, "Popen", fake_popen)
@@ -527,9 +525,7 @@ def test_start_proxy_uses_separate_session_for_signal_isolation(
 
     assert isinstance(proc, FakeProc)
     assert popen_kwargs["start_new_session"] == (wrap_mod.os.name == "posix")
-    assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(
-        tmp_path / "request_history.jsonl"
-    )
+    assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(tmp_path / "request_history.jsonl")
 
 
 def test_launch_tool_ignores_sigint_in_wrapper(

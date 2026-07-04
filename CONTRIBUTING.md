@@ -87,7 +87,7 @@ A human maintainer reviews every dep change. PRs that add or bump a package must
 ## Development setup
 
 ```bash
-git clone https://github.com/chopratejas/cutctx.git
+git clone https://github.com/cutctx/cutctx.git
 cd cutctx
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,relevance,proxy]"

@@ -45,22 +45,22 @@ Installed into Python 3.11:
 
 ### Earlier blockers fixed
 
-- Fixed the malformed favicon 404 line in [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py).
-- Added proxy import regression coverage in [tests/test_proxy_server_import.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_proxy_server_import.py).
-- Isolated RBAC DB state in [tests/test_management_api_entitlements.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_management_api_entitlements.py) using per-test `CUTCTX_RBAC_DB_PATH`.
+- Fixed the malformed favicon 404 line in [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/server.py).
+- Added proxy import regression coverage in [tests/test_proxy_server_import.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_proxy_server_import.py).
+- Isolated RBAC DB state in [tests/test_management_api_entitlements.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_management_api_entitlements.py) using per-test `CUTCTX_RBAC_DB_PATH`.
 
 ### Newly unskipped USEARCH regressions fixed
 
-- [cutctx/memory/factory.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/memory/factory.py): `UsearchMemoryBackend` now initializes before returning the factory.
-- [tests/test_usearch_backend.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_usearch_backend.py): added regression coverage proving `create_memory_system()` returns the USEARCH backend index immediately.
-- [cutctx/memory/core.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/memory/core.py): `HierarchicalMemory.close()` now tolerates both sync and async `close()` implementations.
-- [tests/test_memory/test_close_lifecycle.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_memory/test_close_lifecycle.py): added regression coverage for sync-only vector-index cleanup.
-- [tests/test_memory/test_factory.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_memory/test_factory.py): added regression coverage for the factory returning an initialized backend.
+- [cutctx/memory/factory.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/memory/factory.py): `UsearchMemoryBackend` now initializes before returning the factory.
+- [tests/test_usearch_backend.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_usearch_backend.py): added regression coverage proving `create_memory_system()` returns the USEARCH backend index immediately.
+- [cutctx/memory/core.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/memory/core.py): `HierarchicalMemory.close()` now tolerates both sync and async `close()` implementations.
+- [tests/test_memory/test_close_lifecycle.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_memory/test_close_lifecycle.py): added regression coverage for sync-only vector-index cleanup.
+- [tests/test_memory/test_factory.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_memory/test_factory.py): added regression coverage for the factory returning an initialized backend.
 
 ### OpenAI responses stats regression fixed
 
-- [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py): restored `requests.by_provider` in one `/stats` payload shape used by OpenAI responses integration tests.
-- [tests/test_proxy_openai_responses_integration.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_proxy_openai_responses_integration.py): verified `TestOpenAIResponsesStats::test_stats_track_openai_provider` passes after the fix.
+- [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/server.py): restored `requests.by_provider` in one `/stats` payload shape used by OpenAI responses integration tests.
+- [tests/test_proxy_openai_responses_integration.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_proxy_openai_responses_integration.py): verified `TestOpenAIResponsesStats::test_stats_track_openai_provider` passes after the fix.
 
 ## Verified Passing Slices
 

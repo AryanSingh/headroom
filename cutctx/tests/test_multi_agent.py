@@ -484,10 +484,7 @@ class TestThreadSafety:
                 errors.append(e)
 
         # Multiple threads try to compress same content simultaneously
-        threads = [
-            threading.Thread(target=agent_compress, args=(f"agent-{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=agent_compress, args=(f"agent-{i}",)) for i in range(5)]
 
         for t in threads:
             t.start()
@@ -526,8 +523,7 @@ class TestThreadSafety:
 
         # Add entries from multiple threads
         threads = [
-            threading.Thread(target=add_and_retrieve, args=(f"agent-{i}",))
-            for i in range(3)
+            threading.Thread(target=add_and_retrieve, args=(f"agent-{i}",)) for i in range(3)
         ]
 
         for t in threads:
@@ -587,9 +583,7 @@ class TestWorkspaceScoping:
         assert result_same == "data_from_ws1"
 
         # Retrieve from different workspace
-        result_different = self.cache.get_compressed(
-            content_hash, workspace_key="workspace-2"
-        )
+        result_different = self.cache.get_compressed(content_hash, workspace_key="workspace-2")
         assert result_different is None  # Isolated
 
     def test_list_by_agent_respects_workspace(self):

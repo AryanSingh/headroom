@@ -30,7 +30,7 @@ class FakeTable:
 
 
 class FakeConsole:
-    instances: list["FakeConsole"] = []
+    instances: list[FakeConsole] = []
 
     def __init__(self) -> None:
         self.printed: list[object] = []
@@ -94,9 +94,7 @@ def test_capabilities_table_shows_passthrough_status(
             "critical": False,
             "mode": "pass-through" if feature["name"] == "audio" else "optional",
             "install_hint": (
-                None
-                if feature["name"] == "audio"
-                else f"pip install cutctx-ai[{feature['extra']}]"
+                None if feature["name"] == "audio" else f"pip install cutctx-ai[{feature['extra']}]"
             ),
             "reason": (
                 "proxied unchanged; no token compression applied"
@@ -125,10 +123,7 @@ def test_capabilities_table_shows_passthrough_status(
         "pip install cutctx-ai[knowledge-graph]",
     ) in table.rows
     assert "[dim]knowledge_graph:[/dim] graphifyy" in console.printed
-    assert (
-        "[dim]audio:[/dim] proxied unchanged; no token compression applied"
-        in console.printed
-    )
+    assert "[dim]audio:[/dim] proxied unchanged; no token compression applied" in console.printed
 
 
 def test_python_m_main_capabilities_json_runs() -> None:

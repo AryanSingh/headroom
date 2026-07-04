@@ -240,9 +240,7 @@ class TestTokensSavedEstimate:
 
     @pytest.mark.skipif(not drain3_available(), reason="drain3 not installed")
     def test_saves_tokens_on_repetitive(self) -> None:
-        content = "\n".join(
-            ["2024-01-01 10:00:00 INFO: Request processed in 42ms"] * 20
-        )
+        content = "\n".join(["2024-01-01 10:00:00 INFO: Request processed in 42ms"] * 20)
         compressor = Drain3LogCompressor()
         result = compressor.compress(content)
         assert result.tokens_saved_estimate > 0

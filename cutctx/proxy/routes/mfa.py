@@ -18,6 +18,7 @@ Endpoints:
   GET  /v1/admin/mfa          { } -> { enrolled, enrolled_at, last_used_counter }
   GET  /v1/admin/mfa/code     { } -> { code, remaining_s }  # for testing
 """
+
 from __future__ import annotations
 
 import logging
@@ -120,14 +121,10 @@ def create_mfa_router(
 
         user_id = getattr(request.state, "cutctx_user_id", None)
         if not user_id:
-            raise HTTPException(
-                status_code=400, detail="SSO subject required"
-            )
+            raise HTTPException(status_code=400, detail="SSO subject required")
         enrollment = MfaStore(db_path=_mfa_db_path()).get(user_id)
         if enrollment is None:
-            raise HTTPException(
-                status_code=404, detail="Not enrolled"
-            )
+            raise HTTPException(status_code=404, detail="Not enrolled")
         ok = verify_totp(
             enrollment["secret_b32"],
             code,
@@ -145,14 +142,10 @@ def create_mfa_router(
 
         user_id = getattr(request.state, "cutctx_user_id", None)
         if not user_id:
-            raise HTTPException(
-                status_code=400, detail="SSO subject required"
-            )
+            raise HTTPException(status_code=400, detail="SSO subject required")
         removed = MfaStore(db_path=_mfa_db_path()).revoke(user_id)
         if not removed:
-            raise HTTPException(
-                status_code=404, detail="Not enrolled"
-            )
+            raise HTTPException(status_code=404, detail="Not enrolled")
         return {"status": "revoked", "user_id": user_id}
 
     @router.get("", dependencies=deps)
@@ -162,9 +155,7 @@ def create_mfa_router(
 
         user_id = getattr(request.state, "cutctx_user_id", None)
         if not user_id:
-            raise HTTPException(
-                status_code=400, detail="SSO subject required"
-            )
+            raise HTTPException(status_code=400, detail="SSO subject required")
         enrollment = MfaStore(db_path=_mfa_db_path()).get(user_id)
         if enrollment is None:
             return {
@@ -188,14 +179,10 @@ def create_mfa_router(
 
         user_id = getattr(request.state, "cutctx_user_id", None)
         if not user_id:
-            raise HTTPException(
-                status_code=400, detail="SSO subject required"
-            )
+            raise HTTPException(status_code=400, detail="SSO subject required")
         enrollment = MfaStore(db_path=_mfa_db_path()).get(user_id)
         if enrollment is None:
-            raise HTTPException(
-                status_code=404, detail="Not enrolled"
-            )
+            raise HTTPException(status_code=404, detail="Not enrolled")
         totp = current_totp(enrollment["secret_b32"])
         return {
             "code": totp.code,

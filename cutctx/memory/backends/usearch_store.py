@@ -35,6 +35,7 @@ def usearch_available() -> bool:
     """Check whether the usearch package is installed."""
     try:
         import usearch  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -178,7 +179,9 @@ class UsearchMemoryBackend(VectorIndex):
             else:
                 logger.info(
                     "Creating new USearch index (ndim=%s, metric=%s, dtype=%s)",
-                    self.ndim, self.metric, self.dtype,
+                    self.ndim,
+                    self.metric,
+                    self.dtype,
                 )
                 self._index = usearch.index.Index(
                     ndim=self.ndim,
@@ -207,7 +210,7 @@ class UsearchMemoryBackend(VectorIndex):
         import json
 
         meta: dict[str, Any] = {
-            "memory_to_key": {k: v for k, v in self._memory_to_key.items()},
+            "memory_to_key": dict(self._memory_to_key.items()),
             "key_to_memory": {str(k): v for k, v in self._key_to_memory.items()},
             "next_key": self._next_key,
             "metadata": {
@@ -246,9 +249,7 @@ class UsearchMemoryBackend(VectorIndex):
             meta = json.load(f)
 
         self._memory_to_key = {k: int(v) for k, v in meta.get("memory_to_key", {}).items()}
-        self._key_to_memory = {
-            int(k): v for k, v in meta.get("key_to_memory", {}).items()
-        }
+        self._key_to_memory = {int(k): v for k, v in meta.get("key_to_memory", {}).items()}
         self._next_key = meta.get("next_key", 0)
 
         raw_metadata: dict[str, dict[str, Any]] = meta.get("metadata", {})
@@ -261,9 +262,7 @@ class UsearchMemoryBackend(VectorIndex):
                 user_id=data["user_id"],
                 session_id=data.get("session_id"),
                 agent_id=data.get("agent_id"),
-                valid_until=(
-                    datetime.fromisoformat(valid_until_raw) if valid_until_raw else None
-                ),
+                valid_until=(datetime.fromisoformat(valid_until_raw) if valid_until_raw else None),
                 entity_refs=data.get("entity_refs", []),
                 content=data.get("content", ""),
                 created_at=(
@@ -493,15 +492,15 @@ class UsearchMemoryBackend(VectorIndex):
             if embedding.shape[0] != self.ndim:
                 logger.warning(
                     "Skipping memory %s: wrong embedding dimension %d (expected %d)",
-                    memory.id, embedding.shape[0], self.ndim,
+                    memory.id,
+                    embedding.shape[0],
+                    self.ndim,
                 )
                 continue
 
             with self._lock:
                 if self._index is None:
-                    raise RuntimeError(
-                        "USearch index not initialized. Call initialize() first."
-                    )
+                    raise RuntimeError("USearch index not initialized. Call initialize() first.")
 
                 if memory.id in self._memory_to_key:
                     # Re-indexing existing memory — discard old key

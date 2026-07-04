@@ -228,6 +228,7 @@ class RequestLogger:
             # Read the last MAX_LOG_ENTRIES lines without loading the full
             # file — avoids O(file_size) memory on long-running deployments.
             from collections import deque as _deque
+
             tail: _deque[bytes] = _deque(maxlen=self.MAX_LOG_ENTRIES)
             with open(self.log_file, "rb") as f:
                 for line in f:
@@ -237,7 +238,9 @@ class RequestLogger:
                 try:
                     data = json.loads(raw)
                     # Re-hydrate into a RequestLog; skip malformed entries.
-                    entry = RequestLog(**{k: v for k, v in data.items() if k in RequestLog.__dataclass_fields__})
+                    entry = RequestLog(
+                        **{k: v for k, v in data.items() if k in RequestLog.__dataclass_fields__}
+                    )
                     self._logs.append(entry)
                 except Exception:
                     continue

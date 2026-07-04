@@ -37,12 +37,11 @@ from cutctx.compression.universal import CompressionResult, ContentType
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_universal_compressor():
     """Mock UniversalCompressor to avoid ML dependencies."""
-    with patch(
-        "cutctx.compression.task_aware.UniversalCompressor"
-    ) as mock_class:
+    with patch("cutctx.compression.task_aware.UniversalCompressor") as mock_class:
         # Create a mock instance
         mock_instance = MagicMock()
 
@@ -84,13 +83,17 @@ def mock_bm25_scorer():
 # TaskExtractor Tests
 # ============================================================================
 
+
 class TestTaskExtractorBasic:
     """Test basic task extraction from messages."""
 
     def test_extract_task_with_debug_keyword(self):
         """Should extract task from messages containing 'debug'."""
         messages = [
-            {"role": "user", "content": "I'm getting a 500 error when calling /api/users. Can you help debug this?"}
+            {
+                "role": "user",
+                "content": "I'm getting a 500 error when calling /api/users. Can you help debug this?",
+            }
         ]
         task = TaskExtractor.extract_task(messages)
 
@@ -101,7 +104,10 @@ class TestTaskExtractorBasic:
     def test_extract_task_with_fix_keyword(self):
         """Should extract task from messages containing 'fix'."""
         messages = [
-            {"role": "user", "content": "Can you fix the broken authentication flow in the login module?"}
+            {
+                "role": "user",
+                "content": "Can you fix the broken authentication flow in the login module?",
+            }
         ]
         task = TaskExtractor.extract_task(messages)
 
@@ -111,7 +117,10 @@ class TestTaskExtractorBasic:
     def test_extract_task_with_implement_verb(self):
         """Should extract task from messages containing 'implement'."""
         messages = [
-            {"role": "user", "content": "I need you to implement a new feature for user profile management."}
+            {
+                "role": "user",
+                "content": "I need you to implement a new feature for user profile management.",
+            }
         ]
         task = TaskExtractor.extract_task(messages)
 
@@ -120,9 +129,7 @@ class TestTaskExtractorBasic:
 
     def test_extract_task_with_find_verb(self):
         """Should extract task from messages containing 'find'."""
-        messages = [
-            {"role": "user", "content": "Find the memory leak in the caching subsystem."}
-        ]
+        messages = [{"role": "user", "content": "Find the memory leak in the caching subsystem."}]
         task = TaskExtractor.extract_task(messages)
 
         assert task is not None
@@ -130,9 +137,7 @@ class TestTaskExtractorBasic:
 
     def test_extract_task_with_question_word_what(self):
         """Should extract task from messages starting with 'What'."""
-        messages = [
-            {"role": "user", "content": "What's causing the database connection timeout?"}
-        ]
+        messages = [{"role": "user", "content": "What's causing the database connection timeout?"}]
         task = TaskExtractor.extract_task(messages)
 
         assert task is not None
@@ -154,9 +159,7 @@ class TestTaskExtractorBasic:
 
     def test_extract_task_returns_none_for_irrelevant_messages(self):
         """Should return None for messages without task keywords."""
-        messages = [
-            {"role": "user", "content": "Hello there. The weather is nice today."}
-        ]
+        messages = [{"role": "user", "content": "Hello there. The weather is nice today."}]
         task = TaskExtractor.extract_task(messages)
         assert task is None
 
@@ -164,7 +167,7 @@ class TestTaskExtractorBasic:
         """Should only consider user messages."""
         messages = [
             {"role": "assistant", "content": "I can help you debug this issue."},
-            {"role": "user", "content": "Thanks, but let's focus on other things."}
+            {"role": "user", "content": "Thanks, but let's focus on other things."},
         ]
         task = TaskExtractor.extract_task(messages)
         # Should not pick up "debug" from assistant message
@@ -174,7 +177,7 @@ class TestTaskExtractorBasic:
         """Should prefer most recent message when multiple contain tasks."""
         messages = [
             {"role": "user", "content": "Can you debug the old system?"},
-            {"role": "user", "content": "Now fix the new authentication module."}
+            {"role": "user", "content": "Now fix the new authentication module."},
         ]
         task = TaskExtractor.extract_task(messages)
 
@@ -185,7 +188,10 @@ class TestTaskExtractorBasic:
     def test_extract_task_length_bounds(self):
         """Extracted task should be reasonable length (10-100 chars typically)."""
         messages = [
-            {"role": "user", "content": "Implement the user management system with full CRUD operations."}
+            {
+                "role": "user",
+                "content": "Implement the user management system with full CRUD operations.",
+            }
         ]
         task = TaskExtractor.extract_task(messages)
 
@@ -246,6 +252,7 @@ class TestTaskExtractorEdgeCases:
 # RelevanceModulator Tests
 # ============================================================================
 
+
 class TestRelevanceModulatorBasic:
     """Test basic relevance scoring."""
 
@@ -257,10 +264,7 @@ class TestRelevanceModulatorBasic:
             mock_bm25.return_value = mock_scorer
 
             modulator = RelevanceModulator(use_bm25=True)
-            score = modulator.score(
-                "error 500 HTTP connection refused",
-                "debug HTTP 500 error"
-            )
+            score = modulator.score("error 500 HTTP connection refused", "debug HTTP 500 error")
 
             assert 0.0 <= score <= 1.0
             assert score > 0.5
@@ -274,8 +278,7 @@ class TestRelevanceModulatorBasic:
 
             modulator = RelevanceModulator(use_bm25=True)
             score = modulator.score(
-                "completely unrelated content about cooking recipes",
-                "debug HTTP 500 error"
+                "completely unrelated content about cooking recipes", "debug HTTP 500 error"
             )
 
             assert 0.0 <= score <= 1.0
@@ -314,10 +317,7 @@ class TestRelevanceModulatorBasic:
 
             modulator = RelevanceModulator(use_bm25=True)
             # Should fallback to keyword overlap
-            score = modulator.score(
-                "error and debug are important",
-                "debug the error"
-            )
+            score = modulator.score("error and debug are important", "debug the error")
 
             assert 0.0 <= score <= 1.0
             assert score > 0.0  # Should find overlap
@@ -377,6 +377,7 @@ class TestRelevanceModulatorKeywordOverlap:
 # TaskAwareCompressor Tests
 # ============================================================================
 
+
 class TestTaskAwareCompressorBasic:
     """Test basic compression with task awareness."""
 
@@ -413,7 +414,9 @@ class TestTaskAwareCompressorBasic:
         assert isinstance(result, TaskAwareResult)
         assert result.relevance_score < 0.3
 
-    def test_compress_without_task_behaves_normal(self, mock_universal_compressor, mock_bm25_scorer):
+    def test_compress_without_task_behaves_normal(
+        self, mock_universal_compressor, mock_bm25_scorer
+    ):
         """Without task, should use normal compression (no modulation)."""
         _, mock_instance = mock_universal_compressor
         _, mock_bm25 = mock_bm25_scorer
@@ -437,13 +440,15 @@ class TestTaskAwareCompressorBasic:
         compressor = TaskAwareCompressor(task="test task")
         result = compressor.compress("test content")
 
-        assert hasattr(result, 'compressed')
-        assert hasattr(result, 'original_tokens')
-        assert hasattr(result, 'compressed_tokens')
-        assert hasattr(result, 'relevance_score')
-        assert hasattr(result, 'task_used')
+        assert hasattr(result, "compressed")
+        assert hasattr(result, "original_tokens")
+        assert hasattr(result, "compressed_tokens")
+        assert hasattr(result, "relevance_score")
+        assert hasattr(result, "task_used")
 
-    def test_compress_respects_content_type_parameter(self, mock_universal_compressor, mock_bm25_scorer):
+    def test_compress_respects_content_type_parameter(
+        self, mock_universal_compressor, mock_bm25_scorer
+    ):
         """Should pass content_type to UniversalCompressor."""
         _, mock_instance = mock_universal_compressor
         _, mock_bm25 = mock_bm25_scorer
@@ -472,7 +477,9 @@ class TestTaskAwareCompressorSetTask:
         compressor.set_task(None)
         assert compressor.task is None
 
-    def test_set_task_changes_subsequent_compression(self, mock_universal_compressor, mock_bm25_scorer):
+    def test_set_task_changes_subsequent_compression(
+        self, mock_universal_compressor, mock_bm25_scorer
+    ):
         """Changing task should affect subsequent compressions."""
         _, mock_instance = mock_universal_compressor
         _, mock_bm25 = mock_bm25_scorer
@@ -501,6 +508,7 @@ class TestTaskAwareCompressorSetTask:
 # TaskAwareResult Tests
 # ============================================================================
 
+
 class TestTaskAwareResultProperties:
     """Test TaskAwareResult property computation."""
 
@@ -511,7 +519,7 @@ class TestTaskAwareResultProperties:
             original_tokens=100,
             compressed_tokens=30,
             relevance_score=0.5,
-            task_used="test"
+            task_used="test",
         )
         assert result.tokens_saved == 70
 
@@ -522,7 +530,7 @@ class TestTaskAwareResultProperties:
             original_tokens=50,
             compressed_tokens=60,  # More tokens after (shouldn't happen)
             relevance_score=0.5,
-            task_used="test"
+            task_used="test",
         )
         assert result.tokens_saved == 0
 
@@ -533,7 +541,7 @@ class TestTaskAwareResultProperties:
             original_tokens=100,
             compressed_tokens=50,
             relevance_score=0.5,
-            task_used="test"
+            task_used="test",
         )
         assert result.compression_ratio == 0.5
 
@@ -544,7 +552,7 @@ class TestTaskAwareResultProperties:
             original_tokens=0,
             compressed_tokens=0,
             relevance_score=0.0,
-            task_used=None
+            task_used=None,
         )
         assert result.compression_ratio == 0.0
 
@@ -556,7 +564,7 @@ class TestTaskAwareResultProperties:
                 original_tokens=orig,
                 compressed_tokens=comp,
                 relevance_score=0.5,
-                task_used="test"
+                task_used="test",
             )
             assert 0.0 <= result.compression_ratio <= 1.0
 
@@ -567,7 +575,7 @@ class TestTaskAwareResultProperties:
             original_tokens=100,
             compressed_tokens=100,
             relevance_score=1.0,
-            task_used="test"
+            task_used="test",
         )
         assert result.tokens_saved == 0
         assert result.compression_ratio == 0.0
@@ -576,6 +584,7 @@ class TestTaskAwareResultProperties:
 # ============================================================================
 # Edge Cases and Special Scenarios
 # ============================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
@@ -702,7 +711,9 @@ def debug_function():
         result = compressor.compress(code, content_type="text/plain")
         assert isinstance(result, TaskAwareResult)
 
-    def test_relevance_threshold_affects_compression_tier(self, mock_universal_compressor, mock_bm25_scorer):
+    def test_relevance_threshold_affects_compression_tier(
+        self, mock_universal_compressor, mock_bm25_scorer
+    ):
         """Different relevance thresholds should select different compression tiers."""
         _, mock_instance = mock_universal_compressor
         _, mock_bm25 = mock_bm25_scorer
@@ -713,14 +724,10 @@ def debug_function():
         # Test with low relevance (0.2) and different thresholds
         mock_scorer.score.return_value = MagicMock(score=0.2)
 
-        compressor_low_threshold = TaskAwareCompressor(
-            task="test", relevance_threshold=0.1
-        )
+        compressor_low_threshold = TaskAwareCompressor(task="test", relevance_threshold=0.1)
         result_low = compressor_low_threshold.compress("content")
 
-        compressor_high_threshold = TaskAwareCompressor(
-            task="test", relevance_threshold=0.5
-        )
+        compressor_high_threshold = TaskAwareCompressor(task="test", relevance_threshold=0.5)
         result_high = compressor_high_threshold.compress("content")
 
         # Both should complete

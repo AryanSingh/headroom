@@ -42,7 +42,4 @@ def test_firewall_routes_initialize_when_enabled() -> None:
         assert scan.status_code == 200, scan.text
         scan_payload = scan.json()
         assert scan_payload["block"] is True
-        assert any(
-            violation["kind"] == "injection"
-            for violation in scan_payload["violations"]
-        )
+        assert any(violation["kind"] == "injection" for violation in scan_payload["violations"])

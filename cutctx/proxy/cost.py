@@ -314,7 +314,7 @@ def build_prefix_cache_stats(
             "Observed TTL bucket metrics reflect provider-reported cache write usage "
             "(for example Anthropic 5m vs 1h), not configured or remaining TTL."
         ),
-}
+    }
 
 
 def diagnostics_indicates_adaptive_freeze(by_provider: dict[str, dict[str, Any]]) -> bool:
@@ -445,10 +445,14 @@ def build_prefix_cache_diagnostics(
             reason = "No provider-reported prompt cache activity."
         elif provider_writes > 0 and provider_reads == 0:
             status = "warming_only"
-            reason = "Cache writes are happening, but the prefix is not stable enough to generate reads."
+            reason = (
+                "Cache writes are happening, but the prefix is not stable enough to generate reads."
+            )
         elif provider_hit_rate < 20:
             status = "low_hit_rate"
-            reason = "Provider cache is active, but too little prompt volume is being served from cache."
+            reason = (
+                "Provider cache is active, but too little prompt volume is being served from cache."
+            )
         elif provider_busts > 0:
             status = "busting"
             reason = "Cache reuse exists, but busts are still resetting warmed prefixes."
@@ -756,6 +760,7 @@ class CostTracker:
         # Unified savings orchestrator (Phase 1.3): tracks per-source
         # tokens and dollars across requests, never double-counts.
         from cutctx.savings import SavingsOrchestrator
+
         self._savings_orchestrator = SavingsOrchestrator()
         self._api_cache_write_5m_by_model: dict[str, int] = {}
         self._api_cache_write_1h_by_model: dict[str, int] = {}
@@ -1037,11 +1042,9 @@ class CostTracker:
             "savings_usd": round(savings_usd, 4),
             "savings_by_source": self._savings_orchestrator.aggregate.by_source.to_dict(),
             "savings_by_provider": {
-                k: v.to_dict()
-                for k, v in self._savings_orchestrator.aggregate.by_provider.items()
+                k: v.to_dict() for k, v in self._savings_orchestrator.aggregate.by_provider.items()
             },
             "savings_by_client": {
-                k: v.to_dict()
-                for k, v in self._savings_orchestrator.aggregate.by_client.items()
+                k: v.to_dict() for k, v in self._savings_orchestrator.aggregate.by_client.items()
             },
         }

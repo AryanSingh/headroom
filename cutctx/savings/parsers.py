@@ -49,9 +49,7 @@ def parse_openai_savings(usage: dict[str, Any] | None) -> RequestSavingsBreakdow
         if cached_tokens > 0:
             breakdown.provider_cached_tokens = cached_tokens
             breakdown.total_tokens_saved = cached_tokens
-            breakdown.by_source.add(
-                SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens
-            )
+            breakdown.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens)
     except (TypeError, ValueError) as exc:
         logger.debug("OpenAI savings parse failed: %s", exc)
     return breakdown
@@ -72,9 +70,7 @@ def parse_anthropic_savings(usage: dict[str, Any] | None) -> RequestSavingsBreak
         if cached_tokens > 0:
             breakdown.provider_cached_tokens = cached_tokens
             breakdown.total_tokens_saved = cached_tokens
-            breakdown.by_source.add(
-                SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens
-            )
+            breakdown.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens)
     except (TypeError, ValueError) as exc:
         logger.debug("Anthropic savings parse failed: %s", exc)
     return breakdown
@@ -94,9 +90,7 @@ def parse_gemini_savings(usage_metadata: dict[str, Any] | None) -> RequestSaving
         if cached_tokens > 0:
             breakdown.provider_cached_tokens = cached_tokens
             breakdown.total_tokens_saved = cached_tokens
-            breakdown.by_source.add(
-                SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens
-            )
+            breakdown.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens)
     except (TypeError, ValueError) as exc:
         logger.debug("Gemini savings parse failed: %s", exc)
     return breakdown
@@ -116,9 +110,7 @@ def parse_bedrock_savings(usage: dict[str, Any] | None) -> RequestSavingsBreakdo
         if cached_tokens > 0:
             breakdown.provider_cached_tokens = cached_tokens
             breakdown.total_tokens_saved = cached_tokens
-            breakdown.by_source.add(
-                SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens
-            )
+            breakdown.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, cached_tokens)
     except (TypeError, ValueError) as exc:
         logger.debug("Bedrock savings parse failed: %s", exc)
     return breakdown
@@ -131,9 +123,7 @@ def parse_azure_openai_savings(usage: dict[str, Any] | None) -> RequestSavingsBr
     return parse_openai_savings(usage)
 
 
-def parse_provider_savings(
-    provider: str, usage: dict[str, Any] | None
-) -> RequestSavingsBreakdown:
+def parse_provider_savings(provider: str, usage: dict[str, Any] | None) -> RequestSavingsBreakdown:
     """Dispatch to the right parser by provider name.
 
     Unknown providers return an empty breakdown. Never raises.

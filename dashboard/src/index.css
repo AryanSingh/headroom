@@ -68,7 +68,7 @@
 
   --text-primary: #f0f0f4;
   --text-secondary: #a9b1c7;
-  --text-tertiary: #7d8498;
+  --text-tertiary: #8b95a5;
   --text-inverse: #0c0d12;
 
   --accent: #2dd4bf;
@@ -2719,5 +2719,11 @@ grid-template-columns: 1fr;
     position: static;
     width: 100%;
     margin-bottom: var(--space-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

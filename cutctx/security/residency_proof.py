@@ -206,16 +206,14 @@ class ResidencyProver:
             )
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError(
-                "cryptography package required for signature verification: %s" % exc
+                f"cryptography package required for signature verification: {exc}"
             ) from exc
 
         import os
 
         pub_hex = os.environ.get("CUTCTX_LICENSE_PUBLIC_KEY", "")
         if not pub_hex:
-            logger.warning(
-                "verify(): CUTCTX_LICENSE_PUBLIC_KEY not set; cannot verify signature"
-            )
+            logger.warning("verify(): CUTCTX_LICENSE_PUBLIC_KEY not set; cannot verify signature")
             return False
 
         try:
@@ -269,9 +267,7 @@ class ResidencyProver:
                 )
                 return None
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "_get_audit_chain_tail(): could not connect to audit store: %s", exc
-                )
+                logger.warning("_get_audit_chain_tail(): could not connect to audit store: %s", exc)
                 return None
 
         try:
@@ -310,9 +306,7 @@ class ResidencyProver:
                 get_default_issuer_config,
             )
         except ImportError as exc:
-            raise RuntimeError(
-                "cutctx_ee is required for signed attestations: %s" % exc
-            ) from exc
+            raise RuntimeError(f"cutctx_ee is required for signed attestations: {exc}") from exc
 
         kid, priv_hex = get_default_issuer_config()
         if not kid or not priv_hex:
@@ -330,7 +324,7 @@ class ResidencyProver:
             private_key = Ed25519PrivateKey.from_private_bytes(priv_bytes)
             signature = private_key.sign(digest)
         except Exception as exc:
-            raise RuntimeError("Ed25519 signing failed: %s" % exc) from exc
+            raise RuntimeError(f"Ed25519 signing failed: {exc}") from exc
 
         return ResidencyAttestation(
             tenant_id=attest.tenant_id,

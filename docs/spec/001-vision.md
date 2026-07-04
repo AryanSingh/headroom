@@ -64,4 +64,4 @@ Priority order:
 8. Minimal-build behavior
 
 Roadmap reference:
-- [Token-savings priorities](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/specs/token-savings-priorities.md)
+- [Token-savings priorities](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/specs/token-savings-priorities.md)

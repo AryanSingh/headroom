@@ -91,6 +91,7 @@ def _resolve_model_pricing(model: str) -> tuple[float, float]:
 # Cost estimation
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CostEstimate:
     """Pre-request cost estimate."""
@@ -155,6 +156,7 @@ class CostEstimator:
 
             from cutctx.pricing.registry import PricingRegistry
             from cutctx_ee.ledger.pricing import compute_costs
+
             _registry = PricingRegistry(last_updated=date.today())
             costs = compute_costs(_registry, self.model, input_tokens, output_tokens, tokens_saved)
             if costs.est_cost_usd is not None:
@@ -165,7 +167,9 @@ class CostEstimator:
                     model=self.model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    input_usd=round(total_usd - (output_tokens / 1_000_000 * self._output_per_m), 6),
+                    input_usd=round(
+                        total_usd - (output_tokens / 1_000_000 * self._output_per_m), 6
+                    ),
                     output_usd=round((output_tokens / 1_000_000 * self._output_per_m), 6),
                     total_usd=round(total_usd, 6),
                     compression_savings_usd=round(savings, 6),
@@ -230,14 +234,16 @@ class CostEstimator:
 # Compression strategy selection
 # ---------------------------------------------------------------------------
 
+
 class CompressionStrategy(str, Enum):
     """Compression strategy levels."""
-    NONE = "none"           # No compression
-    MINIMAL = "minimal"     # CacheAligner only (~5% reduction)
-    LIGHT = "light"         # Type-based routing (~30% reduction)
-    MODERATE = "moderate"   # SmartCrusher + CCR (~50% reduction)
+
+    NONE = "none"  # No compression
+    MINIMAL = "minimal"  # CacheAligner only (~5% reduction)
+    LIGHT = "light"  # Type-based routing (~30% reduction)
+    MODERATE = "moderate"  # SmartCrusher + CCR (~50% reduction)
     AGGRESSIVE = "aggressive"  # Full pipeline (~70% reduction)
-    EMERGENCY = "emergency" # Extreme compression for budget crisis
+    EMERGENCY = "emergency"  # Extreme compression for budget crisis
 
 
 @dataclass
@@ -255,6 +261,7 @@ class PolicyDecision:
 # ---------------------------------------------------------------------------
 # Policy engine
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class PolicyRule:
@@ -418,6 +425,7 @@ class PolicyEngine:
 # Session cost tracker
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SessionCostSnapshot:
     """Snapshot of session costs at a point in time."""
@@ -502,7 +510,9 @@ class SessionCostTracker:
         """Get current session cost snapshot."""
         budget_remaining = None
         if self._budget_usd is not None:
-            budget_remaining = round(self._budget_usd - self._total_input_usd - self._total_output_usd, 6)
+            budget_remaining = round(
+                self._budget_usd - self._total_input_usd - self._total_output_usd, 6
+            )
 
         return SessionCostSnapshot(
             total_input_tokens=self._total_input_tokens,

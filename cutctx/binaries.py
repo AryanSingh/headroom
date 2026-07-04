@@ -223,9 +223,11 @@ def _download(url: str, dest: Path, *, progress: bool = True) -> None:
     req = urllib.request.Request(final_url, headers={"User-Agent": "cutctx-binaries/1"})
 
     import ssl
+
     context = None
     try:
         import certifi
+
         context = ssl.create_default_context(cafile=certifi.where())
     except ImportError:
         pass

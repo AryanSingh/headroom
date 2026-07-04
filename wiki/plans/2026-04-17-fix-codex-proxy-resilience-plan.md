@@ -109,7 +109,7 @@ None used for this plan. Python `asyncio` lock, `asyncio.Semaphore`, `asyncio.Ta
 
 ### Resolved During Planning
 
-- *Q: Target upstream or the fork?* Resolved: target the fork (`fix/responses-retries-keep-compression`), structured so each unit is cherry-pickable into a PR against `chopratejas/cutctx#172`.
+- *Q: Target upstream or the fork?* Resolved: target the fork (`fix/responses-retries-keep-compression`), structured so each unit is cherry-pickable into a PR against `cutctx/cutctx#172`.
 - *Q: Should Unit 5's debug endpoints require an explicit flag to enable?* Resolved: **no** — loopback-only gating is sufficient and the debug data is useless if it isn't always available when the process is struggling.
 - *Q: Does `MemoryHandler._ensure_initialized` already have a concurrency guard?* Resolved: **no**. It relies on `self._initialized = True` flip, which is not atomic across `await` points. Unit 1 adds an `asyncio.Lock`.
 - *Q: Are the WS relay tasks already cancelled on partner exit?* Resolved: **no**. `asyncio.gather(return_exceptions=True)` waits for both; the survivor only exits when its own loop raises. Unit 3 fixes this.
@@ -483,6 +483,6 @@ Decision matrix for "where does this request wait?":
   - `cutctx/transforms/content_router.py` — `eager_load_compressors`
   - `cutctx/transforms/kompress_compressor.py` — `_load_kompress_onnx`, `_kompress_cache`
 - Related PRs/issues:
-  - Upstream: `https://github.com/chopratejas/cutctx/issues/172`
+  - Upstream: `https://github.com/cutctx/cutctx/issues/172`
   - Fork branch: `fix/responses-retries-keep-compression` (commit `0b11637`)
 - External docs: none used for this plan.

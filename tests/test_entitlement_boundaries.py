@@ -32,9 +32,7 @@ class TestTierBoundaryMatrix:
     def test_entitled_at_required_tier(self, feature: str, required_tier: EntitlementTier):
         """Feature is allowed at exactly the required tier."""
         checker = EntitlementChecker(required_tier.name.lower())
-        assert checker.is_entitled(feature), (
-            f"{feature} should be entitled at {required_tier.name}"
-        )
+        assert checker.is_entitled(feature), f"{feature} should be entitled at {required_tier.name}"
 
     @pytest.mark.parametrize(
         "feature,required_tier",

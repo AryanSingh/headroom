@@ -81,9 +81,9 @@ def test_feature_availability_snapshot_structure() -> None:
     }
     server_src = Path("cutctx/proxy/server.py").read_text()
     for key in required_keys:
-        assert (
-            f'"{key}"' in server_src
-        ), f"feature_availability snapshot missing key {key!r} in cutctx/proxy/server.py"
+        assert f'"{key}"' in server_src, (
+            f"feature_availability snapshot missing key {key!r} in cutctx/proxy/server.py"
+        )
 
 
 def test_audio_route_modality_is_passthrough() -> None:

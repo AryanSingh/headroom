@@ -476,7 +476,7 @@ cutctx savings --by-source --format json
               ['LiteLLM', 'Register Cutctx as a LiteLLM callback integration'],
               ['LangChain', 'Use Cutctx LangChain chat model wrapper'],
               ['Agno', 'Use Cutctx Agno model wrapper'],
-              ['Strands', 'See cutctx.dev/docs/strands'],
+              ['Strands', 'See cutctx.com/docs/strands'],
               ['ASGI apps', 'app.add_middleware(CompressionMiddleware)'],
               ['Multi-agent', 'SharedContext().put(key, value) / .get(key) — cross-agent KV store'],
               ['MCP clients', 'cutctx mcp install — adds compress, retrieve, status tools'],

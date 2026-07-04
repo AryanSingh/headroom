@@ -43,5 +43,5 @@ Set your AI tool's API base URL to `http://127.0.0.1:8787/v1` (OpenAI-compatible
 
 ## More Info
 
-- Docs: https://cutctx.dev/docs
+- Docs: https://cutctx.com/docs
 - GitHub: https://github.com/cutctx/cutctx

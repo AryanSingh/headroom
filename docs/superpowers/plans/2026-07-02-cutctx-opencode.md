@@ -998,7 +998,7 @@ git commit -m "feat: expose stats snapshot handler for /cutctx-stats command"
 # cutctx-opencode
 
 Local opencode plugin that auto-compresses tool outputs, conversation
-history, and streaming responses via [CutCtx](https://cutctx.dev). 60-90%
+history, and streaming responses via [CutCtx](https://cutctx.com). 60-90%
 fewer tokens reach the LLM by default; originals stay retrievable through
 CCR (`cutctx_retrieve` MCP tool).
 
@@ -1084,7 +1084,7 @@ Run: `ln -sf "$(pwd)/plugins/cutctx-opencode/cutctx.ts" ~/.config/opencode/.open
 - [ ] **Step 3: Verify the symlink**
 
 Run: `ls -la ~/.config/opencode/.opencode/plugin/cutctx.ts`
-Expected: `cutctx.ts -> /Users/aryansingh/Documents/Claude/Projects/headroom/plugins/cutctx-opencode/cutctx.ts`
+Expected: `cutctx.ts -> /Users/aryansingh/Documents/Claude/Projects/cutctx/plugins/cutctx-opencode/cutctx.ts`
 
 - [ ] **Step 4: Verify opencode resolves the symlink**
 

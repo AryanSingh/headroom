@@ -79,8 +79,14 @@ class CompressorBenchmarkResult:
             "errors": self.errors,
             "skipped": self.skipped,
         }
-        for field_name in ("f1", "rouge_l", "bleu", "semantic_sim",
-                           "information_recall", "exact_match"):
+        for field_name in (
+            "f1",
+            "rouge_l",
+            "bleu",
+            "semantic_sim",
+            "information_recall",
+            "exact_match",
+        ):
             val = getattr(self, field_name)
             if val is not None:
                 d[field_name] = round(val, 4) if isinstance(val, float) else val
@@ -141,9 +147,7 @@ class BenchmarkSuiteResult:
         ]
 
         # Header row
-        headers = ["Dataset", "N"] + [
-            COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors
-        ]
+        headers = ["Dataset", "N"] + [COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors]
         lines.append("| " + " | ".join(headers) + " |")
         lines.append("|" + "|".join("---" for _ in headers) + "|")
 
@@ -162,8 +166,7 @@ class BenchmarkSuiteResult:
                     row.append(f"{r.ratio * 100:.1f}%")
                 elif metric == "tokens_saved":
                     row.append(f"{r.tokens_saved:,}")
-                elif metric in ("f1", "rouge_l", "bleu", "semantic_sim",
-                                "information_recall"):
+                elif metric in ("f1", "rouge_l", "bleu", "semantic_sim", "information_recall"):
                     val = getattr(r, metric)
                     if val is not None:
                         row.append(f"{val:.3f}")

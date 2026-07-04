@@ -121,6 +121,7 @@ class TestSsoToRbacFlow:
     def test_admin_can_do_everything(self, rbac_checker):
         """Admin role should have all permissions."""
         from cutctx.rbac import PERMISSION_MAP
+
         for perm in PERMISSION_MAP:
             assert rbac_checker.has_permission(AdminRole.ADMIN, perm), f"Admin missing {perm}"
 
@@ -171,9 +172,14 @@ class TestEntitlementCompressionFlow:
     def test_builder_gets_all_core_compression(self, builder_checker):
         """Builder tier should have access to core compression (not CCR/memory)."""
         core_features = [
-            "smart_crusher", "code_compressor", "log_compressor",
-            "diff_compressor", "search_compressor", "kompress",
-            "image_compressor", "audio_compressor",
+            "smart_crusher",
+            "code_compressor",
+            "log_compressor",
+            "diff_compressor",
+            "search_compressor",
+            "kompress",
+            "image_compressor",
+            "audio_compressor",
         ]
         for f in core_features:
             assert builder_checker.is_entitled(f), f"Builder needs {f}"
@@ -362,21 +368,35 @@ class TestFullEnterpriseWorkflow:
         for f in paid_features:
             if not checker.is_entitled(f):
                 denied += 1
-        assert denied == len(paid_features), f"Builder should deny all {len(paid_features)} paid features"
+        assert denied == len(paid_features), (
+            f"Builder should deny all {len(paid_features)} paid features"
+        )
 
     def test_enterprise_org_lifecycle(self, org_db, audit_db):
         """Full org lifecycle: create → workspace → project → audit → delete."""
         # Create org
         org = org_db.create_org(name="Acme Corp", admin_email="admin@acme.com")
-        audit_db.log(AuditEvent(action="org.created", actor="admin@acme.com", detail={"org_id": org["id"]}))
+        audit_db.log(
+            AuditEvent(action="org.created", actor="admin@acme.com", detail={"org_id": org["id"]})
+        )
 
         # Create workspace
         ws = org_db.create_workspace(org_id=org["id"], name="Engineering")
-        audit_db.log(AuditEvent(action="workspace.created", actor="admin@acme.com", detail={"workspace_id": ws["id"]}))
+        audit_db.log(
+            AuditEvent(
+                action="workspace.created",
+                actor="admin@acme.com",
+                detail={"workspace_id": ws["id"]},
+            )
+        )
 
         # Create project
         proj = org_db.create_project(workspace_id=ws["id"], name="cutctx", path="/srv/cutctx")
-        audit_db.log(AuditEvent(action="project.created", actor="admin@acme.com", detail={"project_id": proj["id"]}))
+        audit_db.log(
+            AuditEvent(
+                action="project.created", actor="admin@acme.com", detail={"project_id": proj["id"]}
+            )
+        )
 
         # Verify hierarchy
         hierarchy = org_db.get_org_hierarchy(org["id"])
@@ -400,11 +420,13 @@ class TestFullEnterpriseWorkflow:
         """Audit events should be queryable for retention decisions."""
         # Generate some audit events
         for i in range(10):
-            audit_db.log(AuditEvent(
-                action="compression.request",
-                actor=f"user{i}@acme.com",
-                detail={"tokens_saved": i * 100},
-            ))
+            audit_db.log(
+                AuditEvent(
+                    action="compression.request",
+                    actor=f"user{i}@acme.com",
+                    detail={"tokens_saved": i * 100},
+                )
+            )
 
         # Query for retention
         events = audit_db.query(action="compression.request")

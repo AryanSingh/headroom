@@ -35,9 +35,10 @@ def test_buyer_report_text_renders_all_sources():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer"])
     assert result.exit_code == 0
     out = result.output
@@ -65,9 +66,10 @@ def test_buyer_report_json_no_double_counting():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -93,9 +95,10 @@ def test_buyer_report_json_independent_tracking():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     payload = json.loads(result.output)
     assert payload["savings_by_source"][SavingsSource.PROVIDER_PROMPT_CACHE.value] == 600
@@ -128,9 +131,10 @@ def test_buyer_report_json_includes_source_usd_totals():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -155,9 +159,10 @@ def test_buyer_report_markdown_renders_table():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "markdown"])
     assert result.exit_code == 0
     out = result.output
@@ -172,9 +177,10 @@ def test_buyer_report_handles_empty_storage():
     from cutctx.cli.main import main
 
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=[]
-    ), patch("cutctx.cli.report._collect_data", return_value=[]):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=[]),
+        patch("cutctx.cli.report._collect_data", return_value=[]),
+    ):
         result = runner.invoke(main, ["report", "buyer"])
     if result.exit_code == 0:
         assert "Total tokens saved" in result.output or result.output == ""
@@ -197,9 +203,10 @@ def test_buyer_report_output_to_file(tmp_path):
     ]
     output_path = tmp_path / "roi.md"
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(
             main, ["report", "buyer", "--format", "markdown", "-o", str(output_path)]
         )
@@ -224,6 +231,7 @@ def test_savings_by_source_empty_state_emits_valid_json():
 
     runner = CliRunner()
     with patch("cutctx.cli.savings._load_storage") as load_storage:
+
         class _EmptyStorage:
             def get_summary_stats(self, **_kwargs):
                 return {
@@ -237,9 +245,7 @@ def test_savings_by_source_empty_state_emits_valid_json():
                 pass
 
         load_storage.return_value = _EmptyStorage()
-        result = runner.invoke(
-            main, ["savings", "--by-source", "--format", "json"]
-        )
+        result = runner.invoke(main, ["savings", "--by-source", "--format", "json"])
     if result.exit_code == 0:
         payload = json.loads(result.output)
         # Additive contract (per artifacts/savings-moat-expansion-specs.md):
@@ -294,18 +300,17 @@ def test_buyer_report_attributed_usd_matches_total_for_legacy_rows():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.output)
     # Total matches the legacy compression value.
     assert payload["total_usd_saved"] == pytest.approx(0.10, abs=1e-6)
     # The legacy compression value lands in the Cutctx bucket.
-    assert payload["savings_by_source_usd"]["cutctx_compression"] == pytest.approx(
-        0.10, abs=1e-6
-    )
+    assert payload["savings_by_source_usd"]["cutctx_compression"] == pytest.approx(0.10, abs=1e-6)
     # No double counting: the sum of by_source_usd equals total_usd_saved.
     assert sum(payload["savings_by_source_usd"].values()) == pytest.approx(
         payload["total_usd_saved"], abs=1e-6
@@ -329,9 +334,10 @@ def test_buyer_report_split_legacy_compression_and_cache_usd():
         }
     ]
     runner = CliRunner()
-    with patch(
-        "cutctx.cli.report._collect_savings_history", return_value=fake_rows
-    ), patch("cutctx.cli.report._collect_data", return_value=fake_rows):
+    with (
+        patch("cutctx.cli.report._collect_savings_history", return_value=fake_rows),
+        patch("cutctx.cli.report._collect_data", return_value=fake_rows),
+    ):
         result = runner.invoke(main, ["report", "buyer", "--format", "json"])
     payload = json.loads(result.output)
     by_source = payload["savings_by_source_usd"]

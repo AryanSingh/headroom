@@ -16,12 +16,11 @@ from __future__ import annotations
 import pytest
 
 from cutctx.savings.types import (
-    SavingsBySource,
-    SavingsSource,
     _DESCRIPTIONS,
     _LABELS,
+    SavingsBySource,
+    SavingsSource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Enum registration
@@ -71,7 +70,7 @@ def test_existing_source_values_unchanged() -> None:
     }
     actual = {member.value for member in SavingsSource}
     assert expected.issubset(actual), (
-        f"SavingsSource enum members changed: missing={expected-actual}"
+        f"SavingsSource enum members changed: missing={expected - actual}"
     )  # additive: other branches may add more sources
 
 

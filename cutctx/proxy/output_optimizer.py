@@ -186,26 +186,41 @@ class OutputOptStats:
 
 # Order matters: code_edit before debug, search before summarize.
 _TASK_TYPE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("code_edit", re.compile(
-        r"\b(fix|edit|refactor|rewrite|patch|update|modify|change|implement)\b",
-        re.IGNORECASE,
-    )),
-    ("debug", re.compile(
-        r"\b(debug|trace|investigate|diagnose|why is|why does|stack trace|exception|error)\b",
-        re.IGNORECASE,
-    )),
-    ("search", re.compile(
-        r"\b(search|grep|ripgrep|find|where is|locate|which file)\b",
-        re.IGNORECASE,
-    )),
-    ("list", re.compile(
-        r"\b(list|show me|enumerate|all (the )?files|all (the )?dirs|tree of)\b",
-        re.IGNORECASE,
-    )),
-    ("summarize", re.compile(
-        r"\b(summarize|summary|recap|brief|tl;dr|overview|abstract)\b",
-        re.IGNORECASE,
-    )),
+    (
+        "code_edit",
+        re.compile(
+            r"\b(fix|edit|refactor|rewrite|patch|update|modify|change|implement)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "debug",
+        re.compile(
+            r"\b(debug|trace|investigate|diagnose|why is|why does|stack trace|exception|error)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "search",
+        re.compile(
+            r"\b(search|grep|ripgrep|find|where is|locate|which file)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "list",
+        re.compile(
+            r"\b(list|show me|enumerate|all (the )?files|all (the )?dirs|tree of)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "summarize",
+        re.compile(
+            r"\b(summarize|summary|recap|brief|tl;dr|overview|abstract)\b",
+            re.IGNORECASE,
+        ),
+    ),
 )
 
 
@@ -321,9 +336,7 @@ class OutputOptimizer:
     # Public API
     # -----------------------------------------------------------------------
 
-    def optimize(
-        self, request_body: Any, session_id: str
-    ) -> OutputOptimizeDecision:
+    def optimize(self, request_body: Any, session_id: str) -> OutputOptimizeDecision:
         """Apply the configured levers to the request body.
 
         Flag-off: returns the input BYTE-IDENTICAL (same object ref).
@@ -372,11 +385,7 @@ class OutputOptimizer:
                 mutated = True
 
         # Lever 3: style shaping (SEARCH/LIST/SUMMARIZE only, not safety-rail)
-        if (
-            self.config.enable_style
-            and not safety_rail_active
-            and should_inject_style(task_type)
-        ):
+        if self.config.enable_style and not safety_rail_active and should_inject_style(task_type):
             body, saved = self._apply_style(body)
             actions.style_terse = True
             estimated_savings += saved
@@ -385,9 +394,7 @@ class OutputOptimizer:
         # If no lever fired, return the original body reference
         # (flag-off / no-op golden contract).
         if not mutated:
-            return OutputOptimizeDecision(
-                request_body=request_body, task_type=task_type
-            )
+            return OutputOptimizeDecision(request_body=request_body, task_type=task_type)
         return OutputOptimizeDecision(
             request_body=body,
             actions_applied=actions.applied,

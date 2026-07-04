@@ -1,0 +1,43 @@
+name: Chaos Testing
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Run nightly at 2 AM
+  workflow_dispatch:
+
+jobs:
+  chaos-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.9.0
+        with:
+          cluster_name: cutctx-chaos-cluster
+
+      - name: Deploy cutctx to cluster
+        run: |
+          kubectl create namespace cutctx
+          kubectl apply -f k8s/
+          kubectl wait --for=condition=available --timeout=60s deployment/cutctx-proxy -n cutctx
+
+      - name: Run Synthetic Load & Pod Evictions
+        run: |
+          echo "Starting synthetic load generation..."
+          # Mock synthetic load running against the proxy service
+          kubectl run load-generator --image=busybox -n cutctx --restart=Never -- /bin/sh -c "while sleep 0.1; do wget -q -O- http://cutctx-proxy-service:8080/readyz; done"
+          
+          sleep 10
+          
+          echo "Evicting proxy pods to trigger HPA and RollingUpdate recovery..."
+          kubectl delete pods -l app=cutctx-proxy -n cutctx --wait=false
+          
+          sleep 30
+          
+          echo "Verifying service recovered and is available..."
+          kubectl wait --for=condition=available --timeout=60s deployment/cutctx-proxy -n cutctx
+          
+          # Check logs for errors during chaos
+          kubectl logs -l app=cutctx-proxy -n cutctx --tail=100

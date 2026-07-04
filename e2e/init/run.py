@@ -31,13 +31,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from cutctx.cli import init as init_cli  # noqa: E402
 from e2e._lib import (  # noqa: E402
     Case,
     CaseContext,
     run_case_sequence,
     run_cases,
 )
-from cutctx.cli import init as init_cli  # noqa: E402
 
 # ----- helpers reused across cases --------------------------------------------
 

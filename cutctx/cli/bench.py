@@ -29,7 +29,7 @@ _SAMPLE_MEDIUM = (
     "    if n in memo:\n"
     "        return memo[n]\n"
     "    if n <= 1:\n"
-        "        return n\n"
+    "        return n\n"
     "    memo[n] = fibonacci_memo(n - 1, memo) + fibonacci_memo(n - 2, memo)\n"
     "    return memo[n]\n\n"
     "class BinarySearchTree:\n"
@@ -74,13 +74,13 @@ def _estimate_tokens(text: str) -> int:
     default="medium",
     help="Sample data size.",
 )
-@click.option("--iterations", "-n", default=10, type=click.IntRange(min=1), help="Number of iterations.")
+@click.option(
+    "--iterations", "-n", default=10, type=click.IntRange(min=1), help="Number of iterations."
+)
 @click.option(
     "--algorithm",
     "-a",
-    type=click.Choice(
-        ["smart-crusher", "diff", "log", "search", "code-aware", "universal", "all"]
-    ),
+    type=click.Choice(["smart-crusher", "diff", "log", "search", "code-aware", "universal", "all"]),
     default="all",
     help="Compression algorithm to benchmark.",
 )
@@ -101,7 +101,10 @@ def bench(size: str, iterations: int, algorithm: str, output_json: bool) -> None
     sample = _SAMPLES[size]
     token_count = _estimate_tokens(sample)
 
-    click.echo(f"Benchmarking {size} sample ({token_count} estimated tokens, {len(sample)} bytes)", err=output_json)
+    click.echo(
+        f"Benchmarking {size} sample ({token_count} estimated tokens, {len(sample)} bytes)",
+        err=output_json,
+    )
     click.echo(f"Iterations: {iterations}\n", err=output_json)
 
     results: list[dict[str, Any]] = []
@@ -134,15 +137,17 @@ def bench(size: str, iterations: int, algorithm: str, output_json: bool) -> None
         if times_ms:
             avg_ms = sum(times_ms) / len(times_ms)
             p50 = sorted(times_ms)[len(times_ms) // 2]
-            results.append({
-                "algorithm": name,
-                "avg_ms": round(avg_ms, 2),
-                "p50_ms": round(p50, 2),
-                "tokens_before": token_count,
-                "tokens_saved": last_saved,
-                "compression_pct": round(last_ratio * 100, 1),
-                "iterations": len(times_ms),
-            })
+            results.append(
+                {
+                    "algorithm": name,
+                    "avg_ms": round(avg_ms, 2),
+                    "p50_ms": round(p50, 2),
+                    "tokens_before": token_count,
+                    "tokens_saved": last_saved,
+                    "compression_pct": round(last_ratio * 100, 1),
+                    "iterations": len(times_ms),
+                }
+            )
 
     if output_json:
         click.echo(json.dumps({"results": results}, indent=2))
@@ -153,7 +158,9 @@ def bench(size: str, iterations: int, algorithm: str, output_json: bool) -> None
         click.echo("No results. Check that compression functions are available.", err=output_json)
         return
 
-    header = f"{'Algorithm':<20} {'Avg ms':>8} {'P50 ms':>8} {'Tokens':>8} {'Saved':>8} {'Ratio':>7}"
+    header = (
+        f"{'Algorithm':<20} {'Avg ms':>8} {'P50 ms':>8} {'Tokens':>8} {'Saved':>8} {'Ratio':>7}"
+    )
     click.echo(header)
     click.echo("─" * len(header))
     for r in results:
@@ -212,6 +219,7 @@ def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
             return text
         # Find the most common line as "baseline"
         from collections import Counter
+
         line_counts = Counter(lines)
         baseline = line_counts.most_common(1)[0][0] if line_counts else ""
         # Keep lines that differ from baseline
@@ -227,7 +235,7 @@ def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
         if len(lines) <= 2:
             return text
         # Group consecutive identical lines
-        normalized = [l.strip() for l in lines]
+        normalized = [line.strip() for line in lines]
         groups: list[tuple[str, int]] = []
         for n in normalized:
             if groups and groups[-1][0] == n:
@@ -250,6 +258,7 @@ def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
             return text
         # Keep import/function/class lines + unique content
         import re
+
         important = []
         seen_unique: set[str] = set()
         for line in lines:
@@ -257,7 +266,9 @@ def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
             if not stripped:
                 continue
             # Keep structural lines
-            if re.match(r"^(def |class |import |from |return |if |elif |else:|for |while |with )", stripped):
+            if re.match(
+                r"^(def |class |import |from |return |if |elif |else:|for |while |with )", stripped
+            ):
                 important.append(line)
                 seen_unique.add(stripped)
             elif stripped not in seen_unique:
@@ -307,6 +318,7 @@ def _get_algorithms(algorithm: str) -> list[tuple[str, Any]]:
         result = "\n".join(deduped)
         # Collapse repeated words
         import re
+
         result = re.sub(r"(\b\w+\b)( \1\b)+", r"\1", result)
         return result
 

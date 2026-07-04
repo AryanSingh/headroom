@@ -1,7 +1,7 @@
 site_name: Cutctx
 docs_dir: wiki
 site_description: "The Context Optimization Layer for LLM Applications — compress everything your AI agent reads."
-site_url: https://cutctx.dev
+site_url: https://cutctx.com
 repo_url: https://github.com/cutctx/cutctx
 repo_name: cutctx/cutctx
 edit_uri: edit/main/docs/

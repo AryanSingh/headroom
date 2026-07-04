@@ -215,9 +215,7 @@ class ContextPolicyEngine:
                 texts.append(value)
         return texts
 
-    def _match_any_scope(
-        self, texts: list[str], compiled: re.Pattern[str]
-    ) -> bool:
+    def _match_any_scope(self, texts: list[str], compiled: re.Pattern[str]) -> bool:
         for text in texts:
             if compiled.search(text):
                 return True
@@ -236,9 +234,7 @@ class ContextPolicyEngine:
                     )
         return EvaluationResult()
 
-    def _apply_redactions(
-        self, messages: list[dict[str, Any]]
-    ) -> EvaluationResult:
+    def _apply_redactions(self, messages: list[dict[str, Any]]) -> EvaluationResult:
         """Apply redact rules and check allow-rule gates."""
         redacted = [dict(msg) for msg in messages]
         matched_redact: list[str] = []
@@ -302,9 +298,7 @@ class ContextPolicyEngine:
         # Per-agent budget check
         if agent_id is not None:
             budget = self._find_agent_budget(agent_id)
-            state = self._budget_states.setdefault(
-                agent_id, BudgetState(agent_id=agent_id)
-            )
+            state = self._budget_states.setdefault(agent_id, BudgetState(agent_id=agent_id))
             if not state.can_accept(
                 tokens,
                 max_hour=budget.max_tokens_per_hour if budget else 0,
@@ -312,17 +306,13 @@ class ContextPolicyEngine:
             ):
                 return EvaluationResult(
                     budget_allowed=False,
-                    budget_reason=(
-                        f"Agent {agent_id} budget exceeded"
-                    ),
-                budget_remaining_tokens=0,
-            )
+                    budget_reason=(f"Agent {agent_id} budget exceeded"),
+                    budget_remaining_tokens=0,
+                )
 
         if team_id is not None:
             budget = self._find_team_budget(team_id)
-            state = self._team_states.setdefault(
-                team_id, BudgetState(agent_id=team_id)
-            )
+            state = self._team_states.setdefault(team_id, BudgetState(agent_id=team_id))
             if not state.can_accept(
                 tokens,
                 max_hour=0,
@@ -357,14 +347,10 @@ class ContextPolicyEngine:
     ) -> None:
         """Record token usage for budget tracking after request completes."""
         if agent_id is not None:
-            state = self._budget_states.setdefault(
-                agent_id, BudgetState(agent_id=agent_id)
-            )
+            state = self._budget_states.setdefault(agent_id, BudgetState(agent_id=agent_id))
             state.record(tokens)
         if team_id is not None:
-            state = self._team_states.setdefault(
-                team_id, BudgetState(agent_id=team_id)
-            )
+            state = self._team_states.setdefault(team_id, BudgetState(agent_id=team_id))
             state.record(tokens)
 
     def evaluate(
@@ -391,10 +377,9 @@ class ContextPolicyEngine:
 
         # Step 2: Budget check
         budget_result = self._check_budget(
-            agent_id, team_id, estimate_tokens or sum(
-                len(str(msg.get("content", "")))
-                for msg in messages
-            )
+            agent_id,
+            team_id,
+            estimate_tokens or sum(len(str(msg.get("content", ""))) for msg in messages),
         )
         if not budget_result.budget_allowed:
             return budget_result

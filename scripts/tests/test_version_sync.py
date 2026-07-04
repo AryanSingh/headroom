@@ -294,7 +294,10 @@ def test_plugin_manifests_only_leaves_package_versions_unchanged(
     assert 'version = "0.5.25"' in temp_project["pyproject"].read_text()
     assert '__version__ = "0.5.25"' in temp_project["version_py"].read_text()
     assert json.loads(temp_project["openclaw_pkg"].read_text())["version"] == "0.5.25"
-    assert json.loads(temp_project["openclaw_pkg"].read_text())["dependencies"]["cutctx-ai"] == "^0.5.25"
+    assert (
+        json.loads(temp_project["openclaw_pkg"].read_text())["dependencies"]["cutctx-ai"]
+        == "^0.5.25"
+    )
     assert json.loads(temp_project["typescript_pkg"].read_text())["version"] == "0.5.25"
     assert json.loads(temp_project["claude_plugin"].read_text())["version"] == "0.8.0"
     assert (

@@ -71,7 +71,9 @@ class TestSavingsSource:
         assert len(SavingsSource) >= 11
 
     def test_from_str_known(self):
-        assert SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE
+        assert (
+            SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE
+        )
 
     def test_from_str_unknown_defaults_to_compression(self):
         assert SavingsSource.from_str("not-a-source") == SavingsSource.CUTCTX_COMPRESSION
@@ -206,8 +208,15 @@ class TestOpenAIParser:
     def test_garbage_input(self):
         assert parse_openai_savings(None).has_any_savings is False
         assert parse_openai_savings("string").has_any_savings is False
-        assert parse_openai_savings({"prompt_tokens_details": "not-a-dict"}).has_any_savings is False
-        assert parse_openai_savings({"prompt_tokens_details": {"cached_tokens": "abc"}}).has_any_savings is False
+        assert (
+            parse_openai_savings({"prompt_tokens_details": "not-a-dict"}).has_any_savings is False
+        )
+        assert (
+            parse_openai_savings(
+                {"prompt_tokens_details": {"cached_tokens": "abc"}}
+            ).has_any_savings
+            is False
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -326,9 +335,7 @@ class TestStrategyResolver:
 
     def test_long_doc_qa_disables_prefix_preservation(self):
         r = StrategyResolver()
-        d = r.resolve(
-            provider="custom", workload=WorkloadClass.LONG_DOC_QA
-        )
+        d = r.resolve(provider="custom", workload=WorkloadClass.LONG_DOC_QA)
         assert d.preserve_prefix_for_provider_cache is False
 
     def test_workload_from_string(self):
@@ -449,9 +456,7 @@ class TestSavingsOrchestrator:
         o.record_request(b)
         a = o.aggregate
         # Combined total == sum of per-source
-        assert a.total_tokens_saved == sum(
-            a.by_source.tokens.values()
-        )
+        assert a.total_tokens_saved == sum(a.by_source.tokens.values())
         assert a.total_tokens_saved == 350
 
     def test_no_double_counting_across_sources(self):

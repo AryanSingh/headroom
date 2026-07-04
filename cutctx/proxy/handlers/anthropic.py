@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from fastapi.responses import Response, StreamingResponse
 
 import httpx
+from fastapi import HTTPException
 
 from cutctx.copilot_auth import build_copilot_upstream_url
 from cutctx.pipeline import PipelineStage, summarize_routing_markers
@@ -612,7 +613,6 @@ class AnthropicHandlerMixin:
             # model_routing_tokens_saved / model_routing_usd_saved
             # fields from the metadata). The actual model override
             # is applied to the upstream call below.
-            model_routing_decision = None
             if getattr(self, "_model_router", None) is not None:
                 try:
                     from dataclasses import replace as _dc_replace
@@ -650,11 +650,10 @@ class AnthropicHandlerMixin:
                                 "usd_saved": 0.0,  # finalized in outcome
                             },
                         }
-                        model_routing_decision = decision
                 except Exception:
                     # Routing is best-effort; never let a router error
                     # poison the request path.
-                    model_routing_decision = None
+                    pass
             pipeline_provider = provider_name
             pipeline_path = request.url.path if upstream_base_url else "/v1/messages"
             pipeline_stream = bool(body.get("stream", False) or force_stream)
@@ -890,7 +889,6 @@ class AnthropicHandlerMixin:
                             client=client,
                             savings_metadata=merge_savings_metadata(
                                 request_savings_metadata,
-                                schema_savings_metadata,
                             ),
                         )
                     )
@@ -975,6 +973,7 @@ class AnthropicHandlerMixin:
             _intel_ctx = None
             try:
                 from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
                 _intel_pipeline = getattr(self, "intelligence_pipeline", None)
                 if _intel_pipeline is None:
                     _intel_pipeline = IntelligencePipeline.from_config(self.config)
@@ -982,7 +981,9 @@ class AnthropicHandlerMixin:
                     _intel_pipeline.sync_from_config(self.config)
                 if _intel_pipeline.any_enabled():
                     _intel_ctx = _intel_pipeline.pre_compression(
-                        messages, model, request_id,
+                        messages,
+                        model,
+                        request_id,
                     )
                     _hook_biases = _intel_pipeline.merge_biases(
                         _hook_biases,
@@ -1017,7 +1018,8 @@ class AnthropicHandlerMixin:
                         "tool_result_count": sum(
                             1
                             for m in messages
-                            if isinstance(m, dict) and (
+                            if isinstance(m, dict)
+                            and (
                                 m.get("role") == "tool"
                                 or (
                                     isinstance(m.get("content"), list)
@@ -1806,15 +1808,16 @@ class AnthropicHandlerMixin:
             # Episodic Memory: inject cross-session memories for new conversations.
             # Gated on episodic_tracker availability and new-session detection
             # (<=2 messages = just system prompt + first user turn).
-            episodic_injected = False
             _ep_tracker = getattr(self, "episodic_tracker", None)
             if _ep_tracker and _ep_tracker.enabled and len(optimized_messages) <= 2:
                 try:
                     # Resolve project path from request context
                     _cwd_header = request.headers.get("x-cutctx-cwd", "")
-                    _proj_root = getattr(
-                        self.memory_handler.config, "project_root_override", ""
-                    ) if self.memory_handler else ""
+                    _proj_root = (
+                        getattr(self.memory_handler.config, "project_root_override", "")
+                        if self.memory_handler
+                        else ""
+                    )
                     _project_path = _cwd_header or _proj_root or os.getcwd()
 
                     # Record this request for session tracking
@@ -1824,15 +1827,12 @@ class AnthropicHandlerMixin:
                     _ep_memory = _ep_tracker.load_episodic_memories(_project_path)
                     if _ep_memory:
                         _ep_before = optimized_messages
-                        optimized_messages = (
-                            self._append_context_to_latest_non_frozen_user_turn(
-                                optimized_messages,
-                                _ep_memory,
-                                frozen_message_count=frozen_message_count,
-                            )
+                        optimized_messages = self._append_context_to_latest_non_frozen_user_turn(
+                            optimized_messages,
+                            _ep_memory,
+                            frozen_message_count=frozen_message_count,
                         )
                         if optimized_messages is not _ep_before:
-                            episodic_injected = True
                             logger.info(
                                 f"[{request_id}] Episodic Memory: injected for "
                                 f"{_project_path[:32]}... ({len(_ep_memory)} chars)"
@@ -1875,9 +1875,9 @@ class AnthropicHandlerMixin:
                     body.get("tools"),
                     tokenizer,
                 )
-                tool_surface_query = extract_user_query(
-                    optimized_messages
-                ) or extract_user_query(messages)
+                tool_surface_query = extract_user_query(optimized_messages) or extract_user_query(
+                    messages
+                )
                 tool_surface_result = slim_tool_surface(
                     body.get("tools"),
                     query=tool_surface_query,
@@ -1893,16 +1893,14 @@ class AnthropicHandlerMixin:
                     ]
                     schema_savings_metadata = merge_savings_metadata(
                         schema_savings_metadata,
-                        {
-                            "api_surface_slimming": {
-                                "tokens": tool_surface_result.tokens_saved
-                            }
-                        },
+                        {"api_surface_slimming": {"tokens": tool_surface_result.tokens_saved}},
                     )
 
                 if body.get("tools"):
                     original_tools_payload = body["tools"]
-                    compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(original_tools_payload)
+                    compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(
+                        original_tools_payload
+                    )
                     if tools_were_modified:
                         body["tools"] = compacted_tools
                         try:
@@ -1920,9 +1918,7 @@ class AnthropicHandlerMixin:
                         if schema_tokens_saved > 0:
                             tokens_saved += schema_tokens_saved
                             schema_savings_metadata = {
-                                "tool_schema_compaction": {
-                                    "tokens": schema_tokens_saved
-                                }
+                                "tool_schema_compaction": {"tokens": schema_tokens_saved}
                             }
                 residual_ghost_tokens = max(
                     0,
@@ -1940,7 +1936,7 @@ class AnthropicHandlerMixin:
                             }
                         },
                     )
-                transforms_list = getattr(self, "_schema_compress_transforms", None)
+                getattr(self, "_schema_compress_transforms", None)
                 if body.get("messages"):
                     body["messages"] = compress_tool_results(body["messages"])
             except Exception as e:
@@ -2615,8 +2611,7 @@ class AnthropicHandlerMixin:
                         _sys_chars = len(_sys)
                     elif isinstance(_sys, list):
                         _sys_chars = sum(
-                            len(b.get("text", "")) if isinstance(b, dict) else 0
-                            for b in _sys
+                            len(b.get("text", "")) if isinstance(b, dict) else 0 for b in _sys
                         )
                     else:
                         _sys_chars = 0
@@ -2784,10 +2779,7 @@ class AnthropicHandlerMixin:
                     # If the client requested json_schema enforcement, validate the
                     # response text and log violations. For non-streaming we can also
                     # retry with error feedback.
-                    if (
-                        resp_json
-                        and response.status_code == 200
-                    ):
+                    if resp_json and response.status_code == 200:
                         try:
                             from cutctx.proxy.structured_output import (
                                 StructuredOutputConfig,
@@ -2805,7 +2797,10 @@ class AnthropicHandlerMixin:
                                         _content_blocks = resp_json.get("content", [])
                                         if isinstance(_content_blocks, list):
                                             for _block in _content_blocks:
-                                                if isinstance(_block, dict) and _block.get("type") == "text":
+                                                if (
+                                                    isinstance(_block, dict)
+                                                    and _block.get("type") == "text"
+                                                ):
                                                     _resp_text += _block.get("text", "")
                                     if _resp_text:
                                         _vresult = _so_validator.validate(_resp_text, _schema)
@@ -2816,11 +2811,15 @@ class AnthropicHandlerMixin:
                                                 f"validation_ms={_vresult.validation_time_ms:.1f}"
                                             )
                                             response_headers["x-cutctx-schema-valid"] = "false"
-                                            response_headers["x-cutctx-schema-errors"] = "; ".join(_vresult.errors[:3])
+                                            response_headers["x-cutctx-schema-errors"] = "; ".join(
+                                                _vresult.errors[:3]
+                                            )
                                         else:
                                             response_headers["x-cutctx-schema-valid"] = "true"
                         except Exception as _so_err:
-                            logger.debug(f"[{request_id}] Structured output validation error: {_so_err}")
+                            logger.debug(
+                                f"[{request_id}] Structured output validation error: {_so_err}"
+                            )
 
                     return Response(
                         content=response.content,
@@ -3061,6 +3060,7 @@ class AnthropicHandlerMixin:
                     sorted_tools = self._sort_tools_deterministically(tools)
                     try:
                         from cutctx.proxy.schema_compress import compress_tool_schemas
+
                         sorted_tools, _, _, _ = compress_tool_schemas(sorted_tools)
                     except Exception:
                         pass
@@ -3482,7 +3482,6 @@ class AnthropicHandlerMixin:
                 client=client,
                 savings_metadata=merge_savings_metadata(
                     request_savings_metadata,
-                    schema_savings_metadata,
                 ),
             )
         )

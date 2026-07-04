@@ -70,6 +70,7 @@ class Mem0Config:
                 "No Neo4j password configured — using auto-generated password. "
                 "Set neo4j_password explicitly in config for reproducible setups."
             )
+
     # Qdrant settings (defaults resolve from CUTCTX_QDRANT_* env vars)
     qdrant_url: str | None = field(default_factory=qdrant_env.qdrant_env_url)
     qdrant_host: str = field(default_factory=qdrant_env.qdrant_env_host)

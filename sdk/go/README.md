@@ -1,6 +1,6 @@
 # cutctx-go
 
-Go SDK for [Cutctx](https://cutctx.dev) — AI context compression proxy.
+Go SDK for [Cutctx](https://cutctx.com) — AI context compression proxy.
 
 ## Quickstart
 

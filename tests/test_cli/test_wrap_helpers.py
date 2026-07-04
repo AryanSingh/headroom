@@ -444,9 +444,7 @@ class TestApplyProjectHeaderEnv:
         wrap_mod._apply_project_header_env(env)
 
         # User header preserved verbatim, ours appended on a new line.
-        assert env["ANTHROPIC_CUSTOM_HEADERS"] == (
-            "X-Custom-Trace: abc123\nX-Cutctx-Project: proj"
-        )
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == ("X-Custom-Trace: abc123\nX-Cutctx-Project: proj")
 
     @pytest.mark.parametrize(
         "user_value",

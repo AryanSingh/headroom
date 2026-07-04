@@ -14,8 +14,6 @@ contract.
 
 from __future__ import annotations
 
-import pytest
-
 from cutctx.transforms.normalize import (
     DEFAULT_BLOB_TO_POINTER_THRESHOLD,
     DEFAULT_DECIMAL_PRECISION,
@@ -23,7 +21,6 @@ from cutctx.transforms.normalize import (
     NormalizeResult,
     normalize_content,
 )
-
 
 # ---------------------------------------------------------------------------
 # Flag-off golden contract — the most important test in this file
@@ -60,6 +57,7 @@ def test_normalize_off_with_tokenizer_returns_input_byte_identical() -> None:
     """Same as above, with a tokenizer argument — the tokenizer must
     not be invoked when the flag is off.
     """
+
     class _SpyTokenizer:
         def __init__(self) -> None:
             self.call_count = 0
@@ -90,7 +88,7 @@ def test_normalize_passes_through_non_string_defensively() -> None:
 def test_unicode_nfc_normalizes_decomposed() -> None:
     """NFC: 'e' + combining-acute ('e\u0301') -> 'é' (single codepoint)."""
     decomposed = "e\u0301"  # e + combining acute accent
-    composed = "\u00e9"      # é (single codepoint)
+    composed = "\u00e9"  # é (single codepoint)
     assert len(decomposed) == 2
     assert len(composed) == 1
     config = NormalizeConfig(enable_unicode_normalization=True)
@@ -109,10 +107,10 @@ def test_unicode_homoglyph_whitespace_collapsed() -> None:
         "a\u2003b": "a b",  # EM SPACE -> SPACE
         "a\u2002b": "a b",  # EN SPACE -> SPACE
         "a\u2009b": "a b",  # THIN SPACE -> SPACE
-        "a\u200bb": "ab",   # ZERO WIDTH SPACE -> ""
-        "a\u200cb": "ab",   # ZERO WIDTH NON-JOINER -> ""
-        "a\u200db": "ab",   # ZERO WIDTH JOINER -> ""
-        "a\ufeffb": "ab",   # ZERO WIDTH NO-BREAK SPACE -> ""
+        "a\u200bb": "ab",  # ZERO WIDTH SPACE -> ""
+        "a\u200cb": "ab",  # ZERO WIDTH NON-JOINER -> ""
+        "a\u200db": "ab",  # ZERO WIDTH JOINER -> ""
+        "a\ufeffb": "ab",  # ZERO WIDTH NO-BREAK SPACE -> ""
     }
     for raw, expected in inputs.items():
         result = normalize_content(raw, config)

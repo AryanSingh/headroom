@@ -22,7 +22,7 @@ This policy governs:
 
 **Out of scope:** Third-party LLM provider security (OpenAI, Anthropic, etc.), customer network infrastructure, and customer-managed secrets such as LLM API keys.
 
-**Security Owner:** security@cutctx.dev
+**Security Owner:** security@cutctx.com
 For vulnerability reports, see Section 7 and `SECURITY.md` at the repository root.
 
 ---
@@ -163,7 +163,7 @@ Cutctx follows a five-phase incident response process:
 ### Phase 1: Detect
 
 - Automated alerting via Prometheus metrics and structured audit log anomaly detection.
-- Manual reports via security@cutctx.dev or internal escalation.
+- Manual reports via security@cutctx.com or internal escalation.
 - All potential incidents are assigned a severity (P1-P4) within **24 hours** of detection.
 
 ### Phase 2: Contain
@@ -205,7 +205,7 @@ Cutctx follows a five-phase incident response process:
 
 Cutctx operates a responsible disclosure program.
 
-**To report a vulnerability:** Email security@cutctx.dev with the information described in `SECURITY.md`. Do not open a public GitHub issue for unpatched vulnerabilities.
+**To report a vulnerability:** Email security@cutctx.com with the information described in `SECURITY.md`. Do not open a public GitHub issue for unpatched vulnerabilities.
 
 **Process:**
 

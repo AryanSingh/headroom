@@ -8,16 +8,14 @@ TDD: written first.
 
 from __future__ import annotations
 
-import pytest
-
 from cutctx.proxy.autopilot import (
     DEFAULT_HYSTERESIS_WINDOW,
     DEFAULT_MAX_LEVEL,
     DEFAULT_MIN_LEVEL,
     AutopilotConfig,
     AutopilotController,
-    QualitySignal,
     LevelAdjustment,
+    QualitySignal,
 )
 
 
@@ -33,9 +31,7 @@ def test_flag_off_does_not_grow_state() -> None:
     cfg = AutopilotConfig()
     controller = AutopilotController(cfg)
     for i in range(50):
-        signal = QualitySignal(
-            task_type="general", outcome="retrieval", timestamp_seconds=float(i)
-        )
+        signal = QualitySignal(task_type="general", outcome="retrieval", timestamp_seconds=float(i))
         adjustment = controller.ingest(signal)
         assert adjustment is None
     s = controller.stats_for("general")
@@ -121,9 +117,7 @@ def test_hysteresis_default_window_is_10() -> None:
 
 
 def test_hysteresis_does_not_raise_until_k_clean_signals() -> None:
-    cfg = AutopilotConfig(
-        enabled=True, min_level=1, max_level=5, hysteresis_window=10
-    )
+    cfg = AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=10)
     controller = AutopilotController(cfg)
     controller.ingest(
         QualitySignal(task_type="code_edit", outcome="retrieval", timestamp_seconds=1.0)
@@ -134,16 +128,12 @@ def test_hysteresis_does_not_raise_until_k_clean_signals() -> None:
             QualitySignal(task_type="code_edit", outcome="clean", timestamp_seconds=float(10 + i))
         )
     assert controller.current_level("code_edit") == level_after_drop
-    controller.ingest(
-        QualitySignal(task_type="code_edit", outcome="clean", timestamp_seconds=20.0)
-    )
+    controller.ingest(QualitySignal(task_type="code_edit", outcome="clean", timestamp_seconds=20.0))
     assert controller.current_level("code_edit") == level_after_drop + 1
 
 
 def test_hysteresis_resets_on_bad_signal() -> None:
-    cfg = AutopilotConfig(
-        enabled=True, min_level=1, max_level=5, hysteresis_window=10
-    )
+    cfg = AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=10)
     controller = AutopilotController(cfg)
     controller.ingest(
         QualitySignal(task_type="code_edit", outcome="retrieval", timestamp_seconds=1.0)
@@ -224,7 +214,9 @@ def test_bdd_scenario_autopilot_emits_audit_record_on_adjustment() -> None:
     controller = AutopilotController(cfg)
     records: list[LevelAdjustment] = []
     for i in range(5):
-        signal = QualitySignal(task_type="code_edit", outcome="retrieval", timestamp_seconds=float(i))
+        signal = QualitySignal(
+            task_type="code_edit", outcome="retrieval", timestamp_seconds=float(i)
+        )
         adj = controller.ingest(signal)
         if adj is not None:
             records.append(adj)

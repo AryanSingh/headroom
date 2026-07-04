@@ -49,9 +49,7 @@ _MANUAL_COMMAND_MODULES: dict[str, tuple[str, str]] = {
     "sso-test": ("sso_test", "sso_test"),
 }
 
-_ALL_COMMANDS = tuple(
-    sorted(set(_SIDE_EFFECT_COMMAND_MODULES) | set(_MANUAL_COMMAND_MODULES))
-)
+_ALL_COMMANDS = tuple(sorted(set(_SIDE_EFFECT_COMMAND_MODULES) | set(_MANUAL_COMMAND_MODULES)))
 _LOAD_FAILURES: dict[str, str] = {}
 
 

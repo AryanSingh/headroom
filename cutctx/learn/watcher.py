@@ -4,6 +4,7 @@ Watches agent log directories for new JSONL files.
 When a new session file is detected (>30s old, fully written),
 triggers the learn pipeline in the background.
 """
+
 from __future__ import annotations
 
 import asyncio

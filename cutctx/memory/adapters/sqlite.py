@@ -57,7 +57,11 @@ def _escape_like(value: str, escape_char: str = "\\") -> str:
     Returns:
         The string with LIKE wildcards escaped.
     """
-    return value.replace(escape_char, escape_char * 2).replace("%", f"{escape_char}%").replace("_", f"{escape_char}_")
+    return (
+        value.replace(escape_char, escape_char * 2)
+        .replace("%", f"{escape_char}%")
+        .replace("_", f"{escape_char}_")
+    )
 
 
 class SQLiteMemoryStore:
@@ -90,7 +94,9 @@ class SQLiteMemoryStore:
         self._init_db()
 
     @staticmethod
-    def _migrate_add_column(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+    def _migrate_add_column(
+        conn: sqlite3.Connection, table: str, column: str, col_type: str
+    ) -> None:
         """Add a column to an existing table if it doesn't exist.
 
         SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN,

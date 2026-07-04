@@ -17,12 +17,11 @@ from __future__ import annotations
 import pytest
 
 from cutctx.savings.types import (
-    SavingsBySource,
-    SavingsSource,
     _DESCRIPTIONS,
     _LABELS,
+    SavingsBySource,
+    SavingsSource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Enum registration

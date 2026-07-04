@@ -52,9 +52,7 @@ class TokenBucketRateLimiter:
             if state.last_update < stale_threshold
         }
         stale_token_keys = {
-            key
-            for key, state in self._token_buckets.items()
-            if state.last_update < stale_threshold
+            key for key, state in self._token_buckets.items() if state.last_update < stale_threshold
         }
         stale_keys = stale_request_keys | stale_token_keys
 
@@ -120,9 +118,7 @@ class TokenBucketRateLimiter:
                 state.tokens -= token_count
                 return True, 0.0
 
-            wait_seconds = (token_count - available) * (
-                60.0 / self.tokens_per_minute
-            )
+            wait_seconds = (token_count - available) * (60.0 / self.tokens_per_minute)
             return False, wait_seconds
 
     async def stats(self) -> dict[str, float | int]:

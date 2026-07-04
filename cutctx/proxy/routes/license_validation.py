@@ -23,6 +23,24 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+class ActivateRequest(BaseModel):
+    license_key: str
+    instance_id: str
+
+class CheckoutSeatRequest(BaseModel):
+    license_key: str
+    user_id: str
+    lease_duration: float = 3600.0
+
+class StartTrialRequest(BaseModel):
+    trial_token: str
+    customer_email: str
+    duration: float = 14 * 86400.0
+
+class CheckTrialRequest(BaseModel):
+    trial_token: str
+
+
 
 def create_license_validation_router(
     require_admin_auth: Callable[..., Any] | None = None,
@@ -118,10 +136,6 @@ def create_license_validation_router(
                 status_code=403, detail={"valid": False, "error": "validation_unavailable"}
             ) from e
 
-    class ActivateRequest(BaseModel):
-        license_key: str
-        instance_id: str
-
     @router.post("/v1/license/activate", dependencies=admin_deps)
     async def activate_license(req: ActivateRequest) -> dict:
         from cutctx_ee.billing.license_db import get_license_db
@@ -140,11 +154,6 @@ def create_license_validation_router(
         db = get_license_db()
         return {"revoked": db.get_crl()}
 
-    class CheckoutSeatRequest(BaseModel):
-        license_key: str
-        user_id: str
-        lease_duration: float = 3600.0
-
     @router.post("/v1/license/checkout-seat", dependencies=admin_deps)
     async def checkout_seat(req: CheckoutSeatRequest) -> dict:
         from cutctx_ee.billing.license_db import get_license_db
@@ -160,11 +169,6 @@ def create_license_validation_router(
             )
         return {"status": "ok"}
 
-    class StartTrialRequest(BaseModel):
-        trial_token: str
-        customer_email: str
-        duration: float = 14 * 86400.0
-
     @router.post("/v1/license/start-trial", dependencies=admin_deps)
     async def start_trial(req: StartTrialRequest) -> dict:
         from cutctx_ee.billing.license_db import get_license_db
@@ -176,9 +180,6 @@ def create_license_validation_router(
                 status_code=409, detail={"error": "trial_already_started"}
             )
         return {"status": "ok"}
-
-    class CheckTrialRequest(BaseModel):
-        trial_token: str
 
     @router.post("/v1/license/check-trial", dependencies=admin_deps)
     async def check_trial(req: CheckTrialRequest) -> dict:

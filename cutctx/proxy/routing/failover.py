@@ -112,7 +112,10 @@ class FailoverRouter:
             for ep in sorted(self._endpoints, key=lambda e: e.priority):
                 if not ep.healthy:
                     # Check whether the cooldown has elapsed.
-                    if ep.last_failure_ts is not None and (now - ep.last_failure_ts) >= self._cooldown:
+                    if (
+                        ep.last_failure_ts is not None
+                        and (now - ep.last_failure_ts) >= self._cooldown
+                    ):
                         logger.info(
                             "event=provider_cooldown_elapsed provider=%s; re-enabling",
                             ep.name,
@@ -263,9 +266,7 @@ def failover_router_from_env(
             )
 
     if not endpoints:
-        logger.warning(
-            "event=no_valid_providers; router will return None from get_active()"
-        )
+        logger.warning("event=no_valid_providers; router will return None from get_active()")
 
     return FailoverRouter(
         endpoints=endpoints,

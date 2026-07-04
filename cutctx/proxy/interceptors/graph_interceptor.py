@@ -21,17 +21,19 @@ from cutctx.graph.graphify import (
 logger = logging.getLogger(__name__)
 
 # Tool names whose outputs may be replaced with graph context.
-_TARGET_TOOLS: frozenset[str] = frozenset({
-    "Read",
-    "read_file",
-    "Glob",
-    "glob",
-    "GlobFiles",
-    "Grep",
-    "grep",
-    "search_files",
-    "Bash",
-})
+_TARGET_TOOLS: frozenset[str] = frozenset(
+    {
+        "Read",
+        "read_file",
+        "Glob",
+        "glob",
+        "GlobFiles",
+        "Grep",
+        "grep",
+        "search_files",
+        "Bash",
+    }
+)
 
 # Minimum output size (chars) to consider interception.
 _MIN_OUTPUT_CHARS: int = 800
@@ -168,9 +170,7 @@ class GraphifyInterceptor:
             return rendered
 
         except Exception as exc:
-            logger.debug(
-                "GraphifyInterceptor transform failed: %s", exc, exc_info=True
-            )
+            logger.debug("GraphifyInterceptor transform failed: %s", exc, exc_info=True)
             return None
 
     def progressive_disclosure_key(

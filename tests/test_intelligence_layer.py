@@ -18,6 +18,7 @@ import pytest
 # 1. Task-Aware Compression
 # =====================================================================
 
+
 class TestTaskExtractor:
     """Tests for TaskExtractor."""
 
@@ -39,7 +40,12 @@ class TestTaskExtractor:
     def test_extract_from_special_keyword(self):
         from cutctx.compression.task_aware import TaskExtractor
 
-        msgs = [{"role": "user", "content": "There's a debug issue with the database connection pool timing out under load"}]
+        msgs = [
+            {
+                "role": "user",
+                "content": "There's a debug issue with the database connection pool timing out under load",
+            }
+        ]
         task = TaskExtractor.extract_task(msgs)
         assert task is not None
         assert "debug" in task.lower()
@@ -63,7 +69,10 @@ class TestTaskExtractor:
         msgs = [
             {"role": "user", "content": "What time is it? This is a simple question."},
             {"role": "assistant", "content": "It's 3pm"},
-            {"role": "user", "content": "Fix the memory leak in the worker process that handles background tasks"},
+            {
+                "role": "user",
+                "content": "Fix the memory leak in the worker process that handles background tasks",
+            },
         ]
         task = TaskExtractor.extract_task(msgs)
         assert task is not None
@@ -150,6 +159,7 @@ class TestTaskAwareCompressor:
 # =====================================================================
 # 2. Semantic Deduplication
 # =====================================================================
+
 
 class TestSessionDeduplicator:
     """Tests for SessionDeduplicator."""
@@ -256,6 +266,7 @@ class TestSessionDeduplicator:
 # 3. Context Budgeting
 # =====================================================================
 
+
 class TestContextBudgetController:
     """Tests for ContextBudgetController."""
 
@@ -323,6 +334,7 @@ class TestContextBudgetController:
 # 4. Cross-Session Profiles
 # =====================================================================
 
+
 class TestCompressionProfile:
     """Tests for CompressionProfile."""
 
@@ -365,9 +377,12 @@ class TestCompressionProfile:
         from cutctx.profiles import CompressionProfile, ContentTypeStats, _get_profile_path
 
         profile = CompressionProfile("test-hash-123")
-        profile.record_session("sess-1", [
-            {"content_type": "json", "original_count": 100, "compressed_count": 50},
-        ])
+        profile.record_session(
+            "sess-1",
+            [
+                {"content_type": "json", "original_count": 100, "compressed_count": 50},
+            ],
+        )
 
         # Save to disk
         profile_path = _get_profile_path("test-hash-123")
@@ -376,11 +391,11 @@ class TestCompressionProfile:
 
         # Reload from disk via JSON
         import json
+
         with open(profile_path) as f:
             data = json.load(f)
         loaded_stats = {
-            name: ContentTypeStats.from_dict(s)
-            for name, s in data.get("stats", {}).items()
+            name: ContentTypeStats.from_dict(s) for name, s in data.get("stats", {}).items()
         }
         assert loaded_stats["json"].total_compressions == 1
 
@@ -388,9 +403,12 @@ class TestCompressionProfile:
         from cutctx.profiles import CompressionProfile
 
         profile = CompressionProfile("test-hash")
-        profile.record_session("s1", [
-            {"content_type": "json", "original_count": 100, "compressed_count": 50},
-        ])
+        profile.record_session(
+            "s1",
+            [
+                {"content_type": "json", "original_count": 100, "compressed_count": 50},
+            ],
+        )
         summary = profile.summary()
         assert summary["total_content_types"] == 1
         assert "json" in summary["stats_by_type"]
@@ -399,6 +417,7 @@ class TestCompressionProfile:
 # =====================================================================
 # 5. Multi-Agent Shared State
 # =====================================================================
+
 
 class TestSharedContext:
     """Tests for SharedContext."""
@@ -566,6 +585,7 @@ class TestMultiAgentCoordinator:
 # =====================================================================
 # 6. Cost Forecasting + Policy Engine
 # =====================================================================
+
 
 class TestCostEstimator:
     """Tests for CostEstimator."""

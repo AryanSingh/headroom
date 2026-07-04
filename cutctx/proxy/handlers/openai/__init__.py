@@ -109,6 +109,6 @@ class OpenAIHandlerMixin(
     OpenAIResponsesMixin,
     OpenAIPassthroughMixin,
     OpenAICompressMixin,
-    OpenAIBaseMixin
+    OpenAIBaseMixin,
 ):
     pass

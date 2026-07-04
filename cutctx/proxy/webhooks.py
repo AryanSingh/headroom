@@ -195,14 +195,11 @@ class WebhookDispatcher:
                     )
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning(
-                    "WebhookDispatcher: failed to load subscriptions "
-                    "from store: %s",
+                    "WebhookDispatcher: failed to load subscriptions from store: %s",
                     exc,
                 )
 
-        self._queue: asyncio.Queue[WebhookDelivery | None] = asyncio.Queue(
-            maxsize=self.queue_max
-        )
+        self._queue: asyncio.Queue[WebhookDelivery | None] = asyncio.Queue(maxsize=self.queue_max)
         self._task: asyncio.Task[None] | None = None
         self._stopped = False
         self._http: httpx.AsyncClient | None = None
@@ -235,8 +232,7 @@ class WebhookDispatcher:
                     )
                 except Exception:  # pragma: no cover
                     logger.debug(
-                        "WebhookDispatcher: failed to persist env-var "
-                        "subscription",
+                        "WebhookDispatcher: failed to persist env-var subscription",
                         exc_info=True,
                     )
             self._subscriptions.append(sub)
@@ -315,9 +311,7 @@ class WebhookDispatcher:
             return
         self._http = httpx.AsyncClient(timeout=self.timeout_s)
         self._stopped = False
-        self._task = asyncio.create_task(
-            self._drain_loop(), name="cutctx-webhook-dispatcher"
-        )
+        self._task = asyncio.create_task(self._drain_loop(), name="cutctx-webhook-dispatcher")
         logger.info(
             "WebhookDispatcher started (max_attempts=%d, base_delay=%.1fs, queue_max=%d, subscriptions=%d)",
             self.max_attempts,
@@ -399,8 +393,7 @@ class WebhookDispatcher:
                         )
                     except Exception:  # pragma: no cover
                         logger.debug(
-                            "Webhook DLQ: failed to persist queue-full "
-                            "entry",
+                            "Webhook DLQ: failed to persist queue-full entry",
                             exc_info=True,
                         )
         return n_enqueued
@@ -479,16 +472,10 @@ class WebhookDispatcher:
                     )
                     return
                 # 4xx (except 408/429) is non-retryable — drop.
-                if (
-                    400 <= response.status_code < 500
-                    and response.status_code not in (408, 429)
-                ):
-                    delivery.last_error = (
-                        f"non-retryable HTTP {response.status_code}"
-                    )
+                if 400 <= response.status_code < 500 and response.status_code not in (408, 429):
+                    delivery.last_error = f"non-retryable HTTP {response.status_code}"
                     logger.error(
-                        "webhook non-retryable: %s to %s status=%d; "
-                        "dead-lettered",
+                        "webhook non-retryable: %s to %s status=%d; dead-lettered",
                         delivery.event_type,
                         delivery.subscription.url,
                         response.status_code,
@@ -497,15 +484,9 @@ class WebhookDispatcher:
                     if self._dlq_store is not None:
                         try:
                             self._dlq_store.add(
-                                event_id=getattr(
-                                    delivery, "event_id", ""
-                                )
-                                or "",
+                                event_id=getattr(delivery, "event_id", "") or "",
                                 event_type=delivery.event_type,
-                                payload=getattr(
-                                    delivery, "payload", {}
-                                )
-                                or {},
+                                payload=getattr(delivery, "payload", {}) or {},
                                 target_url=delivery.subscription.url,
                                 last_status=response.status_code,
                                 last_error=delivery.last_error,
@@ -598,8 +579,7 @@ def get_webhook_dispatcher() -> WebhookDispatcher:
                 # etc.) fall back to in-memory. The proxy still
                 # works; we just lose persistence.
                 logger.warning(
-                    "Webhook stores unavailable (%s); "
-                    "falling back to in-memory dispatcher.",
+                    "Webhook stores unavailable (%s); falling back to in-memory dispatcher.",
                     exc,
                 )
                 _dispatcher = WebhookDispatcher()

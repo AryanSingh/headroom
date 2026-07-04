@@ -8,11 +8,11 @@ The script reads a .whl (zip archive), removes the .py files for any module
 that has a compiled counterpart in build/cython/lib/, inserts the .so, and
 rewrites the RECORD file. The original wheel is replaced in-place.
 """
+
 from __future__ import annotations
 
 import glob
 import hashlib
-import os
 import re
 import shutil
 import sys
@@ -52,7 +52,10 @@ def inject(wheel_path: str, so_dir: str = "build/cython/lib") -> None:
     new_wheel = tmp / wheel.name
 
     try:
-        with zipfile.ZipFile(wheel, "r") as zin, zipfile.ZipFile(new_wheel, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+        with (
+            zipfile.ZipFile(wheel, "r") as zin,
+            zipfile.ZipFile(new_wheel, "w", compression=zipfile.ZIP_DEFLATED) as zout,
+        ):
             record_name = None
             record_lines: list[str] = []
             extra_entries: list[tuple[str, Path]] = []  # (arcname, path)
@@ -95,7 +98,9 @@ def inject(wheel_path: str, so_dir: str = "build/cython/lib") -> None:
                     fname = parts[0]
                     stem_check = Path(fname).stem
                     # drop .py and .pyc for replaced modules
-                    if (fname.endswith(".py") or fname.endswith(".pyc")) and stem_check in replaced_stems:
+                    if (
+                        fname.endswith(".py") or fname.endswith(".pyc")
+                    ) and stem_check in replaced_stems:
                         continue
                     new_records.append(line)
 

@@ -12,6 +12,7 @@ def test_episodic_memory_ccr_bridge():
         db_path = os.path.join(temp_dir, "test_ccr.db")
 
         from cutctx.cache.backends.sqlite import SqliteBackend
+
         backend = SqliteBackend(db_path)
 
         # Initialize the Python store with our custom backend
@@ -26,12 +27,12 @@ def test_episodic_memory_ccr_bridge():
         from cutctx._core import SmartCrusherConfig as _RustSmartCrusherConfig
 
         rust_cfg = _RustSmartCrusherConfig(
-            lossless_min_savings_ratio=0.99, # force lossy
+            lossless_min_savings_ratio=0.99,  # force lossy
             enable_ccr_marker=True,
             first_fraction=0.0,
             last_fraction=0.0,
             max_items_after_crush=1,
-            min_items_to_analyze=1
+            min_items_to_analyze=1,
         )
 
         # Pass the custom db path to Rust
@@ -46,7 +47,9 @@ def test_episodic_memory_ccr_bridge():
 
         # Verify the marker was generated
         ccr_hash = result["ccr_hash"]
-        assert ccr_hash is not None, f"CCR marker should be generated. Items returned: {len(json.loads(result['items']))}"
+        assert ccr_hash is not None, (
+            f"CCR marker should be generated. Items returned: {len(json.loads(result['items']))}"
+        )
         assert len(ccr_hash) == 16, "CCR hash should be 16 chars"
 
         # 4. Use pure Python to query the SQLite DB and retrieve the original memory block
@@ -59,6 +62,7 @@ def test_episodic_memory_ccr_bridge():
         assert len(retrieved_items) == 50
         assert retrieved_items[0]["content"] == "Message 0"
         assert retrieved_items[49]["content"] == "Message 49"
+
 
 if __name__ == "__main__":
     test_episodic_memory_ccr_bridge()

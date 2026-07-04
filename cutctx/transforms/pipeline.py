@@ -339,9 +339,7 @@ class TransformPipeline:
                         transform_span.set_attribute(
                             "cutctx.tokens.before", tokens_before_transform
                         )
-                        transform_span.set_attribute(
-                            "cutctx.tokens.after", tokens_after_transform
-                        )
+                        transform_span.set_attribute("cutctx.tokens.after", tokens_after_transform)
                         transform_span.set_attribute(
                             "cutctx.tokens.saved",
                             tokens_before_transform - tokens_after_transform,

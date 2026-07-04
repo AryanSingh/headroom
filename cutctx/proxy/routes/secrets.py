@@ -13,6 +13,7 @@ returned ``[]`` for ``list_secrets()`` and "success" for
 endpoints now read/write an encrypted SQLite-backed
 ``SecretsStore`` (see ``cutctx.security.secrets_store``).
 """
+
 from __future__ import annotations
 
 import logging

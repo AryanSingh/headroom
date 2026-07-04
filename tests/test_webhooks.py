@@ -73,14 +73,10 @@ def test_subscription_with_event_types_filter() -> None:
         )
     )
     # Matching event.
-    matched = d._select_subscriptions(
-        WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None
-    )
+    matched = d._select_subscriptions(WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None)
     assert len(matched) == 1
     # Non-matching event.
-    matched = d._select_subscriptions(
-        WebhookEventType.AUDIT_FAILED_LOGIN.value, org_id=None
-    )
+    matched = d._select_subscriptions(WebhookEventType.AUDIT_FAILED_LOGIN.value, org_id=None)
     assert len(matched) == 0
 
 
@@ -104,22 +100,14 @@ def test_subscription_with_org_id_filter() -> None:
     )
     assert len(matched) == 0
     # None org (no org context) — also no match.
-    matched = d._select_subscriptions(
-        WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None
-    )
+    matched = d._select_subscriptions(WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None)
     assert len(matched) == 0
 
 
 def test_disabled_subscription_skipped() -> None:
     d = WebhookDispatcher()
-    d.subscribe(
-        WebhookSubscription(
-            url="https://a.example.com", secret="s", enabled=False
-        )
-    )
-    matched = d._select_subscriptions(
-        WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None
-    )
+    d.subscribe(WebhookSubscription(url="https://a.example.com", secret="s", enabled=False))
+    matched = d._select_subscriptions(WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, org_id=None)
     assert len(matched) == 0
 
 
@@ -153,21 +141,21 @@ async def test_fire_enqueues_for_matching_subscribers() -> None:
         )
     )
     # Don't actually start the dispatcher (so the queue doesn't drain).
-    n = await d.fire(
-        WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, {"x": 1}
-    )
+    n = await d.fire(WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, {"x": 1})
     assert n == 1
     delivery = d._queue.get_nowait()
     assert delivery.event_type == WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value
-    assert delivery.payload == {"x": 1, "event_type": WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, "timestamp": delivery.payload["timestamp"]}
+    assert delivery.payload == {
+        "x": 1,
+        "event_type": WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value,
+        "timestamp": delivery.payload["timestamp"],
+    }
 
 
 @pytest.mark.asyncio
 async def test_fire_returns_zero_for_no_match() -> None:
     d = WebhookDispatcher()
-    n = await d.fire(
-        WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, {"x": 1}
-    )
+    n = await d.fire(WebhookEventType.SPEND_THRESHOLD_EXCEEDED.value, {"x": 1})
     assert n == 0
 
 
@@ -216,9 +204,7 @@ def test_delivery_signs_payload_with_hmac_sha256() -> None:
     # The signature the subscriber would verify against.
     assert len(expected_sig) == 64
     # And the signature the dispatcher computes must match.
-    actual_sig = hmac.new(
-        sub.secret.encode("utf-8"), body, hashlib.sha256
-    ).hexdigest()
+    actual_sig = hmac.new(sub.secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
     assert actual_sig == expected_sig
 
 
@@ -424,6 +410,7 @@ async def test_fire_webhook_helper_singleton_lifecycle() -> None:
     d.subscribe(WebhookSubscription(url="https://a.example.com", secret="s"))
     # Do NOT call d.start() so the queue accumulates.
     from cutctx.proxy.webhooks import fire_webhook
+
     n = await fire_webhook("Alert", "Something happened")
     assert n >= 1
     # Find our specific delivery in the queue

@@ -57,10 +57,17 @@ def check_nuitka_installed() -> str:
 def install_nuitka():
     """Install Nuitka and its C compiler backend."""
     print("Installing Nuitka...")
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install",
-        "nuitka", "ordered-set", "zstandard",
-    ])
+    subprocess.check_call(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "nuitka",
+            "ordered-set",
+            "zstandard",
+        ]
+    )
     print("Nuitka installed.")
 
 
@@ -77,9 +84,12 @@ def compile_ee_module(
     print(f"  Compiling {module_path.name}...")
 
     cmd = [
-        sys.executable, "-m", "nuitka",
+        sys.executable,
+        "-m",
+        "nuitka",
         "--module",  # Produce .so extension module, not standalone
-        "--module-name", f"cutctx_ee.{module_name}",
+        "--module-name",
+        f"cutctx_ee.{module_name}",
         f"--output-dir={output_dir}",
         "--assume-yes-for-downloads",
         # Strip docstrings and assertions in release
@@ -88,18 +98,25 @@ def compile_ee_module(
     ]
 
     if not dev:
-        cmd.extend([
-            "--nofollow-import-to", "unittest",
-            "--nofollow-import-to", "pytest",
-            "--nofollow-import-to", "typing_extensions",
-            # Remove source code from output
-            "--no-pgo",
-        ])
+        cmd.extend(
+            [
+                "--nofollow-import-to",
+                "unittest",
+                "--nofollow-import-to",
+                "pytest",
+                "--nofollow-import-to",
+                "typing_extensions",
+                # Remove source code from output
+                "--no-pgo",
+            ]
+        )
     else:
-        cmd.extend([
-            "--debug",
-            "--unstripped",
-        ])
+        cmd.extend(
+            [
+                "--debug",
+                "--unstripped",
+            ]
+        )
 
     cmd.append(str(module_path))
 
@@ -138,10 +155,9 @@ def compile_all_ee(
 
     # Find all .py modules (exclude __init__, __pycache__, tests)
     py_files = sorted(
-        f for f in EE_SOURCE.rglob("*.py")
-        if f.name != "__init__.py"
-        and "__pycache__" not in str(f)
-        and "tests" not in str(f)
+        f
+        for f in EE_SOURCE.rglob("*.py")
+        if f.name != "__init__.py" and "__pycache__" not in str(f) and "tests" not in str(f)
     )
 
     print(f"Found {len(py_files)} modules to compile")
@@ -342,8 +358,10 @@ def main():
             [
                 sys.executable,
                 str(manifest_script),
-                "--ee-dir", str(pkg_dir_in_wheel),
-                "--output", str(pkg_dir_in_wheel / "MANIFEST.sha256.json"),
+                "--ee-dir",
+                str(pkg_dir_in_wheel),
+                "--output",
+                str(pkg_dir_in_wheel / "MANIFEST.sha256.json"),
             ],
             capture_output=False,
             cwd=str(ROOT),

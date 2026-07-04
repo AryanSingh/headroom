@@ -871,6 +871,7 @@ class HierarchicalMemory:
         This should be called when done using the memory system to properly
         clean up resources like HTTP clients used by embedders.
         """
+
         async def _close_if_present(component: Any) -> None:
             if not hasattr(component, "close"):
                 return

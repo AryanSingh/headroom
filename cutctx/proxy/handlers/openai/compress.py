@@ -203,13 +203,11 @@ class OpenAICompressMixin:
             )
 
             compress_config = body.get("config", {}) or {}
-            compression_profile = str(
-                compress_config.get("profile", "max_savings") or "max_savings"
-            ).strip().lower()
-            compress_user_messages = compress_config.get("compress_user_messages")
-            compress_assistant_text_blocks = compress_config.get(
-                "compress_assistant_text_blocks"
+            compression_profile = (
+                str(compress_config.get("profile", "max_savings") or "max_savings").strip().lower()
             )
+            compress_user_messages = compress_config.get("compress_user_messages")
+            compress_assistant_text_blocks = compress_config.get("compress_assistant_text_blocks")
             target_ratio = compress_config.get("target_ratio")
             protect_recent = compress_config.get("protect_recent")
             protect_analysis_context = compress_config.get("protect_analysis_context")
@@ -244,9 +242,7 @@ class OpenAICompressMixin:
             if protect_recent is not None:
                 pipeline_kwargs["protect_recent"] = int(protect_recent)
             if protect_analysis_context is not None:
-                pipeline_kwargs["protect_analysis_context"] = bool(
-                    protect_analysis_context
-                )
+                pipeline_kwargs["protect_analysis_context"] = bool(protect_analysis_context)
             if min_ratio_override is not None:
                 pipeline_kwargs["min_ratio_override"] = float(min_ratio_override)
 
@@ -256,12 +252,8 @@ class OpenAICompressMixin:
                 **pipeline_kwargs,
             )
 
-            total_tokens_before = result.tokens_before + int(
-                image_metrics.get("tokens_before", 0)
-            )
-            total_tokens_after = result.tokens_after + int(
-                image_metrics.get("tokens_after", 0)
-            )
+            total_tokens_before = result.tokens_before + int(image_metrics.get("tokens_before", 0))
+            total_tokens_after = result.tokens_after + int(image_metrics.get("tokens_after", 0))
             total_tokens_saved = max(0, total_tokens_before - total_tokens_after)
 
             transforms_applied = list(result.transforms_applied)
@@ -293,9 +285,7 @@ class OpenAICompressMixin:
                 "tokens_after": total_tokens_after,
                 "tokens_saved": total_tokens_saved,
                 "compression_ratio": (
-                    total_tokens_after / total_tokens_before
-                    if total_tokens_before > 0
-                    else 1.0
+                    total_tokens_after / total_tokens_before if total_tokens_before > 0 else 1.0
                 ),
                 "transforms_applied": transforms_applied,
                 "transforms_summary": result.transforms_summary,

@@ -83,8 +83,7 @@ def apply_provider_scope(manifest: DeploymentManifest) -> ManagedMutation | None
     path.parent.mkdir(parents=True, exist_ok=True)
     section = (
         f"{_CODEX_MARKER_START}\n"
-        f'openai_base_url = "{proxy_base_url(manifest.port)}"\n'
-        + f"{_CODEX_MARKER_END}\n"
+        f'openai_base_url = "{proxy_base_url(manifest.port)}"\n' + f"{_CODEX_MARKER_END}\n"
     )
     if path.exists():
         existing = path.read_text(encoding="utf-8")

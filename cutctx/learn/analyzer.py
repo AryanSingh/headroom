@@ -763,7 +763,7 @@ def _safe_int(val: object) -> int:
     """Safely convert a value to int."""
     if isinstance(val, int):
         return val
-    if isinstance(val, (float, str)):
+    if isinstance(val, float | str):
         try:
             return int(val)
         except (ValueError, TypeError):

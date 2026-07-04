@@ -6,10 +6,9 @@ CodeCompressor for call-path-preserving compression.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from cutctx.graph.reachability import extract_symbol_names, resolve_entry_points
-
 
 # =========================================================================
 # extract_symbol_names
@@ -118,15 +117,23 @@ class TestResolveEntryPoints:
         mock._inner = MagicMock()
         mock.indexed_paths = {"/src/app.py"}
         mock._inner.reachable_definitions.return_value = [
-            {"target_file": "/src/app.py", "target_line": 10, "target_column": 0,
-             "symbol_name": "validate_input", "confidence": 0.9},
-            {"target_file": "/src/auth.py", "target_line": 42, "target_column": 4,
-             "symbol_name": "check_permissions", "confidence": 0.9},
+            {
+                "target_file": "/src/app.py",
+                "target_line": 10,
+                "target_column": 0,
+                "symbol_name": "validate_input",
+                "confidence": 0.9,
+            },
+            {
+                "target_file": "/src/auth.py",
+                "target_line": 42,
+                "target_column": 4,
+                "symbol_name": "check_permissions",
+                "confidence": 0.9,
+            },
         ]
 
-        protected, report = resolve_entry_points(
-            mock, "debug `process_payment`", max_depth=5
-        )
+        protected, report = resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
 
         assert "process_payment" in protected
         assert "validate_input" in protected
@@ -141,9 +148,7 @@ class TestResolveEntryPoints:
         mock.indexed_paths = {"/src/app.py"}
         mock._inner.reachable_definitions.side_effect = RuntimeError("oops")
 
-        protected, report = resolve_entry_points(
-            mock, "debug `process_payment`", max_depth=5
-        )
+        protected, report = resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
         assert protected == set()
         assert report == {"process_payment": []}
 
@@ -153,9 +158,7 @@ class TestResolveEntryPoints:
         mock._inner = MagicMock()
         mock.indexed_paths = set()
 
-        protected, report = resolve_entry_points(
-            mock, "debug `process_payment`", max_depth=5
-        )
+        protected, report = resolve_entry_points(mock, "debug `process_payment`", max_depth=5)
         assert protected == set()
         # If no files to search, the symbol contributes nothing to the report
         assert report == {}
@@ -205,7 +208,7 @@ def test_code_compressor_protected_symbols() -> None:
     config = CodeCompressorConfig(min_tokens_for_compression=30)
     compressor = CodeAwareCompressor(config)
 
-    code = '''\
+    code = """\
 def helper():
     x = 1
     y = 2
@@ -222,7 +225,7 @@ def main():
     g = 70
     h = 80
     return helper() + a
-'''
+"""
 
     # Without protected symbols, both functions should be compressed
     result_no_protect = compressor.compress(code, language="python")
@@ -230,9 +233,7 @@ def main():
     assert result_no_protect.compression_ratio < 1.0
 
     # With "main" protected, main's body should be preserved
-    result_protected = compressor.compress(
-        code, language="python", protected_symbols={"main"}
-    )
+    result_protected = compressor.compress(code, language="python", protected_symbols={"main"})
     compressed = result_protected.compressed
     # main should have its body preserved (a through h should be present)
     assert "a = 10" in compressed

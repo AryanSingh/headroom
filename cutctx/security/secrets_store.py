@@ -28,6 +28,7 @@ The previous HTTP-only stub is preserved as a thin wrapper
 around this store so the /v1/secrets/* endpoints work as
 operators expect. See ``cutctx/proxy/routes/secrets.py``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -60,9 +61,7 @@ def _resolve_encryption_key(strict: bool) -> bytes | None:
     logs a warning, and returns it. The auto-generated key is
     process-unique so secrets don't leak across restarts.
     """
-    raw = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get(
-        "CUTCTX_LICENSE_HMAC_SECRET"
-    )
+    raw = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get("CUTCTX_LICENSE_HMAC_SECRET")
     if raw:
         return raw.encode("utf-8")
     if strict:
@@ -136,9 +135,7 @@ class SecretsStore:
         self._strict = strict
         self._lock = threading.Lock()
 
-        path = Path(
-            os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH))
-        )
+        path = Path(os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH)))
         path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = str(path)
         self._init_db()
@@ -182,8 +179,7 @@ class SecretsStore:
         """List secret names + metadata (NOT the values)."""
         with self._lock, self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, created_at_ts, updated_at_ts, description "
-                "FROM secrets ORDER BY name"
+                "SELECT name, created_at_ts, updated_at_ts, description FROM secrets ORDER BY name"
             ).fetchall()
         return [
             {
@@ -268,9 +264,7 @@ class SecretsStore:
     def delete(self, name: str) -> bool:
         """Delete a secret. Returns True if it existed."""
         with self._lock, self._connect() as conn:
-            cur = conn.execute(
-                "DELETE FROM secrets WHERE name = ?", (name,)
-            )
+            cur = conn.execute("DELETE FROM secrets WHERE name = ?", (name,))
             return cur.rowcount > 0
 
     def resolve(self, name: str, *, default: bytes | None = None) -> bytes:

@@ -25,8 +25,7 @@ def test_profile_and_artifact_paths(monkeypatch, tmp_path: Path) -> None:
     assert install_paths.log_path("demo") == tmp_path / "deploy" / "demo" / "runner.log"
     assert install_paths.pid_path("demo") == tmp_path / "deploy" / "demo" / "runner.pid"
     assert (
-        install_paths.unix_run_script_path("demo")
-        == tmp_path / "deploy" / "demo" / "run-cutctx.sh"
+        install_paths.unix_run_script_path("demo") == tmp_path / "deploy" / "demo" / "run-cutctx.sh"
     )
     assert install_paths.unix_ensure_script_path("demo") == (
         tmp_path / "deploy" / "demo" / "ensure-cutctx.sh"

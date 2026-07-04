@@ -678,14 +678,12 @@ class PrometheusMetrics:
                 # tracked sources. When ``savings_by_source_tokens`` is
                 # provided by the funnel it wins; otherwise we fall
                 # back to deriving from the typed fields.
-            savings_by_source_tokens=savings_by_source_tokens,
-            savings_by_source_usd=savings_by_source_usd,
+                savings_by_source_tokens=savings_by_source_tokens,
+                savings_by_source_usd=savings_by_source_usd,
                 cache_savings_usd_delta=cache_savings_usd_delta,
                 compression_savings_usd_delta=compression_savings_usd_delta,
                 semantic_cache_usd_delta=semantic_cache_usd_delta,
-                self_hosted_prefix_cache_usd_delta=(
-                    self_hosted_prefix_cache_usd_delta
-                ),
+                self_hosted_prefix_cache_usd_delta=(self_hosted_prefix_cache_usd_delta),
                 model_routing_usd_delta=model_routing_usd_delta,
             )
 

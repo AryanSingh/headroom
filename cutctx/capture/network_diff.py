@@ -267,9 +267,7 @@ def compare_captures(
             _json_paths(direct_item.request_json) if direct_item.request_json is not None else {}
         )
         cutctx_paths = (
-            _json_paths(cutctx_item.request_json)
-            if cutctx_item.request_json is not None
-            else {}
+            _json_paths(cutctx_item.request_json) if cutctx_item.request_json is not None else {}
         )
         only_direct_json = sorted(set(direct_paths) - set(cutctx_paths))
         only_cutctx_json = sorted(set(cutctx_paths) - set(direct_paths))
@@ -349,9 +347,7 @@ def render_markdown_report(diff: CaptureDiff) -> str:
     if diff.only_direct:
         lines.extend(["## Only Direct", "", *[f"- `{route}`" for route in diff.only_direct], ""])
     if diff.only_cutctx:
-        lines.extend(
-            ["## Only Cutctx", "", *[f"- `{route}`" for route in diff.only_cutctx], ""]
-        )
+        lines.extend(["## Only Cutctx", "", *[f"- `{route}`" for route in diff.only_cutctx], ""])
 
     lines.extend(
         [
@@ -384,9 +380,7 @@ def render_markdown_report(diff: CaptureDiff) -> str:
         anthropic = item.get("anthropic", {})
         direct_anthropic = anthropic.get("direct", {})
         cutctx_anthropic = anthropic.get("cutctx", {})
-        tool_delta = cutctx_anthropic.get("tools_bytes", 0) - direct_anthropic.get(
-            "tools_bytes", 0
-        )
+        tool_delta = cutctx_anthropic.get("tools_bytes", 0) - direct_anthropic.get("tools_bytes", 0)
         json_text = (
             f"{json_text}; tools={direct_anthropic.get('tools_count', 0)}"
             f"->{cutctx_anthropic.get('tools_count', 0)}"

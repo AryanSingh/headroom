@@ -44,17 +44,21 @@ logger = logging.getLogger("cutctx.intelligence")
 # from_config() reads it per-request to allow live toggling without restart.
 _RUNTIME_FLAGS: dict[str, Any] = {}
 
+
 def set_runtime_flag(key: str, value: Any) -> None:
     """Set a runtime override for an intelligence feature flag."""
     _RUNTIME_FLAGS[key] = value
+
 
 def get_runtime_flag(key: str, default: Any = None) -> Any:
     """Get a runtime flag value, returning default if not set."""
     return _RUNTIME_FLAGS.get(key, default)
 
+
 def get_all_runtime_flags() -> dict[str, Any]:
     """Return a copy of all current runtime flag overrides."""
     return dict(_RUNTIME_FLAGS)
+
 
 def clear_runtime_flag(key: str) -> None:
     """Remove a runtime override, reverting to config default."""
@@ -213,15 +217,23 @@ class IntelligencePipeline:
 
     def any_enabled(self) -> bool:
         """Check if any intelligence feature is enabled."""
-        return any([
-            self.task_aware, self.dedup, self.context_budget,
-            self.profiles, self.shared_context, self.cost_forecast, self.autopilot,
-        ])
+        return any(
+            [
+                self.task_aware,
+                self.dedup,
+                self.context_budget,
+                self.profiles,
+                self.shared_context,
+                self.cost_forecast,
+                self.autopilot,
+            ]
+        )
 
     def _get_deduplicator(self) -> Any:
         """Get or create the session-scoped deduplicator."""
         if self._deduplicator is None:
             from cutctx.dedup import SessionDeduplicator
+
             self._deduplicator = SessionDeduplicator()
         return self._deduplicator
 
@@ -229,6 +241,7 @@ class IntelligencePipeline:
         """Get or create the session-scoped budget controller."""
         if self._budget_controller is None:
             from cutctx.context_budget import ContextBudgetController
+
             self._budget_controller = ContextBudgetController(
                 max_tokens=self.context_budget_max_tokens,
                 model=self.model,
@@ -240,6 +253,7 @@ class IntelligencePipeline:
         """Get or create the session-scoped cost tracker."""
         if self._cost_tracker is None:
             from cutctx.cost_forecast import SessionCostTracker
+
             self._cost_tracker = SessionCostTracker(model=self.model)
         return self._cost_tracker
 
@@ -247,6 +261,7 @@ class IntelligencePipeline:
         """Get or load the workspace compression profile (cached)."""
         if self._profile is None:
             from cutctx.profiles import CompressionProfile
+
             self._profile = CompressionProfile.load()
         return self._profile
 
@@ -254,6 +269,7 @@ class IntelligencePipeline:
         """Get or create the multi-agent coordinator (singleton)."""
         if self._coordinator is None:
             from cutctx.shared_context import MultiAgentCoordinator
+
             self._coordinator = MultiAgentCoordinator.get_instance()
         return self._coordinator
 
@@ -267,11 +283,18 @@ class IntelligencePipeline:
         if not task:
             return "general"
         lowered = task.lower()
-        if any(token in lowered for token in ("debug", "fix", "edit", "refactor", "implement", "code", "test")):
+        if any(
+            token in lowered
+            for token in ("debug", "fix", "edit", "refactor", "implement", "code", "test")
+        ):
             return "code"
-        if any(token in lowered for token in ("search", "find", "grep", "lookup", "trace", "locate")):
+        if any(
+            token in lowered for token in ("search", "find", "grep", "lookup", "trace", "locate")
+        ):
             return "search"
-        if any(token in lowered for token in ("summarize", "summarise", "report", "overview", "list")):
+        if any(
+            token in lowered for token in ("summarize", "summarise", "report", "overview", "list")
+        ):
             return "summarize"
         return "general"
 
@@ -290,7 +313,9 @@ class IntelligencePipeline:
             }
         )
         if len(self._autopilot_level_history) > self._autopilot_history_limit:
-            self._autopilot_level_history = self._autopilot_level_history[-self._autopilot_history_limit :]
+            self._autopilot_level_history = self._autopilot_level_history[
+                -self._autopilot_history_limit :
+            ]
 
     @staticmethod
     def merge_biases(
@@ -341,7 +366,9 @@ class IntelligencePipeline:
                 }
             )
             if len(self._autopilot_adjustments) > self._autopilot_history_limit:
-                self._autopilot_adjustments = self._autopilot_adjustments[-self._autopilot_history_limit :]
+                self._autopilot_adjustments = self._autopilot_adjustments[
+                    -self._autopilot_history_limit :
+                ]
         return adjustment
 
     def autopilot_snapshot(self) -> dict[str, Any]:
@@ -392,12 +419,14 @@ class IntelligencePipeline:
         if self.task_aware:
             try:
                 from cutctx.compression.task_aware import TaskExtractor
+
                 ctx.task = TaskExtractor.extract_task(messages)
                 ctx.task_extracted_at = time.monotonic()
                 if ctx.task:
                     logger.debug(
                         "[%s] Intelligence: task extracted: %.80s",
-                        request_id, ctx.task,
+                        request_id,
+                        ctx.task,
                     )
             except Exception as e:
                 logger.debug("[%s] Intelligence: task extraction failed: %s", request_id, e)
@@ -412,7 +441,8 @@ class IntelligencePipeline:
                     ctx.profile_recommendations[content_type] = stats.recommended_ratio
                 logger.debug(
                     "[%s] Intelligence: profile loaded (%d content types)",
-                    request_id, len(profile.stats),
+                    request_id,
+                    len(profile.stats),
                 )
             except Exception as e:
                 logger.debug("[%s] Intelligence: profile load failed: %s", request_id, e)
@@ -421,13 +451,11 @@ class IntelligencePipeline:
         if self.cost_forecast:
             try:
                 from cutctx.cost_forecast import PolicyEngine
+
                 engine = PolicyEngine(model=self.model)
 
                 # Estimate input tokens (rough: 4 chars per token)
-                total_chars = sum(
-                    len(str(m.get("content", "")))
-                    for m in messages
-                )
+                total_chars = sum(len(str(m.get("content", ""))) for m in messages)
                 input_tokens = max(1, total_chars // 4)
 
                 # Check budget from cost tracker
@@ -448,8 +476,10 @@ class IntelligencePipeline:
 
                 logger.debug(
                     "[%s] Intelligence: policy=%s ratio=%.2f (%s)",
-                    request_id, decision.strategy.value,
-                    decision.compression_ratio, decision.rationale,
+                    request_id,
+                    decision.strategy.value,
+                    decision.compression_ratio,
+                    decision.rationale,
                 )
             except Exception as e:
                 logger.debug("[%s] Intelligence: policy evaluation failed: %s", request_id, e)
@@ -467,7 +497,8 @@ class IntelligencePipeline:
                     ctx.shared_context_hit = True
                     logger.debug(
                         "[%s] Intelligence: shared context has %d compressed items",
-                        request_id, agent_ctx.total_items_compressed,
+                        request_id,
+                        agent_ctx.total_items_compressed,
                     )
             except Exception as e:
                 logger.debug("[%s] Intelligence: shared context check failed: %s", request_id, e)
@@ -476,6 +507,7 @@ class IntelligencePipeline:
         if self.task_aware and ctx.task:
             try:
                 from cutctx.compression.task_aware import RelevanceModulator
+
                 modulator = RelevanceModulator(use_bm25=True)
                 ctx.message_relevance_scores = []
                 for msg in messages:
@@ -487,7 +519,8 @@ class IntelligencePipeline:
                         ctx.message_relevance_scores.append(1.0)  # Short/structured: fully relevant
                 logger.debug(
                     "[%s] Intelligence: scored %d messages, avg relevance=%.2f",
-                    request_id, len(ctx.message_relevance_scores),
+                    request_id,
+                    len(ctx.message_relevance_scores),
                     sum(ctx.message_relevance_scores) / max(1, len(ctx.message_relevance_scores)),
                 )
             except Exception as e:
@@ -499,16 +532,16 @@ class IntelligencePipeline:
                 ctx.autopilot_task_type = self._classify_autopilot_task_type(ctx.task)
                 ctx.autopilot_level = controller.current_level(ctx.autopilot_task_type)
                 bias = self._bias_for_level(ctx.autopilot_level)
-                ctx.autopilot_biases = {
-                    index: bias for index in range(len(messages))
-                }
+                ctx.autopilot_biases = dict.fromkeys(range(len(messages)), bias)
                 self._record_autopilot_level(
                     ctx.autopilot_task_type,
                     ctx.autopilot_level,
                     time.time(),
                 )
             except Exception as e:
-                logger.debug("[%s] Intelligence: autopilot pre-compression failed: %s", request_id, e)
+                logger.debug(
+                    "[%s] Intelligence: autopilot pre-compression failed: %s", request_id, e
+                )
 
         ctx.total_latency_ms = (time.monotonic() - t0) * 1000
         return ctx
@@ -552,7 +585,9 @@ class IntelligencePipeline:
                     result = dedup_result.messages
                     logger.info(
                         "[%s] Intelligence: dedup saved %d tokens (%d duplicates)",
-                        request_id, dedup_result.tokens_saved, dedup_result.dedup_count,
+                        request_id,
+                        dedup_result.tokens_saved,
+                        dedup_result.dedup_count,
                     )
             except Exception as e:
                 logger.debug("[%s] Intelligence: dedup failed: %s", request_id, e)
@@ -568,10 +603,11 @@ class IntelligencePipeline:
                 ctx.budget_compression_applied = status.compression_applied
                 if status.compression_applied:
                     logger.info(
-                        "[%s] Intelligence: context budget %s zone — "
-                        "compressed %d→%d messages",
-                        request_id, status.zone.value,
-                        before_count, len(result),
+                        "[%s] Intelligence: context budget %s zone — compressed %d→%d messages",
+                        request_id,
+                        status.zone.value,
+                        before_count,
+                        len(result),
                     )
             except Exception as e:
                 logger.debug("[%s] Intelligence: context budget failed: %s", request_id, e)
@@ -581,14 +617,8 @@ class IntelligencePipeline:
             try:
                 tracker = self._get_cost_tracker()
                 # Use actual token counts if available, else estimate
-                tokens_before = sum(
-                    len(str(m.get("content", ""))) // 4
-                    for m in original_messages
-                )
-                tokens_after = sum(
-                    len(str(m.get("content", ""))) // 4
-                    for m in result
-                )
+                tokens_before = sum(len(str(m.get("content", ""))) // 4 for m in original_messages)
+                tokens_after = sum(len(str(m.get("content", ""))) // 4 for m in result)
                 actual_input = input_tokens or tokens_before
                 actual_output = output_tokens
 
@@ -602,7 +632,9 @@ class IntelligencePipeline:
                 ctx.cost_savings_usd = estimate.compression_savings_usd
                 logger.debug(
                     "[%s] Intelligence: cost $%.6f (savings $%.6f)",
-                    request_id, estimate.total_usd, estimate.compression_savings_usd,
+                    request_id,
+                    estimate.total_usd,
+                    estimate.compression_savings_usd,
                 )
             except Exception as e:
                 logger.debug("[%s] Intelligence: cost forecast failed: %s", request_id, e)
@@ -617,26 +649,36 @@ class IntelligencePipeline:
                     # Use per-section routing decisions for granular stats
                     for section in routing_log:
                         ct = section.get("content_type", "mixed")
-                        orig_tok = section.get("original_count", 0) or section.get("original_tokens", 0)
-                        comp_tok = section.get("compressed_count", 0) or section.get("compressed_tokens", 0)
+                        orig_tok = section.get("original_count", 0) or section.get(
+                            "original_tokens", 0
+                        )
+                        comp_tok = section.get("compressed_count", 0) or section.get(
+                            "compressed_tokens", 0
+                        )
                         if orig_tok > 0:
-                            stats_entries.append({
-                                "content_type": ct,
-                                "original_count": orig_tok,
-                                "compressed_count": comp_tok,
-                                "was_retrieved": False,
-                            })
+                            stats_entries.append(
+                                {
+                                    "content_type": ct,
+                                    "original_count": orig_tok,
+                                    "compressed_count": comp_tok,
+                                    "was_retrieved": False,
+                                }
+                            )
                 else:
                     # Fall back to aggregate estimate when routing_log is not available
-                    orig_tokens = sum(len(str(m.get("content", ""))) // 4 for m in original_messages)
+                    orig_tokens = sum(
+                        len(str(m.get("content", ""))) // 4 for m in original_messages
+                    )
                     comp_tokens = sum(len(str(m.get("content", ""))) // 4 for m in result)
                     if orig_tokens > 0:
-                        stats_entries.append({
-                            "content_type": "mixed",
-                            "original_count": orig_tokens,
-                            "compressed_count": comp_tokens,
-                            "was_retrieved": False,
-                        })
+                        stats_entries.append(
+                            {
+                                "content_type": "mixed",
+                                "original_count": orig_tokens,
+                                "compressed_count": comp_tokens,
+                                "was_retrieved": False,
+                            }
+                        )
                 if stats_entries:
                     profile.record_session(
                         session_id=request_id,

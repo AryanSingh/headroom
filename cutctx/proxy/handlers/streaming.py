@@ -400,7 +400,11 @@ class StreamingMixin:
                         try:
                             target["input"] = json.loads(target["_partial_json"])
                         except json.JSONDecodeError as _je:
-                            logger.warning("[streaming] tool_use input JSON parse failed for block %r: %s — using empty input", target.get("id"), _je)
+                            logger.warning(
+                                "[streaming] tool_use input JSON parse failed for block %r: %s — using empty input",
+                                target.get("id"),
+                                _je,
+                            )
                             target["input"] = {}
                         del target["_partial_json"]
                     # Materialize the thinking buffer into the
@@ -780,17 +784,9 @@ class StreamingMixin:
         _routing_tokens = 0
         _routing_usd = 0.0
         if savings_metadata:
-            _sc_avoided = int(
-                (savings_metadata.get("semantic_cache") or {}).get(
-                    "tokens", 0
-                )
-                or 0
-            )
+            _sc_avoided = int((savings_metadata.get("semantic_cache") or {}).get("tokens", 0) or 0)
             _self_hosted_hits = int(
-                (savings_metadata.get("prefix_cache_self_hosted") or {}).get(
-                    "tokens", 0
-                )
-                or 0
+                (savings_metadata.get("prefix_cache_self_hosted") or {}).get("tokens", 0) or 0
             )
             _routing_meta = savings_metadata.get("model_routing") or {}
             _routing_tokens = int(_routing_meta.get("tokens_saved", 0) or 0)
@@ -938,7 +934,9 @@ class StreamingMixin:
                     )
                     return JSONResponse(content=winning)
             except Exception as ens_err:
-                logger.warning("[%s] Ensemble failed, falling through to single model: %s", request_id, ens_err)
+                logger.warning(
+                    "[%s] Ensemble failed, falling through to single model: %s", request_id, ens_err
+                )
         log_outbound_request(
             forwarder="streaming",
             method="POST",
@@ -1083,13 +1081,20 @@ class StreamingMixin:
             # Log body keys + small fields to aid diagnosis (drop large text fields)
             try:
                 _body_keys = list(body.keys())
-                _small_fields = {k: v for k, v in body.items() if k not in ("input", "instructions", "tools") and not isinstance(v, str)}
+                _small_fields = {
+                    k: v
+                    for k, v in body.items()
+                    if k not in ("input", "instructions", "tools") and not isinstance(v, str)
+                }
                 _sent_summary = f"keys={_body_keys} small_fields={json.dumps(_small_fields)[:300]}"
             except Exception:
                 _sent_summary = "<unserializable>"
             logger.error(
                 "[%s] upstream %d — url=%s body_debug=%s",
-                request_id, upstream_response.status_code, url, _sent_summary,
+                request_id,
+                upstream_response.status_code,
+                url,
+                _sent_summary,
             )
             response_headers = dict(upstream_response.headers)
             response_headers.pop("content-length", None)
@@ -1101,7 +1106,8 @@ class StreamingMixin:
                 error_content = await upstream_response.aread()
                 logger.error(
                     "[%s] upstream %d response body: %s",
-                    request_id, upstream_response.status_code,
+                    request_id,
+                    upstream_response.status_code,
                     error_content[:2000].decode("utf-8", errors="replace"),
                 )
             except Exception as read_error:
@@ -1335,7 +1341,9 @@ class StreamingMixin:
 
                         # ── Budget enforcement ──
                         if budget_tracker is not None and "output_tokens" in stream_state:
-                            budget_tracker.add_tokens(stream_state["output_tokens"] - budget_tracker.tokens_used)
+                            budget_tracker.add_tokens(
+                                stream_state["output_tokens"] - budget_tracker.tokens_used
+                            )
                             if budget_tracker.should_warn():
                                 warning_chunk = budget_tracker.make_budget_warning_chunk()
                                 yield warning_chunk.encode("utf-8")
@@ -1443,7 +1451,10 @@ class StreamingMixin:
                                         _content_blocks = _so_parsed.get("content", [])
                                         if isinstance(_content_blocks, list):
                                             for _block in _content_blocks:
-                                                if isinstance(_block, dict) and _block.get("type") == "text":
+                                                if (
+                                                    isinstance(_block, dict)
+                                                    and _block.get("type") == "text"
+                                                ):
                                                     _resp_text += _block.get("text", "")
                                     if _resp_text:
                                         _vresult = _so_validator.validate(_resp_text, _schema)
@@ -1456,10 +1467,12 @@ class StreamingMixin:
                                         else:
                                             logger.debug(
                                                 f"[{request_id}] Structured output streaming validation OK "
-                                                f"({ _vresult.validation_time_ms:.1f}ms)"
+                                                f"({_vresult.validation_time_ms:.1f}ms)"
                                             )
                     except Exception as _so_err:
-                        logger.debug(f"[{request_id}] Structured output streaming validation error: {_so_err}")
+                        logger.debug(
+                            f"[{request_id}] Structured output streaming validation error: {_so_err}"
+                        )
                 if _codex_wire_debug:
                     _debug_parsed_response = (
                         parsed_response
@@ -1526,7 +1539,10 @@ class StreamingMixin:
                     decoder = __import__("codecs").getincrementaldecoder("utf-8")()
                     _final_full_sse_data = decoder.decode(bytes(full_sse_bytes), final=False)
                 if not stream_complete:
-                    logger.warning("[%s] Stream ended without terminal event — upstream may have truncated", request_id)
+                    logger.warning(
+                        "[%s] Stream ended without terminal event — upstream may have truncated",
+                        request_id,
+                    )
                 await self._finalize_stream_response(
                     body=body,
                     provider=provider,
@@ -1666,25 +1682,15 @@ class StreamingMixin:
                 _routing_usd = 0.0
                 if savings_metadata:
                     _sc_avoided = int(
-                        (savings_metadata.get("semantic_cache") or {}).get(
-                            "tokens", 0
-                        )
-                        or 0
+                        (savings_metadata.get("semantic_cache") or {}).get("tokens", 0) or 0
                     )
                     _self_hosted_hits = int(
-                        (
-                            savings_metadata.get("prefix_cache_self_hosted")
-                            or {}
-                        ).get("tokens", 0)
+                        (savings_metadata.get("prefix_cache_self_hosted") or {}).get("tokens", 0)
                         or 0
                     )
                     _routing_meta = savings_metadata.get("model_routing") or {}
-                    _routing_tokens = int(
-                        _routing_meta.get("tokens_saved", 0) or 0
-                    )
-                    _routing_usd = float(
-                        _routing_meta.get("usd_saved", 0.0) or 0.0
-                    )
+                    _routing_tokens = int(_routing_meta.get("tokens_saved", 0) or 0)
+                    _routing_usd = float(_routing_meta.get("usd_saved", 0.0) or 0.0)
 
                 outcome = RequestOutcome.from_stream(
                     body=body,
@@ -1913,25 +1919,15 @@ class StreamingMixin:
                 _routing_usd = 0.0
                 if savings_metadata:
                     _sc_avoided = int(
-                        (savings_metadata.get("semantic_cache") or {}).get(
-                            "tokens", 0
-                        )
-                        or 0
+                        (savings_metadata.get("semantic_cache") or {}).get("tokens", 0) or 0
                     )
                     _self_hosted_hits = int(
-                        (
-                            savings_metadata.get("prefix_cache_self_hosted")
-                            or {}
-                        ).get("tokens", 0)
+                        (savings_metadata.get("prefix_cache_self_hosted") or {}).get("tokens", 0)
                         or 0
                     )
                     _routing_meta = savings_metadata.get("model_routing") or {}
-                    _routing_tokens = int(
-                        _routing_meta.get("tokens_saved", 0) or 0
-                    )
-                    _routing_usd = float(
-                        _routing_meta.get("usd_saved", 0.0) or 0.0
-                    )
+                    _routing_tokens = int(_routing_meta.get("tokens_saved", 0) or 0)
+                    _routing_usd = float(_routing_meta.get("usd_saved", 0.0) or 0.0)
 
                 outcome = RequestOutcome.from_stream(
                     body=body,

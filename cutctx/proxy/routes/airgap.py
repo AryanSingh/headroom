@@ -21,6 +21,7 @@ The endpoint exposes two paths:
   - GET /v1/airgap/policy: the effective allowlist
   - POST /v1/airgap/check: dry-run check a URL against the policy
 """
+
 from __future__ import annotations
 
 import logging

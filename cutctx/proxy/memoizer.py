@@ -24,7 +24,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import posixpath
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -51,16 +50,12 @@ DEFAULT_MEMOIZE_ALLOWLIST: frozenset[str] = frozenset(
 
 # Default write-tool list (per spec). Any successful call to one of
 # these tools triggers session-wide cache invalidation.
-DEFAULT_WRITE_TOOLS: frozenset[str] = frozenset(
-    {"file_write", "file_edit", "file_delete"}
-)
+DEFAULT_WRITE_TOOLS: frozenset[str] = frozenset({"file_write", "file_edit", "file_delete"})
 
 # Pagination-irrelevant fields: these don't change the tool's output
 # content, so two calls with different pagination are equivalent for
 # memoization purposes.
-_PAGINATION_IRRELEVANT_FIELDS = frozenset(
-    {"page", "page_size", "cursor", "offset", "limit"}
-)
+_PAGINATION_IRRELEVANT_FIELDS = frozenset({"page", "page_size", "cursor", "offset", "limit"})
 
 
 # ---------------------------------------------------------------------------
@@ -97,9 +92,7 @@ def _canonicalize(value: Any) -> Any:
     """
     if isinstance(value, Mapping):
         # Drop pagination-irrelevant keys; sort what remains.
-        cleaned = {
-            k: v for k, v in value.items() if k not in _PAGINATION_IRRELEVANT_FIELDS
-        }
+        cleaned = {k: v for k, v in value.items() if k not in _PAGINATION_IRRELEVANT_FIELDS}
         # Normalize paths where the key is a path-like key.
         normalized: dict[str, Any] = {}
         for k, v in cleaned.items():
@@ -108,7 +101,7 @@ def _canonicalize(value: Any) -> Any:
             else:
                 normalized[k] = _canonicalize(v)
         return normalized
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [_canonicalize(item) for item in value]
     # Leaves (str, int, float, bool, None) pass through unchanged.
     return value
@@ -136,11 +129,11 @@ def derive_key(session_id: str, tool_name: str, args: Any) -> str:
     The key is a SHA-256 hex digest truncated to 32 chars.
     """
     canonical = canonicalize_args(args) if not isinstance(args, str) else args
-    raw = f"{session_id}|{tool_name}|{canonical}".encode("utf-8")
+    raw = f"{session_id}|{tool_name}|{canonical}".encode()
     return hashlib.sha256(raw).hexdigest()[:32]
 
 
-def is_write_tool(tool_name: str, config: "MemoizeConfig") -> bool:
+def is_write_tool(tool_name: str, config: MemoizeConfig) -> bool:
     """True if this tool's successful invocation must flush the
     session cache (write/edit/delete)."""
     return tool_name in config.write_tools
@@ -161,12 +154,8 @@ class MemoizeConfig:
 
     enabled: bool = False
     max_entries_per_session: int = DEFAULT_MEMOIZE_LRU_SIZE
-    allowlist: frozenset[str] = field(
-        default_factory=lambda: DEFAULT_MEMOIZE_ALLOWLIST
-    )
-    write_tools: frozenset[str] = field(
-        default_factory=lambda: DEFAULT_WRITE_TOOLS
-    )
+    allowlist: frozenset[str] = field(default_factory=lambda: DEFAULT_MEMOIZE_ALLOWLIST)
+    write_tools: frozenset[str] = field(default_factory=lambda: DEFAULT_WRITE_TOOLS)
 
     def is_tool_allowlisted(self, tool_name: str) -> bool:
         """True if tool_name is on the allowlist. Per spec, anything
@@ -266,12 +255,10 @@ class ToolMemoizer:
         self.config = config or MemoizeConfig()
         # Per-session LRU caches. OrderedDict.move_to_end() provides
         # O(1) LRU semantics.
-        self._caches: dict[str, "OrderedDict[str, MemoizeEntry]"] = {}
+        self._caches: dict[str, OrderedDict[str, MemoizeEntry]] = {}
         self._stats: dict[str, MemoizeStats] = {}
 
-    def maybe_memoize(
-        self, session_id: str, tool_name: str, args: Any
-    ) -> MemoizeDecision:
+    def maybe_memoize(self, session_id: str, tool_name: str, args: Any) -> MemoizeDecision:
         """Decide whether to use a cached result, miss, or pass through.
 
         Flag-off short-circuit happens before any state lookup.
@@ -290,15 +277,11 @@ class ToolMemoizer:
             # LRU touch
             cache.move_to_end(key)
             self._bump_hit(session_id)
-            return MemoizeDecision(
-                action=MemoizeAction.HIT, payload=entry.payload, key=key
-            )
+            return MemoizeDecision(action=MemoizeAction.HIT, payload=entry.payload, key=key)
         self._bump_miss(session_id)
         return MemoizeDecision(action=MemoizeAction.MISS, key=key)
 
-    def record(
-        self, session_id: str, tool_name: str, args: Any, payload: str
-    ) -> None:
+    def record(self, session_id: str, tool_name: str, args: Any, payload: str) -> None:
         """Record the upstream tool result. No-op when disabled."""
         if not self.config.enabled:
             return
@@ -317,9 +300,7 @@ class ToolMemoizer:
         cache.move_to_end(key)
         self._bump_record(session_id)
 
-    def invalidate_for_write(
-        self, session_id: str, tool_name: str, args: Any
-    ) -> None:
+    def invalidate_for_write(self, session_id: str, tool_name: str, args: Any) -> None:
         """Flush the session cache because a write tool succeeded.
 
         Per spec: 'When in doubt, flush the whole session cache —

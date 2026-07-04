@@ -71,6 +71,7 @@ except ImportError:
 CCR_TOOL_NAME = "cutctx_retrieve"
 COMPRESS_TOOL_NAME = "cutctx_compress"
 STATS_TOOL_NAME = "cutctx_stats"
+PROXY_URL = os.getenv("CUTCTX_PROXY_URL", "http://127.0.0.1:8787")
 READ_TOOL_NAME = "cutctx_read"
 LEGACY_CCR_TOOL_NAME = "cutctx_retrieve"
 LEGACY_COMPRESS_TOOL_NAME = "cutctx_compress"
@@ -96,6 +97,7 @@ DEFAULT_PROXY_URL = os.environ.get("CUTCTX_PROXY_URL") or os.environ.get(
 
 
 AUTO_START = os.getenv("CUTCTX_AUTO_START", "1") == "1"
+
 
 async def _check_proxy() -> bool:
     """Return True if the Cutctx proxy is reachable."""
@@ -646,80 +648,82 @@ class CutctxMCPServer:
                     )
                 )
 
-            tools.extend([
-                Tool(
-                    name="cutctx_proxy_start",
-                    description=(
-                        "Start the Cutctx proxy if it is not already running. "
-                        "Use this if cutctx_retrieve returns a 'proxy unreachable' error."
+            tools.extend(
+                [
+                    Tool(
+                        name="cutctx_proxy_start",
+                        description=(
+                            "Start the Cutctx proxy if it is not already running. "
+                            "Use this if cutctx_retrieve returns a 'proxy unreachable' error."
+                        ),
+                        inputSchema={"type": "object", "properties": {}},
                     ),
-                    inputSchema={"type": "object", "properties": {}},
-                ),
-                Tool(
-                    name="cutctx_scan",
-                    description=(
-                        "Scan text for security violations using Cutctx's LLM firewall. "
-                        "Detects PII (SSN, credit cards, emails), injection attacks, and jailbreak attempts."
+                    Tool(
+                        name="cutctx_scan",
+                        description=(
+                            "Scan text for security violations using Cutctx's LLM firewall. "
+                            "Detects PII (SSN, credit cards, emails), injection attacks, and jailbreak attempts."
+                        ),
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "string",
+                                    "description": "The text to scan for security violations.",
+                                },
+                            },
+                            "required": ["text"],
+                        },
                     ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "text": {
-                                "type": "string",
-                                "description": "The text to scan for security violations.",
+                    Tool(
+                        name="cutctx_audit",
+                        description=(
+                            "Query recent audit log events from the Cutctx proxy. "
+                            "Filter by action type, limit results."
+                        ),
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string",
+                                    "description": "Filter by action type (e.g. 'org.created', 'stats.reset').",
+                                },
+                                "limit": {
+                                    "type": "integer",
+                                    "description": "Maximum number of events to return (default: 20).",
+                                    "default": 20,
+                                },
                             },
                         },
-                        "required": ["text"],
-                    },
-                ),
-                Tool(
-                    name="cutctx_audit",
-                    description=(
-                        "Query recent audit log events from the Cutctx proxy. "
-                        "Filter by action type, limit results."
                     ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "action": {
-                                "type": "string",
-                                "description": "Filter by action type (e.g. 'org.created', 'stats.reset').",
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of events to return (default: 20).",
-                                "default": 20,
+                    Tool(
+                        name="cutctx_orgs",
+                        description=(
+                            "List organizations in Cutctx, or create a new one. "
+                            "Call with action='list' to see all orgs, or action='create' with name and admin_email."
+                        ),
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string",
+                                    "enum": ["list", "create"],
+                                    "description": "Whether to list or create organizations.",
+                                    "default": "list",
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": "Organization name (required for create).",
+                                },
+                                "admin_email": {
+                                    "type": "string",
+                                    "description": "Admin email (required for create).",
+                                },
                             },
                         },
-                    },
-                ),
-                Tool(
-                    name="cutctx_orgs",
-                    description=(
-                        "List organizations in Cutctx, or create a new one. "
-                        "Call with action='list' to see all orgs, or action='create' with name and admin_email."
                     ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "action": {
-                                "type": "string",
-                                "enum": ["list", "create"],
-                                "description": "Whether to list or create organizations.",
-                                "default": "list",
-                            },
-                            "name": {
-                                "type": "string",
-                                "description": "Organization name (required for create).",
-                            },
-                            "admin_email": {
-                                "type": "string",
-                                "description": "Admin email (required for create).",
-                            },
-                        },
-                    },
-                ),
-            ])
+                ]
+            )
             return tools
 
         @self.server.call_tool()
@@ -1035,30 +1039,34 @@ class CutctxMCPServer:
         if self._http_client:
             await self._http_client.aclose()
 
-
-
     async def _handle_proxy_tools(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         PROXY_URL = self.proxy_url
         if name == "cutctx_proxy_start":
             if await _check_proxy():
-                return [TextContent(
-                    type="text",
-                    text=f"Cutctx proxy is already running at {PROXY_URL}.",
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Cutctx proxy is already running at {PROXY_URL}.",
+                    )
+                ]
             success = await _start_proxy()
             if success:
-                return [TextContent(
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Cutctx proxy started successfully at {PROXY_URL}.",
+                    )
+                ]
+            return [
+                TextContent(
                     type="text",
-                    text=f"Cutctx proxy started successfully at {PROXY_URL}.",
-                )]
-            return [TextContent(
-                type="text",
-                text=(
-                    "Failed to start proxy. Make sure cutctx-ai is installed:\n"
-                    "  pip install cutctx-ai\n"
-                    "Then retry, or run `cutctx proxy` in a terminal."
-                ),
-            )]
+                    text=(
+                        "Failed to start proxy. Make sure cutctx-ai is installed:\n"
+                        "  pip install cutctx-ai\n"
+                        "Then retry, or run `cutctx proxy` in a terminal."
+                    ),
+                )
+            ]
 
         elif name == "cutctx_scan":
             await _ensure_proxy()
@@ -1089,10 +1097,12 @@ class CutctxMCPServer:
                         lines.append(f"         Matched: {matched[:80]}")
                 return [TextContent(type="text", text="\n".join(lines))]
             except httpx.HTTPError as exc:
-                return [TextContent(
-                    type="text",
-                    text=f"Scan failed ({type(exc).__name__}): {exc}",
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Scan failed ({type(exc).__name__}): {exc}",
+                    )
+                ]
 
         elif name == "cutctx_audit":
             await _ensure_proxy()
@@ -1122,10 +1132,12 @@ class CutctxMCPServer:
                     lines.append(f"  [{ts}] {act} by {actor} — {ok}")
                 return [TextContent(type="text", text="\n".join(lines))]
             except httpx.HTTPError as exc:
-                return [TextContent(
-                    type="text",
-                    text=f"Audit query failed ({type(exc).__name__}): {exc}",
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Audit query failed ({type(exc).__name__}): {exc}",
+                    )
+                ]
 
         elif name == "cutctx_orgs":
             await _ensure_proxy()
@@ -1137,7 +1149,9 @@ class CutctxMCPServer:
                         org_name = str(arguments.get("name", "")).strip()
                         admin_email = str(arguments.get("admin_email", "")).strip()
                         if not org_name:
-                            return [TextContent(type="text", text="Error: name is required for create.")]
+                            return [
+                                TextContent(type="text", text="Error: name is required for create.")
+                            ]
                         r = await c.post(
                             f"{PROXY_URL}/orgs",
                             json={"name": org_name, "admin_email": admin_email},
@@ -1152,21 +1166,31 @@ class CutctxMCPServer:
                 data = r.json()
                 orgs_list = data.get("organizations", data if isinstance(data, list) else [])
                 if action == "create":
-                    return [TextContent(
-                        type="text",
-                        text=f"Created organization: {data.get('name', '?')} (id={data.get('id', '?')})",
-                    )]
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"Created organization: {data.get('name', '?')} (id={data.get('id', '?')})",
+                        )
+                    ]
                 if not orgs_list:
-                    return [TextContent(type="text", text="No organizations found. Create one to get started.")]
+                    return [
+                        TextContent(
+                            type="text", text="No organizations found. Create one to get started."
+                        )
+                    ]
                 lines = [f"Found {len(orgs_list)} organization(s):"]
                 for o in orgs_list:
-                    lines.append(f"  - {o.get('name', '?')} ({o.get('slug', '?')}) id={o.get('id', '?')}")
+                    lines.append(
+                        f"  - {o.get('name', '?')} ({o.get('slug', '?')}) id={o.get('id', '?')}"
+                    )
                 return [TextContent(type="text", text="\n".join(lines))]
             except httpx.HTTPError as exc:
-                return [TextContent(
-                    type="text",
-                    text=f"Org query failed ({type(exc).__name__}): {exc}",
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Org query failed ({type(exc).__name__}): {exc}",
+                    )
+                ]
 
         return [TextContent(type="text", text=f"Unknown proxy tool: {name}")]
 
@@ -1189,9 +1213,7 @@ def create_ccr_mcp_server(
 
 async def main() -> None:
     """Run the Cutctx MCP server."""
-    parser = argparse.ArgumentParser(
-        description="Cutctx MCP Server — context compression toolkit"
-    )
+    parser = argparse.ArgumentParser(description="Cutctx MCP Server — context compression toolkit")
     parser.add_argument(
         "--proxy-url",
         default=DEFAULT_PROXY_URL,

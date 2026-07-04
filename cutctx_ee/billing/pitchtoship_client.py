@@ -49,6 +49,7 @@ def _get_machine_id() -> str:
             pass
     # Generate and persist a random UUID
     import uuid
+
     mid = str(uuid.uuid4())
     try:
         _CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -62,6 +63,7 @@ def _get_machine_id() -> str:
 def _get_cache_key() -> bytes:
     """Generate a machine-specific encryption key for cache files."""
     import hashlib
+
     machine_id = _get_machine_id().encode("utf-8")
     return hashlib.pbkdf2_hmac("sha256", machine_id, _CACHE_SALT, 100000)
 
@@ -70,6 +72,7 @@ def _encrypt_cache(data: str) -> bytes:
     """Encrypt cache data with Fernet (AES-128-CBC + HMAC)."""
     try:
         from cryptography.fernet import Fernet
+
         key = base64.urlsafe_b64encode(_get_cache_key())
         return Fernet(key).encrypt(data.encode("utf-8"))
     except ImportError:
@@ -81,6 +84,7 @@ def _decrypt_cache(data: bytes) -> str | None:
     """Decrypt cache data. Returns None on failure."""
     try:
         from cryptography.fernet import Fernet
+
         key = base64.urlsafe_b64encode(_get_cache_key())
         return Fernet(key).decrypt(data, ttl=_PUBLIC_KEY_TTL + 3600).decode("utf-8")
     except ImportError:
@@ -110,7 +114,9 @@ def _post(endpoint: str, data: dict[str, Any], timeout: float = 5.0) -> dict[str
     try:
         payload = json.dumps(data).encode("utf-8")
         url = f"{PITCHTOSHIP_URL}{endpoint}"
-        req = Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        req = Request(
+            url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+        )
         with urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except URLError as e:
@@ -140,6 +146,7 @@ def _get(endpoint: str, timeout: float = 5.0) -> dict[str, Any] | None:
 
 # --- ECDSA Public Key Management ---
 
+
 def _fetch_public_key() -> str | None:
     """Fetch ECDSA P-256 public key from PitchToShip, with local cache."""
     # Check encrypted cache first
@@ -161,10 +168,12 @@ def _fetch_public_key() -> str | None:
         # Cache to disk (encrypted)
         try:
             _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            plaintext = json.dumps({
-                "public_key": public_key,
-                "fetched_at": time.time(),
-            })
+            plaintext = json.dumps(
+                {
+                    "public_key": public_key,
+                    "fetched_at": time.time(),
+                }
+            )
             _PUBLIC_KEY_CACHE.write_bytes(_encrypt_cache(plaintext))
             logger.info("PitchToShip public key cached (encrypted) to %s", _PUBLIC_KEY_CACHE)
         except OSError as e:
@@ -196,6 +205,7 @@ def _get_cached_public_key() -> str | None:
 
 
 # --- Signed Token Verification ---
+
 
 def verify_signed_token(signed_token: str, public_key_pem: str) -> dict[str, Any] | None:
     """Verify an ECDSA P-256 signed token from PitchToShip.
@@ -302,6 +312,7 @@ def _get_cached_signed_token(license_key: str) -> str | None:
 
 # --- Public API ---
 
+
 def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
     """Verify license against PitchToShip.
 
@@ -319,7 +330,9 @@ def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
         return result
 
     # PitchToShip unreachable or returned invalid — try offline verification
-    logger.info("PitchToShip offline, attempting offline ECDSA verification for key=%s", license_key[:8])
+    logger.info(
+        "PitchToShip offline, attempting offline ECDSA verification for key=%s", license_key[:8]
+    )
     signed_token = _get_cached_signed_token(license_key)
     if signed_token:
         public_key = _get_cached_public_key()
@@ -330,13 +343,17 @@ def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
                 exp = payload.get("expires_at")
                 if exp:
                     from datetime import datetime
+
                     if isinstance(exp, str):
                         exp_dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
                         if exp_dt.timestamp() < time.time():
                             logger.warning("Cached signed token expired")
                             return None
-                logger.info("Offline ECDSA verification succeeded for key=%s, tier=%s",
-                           license_key[:8], payload.get("tier"))
+                logger.info(
+                    "Offline ECDSA verification succeeded for key=%s, tier=%s",
+                    license_key[:8],
+                    payload.get("tier"),
+                )
                 return {
                     "valid": True,
                     "tier": payload.get("tier"),

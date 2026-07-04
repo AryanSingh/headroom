@@ -181,7 +181,6 @@ class OpenAIPassthroughMixin:
             headers=response_headers,
         )
 
-
     async def _handle_streaming_passthrough(
         self,
         request: Request,

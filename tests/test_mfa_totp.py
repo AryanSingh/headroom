@@ -7,6 +7,7 @@ verify the cryptographic primitives (HOTP, TOTP, base32),
 the single-use replay protection, the clock-skew window, and
 the SQLite-backed enrollment store.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,9 +21,7 @@ class TestHotp:
         from cutctx.security.mfa import _base32_decode, _hotp
 
         # RFC 4226: secret "12345678901234567890" (ASCII).
-        secret = _base32_decode(
-            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
-        )
+        secret = _base32_decode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
         # Test vectors from the RFC. We check the lower-6 digits
         # of the 8-digit values for ease of comparison.
         expected = {
@@ -39,8 +38,7 @@ class TestHotp:
         }
         for counter, code in expected.items():
             assert _hotp(secret, counter) == code, (
-                f"HOTP mismatch at counter={counter}: "
-                f"expected {code}, got {_hotp(secret, counter)}"
+                f"HOTP mismatch at counter={counter}: expected {code}, got {_hotp(secret, counter)}"
             )
 
 
@@ -132,17 +130,9 @@ class TestTotp:
         counter = int(now) // TOTP_STEP_S
         code = current_totp(secret, now=now).code
         # First call: ok
-        assert (
-            verify_totp(secret, code, now=now, last_used_counter=counter - 1)
-            is True
-        )
+        assert verify_totp(secret, code, now=now, last_used_counter=counter - 1) is True
         # Same code again, with the counter advanced -> reject
-        assert (
-            verify_totp(
-                secret, code, now=now, last_used_counter=counter
-            )
-            is False
-        )
+        assert verify_totp(secret, code, now=now, last_used_counter=counter) is False
 
     def test_verify_clock_skew_window(self):
         """Codes one step in the past or future are accepted."""
@@ -263,11 +253,14 @@ class TestEnrollVerifyRoundTrip:
         mfa_store.enroll("alice", "JBSWY3DPEHPK3PXP")
         enrollment = mfa_store.get("alice")
         code = current_totp(enrollment["secret_b32"]).code
-        assert verify_totp(
-            enrollment["secret_b32"],
-            code,
-            last_used_counter=enrollment["last_used_counter"],
-        ) is True
+        assert (
+            verify_totp(
+                enrollment["secret_b32"],
+                code,
+                last_used_counter=enrollment["last_used_counter"],
+            )
+            is True
+        )
 
     def test_known_test_vector(self, mfa_store):
         """Verify a hand-rolled TOTP at a known time matches.

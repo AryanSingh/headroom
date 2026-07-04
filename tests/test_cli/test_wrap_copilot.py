@@ -34,8 +34,7 @@ def wrap_modules(monkeypatch: pytest.MonkeyPatch) -> tuple[types.ModuleType, cli
         cutctx_pkg.cli if cutctx_pkg is not None and hasattr(cutctx_pkg, "cli") else None
     )
     saved_modules = {
-        name: sys.modules.get(name)
-        for name in ("cutctx.cli", "cutctx.cli.main", "cutctx.cli.wrap")
+        name: sys.modules.get(name) for name in ("cutctx.cli", "cutctx.cli.main", "cutctx.cli.wrap")
     }
 
     fake_main_module = types.ModuleType("cutctx.cli.main")

@@ -685,7 +685,6 @@ class TestCriticalFixesIntegration:
         store.search(hash_key, "item_50")
         # Should find the item even though it was compressed away
 
-
         # 7. Verify stats are consistent
         toin_stats = toin.get_stats()
         store_stats = store.get_stats()

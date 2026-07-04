@@ -176,6 +176,7 @@ def _check_feature(feature: dict[str, object]) -> dict[str, object]:
         main_ok = _module_available("graphifyy")
     if str(feature.get("name")) == "stack_graph":
         from cutctx.graph.resolver import stack_graph_available
+
         main_ok = stack_graph_available()
     if str(feature.get("name")) == "llmlingua":
         also["cutctx.transforms.llmlingua_compressor"] = _module_available(

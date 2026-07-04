@@ -1,6 +1,6 @@
 # cutctx-sdk
 
-Python SDK for [Cutctx](https://cutctx.dev) — AI context compression proxy.
+Python SDK for [Cutctx](https://cutctx.com) — AI context compression proxy.
 
 ## Quickstart
 

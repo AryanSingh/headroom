@@ -43,6 +43,4 @@ def test_start_proxy_waits_for_readyz_before_returning(
 
     assert isinstance(proc, FakeProc)
     assert readiness_checks == [8787, 8787, 8787]
-    assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(
-        tmp_path / "request_history.jsonl"
-    )
+    assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(tmp_path / "request_history.jsonl")

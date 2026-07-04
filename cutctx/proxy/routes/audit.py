@@ -46,10 +46,7 @@ def create_audit_router(
             len(dependencies),
         )
     except ImportError:
-        logger.debug(
-            "Enterprise audit module (cutctx_ee) not found. "
-            "Audit routes disabled."
-        )
+        logger.debug("Enterprise audit module (cutctx_ee) not found. Audit routes disabled.")
 
     return router
 

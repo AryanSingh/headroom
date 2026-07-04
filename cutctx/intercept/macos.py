@@ -49,24 +49,29 @@ def _run(
     return subprocess.run(full_cmd, input=input, capture_output=True, text=True, check=check)
 
 
-def _osascript_sudo(shell_cmd: str, description: str = "cutctx requires administrator access") -> None:
+def _osascript_sudo(
+    shell_cmd: str, description: str = "cutctx requires administrator access"
+) -> None:
     """Run a shell command with GUI admin privileges via macOS osascript dialog."""
     escaped = shell_cmd.replace('"', '\\"').replace("'", "'\\''")
-    script = f'do shell script "{escaped}" with administrator privileges with prompt "{description}"'
+    script = (
+        f'do shell script "{escaped}" with administrator privileges with prompt "{description}"'
+    )
     result = subprocess.run(
         ["osascript", "-e", script],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"Admin command failed (user may have cancelled).\n"
-            f"stderr: {result.stderr.strip()}"
+            f"Admin command failed (user may have cancelled).\nstderr: {result.stderr.strip()}"
         )
 
 
 # ---------------------------------------------------------------------------
 # mkcert
 # ---------------------------------------------------------------------------
+
 
 def ensure_mkcert() -> Path:
     path = shutil.which("mkcert")
@@ -98,9 +103,9 @@ def install_local_ca(mkcert: Path) -> None:
     print("  → A Terminal window will open. Enter your password there.")
     applescript = (
         f'tell application "Terminal"\n'
-        f'  activate\n'
+        f"  activate\n"
         f'  do script "{mkcert} -install && echo MKCERT_DONE"\n'
-        f'end tell'
+        f"end tell"
     )
     subprocess.run(["osascript", "-e", applescript], check=False)
     print("  Waiting for mkcert -install to complete", end="", flush=True)
@@ -132,7 +137,9 @@ def is_ca_installed(mkcert: Path) -> bool:
     # security verify-cert returns 0 only if the cert is trusted
     result = subprocess.run(
         ["security", "verify-cert", "-c", str(ca_cert)],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return result.returncode == 0
 
@@ -175,9 +182,7 @@ def remove_bypass_ips() -> None:
 
 def mkcert_ca_path(mkcert: Path) -> Path | None:
     """Return the path to the mkcert root CA certificate, if it exists."""
-    result = subprocess.run(
-        [str(mkcert), "-CAROOT"], capture_output=True, text=True, check=False
-    )
+    result = subprocess.run([str(mkcert), "-CAROOT"], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return None
     caroot = result.stdout.strip()
@@ -212,6 +217,7 @@ def remove_node_tls_trust() -> None:
 # ---------------------------------------------------------------------------
 # /etc/hosts
 # ---------------------------------------------------------------------------
+
 
 def _hosts_block(domains: list[str]) -> str:
     lines = [_HOSTS_START]
@@ -262,8 +268,11 @@ def remove_hosts_entries() -> None:
 # pfctl port forwarding  443 → proxy_port
 # ---------------------------------------------------------------------------
 
+
 def _pf_rule(proxy_port: int) -> str:
-    return f"rdr pass on lo0 proto tcp from any to 127.0.0.1 port 443 -> 127.0.0.1 port {proxy_port}"
+    return (
+        f"rdr pass on lo0 proto tcp from any to 127.0.0.1 port 443 -> 127.0.0.1 port {proxy_port}"
+    )
 
 
 def _pf_daemon_plist(proxy_port: int) -> str:
@@ -328,6 +337,7 @@ def remove_pfctl_forwarding() -> None:
 # LaunchAgent (com.cutctx.proxy.plist) TLS update
 # ---------------------------------------------------------------------------
 
+
 def update_launchagent_tls(cert_file: Path, key_file: Path, ca_path: Path | None = None) -> bool:
     if not _PROXY_PLIST.exists():
         return False
@@ -384,24 +394,23 @@ def remove_launchagent_tls() -> bool:
 
 
 def _reload_launchagent() -> None:
-    subprocess.run(
-        ["launchctl", "unload", str(_PROXY_PLIST)], capture_output=True, check=False
-    )
-    subprocess.run(
-        ["launchctl", "load", str(_PROXY_PLIST)], capture_output=True, check=False
-    )
+    subprocess.run(["launchctl", "unload", str(_PROXY_PLIST)], capture_output=True, check=False)
+    subprocess.run(["launchctl", "load", str(_PROXY_PLIST)], capture_output=True, check=False)
 
 
 # ---------------------------------------------------------------------------
 # Status
 # ---------------------------------------------------------------------------
 
+
 def status() -> dict:
     hosts_content = Path("/etc/hosts").read_text() if Path("/etc/hosts").exists() else ""
     cert_file = CERTS_DIR / "intercept.pem"
     node_ca = subprocess.run(
         ["launchctl", "getenv", "NODE_EXTRA_CA_CERTS"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     ).stdout.strip()
     return {
         "hosts_entries": _HOSTS_START in hosts_content,

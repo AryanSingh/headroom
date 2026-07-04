@@ -11,6 +11,7 @@ pipelines can block a leak before it ever reaches PyPI.
 Usage:
     python3 scripts/assert_oss_wheel_clean.py [dist_dir]   # default: dist
 """
+
 from __future__ import annotations
 
 import sys

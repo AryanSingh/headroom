@@ -293,9 +293,7 @@ class TestKeyboardInterruptExitCode:
 class TestNewEnvVarWiring:
     """Verify newly-added envvar= wiring works for options that lacked it."""
 
-    def test_cutctx_memory_db_path_from_env(
-        self, runner: CliRunner, mock_run_server: dict
-    ) -> None:
+    def test_cutctx_memory_db_path_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
         result = runner.invoke(
             main,
             ["proxy", "--memory"],

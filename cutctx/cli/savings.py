@@ -74,7 +74,9 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
     all_time_stats = storage.get_summary_stats()
 
     # Get filtered stats
-    filtered_stats = storage.get_summary_stats(start_time=start_time) if days > 0 else all_time_stats
+    filtered_stats = (
+        storage.get_summary_stats(start_time=start_time) if days > 0 else all_time_stats
+    )
 
     # Get pricing
     input_price, _ = _resolve_model_pricing(model)
@@ -84,7 +86,7 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
     tokens_after_filtered = filtered_stats.get("total_tokens_after", 0)
     tokens_saved_filtered = filtered_stats.get("total_tokens_saved", 0)
 
-    tokens_before_all = all_time_stats.get("total_tokens_before", 0)
+    all_time_stats.get("total_tokens_before", 0)
     tokens_saved_all = all_time_stats.get("total_tokens_saved", 0)
 
     # Cost without Cutctx (full price)
@@ -145,14 +147,20 @@ def _print_terminal_summary(summary: dict[str, Any]) -> None:
     sessions = summary["sessions_count"]
     roi = summary["roi"]
 
-    click.echo(f"  {click.style('Tokens saved:', bold=True):20s} {_format_tokens(tokens_saved):>10s}  ({compression:.1f}% compression)")
-    click.echo(f"  {click.style('Cost saved:', bold=True):20s} {_format_cost(cost_saved):>10s}  (vs ${summary['cost_without_cutctx']:.2f} without Cutctx)")
+    click.echo(
+        f"  {click.style('Tokens saved:', bold=True):20s} {_format_tokens(tokens_saved):>10s}  ({compression:.1f}% compression)"
+    )
+    click.echo(
+        f"  {click.style('Cost saved:', bold=True):20s} {_format_cost(cost_saved):>10s}  (vs ${summary['cost_without_cutctx']:.2f} without Cutctx)"
+    )
     click.echo(f"  {click.style('Sessions:', bold=True):20s} {sessions:>10d}")
     click.echo(f"  {click.style('ROI vs $49/mo:', bold=True):20s} {roi:>10.2f}×")
 
     if summary["days"] == 30:
         breakeven = summary["breakeven_tokens"]
-        click.echo(f"  {click.style('Break-even tokens/mo:', bold=True):20s} {_format_tokens(int(breakeven)):>10s}")
+        click.echo(
+            f"  {click.style('Break-even tokens/mo:', bold=True):20s} {_format_tokens(int(breakeven)):>10s}"
+        )
 
     click.echo()
 
@@ -180,7 +188,9 @@ def _print_savings_breakdown(
     if output_format == "json":
         payload: dict[str, Any] = {}
         if by_source:
-            payload["by_source"] = {src.value: by_source_data.get(src.value, 0) for src in SavingsSource}
+            payload["by_source"] = {
+                src.value: by_source_data.get(src.value, 0) for src in SavingsSource
+            }
         if by_provider:
             payload["by_provider"] = by_provider_data
         click.echo(json.dumps(payload, indent=2, default=str))
@@ -208,9 +218,7 @@ def _print_savings_breakdown(
         for src in SavingsSource:
             n = by_source_data.get(src.value, 0)
             pct = (n / total * 100) if total else 0.0
-            click.echo(
-                f"  {src.label:30s} {_format_tokens(n):>10s}  ({pct:5.1f}%)"
-            )
+            click.echo(f"  {src.label:30s} {_format_tokens(n):>10s}  ({pct:5.1f}%)")
         click.echo(f"  {'Total':30s} {_format_tokens(total):>10s}")
 
     if by_provider:
@@ -280,7 +288,7 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
     sessions = summary["sessions_count"]
     roi = summary["roi"]
     tokens_before = summary["tokens_before_filtered"]
-    tokens_after = summary["tokens_after_filtered"]
+    summary["tokens_after_filtered"]
 
     # HTML template with inline CSS and JS
     html = f"""<!DOCTYPE html>
@@ -445,7 +453,7 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
 <body>
     <div class="container">
         <h1>Cutctx Savings Report</h1>
-        <div class="subtitle">Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+        <div class="subtitle">Generated {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")}</div>
 
         <div class="stats-grid">
             <div class="stat-card">
@@ -456,17 +464,17 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
             <div class="stat-card">
                 <div class="label">Cost Saved</div>
                 <div class="value">{_format_cost(cost_saved)}</div>
-                <div class="subtext">vs ${summary['cost_without_cutctx']:.2f} full price</div>
+                <div class="subtext">vs ${summary["cost_without_cutctx"]:.2f} full price</div>
             </div>
             <div class="stat-card">
                 <div class="label">Sessions Processed</div>
                 <div class="value">{sessions}</div>
-                <div class="subtext">in last {summary['days']} days</div>
+                <div class="subtext">in last {summary["days"]} days</div>
             </div>
             <div class="stat-card">
                 <div class="label">ROI vs $49/mo</div>
                 <div class="value">{roi:.2f}×</div>
-                <div class="subtext">${summary['cost_saved_monthly']:.2f}/mo equivalent</div>
+                <div class="subtext">${summary["cost_saved_monthly"]:.2f}/mo equivalent</div>
             </div>
         </div>
 
@@ -498,15 +506,15 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
             <h3>Break-Even Analysis</h3>
             <div class="breakeven-metric">
                 <span>Monthly plan cost:</span>
-                <span style="font-weight: bold;">${summary['plan_cost_monthly']:.2f}</span>
+                <span style="font-weight: bold;">${summary["plan_cost_monthly"]:.2f}</span>
             </div>
             <div class="breakeven-metric">
                 <span>Tokens needed to break even:</span>
-                <span style="font-weight: bold;">{_format_tokens(int(summary['breakeven_tokens']))}</span>
+                <span style="font-weight: bold;">{_format_tokens(int(summary["breakeven_tokens"]))}</span>
             </div>
             <div class="breakeven-metric">
                 <span>Your tokens/month (projected):</span>
-                <span style="font-weight: bold;">{_format_tokens(int(summary['tokens_before_filtered'] / summary['days'] * 30 if summary['days'] > 0 else 0))}</span>
+                <span style="font-weight: bold;">{_format_tokens(int(summary["tokens_before_filtered"] / summary["days"] * 30 if summary["days"] > 0 else 0))}</span>
             </div>
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); opacity: 0.8;">
                 <span id="breakeven-status"></span>
@@ -594,8 +602,8 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
 
         // Update break-even status
         function updateBreakEvenStatus() {{
-            const monthlyTokens = {tokens_before} / {summary['days']} * 30;
-            const breakEvenTokens = {summary['breakeven_tokens']};
+            const monthlyTokens = {tokens_before} / {summary["days"]} * 30;
+            const breakEvenTokens = {summary["breakeven_tokens"]};
             const percentage = (monthlyTokens / breakEvenTokens) * 100;
 
             const status = document.getElementById('breakeven-status');
@@ -656,8 +664,7 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
     "--by-source",
     is_flag=True,
     default=False,
-    help="Break down savings by source (provider cache, Cutctx compression, "
-    "semantic cache, etc.).",
+    help="Break down savings by source (provider cache, Cutctx compression, semantic cache, etc.).",
 )
 @click.option(
     "--by-provider",
@@ -729,32 +736,25 @@ def savings(
                         "sessions_count": 0,
                         "total_tokens_saved": 0,
                         "total_usd_saved": 0.0,
-                        "savings_by_source": {
-                            src.value: 0 for src in SavingsSource
-                        },
-                        "savings_by_source_usd": {
-                            src.value: 0.0 for src in SavingsSource
-                        },
+                        "savings_by_source": {src.value: 0 for src in SavingsSource},
+                        "savings_by_source_usd": {src.value: 0.0 for src in SavingsSource},
                         "savings_sources": [
-                            {"id": src.value, "label": src.label}
-                            for src in SavingsSource
+                            {"id": src.value, "label": src.label} for src in SavingsSource
                         ],
                         "message": (
-                            "No sessions recorded yet. Run "
-                            "`cutctx wrap claude` to start a session."
+                            "No sessions recorded yet. Run `cutctx wrap claude` to start a session."
                         ),
                     },
                     indent=2,
                 )
             )
             return
-        click.echo(
-            "No sessions recorded yet. Run `cutctx wrap claude` to "
-            "start a session."
-        )
+        click.echo("No sessions recorded yet. Run `cutctx wrap claude` to start a session.")
         if output is not None:
             _ensure_output_parent(output)
-            output.write_text("<html><body><h1>No sessions recorded yet</h1></body></html>", encoding="utf-8")
+            output.write_text(
+                "<html><body><h1>No sessions recorded yet</h1></body></html>", encoding="utf-8"
+            )
         return
 
     # Print terminal summary

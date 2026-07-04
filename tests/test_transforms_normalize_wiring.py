@@ -15,12 +15,8 @@ assert both contracts:
 
 from __future__ import annotations
 
-import pytest
-
-import cutctx.transforms.content_router as content_router_module
 from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
 from cutctx.transforms.normalize import NormalizeConfig
-
 
 # ---------------------------------------------------------------------------
 # Flag-off golden parity — the spec's permanent contract test
@@ -96,8 +92,8 @@ def test_content_router_unicode_normalize_runs_when_enabled() -> None:
     the strategy), only that the pre-pass ran — verified by
     instrumenting normalize_content and asserting the call.
     """
-    import cutctx.transforms.normalize as normalize_module
     import cutctx.transforms.content_router as cr_module
+    import cutctx.transforms.normalize as normalize_module
 
     calls: list[tuple[str, NormalizeConfig]] = []
     original = normalize_module.normalize_content
@@ -130,8 +126,8 @@ def test_content_router_whitespace_collapse_runs_when_enabled() -> None:
     """When enable_whitespace_collapse is on, the pre-pass strips
     trailing whitespace and collapses blank-line runs.
     """
-    import cutctx.transforms.normalize as normalize_module
     import cutctx.transforms.content_router as cr_module
+    import cutctx.transforms.normalize as normalize_module
 
     calls: list[tuple[str, NormalizeConfig]] = []
     original = normalize_module.normalize_content
@@ -177,9 +173,7 @@ def test_content_router_compress_sees_post_normalized_content() -> None:
     # only that no line has trailing whitespace.
     for line in result.compressed.splitlines():
         if line:  # skip empty lines
-            assert line == line.rstrip(), (
-                f"trailing whitespace survived normalization: {line!r}"
-            )
+            assert line == line.rstrip(), f"trailing whitespace survived normalization: {line!r}"
 
 
 def test_content_router_off_path_unchanged_against_spy() -> None:
@@ -204,9 +198,7 @@ def test_content_router_off_path_unchanged_against_spy() -> None:
     finally:
         normalize_module.normalize_content = original
 
-    assert calls == [], (
-        f"normalize_content was called with flag off: {len(calls)} call(s)"
-    )
+    assert calls == [], f"normalize_content was called with flag off: {len(calls)} call(s)"
 
 
 # ---------------------------------------------------------------------------

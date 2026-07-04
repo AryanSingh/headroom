@@ -211,9 +211,7 @@ class RequestSavingsBreakdown:
             raw_input_tokens=int(payload.get("raw_input_tokens") or 0),
             post_cutctx_tokens=int(payload.get("post_cutctx_tokens") or 0),
             provider_cached_tokens=int(payload.get("provider_cached_tokens") or 0),
-            semantic_cache_avoided_tokens=int(
-                payload.get("semantic_cache_avoided_tokens") or 0
-            ),
+            semantic_cache_avoided_tokens=int(payload.get("semantic_cache_avoided_tokens") or 0),
             total_tokens_saved=int(payload.get("total_tokens_saved") or 0),
             by_source=SavingsBySource.from_dict(payload.get("by_source")),
         )

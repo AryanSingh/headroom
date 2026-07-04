@@ -35,15 +35,11 @@ from cutctx.proxy.output_optimizer import (
     DEFAULT_MAXTOK_AUTO_MULTIPLIER,
     DEFAULT_OUTPUT_QUANTILE_PERCENTILE,
     OutputOptimizeConfig,
-    OutputOptimizeDecision,
     OutputOptimizer,
-    OutputOptActions,
     detect_task_type,
-    cap_max_tokens,
     should_inject_diff_edit,
     should_inject_style,
 )
-
 
 # ---------------------------------------------------------------------------
 # Flag-off golden contract — the spec's permanent test
@@ -271,7 +267,9 @@ def test_maxtok_auto_records_truncation_as_miss() -> None:
     # Apply a low cap; the upstream truncates
     cap1 = 50
     optimizer.record_outcome(
-        session_id="s1", task_type="general", output_tokens=50,
+        session_id="s1",
+        task_type="general",
+        output_tokens=50,
         finish_reason="max_tokens",  # truncated
     )
     # Next request: the cap should be raised
@@ -348,9 +346,7 @@ def test_safety_rail_disables_levers_1_and_3_on_guard_failure() -> None:
 def test_safety_rail_disables_levers_on_client_retry() -> None:
     """If a client retry is recorded (same session), levers 1 and 3
     are disabled for that session."""
-    cfg = OutputOptimizeConfig(
-        enabled=True, enable_diff_edit=True, enable_style=True
-    )
+    cfg = OutputOptimizeConfig(enabled=True, enable_diff_edit=True, enable_style=True)
     optimizer = OutputOptimizer(cfg)
     optimizer.record_client_retry(session_id="s1")
 
@@ -365,9 +361,7 @@ def test_safety_rail_disables_levers_on_client_retry() -> None:
 
 def test_safety_rail_is_per_session() -> None:
     """A safety-rail trip in session s1 does NOT affect session s2."""
-    cfg = OutputOptimizeConfig(
-        enabled=True, enable_diff_edit=True, enable_style=True
-    )
+    cfg = OutputOptimizeConfig(enabled=True, enable_diff_edit=True, enable_style=True)
     optimizer = OutputOptimizer(cfg)
     optimizer.record_guard_failure(session_id="s1")
 
@@ -404,7 +398,9 @@ def test_all_three_levers_can_fire_in_one_request() -> None:
     # Establish a quantile for code_edit
     for tokens in [100, 200, 300]:
         optimizer.record_outcome(
-            session_id="s1", task_type="code_edit", output_tokens=tokens,
+            session_id="s1",
+            task_type="code_edit",
+            output_tokens=tokens,
             finish_reason="end_turn",
         )
     body = {
@@ -438,7 +434,9 @@ def test_flag_off_does_not_grow_state() -> None:
         }
         optimizer.optimize(request_body=body, session_id=f"s{i}")
         optimizer.record_outcome(
-            session_id=f"s{i}", task_type="general", output_tokens=100,
+            session_id=f"s{i}",
+            task_type="general",
+            output_tokens=100,
             finish_reason="end_turn",
         )
         optimizer.record_guard_failure(session_id=f"s{i}")
@@ -460,9 +458,7 @@ def test_flag_off_does_not_grow_state() -> None:
 def test_estimated_savings_is_nonnegative() -> None:
     """The estimated_tokens_saved is the sum of avoided output tokens
     across all levers. Always >= 0 (the optimizer never invents savings)."""
-    cfg = OutputOptimizeConfig(
-        enabled=True, enable_diff_edit=True, enable_maxtok_auto=True
-    )
+    cfg = OutputOptimizeConfig(enabled=True, enable_diff_edit=True, enable_maxtok_auto=True)
     optimizer = OutputOptimizer(cfg)
     body = {
         "model": "claude-3-opus",

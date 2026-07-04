@@ -26,6 +26,7 @@ from cutctx.proxy.intelligence_pipeline import IntelligencePipeline, PipelineCon
 # Helpers — realistic message fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_task_messages(task: str, extra_context: str = "") -> list[dict]:
     """Create realistic agent conversation with a detectable task."""
     msgs = [
@@ -57,17 +58,24 @@ def _make_repeated_turns(n: int, content_len: int = 1200) -> list[dict]:
 
 def _make_duplicate_content_messages(n_copies: int = 3) -> list[dict]:
     """Create messages where the same large content appears multiple times."""
-    file_content = _make_long_content(1200, "class DatabaseConnection:\n    def __init__(self, host, port): ")
+    file_content = _make_long_content(
+        1200, "class DatabaseConnection:\n    def __init__(self, host, port): "
+    )
     msgs = [{"role": "system", "content": "You are a helpful coding assistant."}]
     for i in range(n_copies):
-        msgs.append({"role": "user", "content": f"Here's the file content (copy {i+1}):\n{file_content}"})
-    msgs.append({"role": "assistant", "content": "I see the file content repeated. Let me analyze it."})
+        msgs.append(
+            {"role": "user", "content": f"Here's the file content (copy {i + 1}):\n{file_content}"}
+        )
+    msgs.append(
+        {"role": "assistant", "content": "I see the file content repeated. Let me analyze it."}
+    )
     return msgs
 
 
 # ---------------------------------------------------------------------------
 # 1. Task-Aware Compression — E2E
 # ---------------------------------------------------------------------------
+
 
 class TestTaskAwareE2E:
     """End-to-end task-aware compression testing."""
@@ -77,7 +85,7 @@ class TestTaskAwareE2E:
         pipeline = IntelligencePipeline(task_aware=True)
         messages = _make_task_messages(
             "debug the HTTP 500 error",
-            "The error occurs when calling /api/users endpoint with invalid auth token"
+            "The error occurs when calling /api/users endpoint with invalid auth token",
         )
 
         ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
@@ -101,8 +109,14 @@ class TestTaskAwareE2E:
         messages = [
             {"role": "system", "content": "You are a helpful coding assistant."},
             {"role": "user", "content": "debug the HTTP 500 error in the API"},
-            {"role": "assistant", "content": "The error trace shows a NullPointerException in DatabaseConnection.connect()"},
-            {"role": "user", "content": "Also, what's the weather like today? Can you recommend a good restaurant?"},
+            {
+                "role": "assistant",
+                "content": "The error trace shows a NullPointerException in DatabaseConnection.connect()",
+            },
+            {
+                "role": "user",
+                "content": "Also, what's the weather like today? Can you recommend a good restaurant?",
+            },
         ]
 
         ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
@@ -130,7 +144,10 @@ class TestTaskAwareE2E:
         pipeline = IntelligencePipeline(task_aware=True)
         messages = [
             {"role": "system", "content": "sys"},  # <20 chars → 1.0
-            {"role": "user", "content": "debug the critical authentication timeout error"},  # long → scored
+            {
+                "role": "user",
+                "content": "debug the critical authentication timeout error",
+            },  # long → scored
             {"role": "assistant", "content": "ok"},  # <20 chars → 1.0
         ]
 
@@ -145,7 +162,10 @@ class TestTaskAwareE2E:
         """Tasks starting with question words (How, What, Why) are extracted."""
         pipeline = IntelligencePipeline(task_aware=True)
         messages = [
-            {"role": "user", "content": "How does the authentication middleware work in the proxy server?"},
+            {
+                "role": "user",
+                "content": "How does the authentication middleware work in the proxy server?",
+            },
         ]
 
         ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
@@ -157,6 +177,7 @@ class TestTaskAwareE2E:
 # ---------------------------------------------------------------------------
 # 2. Semantic Dedup — E2E
 # ---------------------------------------------------------------------------
+
 
 class TestSemanticDedupE2E:
     """End-to-end semantic deduplication testing."""
@@ -218,16 +239,12 @@ class TestSemanticDedupE2E:
         large_content = _make_long_content(1200)
 
         # First call: content is new
-        r1 = dedup.process([
-            {"role": "user", "content": large_content}
-        ])
+        r1 = dedup.process([{"role": "user", "content": large_content}])
         assert r1.dedup_count == 0
         assert r1.refs_created == 1
 
         # Second call: same content → deduped
-        r2 = dedup.process([
-            {"role": "user", "content": large_content}
-        ])
+        r2 = dedup.process([{"role": "user", "content": large_content}])
         assert r2.dedup_count == 1
         assert "[cutctx:ref:" in r2.messages[0]["content"]
 
@@ -250,6 +267,7 @@ class TestSemanticDedupE2E:
 # ---------------------------------------------------------------------------
 # 3. Context Budget — E2E
 # ---------------------------------------------------------------------------
+
 
 class TestContextBudgetE2E:
     """End-to-end context budget controller testing."""
@@ -319,6 +337,7 @@ class TestContextBudgetE2E:
 # 4. Cross-Session Profiles — E2E
 # ---------------------------------------------------------------------------
 
+
 class TestCrossSessionProfilesE2E:
     """End-to-end cross-session profile testing."""
 
@@ -332,12 +351,14 @@ class TestCrossSessionProfilesE2E:
             profile = CompressionProfile(workspace_hash=test_hash)
             profile.record_session(
                 session_id="test-session-1",
-                stats=[{
-                    "content_type": "code",
-                    "original_count": 1000,
-                    "compressed_count": 500,
-                    "was_retrieved": False,
-                }],
+                stats=[
+                    {
+                        "content_type": "code",
+                        "original_count": 1000,
+                        "compressed_count": 500,
+                        "was_retrieved": False,
+                    }
+                ],
             )
 
             # Monkeypatch _get_profile_path to use our tmpdir
@@ -368,12 +389,14 @@ class TestCrossSessionProfilesE2E:
         for _ in range(10):
             profile.record_session(
                 session_id=f"session-{_}",
-                stats=[{
-                    "content_type": "logs",
-                    "original_count": 1000,
-                    "compressed_count": 300,  # 30% ratio (aggressive)
-                    "was_retrieved": True,
-                }],
+                stats=[
+                    {
+                        "content_type": "logs",
+                        "original_count": 1000,
+                        "compressed_count": 300,  # 30% ratio (aggressive)
+                        "was_retrieved": True,
+                    }
+                ],
             )
 
         # High retrieval rate should push recommended ratio higher
@@ -410,12 +433,14 @@ class TestCrossSessionProfilesE2E:
         for i in range(2):
             profile.record_session(
                 session_id=f"low-retrieval-{i}",
-                stats=[{
-                    "content_type": "tool_output",
-                    "original_count": 1000,
-                    "compressed_count": 400,
-                    "was_retrieved": False,
-                }],
+                stats=[
+                    {
+                        "content_type": "tool_output",
+                        "original_count": 1000,
+                        "compressed_count": 400,
+                        "was_retrieved": False,
+                    }
+                ],
             )
 
         target_after_low = profile.get_compression_target("tool_output")
@@ -424,12 +449,14 @@ class TestCrossSessionProfilesE2E:
         for i in range(3):
             profile.record_session(
                 session_id=f"high-retrieval-{i}",
-                stats=[{
-                    "content_type": "tool_output",
-                    "original_count": 1000,
-                    "compressed_count": 400,
-                    "was_retrieved": True,
-                }],
+                stats=[
+                    {
+                        "content_type": "tool_output",
+                        "original_count": 1000,
+                        "compressed_count": 400,
+                        "was_retrieved": True,
+                    }
+                ],
             )
 
         target_after_high = profile.get_compression_target("tool_output")
@@ -440,6 +467,7 @@ class TestCrossSessionProfilesE2E:
 # ---------------------------------------------------------------------------
 # 5. Multi-Agent Shared State — E2E
 # ---------------------------------------------------------------------------
+
 
 class TestMultiAgentSharedStateE2E:
     """End-to-end multi-agent shared state testing."""
@@ -570,6 +598,7 @@ class TestMultiAgentSharedStateE2E:
 # 6. Cost Forecasting — E2E
 # ---------------------------------------------------------------------------
 
+
 class TestCostForecastingE2E:
     """End-to-end cost forecasting testing."""
 
@@ -628,7 +657,9 @@ class TestCostForecastingE2E:
         assert ctx1.policy_compression_ratio > 0
 
         pipeline.post_compression(
-            messages, messages, ctx1,
+            messages,
+            messages,
+            ctx1,
             request_id="test-cost-1",
             input_tokens=10_000,
             output_tokens=500,
@@ -637,7 +668,9 @@ class TestCostForecastingE2E:
         # Second request — cost tracker should have accumulated
         ctx2 = pipeline.pre_compression(messages, model="claude-sonnet-4")
         pipeline.post_compression(
-            messages, messages, ctx2,
+            messages,
+            messages,
+            ctx2,
             request_id="test-cost-2",
             input_tokens=15_000,
             output_tokens=800,
@@ -687,6 +720,7 @@ class TestCostForecastingE2E:
 # 7. Full Pipeline — Multi-Request Persistence
 # ---------------------------------------------------------------------------
 
+
 class TestPipelinePersistenceE2E:
     """Test that pipeline state persists across multiple requests."""
 
@@ -722,7 +756,9 @@ class TestPipelinePersistenceE2E:
         for i in range(5):
             ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
             pipeline.post_compression(
-                messages, messages, ctx,
+                messages,
+                messages,
+                ctx,
                 request_id=f"req-{i}",
                 input_tokens=10_000,
                 output_tokens=500,
@@ -756,6 +792,7 @@ class TestPipelinePersistenceE2E:
 # 8. Graceful Failure — E2E
 # ---------------------------------------------------------------------------
 
+
 class TestGracefulFailureE2E:
     """Test that failures in individual modules don't break the pipeline."""
 
@@ -764,7 +801,10 @@ class TestGracefulFailureE2E:
         pipeline = IntelligencePipeline(task_aware=True)
         messages = [{"role": "user", "content": "help me"}]
 
-        with patch("cutctx.compression.task_aware.TaskExtractor.extract_task", side_effect=RuntimeError("boom")):
+        with patch(
+            "cutctx.compression.task_aware.TaskExtractor.extract_task",
+            side_effect=RuntimeError("boom"),
+        ):
             ctx = pipeline.pre_compression(messages, model="claude-sonnet-4")
             # Should not raise
             assert ctx.task is None
@@ -815,7 +855,9 @@ class TestGracefulFailureE2E:
         messages = _make_task_messages("fix bug")
         ctx = PipelineContext()
 
-        with patch.object(pipeline, "_get_budget_controller", side_effect=RuntimeError("budget boom")):
+        with patch.object(
+            pipeline, "_get_budget_controller", side_effect=RuntimeError("budget boom")
+        ):
             result = pipeline.post_compression(messages, messages, ctx, "test-fail-5")
             assert len(result) == len(messages)
 
@@ -823,6 +865,7 @@ class TestGracefulFailureE2E:
 # ---------------------------------------------------------------------------
 # 9. Combined Feature E2E — Full Stack
 # ---------------------------------------------------------------------------
+
 
 class TestCombinedFeaturesE2E:
     """Test multiple features working together in a realistic scenario."""
@@ -841,7 +884,7 @@ class TestCombinedFeaturesE2E:
 
         messages = _make_task_messages(
             "debug the database connection pooling issue",
-            "The error happens intermittently under high load with 500 concurrent connections"
+            "The error happens intermittently under high load with 500 concurrent connections",
         )
 
         # Pre-compression
@@ -851,7 +894,9 @@ class TestCombinedFeaturesE2E:
 
         # Post-compression
         result = pipeline.post_compression(
-            messages, messages, ctx,
+            messages,
+            messages,
+            ctx,
             request_id="combined-test-1",
             input_tokens=5_000,
             output_tokens=200,
@@ -873,13 +918,19 @@ class TestCombinedFeaturesE2E:
         )
 
         # Simulate turns with file reads (duplicated content)
-        file_content = _make_long_content(1200, "def authenticate_user(request):\n    token = request.headers.get('Authorization')\n")
+        file_content = _make_long_content(
+            1200,
+            "def authenticate_user(request):\n    token = request.headers.get('Authorization')\n",
+        )
         messages = [
             {"role": "system", "content": "You are a Python backend developer."},
             {"role": "user", "content": "Please debug the authentication error in the API"},
             {"role": "assistant", "content": "I'll look at the authentication code."},
             {"role": "user", "content": f"Here's the file:\n{file_content}"},
-            {"role": "assistant", "content": "I see the issue. The token validation is missing error handling."},
+            {
+                "role": "assistant",
+                "content": "I see the issue. The token validation is missing error handling.",
+            },
             {"role": "user", "content": f"Here's the file again:\n{file_content}"},  # Duplicate!
             {"role": "assistant", "content": "Let me fix the error handling."},
             {"role": "user", "content": "Now test the fix with a valid token"},
@@ -890,7 +941,9 @@ class TestCombinedFeaturesE2E:
         # Request 1: initial context
         ctx1 = pipeline.pre_compression(messages[:5], model="claude-sonnet-4")
         result1 = pipeline.post_compression(
-            messages[:5], messages[:5], ctx1,
+            messages[:5],
+            messages[:5],
+            ctx1,
             request_id="turn-1",
             input_tokens=15_000,
             output_tokens=500,
@@ -899,7 +952,9 @@ class TestCombinedFeaturesE2E:
         # Request 2: full conversation with duplicate
         ctx2 = pipeline.pre_compression(messages, model="claude-sonnet-4")
         result2 = pipeline.post_compression(
-            messages, messages, ctx2,
+            messages,
+            messages,
+            ctx2,
             request_id="turn-2",
             input_tokens=30_000,
             output_tokens=1_000,
@@ -939,6 +994,7 @@ class TestCombinedFeaturesE2E:
 # ---------------------------------------------------------------------------
 # 10. Integration with from_config — E2E
 # ---------------------------------------------------------------------------
+
 
 class TestFromConfigE2E:
     """Test that from_config correctly reads ProxyConfig attributes."""

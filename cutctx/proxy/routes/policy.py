@@ -45,10 +45,7 @@ def create_policy_router(
             len(dependencies),
         )
     except ImportError:
-        logger.debug(
-            "Enterprise policy module (cutctx_ee) not found. "
-            "Policy routes disabled."
-        )
+        logger.debug("Enterprise policy module (cutctx_ee) not found. Policy routes disabled.")
 
     return router
 

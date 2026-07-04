@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     pass
 
 
-
 logger = logging.getLogger("cutctx.proxy")
 
 _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES = 10_000
@@ -31,6 +30,7 @@ _OPENAI_RESPONSES_UNIT_PARALLELISM_MAX = 16
 _OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
+
 
 def _usage_int(value: Any) -> int:
     try:
@@ -347,10 +347,10 @@ def _extract_codex_handshake_headers(upstream: Any) -> list[tuple[str, str]]:
         return []
     out: list[tuple[str, str]] = []
     for name, value in items:
-        name_str = name.decode("latin-1") if isinstance(name, (bytes, bytearray)) else str(name)
+        name_str = name.decode("latin-1") if isinstance(name, bytes | bytearray) else str(name)
         if name_str.lower().startswith("x-codex-"):
             value_str = (
-                value.decode("latin-1") if isinstance(value, (bytes, bytearray)) else str(value)
+                value.decode("latin-1") if isinstance(value, bytes | bytearray) else str(value)
             )
             out.append((name_str, value_str))
     return out
@@ -468,4 +468,3 @@ _OPENAI_TOOL_SCHEMA_DROP_KEYS = {
 RESPONSES_CONTEXT_SEARCH_TIMEOUT_SECONDS = 2.0
 
 WS_FIRST_FRAME_TIMEOUT_SECONDS = 60.0
-

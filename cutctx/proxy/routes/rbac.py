@@ -53,9 +53,7 @@ def create_rbac_router(
         return {"assignments": checker.list_assignments()}
 
     @router.post("/assignments/{user_id}", dependencies=dependencies)
-    async def assign_role(
-        request: Request, user_id: str, role: str
-    ) -> dict[str, Any]:
+    async def assign_role(request: Request, user_id: str, role: str) -> dict[str, Any]:
         if get_rbac_checker is None or AdminRole is None:
             raise HTTPException(
                 status_code=501,
@@ -79,9 +77,7 @@ def create_rbac_router(
         checker = get_rbac_checker()
         success = checker.revoke_role(user_id)
         if not success:
-            raise HTTPException(
-                status_code=404, detail="Role assignment not found"
-            )
+            raise HTTPException(status_code=404, detail="Role assignment not found")
         return {"status": "success", "user_id": user_id}
 
     return router

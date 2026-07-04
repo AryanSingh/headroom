@@ -61,4 +61,4 @@ Auditors should note that the primary residual risk surface is Cutctx's license 
 
 ---
 
-*For questions about this controls mapping or to request audit evidence, contact security@cutctx.dev.*
+*For questions about this controls mapping or to request audit evidence, contact security@cutctx.com.*

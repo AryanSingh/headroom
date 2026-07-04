@@ -403,9 +403,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
     probe_results = iter([False, False, True])
     sleeps: list[int] = []
     monkeypatch.setattr("cutctx.install.runtime.probe_ready", lambda url: next(probe_results))
-    monkeypatch.setattr(
-        "cutctx.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
-    )
+    monkeypatch.setattr("cutctx.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds))
     assert wait_ready(python_manifest, timeout_seconds=3) is True
     assert sleeps == [1, 1]
 

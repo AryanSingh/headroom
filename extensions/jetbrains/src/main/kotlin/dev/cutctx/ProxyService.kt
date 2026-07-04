@@ -2,6 +2,7 @@ package dev.cutctx
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.util.net.HttpConfigurable
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -31,6 +32,12 @@ class ProxyService {
                 .start()
             process?.onExit()?.thenRun { _isRunning = false }
             waitForReady(port, 30)
+            
+            val httpConfigurable = HttpConfigurable.getInstance()
+            httpConfigurable.USE_HTTP_PROXY = true
+            httpConfigurable.PROXY_HOST = "127.0.0.1"
+            httpConfigurable.PROXY_PORT = port
+
             _isRunning = true
             log.info("CutCtx proxy started on port $port")
         } catch (e: Exception) {
@@ -43,6 +50,10 @@ class ProxyService {
 
     fun stop() {
         _isRunning = false
+        
+        val httpConfigurable = HttpConfigurable.getInstance()
+        httpConfigurable.USE_HTTP_PROXY = false
+        
         process?.let {
             it.destroy()
             if (!it.waitFor(5, TimeUnit.SECONDS)) it.destroyForcibly()

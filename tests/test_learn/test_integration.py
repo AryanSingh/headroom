@@ -90,8 +90,9 @@ class TestIdempotency:
         second_content = (tmp_path / "CLAUDE.md").read_text()
 
         import re
-        first_content = re.sub(r'<!-- provenance: .*? -->\n', '', first_content)
-        second_content = re.sub(r'<!-- provenance: .*? -->\n', '', second_content)
+
+        first_content = re.sub(r"<!-- provenance: .*? -->\n", "", first_content)
+        second_content = re.sub(r"<!-- provenance: .*? -->\n", "", second_content)
 
         # Content should be identical (replaced, not appended)
         assert first_content == second_content

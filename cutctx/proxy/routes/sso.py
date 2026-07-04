@@ -56,9 +56,9 @@ def create_sso_router(
         sso_validator = getattr(proxy, "sso_validator", None) if proxy else None
         return {
             "sso_configured": sso_validator is not None,
-            "provider": getattr(
-                sso_validator, "provider_type", None
-            ) if sso_validator is not None else None,
+            "provider": getattr(sso_validator, "provider_type", None)
+            if sso_validator is not None
+            else None,
         }
 
     @router.post("/validate", dependencies=write_deps)

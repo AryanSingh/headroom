@@ -1,6 +1,6 @@
 # Spec — `cutctx-oauth2` (generic OAuth2 client-credentials upstream auth)
 
-Feature request: [chopratejas/cutctx#778](https://github.com/chopratejas/cutctx/issues/778).
+Feature request: [cutctx/cutctx#778](https://github.com/cutctx/cutctx/issues/778).
 Status: implementation ready; awaiting maintainer 👍 before merge.
 
 ## Summary

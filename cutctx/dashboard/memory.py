@@ -10,6 +10,7 @@ from cutctx.observability.memory_impact import MemoryImpactTelemetry
 
 router = APIRouter(prefix="/v1/dashboard/memory", tags=["Team Memory Dashboard"])
 
+
 @router.get("/{org_id}")
 async def get_team_memory_dashboard(org_id: str) -> dict:
     """Return aggregated memory metrics for the dashboard view."""
@@ -23,6 +24,6 @@ async def get_team_memory_dashboard(org_id: str) -> dict:
             "total_tokens_saved": metrics["total_tokens_saved"],
             "dollars_saved": metrics["total_tokens_saved"] * 0.000001,
             "success_lift": metrics["average_success_lift"],
-            "events_count": metrics["events_count"]
-        }
+            "events_count": metrics["events_count"],
+        },
     }

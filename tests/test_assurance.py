@@ -59,7 +59,9 @@ def test_ledger_chain_detects_tamper(tmp_path):
     import sqlite3
 
     with sqlite3.connect(tmp_path / "tamper.db") as conn:
-        conn.execute("UPDATE evidence_ledger SET event_type = 'tampered' WHERE event_id = 'evt-001'")
+        conn.execute(
+            "UPDATE evidence_ledger SET event_type = 'tampered' WHERE event_id = 'evt-001'"
+        )
         conn.commit()
 
     chain = ledger.verify_chain()
@@ -107,8 +109,12 @@ def test_ledger_stats(tmp_path):
 def test_ledger_export_markdown(tmp_path):
     ledger = EvidenceLedger(path=tmp_path / "export.md")
     ledger.record(event_id="evt-001", event_type=EVENT_COMPRESSION, session_id="sess-1")
-    ledger.record(event_id="evt-002", event_type=EVENT_POLICY_BLOCK, session_id="sess-1",
-                  detail={"reason": "Blocked by security policy"})
+    ledger.record(
+        event_id="evt-002",
+        event_type=EVENT_POLICY_BLOCK,
+        session_id="sess-1",
+        detail={"reason": "Blocked by security policy"},
+    )
 
     md = ledger.export_bundle(fmt="markdown")
     assert "# Context Assurance Evidence Bundle" in md
@@ -182,6 +188,5 @@ def test_replay_extension_is_registered_for_discovery(monkeypatch):
     discovered = discover_pipeline_extensions()
 
     assert any(
-        extension.__class__.__name__ == "ReplayPipelineExtension"
-        for extension in discovered
+        extension.__class__.__name__ == "ReplayPipelineExtension" for extension in discovered
     )

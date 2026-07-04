@@ -215,7 +215,10 @@ ANTHROPIC_TOOLS = [
                 },
                 "checks": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["bugs", "style", "security", "performance", "complexity"]},
+                    "items": {
+                        "type": "string",
+                        "enum": ["bugs", "style", "security", "performance", "complexity"],
+                    },
                     "description": "Which analysis checks to run",
                     "minItems": 1,
                     "maxItems": 5,
@@ -347,17 +350,30 @@ OPENAI_TOOLS = [
 
 # ─── Old OpenAI 10-key drop list (for comparison) ───
 
-_OLD_DROP_KEYS = {"$id", "$schema", "$comment", "deprecated", "examples", "example", "markdownDescription", "readOnly", "title", "writeOnly"}
+_OLD_DROP_KEYS = {
+    "$id",
+    "$schema",
+    "$comment",
+    "deprecated",
+    "examples",
+    "example",
+    "markdownDescription",
+    "readOnly",
+    "title",
+    "writeOnly",
+}
 
 
 def _apply_old_drop(tools):
     """Simulate the OLD OpenAI tool schema compaction (10-key drop only)."""
+
     def _drop(obj):
         if isinstance(obj, list):
             return [_drop(x) for x in obj]
         if not isinstance(obj, dict):
             return obj
         return {k: _drop(v) for k, v in obj.items() if k not in _OLD_DROP_KEYS}
+
     return _drop(tools)
 
 
@@ -382,9 +398,13 @@ def run_benchmark():
     compacted, modified, _, after_new = compress_tool_schemas(ANTHROPIC_TOOLS)
 
     print(f"  Original:     {before:>6} bytes  (~{_estimate_tokens(ANTHROPIC_TOOLS):>4} tokens)")
-    print(f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(ANTHROPIC_TOOLS)):>4} tokens)  ({(1 - after_old/before)*100:.1f}% savings)")
+    print(
+        f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(ANTHROPIC_TOOLS)):>4} tokens)  ({(1 - after_old / before) * 100:.1f}% savings)"
+    )
     if modified:
-        print(f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new/before)*100:.1f}% savings)")
+        print(
+            f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new / before) * 100:.1f}% savings)"
+        )
     else:
         print("  New (30-key): no change")
 
@@ -395,9 +415,13 @@ def run_benchmark():
     compacted, modified, _, after_new = compress_tool_schemas(OPENAI_TOOLS)
 
     print(f"  Original:     {before:>6} bytes  (~{_estimate_tokens(OPENAI_TOOLS):>4} tokens)")
-    print(f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(OPENAI_TOOLS)):>4} tokens)  ({(1 - after_old/before)*100:.1f}% savings)")
+    print(
+        f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(OPENAI_TOOLS)):>4} tokens)  ({(1 - after_old / before) * 100:.1f}% savings)"
+    )
     if modified:
-        print(f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new/before)*100:.1f}% savings)")
+        print(
+            f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new / before) * 100:.1f}% savings)"
+        )
     else:
         print("  New (30-key): no change")
 
@@ -409,9 +433,13 @@ def run_benchmark():
     compacted, modified, _, after_new = compress_tool_schemas(all_tools)
 
     print(f"  Original:     {before:>6} bytes  (~{_estimate_tokens(all_tools):>4} tokens)")
-    print(f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(all_tools)):>4} tokens)  ({(1 - after_old/before)*100:.1f}% savings)")
+    print(
+        f"  Old (10-key): {after_old:>6} bytes  (~{_estimate_tokens(_apply_old_drop(all_tools)):>4} tokens)  ({(1 - after_old / before) * 100:.1f}% savings)"
+    )
     if modified:
-        print(f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new/before)*100:.1f}% savings)")
+        print(
+            f"  New (30-key): {after_new:>6} bytes  (~{_estimate_tokens(compacted):>4} tokens)  ({(1 - after_new / before) * 100:.1f}% savings)"
+        )
 
     # ─── Benchmark 4: Tool results compression ───
     print("\n─── Tool Results: Homogeneous Array Compression ───")
@@ -424,9 +452,13 @@ def run_benchmark():
         original_bytes = len(items_json.encode("utf-8"))
         compressed_bytes = len(compressed_json.encode("utf-8"))
         if compressed_bytes < original_bytes:
-            print(f"  {n_items} items × {n_fields} fields: {original_bytes:>5} → {compressed_bytes:>5} bytes ({(1 - compressed_bytes/original_bytes)*100:.1f}% savings)")
+            print(
+                f"  {n_items} items × {n_fields} fields: {original_bytes:>5} → {compressed_bytes:>5} bytes ({(1 - compressed_bytes / original_bytes) * 100:.1f}% savings)"
+            )
         else:
-            print(f"  {n_items} items × {n_fields} fields: {original_bytes:>5} → {compressed_bytes:>5} bytes (no savings — overhead exceeds savings)")
+            print(
+                f"  {n_items} items × {n_fields} fields: {original_bytes:>5} → {compressed_bytes:>5} bytes (no savings — overhead exceeds savings)"
+            )
 
     # ─── Benchmark 5: Throughput ───
     print("\n─── Throughput ───")
@@ -435,13 +467,17 @@ def run_benchmark():
     for _ in range(n_iter):
         compress_tool_schemas(ANTHROPIC_TOOLS)
     elapsed = time.perf_counter() - t0
-    print(f"  Schema compression: {n_iter/elapsed:.0f} calls/sec ({elapsed/n_iter*1000:.2f} ms/call)")
+    print(
+        f"  Schema compression: {n_iter / elapsed:.0f} calls/sec ({elapsed / n_iter * 1000:.2f} ms/call)"
+    )
 
     t0 = time.perf_counter()
     for _ in range(n_iter):
         compress_tool_schemas(OPENAI_TOOLS)
     elapsed = time.perf_counter() - t0
-    print(f"  OpenAI tools:       {n_iter/elapsed:.0f} calls/sec ({elapsed/n_iter*1000:.2f} ms/call)")
+    print(
+        f"  OpenAI tools:       {n_iter / elapsed:.0f} calls/sec ({elapsed / n_iter * 1000:.2f} ms/call)"
+    )
 
     # ─── Summary ───
     print("\n─── Key Metrics ───")

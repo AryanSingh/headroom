@@ -60,9 +60,7 @@ def create_spend_router(
         try:
             import os
 
-            _db_url = os.environ.get(
-                "CUTCTX_SPEND_DB_URL", "sqlite:///spend_ledger.db"
-            )
+            _db_url = os.environ.get("CUTCTX_SPEND_DB_URL", "sqlite:///spend_ledger.db")
             _init_ledger_store(db_url=_db_url)
         except Exception as init_err:
             logger.warning(
@@ -76,10 +74,7 @@ def create_spend_router(
             len(dependencies),
         )
     except ImportError:
-        logger.debug(
-            "Enterprise spend ledger module (cutctx_ee) not found. "
-            "Spend routes disabled."
-        )
+        logger.debug("Enterprise spend ledger module (cutctx_ee) not found. Spend routes disabled.")
 
     return router
 

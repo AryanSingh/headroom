@@ -11,6 +11,7 @@ from unittest.mock import patch
 # SP-3: compile_ee.py tests
 # ---------------------------------------------------------------------------
 
+
 class TestCompileEe:
     """Tests for the EE compilation script."""
 
@@ -54,6 +55,7 @@ class TestCompileEe:
 # ---------------------------------------------------------------------------
 # SP-5: Watermark tests
 # ---------------------------------------------------------------------------
+
 
 class TestWatermark:
     """Tests for per-customer watermarking."""
@@ -122,6 +124,7 @@ class TestWatermark:
 # SP-6: Abuse detection tests
 # ---------------------------------------------------------------------------
 
+
 class TestAbuseDetector:
     """Tests for server-side abuse detection."""
 
@@ -130,33 +133,39 @@ class TestAbuseDetector:
 
         detector = AbuseDetector()
         # Normal: same fingerprint, same geo, infrequent
-        alerts = detector.process_event(ActivationRecord(
-            lic_id="lic1",
-            fingerprint="fp1",
-            ip_address="1.2.3.4",
-            geo="US",
-            timestamp=1000,
-        ))
+        alerts = detector.process_event(
+            ActivationRecord(
+                lic_id="lic1",
+                fingerprint="fp1",
+                ip_address="1.2.3.4",
+                geo="US",
+                timestamp=1000,
+            )
+        )
         assert len(alerts) == 0
 
     def test_impossible_travel(self):
         from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector()
-        detector.process_event(ActivationRecord(
-            lic_id="lic1",
-            fingerprint="fp1",
-            ip_address="1.2.3.4",
-            geo="US",
-            timestamp=1000,
-        ))
-        alerts = detector.process_event(ActivationRecord(
-            lic_id="lic1",
-            fingerprint="fp2",
-            ip_address="5.6.7.8",
-            geo="EU",
-            timestamp=1200,  # 200s later, 8000km away
-        ))
+        detector.process_event(
+            ActivationRecord(
+                lic_id="lic1",
+                fingerprint="fp1",
+                ip_address="1.2.3.4",
+                geo="US",
+                timestamp=1000,
+            )
+        )
+        alerts = detector.process_event(
+            ActivationRecord(
+                lic_id="lic1",
+                fingerprint="fp2",
+                ip_address="5.6.7.8",
+                geo="EU",
+                timestamp=1200,  # 200s later, 8000km away
+            )
+        )
         impossible = [a for a in alerts if a.flag.value == "impossible_travel"]
         assert len(impossible) == 1
         assert impossible[0].severity.value == "high"
@@ -166,13 +175,15 @@ class TestAbuseDetector:
 
         detector = AbuseDetector(max_fingerprints=3)
         for i in range(5):
-            detector.process_event(ActivationRecord(
-                lic_id="lic1",
-                fingerprint=f"fp{i}",
-                ip_address=f"1.2.3.{i}",
-                geo="US",
-                timestamp=1000 + i,
-            ))
+            detector.process_event(
+                ActivationRecord(
+                    lic_id="lic1",
+                    fingerprint=f"fp{i}",
+                    ip_address=f"1.2.3.{i}",
+                    geo="US",
+                    timestamp=1000 + i,
+                )
+            )
         alerts = detector.get_alerts(lic_id="lic1", min_severity=None)
         fp_alerts = [a for a in alerts if a.flag.value == "too_many_fingerprints"]
         assert len(fp_alerts) >= 1
@@ -182,13 +193,15 @@ class TestAbuseDetector:
 
         detector = AbuseDetector(max_ips=3)
         for i in range(5):
-            detector.process_event(ActivationRecord(
-                lic_id="lic1",
-                fingerprint="fp1",
-                ip_address=f"10.0.{i}.1",
-                geo="US",
-                timestamp=1000 + i * 100,
-            ))
+            detector.process_event(
+                ActivationRecord(
+                    lic_id="lic1",
+                    fingerprint="fp1",
+                    ip_address=f"10.0.{i}.1",
+                    geo="US",
+                    timestamp=1000 + i * 100,
+                )
+            )
         alerts = detector.get_alerts(lic_id="lic1")
         ip_alerts = [a for a in alerts if a.flag.value == "too_many_ips"]
         assert len(ip_alerts) >= 1
@@ -199,13 +212,15 @@ class TestAbuseDetector:
         detector = AbuseDetector(storm_window_secs=60, storm_max_count=3)
         now = time.time()
         for i in range(5):
-            detector.process_event(ActivationRecord(
-                lic_id="lic1",
-                fingerprint=f"fp{i}",
-                ip_address=f"10.0.0.{i}",
-                event_type="activation",
-                timestamp=now + i,
-            ))
+            detector.process_event(
+                ActivationRecord(
+                    lic_id="lic1",
+                    fingerprint=f"fp{i}",
+                    ip_address=f"10.0.0.{i}",
+                    event_type="activation",
+                    timestamp=now + i,
+                )
+            )
         alerts = detector.get_alerts(lic_id="lic1")
         storm_alerts = [a for a in alerts if a.flag.value == "activation_storm"]
         assert len(storm_alerts) >= 1
@@ -225,9 +240,13 @@ class TestAbuseDetector:
         from cutctx_ee.abuse import AbuseDetector, ActivationRecord
 
         detector = AbuseDetector()
-        detector.process_event(ActivationRecord(
-            lic_id="lic1", fingerprint="fp1", ip_address="1.2.3.4",
-        ))
+        detector.process_event(
+            ActivationRecord(
+                lic_id="lic1",
+                fingerprint="fp1",
+                ip_address="1.2.3.4",
+            )
+        )
         assert detector.get_event_count("lic1") == 1
 
         detector.clear_history("lic1")
@@ -268,8 +287,10 @@ class TestHaversine:
         from cutctx_ee.abuse import GEO_COORDS, _haversine_km
 
         d = _haversine_km(
-            GEO_COORDS["US"][0], GEO_COORDS["US"][1],
-            GEO_COORDS["EU"][0], GEO_COORDS["EU"][1],
+            GEO_COORDS["US"][0],
+            GEO_COORDS["US"][1],
+            GEO_COORDS["EU"][0],
+            GEO_COORDS["EU"][1],
         )
         assert d > 5000  # Should be flagged as impossible travel
 
@@ -277,6 +298,7 @@ class TestHaversine:
 # ---------------------------------------------------------------------------
 # SP-7: Supply chain signing tests
 # ---------------------------------------------------------------------------
+
 
 class TestSignArtifacts:
     """Tests for supply-chain signing scripts."""
@@ -287,6 +309,7 @@ class TestSignArtifacts:
 
     def test_secret_patterns_comprehensive(self):
         from scripts.sign_artifacts import FORBIDDEN_PATHS, SECRET_PATTERNS
+
         assert len(SECRET_PATTERNS) >= 5
         assert len(FORBIDDEN_PATHS) >= 4
 
@@ -334,7 +357,9 @@ class TestSignArtifacts:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
-            (tmpdir / "leaked.py").write_text('API_KEY = "sk-ant-abc123def456ghi789jkl012mno345pqr678stu901vwx234"\n')
+            (tmpdir / "leaked.py").write_text(
+                'API_KEY = "sk-ant-abc123def456ghi789jkl012mno345pqr678stu901vwx234"\n'
+            )
             findings = scan_secrets(tmpdir)
             assert len(findings) >= 1
             assert any("Anthropic" in f["description"] for f in findings)
@@ -374,25 +399,34 @@ class TestSignArtifacts:
 # SP-8: DMCA template test
 # ---------------------------------------------------------------------------
 
+
 class TestLegalDocuments:
     """Tests for legal/operational backstop documents."""
 
     def test_dmca_template_exists(self):
-        path = Path(__file__).resolve().parent.parent / "docs" / "legal" / "DMCA_TAKEDOWN_TEMPLATE.md"
+        path = (
+            Path(__file__).resolve().parent.parent / "docs" / "legal" / "DMCA_TAKEDOWN_TEMPLATE.md"
+        )
         assert path.exists()
 
     def test_leak_runbook_exists(self):
-        path = Path(__file__).resolve().parent.parent / "docs" / "legal" / "LEAK_RESPONSE_RUNBOOK.md"
+        path = (
+            Path(__file__).resolve().parent.parent / "docs" / "legal" / "LEAK_RESPONSE_RUNBOOK.md"
+        )
         assert path.exists()
 
     def test_dmca_template_has_required_sections(self):
-        content = (Path(__file__).resolve().parent.parent / "docs" / "legal" / "DMCA_TAKEDOWN_TEMPLATE.md").read_text()
+        content = (
+            Path(__file__).resolve().parent.parent / "docs" / "legal" / "DMCA_TAKEDOWN_TEMPLATE.md"
+        ).read_text()
         assert "§512" in content or "512" in content
         assert "good faith" in content.lower()
         assert "penalty of perjury" in content.lower()
 
     def test_leak_runbook_has_phases(self):
-        content = (Path(__file__).resolve().parent.parent / "docs" / "legal" / "LEAK_RESPONSE_RUNBOOK.md").read_text()
+        content = (
+            Path(__file__).resolve().parent.parent / "docs" / "legal" / "LEAK_RESPONSE_RUNBOOK.md"
+        ).read_text()
         assert "Phase 1" in content
         assert "Phase 2" in content
         assert "Phase 3" in content

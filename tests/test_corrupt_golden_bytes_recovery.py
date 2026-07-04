@@ -55,10 +55,7 @@ def _enable_cutctx_log_propagation() -> Iterator[None]:
     for the duration of each test so caplog captures cutctx log records correctly.
     """
     logger_names = ("cutctx", "cutctx.proxy")
-    originals = {
-        name: logging.getLogger(name).propagate
-        for name in logger_names
-    }
+    originals = {name: logging.getLogger(name).propagate for name in logger_names}
     for name in logger_names:
         logging.getLogger(name).propagate = True
     yield

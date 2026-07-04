@@ -59,7 +59,7 @@ re-verified here.
   percentage/request footnotes. Fixed in `dashboard/src/pages/Overview.jsx`
   and covered by `tests/test_dashboard_overview_lifetime_headline.py`.
 - The active `/admin/config/flags` route was still using the legacy
-  `x-headroom-admin-key` header and did not initialize episodic memory when
+  `x-cutctx-admin-key` header and did not initialize episodic memory when
   toggled on. Fixed in `cutctx/proxy/server.py` so the active route now accepts
   bearer auth, `x-cutctx-admin-key`, and the legacy header for compatibility.
 - Several stray script-style Playwright files were present in `tests/` and
@@ -110,10 +110,10 @@ re-verified here.
 - `uv run python -m pytest -q tests/test_dashboard_overview_lifetime_headline.py tests/test_dashboard_surfaces_playwright.py tests/test_dashboard_savings_by_model.py tests/test_provider_codex_runtime.py tests/test_provider_gemini_runtime.py tests/test_openai_codex_routing.py`
   - result: `23 passed`
 - Verified and fixed active `/admin/config/flags` behavior
-  - old active route accepted only `x-headroom-admin-key` and did not create
+  - old active route accepted only `x-cutctx-admin-key` and did not create
     `proxy.episodic_tracker`
   - current active route accepts bearer auth, `x-cutctx-admin-key`, and legacy
-    `x-headroom-admin-key`, and dynamically initializes episodic memory
+    `x-cutctx-admin-key`, and dynamically initializes episodic memory
 
 #### 2026-06-30 3rd verification checkpoint
 
@@ -432,7 +432,7 @@ Add a `v0.29.1` entry covering:
 ## 2026-06-30 Incident Addendum
 
 - User-reported symptom: Cutctx-enabled traffic returned `{"detail":"Bad Request"}`. Disabling Cutctx removed the failure.
-- Most likely cause in the current worktree was the uncommitted ChatGPT Codex `Responses` compatibility change in [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py).
+- Most likely cause in the current worktree was the uncommitted ChatGPT Codex `Responses` compatibility change in [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/responses.py).
 - The risky behavior change was:
 - removing `stream` from the ChatGPT subscription unsupported-field strip list
 - removing the defensive `is_chatgpt_auth -> stream = False` override for HTTP `Responses` traffic
@@ -440,7 +440,7 @@ Add a `v0.29.1` entry covering:
 - Fix applied:
 - restored `stream` to `_CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS`
 - restored the defensive `stream = False` behavior for `is_chatgpt_auth`
-- updated compatibility coverage in [tests/test_openai_responses_subscription_compat.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_openai_responses_subscription_compat.py)
+- updated compatibility coverage in [tests/test_openai_responses_subscription_compat.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_openai_responses_subscription_compat.py)
 - Verification:
 - `uv run python -m pytest -q tests/test_openai_responses_subscription_compat.py` → `4 passed`
 - `uv run python -m pytest -q tests/test_provider_codex_runtime.py -k 'responses or codex'` → `5 passed`
@@ -450,7 +450,7 @@ Add a `v0.29.1` entry covering:
 
 - Drove verification through the local CLI path:
 - `CUTCTX_ADMIN_API_KEY=test-admin-key uv run python -m cutctx.cli.main proxy --host 127.0.0.1 --port 4011 --no-optimize --no-cache --no-rate-limit --workers 1`
-- Found a structural regression in [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py):
+- Found a structural regression in [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/server.py):
 - the file defines `create_app` twice
 - Python exports the second definition (`co_firstlineno=4753`)
 - that exported runtime app had dropped `/debug/tasks`, `/debug/ws-sessions`, and `/debug/warmup`
@@ -459,7 +459,7 @@ Add a `v0.29.1` entry covering:
 - restored `/debug/tasks`, `/debug/ws-sessions`, and `/debug/warmup`
 - restored the runtime payload helper used by `/debug/warmup`
 - added a shared admin-auth check for `/stats`, `/v1/stats`, `/stats-history`, `/dashboard`, and `/stats/reset`
-- added regression coverage in [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_runtime_app_admin_auth.py)
+- added regression coverage in [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_runtime_app_admin_auth.py)
 - Verification:
 - `uv run python -m pytest -q tests/test_runtime_app_admin_auth.py tests/test_proxy_debug_endpoints.py tests/test_security_validations.py tests/test_openai_responses_subscription_compat.py` → `47 passed`
 - `python3 -m py_compile cutctx/proxy/server.py` → passed
@@ -480,9 +480,9 @@ Add a `v0.29.1` entry covering:
 - next blocker fixed: `cutctx unwrap codex` safe no-op with explicit `CODEX_HOME` still emitted unrelated proxy-port warning
 - next blocker fixed: exported `/stats` and `/admin/config/flags` lacked the `config.orchestrator` contract the dashboard tests expect
 - Additional regression coverage added:
-- [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_runtime_app_admin_auth.py)
-- [tests/test_sqlite_like_escaping.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_sqlite_like_escaping.py)
-- [tests/test_transforms/test_kompress_max_words.py](/Users/aryansingh/Documents/Claude/Projects/headroom/tests/test_transforms/test_kompress_max_words.py)
+- [tests/test_runtime_app_admin_auth.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_runtime_app_admin_auth.py)
+- [tests/test_sqlite_like_escaping.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_sqlite_like_escaping.py)
+- [tests/test_transforms/test_kompress_max_words.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/tests/test_transforms/test_kompress_max_words.py)
 - Verification slices now green:
 - `uv run python -m pytest -q tests/test_runtime_app_admin_auth.py tests/test_proxy_debug_endpoints.py tests/test_security_validations.py tests/test_openai_responses_subscription_compat.py` → `47 passed`
 - `uv run python -m pytest -q tests/test_sqlite_like_escaping.py tests/test_transforms/test_kompress_max_words.py tests/test_security_validations.py tests/test_transforms/test_kompress_compressor.py` → `43 passed`

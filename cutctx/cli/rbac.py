@@ -46,7 +46,12 @@ def list_roles(admin_key: str | None) -> None:
 
 @rbac.command("assign")
 @click.argument("user_id")
-@click.option("--role", type=click.Choice(["viewer", "operator", "admin"]), required=True, help="Role to assign")
+@click.option(
+    "--role",
+    type=click.Choice(["viewer", "operator", "admin"]),
+    required=True,
+    help="Role to assign",
+)
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
 def assign_role(user_id: str, role: str, admin_key: str | None) -> None:
     """Assign a role to a user."""

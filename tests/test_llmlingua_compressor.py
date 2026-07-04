@@ -189,9 +189,7 @@ class TestLLMLinguaCompressorCompress:
 
         # Mock the underlying compressor
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Hello world shorter"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Hello world shorter"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
@@ -219,15 +217,11 @@ class TestLLMLinguaCompressorCompress:
         """compress() accepts context parameter."""
         compressor = LLMLinguaCompressor()
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Compressed"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
-                result = compressor.compress(
-                    "Original text", context="Search results"
-                )
+                result = compressor.compress("Original text", context="Search results")
 
         assert result is not None
         mock_llmlingua.compress_prompt.assert_called_once()
@@ -236,15 +230,11 @@ class TestLLMLinguaCompressorCompress:
         """compress() accepts question parameter for QA-aware compression."""
         compressor = LLMLinguaCompressor()
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Compressed"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
-                result = compressor.compress(
-                    "Original text", question="What is the main topic?"
-                )
+                result = compressor.compress("Original text", question="What is the main topic?")
 
         assert result is not None
 
@@ -252,15 +242,11 @@ class TestLLMLinguaCompressorCompress:
         """compress() respects target_ratio parameter."""
         compressor = LLMLinguaCompressor(config=LLMLinguaConfig(rate=0.5))
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Compressed"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
-                result = compressor.compress(
-                    "Original text", target_ratio=0.3
-                )
+                result = compressor.compress("Original text", target_ratio=0.3)
 
         # Verify the target_ratio was passed to the compressor
         mock_llmlingua.compress_prompt.assert_called_once()
@@ -272,9 +258,7 @@ class TestLLMLinguaCompressorCompress:
         config = LLMLinguaConfig(rate=0.7)
         compressor = LLMLinguaCompressor(config=config)
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Compressed"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
@@ -301,9 +285,7 @@ class TestLLMLinguaCompressorCompress:
         config = LLMLinguaConfig(force_tokens=["important", "keyword"])
         compressor = LLMLinguaCompressor(config=config)
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "Compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "Compressed"}
 
         with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
             with patch.object(LLMLinguaCompressor, "available", return_value=True):
@@ -352,9 +334,7 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer = MagicMock()
         tokenizer.count_text.return_value = 5
 
-        messages = [
-            {"role": "assistant", "content": "Hello world"}
-        ]
+        messages = [{"role": "assistant", "content": "Hello world"}]
 
         with patch.object(LLMLinguaCompressor, "available", return_value=True):
             mock_llmlingua = MagicMock()
@@ -372,14 +352,10 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer.count_text.return_value = 15
 
         long_content = " ".join(["word"] * 20)
-        messages = [
-            {"role": "assistant", "content": long_content}
-        ]
+        messages = [{"role": "assistant", "content": long_content}]
 
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "compressed version"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "compressed version"}
 
         with patch.object(LLMLinguaCompressor, "available", return_value=True):
             with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):
@@ -396,9 +372,7 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer.count_text.return_value = 15
 
         long_content = " ".join(["word"] * 20)
-        messages = [
-            {"role": "user", "content": long_content}
-        ]
+        messages = [{"role": "user", "content": long_content}]
 
         mock_llmlingua = MagicMock()
 
@@ -432,9 +406,7 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer = MagicMock()
         tokenizer.count_text.return_value = 10
 
-        messages = [
-            {"role": "user", "content": "Hello"}
-        ]
+        messages = [{"role": "user", "content": "Hello"}]
 
         with patch.object(LLMLinguaCompressor, "available", return_value=False):
             result = compressor.apply(messages, tokenizer)
@@ -452,9 +424,7 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer.count_text.side_effect = [15, 14]  # First call original, second compressed
 
         long_content = " ".join(["word"] * 20)
-        messages = [
-            {"role": "assistant", "content": long_content}
-        ]
+        messages = [{"role": "assistant", "content": long_content}]
 
         mock_llmlingua = MagicMock()
         # Return a slightly compressed version (ratio 0.93, above threshold)
@@ -476,14 +446,10 @@ class TestLLMLinguaCompressorTransformInterface:
         tokenizer.count_text.return_value = 15
 
         long_content = " ".join(["word"] * 20)
-        messages = [
-            {"role": "tool", "content": long_content}
-        ]
+        messages = [{"role": "tool", "content": long_content}]
 
         mock_llmlingua = MagicMock()
-        mock_llmlingua.compress_prompt.return_value = {
-            "compressed_prompt": "compressed"
-        }
+        mock_llmlingua.compress_prompt.return_value = {"compressed_prompt": "compressed"}
 
         with patch.object(LLMLinguaCompressor, "available", return_value=True):
             with patch.object(compressor, "_get_compressor", return_value=mock_llmlingua):

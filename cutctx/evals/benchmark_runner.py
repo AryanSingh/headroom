@@ -12,9 +12,10 @@ import logging
 import random
 import statistics
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from cutctx.evals.benchmark_report import (
     BenchmarkSuiteResult,
@@ -368,7 +369,14 @@ class BenchmarkRunner:
         random.seed(seed)
 
         if metrics is None:
-            metrics = ["ratio", "tokens_saved", "f1", "rouge_l", "information_recall", "exact_match"]
+            metrics = [
+                "ratio",
+                "tokens_saved",
+                "f1",
+                "rouge_l",
+                "information_recall",
+                "exact_match",
+            ]
         if compressors is None:
             compressors = sorted(self._adapters.keys())
 
@@ -410,8 +418,7 @@ class BenchmarkRunner:
 
             with ThreadPoolExecutor(max_workers=parallel) as pool:
                 future_map = {
-                    pool.submit(self._compress_case, adapter, case.context): case
-                    for case in cases
+                    pool.submit(self._compress_case, adapter, case.context): case for case in cases
                 }
                 for future in as_completed(future_map):
                     case = future_map[future]
@@ -454,9 +461,7 @@ class BenchmarkRunner:
             total_compressed_tokens = sum(r["compressed_tokens"] for r in per_case_results)
             valid = [r for r in per_case_results if not r["error"]]
             ratios = [
-                r["compressed_tokens"] / r["original_tokens"]
-                if r["original_tokens"] > 0
-                else 1.0
+                r["compressed_tokens"] / r["original_tokens"] if r["original_tokens"] > 0 else 1.0
                 for r in valid
             ]
             durations = [r["duration_ms"] for r in valid]
@@ -471,9 +476,7 @@ class BenchmarkRunner:
             rouge_vals: list[float] = []
             em_vals: list[bool] = []
             for r in valid:
-                orig_text = next(
-                    c.context for c in cases if c.id == r["id"]
-                )
+                orig_text = next(c.context for c in cases if c.id == r["id"])
                 comp_text = r["compressed"]
                 try:
                     f1_vals.append(compute_f1(orig_text, comp_text))
@@ -494,15 +497,11 @@ class BenchmarkRunner:
                 from cutctx.evals.datasets import generate_retrieval_probes
 
                 for r in valid:
-                    orig_text = next(
-                        c.context for c in cases if c.id == r["id"]
-                    )
+                    orig_text = next(c.context for c in cases if c.id == r["id"])
                     comp_text = r["compressed"]
                     probes = generate_retrieval_probes(orig_text, n_probes=5)
                     if probes:
-                        preserved = sum(
-                            1 for p in probes if p.lower() in comp_text.lower()
-                        )
+                        preserved = sum(1 for p in probes if p.lower() in comp_text.lower())
                         irecall_vals.append(preserved / len(probes))
 
             result = CompressorBenchmarkResult(
@@ -525,9 +524,7 @@ class BenchmarkRunner:
             if "semantic_sim" in metric_set:
                 sim_vals: list[float] = []
                 for r in valid:
-                    orig_text = next(
-                        c.context for c in cases if c.id == r["id"]
-                    )
+                    orig_text = next(c.context for c in cases if c.id == r["id"])
                     comp_text = r["compressed"]
                     try:
                         sim = compute_semantic_similarity(orig_text, comp_text)
@@ -554,9 +551,7 @@ class BenchmarkRunner:
     # -- internal helpers ------------------------------------------------
 
     @staticmethod
-    def _compress_case(
-        adapter: CompressorAdapter, text: str
-    ) -> CompressorResult:
+    def _compress_case(adapter: CompressorAdapter, text: str) -> CompressorResult:
         """Run one adapter on one text string."""
         try:
             return adapter.compress_fn(text)

@@ -104,7 +104,7 @@ function Sidebar({ open, onClose }) {
 
         <div className="sidebar-section">
           <div className="sidebar-label">Navigation</div>
-          <nav className="nav-stack">
+          <nav className="nav-stack" aria-label="Main Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (

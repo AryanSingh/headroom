@@ -7,19 +7,16 @@ Initiative 1: Close the intelligence loop.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from cutctx.transforms.content_detector import ContentType
 from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
 )
-
 
 # =============================================================================
 # Test 1: TOIN record_retrieval is called on CCR retrieval (full + search)
@@ -49,7 +46,11 @@ class TestTOINRecordedOnRetrieval:
 
     def test_toin_recorded_on_full_retrieval(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Full retrieval path should call TOIN.record_retrieval with correct params."""
-        from cutctx.ccr.response_handler import CCRResponseHandler, CCRToolCall, ResponseHandlerConfig
+        from cutctx.ccr.response_handler import (
+            CCRResponseHandler,
+            CCRToolCall,
+            ResponseHandlerConfig,
+        )
 
         # Mock TOIN at its source module (get_toin is imported locally inside _execute_retrieval)
         mock_toin = MagicMock()
@@ -65,9 +66,7 @@ class TestTOINRecordedOnRetrieval:
             compression_strategy="code_aware",
         )
         mock_store = self._make_mock_store(entry)
-        monkeypatch.setattr(
-            "cutctx.ccr.response_handler.get_compression_store", lambda: mock_store
-        )
+        monkeypatch.setattr("cutctx.ccr.response_handler.get_compression_store", lambda: mock_store)
 
         handler = CCRResponseHandler(ResponseHandlerConfig(enabled=True))
         ccr_call = CCRToolCall(tool_call_id="call_1", hash_key="test_hash_123")
@@ -89,7 +88,11 @@ class TestTOINRecordedOnRetrieval:
 
     def test_toin_recorded_on_search_retrieval(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Search path should call TOIN.record_retrieval with correct params."""
-        from cutctx.ccr.response_handler import CCRResponseHandler, CCRToolCall, ResponseHandlerConfig
+        from cutctx.ccr.response_handler import (
+            CCRResponseHandler,
+            CCRToolCall,
+            ResponseHandlerConfig,
+        )
 
         # Mock TOIN at its source module
         mock_toin = MagicMock()
@@ -99,9 +102,7 @@ class TestTOINRecordedOnRetrieval:
         store = MagicMock()
         store.get_entry_status.return_value = {"status": "available", "default_ttl_seconds": 3600}
         store.search.return_value = [{"id": 1, "text": "match"}]
-        monkeypatch.setattr(
-            "cutctx.ccr.response_handler.get_compression_store", lambda: store
-        )
+        monkeypatch.setattr("cutctx.ccr.response_handler.get_compression_store", lambda: store)
 
         handler = CCRResponseHandler(ResponseHandlerConfig(enabled=True))
         ccr_call = CCRToolCall(
@@ -220,13 +221,15 @@ class TestProfileUpdatesOnRetrieval:
 
     def test_profile_update_on_full_retrieval(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Full retrieval should update profile with correct content_type."""
-        from cutctx.ccr.response_handler import CCRResponseHandler, CCRToolCall, ResponseHandlerConfig
+        from cutctx.ccr.response_handler import (
+            CCRResponseHandler,
+            CCRToolCall,
+            ResponseHandlerConfig,
+        )
 
         # Mock ProfileManager at its source module
         mock_profile = MagicMock()
-        monkeypatch.setattr(
-            "cutctx.profiles.ProfileManager.get_profile", lambda: mock_profile
-        )
+        monkeypatch.setattr("cutctx.profiles.ProfileManager.get_profile", lambda: mock_profile)
 
         # Mock TOIN (required to prevent actual TOIN interactions)
         mock_toin = MagicMock()
@@ -243,9 +246,7 @@ class TestProfileUpdatesOnRetrieval:
         store = MagicMock()
         store.retrieve.return_value = MockEntry()
         store.get_entry_status.return_value = {"status": "available", "default_ttl_seconds": 3600}
-        monkeypatch.setattr(
-            "cutctx.ccr.response_handler.get_compression_store", lambda: store
-        )
+        monkeypatch.setattr("cutctx.ccr.response_handler.get_compression_store", lambda: store)
 
         handler = CCRResponseHandler(ResponseHandlerConfig(enabled=True))
         ccr_call = CCRToolCall(tool_call_id="call_1", hash_key="test_hash")
@@ -259,12 +260,14 @@ class TestProfileUpdatesOnRetrieval:
 
     def test_profile_updated_for_unknown_strategy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Full retrieval with unknown strategy should pass 'unknown' to profile."""
-        from cutctx.ccr.response_handler import CCRResponseHandler, CCRToolCall, ResponseHandlerConfig
+        from cutctx.ccr.response_handler import (
+            CCRResponseHandler,
+            CCRToolCall,
+            ResponseHandlerConfig,
+        )
 
         mock_profile = MagicMock()
-        monkeypatch.setattr(
-            "cutctx.profiles.ProfileManager.get_profile", lambda: mock_profile
-        )
+        monkeypatch.setattr("cutctx.profiles.ProfileManager.get_profile", lambda: mock_profile)
         mock_toin = MagicMock()
         monkeypatch.setattr("cutctx.telemetry.toin.get_toin", lambda: mock_toin)
 
@@ -278,9 +281,7 @@ class TestProfileUpdatesOnRetrieval:
         store = MagicMock()
         store.retrieve.return_value = MockEntry()
         store.get_entry_status.return_value = {"status": "available", "default_ttl_seconds": 3600}
-        monkeypatch.setattr(
-            "cutctx.ccr.response_handler.get_compression_store", lambda: store
-        )
+        monkeypatch.setattr("cutctx.ccr.response_handler.get_compression_store", lambda: store)
 
         handler = CCRResponseHandler(ResponseHandlerConfig(enabled=True))
         ccr_call = CCRToolCall(tool_call_id="call_1", hash_key="test_hash")

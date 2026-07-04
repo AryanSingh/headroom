@@ -203,37 +203,39 @@ def test_overview_prefers_session_money_saved_when_session_exceeds_lifetime() ->
                         },
                     },
                     "persistent_savings": {
-                    "lifetime": {
-                        "requests": 4,
-                        "tokens_saved": 400,
-                        "total_input_tokens": 8_000,
-                        "compression_savings_usd": 1.2,
-                        "cache_savings_usd": 0.3,
-                        "model_routing_savings_usd": 0.0,
-                        "normalization_savings_usd": 0.0,
-                        "batch_routing_savings_usd": 0.0,
-                        "memoization_savings_usd": 0.0,
-                        "output_optimization_savings_usd": 0.0,
-                    }
-                },
-                "savings_by_source": {
-                    "usd": {
-                        "cutctx_compression": 1.2,
-                        "provider_prompt_cache": 0.3,
-                        "model_routing": 0.0,
-                        "normalization": 0.0,
-                        "batch_routing": 0.0,
-                        "memoization": 0.0,
-                        "output_optimization": 0.0,
-                    }
-                },
+                        "lifetime": {
+                            "requests": 4,
+                            "tokens_saved": 400,
+                            "total_input_tokens": 8_000,
+                            "compression_savings_usd": 1.2,
+                            "cache_savings_usd": 0.3,
+                            "model_routing_savings_usd": 0.0,
+                            "normalization_savings_usd": 0.0,
+                            "batch_routing_savings_usd": 0.0,
+                            "memoization_savings_usd": 0.0,
+                            "output_optimization_savings_usd": 0.0,
+                        }
+                    },
+                    "savings_by_source": {
+                        "usd": {
+                            "cutctx_compression": 1.2,
+                            "provider_prompt_cache": 0.3,
+                            "model_routing": 0.0,
+                            "normalization": 0.0,
+                            "batch_routing": 0.0,
+                            "memoization": 0.0,
+                            "output_optimization": 0.0,
+                        }
+                    },
                 },
             )
 
             page.goto("http://cutctx.local/dashboard")
             page.wait_for_load_state("networkidle")
 
-            money_card = page.locator("article").filter(has=page.get_by_text("Money saved", exact=True))
+            money_card = page.locator("article").filter(
+                has=page.get_by_text("Money saved", exact=True)
+            )
             expect(money_card).to_contain_text("$6.750")
             expect(money_card).to_contain_text("$8.000")
             expect(money_card).to_contain_text("$1.250")

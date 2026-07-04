@@ -41,7 +41,7 @@ The hardest part of the system is the classifier. If a complex task is mistakenl
 
 ## 4. Implementation Plan & File Modifications
 
-All changes will be isolated within the `headroom/cutctx/` codebase.
+All changes will be isolated within the `cutctx/cutctx/` codebase.
 
 ### Phase 1: Foundation & Classification
 1. **Create `cutctx/orchestrator/` directory**

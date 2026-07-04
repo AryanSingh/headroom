@@ -9,7 +9,7 @@
 import type { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.dev';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

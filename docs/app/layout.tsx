@@ -13,7 +13,7 @@ const inter = Inter({
 // pick up ``/llms.txt`` / ``/sitemap.xml`` / og images. Override at
 // build time via ``NEXT_PUBLIC_SITE_URL`` (e.g. when promoting to a
 // custom domain).
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.dev';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cutctx.com';
 
 export const metadata: Metadata = {
   title: {

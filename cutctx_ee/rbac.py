@@ -263,9 +263,7 @@ class RbacAssignmentStore:
             import os
             from pathlib import Path
 
-            path = Path(
-                os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH))
-            )
+            path = Path(os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH)))
             path.parent.mkdir(parents=True, exist_ok=True)
             self._db_path = str(path)
         self._init_db()
@@ -302,10 +300,14 @@ class RbacAssignmentStore:
                 ts, role = cached
                 if time.time() - ts < self.CACHE_TTL_S:
                     return role
-            row = self._connect().execute(
-                "SELECT role FROM role_assignments WHERE user_id = ?",
-                (user_id,),
-            ).fetchone()
+            row = (
+                self._connect()
+                .execute(
+                    "SELECT role FROM role_assignments WHERE user_id = ?",
+                    (user_id,),
+                )
+                .fetchone()
+            )
         if row is None:
             return None
         try:
@@ -429,9 +431,8 @@ class PersistentRbacChecker(RbacChecker):
         if result is AdminRole.ADMIN and self._store is not None:
             request_state = getattr(request, "state", None)
             headers = getattr(request, "headers", {})
-            user_id = (
-                getattr(request_state, "cutctx_user_id", None)
-                or headers.get("x-cutctx-user-id", "")
+            user_id = getattr(request_state, "cutctx_user_id", None) or headers.get(
+                "x-cutctx-user-id", ""
             )
             user_id = user_id.strip() if isinstance(user_id, str) else ""
             if user_id:
@@ -450,9 +451,7 @@ class PersistentRbacChecker(RbacChecker):
     ) -> None:
         """Assign a role and persist it."""
         super().assign_role(user_id, role)
-        self._store.set(
-            user_id, role, assigned_by=assigned_by, notes=notes
-        )
+        self._store.set(user_id, role, assigned_by=assigned_by, notes=notes)
 
     def revoke_role(self, user_id: str) -> bool:
         """Revoke and delete from the store."""
@@ -462,10 +461,7 @@ class PersistentRbacChecker(RbacChecker):
 
     def list_assignments(self) -> dict[str, str]:
         """List from the store (the source of truth)."""
-        return {
-            user_id: meta["role"]
-            for user_id, meta in self._store.list_all().items()
-        }
+        return {user_id: meta["role"] for user_id, meta in self._store.list_all().items()}
 
 
 def get_rbac_checker() -> RbacChecker:
@@ -483,9 +479,7 @@ def get_rbac_checker() -> RbacChecker:
         try:
             store = RbacAssignmentStore(db_path=db_path)
             _rbac_checker = PersistentRbacChecker(store=store)
-            logger.info(
-                "RBAC: persistent (SQLite) at %s", store._db_path
-            )
+            logger.info("RBAC: persistent (SQLite) at %s", store._db_path)
         except Exception as exc:
             logger.warning(
                 "RBAC: persistent store unavailable (%s); "
@@ -560,9 +554,7 @@ def has_permission(actor: str, permission: str) -> bool:
         # SSO user: look up in the store. Unknown SSO user
         # defaults to VIEWER (fail-closed).
         stored = (
-            checker._store.get(user_id)
-            if hasattr(checker, "_store") and checker._store
-            else None
+            checker._store.get(user_id) if hasattr(checker, "_store") and checker._store else None
         )
         if stored is not None:
             role = stored

@@ -354,12 +354,11 @@ def test_lookup_costs_uses_litellm_when_available() -> None:
     with patch.dict(
         "sys.modules",
         {
-            "litellm": __import__(
-                "types", fromlist=["ModuleType"]
-            ).ModuleType("litellm"),
+            "litellm": __import__("types", fromlist=["ModuleType"]).ModuleType("litellm"),
         },
     ):
         import litellm
+
         litellm.model_cost = {
             "gpt-4o": {"input_cost_per_token": 2.5e-6},  # $2.50 / 1M
             "gpt-4o-mini": {"input_cost_per_token": 0.15e-6},  # $0.15 / 1M

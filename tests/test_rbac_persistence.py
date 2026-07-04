@@ -8,6 +8,7 @@ were lost on restart and not shared across replicas. These
 tests pin the SQLite-backed store + drop-in PersistentRbacChecker
 replacement.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

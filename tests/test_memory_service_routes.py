@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-import cutctx_ee.memory_service.api as memory_api
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import cutctx_ee.memory_service.api as memory_api
 from cutctx.proxy.routes.memory import create_memory_router
 from cutctx_ee.memory_service.models import MemoryRecord
 from cutctx_ee.memory_service.store import MemoryStore
@@ -81,10 +81,6 @@ def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> No
     assert items[0]["content"] == "The first shared memory"
 
     with store.SessionLocal() as session:
-        record = (
-            session.query(MemoryRecord)
-            .filter_by(id="mem-1", org_id="org-a")
-            .first()
-        )
+        record = session.query(MemoryRecord).filter_by(id="mem-1", org_id="org-a").first()
         assert record is not None
         assert record.review_state == "APPROVE"

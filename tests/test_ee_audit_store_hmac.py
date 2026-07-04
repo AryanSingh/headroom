@@ -56,7 +56,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Module loading — handle the Cython/Python dual path
 # ---------------------------------------------------------------------------
@@ -71,9 +70,7 @@ def _load_store_module() -> Any:
     """
     # Remove the Cython-loaded module so a re-import picks up the .py
     for mod_name in list(sys.modules.keys()):
-        if mod_name == "cutctx_ee.audit.store" or mod_name.startswith(
-            "cutctx_ee.audit.store."
-        ):
+        if mod_name == "cutctx_ee.audit.store" or mod_name.startswith("cutctx_ee.audit.store."):
             del sys.modules[mod_name]
     # Find the .py source
     spec = importlib.util.find_spec("cutctx_ee.audit.store")
@@ -98,9 +95,7 @@ def _load_compiled_store() -> Any:
     """
     # Force a fresh import
     for mod_name in list(sys.modules.keys()):
-        if mod_name == "cutctx_ee.audit.store" or mod_name.startswith(
-            "cutctx_ee.audit.store."
-        ):
+        if mod_name == "cutctx_ee.audit.store" or mod_name.startswith("cutctx_ee.audit.store."):
             del sys.modules[mod_name]
     return importlib.import_module("cutctx_ee.audit.store")
 
@@ -110,9 +105,14 @@ def _load_compiled_store() -> Any:
 # ---------------------------------------------------------------------------
 
 
-def _build_message(tenant_id: str, actor: str, action: str,
-                  payload_json: str, timestamp_iso: str,
-                  previous_hash: str | None) -> bytes:
+def _build_message(
+    tenant_id: str,
+    actor: str,
+    action: str,
+    payload_json: str,
+    timestamp_iso: str,
+    previous_hash: str | None,
+) -> bytes:
     """Build the canonical message bytes the HMAC fix uses.
 
     The framing is: previous_hash (or 32 zero bytes for genesis),
@@ -408,9 +408,7 @@ def test_cython_runtime_uses_hmac_construction() -> None:
 
     # Build the canonical message and the expected HMAC
     message = _build_message(**inputs)
-    expected = hmac.new(
-        store.secret_key, message, hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(store.secret_key, message, hashlib.sha256).hexdigest()
 
     # The previous bug would have produced a hash by:
     #   h = sha256(secret + previous_hash + tenant + actor + ...)
@@ -440,10 +438,18 @@ def test_cython_runtime_hmac_message_layout() -> None:
     # bare-concat messages but different length-prefixed messages
     # (boundary case: "abc" + "def" vs "abcd" + "ef")
     base = dict(
-        tenant_id="abc", actor="def", action="x", payload_json="{}", timestamp_iso="t",
+        tenant_id="abc",
+        actor="def",
+        action="x",
+        payload_json="{}",
+        timestamp_iso="t",
     )
     alt = dict(
-        tenant_id="abcd", actor="ef", action="x", payload_json="{}", timestamp_iso="t",
+        tenant_id="abcd",
+        actor="ef",
+        action="x",
+        payload_json="{}",
+        timestamp_iso="t",
     )
     h1 = _call_compute(store, **base)
     h2 = _call_compute(store, **alt)
@@ -484,9 +490,7 @@ def test_python_source_uses_hmac_not_concat() -> None:
         "the prior implementation used hashlib.sha256() with concatenation"
     )
     assert "self.secret_key" in src
-    assert (
-        "hasher.update(self.secret_key)" not in src
-    ), (
+    assert "hasher.update(self.secret_key)" not in src, (
         "found hasher.update(self.secret_key) — this is the bug, not the fix"
     )
 
@@ -497,7 +501,7 @@ def test_python_source_imports_hmac_module() -> None:
     spec = importlib.util.find_spec("cutctx_ee.audit.store")
     if spec is None or spec.origin is None or not spec.origin.endswith(".py"):
         pytest.skip("Python source is not loadable (Cython binary)")
-    with open(spec.origin, "r", encoding="utf-8") as f:
+    with open(spec.origin, encoding="utf-8") as f:
         src = f.read()
     assert "import hmac" in src, "expected 'import hmac' at the top of store.py"
 

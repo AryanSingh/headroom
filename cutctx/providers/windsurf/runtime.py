@@ -19,7 +19,7 @@ def render_setup_lines(port: int, project: str | None = None) -> list[str]:
         f"      {openai_base_url}",
         "",
         "  Option 2 — settings.json:",
-        '    Add or update the following key:',
+        "    Add or update the following key:",
         f'      "openai.baseUrl": "{openai_base_url}"',
         "",
         "  For Anthropic models (Claude):",

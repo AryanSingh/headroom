@@ -164,6 +164,7 @@ class MemoryConfig:
                 "No Neo4j password configured — using auto-generated password. "
                 "Set neo4j_password explicitly in config for reproducible setups."
             )
+
     # Memory Bridge (bidirectional markdown <-> Cutctx sync)
     bridge_enabled: bool = False
     bridge_md_paths: list[str] = field(default_factory=list)

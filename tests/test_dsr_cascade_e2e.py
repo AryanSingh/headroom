@@ -12,6 +12,7 @@ This file pins the cascade end-to-end: save memory with a
 numpy embedding, call export, confirm a 200 with serialized
 records (no numpy), call delete, confirm the rows are gone.
 """
+
 from __future__ import annotations
 
 import os
@@ -104,9 +105,7 @@ class TestDSRDeleteCascade:
         assert _count_rows(tmp_db, "alice") == 0, "rows not deleted"
 
     @pytest.mark.asyncio
-    async def test_memory_handler_delete_for_user_finds_clear_user(
-        self, tmp_db: str
-    ):
+    async def test_memory_handler_delete_for_user_finds_clear_user(self, tmp_db: str):
         """End-to-end: the handler must find `clear_user` (not
         require `clear_scope`) on the LocalBackend.
         """
@@ -131,9 +130,9 @@ class TestDSRDeleteCascade:
 
         result = await handler.delete_for_user("alice")
         # The fix: backend should report >0 deletions.
-        assert (
-            result.get("backend", 0) >= 3
-        ), f"delete_for_user did not cascade to backend: {result}"
+        assert result.get("backend", 0) >= 3, (
+            f"delete_for_user did not cascade to backend: {result}"
+        )
         assert _count_rows(tmp_db, "alice") == 0
 
 

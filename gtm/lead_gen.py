@@ -40,18 +40,27 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 PRODUCTHUNT_TOKEN = os.environ.get("PRODUCTHUNT_TOKEN", "")
 
 OUTPUT_FILE = Path("cutctx_leads.csv")
-REQUEST_DELAY = 1.0   # seconds between API calls (be polite)
+REQUEST_DELAY = 1.0  # seconds between API calls (be polite)
 GITHUB_STARS_MIN = 30  # only repos with this many stars+
 MAX_PER_SOURCE = 100
 
 # Repos/orgs to skip (already know them, competitors, etc.)
 SKIP_ORGS = {
-    "openai", "anthropic", "google", "microsoft", "meta-llama",
-    "mistralai", "groq-inc", "portkey-ai", "helicone",
-    "cutctx", "aryansingh",  # us
+    "openai",
+    "anthropic",
+    "google",
+    "microsoft",
+    "meta-llama",
+    "mistralai",
+    "groq-inc",
+    "portkey-ai",
+    "helicone",
+    "cutctx",
+    "aryansingh",  # us
 }
 
 # ── Data model ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class Lead:
@@ -67,7 +76,7 @@ class Lead:
 
     # Intel
     why_relevant: str = ""
-    tool_signal: str = ""      # "claude_code", "cursor", "openai_api", etc.
+    tool_signal: str = ""  # "claude_code", "cursor", "openai_api", etc.
     repo_name: str = ""
     repo_stars: int = 0
     repo_description: str = ""
@@ -86,6 +95,7 @@ class Lead:
 
 
 # ── Scoring ──────────────────────────────────────────────────────────────────
+
 
 def score_lead(lead: Lead) -> Lead:
     """Score a lead 0-100 based on ICP fit signals."""
@@ -111,40 +121,52 @@ def score_lead(lead: Lead) -> Lead:
 
     # Repo engagement (proxy for active usage)
     if lead.repo_stars >= 500:
-        score += 10; breakdown.append("+10 stars≥500")
+        score += 10
+        breakdown.append("+10 stars≥500")
     elif lead.repo_stars >= 100:
-        score += 7; breakdown.append("+7 stars≥100")
+        score += 7
+        breakdown.append("+7 stars≥100")
     elif lead.repo_stars >= 30:
-        score += 4; breakdown.append("+4 stars≥30")
+        score += 4
+        breakdown.append("+4 stars≥30")
 
     # Source quality
     if lead.source == "hn_cost_complaint":
-        score += 15; breakdown.append("+15 HN cost complaint")
+        score += 15
+        breakdown.append("+15 HN cost complaint")
     elif lead.source == "hn_hiring":
-        score += 10; breakdown.append("+10 HN hiring AI")
+        score += 10
+        breakdown.append("+10 HN hiring AI")
     elif lead.source == "github_heavy_user":
-        score += 8; breakdown.append("+8 GitHub heavy user")
+        score += 8
+        breakdown.append("+8 GitHub heavy user")
     elif lead.source == "producthunt":
-        score += 8; breakdown.append("+8 PH recent launch")
+        score += 8
+        breakdown.append("+8 PH recent launch")
     elif lead.source == "github_org":
-        score += 5; breakdown.append("+5 GitHub org")
+        score += 5
+        breakdown.append("+5 GitHub org")
 
     # Keywords in description/title (pain signals)
     pain_words = ["cost", "expensive", "bill", "token", "budget", "agent", "autonomous"]
     text = (lead.repo_description + " " + lead.why_relevant + " " + lead.hn_post_title).lower()
     pain_hits = sum(1 for w in pain_words if w in text)
     if pain_hits >= 3:
-        score += 10; breakdown.append(f"+10 pain_words={pain_hits}")
+        score += 10
+        breakdown.append(f"+10 pain_words={pain_hits}")
     elif pain_hits >= 1:
-        score += 5; breakdown.append(f"+5 pain_words={pain_hits}")
+        score += 5
+        breakdown.append(f"+5 pain_words={pain_hits}")
 
     # Has email (actionable)
     if lead.email:
-        score += 5; breakdown.append("+5 has_email")
+        score += 5
+        breakdown.append("+5 has_email")
 
     # Has company (not just individual)
     if lead.company and lead.company.lower() not in ("", "unknown", "none"):
-        score += 3; breakdown.append("+3 has_company")
+        score += 3
+        breakdown.append("+3 has_company")
 
     lead.score = min(score, 100)
     lead.score_breakdown = " | ".join(breakdown)
@@ -152,6 +174,7 @@ def score_lead(lead: Lead) -> Lead:
 
 
 # ── GitHub source ─────────────────────────────────────────────────────────────
+
 
 class GitHubSource:
     """
@@ -173,21 +196,29 @@ class GitHubSource:
         # OpenAI heavy users
         ('language:python "openai" in:file filename:requirements.txt stars:>50', "openai_api"),
         # Agentic / agent frameworks
-        ('language:python "langchain" "openai" in:file filename:requirements.txt stars:>30', "langchain"),
+        (
+            'language:python "langchain" "openai" in:file filename:requirements.txt stars:>30',
+            "langchain",
+        ),
         # TypeScript / Next.js AI products
         ('language:typescript "openai" in:file filename:package.json stars:>30', "openai_api"),
-        ('language:typescript "anthropic" in:file filename:package.json stars:>30', "anthropic_api"),
+        (
+            'language:typescript "anthropic" in:file filename:package.json stars:>30',
+            "anthropic_api",
+        ),
     ]
 
     def __init__(self, token: str, limit: int = MAX_PER_SOURCE):
         self.token = token
         self.limit = limit
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+        )
 
     def _get(self, path: str, params: dict | None = None) -> dict:
         url = f"{self.BASE}{path}"
@@ -311,6 +342,7 @@ class GitHubSource:
 
 # ── Hacker News source ────────────────────────────────────────────────────────
 
+
 class HackerNewsSource:
     """
     Uses the free Algolia HN search API to find:
@@ -333,8 +365,13 @@ class HackerNewsSource:
     ]
 
     HIRING_KEYWORDS = [
-        "claude code", "cursor.sh", "anthropic api", "openai api",
-        "autonomous agent", "coding agent", "llm engineer",
+        "claude code",
+        "cursor.sh",
+        "anthropic api",
+        "openai api",
+        "autonomous agent",
+        "coding agent",
+        "llm engineer",
     ]
 
     def __init__(self, limit: int = MAX_PER_SOURCE):
@@ -390,15 +427,13 @@ class HackerNewsSource:
                 continue
             # Get comments from this post
             try:
-                cr = self.session.get(
-                    f"{self.ALGOLIA}/items/{post_id}", timeout=10
-                )
+                cr = self.session.get(f"{self.ALGOLIA}/items/{post_id}", timeout=10)
                 cr.raise_for_status()
                 post_data = cr.json()
             except Exception:
                 continue
 
-            for comment in (post_data.get("children") or []):
+            for comment in post_data.get("children") or []:
                 text = (comment.get("text") or "").lower()
                 author = comment.get("author", "")
 
@@ -453,15 +488,19 @@ class HackerNewsSource:
 
                 # Detect tool signals
                 tool_map = {
-                    "claude": "anthropic_api", "anthropic": "anthropic_api",
-                    "openai": "openai_api", "gpt-4": "openai_api",
-                    "cursor": "cursor", "claude code": "claude_code",
-                    "codex": "codex", "aider": "aider",
+                    "claude": "anthropic_api",
+                    "anthropic": "anthropic_api",
+                    "openai": "openai_api",
+                    "gpt-4": "openai_api",
+                    "cursor": "cursor",
+                    "claude code": "claude_code",
+                    "codex": "codex",
+                    "aider": "aider",
                     "langchain": "langchain",
                 }
-                tool_signal = ",".join({
-                    sig for kw, sig in tool_map.items() if kw in text.lower()
-                } or {"llm_api"})
+                tool_signal = ",".join(
+                    {sig for kw, sig in tool_map.items() if kw in text.lower()} or {"llm_api"}
+                )
 
                 lead = Lead(
                     source="hn_cost_complaint",
@@ -483,10 +522,11 @@ class HackerNewsSource:
                 seen_authors.add(l.name)
                 leads.append(l)
 
-        return leads[:self.limit]
+        return leads[: self.limit]
 
 
 # ── Product Hunt source ────────────────────────────────────────────────────────
+
 
 class ProductHuntSource:
     """
@@ -528,19 +568,33 @@ class ProductHuntSource:
         self.token = token
         self.limit = limit
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
 
     def _is_devtool(self, tagline: str, description: str) -> bool:
         """Filter for developer tools / AI coding tools."""
         text = (tagline + " " + description).lower()
         dev_signals = [
-            "developer", "code", "api", "llm", "agent", "copilot",
-            "cursor", "claude", "openai", "autonomous", "codebase",
-            "engineering", "devtool", "sdk", "cli",
+            "developer",
+            "code",
+            "api",
+            "llm",
+            "agent",
+            "copilot",
+            "cursor",
+            "claude",
+            "openai",
+            "autonomous",
+            "codebase",
+            "engineering",
+            "devtool",
+            "sdk",
+            "cli",
         ]
         return sum(1 for s in dev_signals if s in text) >= 2
 
@@ -595,14 +649,17 @@ class ProductHuntSource:
                     # Detect tool signals from product description
                     text = (tagline + " " + description).lower()
                     tool_signal_map = {
-                        "claude": "anthropic_api", "anthropic": "anthropic_api",
-                        "openai": "openai_api", "gpt": "openai_api",
-                        "cursor": "cursor", "agent": "llm_agent",
+                        "claude": "anthropic_api",
+                        "anthropic": "anthropic_api",
+                        "openai": "openai_api",
+                        "gpt": "openai_api",
+                        "cursor": "cursor",
+                        "agent": "llm_agent",
                         "langchain": "langchain",
                     }
-                    tool_signal = ",".join({
-                        sig for kw, sig in tool_signal_map.items() if kw in text
-                    } or {"ai_tool"})
+                    tool_signal = ",".join(
+                        {sig for kw, sig in tool_signal_map.items() if kw in text} or {"ai_tool"}
+                    )
 
                     lead = Lead(
                         source="producthunt",
@@ -634,6 +691,7 @@ class ProductHuntSource:
 
 # ── Dedup & merge ─────────────────────────────────────────────────────────────
 
+
 def dedup_leads(leads: list[Lead]) -> list[Lead]:
     """Remove duplicate leads by profile URL or email."""
     seen: set[str] = set()
@@ -649,14 +707,28 @@ def dedup_leads(leads: list[Lead]) -> list[Lead]:
 # ── CSV export ─────────────────────────────────────────────────────────────────
 
 CSV_FIELDS = [
-    "score", "source", "name", "company", "title",
-    "profile_url", "company_url", "email",
-    "tool_signal", "why_relevant",
-    "repo_name", "repo_stars", "repo_description",
-    "hn_post_title", "hn_post_url",
+    "score",
+    "source",
+    "name",
+    "company",
+    "title",
+    "profile_url",
+    "company_url",
+    "email",
+    "tool_signal",
+    "why_relevant",
+    "repo_name",
+    "repo_stars",
+    "repo_description",
+    "hn_post_title",
+    "hn_post_url",
     "ph_product",
-    "score_breakdown", "status", "notes", "found_at",
+    "score_breakdown",
+    "status",
+    "notes",
+    "found_at",
 ]
+
 
 def export_csv(leads: list[Lead], path: Path) -> None:
     leads_sorted = sorted(leads, key=lambda l: l.score, reverse=True)
@@ -671,10 +743,12 @@ def export_csv(leads: list[Lead], path: Path) -> None:
 
 # ── Pretty print summary ──────────────────────────────────────────────────────
 
+
 def print_summary(leads: list[Lead]) -> None:
     try:
         from rich.console import Console
         from rich.table import Table
+
         console = Console()
         table = Table(title=f"Top Leads ({len(leads)} total)", show_lines=True)
         table.add_column("Score", style="bold green", width=6)
@@ -709,27 +783,37 @@ def print_summary(leads: list[Lead]) -> None:
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cutctx lead generation script")
     parser.add_argument(
-        "--sources", nargs="+",
+        "--sources",
+        nargs="+",
         choices=["github", "hn", "producthunt"],
         default=["github", "hn", "producthunt"],
         help="Which sources to run (default: all)",
     )
-    parser.add_argument("--limit", type=int, default=MAX_PER_SOURCE,
-                        help=f"Max leads per source (default: {MAX_PER_SOURCE})")
-    parser.add_argument("--output", type=Path, default=OUTPUT_FILE,
-                        help=f"Output CSV path (default: {OUTPUT_FILE})")
-    parser.add_argument("--min-score", type=int, default=0,
-                        help="Only export leads above this score")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=MAX_PER_SOURCE,
+        help=f"Max leads per source (default: {MAX_PER_SOURCE})",
+    )
+    parser.add_argument(
+        "--output", type=Path, default=OUTPUT_FILE, help=f"Output CSV path (default: {OUTPUT_FILE})"
+    )
+    parser.add_argument(
+        "--min-score", type=int, default=0, help="Only export leads above this score"
+    )
     args = parser.parse_args()
 
     all_leads: list[Lead] = []
 
     if "github" in args.sources:
         if not GITHUB_TOKEN:
-            print("⚠️  GITHUB_TOKEN not set. Get one at github.com/settings/tokens (no scopes needed for public repos).")
+            print(
+                "⚠️  GITHUB_TOKEN not set. Get one at github.com/settings/tokens (no scopes needed for public repos)."
+            )
         else:
             print(f"[1/3] Fetching GitHub leads (limit={args.limit})…")
             gh = GitHubSource(GITHUB_TOKEN, limit=args.limit)
@@ -746,7 +830,9 @@ def main() -> None:
 
     if "producthunt" in args.sources:
         if not PRODUCTHUNT_TOKEN:
-            print("⚠️  PRODUCTHUNT_TOKEN not set. Get one free at api.producthunt.com/v2/oauth/token")
+            print(
+                "⚠️  PRODUCTHUNT_TOKEN not set. Get one free at api.producthunt.com/v2/oauth/token"
+            )
         else:
             print(f"[3/3] Fetching Product Hunt leads (limit={args.limit})…")
             ph = ProductHuntSource(PRODUCTHUNT_TOKEN, limit=args.limit)
@@ -778,7 +864,9 @@ def main() -> None:
         print(f"  {tier}: {len(bucket)}")
 
     print(f"\nNext step: open {args.output} and start with the Hot leads.")
-    print("Import to HubSpot: Contacts → Import → From file → map 'name','company','email','profile_url'")
+    print(
+        "Import to HubSpot: Contacts → Import → From file → map 'name','company','email','profile_url'"
+    )
 
 
 if __name__ == "__main__":

@@ -31,13 +31,9 @@ from cutctx.proxy.batch_router import (
     DEFAULT_BATCH_DISCOUNT,
     BatchRouter,
     BatchRouterConfig,
-    BatchRouterDecision,
-    BatchQueueState,
-    InternalBatchJob,
     is_internal_batch_job,
     is_request_batch_eligible,
 )
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -135,9 +131,7 @@ def test_header_value_other_than_allow_not_eligible() -> None:
             origin=None,
             config=BatchRouterConfig(enabled=True),
         )
-        assert eligible is False, (
-            f"header value {value!r} should not enable batch routing"
-        )
+        assert eligible is False, f"header value {value!r} should not enable batch routing"
 
 
 def test_header_case_insensitive() -> None:
@@ -301,21 +295,27 @@ def test_internal_queue_state_completed_count_increments() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("origin", [
-    "cutctx learn",
-    "cutctx evals",
-    "ws15 pre-compact",
-])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "cutctx learn",
+        "cutctx evals",
+        "ws15 pre-compact",
+    ],
+)
 def test_internal_job_origins_are_batch_eligible(origin: str) -> None:
     assert is_internal_batch_job(origin) is True
 
 
-@pytest.mark.parametrize("origin", [
-    "user",
-    "cutctx serve",
-    "cutctx evals --interactive",  # not exactly the bg job
-    "random other thing",
-])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "user",
+        "cutctx serve",
+        "cutctx evals --interactive",  # not exactly the bg job
+        "random other thing",
+    ],
+)
 def test_non_internal_origins_are_not_batch_eligible(origin: str) -> None:
     assert is_internal_batch_job(origin) is False
 
@@ -369,7 +369,10 @@ def test_bdd_scenario_interactive_request_not_batched() -> None:
     # Hammer with 100 different interactive requests
     for i in range(100):
         decision = router.route(
-            request_body={"model": "claude-3-opus", "messages": [{"role": "user", "content": f"interactive-{i}"}]},
+            request_body={
+                "model": "claude-3-opus",
+                "messages": [{"role": "user", "content": f"interactive-{i}"}],
+            },
             headers={},
             origin=None,
         )

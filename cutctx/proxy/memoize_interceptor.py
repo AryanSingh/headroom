@@ -111,9 +111,7 @@ class MemoizeInterceptor:
         self.config = config or MemoizeConfig()
         self.memoizer = ToolMemoizer(self.config)
 
-    def intercept_tool_calls(
-        self, response: Any, session_id: str
-    ) -> InterceptResult:
+    def intercept_tool_calls(self, response: Any, session_id: str) -> InterceptResult:
         """Inspect the response for tool calls. For each allowlisted
         call, check the memoizer. On hit, fabricate a tool_result.
         On miss, pass through to the existing pipeline.
@@ -160,9 +158,7 @@ class MemoizeInterceptor:
 
         return result
 
-    def invalidate_for_write(
-        self, session_id: str, tool_name: str, args: Any
-    ) -> None:
+    def invalidate_for_write(self, session_id: str, tool_name: str, args: Any) -> None:
         """Public re-export of the memoizer's invalidation method
         so callers don't have to reach through the interceptor."""
         self.memoizer.invalidate_for_write(session_id, tool_name, args)
@@ -202,9 +198,7 @@ class MemoizeInterceptor:
                         out.append(block)
         return out
 
-    def _parse_tool_call(
-        self, tc: dict[str, Any]
-    ) -> tuple[str | None, Any]:
+    def _parse_tool_call(self, tc: dict[str, Any]) -> tuple[str | None, Any]:
         """Extract (tool_name, args) from a tool_call block.
 
         OpenAI format:

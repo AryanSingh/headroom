@@ -513,7 +513,7 @@ def test_v1_models_fetches_codex_registry_under_chatgpt_auth(monkeypatch) -> Non
     assert payload == {
         "models": [
             {"id": "gpt-5.5", "object": "model", "slug": "gpt-5.5"},
-            {"id": "gpt-5.3-codex-spark", "object": "model", "slug": "gpt-5.3-codex-spark"}
+            {"id": "gpt-5.3-codex-spark", "object": "model", "slug": "gpt-5.3-codex-spark"},
         ],
         "object": "list",
         "data": [

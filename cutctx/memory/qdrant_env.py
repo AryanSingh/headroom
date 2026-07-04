@@ -82,8 +82,7 @@ def qdrant_env_host() -> str:
 def qdrant_env_port() -> int:
     """Return ``CUTCTX_QDRANT_PORT`` or the ``6333`` default."""
     return (
-        _parse_port(_strip_env("CUTCTX_QDRANT_PORT"), "CUTCTX_QDRANT_PORT")
-        or DEFAULT_QDRANT_PORT
+        _parse_port(_strip_env("CUTCTX_QDRANT_PORT"), "CUTCTX_QDRANT_PORT") or DEFAULT_QDRANT_PORT
     )
 
 

@@ -106,7 +106,7 @@ class AuditStore:
         timestamp_iso: str,
         previous_hash: str = None,
     ) -> bytes:
-        prior = previous_hash.encode() if previous_hash else b"\x00" * 32
+        prior = previous_hash.encode() if previous_hash else b"0" * 64
         return b"".join(
             (
                 prior,
@@ -118,9 +118,7 @@ class AuditStore:
             )
         )
 
-    def append_event(
-        self, tenant_id: str, actor: str, action: str, payload: dict
-    ) -> dict:
+    def append_event(self, tenant_id: str, actor: str, action: str, payload: dict) -> dict:
         """Append a new event to the audit log."""
         with self.SessionLocal() as session:
             # Get the last event for this tenant to get the previous hash

@@ -347,9 +347,7 @@ class AuditLogger:
             return 0
         with self._lock:
             conn = self._get_conn()
-            cur = conn.execute(
-                "DELETE FROM audit_events WHERE actor = ?", (actor,)
-            )
+            cur = conn.execute("DELETE FROM audit_events WHERE actor = ?", (actor,))
             conn.commit()
             return cur.rowcount or 0
 

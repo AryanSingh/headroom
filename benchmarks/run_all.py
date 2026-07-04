@@ -35,6 +35,7 @@ import tiktoken
 # Cutctx compression API
 try:
     from cutctx import compress
+
     CUTCTX_AVAILABLE = True
 except ImportError:
     CUTCTX_AVAILABLE = False
@@ -43,6 +44,7 @@ except ImportError:
 # Optional: Other compression tools
 try:
     from llmlingua import PromptCompressor
+
     LLMLINGUA2_AVAILABLE = True
 except ImportError:
     LLMLINGUA2_AVAILABLE = False
@@ -59,6 +61,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CompressionMetrics:
     """Metrics for a single compression result."""
+
     tool: str
     corpus: str
     input_tokens: int
@@ -80,6 +83,7 @@ class CompressionMetrics:
 @dataclass
 class BenchmarkResult:
     """Top-level result for all benchmarks."""
+
     timestamp: str
     machine_info: dict[str, Any]
     benchmarks: list[CompressionMetrics]
@@ -96,21 +100,24 @@ class BenchmarkResult:
 # SYNTHETIC DATA GENERATORS
 # =============================================================================
 
+
 def generate_json_tool_output(num_items: int = 50) -> str:
     """Generate synthetic JSON tool output (e.g., API response)."""
     items = []
     for i in range(num_items):
-        items.append({
-            "id": f"item_{i}",
-            "timestamp": "2026-06-15T10:30:00Z",
-            "status": "success" if i % 10 != 0 else "error",
-            "data": {
-                "value": i * 100,
-                "computed": i * 1.5,
-                "category": ["A", "B", "C"][i % 3],
-            },
-            "message": f"Result {i}: {'OK' if i % 10 != 0 else 'ERROR in processing'}",
-        })
+        items.append(
+            {
+                "id": f"item_{i}",
+                "timestamp": "2026-06-15T10:30:00Z",
+                "status": "success" if i % 10 != 0 else "error",
+                "data": {
+                    "value": i * 100,
+                    "computed": i * 1.5,
+                    "category": ["A", "B", "C"][i % 3],
+                },
+                "message": f"Result {i}: {'OK' if i % 10 != 0 else 'ERROR in processing'}",
+            }
+        )
     return json.dumps(items, indent=2)
 
 
@@ -118,22 +125,26 @@ def generate_code_snippet(num_functions: int = 10) -> str:
     """Generate synthetic source code."""
     lines = ["# Generated Python code"]
     for i in range(num_functions):
-        lines.extend([
+        lines.extend(
+            [
+                "",
+                f"def function_{i}(x, y):",
+                f'    """Function {i} with documentation."""',
+                "    result = x + y",
+                "    if result > 100:",
+                "        return result * 2",
+                "    else:",
+                "        return result",
+            ]
+        )
+    lines.extend(
+        [
             "",
-            f"def function_{i}(x, y):",
-            f'    """Function {i} with documentation."""',
-            "    result = x + y",
-            "    if result > 100:",
-            "        return result * 2",
-            "    else:",
-            "        return result",
-        ])
-    lines.extend([
-        "",
-        "if __name__ == '__main__':",
-        "    for i in range(10):",
-        "        print(f'Result {i}: {function_0(i, i*2)}')",
-    ])
+            "if __name__ == '__main__':",
+            "    for i in range(10):",
+            "        print(f'Result {i}: {function_0(i, i*2)}')",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -215,6 +226,7 @@ def load_real_corpus(corpus_name: str, corpus_dir: Path, limit: int | None = Non
 # =============================================================================
 # COMPRESSION RUNNERS
 # =============================================================================
+
 
 def compress_with_cutctx(text: str) -> tuple[str, float]:
     """Compress text using Cutctx.
@@ -343,6 +355,7 @@ def get_machine_info() -> dict[str, Any]:
 
     try:
         import multiprocessing
+
         cpu_count = multiprocessing.cpu_count()
     except Exception:
         cpu_count = None
@@ -401,7 +414,8 @@ def main() -> int:
     )
 
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
     )
@@ -426,9 +440,7 @@ def main() -> int:
         all_data = {}
         for corpus_name in requested_corpora:
             try:
-                all_data[corpus_name] = load_real_corpus(
-                    corpus_name, args.corpus_dir
-                )
+                all_data[corpus_name] = load_real_corpus(corpus_name, args.corpus_dir)
             except FileNotFoundError as e:
                 logger.warning(f"Skipping {corpus_name}: {e}")
 
@@ -457,13 +469,17 @@ def main() -> int:
     logger.info("Summary")
     logger.info("=" * 70)
 
-    print("\n{:<15} {:<12} {:<10} {:<12} {:<12} {:<10}".format(
-        "Tool", "Corpus", "Input Tok", "Output Tok", "Ratio", "Latency"
-    ))
+    print(
+        "\n{:<15} {:<12} {:<10} {:<12} {:<12} {:<10}".format(
+            "Tool", "Corpus", "Input Tok", "Output Tok", "Ratio", "Latency"
+        )
+    )
     print("-" * 75)
 
     for metric in sorted(results, key=lambda m: (m.tool, m.corpus)):
-        print(f"{metric.tool:<15} {metric.corpus:<12} {metric.input_tokens:<10} {metric.output_tokens:<12} {metric.compression_ratio:<11.1%} {metric.latency_ms:<8.1f}ms")
+        print(
+            f"{metric.tool:<15} {metric.corpus:<12} {metric.input_tokens:<10} {metric.output_tokens:<12} {metric.compression_ratio:<11.1%} {metric.latency_ms:<8.1f}ms"
+        )
 
     # Save results
     if args.output:

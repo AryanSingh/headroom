@@ -27,9 +27,7 @@ class CutctxClient:
         model: str = "claude-sonnet-4-5",
     ) -> None:
         if _requests is None:
-            raise ImportError(
-                "requests library is required: pip install requests"
-            )
+            raise ImportError("requests library is required: pip install requests")
         self._proxy_url = proxy_url.rstrip("/")
         self._api_key = api_key
         self._model = model
@@ -41,7 +39,9 @@ class CutctxClient:
             headers["X-Cutctx-Key"] = self._api_key
         return headers
 
-    def compress(self, messages: list[dict[str, Any]], model: str | None = None) -> list[dict[str, Any]]:
+    def compress(
+        self, messages: list[dict[str, Any]], model: str | None = None
+    ) -> list[dict[str, Any]]:
         """Compress messages through the Cutctx proxy.
 
         Args:

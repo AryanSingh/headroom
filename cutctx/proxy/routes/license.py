@@ -41,10 +41,9 @@ def create_license_router(
     try:
         from cutctx_ee.billing.license_db import get_license_db
     except ImportError:
+
         def get_license_db() -> Any:
-            raise HTTPException(
-                status_code=501, detail="Enterprise billing module not installed"
-            )
+            raise HTTPException(status_code=501, detail="Enterprise billing module not installed")
 
     class ActivateRequest(BaseModel):
         license_key: str
@@ -79,9 +78,7 @@ def create_license_router(
         db = get_license_db()
         if db.is_revoked(req.license_key):
             raise HTTPException(status_code=403, detail="License revoked")
-        success = db.checkout_seat(
-            req.license_key, req.user_id, req.lease_duration
-        )
+        success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
         if not success:
             return {"status": "seat_leased"}
         return {"status": "seat_leased"}

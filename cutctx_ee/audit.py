@@ -417,10 +417,7 @@ class AuditLogger:
         try:
             conn = self._get_conn()
             # Schema check: table exists with the expected columns.
-            cols = {
-                row[1]
-                for row in conn.execute("PRAGMA table_info(audit_events)").fetchall()
-            }
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(audit_events)").fetchall()}
             required = {"event_id", "action", "actor", "timestamp"}
             missing = required - cols
             if missing:
@@ -429,9 +426,7 @@ class AuditLogger:
                 return result
             result["checks"]["schema"] = "ok"
             # Row count.
-            count_row = conn.execute(
-                "SELECT COUNT(*) AS cnt FROM audit_events"
-            ).fetchone()
+            count_row = conn.execute("SELECT COUNT(*) AS cnt FROM audit_events").fetchone()
             result["total_rows"] = int(count_row["cnt"] if count_row else 0)
             # Monotonicity: rows in chronological order.
             if result["total_rows"] > 0:

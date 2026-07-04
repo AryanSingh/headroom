@@ -76,7 +76,7 @@ This DPA is incorporated into and governed by the MSA. In the event of a conflic
 
 **4.1 No Sub-Processors by Default.** As of the Effective Date, Cutctx does not engage any sub-processors to process Personal Data on Customer's behalf in connection with the Cutctx Software. This is consistent with the local-first architecture described in Section 2.2, under which no Personal Data is transmitted to Cutctx's infrastructure or any third party.
 
-**4.2 Sub-Processor List.** Cutctx maintains a current list of any approved sub-processors at: **cutctx.dev/sub-processors**. Customer acknowledges that this list may be updated from time to time.
+**4.2 Sub-Processor List.** Cutctx maintains a current list of any approved sub-processors at: **cutctx.com/sub-processors**. Customer acknowledges that this list may be updated from time to time.
 
 **4.3 Notice of Changes.** Cutctx shall provide Customer with at least thirty (30) days' prior written notice before engaging any new sub-processor that will process Personal Data. Such notice shall be provided by updating the sub-processor list at the URL above and, where Customer has subscribed to notifications, by email to [NOTICE_EMAIL]. Customer may object to a new sub-processor by providing written notice to Cutctx within fourteen (14) days of the notification. The parties shall work in good faith to resolve any reasonable objection.
 

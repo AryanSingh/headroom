@@ -81,7 +81,9 @@ def create_org(name: str, email: str, admin_key: str | None) -> None:
 def delete_org(org_id: str, admin_key: str | None) -> None:
     """Delete an organization and all its workspaces/projects."""
     try:
-        r = httpx.delete(f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10)
+        r = httpx.delete(
+            f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10
+        )
         r.raise_for_status()
         click.echo(f"Deleted org {org_id}")
     except Exception as e:

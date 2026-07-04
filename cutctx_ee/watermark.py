@@ -25,6 +25,7 @@ from typing import Optional
 @dataclass
 class Watermark:
     """A per-license watermark embedded in an EE artifact."""
+
     lic_id: str
     customer_id: str
     build_id: str
@@ -35,15 +36,19 @@ class Watermark:
 
     def to_marker(self) -> str:
         """Convert to a marker string embedded in compiled artifacts."""
-        payload = json.dumps({
-            "lic": self.lic_id,
-            "cus": self.customer_id,
-            "bld": self.build_id,
-            "cny": self.canary_token,
-            "ts": int(self.embedded_at),
-        }, separators=(",", ":"))
+        payload = json.dumps(
+            {
+                "lic": self.lic_id,
+                "cus": self.customer_id,
+                "bld": self.build_id,
+                "cny": self.canary_token,
+                "ts": int(self.embedded_at),
+            },
+            separators=(",", ":"),
+        )
         # Base64-encode for safe embedding in compiled binaries
         import base64
+
         encoded = base64.urlsafe_b64encode(payload.encode()).decode()
         return f"CTXWM:{encoded}"
 
@@ -54,6 +59,7 @@ class Watermark:
             return None
         try:
             import base64
+
             encoded = marker[6:]  # Strip CTXWM: prefix
             payload = json.loads(base64.urlsafe_b64decode(encoded))
             return cls(
@@ -75,7 +81,7 @@ def generate_canary_strings(lic_id: str, count: int = 3) -> list[str]:
     """
     canaries = []
     for i in range(count):
-        seed = hashlib.sha256(f"{lic_id}:canary:{i}".encode()).digest()[:8]
+        hashlib.sha256(f"{lic_id}:canary:{i}".encode()).digest()[:8]
         canary = f"CUTCTX_INTERNAL_{secrets.token_hex(8)}"
         canaries.append(canary)
     return canaries
@@ -103,8 +109,7 @@ def embed_watermark_in_source(
         # Append watermark as a string constant (survives compilation)
         watermark_line = f'__watermark__ = "{marker}"  # SP-5: do not remove\n'
         canary_lines = [
-            f'__canary_{i}__ = "{c}"  # SP-5: do not remove\n'
-            for i, c in enumerate(canaries)
+            f'__canary_{i}__ = "{c}"  # SP-5: do not remove\n' for i, c in enumerate(canaries)
         ]
         if "__watermark__" not in content:
             content += "\n" + watermark_line + "".join(canary_lines)
@@ -134,7 +139,7 @@ def extract_watermark_from_binary(binary_path: Path) -> list[Watermark]:
         # Read until null byte or non-base64 character
         end = pos + len(prefix)
         while end < len(data) and end < pos + 1024:
-            c = data[end:end + 1]
+            c = data[end : end + 1]
             if c in (b"\x00", b"\n", b"\r"):
                 break
             end += 1

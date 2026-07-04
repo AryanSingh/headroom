@@ -9,7 +9,7 @@ partially optimized).
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+
 from cutctx.cache.semantic import CacheEntry
 from cutctx.proxy.outcome import RequestOutcome
 

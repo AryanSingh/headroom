@@ -199,15 +199,12 @@ __all__ = [
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # Main client
     "CutctxClient": ("cutctx.client", "CutctxClient"),
-    "CutctxClient": ("cutctx.client", "CutctxClient"),
     # Providers
     "Provider": ("cutctx.providers", "Provider"),
     "TokenCounter": ("cutctx.providers", "TokenCounter"),
     "OpenAIProvider": ("cutctx.providers", "OpenAIProvider"),
     "AnthropicProvider": ("cutctx.providers", "AnthropicProvider"),
     # Exceptions
-    "CutctxError": ("cutctx.exceptions", "CutctxError"),
-    "CutctxError": ("cutctx.exceptions", "CutctxError"),
     "CutctxError": ("cutctx.exceptions", "CutctxError"),
     "ConfigurationError": ("cutctx.exceptions", "ConfigurationError"),
     "ProviderError": ("cutctx.exceptions", "ProviderError"),
@@ -218,8 +215,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "ValidationError": ("cutctx.exceptions", "ValidationError"),
     "TransformError": ("cutctx.exceptions", "TransformError"),
     # Config
-    "CutctxConfig": ("cutctx.config", "CutctxConfig"),
-    "CutctxMode": ("cutctx.config", "CutctxMode"),
     "CutctxConfig": ("cutctx.config", "CutctxConfig"),
     "CutctxMode": ("cutctx.config", "CutctxMode"),
     "SmartCrusherConfig": ("cutctx.config", "SmartCrusherConfig"),
@@ -266,10 +261,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "count_tokens_messages": ("cutctx.tokenizer", "count_tokens_messages"),
     "generate_report": ("cutctx.reporting", "generate_report"),
     # Observability
-    "CutctxOtelMetrics": ("cutctx.observability", "CutctxOtelMetrics"),
-    "CutctxTracer": ("cutctx.observability", "CutctxTracer"),
-    "CutctxOtelMetrics": ("cutctx.observability", "CutctxOtelMetrics"),
-    "CutctxTracer": ("cutctx.observability", "CutctxTracer"),
     "CutctxOtelMetrics": ("cutctx.observability", "CutctxOtelMetrics"),
     "CutctxTracer": ("cutctx.observability", "CutctxTracer"),
     "LangfuseTracingConfig": ("cutctx.observability", "LangfuseTracingConfig"),

@@ -7,12 +7,19 @@ import httpx
 
 
 @click.command("sso-test")
-@click.option("--provider-type", type=click.Choice(["oidc", "introspection"]), envvar="CUTCTX_SSO_PROVIDER_TYPE", help="SSO provider type")
+@click.option(
+    "--provider-type",
+    type=click.Choice(["oidc", "introspection"]),
+    envvar="CUTCTX_SSO_PROVIDER_TYPE",
+    help="SSO provider type",
+)
 @click.option("--discovery-url", envvar="CUTCTX_SSO_DISCOVERY_URL", help="OIDC discovery URL")
 @click.option("--jwks-uri", envvar="CUTCTX_SSO_JWKS_URI", help="JWKS URI")
 @click.option("--issuer", envvar="CUTCTX_SSO_ISSUER", help="Expected issuer")
 @click.option("--audience", envvar="CUTCTX_SSO_AUDIENCE", help="Expected audience")
-@click.option("--introspection-url", envvar="CUTCTX_SSO_INTROSPECTION_URL", help="Token introspection URL")
+@click.option(
+    "--introspection-url", envvar="CUTCTX_SSO_INTROSPECTION_URL", help="Token introspection URL"
+)
 def sso_test(
     provider_type: str | None,
     discovery_url: str | None,
@@ -60,7 +67,12 @@ def sso_test(
 
                 # Validate issuer
                 if issuer and doc.get("issuer") != issuer:
-                    click.echo(click.style(f"  Issuer mismatch: expected '{issuer}', got '{doc.get('issuer')}'", fg="red"))
+                    click.echo(
+                        click.style(
+                            f"  Issuer mismatch: expected '{issuer}', got '{doc.get('issuer')}'",
+                            fg="red",
+                        )
+                    )
                     issues += 1
                 elif issuer:
                     click.echo(click.style("  Issuer: matched", fg="green"))
@@ -82,7 +94,9 @@ def sso_test(
                 keys = doc.get("keys", [])
                 click.echo(click.style(f" OK ({len(keys)} keys)", fg="green"))
                 for k in keys:
-                    click.echo(f"  - kid={k.get('kid', '?')} alg={k.get('alg', '?')} use={k.get('use', '?')}")
+                    click.echo(
+                        f"  - kid={k.get('kid', '?')} alg={k.get('alg', '?')} use={k.get('use', '?')}"
+                    )
             except httpx.HTTPError as e:
                 click.echo(click.style(f" FAILED ({e})", fg="red"))
                 issues += 1

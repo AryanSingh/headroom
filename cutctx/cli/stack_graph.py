@@ -60,7 +60,7 @@ def explain(query: str, project_root: str, max_files: int) -> None:
             fg="red",
             err=True,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     try:
         resolver = StackGraphResolver()
@@ -70,7 +70,7 @@ def explain(query: str, project_root: str, max_files: int) -> None:
             fg="red",
             err=True,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
     project_root_path = Path(project_root).resolve()
 
@@ -85,8 +85,7 @@ def explain(query: str, project_root: str, max_files: int) -> None:
 
     if files_indexed == 0:
         click.secho(
-            "No supported files found in project. "
-            "Stack-graph supports: .py, .js, .jsx, .ts, .tsx",
+            "No supported files found in project. Stack-graph supports: .py, .js, .jsx, .ts, .tsx",
             fg="yellow",
             err=True,
         )
@@ -149,7 +148,9 @@ def explain(query: str, project_root: str, max_files: int) -> None:
             name = defn.get("symbol_name", "?")
             confidence = defn.get("confidence", 0.0)
 
-            confidence_pct = f"{confidence * 100:.0f}%" if isinstance(confidence, (int, float)) else "?"
+            confidence_pct = (
+                f"{confidence * 100:.0f}%" if isinstance(confidence, int | float) else "?"
+            )
             click.echo(
                 f"    → {click.style(name, fg='green')} "
                 f"at {file_path}:{line} "

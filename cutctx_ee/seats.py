@@ -240,13 +240,18 @@ class SeatManager:
 
         # Also send heartbeat to PitchToShip if configured
         from cutctx_ee.billing.pitchtoship_client import heartbeat_seat, is_configured
+
         if is_configured():
             result = heartbeat_seat(
                 license_key=state.org_id,  # Use org_id as license key reference
                 hwid=f"hr_{state.org_id}",
             )
             if result:
-                logger.info("PitchToShip heartbeat sent, seats=%d/%d", result.get("seats_used", 0), result.get("seats_limit", 0))
+                logger.info(
+                    "PitchToShip heartbeat sent, seats=%d/%d",
+                    result.get("seats_used", 0),
+                    result.get("seats_limit", 0),
+                )
 
         # Mark excess seats as inactive if limit decreased
         active_seats = [s for s in state.seats.values() if s.is_active]

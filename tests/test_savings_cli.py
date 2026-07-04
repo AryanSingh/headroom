@@ -12,17 +12,21 @@ from cutctx.proxy.savings_tracker import CUTCTX_SAVINGS_PATH_ENV_VAR, SavingsTra
 class TestIntegrationsStatus:
     def test_status_terminal(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status"])
         # Either it ran successfully or integration wasn't registered.
         # If it ran, it should show providers and sources.
         if result.exit_code == 0:
-            assert "openai" in result.output.lower() or "no such command" not in result.output.lower()
+            assert (
+                "openai" in result.output.lower() or "no such command" not in result.output.lower()
+            )
         # If the command isn't registered, that's a non-fatal pre-existing issue.
         # We only assert structure when it ran.
 
     def test_status_json(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         if result.exit_code == 0:
@@ -55,6 +59,7 @@ class TestIntegrationsStatus:
         monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(state_path))
 
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         assert result.exit_code == 0, result.output
@@ -88,6 +93,7 @@ class TestIntegrationsStatus:
         monkeypatch.setenv(CUTCTX_SAVINGS_PATH_ENV_VAR, str(state_path))
 
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "status", "--format", "json"])
         assert result.exit_code == 0, result.output
@@ -100,6 +106,7 @@ class TestIntegrationsStatus:
 class TestIntegrationsTest:
     def test_openai(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "openai", "--format", "json"])
         if result.exit_code == 0:
@@ -110,6 +117,7 @@ class TestIntegrationsTest:
 
     def test_anthropic(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "anthropic", "--format", "json"])
         if result.exit_code == 0:
@@ -119,6 +127,7 @@ class TestIntegrationsTest:
 
     def test_gemini(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "gemini", "--format", "json"])
         if result.exit_code == 0:
@@ -127,6 +136,7 @@ class TestIntegrationsTest:
 
     def test_litellm(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "litellm", "--format", "json"])
         if result.exit_code == 0:
@@ -136,6 +146,7 @@ class TestIntegrationsTest:
 
     def test_vllm_apc(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "vllm_apc", "--format", "json"])
         if result.exit_code == 0:
@@ -146,6 +157,7 @@ class TestIntegrationsTest:
 
     def test_unknown_provider(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["integrations", "test", "not-a-real-provider"])
         assert result.exit_code != 0
@@ -160,15 +172,19 @@ class TestSavingsBreakdownFlags:
     def test_savings_by_source_no_sessions(self):
         """Empty storage should still invoke the new breakdown helper safely."""
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["savings", "--by-source"])
         # Either runs fine or returns the empty-state message.
         assert result.exit_code in (0, 1)
         # When empty, the CLI says so.
-        assert "no" in result.output.lower() or "error" in result.output.lower() or result.output == ""
+        assert (
+            "no" in result.output.lower() or "error" in result.output.lower() or result.output == ""
+        )
 
     def test_savings_format_json_flag_accepted(self):
         from cutctx.cli.main import main as root
+
         runner = CliRunner()
         result = runner.invoke(root, ["savings", "--format", "json"])
         # Just verify the flag is accepted (no click usage error).

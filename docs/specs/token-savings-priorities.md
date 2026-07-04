@@ -16,16 +16,16 @@ Cutctx's next major savings wins come less from generic prose compression and mo
 This is the strongest immediate win when large tool definitions are resent across many turns and clients.
 
 Current state:
-- Shared compaction logic already exists in [cutctx/proxy/schema_compress.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/schema_compress.py)
+- Shared compaction logic already exists in [cutctx/proxy/schema_compress.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/schema_compress.py)
 - Tool-schema savings are now attributable to `tool_schema_compaction` rather than being buried inside generic compression
 - Dashboard attribution can show tool-schema savings directly
 
 Primary seams:
-- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/chat.py)
-- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py)
-- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/anthropic.py)
-- [cutctx/proxy/outcome.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/outcome.py)
-- [cutctx/savings/types.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/savings/types.py)
+- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/chat.py)
+- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/responses.py)
+- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/anthropic.py)
+- [cutctx/proxy/outcome.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/outcome.py)
+- [cutctx/savings/types.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/savings/types.py)
 
 ### 2. API / MCP surface slimming
 This is the best next OSS-inspired priority after tool schemas. It maps well to LAP and OnlyCLI style ideas: expose the smallest useful surface rather than forwarding entire specs.
@@ -36,10 +36,10 @@ Current state:
 - Heuristics are intentionally conservative and preserve explicitly requested tools
 
 Primary seams:
-- [cutctx/proxy/tool_surface.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/tool_surface.py)
-- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/chat.py)
-- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py)
-- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/anthropic.py)
+- [cutctx/proxy/tool_surface.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/tool_surface.py)
+- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/chat.py)
+- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/responses.py)
+- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/anthropic.py)
 
 Current toggles:
 - `CUTCTX_TOOL_SURFACE_SLIMMING=1`
@@ -91,8 +91,8 @@ Best ideas to absorb:
 - repeated-header and repeated-tool overhead reports
 
 Primary seams:
-- [cutctx/proxy/cost.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/cost.py)
-- [cutctx/proxy/savings_tracker.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/savings_tracker.py)
+- [cutctx/proxy/cost.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/cost.py)
+- [cutctx/proxy/savings_tracker.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/savings_tracker.py)
 - dashboard diagnostics surfaces
 
 Current state:
@@ -110,10 +110,10 @@ Cutctx now has a first-party minimal-build guidance layer that nudges agents to:
 - stop at the first sufficient solution
 
 Key seams:
-- [cutctx/proxy/minimal_build.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/minimal_build.py)
-- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/chat.py)
-- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py)
-- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/anthropic.py)
+- [cutctx/proxy/minimal_build.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/minimal_build.py)
+- [cutctx/proxy/handlers/openai/chat.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/chat.py)
+- [cutctx/proxy/handlers/openai/responses.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/openai/responses.py)
+- [cutctx/proxy/handlers/anthropic.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/handlers/anthropic.py)
 
 ### Graphify hardening
 Graphify should be treated as a reliability and transparency feature, not just an optional extra.
@@ -124,9 +124,9 @@ Current improvements:
 - Build state and last error are exposed more clearly
 
 Key seams:
-- [cutctx/graph/graphify.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/graph/graphify.py)
-- [cutctx/proxy/interceptors/graph_interceptor.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/interceptors/graph_interceptor.py)
-- [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/server.py)
+- [cutctx/graph/graphify.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/graph/graphify.py)
+- [cutctx/proxy/interceptors/graph_interceptor.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/interceptors/graph_interceptor.py)
+- [cutctx/proxy/server.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/server.py)
 
 ### Prompt-cache remediation
 Low cache savings are often a cache-stability problem, not a compression problem.
@@ -137,9 +137,9 @@ Current improvements:
 - Adaptive freeze behavior helps preserve cacheable prefixes
 
 Key seams:
-- [cutctx/cache/prefix_tracker.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/cache/prefix_tracker.py)
-- [cutctx/proxy/cost.py](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/cost.py)
-- [dashboard/src/pages/Overview.jsx](/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/src/pages/Overview.jsx)
+- [cutctx/cache/prefix_tracker.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/cache/prefix_tracker.py)
+- [cutctx/proxy/cost.py](/Users/aryansingh/Documents/Claude/Projects/cutctx/cutctx/proxy/cost.py)
+- [dashboard/src/pages/Overview.jsx](/Users/aryansingh/Documents/Claude/Projects/cutctx/dashboard/src/pages/Overview.jsx)
 
 ## Decision rule
 When choosing between a new generic compressor and a feature that removes repeated per-turn scaffolding, prefer the scaffolding-removal feature first.

@@ -847,7 +847,6 @@ def verify_openclaw_wrap(
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    gateway_proc: subprocess.Popen[str] | None = None
     openclaw_env = base_env.copy()
     openclaw_env.pop("CUTCTX_ADMIN_API_KEY", None)
     run(
@@ -923,7 +922,12 @@ def verify_openclaw_wrap(
         "OpenClaw wrap should set context engine slot",
     )
 
-    run(["cutctx", "unwrap", "openclaw", "--proxy-port", str(port)], env=openclaw_env, cwd=project_dir, timeout=120)
+    run(
+        ["cutctx", "unwrap", "openclaw", "--proxy-port", str(port)],
+        env=openclaw_env,
+        cwd=project_dir,
+        timeout=120,
+    )
     state = json.loads(config_path.read_text(encoding="utf-8"))
     assert_true(
         state["plugins"]["slots"]["contextEngine"] == "legacy",

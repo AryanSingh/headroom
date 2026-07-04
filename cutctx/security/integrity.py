@@ -38,6 +38,7 @@ def _ee_dir() -> Path:
     """Return the path to the installed cutctx_ee package directory."""
     try:
         import cutctx_ee  # type: ignore[import]
+
         return Path(cutctx_ee.__file__).parent
     except ImportError:
         # cutctx_ee not installed — nothing to check
@@ -101,8 +102,7 @@ def verify_ee_manifest(strict: bool = True) -> None:
     """
     if os.environ.get(_SKIP_CHECK_ENV, "").strip() in ("1", "true", "yes"):
         logger.warning(
-            "EE integrity check SKIPPED (%s=1). "
-            "Never set this in production.",
+            "EE integrity check SKIPPED (%s=1). Never set this in production.",
             _SKIP_CHECK_ENV,
         )
         return
@@ -139,8 +139,7 @@ def verify_ee_manifest(strict: bool = True) -> None:
         logger.debug("EE manifest signature OK")
     else:
         logger.debug(
-            "EE manifest signature not verified (%s not set) — "
-            "hash-only integrity check active.",
+            "EE manifest signature not verified (%s not set) — hash-only integrity check active.",
             _HMAC_SECRET_ENV,
         )
 
@@ -176,8 +175,7 @@ def verify_ee_manifest(strict: bool = True) -> None:
         actual_hash = _sha256_file(abs_path)
         if not hmac.compare_digest(actual_hash, expected_hash):
             failures.append(
-                f"MISMATCH: {rel_path} "
-                f"(expected {expected_hash[:16]}…, got {actual_hash[:16]}…)"
+                f"MISMATCH: {rel_path} (expected {expected_hash[:16]}…, got {actual_hash[:16]}…)"
             )
 
     if failures:

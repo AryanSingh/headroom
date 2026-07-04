@@ -362,9 +362,7 @@ def test_apply_mutations_runs_openclaw_for_user_scope(monkeypatch, tmp_path: Pat
             "cutctx.install.providers._apply_windows_env_scope", lambda deployment: []
         )
     else:
-        monkeypatch.setattr(
-            "cutctx.install.providers._apply_unix_env_scope", lambda deployment: []
-        )
+        monkeypatch.setattr("cutctx.install.providers._apply_unix_env_scope", lambda deployment: [])
     monkeypatch.setattr(
         "cutctx.install.providers.apply_provider_scope_mutations",
         lambda deployment: [ManagedMutation(target="openclaw", kind="openclaw-wrap")],
@@ -490,9 +488,7 @@ def test_revert_claude_provider_scope_ignores_missing_settings_file(tmp_path: Pa
 # ---------------------------------------------------------------------------
 
 
-def test_cutctx_provider_block_never_sets_requires_openai_auth(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_cutctx_provider_block_never_sets_requires_openai_auth(monkeypatch, tmp_path: Path) -> None:
     """apply_provider_scope must NOT emit requires_openai_auth in the cutctx block.
 
     Bug 3 (#406): requires_openai_auth = true on a custom [model_providers.cutctx]

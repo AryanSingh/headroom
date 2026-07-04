@@ -2,6 +2,14 @@
 
 ## Latest Verification Notes - 2026-07-03
 
+- 2026-07-04 verification rerun: restored a corrupted uncommitted working-tree
+  layer to committed source state, reran Python/Rust/dashboard gates, and
+  recorded the remaining `ruff check .` release blocker in
+  `artifacts/pending-items.md`.
+- 2026-07-04 release-readiness follow-up: removed the dead duplicate legacy
+  proxy app factory, restored live request-id/firewall middleware in
+  `create_app()`, made CI-pinned Ruff check/format green, and reran full
+  Python/Rust/dashboard release gates.
 - WS1-WS3 release polish docs added: a quality-at-budget benchmark framing
   document and current outreach positioning templates now capture
   provider-native comparison caveats and design-partner messaging.
@@ -74,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard operator stats now bypass browser cache for live admin fetches, expose proxy-sync freshness for history panels, and preserve lifetime totals in headline cards when the current session is smaller or tied.
 - Dashboard recent-request docs and labels now clarify that the table shows the routed model observed by Cutctx, not necessarily the originally requested alias.
 - Release metadata truthfulness improved across the dashboard and packaging surfaces: the sidebar version label now follows the live proxy or repo package version, `SECURITY.md` reflects the currently supported release line, and the README/Helm/Kubernetes defaults no longer point at stale pre-0.29 image versions or the old GitHub namespace.
-- Go/no-go onboarding drift is reduced: the Docker-native install one-liners in `wiki/getting-started.md` and `wiki/quickstart.md` now point at the canonical `cutctx/cutctx` GitHub path instead of the stale `chopratejas/cutctx` repository.
+- Go/no-go onboarding drift is reduced: the Docker-native install one-liners in `wiki/getting-started.md` and `wiki/quickstart.md` now point at the canonical `cutctx/cutctx` GitHub path instead of the stale `cutctx/cutctx` repository.
 - Release-manifest and active-doc drift are tightened further: `scripts/verify-versions.py` now passes with all tracked plugin/SDK manifests aligned at `0.29.0`, remaining active Docker-native docs now point at `cutctx/cutctx`, live troubleshooting/pricing/integration/OpenClaw docs now use canonical `cutctx/cutctx` links, the packaged EE commercial-license surface now consistently names `Cutctx Labs`, and the docs OG route no longer ships the `My App` placeholder brand.
 - Restored the admin/runtime source tree to a bootable state after a corrupted `cutctx/proxy/routes/admin.py` edit, and re-verified live current-source endpoints for `/health`, `/config/flags`, `/policy/status`, `/stats`, and `/stats-history`.
 - Hardened dashboard operator data loading so unsupported or absent config surfaces no longer present as broken stats in local dashboard flows.
@@ -220,8 +228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value instead of silently falling back to `auto`, and document the backend
   selection env var (`auto` / `onnx` / `onnx_cpu` / `onnx_coreml` / `pytorch` /
   `pytorch_mps` plus shorthand aliases) in `wiki/configuration.md` (issue
-  [#202](https://github.com/chopratejas/cutctx/issues/202), PR
-  [#204](https://github.com/chopratejas/cutctx/pull/204)).
+  [#202](https://github.com/cutctx/cutctx/issues/202), PR
+  [#204](https://github.com/cutctx/cutctx/pull/204)).
 * **proxy:** per-provider attribution in the savings history rollups. Each `/stats-history` bucket (hourly/daily/weekly/monthly) now carries a `by_provider` map breaking down `tokens_saved`, `compression_savings_usd_delta`, `total_input_tokens_delta`, and `total_input_cost_usd_delta` per provider, so consumers can show how savings and spend are distributed across providers within a time period. Providers only appear in a bucket where they moved a counter; legacy history checkpoints with no provider collapse into `"unknown"`. Affected files: `cutctx/proxy/savings_tracker.py`, `cutctx/proxy/prometheus_metrics.py`.
 * **cli:** startup banner now includes a `Performance Tuning` section that surfaces active `CUTCTX_COMPRESSION_STABLE_AFTER_TURN`, `CUTCTX_STALE_READ_COMPRESS_AFTER_TURNS`, and embedding-server socket values when set; shows a hint to set them when all defaults are in use.
 
@@ -245,7 +253,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **codex:** respect `CODEX_HOME` when `cutctx wrap codex` writes provider, MCP, memory, backup, and global `AGENTS.md` config, and warn when `unwrap codex` may be looking at the default Codex home because `CODEX_HOME` is unset.
 * **proxy:** multi-worker CCR warning is now conditional on backend — when `CUTCTX_CCR_BACKEND` is unset (default `InMemoryBackend`, per-process), the startup warning includes CCR retrieval failures and suggests `CUTCTX_CCR_BACKEND=sqlite`; when a cross-worker backend is already configured, the warning covers only the remaining per-worker stores (compression cache, prefix tracker, TOIN, CostTracker). Updated `RUST_DEV.md` to accurately document Python `CompressionStore` as per-process by default.
-* **deps:** move `gunicorn` to `[proxy-prod]` extra with `sys_platform != 'win32'` guard; removed from `[proxy]` to avoid forcing a Unix-only package on dev, CI, and Windows users ([#537](https://github.com/chopratejas/cutctx/pull/537))
+* **deps:** move `gunicorn` to `[proxy-prod]` extra with `sys_platform != 'win32'` guard; removed from `[proxy]` to avoid forcing a Unix-only package on dev, CI, and Windows users ([#537](https://github.com/cutctx/cutctx/pull/537))
 * **startup:** suppress proxy startup log noise -- litellm banner, trafilatura parse errors, HuggingFace Hub unauthenticated warnings, tiktoken fallback warning, and httpx INFO lines from sentence_transformers HEAD checks. Affected files: `cutctx/providers/litellm.py`, `cutctx/transforms/html_extractor.py`, `cutctx/memory/adapters/embedders.py`, `cutctx/providers/anthropic.py`, `cutctx/providers/registry.py`, `cutctx/image/onnx_router.py`, `cutctx/transforms/kompress_compressor.py`.
 
 ### Security
@@ -659,5 +667,5 @@ ANTHROPIC_BASE_URL=http://localhost:8787 claude
 [0.29.0]: https://github.com/cutctx/cutctx/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/cutctx/cutctx/compare/v0.26.1...v0.28.0
 [0.26.1]: https://github.com/cutctx/cutctx/compare/v0.26.0...v0.26.1
-[0.2.0]: https://github.com/chopratejas/cutctx/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/chopratejas/cutctx/releases/tag/v0.1.0
+[0.2.0]: https://github.com/cutctx/cutctx/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/cutctx/cutctx/releases/tag/v0.1.0

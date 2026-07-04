@@ -9,6 +9,7 @@ from cutctx.observability.memory_impact import MemoryImpactTelemetry
 
 router = APIRouter(prefix="/v1/reports/memory", tags=["Team Memory Reporting"])
 
+
 @router.get("/{org_id}/csv")
 async def export_memory_metrics_csv(org_id: str) -> Response:
     """Export memory metrics as CSV."""
@@ -24,5 +25,5 @@ async def export_memory_metrics_csv(org_id: str) -> Response:
     return Response(
         content=csv_content,
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="memory_impact_{org_id}.csv"'}
+        headers={"Content-Disposition": f'attachment; filename="memory_impact_{org_id}.csv"'},
     )

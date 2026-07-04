@@ -160,9 +160,7 @@ class EvidenceLedger:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_ledger_session ON evidence_ledger(session_id)"
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_ledger_time ON evidence_ledger(timestamp)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_time ON evidence_ledger(timestamp)")
 
     def _last_hash(self) -> str:
         with sqlite3.connect(self.path) as conn:
@@ -248,9 +246,16 @@ class EvidenceLedger:
             ).fetchall()
         return [
             EvidenceEvent(
-                event_id=r[0], timestamp=r[1], event_type=r[2], session_id=r[3],
-                workspace_id=r[4], project_id=r[5], agent_id=r[6],
-                detail_json=r[7], prev_hash=r[8], row_hash=r[9],
+                event_id=r[0],
+                timestamp=r[1],
+                event_type=r[2],
+                session_id=r[3],
+                workspace_id=r[4],
+                project_id=r[5],
+                agent_id=r[6],
+                detail_json=r[7],
+                prev_hash=r[8],
+                row_hash=r[9],
             )
             for r in rows
         ]
@@ -269,9 +274,7 @@ class EvidenceLedger:
         - integrity_failures: count of rows where stored hash != recomputed hash
         """
         with sqlite3.connect(self.path) as conn:
-            rows = conn.execute(
-                "SELECT * FROM evidence_ledger ORDER BY rowid ASC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM evidence_ledger ORDER BY rowid ASC").fetchall()
 
         total = len(rows)
         chain_broken = False
@@ -281,9 +284,16 @@ class EvidenceLedger:
 
         for r in rows:
             event = EvidenceEvent(
-                event_id=r[0], timestamp=r[1], event_type=r[2], session_id=r[3],
-                workspace_id=r[4], project_id=r[5], agent_id=r[6],
-                detail_json=r[7], prev_hash=r[8], row_hash=r[9],
+                event_id=r[0],
+                timestamp=r[1],
+                event_type=r[2],
+                session_id=r[3],
+                workspace_id=r[4],
+                project_id=r[5],
+                agent_id=r[6],
+                detail_json=r[7],
+                prev_hash=r[8],
+                row_hash=r[9],
             )
             # 1. Recompute the hash and check integrity
             recomputed = event.compute_hash(self._hmac_key)

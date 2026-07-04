@@ -1844,7 +1844,7 @@ Complete all items before a commercial launch.
 ### Docs & GTM
 
 - [ ] `CHANGELOG.md` updated with all changes since last release
-- [ ] `llms.txt` updated at `cutctx.dev/llms.txt`
+- [ ] `llms.txt` updated at `cutctx.com/llms.txt`
 - [ ] Pricing sheet accurate: `artifacts/pricing-sheet.md`
 - [ ] MSA and DPA templates reviewed: `artifacts/legal/`
 - [ ] SLA terms accurate: `SLA.md`

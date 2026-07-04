@@ -22,6 +22,7 @@ def drain3_available() -> bool:
     """Check whether the ``drain3`` package is installed and importable."""
     try:
         import drain3  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -196,7 +197,7 @@ class Drain3LogCompressor:
         original_line_count = len(lines)
 
         # Guard: all-whitespace content must not produce empty compressed output
-        non_empty = [l for l in lines if l.strip()]
+        non_empty = [line for line in lines if line.strip()]
         if not non_empty:
             return Drain3CompressionResult(
                 compressed=content,
@@ -257,9 +258,7 @@ class Drain3LogCompressor:
 
         original_tokens = len(content.split())
         compressed_tokens = len(compressed_text.split())
-        compression_ratio = (
-            compressed_tokens / original_tokens if original_tokens > 0 else 1.0
-        )
+        compression_ratio = compressed_tokens / original_tokens if original_tokens > 0 else 1.0
 
         return Drain3CompressionResult(
             compressed=compressed_text,
@@ -341,9 +340,7 @@ class Drain3LogCompressor:
         compressed_line_count = result.compressed_line_count
         original_tokens = len(content.split())
         compressed_tokens = len(result.compressed.split())
-        compression_ratio = (
-            compressed_tokens / original_tokens if original_tokens > 0 else 1.0
-        )
+        compression_ratio = compressed_tokens / original_tokens if original_tokens > 0 else 1.0
 
         return Drain3CompressionResult(
             compressed=result.compressed,

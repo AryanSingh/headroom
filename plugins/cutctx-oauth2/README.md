@@ -1,7 +1,7 @@
 # cutctx-oauth2
 
 Generic **OAuth2 client-credentials** upstream-auth extension for the
-[Cutctx](https://github.com/chopratejas/cutctx) proxy.
+[Cutctx](https://github.com/cutctx/cutctx) proxy.
 
 When Cutctx routes to an OpenAI-compatible backend that is protected by an
 OAuth2 client-credentials flow (enterprise AI gateways, Azure AD / Entra, Okta,

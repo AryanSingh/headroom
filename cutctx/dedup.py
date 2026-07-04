@@ -195,9 +195,7 @@ class SessionDeduplicator:
 
         return result
 
-    def _process_message(
-        self, msg: dict[str, Any], result: DeduplicationResult
-    ) -> dict[str, Any]:
+    def _process_message(self, msg: dict[str, Any], result: DeduplicationResult) -> dict[str, Any]:
         """Process a single message for deduplication.
 
         Args:
@@ -235,8 +233,7 @@ class SessionDeduplicator:
         result.refs_created += 1
 
         logger.debug(
-            f"Dedup tracking new: {content[:30]}... "
-            f"(hash={hash_key[:8]}, tokens={token_estimate})"
+            f"Dedup tracking new: {content[:30]}... (hash={hash_key[:8]}, tokens={token_estimate})"
         )
 
         return msg
@@ -316,9 +313,7 @@ class SessionDeduplicator:
                     query_context="semantic deduplication",
                     explicit_hash=hash_key,
                 )
-                logger.debug(
-                    f"Dedup: Registered hash {hash_key[:8]} with CCR"
-                )
+                logger.debug(f"Dedup: Registered hash {hash_key[:8]} with CCR")
             except Exception as e:
                 logger.warning(
                     f"Dedup: Failed to store in CCR: {e} (continuing with in-memory index)"

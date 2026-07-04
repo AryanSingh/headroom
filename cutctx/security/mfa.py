@@ -27,6 +27,7 @@ Threat model:
   - Clock skew: a 1-step window (±30s) on either side is
     accepted.
 """
+
 from __future__ import annotations
 
 import base64

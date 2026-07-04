@@ -86,9 +86,7 @@ class TestStackGraphResolverIndexing:
             assert result is True
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_index_file_value_error_returns_false(
-        self, mock_avail: MagicMock
-    ) -> None:
+    def test_index_file_value_error_returns_false(self, mock_avail: MagicMock) -> None:
         """index_file should return False when add_file raises ValueError."""
         with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
             mock_instance = MagicMock()
@@ -99,9 +97,7 @@ class TestStackGraphResolverIndexing:
             assert result is False
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_index_project_empty_dir(
-        self, mock_avail: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_index_project_empty_dir(self, mock_avail: MagicMock, tmp_path: Path) -> None:
         """index_project on empty dir should return 0."""
         with patch("cutctx._core.StackGraphManager", create=True):
             resolver = StackGraphResolver()
@@ -109,9 +105,7 @@ class TestStackGraphResolverIndexing:
             assert count == 0
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_index_project_with_files(
-        self, mock_avail: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_index_project_with_files(self, mock_avail: MagicMock, tmp_path: Path) -> None:
         """index_project should index matching files."""
         (tmp_path / "a.py").write_text("x = 1\n")
         (tmp_path / "b.py").write_text("y = 2\n")
@@ -126,9 +120,7 @@ class TestStackGraphResolverIndexing:
             assert len(resolver.indexed_paths) == 2
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_index_project_respects_extensions(
-        self, mock_avail: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_index_project_respects_extensions(self, mock_avail: MagicMock, tmp_path: Path) -> None:
         """index_project should respect custom extensions."""
         (tmp_path / "a.js").write_text("const x = 1;\n")
         (tmp_path / "a.ts").write_text("const x: number = 1;\n")
@@ -141,9 +133,7 @@ class TestStackGraphResolverIndexing:
             assert count == 1
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_index_project_respects_max_files(
-        self, mock_avail: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_index_project_respects_max_files(self, mock_avail: MagicMock, tmp_path: Path) -> None:
         """index_project should respect max_files limit."""
         for i in range(10):
             (tmp_path / f"f{i}.py").write_text("x = 1\n")
@@ -187,9 +177,7 @@ class TestStackGraphResolverReindex:
             assert result is True
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_reindex_file_value_error_returns_false(
-        self, mock_avail: MagicMock
-    ) -> None:
+    def test_reindex_file_value_error_returns_false(self, mock_avail: MagicMock) -> None:
         """reindex_file should return False when reindex_file raises ValueError."""
         with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
             mock_instance = MagicMock()
@@ -215,9 +203,7 @@ class TestStackGraphResolverResolution:
     """Tests for resolve()."""
 
     @patch("cutctx.graph.resolver.stack_graph_available", return_value=True)
-    def test_resolve_returns_none_on_empty_graph(
-        self, mock_avail: MagicMock
-    ) -> None:
+    def test_resolve_returns_none_on_empty_graph(self, mock_avail: MagicMock) -> None:
         """resolve should return None when graph has no data."""
         with patch("cutctx._core.StackGraphManager", create=True) as mock_cls:
             mock_instance = MagicMock()

@@ -235,7 +235,9 @@ class BatchRouter:
         self._state.total_enqueued += 1
         logger.debug(
             "WS13: enqueued batch job queue_id=%s origin=%s reason=%s",
-            queue_id, origin, reason,
+            queue_id,
+            origin,
+            reason,
         )
         return BatchRouterDecision(
             action=BatchAction.ENQUEUED.value,

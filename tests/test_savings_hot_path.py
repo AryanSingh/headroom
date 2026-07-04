@@ -77,9 +77,7 @@ def _make_outcome(
         optimized_tokens=optimized_tokens,
         output_tokens=output_tokens,
         tokens_saved=(
-            tokens_saved
-            if tokens_saved is not None
-            else original_tokens - optimized_tokens
+            tokens_saved if tokens_saved is not None else original_tokens - optimized_tokens
         ),
         attempted_input_tokens=optimized_tokens,
         cache_read_tokens=cache_read_tokens,
@@ -113,7 +111,10 @@ def test_outcome_funnel_writes_savings_breakdown_to_cost_tracker():
     assert by_source["tokens"]["provider_prompt_cache"] == 200
     assert by_source["tokens"]["cutctx_compression"] == 400
     assert by_source["total_tokens"] == 600
-    assert by_source["tokens"]["provider_prompt_cache"] + by_source["tokens"]["cutctx_compression"] == by_source["total_tokens"]
+    assert (
+        by_source["tokens"]["provider_prompt_cache"] + by_source["tokens"]["cutctx_compression"]
+        == by_source["total_tokens"]
+    )
     # Per-provider bucket also populated.
     assert "anthropic" in stats["savings_by_provider"]
     assert stats["savings_by_provider"]["anthropic"]["total_tokens"] == 600
@@ -350,7 +351,12 @@ def test_outcome_funnel_model_routing_only_with_usd():
     assert by_source_tokens["model_routing"] == 3000
     assert by_source_usd["model_routing"] == pytest.approx(0.12)
     # No other source attributed.
-    for src in ("provider_prompt_cache", "cutctx_compression", "semantic_cache", "prefix_cache_self_hosted"):
+    for src in (
+        "provider_prompt_cache",
+        "cutctx_compression",
+        "semantic_cache",
+        "prefix_cache_self_hosted",
+    ):
         assert by_source_tokens.get(src, 0) == 0
         assert by_source_usd.get(src, 0.0) == 0.0
 
@@ -464,6 +470,7 @@ def test_savings_tracker_persistence_with_all_five_sources(tmp_path):
     # Round-trip via the normalizer: that is what ``_collect_savings_history``
     # uses, and it is the path the buyer report exercises.
     from cutctx.proxy.savings_tracker import _normalize_history_entry
+
     normalized = _normalize_history_entry(latest)
     assert normalized is not None
     assert normalized["savings_by_source_tokens"]["provider_prompt_cache"] == 200
@@ -525,8 +532,8 @@ def test_buyer_report_summarizes_all_five_sources(tmp_path, monkeypatch):
         assert payload["savings_by_source"][SavingsSource.PREFIX_CACHE_SELF_HOSTED.value] == 200
         assert payload["savings_by_source"][SavingsSource.MODEL_ROUTING.value] == 200
         # USD is per-source.
-        assert payload["savings_by_source_usd"][SavingsSource.MODEL_ROUTING.value] == pytest.approx(0.04)
-        # Combined total is the sum, not a difference.
-        assert payload["total_tokens_saved"] == sum(
-            payload["savings_by_source"].values()
+        assert payload["savings_by_source_usd"][SavingsSource.MODEL_ROUTING.value] == pytest.approx(
+            0.04
         )
+        # Combined total is the sum, not a difference.
+        assert payload["total_tokens_saved"] == sum(payload["savings_by_source"].values())

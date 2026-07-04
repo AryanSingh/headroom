@@ -130,9 +130,7 @@ def test_render_windows_runner_writes_ps1_and_cmd_wrappers(tmp_path: Path) -> No
 
 def test_render_runner_scripts_writes_unix_scripts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("cutctx.install.supervisors.sys.platform", "linux")
-    monkeypatch.setattr(
-        "cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx"]
-    )
+    monkeypatch.setattr("cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx"])
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = _manifest()
 
@@ -146,9 +144,7 @@ def test_render_runner_scripts_writes_unix_scripts(monkeypatch, tmp_path: Path) 
 
 def test_render_runner_scripts_writes_windows_scripts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("cutctx.install.supervisors.sys.platform", "win32")
-    monkeypatch.setattr(
-        "cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx.exe"]
-    )
+    monkeypatch.setattr("cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx.exe"])
     monkeypatch.setattr(
         "cutctx.install.supervisors.windows_run_script_path",
         lambda profile: tmp_path / "run-cutctx.ps1",
@@ -178,9 +174,7 @@ def test_render_runner_scripts_writes_windows_scripts(monkeypatch, tmp_path: Pat
 
 def test_install_supervisor_none_returns_runner_records(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("cutctx.install.supervisors.sys.platform", "linux")
-    monkeypatch.setattr(
-        "cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx"]
-    )
+    monkeypatch.setattr("cutctx.install.supervisors.resolve_cutctx_command", lambda: ["cutctx"])
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = _manifest(supervisor=SupervisorKind.NONE.value)
 

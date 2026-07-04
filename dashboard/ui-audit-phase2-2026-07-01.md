@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-01
 **Auditor:** Automated Playwright + manual inspection
-**Project:** headroom / cutctx (LLM optimization proxy)
+**Project:** cutctx / cutctx (LLM optimization proxy)
 **Scope:** React + Vite dashboard SPA at `dashboard/`
 **Servers:** proxy @ 127.0.0.1:8787 (version 0.30.0, healthy), dev server @ 127.0.0.1:5173
 
@@ -34,7 +34,7 @@ Total: **35 Playwright screenshots + 6 zoomed verification screenshots** = 41 in
 
 **Additional zoomed-in (viewport-only) screenshots** for header detail, theme-toggle state, docs layout, and search-active state.
 
-All saved to `/Users/aryansingh/Documents/Claude/Projects/headroom/audit/screenshots/`.
+All saved to `/Users/aryansingh/Documents/Claude/Projects/cutctx/audit/screenshots/`.
 
 ---
 
@@ -268,15 +268,15 @@ Captured from all routes during the audit:
 
 ## 11. Files & Artifacts
 
-- **Screenshots:** `/Users/aryansingh/Documents/Claude/Projects/headroom/audit/screenshots/`
-- **Audit script:** `/Users/aryansingh/Documents/Claude/Projects/headroom/audit/audit-screenshots.mjs` (in dashboard folder too)
-- **JSON report:** `/Users/aryansingh/Documents/Claude/Projects/headroom/dashboard/screenshot-report.json`
-- **Console log:** `/Users/aryansingh/Documents/Claude/Projects/headroom/audit/console-log.txt`
-- **This report:** `/Users/aryansingh/Documents/Claude/Projects/headroom/audit/ui-audit-phase2-2026-07-01.md`
+- **Screenshots:** `/Users/aryansingh/Documents/Claude/Projects/cutctx/audit/screenshots/`
+- **Audit script:** `/Users/aryansingh/Documents/Claude/Projects/cutctx/audit/audit-screenshots.mjs` (in dashboard folder too)
+- **JSON report:** `/Users/aryansingh/Documents/Claude/Projects/cutctx/dashboard/screenshot-report.json`
+- **Console log:** `/Users/aryansingh/Documents/Claude/Projects/cutctx/audit/console-log.txt`
+- **This report:** `/Users/aryansingh/Documents/Claude/Projects/cutctx/audit/ui-audit-phase2-2026-07-01.md`
 
 ## 12. Environment & Cleanup
 
-- **Proxy:** Started with `HEADROOM_ALLOW_DEBUG=1` `HEADROOM_SKIP_INTEGRITY_CHECK=1` `CUTCTX_ALLOW_DEBUG=1` `CUTCTX_ADMIN_API_KEY=test-admin-key`. Verified `/livez` returns `ready=true`. Will be killed on exit.
+- **Proxy:** Started with `CUTCTX_ALLOW_DEBUG=1` `CUTCTX_SKIP_INTEGRITY_CHECK=1` `CUTCTX_ALLOW_DEBUG=1` `CUTCTX_ADMIN_API_KEY=test-admin-key`. Verified `/livez` returns `ready=true`. Will be killed on exit.
 - **Vite dev server:** Started with `CUTCTX_ADMIN_API_KEY=test-admin-key`. Verified on port 5173. Will be killed on exit.
 
 No source files were modified during this audit.

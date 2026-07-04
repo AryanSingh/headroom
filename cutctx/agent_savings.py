@@ -53,9 +53,7 @@ class AgentSavingsProfile:
             "CUTCTX_PROTECT_ANALYSIS_CONTEXT": ("1" if self.protect_analysis_context else "0"),
             "CUTCTX_MIN_TOKENS": str(self.min_tokens_to_compress),
             "CUTCTX_MAX_ITEMS": str(self.max_items_after_crush),
-            "CUTCTX_SMART_CRUSHER_COMPACTION": (
-                "1" if self.smart_crusher_with_compaction else "0"
-            ),
+            "CUTCTX_SMART_CRUSHER_COMPACTION": ("1" if self.smart_crusher_with_compaction else "0"),
             "CUTCTX_FORCE_KOMPRESS": "1" if self.force_kompress else "0",
             "CUTCTX_ACCURACY_GUARD": self.accuracy_guard,
         }

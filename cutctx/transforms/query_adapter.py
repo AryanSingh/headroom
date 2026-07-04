@@ -3,6 +3,7 @@
 When the user is debugging or writing code, we protect more context.
 When the user is summarizing or listing, we compress harder.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,29 +13,57 @@ from dataclasses import dataclass
 class CompressionHint:
     """Compression parameters derived from detected task type."""
 
-    protect_recent: int          # how many recent turns to never compress
-    min_tokens_to_crush: int     # minimum token count before compressing a message
-    max_items_after_crush: int   # SmartCrusher array output limit
-    label: str                   # human-readable label for observability
+    protect_recent: int  # how many recent turns to never compress
+    min_tokens_to_crush: int  # minimum token count before compressing a message
+    max_items_after_crush: int  # SmartCrusher array output limit
+    label: str  # human-readable label for observability
 
 
 # Task type → compression hint mapping
 # Keys match TaskType enum values from cutctx.prediction.feature_extractor.TaskType
 _TASK_HINTS: dict[str, CompressionHint] = {
-    "code":      CompressionHint(protect_recent=6, min_tokens_to_crush=400, max_items_after_crush=30, label="code"),
-    "debug":     CompressionHint(protect_recent=6, min_tokens_to_crush=400, max_items_after_crush=30, label="debug"),
-    "edit":      CompressionHint(protect_recent=5, min_tokens_to_crush=350, max_items_after_crush=25, label="edit"),
-    "analyze":   CompressionHint(protect_recent=4, min_tokens_to_crush=300, max_items_after_crush=20, label="analyze"),
-    "compare":   CompressionHint(protect_recent=4, min_tokens_to_crush=300, max_items_after_crush=20, label="compare"),
-    "explain":   CompressionHint(protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="explain"),
-    "instruct":  CompressionHint(protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="instruct"),
-    "generate":  CompressionHint(protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="generate"),
-    "summarize": CompressionHint(protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="summarize"),
-    "list":      CompressionHint(protect_recent=2, min_tokens_to_crush=100, max_items_after_crush=8,  label="list"),
-    "classify":  CompressionHint(protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="classify"),
-    "translate": CompressionHint(protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="translate"),
-    "calculate": CompressionHint(protect_recent=3, min_tokens_to_crush=200, max_items_after_crush=12, label="calculate"),
-    "chat":      CompressionHint(protect_recent=3, min_tokens_to_crush=200, max_items_after_crush=15, label="chat"),
+    "code": CompressionHint(
+        protect_recent=6, min_tokens_to_crush=400, max_items_after_crush=30, label="code"
+    ),
+    "debug": CompressionHint(
+        protect_recent=6, min_tokens_to_crush=400, max_items_after_crush=30, label="debug"
+    ),
+    "edit": CompressionHint(
+        protect_recent=5, min_tokens_to_crush=350, max_items_after_crush=25, label="edit"
+    ),
+    "analyze": CompressionHint(
+        protect_recent=4, min_tokens_to_crush=300, max_items_after_crush=20, label="analyze"
+    ),
+    "compare": CompressionHint(
+        protect_recent=4, min_tokens_to_crush=300, max_items_after_crush=20, label="compare"
+    ),
+    "explain": CompressionHint(
+        protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="explain"
+    ),
+    "instruct": CompressionHint(
+        protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="instruct"
+    ),
+    "generate": CompressionHint(
+        protect_recent=3, min_tokens_to_crush=250, max_items_after_crush=15, label="generate"
+    ),
+    "summarize": CompressionHint(
+        protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="summarize"
+    ),
+    "list": CompressionHint(
+        protect_recent=2, min_tokens_to_crush=100, max_items_after_crush=8, label="list"
+    ),
+    "classify": CompressionHint(
+        protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="classify"
+    ),
+    "translate": CompressionHint(
+        protect_recent=2, min_tokens_to_crush=150, max_items_after_crush=10, label="translate"
+    ),
+    "calculate": CompressionHint(
+        protect_recent=3, min_tokens_to_crush=200, max_items_after_crush=12, label="calculate"
+    ),
+    "chat": CompressionHint(
+        protect_recent=3, min_tokens_to_crush=200, max_items_after_crush=15, label="chat"
+    ),
 }
 
 _DEFAULT_HINT = CompressionHint(

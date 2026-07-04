@@ -552,5 +552,3 @@ class TestAdapterLifecycle:
         stats = toin2.get_stats()
         assert stats["patterns_tracked"] >= 1
         assert stats["total_compressions"] >= 15
-
-

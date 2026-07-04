@@ -5,10 +5,12 @@ opening any HTTP connection to a provider. CUTCTX_OFFLINE_MODE=1 should prevent
 requests to URLs not in the allowlist.
 """
 
-import pytest
 import os
-from unittest.mock import patch, AsyncMock, MagicMock
-from cutctx.proxy.egress import EgressEnforcer, EgressPolicy, EgressDecision
+from unittest.mock import patch
+
+import pytest
+
+from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
 
 class TestEgressEnforcerIntegration:
@@ -86,8 +88,9 @@ class TestEgressPolicyLoading:
 
     def test_load_policy_from_env_with_valid_json(self):
         """Verify policy can be loaded from CUTCTX_EGRESS_POLICY env var."""
-        from cutctx.proxy.egress import load_policy_from_env
         import json
+
+        from cutctx.proxy.egress import load_policy_from_env
 
         policy_dict = {
             "policy_id": "test-env-policy",
@@ -103,8 +106,9 @@ class TestEgressPolicyLoading:
 
     def test_get_egress_enforcer_singleton(self):
         """Verify get_egress_enforcer() returns same instance on repeated calls."""
-        from cutctx.proxy.egress import get_egress_enforcer, reset_egress_enforcer
         import json
+
+        from cutctx.proxy.egress import get_egress_enforcer, reset_egress_enforcer
 
         policy_dict = {
             "policy_id": "singleton-test",

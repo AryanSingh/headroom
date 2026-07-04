@@ -17,12 +17,11 @@ from __future__ import annotations
 import pytest
 
 from cutctx.savings.types import (
-    SavingsBySource,
-    SavingsSource,
     _DESCRIPTIONS,
     _LABELS,
+    SavingsBySource,
+    SavingsSource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Enum registration
@@ -117,7 +116,4 @@ def test_dashboard_tolerates_unknown_source() -> None:
 
 
 def test_from_str_accepts_output_optimization() -> None:
-    assert (
-        SavingsSource.from_str("output_optimization")
-        == SavingsSource.OUTPUT_OPTIMIZATION
-    )
+    assert SavingsSource.from_str("output_optimization") == SavingsSource.OUTPUT_OPTIMIZATION

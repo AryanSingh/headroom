@@ -123,7 +123,10 @@ class LicenseDB:
             tier, random_id, sig = parts
             try:
                 import cutctx._core as rust_core
-                if not rust_core.verify_license_signature(tier, random_id, record.stripe_customer_id, sig):
+
+                if not rust_core.verify_license_signature(
+                    tier, random_id, record.stripe_customer_id, sig
+                ):
                     return {"valid": False, "reason": "invalid_signature"}
             except ImportError:
                 pass

@@ -93,9 +93,7 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
 
     # Verify config payload includes enabled + expected defaults
     set_entry = next(
-        c
-        for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
+        c for c in calls if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["enabled"] is True
@@ -335,9 +333,7 @@ def test_wrap_openclaw_accepts_repeatable_gateway_provider_ids(runner: CliRunner
 
     assert result.exit_code == 0, result.output
     set_entry = next(
-        c
-        for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
+        c for c in calls if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["config"]["gatewayProviderIds"] == ["openai-codex", "anthropic"]
@@ -454,9 +450,7 @@ def test_wrap_openclaw_no_auto_start_does_not_default_python_path(
 
     assert result.exit_code == 0, result.output
     set_entry = next(
-        c
-        for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
+        c for c in calls if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["config"]["autoStart"] is False
@@ -672,9 +666,7 @@ def test_unwrap_openclaw_disables_plugin_and_restores_legacy_slot(runner: CliRun
 
     assert result.exit_code == 0, result.output
     set_entry = next(
-        c
-        for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
+        c for c in calls if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.cutctx"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload == {"enabled": False, "config": {"customFlag": True}}

@@ -173,7 +173,7 @@ spec:
 ### Helm Chart (Coming Q4 2026)
 
 ```bash
-helm repo add cutctx https://cutctx.dev/helm
+helm repo add cutctx https://cutctx.com/helm
 helm install cutctx cutctx/cutctx --set licenseKey=hlk_...
 ```
 

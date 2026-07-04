@@ -18,6 +18,7 @@ class ImpactMetrics:
     token_delta: int
     cost_saved_usd: float
 
+
 class MemoryImpactRunner:
     """Runs A/B tests to measure memory impact."""
 
@@ -27,10 +28,10 @@ class MemoryImpactRunner:
 
     def run_matched_pair(self, eval_set: list[dict[str, Any]]) -> ImpactMetrics:
         """Run an eval set twice: once with memory, once without.
-        
+
         Args:
             eval_set: List of dicts containing 'query' and 'expected_outcome'.
-            
+
         Returns:
             ImpactMetrics containing the delta.
         """
@@ -43,7 +44,7 @@ class MemoryImpactRunner:
         # In a real system, this would call the proxy and measure
         # exact LLM responses and token usage.
 
-        for case in eval_set:
+        for _case in eval_set:
             # Simulate without memory
             # ... proxy call ...
             success_without += 1  # simulate 100% baseline for now
@@ -53,12 +54,12 @@ class MemoryImpactRunner:
             # The memory injected is ranked by ValueRelevanceRanker
             # ... proxy call ...
             success_with += 1  # simulate 100% success
-            tokens_with += 1200 # simulate tokens saved
+            tokens_with += 1200  # simulate tokens saved
 
         n = max(1, len(eval_set))
         return ImpactMetrics(
             success_rate_with_memory=success_with / n,
             success_rate_without_memory=success_without / n,
             token_delta=tokens_without - tokens_with,
-            cost_saved_usd=(tokens_without - tokens_with) * 0.000001
+            cost_saved_usd=(tokens_without - tokens_with) * 0.000001,
         )

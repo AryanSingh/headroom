@@ -27,9 +27,7 @@ def _context_policy_path() -> str:
 
 def _request_session_id(request: Request, body: dict[str, Any]) -> str:
     metadata = body.get("metadata")
-    metadata_session_id = (
-        metadata.get("session_id") if isinstance(metadata, dict) else None
-    )
+    metadata_session_id = metadata.get("session_id") if isinstance(metadata, dict) else None
     return str(
         request.headers.get("x-cutctx-session-id")
         or body.get("session_id")
@@ -157,11 +155,7 @@ async def _enforce_context_policy(
 
     metadata = body.get("metadata")
     metadata_agent_id = metadata.get("agent_id") if isinstance(metadata, dict) else None
-    agent_id = (
-        request.headers.get("x-cutctx-agent-id")
-        or body.get("agent_id")
-        or metadata_agent_id
-    )
+    agent_id = request.headers.get("x-cutctx-agent-id") or body.get("agent_id") or metadata_agent_id
     team_id = request.headers.get("x-cutctx-team-id") or body.get("team_id")
     result = engine.evaluate(
         messages,
@@ -387,9 +381,7 @@ async def _fetch_chatgpt_codex_models_raw(
             return None
 
         models_list = tuple(
-            entry
-            for entry in models_raw
-            if isinstance(entry, dict) and entry.get("slug")
+            entry for entry in models_raw if isinstance(entry, dict) and entry.get("slug")
         )
         if not models_list:
             logger.warning("Codex model registry returned no model slugs")
@@ -566,9 +558,7 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
 
     @app.post("/v1/responses")
     async def openai_responses(request: Request):
-        policy_response = await _enforce_context_policy(
-            proxy, request, surface="openai_responses"
-        )
+        policy_response = await _enforce_context_policy(proxy, request, surface="openai_responses")
         if policy_response is not None:
             return policy_response
         return await proxy.handle_openai_responses(request)

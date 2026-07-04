@@ -69,9 +69,7 @@ class RetentionConfig:
             audit_enabled=_get_bool("CUTCTX_RETENTION_AUDIT_ENABLED", True),
             audit_max_age_days=_get_int("CUTCTX_RETENTION_AUDIT_MAX_AGE_DAYS", 90),
             audit_max_db_size_mb=_get_int("CUTCTX_RETENTION_AUDIT_MAX_DB_MB", 500),
-            audit_checkpoint_interval=_get_int(
-                "CUTCTX_RETENTION_AUDIT_CHECKPOINT_INTERVAL", 3600
-            ),
+            audit_checkpoint_interval=_get_int("CUTCTX_RETENTION_AUDIT_CHECKPOINT_INTERVAL", 3600),
             episodic_enabled=_get_bool("CUTCTX_RETENTION_EPISODIC_ENABLED", True),
             episodic_max_age_days=_get_int("CUTCTX_RETENTION_EPISODIC_MAX_AGE_DAYS", 30),
             cleanup_interval_seconds=_get_int("CUTCTX_RETENTION_CLEANUP_INTERVAL", 3600),

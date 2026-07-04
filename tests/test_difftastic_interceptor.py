@@ -241,7 +241,7 @@ diff --git a/main.py b/main.py
 """
         old, new, ext = _reconstruct_old_new(section)
         assert '    return "Hello, ' in old
-        assert "    return f\"Hello, {name}!\"" in new
+        assert '    return f"Hello, {name}!"' in new
         assert ext == ".py"
 
     def test_context_in_both(self):
@@ -449,7 +449,11 @@ class TestTransformOutputQuality:
         orig = "very short content"
         # do_transform returns content with banner that is larger than original
         with patch.object(interceptor, "_get_exe", return_value="/fake/difft"):
-            with patch.object(interceptor, "do_transform", return_value="[cutctx: structural diff via difft for a -> b]\nshort"):
+            with patch.object(
+                interceptor,
+                "do_transform",
+                return_value="[cutctx: structural diff via difft for a -> b]\nshort",
+            ):
                 result = interceptor.transform("Bash", {}, orig)
                 assert result is None, "Should not enlarge content even with banner"
 

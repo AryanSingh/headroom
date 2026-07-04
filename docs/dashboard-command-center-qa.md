@@ -6,9 +6,9 @@ multimodal Playground flow end to end.
 ## Prerequisites
 
 1. Start the proxy with a known admin key:
-   `CUTCTX_ADMIN_API_KEY=headroom-local-admin cutctx proxy --memory --port 8787`
+   `CUTCTX_ADMIN_API_KEY=cutctx-local-admin cutctx proxy --memory --port 8787`
 2. Start the dashboard dev server:
-   `cd dashboard && CUTCTX_ADMIN_API_KEY=headroom-local-admin npm run dev -- --host 127.0.0.1 --port 4173`
+   `cd dashboard && CUTCTX_ADMIN_API_KEY=cutctx-local-admin npm run dev -- --host 127.0.0.1 --port 4173`
 3. Open the React dashboard at:
    `http://127.0.0.1:4173/dashboard`
 
@@ -19,7 +19,7 @@ Notes:
 ## Browser Flow
 
 1. Open `http://127.0.0.1:4173/dashboard`.
-2. Enter `headroom-local-admin` in the top-bar `Optional admin key for protected actions` field.
+2. Enter `cutctx-local-admin` in the top-bar `Optional admin key for protected actions` field.
 3. Visit:
    - `Command Center`
    - `Capabilities`

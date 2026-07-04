@@ -105,7 +105,7 @@ cutctx proxy --no-image-optimize
 from cutctx.image import ImageCompressor
 
 compressor = ImageCompressor(
-    model_id="chopratejas/technique-router",  # HuggingFace model
+    model_id="cutctx/technique-router",  # HuggingFace model
     use_siglip=True,   # Enable image analysis
     device="cuda",     # Use GPU if available
 )
@@ -187,7 +187,7 @@ For text extraction (converts image to text):
 
 The routing decision is made by a fine-tuned **MiniLM** classifier:
 
-- **Model**: `chopratejas/technique-router` on HuggingFace
+- **Model**: `cutctx/technique-router` on HuggingFace
 - **Size**: ~128MB
 - **Accuracy**: 93.7% on validation set
 - **Training data**: 1,157 examples across 4 techniques
@@ -261,7 +261,7 @@ cutctx proxy --no-image-optimize
 class ImageCompressor:
     def __init__(
         self,
-        model_id: str = "chopratejas/technique-router",
+        model_id: str = "cutctx/technique-router",
         use_siglip: bool = True,
         device: str | None = None,
     ): ...

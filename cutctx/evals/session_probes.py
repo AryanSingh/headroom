@@ -265,7 +265,7 @@ def probe_event(record: dict[str, Any]) -> EventProbeResult | None:
 
     tokens_before = record.get("tokens_before")
     tokens_after = record.get("tokens_after")
-    if not isinstance(tokens_before, (int, float)) or not isinstance(tokens_after, (int, float)):
+    if not isinstance(tokens_before, int | float) or not isinstance(tokens_after, int | float):
         return None
     if tokens_before <= 0:
         return None

@@ -23,6 +23,8 @@ import threading
 import time
 from pathlib import Path
 
+from cutctx.graph.resolver import StackGraphResolver
+
 logger = logging.getLogger(__name__)
 
 # Module-level stack-graph resolver for incremental indexing

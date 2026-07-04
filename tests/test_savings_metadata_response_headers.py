@@ -91,8 +91,7 @@ def test_extract_handles_malformed_values() -> None:
     result = extract_savings_metadata(response_headers=headers)
     # Both parse to 0 and are dropped by the extractor.
     assert result is None or all(
-        v.get("tokens", 0) == 0 and v.get("usd", 0.0) == 0.0
-        for v in result.values()
+        v.get("tokens", 0) == 0 and v.get("usd", 0.0) == 0.0 for v in result.values()
     )
 
 
@@ -128,12 +127,8 @@ def test_merge_dedupes_duplicate_sources() -> None:
     """When request + response + body all report the same source, the
     merged result sums the values.
     """
-    a = extract_savings_metadata(
-        request_headers={"x-cutctx-prefix-cache-hits": "100"}
-    )
-    b = extract_savings_metadata(
-        response_headers={"x-cutctx-prefix-cache-hits": "200"}
-    )
+    a = extract_savings_metadata(request_headers={"x-cutctx-prefix-cache-hits": "100"})
+    b = extract_savings_metadata(response_headers={"x-cutctx-prefix-cache-hits": "200"})
     merged = merge_savings_metadata(a, b)
     assert merged is not None
     assert merged["prefix_cache_self_hosted"]["tokens"] == 300

@@ -62,7 +62,8 @@ class StackGraphResolver:
             if file_size > MAX_FILE_SIZE:
                 logger.warning(
                     "StackGraph: skipping %s — size %d bytes exceeds 10 MB limit",
-                    path, file_size,
+                    path,
+                    file_size,
                 )
                 return False
             try:
@@ -96,7 +97,8 @@ class StackGraphResolver:
             if file_size > MAX_FILE_SIZE:
                 logger.warning(
                     "StackGraph: skipping %s — size %d bytes exceeds 10 MB limit",
-                    path, file_size,
+                    path,
+                    file_size,
                 )
                 return False
             try:

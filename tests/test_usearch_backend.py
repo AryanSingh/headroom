@@ -12,16 +12,13 @@ import uuid
 import numpy as np
 import pytest
 
+from cutctx.memory.backends.usearch_store import UsearchMemoryBackend, usearch_available
 from cutctx.memory.config import MemoryConfig, VectorBackend
 from cutctx.memory.factory import create_memory_system
-from cutctx.memory.backends.usearch_store import usearch_available, UsearchMemoryBackend
 from cutctx.memory.models import Memory
 from cutctx.memory.ports import VectorFilter, VectorSearchResult
 
-
-_skip_if_no_usearch = pytest.mark.skipif(
-    not usearch_available(), reason="usearch not installed"
-)
+_skip_if_no_usearch = pytest.mark.skipif(not usearch_available(), reason="usearch not installed")
 
 
 def _make_memory(
@@ -102,9 +99,7 @@ class TestUsearchMemoryBackendProtocol:
         mem = _make_memory(memory_id="mem1", content="test memory", embedding=vec)
         await backend.index(mem)
 
-        results = await backend.search(
-            VectorFilter(query_vector=vec, top_k=5)
-        )
+        results = await backend.search(VectorFilter(query_vector=vec, top_k=5))
         assert len(results) == 1
         assert results[0].memory.id == "mem1"
         assert results[0].similarity > 0.99
@@ -132,9 +127,7 @@ class TestUsearchMemoryBackendProtocol:
             memories.append(_make_memory(memory_id=str(i), embedding=vec))
 
         await backend.index_batch(memories)
-        results = await backend.search(
-            VectorFilter(query_vector=memories[0].embedding, top_k=5)
-        )
+        results = await backend.search(VectorFilter(query_vector=memories[0].embedding, top_k=5))
         assert len(results) <= 5
         assert len(results) > 0
 
@@ -173,9 +166,7 @@ async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkey
         mem = _make_memory(memory_id="1", embedding=unit_vector)
         await backend.index(mem)
 
-        results = await backend.search(
-            VectorFilter(query_vector=unit_vector, top_k=1)
-        )
+        results = await backend.search(VectorFilter(query_vector=unit_vector, top_k=1))
         assert len(results) == 1
         assert results[0].similarity == pytest.approx(1.0, abs=1e-5)
 
@@ -201,9 +192,7 @@ async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkey
         removed = await backend.remove("a")
         assert removed is True
 
-        results = await backend.search(
-            VectorFilter(query_vector=vec_a, top_k=5)
-        )
+        results = await backend.search(VectorFilter(query_vector=vec_a, top_k=5))
         ids = {r.memory.id for r in results}
         assert "a" not in ids
 
@@ -277,17 +266,13 @@ async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkey
         mem_alice = _make_memory(
             memory_id="alice1", content="alice", user_id="alice", embedding=vec
         )
-        mem_bob = _make_memory(
-            memory_id="bob1", content="bob", user_id="bob", embedding=vec
-        )
+        mem_bob = _make_memory(memory_id="bob1", content="bob", user_id="bob", embedding=vec)
 
         await backend.index(mem_alice)
         await backend.index(mem_bob)
 
         # Search filtered by alice
-        results = await backend.search(
-            VectorFilter(query_vector=vec, top_k=5, user_id="alice")
-        )
+        results = await backend.search(VectorFilter(query_vector=vec, top_k=5, user_id="alice"))
         ids = {r.memory.id for r in results}
         assert "alice1" in ids
         assert "bob1" not in ids
@@ -338,9 +323,7 @@ async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkey
         backend2.initialize()
         assert backend2.size == 1
 
-        results = await backend2.search(
-            VectorFilter(query_vector=unit_vector, top_k=1)
-        )
+        results = await backend2.search(VectorFilter(query_vector=unit_vector, top_k=1))
         assert len(results) == 1
         assert results[0].memory.id == "p1"
         assert results[0].similarity == pytest.approx(1.0, abs=1e-5)
@@ -393,9 +376,7 @@ async def test_create_memory_system_initializes_usearch_backend(tmp_path, monkey
         """VectorSearchResult has the correct fields."""
         await backend.index(unit_memory)
 
-        results = await backend.search(
-            VectorFilter(query_vector=unit_vector, top_k=5)
-        )
+        results = await backend.search(VectorFilter(query_vector=unit_vector, top_k=5))
         assert len(results) == 1
         result = results[0]
 

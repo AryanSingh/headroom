@@ -78,7 +78,9 @@ def _build_memory_permission_dependency(
         return dependency(request) if accepts_request else dependency()
 
     async def _check(request: Request) -> None:
-        permission = "memory.read" if request.method in {"GET", "HEAD", "OPTIONS"} else "memory.write"
+        permission = (
+            "memory.read" if request.method in {"GET", "HEAD", "OPTIONS"} else "memory.write"
+        )
         dependency = require_rbac_permission(permission)
         result = _invoke_dependency(dependency, request)
         if inspect.isawaitable(result):

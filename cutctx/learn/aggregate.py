@@ -85,9 +85,7 @@ def aggregate_projects(
         "session_count": totals["sessions"],
         "total_calls": totals["calls"],
         "total_failures": totals["failures"],
-        "failure_rate": (
-            totals["failures"] / totals["calls"] if totals["calls"] else 0.0
-        ),
+        "failure_rate": (totals["failures"] / totals["calls"] if totals["calls"] else 0.0),
         "projects": project_summaries,
     }
 

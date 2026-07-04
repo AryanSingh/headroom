@@ -6,7 +6,7 @@ from ..compression_store import CompressionEntry
 
 class SqliteBackend:
     """SQLite backend for CompressionStore that interoperates with Rust's SqliteCcrStore.
-    
+
     Reads from the exact same table:
     CREATE TABLE IF NOT EXISTS ccr_entries (
         hash         TEXT PRIMARY KEY,
@@ -57,7 +57,7 @@ class SqliteBackend:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT original, created_at, ttl_seconds FROM ccr_entries WHERE hash = ?",
-                (hash_key,)
+                (hash_key,),
             ).fetchone()
 
             if not row:
@@ -66,7 +66,11 @@ class SqliteBackend:
             # The Rust store saves `original` as a BLOB, which might be JSON bytes
             # CompressionEntry expects original to be a string or JSON-compatible string
             original_bytes = row["original"]
-            original_str = original_bytes.decode("utf-8") if isinstance(original_bytes, bytes) else original_bytes
+            original_str = (
+                original_bytes.decode("utf-8")
+                if isinstance(original_bytes, bytes)
+                else original_bytes
+            )
 
             return CompressionEntry(
                 hash=hash_key,
@@ -80,7 +84,7 @@ class SqliteBackend:
                 tool_call_id=None,
                 query_context=None,
                 created_at=row["created_at"],
-                ttl=row["ttl_seconds"]
+                ttl=row["ttl_seconds"],
             )
 
     def set(self, hash_key: str, entry: CompressionEntry) -> None:
@@ -99,7 +103,7 @@ class SqliteBackend:
                     entry.original_content.encode("utf-8"),
                     int(entry.created_at),
                     self._default_ttl,
-                )
+                ),
             )
             conn.commit()
 
@@ -135,12 +139,18 @@ class SqliteBackend:
     def items(self) -> list[tuple[str, CompressionEntry]]:
         with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT hash, original, created_at, ttl_seconds FROM ccr_entries").fetchall()
+            rows = conn.execute(
+                "SELECT hash, original, created_at, ttl_seconds FROM ccr_entries"
+            ).fetchall()
 
             result = []
             for row in rows:
                 original_bytes = row["original"]
-                original_str = original_bytes.decode("utf-8") if isinstance(original_bytes, bytes) else original_bytes
+                original_str = (
+                    original_bytes.decode("utf-8")
+                    if isinstance(original_bytes, bytes)
+                    else original_bytes
+                )
 
                 entry = CompressionEntry(
                     hash=row["hash"],
@@ -154,7 +164,7 @@ class SqliteBackend:
                     tool_call_id=None,
                     query_context=None,
                     created_at=row["created_at"],
-                    ttl=row["ttl_seconds"]
+                    ttl=row["ttl_seconds"],
                 )
                 result.append((row["hash"], entry))
             return result

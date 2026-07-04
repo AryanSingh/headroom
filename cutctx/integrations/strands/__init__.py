@@ -76,7 +76,12 @@ def __getattr__(name: str) -> Any:
 
         return CutctxBundle
     # Backward-compat aliases (pre-db7f7a4 rebrand).
-    elif name in ("CutctxHookProvider", "CutctxStrandsModel", "CutctxHookProvider", "CutctxStrandsModel"):
+    elif name in (
+        "CutctxHookProvider",
+        "CutctxStrandsModel",
+        "CutctxHookProvider",
+        "CutctxStrandsModel",
+    ):
         from . import hooks as _hooks_mod
         from . import model as _model_mod
 

@@ -169,7 +169,6 @@ class DiffCompressor:
         total_additions = 0
         total_deletions = 0
         hunks_kept = 0
-        hunks_removed = 0
 
         i = 0
         in_hunk = False
@@ -192,7 +191,7 @@ class DiffCompressor:
             line = lines[i]
 
             # --- Metadata lines to strip entirely ---
-            stripped = line.strip()
+            line.strip()
             if any(line.startswith(prefix) for prefix in _METADATA_LINES):
                 i += 1
                 continue
@@ -248,7 +247,7 @@ class DiffCompressor:
         _flush_context()
 
         compressed_line_count = len(out_lines)
-        lines_saved = original_line_count - compressed_line_count
+        original_line_count - compressed_line_count
 
         # Preserve trailing newline from original content
         compressed_text = "\n".join(out_lines)
@@ -318,7 +317,9 @@ class DiffCompressor:
 class DifftasticBackend:
     """Difftastic backend for DiffCompressor. Falls back to standard DiffCompressor if difft unavailable."""
 
-    def __init__(self, binary_path: str | None = None, context_lines: int = 3, fallback_config=None):
+    def __init__(
+        self, binary_path: str | None = None, context_lines: int = 3, fallback_config=None
+    ):
         self._context_lines = context_lines
         self._fallback = DiffCompressor(fallback_config)
         self._interceptor = None

@@ -46,7 +46,9 @@ def _strategy_to_content_type(strategy: str | None) -> str:
     }
     result = mapping.get(strategy.lower() if strategy else "", "unknown")
     if result == "unknown":
-        logger.debug("Unmapped compression strategy %r, defaulting content type to 'unknown'", strategy)
+        logger.debug(
+            "Unmapped compression strategy %r, defaulting content type to 'unknown'", strategy
+        )
     return result
 
 
@@ -315,7 +317,8 @@ class CCRResponseHandler:
                             toin.record_retrieval(
                                 tool_signature_hash=(
                                     entry.tool_signature_hash
-                                    if hasattr(entry, "tool_signature_hash") and entry.tool_signature_hash is not None
+                                    if hasattr(entry, "tool_signature_hash")
+                                    and entry.tool_signature_hash is not None
                                     else ""
                                 ),
                                 retrieval_type="full",

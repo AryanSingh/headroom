@@ -39,10 +39,34 @@ def sample_nx_graph() -> nx.Graph:
     g.add_node("mod:main", label="main.py", type="module", file_path="src/main.py")
     g.add_node("mod:utils", label="utils.py", type="module", file_path="src/utils.py")
     # Function nodes
-    g.add_node("func:login", label="login()", type="function", file_path="src/auth.py", summary="Authenticate a user with credentials")
-    g.add_node("func:logout", label="logout()", type="function", file_path="src/auth.py", summary="End a user session")
-    g.add_node("func:hash_pwd", label="hash_password()", type="function", file_path="src/utils.py", summary="Hash a password using bcrypt")
-    g.add_node("func:run", label="run()", type="function", file_path="src/main.py", summary="Application entrypoint")
+    g.add_node(
+        "func:login",
+        label="login()",
+        type="function",
+        file_path="src/auth.py",
+        summary="Authenticate a user with credentials",
+    )
+    g.add_node(
+        "func:logout",
+        label="logout()",
+        type="function",
+        file_path="src/auth.py",
+        summary="End a user session",
+    )
+    g.add_node(
+        "func:hash_pwd",
+        label="hash_password()",
+        type="function",
+        file_path="src/utils.py",
+        summary="Hash a password using bcrypt",
+    )
+    g.add_node(
+        "func:run",
+        label="run()",
+        type="function",
+        file_path="src/main.py",
+        summary="Application entrypoint",
+    )
     # Concept node
     g.add_node("concept:auth", label="Authentication", type="concept", file_path="")
     # Edges
@@ -122,14 +146,16 @@ class TestGraphifyIndex:
         # login() neighbors: auth.py (contains), hash_password() (calls),
         # Authentication (describes)
         assert any("auth.py" in l for l in labels), "Expected neighbor auth.py in results"
-        assert any("hash_password" in l for l in labels), "Expected neighbor hash_password() in results"
+        assert any("hash_password" in l for l in labels), (
+            "Expected neighbor hash_password() in results"
+        )
 
         # At bfs_depth=1 from login(), we should see the edges connecting
         # login to its neighbors
         edge_src_dst = {(e[0], e[1]) for e in result.edges}
-        assert any(
-            "func:login" in e or "login" in str(e) for e in edge_src_dst
-        ), "Expected login edges in result"
+        assert any("func:login" in e or "login" in str(e) for e in edge_src_dst), (
+            "Expected login edges in result"
+        )
 
     def test_max_nodes_respected(self, sample_graph_json: Path) -> None:
         """Query with max_nodes=1 returns at most 1 node."""
@@ -175,9 +201,7 @@ class TestGraphifyIndex:
         node_ids = [n.id for n in result.nodes]
         assert len(node_ids) == len(set(node_ids)), "Duplicate node IDs in result"
 
-    def test_no_match_on_populated_graph_uses_fallback(
-        self, sample_graph_json: Path
-    ) -> None:
+    def test_no_match_on_populated_graph_uses_fallback(self, sample_graph_json: Path) -> None:
         """Querying a populated graph with a non-existent term returns fallback."""
         idx = GraphifyIndex.load(sample_graph_json)
         result = idx.query_subgraph(["xyznonexistent"], bfs_depth=2, max_nodes=10)
@@ -197,7 +221,13 @@ class TestRenderSubgraph:
     def test_renders_labels(self) -> None:
         """render_subgraph includes node labels grouped by file."""
         nodes = [
-            GraphNode(id="n1", label="login()", node_type="function", file_path="src/auth.py", summary="Auth a user"),
+            GraphNode(
+                id="n1",
+                label="login()",
+                node_type="function",
+                file_path="src/auth.py",
+                summary="Auth a user",
+            ),
             GraphNode(id="n2", label="auth.py", node_type="module", file_path="src/auth.py"),
         ]
         result = GraphifyQueryResult(nodes=nodes, edges=[], graph_version="v1")
@@ -230,10 +260,16 @@ class TestRenderSubgraph:
     def test_rendered_shorter_than_5000_chars(self) -> None:
         """render_subgraph output is compact (<5000 chars for small graphs)."""
         nodes = [
-            GraphNode(id=str(i), label=f"node_{i}", node_type="function", file_path=f"file_{i}.py", summary="x" * 50)
+            GraphNode(
+                id=str(i),
+                label=f"node_{i}",
+                node_type="function",
+                file_path=f"file_{i}.py",
+                summary="x" * 50,
+            )
             for i in range(20)
         ]
-        edges = [(f"node_{i}", f"node_{i+1}", "calls") for i in range(19)]
+        edges = [(f"node_{i}", f"node_{i + 1}", "calls") for i in range(19)]
         result = GraphifyQueryResult(nodes=nodes, edges=edges, graph_version="v1")
         rendered = render_subgraph(result)
         assert len(rendered) < 5000
@@ -282,7 +318,9 @@ class TestGraphifyInterceptor:
 
         g = nx.Graph()
         g.add_node("n1", label="test_app", type="module", file_path="test.py")
-        g.add_node("n2", label="run()", type="function", file_path="test.py", summary="Main entry point")
+        g.add_node(
+            "n2", label="run()", type="function", file_path="test.py", summary="Main entry point"
+        )
         g.add_edge("n1", "n2", relationship="contains")
         idx = GraphifyIndex(graph=g, version="test")
         interceptor = GraphifyInterceptor(indexer=_FakeIndexer(idx))
@@ -312,6 +350,7 @@ class TestGraphifyInterceptor:
         interceptor = GraphifyInterceptor()
         key = interceptor.progressive_disclosure_key("Read", {"file_path": "src/main.py"})
         assert key == "graphify:src/main.py"
+
 
 def test_no_key_for_grep() -> None:
     """progressive_disclosure_key returns None for Grep (no file path)."""

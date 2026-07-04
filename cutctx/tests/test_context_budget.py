@@ -214,7 +214,12 @@ class TestContextBudgetController:
 
         status = controller.status
         assert isinstance(status, BudgetStatus)
-        assert status.zone in [BudgetZone.GREEN, BudgetZone.YELLOW, BudgetZone.RED, BudgetZone.CRITICAL]
+        assert status.zone in [
+            BudgetZone.GREEN,
+            BudgetZone.YELLOW,
+            BudgetZone.RED,
+            BudgetZone.CRITICAL,
+        ]
         assert status.tokens_budget == 100_000
         assert status.tokens_available == max(0, 100_000 - status.tokens_used)
 
@@ -314,7 +319,7 @@ class TestContextBudgetController:
 
         messages = [{"role": "user", "content": "test"}] * 5
         # Mock _count_tokens so apply() sees 70 tokens (YELLOW zone)
-        with patch.object(controller, '_count_tokens', return_value=70):
+        with patch.object(controller, "_count_tokens", return_value=70):
             controller.apply(messages)
 
         # The controller should mark that it tried compression
@@ -407,7 +412,10 @@ class TestCompressionWindows:
         conservative = ContextBudgetController(policy="conservative")
         balanced = ContextBudgetController(policy="balanced")
 
-        assert conservative.policy.compression_window_yellow > balanced.policy.compression_window_yellow
+        assert (
+            conservative.policy.compression_window_yellow
+            > balanced.policy.compression_window_yellow
+        )
         assert conservative.policy.compression_window_red > balanced.policy.compression_window_red
 
     def test_aggressive_windows_smaller(self):
@@ -415,5 +423,7 @@ class TestCompressionWindows:
         aggressive = ContextBudgetController(policy="aggressive")
         balanced = ContextBudgetController(policy="balanced")
 
-        assert aggressive.policy.compression_window_yellow < balanced.policy.compression_window_yellow
+        assert (
+            aggressive.policy.compression_window_yellow < balanced.policy.compression_window_yellow
+        )
         assert aggressive.policy.compression_window_red < balanced.policy.compression_window_red

@@ -49,23 +49,15 @@ def test_savings_source_enum_values() -> None:
 
 def test_savings_source_from_str_valid() -> None:
     """from_str returns the matching enum value for known names."""
-    assert (
-        SavingsSource.from_str("provider_prompt_cache")
-        == SavingsSource.PROVIDER_PROMPT_CACHE
-    )
-    assert (
-        SavingsSource.from_str("model_routing")
-        == SavingsSource.MODEL_ROUTING
-    )
+    assert SavingsSource.from_str("provider_prompt_cache") == SavingsSource.PROVIDER_PROMPT_CACHE
+    assert SavingsSource.from_str("model_routing") == SavingsSource.MODEL_ROUTING
 
 
 def test_savings_source_from_str_invalid_falls_back_to_compression() -> None:
     """An unknown source name falls back to cutctx_compression
     (the default residual bucket). This is the documented behavior.
     """
-    assert (
-        SavingsSource.from_str("nonsense") == SavingsSource.CUTCTX_COMPRESSION
-    )
+    assert SavingsSource.from_str("nonsense") == SavingsSource.CUTCTX_COMPRESSION
     assert SavingsSource.from_str("") == SavingsSource.CUTCTX_COMPRESSION
 
 

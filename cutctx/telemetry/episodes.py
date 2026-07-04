@@ -11,9 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-DEFAULT_DB_PATH = os.environ.get(
-    "CUTCTX_EPISODES_DB", os.path.expanduser("~/.cutctx/episodes.db")
-)
+DEFAULT_DB_PATH = os.environ.get("CUTCTX_EPISODES_DB", os.path.expanduser("~/.cutctx/episodes.db"))
 
 
 @dataclass

@@ -175,9 +175,7 @@ def test_register_includes_env_subtable(tmp_path: Path) -> None:
     text = _config_path(tmp_path).read_text()
     assert "[mcp_servers.cutctx.env]" in text
     parsed = tomllib.loads(text)
-    assert parsed["mcp_servers"]["cutctx"]["env"] == {
-        "CUTCTX_PROXY_URL": "http://127.0.0.1:9000"
-    }
+    assert parsed["mcp_servers"]["cutctx"]["env"] == {"CUTCTX_PROXY_URL": "http://127.0.0.1:9000"}
 
 
 def test_register_cutctx_and_serena_coexist(tmp_path: Path) -> None:

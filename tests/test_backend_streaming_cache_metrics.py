@@ -347,13 +347,7 @@ def test_streaming_perf_log_has_no_hardcoded_cache_zeros() -> None:
     """Catch any future re-introduction of ``cache_read=0 cache_write=0`` literal."""
     from pathlib import Path
 
-    src = (
-        Path(__file__).resolve().parents[1]
-        / "cutctx"
-        / "proxy"
-        / "handlers"
-        / "streaming.py"
-    )
+    src = Path(__file__).resolve().parents[1] / "cutctx" / "proxy" / "handlers" / "streaming.py"
     text = src.read_text()
     assert "cache_read=0 cache_write=0" not in text, (
         "streaming.py contains a hardcoded `cache_read=0 cache_write=0` PERF log fragment. "

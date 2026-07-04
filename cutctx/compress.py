@@ -335,13 +335,14 @@ def compress(
         if _maybe_upgrade is None and not _UPGRADE_PROMPT_FAILED:
             try:
                 from cutctx.cli.upgrade_prompt import maybe_show_upgrade_prompt
+
                 _maybe_upgrade = maybe_show_upgrade_prompt
             except ImportError:
                 _UPGRADE_PROMPT_FAILED = True
         if _maybe_upgrade is not None:
             try:
-                monthly_tokens = getattr(cfg, 'monthly_tokens_compressed', tokens_before)
-                tier = getattr(cfg, 'tier', 'builder')
+                monthly_tokens = getattr(cfg, "monthly_tokens_compressed", tokens_before)
+                tier = getattr(cfg, "tier", "builder")
                 _maybe_upgrade(monthly_tokens, tier)
             except Exception:
                 pass  # Never block compression due to upgrade prompt errors

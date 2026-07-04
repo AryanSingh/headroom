@@ -916,9 +916,7 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
         assert persisted["display_session"]["requests"] == 2
 
 
-def test_restart_safe_stats_preserve_models_and_full_source_attribution(
-    tmp_path, monkeypatch
-):
+def test_restart_safe_stats_preserve_models_and_full_source_attribution(tmp_path, monkeypatch):
     savings_path = tmp_path / "proxy_savings.json"
     monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
     monkeypatch.setattr(

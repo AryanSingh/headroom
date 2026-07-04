@@ -119,9 +119,7 @@ async def review_memory(
     actor = _resolve_audit_actor(request)
     try:
         store.update_review_state(
-            org_id=req.org_id,
-            memory_id=req.memory_id,
-            new_state=req.action.upper()
+            org_id=req.org_id, memory_id=req.memory_id, new_state=req.action.upper()
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

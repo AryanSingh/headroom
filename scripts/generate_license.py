@@ -44,6 +44,7 @@ def encode_payload(org_name: str, seats: int, expiry: str | None = None) -> str:
     b64_bytes = base64.urlsafe_b64encode(json_bytes).rstrip(b"=")
     return b64_bytes.decode("ascii")
 
+
 def tier_to_prefix(tier: str) -> str:
     """Map tier name to license key prefix."""
     tier_lower = tier.lower()
@@ -54,8 +55,11 @@ def tier_to_prefix(tier: str) -> str:
         "enterprise": "ent-",
     }
     if tier_lower not in mapping:
-        raise ValueError(f"Unknown tier: {tier}. Must be one of: builder, team, business, enterprise")
+        raise ValueError(
+            f"Unknown tier: {tier}. Must be one of: builder, team, business, enterprise"
+        )
     return mapping[tier_lower]
+
 
 def generate_license_key(
     tier: str,
@@ -85,6 +89,7 @@ def generate_license_key(
 
     signed_key = f"{unsigned_key}.{sig_hex}"
     return unsigned_key, signed_key
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -132,7 +137,10 @@ def main():
         try:
             datetime.strptime(args.expiry, "%Y-%m-%d")
         except ValueError:
-            print(f"Error: Invalid expiry date '{args.expiry}'. Use YYYY-MM-DD format.", file=sys.stderr)
+            print(
+                f"Error: Invalid expiry date '{args.expiry}'. Use YYYY-MM-DD format.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     if args.algo == "ed25519":
@@ -143,11 +151,15 @@ def main():
         kid = os.environ.get("CUTCTX_LICENSE_KID")
         priv_hex = os.environ.get("CUTCTX_LICENSE_PRIVATE_KEY")
         if not kid or not priv_hex:
-            print("Error: CUTCTX_LICENSE_KID and CUTCTX_LICENSE_PRIVATE_KEY must be set for ed25519.", file=sys.stderr)
+            print(
+                "Error: CUTCTX_LICENSE_KID and CUTCTX_LICENSE_PRIVATE_KEY must be set for ed25519.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         # Add cutctx_ee path
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from cutctx_ee.billing.license_token import sign_license
 
@@ -206,6 +218,7 @@ def main():
         print()
         print("To activate this license, run:")
         print(f"  cutctx license activate {signed_key}")
+
 
 if __name__ == "__main__":
     main()

@@ -81,7 +81,9 @@ def test_stats_surface_truthful_knowledge_graph_status(monkeypatch: pytest.Monke
     assert knowledge_graph["interceptor_registered"] is False
 
 
-def test_stats_do_not_claim_active_graph_without_live_index(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stats_do_not_claim_active_graph_without_live_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
@@ -142,5 +144,3 @@ def test_stats_do_not_claim_active_graph_without_live_index(monkeypatch: pytest.
     assert knowledge_graph["status"] == "building"
     assert knowledge_graph["interceptor_registered"] is True
     assert knowledge_graph["version"] == "test-v1"
-
-

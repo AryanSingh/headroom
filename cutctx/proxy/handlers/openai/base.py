@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     pass
 
 
-
 logger = logging.getLogger("cutctx.proxy")
 
 _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES = 10_000
@@ -36,7 +35,6 @@ from cutctx.proxy.handlers.openai.utils import *  # noqa: E402, F403
 class OpenAIBaseMixin:
     OPENAI_RESPONSES_ROUTER_MIN_BYTES = 512
 
-
     OPENAI_RESPONSES_OUTPUT_TYPES = {
         "custom_tool_call_output",
         "function_call_output",
@@ -44,12 +42,10 @@ class OpenAIBaseMixin:
         "apply_patch_call_output",
     }
 
-
     @staticmethod
     def _cutctx_bypass_enabled(headers: Any) -> bool:
         """Return True when inbound headers request full passthrough."""
         return _cutctx_bypass_enabled(headers)
-
 
     @staticmethod
     def _strict_previous_turn_frozen_count(
@@ -63,7 +59,6 @@ class OpenAIBaseMixin:
         if messages[final_idx].get("role") == "user":
             return max(base_frozen_count, final_idx)
         return len(messages)
-
 
     @staticmethod
     def _restore_frozen_prefix(
@@ -88,5 +83,3 @@ class OpenAIBaseMixin:
                 restored[idx] = original_messages[idx]
                 changed += 1
         return restored, changed
-
-

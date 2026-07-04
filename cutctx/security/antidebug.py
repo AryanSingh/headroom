@@ -50,6 +50,7 @@ def _is_debug_allowed() -> bool:
 # Platform-native detection (Python fallbacks, no Rust required)
 # ---------------------------------------------------------------------------
 
+
 def _linux_tracer_pid() -> int:
     """Read TracerPid from /proc/self/status. Returns 0 if not traced."""
     try:
@@ -66,6 +67,7 @@ def _windows_is_debugged() -> bool:
     """Call IsDebuggerPresent via ctypes on Windows."""
     try:
         import ctypes
+
         return bool(ctypes.windll.kernel32.IsDebuggerPresent())  # type: ignore[attr-defined]
     except Exception:
         return False
@@ -85,6 +87,7 @@ def _python_fallback_is_debugged() -> bool:
 # Rust-core path
 # ---------------------------------------------------------------------------
 
+
 def _rust_deny_attach() -> bool:
     """Call cutctx._core.deny_debugger_attach() if the .so is loaded.
 
@@ -93,6 +96,7 @@ def _rust_deny_attach() -> bool:
     """
     try:
         from cutctx import _core  # type: ignore[import]
+
         return getattr(_core, "deny_debugger_attach", lambda: False)()
     except ImportError:
         return False
@@ -101,6 +105,7 @@ def _rust_deny_attach() -> bool:
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def guard_ee_entry() -> None:
     """Assert that no debugger is attached before running EE code.

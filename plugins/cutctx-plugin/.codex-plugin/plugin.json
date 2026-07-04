@@ -6,7 +6,7 @@
     "name": "Cutctx Contributors",
     "url": "https://github.com/cutctx/cutctx"
   },
-  "homepage": "https://cutctx.dev",
+  "homepage": "https://cutctx.com",
   "repository": "https://github.com/cutctx/cutctx",
   "license": "Apache-2.0",
   "keywords": [
@@ -27,7 +27,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://cutctx.dev",
+    "websiteURL": "https://cutctx.com",
     "settingsUrl": "http://127.0.0.1:8787/dashboard",
     "configurationUrl": "http://127.0.0.1:8787/dashboard",
     "defaultPrompt": [

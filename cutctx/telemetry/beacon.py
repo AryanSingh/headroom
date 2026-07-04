@@ -127,9 +127,7 @@ class TelemetryBeacon:
             logger.debug("Telemetry disabled (CUTCTX_TELEMETRY=off)")
             return
         self._task = asyncio.create_task(self._loop())
-        logger.info(
-            "Telemetry: ENABLED (anonymous aggregate stats, opt out: CUTCTX_TELEMETRY=off)"
-        )
+        logger.info("Telemetry: ENABLED (anonymous aggregate stats, opt out: CUTCTX_TELEMETRY=off)")
 
     async def stop(self) -> None:
         """Stop and send one final report. Call from proxy shutdown."""

@@ -117,9 +117,7 @@ def test_execute_retrieval_error_paths(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_create_tool_result_message_google_and_generic_formats() -> None:
     handler = CCRResponseHandler()
-    results = [
-        CCRToolResult(tool_call_id="cutctx_retrieve", content='{"count": 1}', success=True)
-    ]
+    results = [CCRToolResult(tool_call_id="cutctx_retrieve", content='{"count": 1}', success=True)]
     google_message = handler._create_tool_result_message(results, "google")
     assert google_message == {
         "role": "user",
@@ -279,9 +277,7 @@ def test_streaming_buffer_and_parse_sse_helpers() -> None:
     message = parsed_openai["choices"][0]["message"]
     assert message["content"] == "Hi"
     assert message["tool_calls"][0]["id"] == "call_1"
-    assert message["tool_calls"][0]["function"]["arguments"] == (
-        '{"hash":"aaaaaaaaaaaaaaaa"}'
-    )
+    assert message["tool_calls"][0]["function"]["arguments"] == ('{"hash":"aaaaaaaaaaaaaaaa"}')
 
 
 @pytest.mark.asyncio

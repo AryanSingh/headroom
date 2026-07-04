@@ -900,9 +900,7 @@ class TestClaudeCliEdgeCases:
         monkeypatch.setenv("CUTCTX_LEARN_CLI_TIMEOUT_SECS", "abc")
         with caplog.at_level(logging.WARNING, logger="cutctx.learn.analyzer"):
             assert _resolve_timeout_secs("CUTCTX_LEARN_CLI_TIMEOUT_SECS", 300) == 300
-        assert any(
-            "Invalid CUTCTX_LEARN_CLI_TIMEOUT_SECS" in rec.message for rec in caplog.records
-        )
+        assert any("Invalid CUTCTX_LEARN_CLI_TIMEOUT_SECS" in rec.message for rec in caplog.records)
 
     def test_resolve_timeout_logs_warning_for_non_positive(self, caplog, monkeypatch):
         import logging

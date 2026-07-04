@@ -37,15 +37,13 @@ def _enable_forwarded_headers_log_propagation() -> None:
     each test regardless of execution order.
     """
     logger_names = ("cutctx.proxy", "cutctx.proxy.forwarded_headers")
-    originals = {
-        name: logging.getLogger(name).propagate
-        for name in logger_names
-    }
+    originals = {name: logging.getLogger(name).propagate for name in logger_names}
     for name in logger_names:
         logging.getLogger(name).propagate = True
     yield
     for name, propagate in originals.items():
         logging.getLogger(name).propagate = propagate
+
 
 # ──────────────────────────────────────────────────────────────────
 # Fake-request helper

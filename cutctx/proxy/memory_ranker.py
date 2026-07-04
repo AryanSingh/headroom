@@ -248,4 +248,3 @@ class ValueRelevanceRanker:
             )
             for _, c, new_score in boosted
         ]
-

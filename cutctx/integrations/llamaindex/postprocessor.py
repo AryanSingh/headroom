@@ -217,8 +217,7 @@ class CutctxNodePostprocessor(_make_base_class()):  # type: ignore[misc]
                 return [(node, r.score) for node, r in zip(nodes, score_results)]
             except AttributeError:
                 results = [
-                    (node, scorer.score(text, query).score)
-                    for node, text in zip(nodes, texts)
+                    (node, scorer.score(text, query).score) for node, text in zip(nodes, texts)
                 ]
                 return results
         except Exception as exc:

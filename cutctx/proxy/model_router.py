@@ -49,10 +49,12 @@ from typing import Any
 
 logger = logging.getLogger("cutctx.proxy.model_router")
 
+
 class TaskComplexity(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
 
 def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     """Classify the complexity of a task based on the last user message."""
@@ -72,7 +74,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"add\s*(?:type)?\s*hints?",
         r"fix\s*lint(?:ing)?",
         r"rename\s*(?:the)?\s*variable",
-        r"format\s*(?:the)?\s*code"
+        r"format\s*(?:the)?\s*code",
     ]
 
     # If the text is short AND matches a low complexity pattern
@@ -149,12 +151,8 @@ class ModelRouterConfig:
             enabled=bool(payload.get("enabled", False)),
             downgrade_when=str(payload.get("downgrade_when", "low_cache_read")),
             routes=routes,
-            cache_read_threshold=float(
-                payload.get("cache_read_threshold", 0.5)
-            ),
-            tool_complexity_threshold=float(
-                payload.get("tool_complexity_threshold", 2.0)
-            ),
+            cache_read_threshold=float(payload.get("cache_read_threshold", 0.5)),
+            tool_complexity_threshold=float(payload.get("tool_complexity_threshold", 2.0)),
         )
 
 
@@ -231,9 +229,7 @@ class ModelRouter:
         src_cost = route.source_cost_per_mtok
         tgt_cost = route.target_cost_per_mtok
         if src_cost is None or tgt_cost is None:
-            src_cost, tgt_cost = self._lookup_costs(
-                route.source, route.target
-            )
+            src_cost, tgt_cost = self._lookup_costs(route.source, route.target)
         if src_cost is None or tgt_cost is None or src_cost <= tgt_cost:
             # Could not compute a positive savings. Skip.
             return RoutingDecision(
@@ -270,9 +266,7 @@ class ModelRouter:
         src_cost = route.source_cost_per_mtok
         tgt_cost = route.target_cost_per_mtok
         if src_cost is None or tgt_cost is None:
-            src_cost, tgt_cost = self._lookup_costs(
-                route.source, route.target
-            )
+            src_cost, tgt_cost = self._lookup_costs(route.source, route.target)
         if src_cost is None or tgt_cost is None:
             return decision
         per_mtok_delta = src_cost - tgt_cost
@@ -323,9 +317,7 @@ class ModelRouter:
         complexity = classify_task_complexity(messages)
         return complexity == TaskComplexity.LOW
 
-    def _lookup_costs(
-        self, source: str, target: str
-    ) -> tuple[float | None, float | None]:
+    def _lookup_costs(self, source: str, target: str) -> tuple[float | None, float | None]:
         """Look up LiteLLM-published input costs (USD per
         million tokens). Returns (None, None) if either
         model is unknown to LiteLLM.

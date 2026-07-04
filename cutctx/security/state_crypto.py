@@ -302,9 +302,7 @@ def read_hmac_json(path: Path) -> dict[str, Any] | None:
     signature = envelope.get("signature", "")
 
     if not verify_payload(payload, signature):
-        logger.warning(
-            "HMAC signature mismatch at %s — file may have been tampered with", path
-        )
+        logger.warning("HMAC signature mismatch at %s — file may have been tampered with", path)
         return None
 
     return payload

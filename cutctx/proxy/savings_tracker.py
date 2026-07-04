@@ -327,15 +327,11 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         total_tokens_saved = _coerce_int(entry.get("total_tokens_saved"))
         compression_savings_usd = _coerce_float(entry.get("compression_savings_usd"))
         cache_savings_usd = _coerce_float(entry.get("cache_savings_usd"))
-        semantic_cache_savings_usd = _coerce_float(
-            entry.get("semantic_cache_savings_usd")
-        )
+        semantic_cache_savings_usd = _coerce_float(entry.get("semantic_cache_savings_usd"))
         self_hosted_prefix_cache_savings_usd = _coerce_float(
             entry.get("self_hosted_prefix_cache_savings_usd")
         )
-        model_routing_savings_usd = _coerce_float(
-            entry.get("model_routing_savings_usd")
-        )
+        model_routing_savings_usd = _coerce_float(entry.get("model_routing_savings_usd"))
         tool_schema_compaction_savings_usd = _coerce_float(
             entry.get("tool_schema_compaction_savings_usd")
         )
@@ -349,34 +345,23 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         delta_tokens_saved = _coerce_int(entry.get("delta_tokens_saved"))
         delta_savings_usd = _coerce_float(entry.get("delta_savings_usd"))
         delta_cache_savings_usd = _coerce_float(entry.get("delta_cache_savings_usd"))
-        delta_semantic_cache_usd = _coerce_float(
-            entry.get("delta_semantic_cache_usd")
-        )
+        delta_semantic_cache_usd = _coerce_float(entry.get("delta_semantic_cache_usd"))
         delta_self_hosted_prefix_cache_usd = _coerce_float(
             entry.get("delta_self_hosted_prefix_cache_usd")
         )
-        delta_model_routing_usd = _coerce_float(
-            entry.get("delta_model_routing_usd")
-        )
+        delta_model_routing_usd = _coerce_float(entry.get("delta_model_routing_usd"))
         delta_tool_schema_compaction_usd = _coerce_float(
             entry.get("delta_tool_schema_compaction_usd")
         )
-        delta_api_surface_slimming_usd = _coerce_float(
-            entry.get("delta_api_surface_slimming_usd")
-        )
+        delta_api_surface_slimming_usd = _coerce_float(entry.get("delta_api_surface_slimming_usd"))
         raw_by_source = entry.get("savings_by_source_tokens") or {}
         if isinstance(raw_by_source, dict):
             savings_by_source_tokens = {
-                str(k): _coerce_int(v)
-                for k, v in raw_by_source.items()
-                if _coerce_int(v) > 0
+                str(k): _coerce_int(v) for k, v in raw_by_source.items() if _coerce_int(v) > 0
             }
         raw_by_source_usd = entry.get("savings_by_source_usd") or {}
         if isinstance(raw_by_source_usd, dict):
-            savings_by_source_usd = {
-                str(k): _coerce_float(v)
-                for k, v in raw_by_source_usd.items()
-            }
+            savings_by_source_usd = {str(k): _coerce_float(v) for k, v in raw_by_source_usd.items()}
     elif isinstance(entry, list | tuple) and len(entry) >= 2:
         timestamp = _parse_timestamp(entry[0])
         total_tokens_saved = _coerce_int(entry[1])
@@ -400,9 +385,7 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         "compression_savings_usd": round(compression_savings_usd, 6),
         "cache_savings_usd": round(cache_savings_usd, 6),
         "semantic_cache_savings_usd": round(semantic_cache_savings_usd, 6),
-        "self_hosted_prefix_cache_savings_usd": round(
-            self_hosted_prefix_cache_savings_usd, 6
-        ),
+        "self_hosted_prefix_cache_savings_usd": round(self_hosted_prefix_cache_savings_usd, 6),
         "model_routing_savings_usd": round(model_routing_savings_usd, 6),
         "tool_schema_compaction_savings_usd": round(tool_schema_compaction_savings_usd, 6),
         "api_surface_slimming_savings_usd": round(api_surface_slimming_savings_usd, 6),
@@ -412,9 +395,7 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         "delta_savings_usd": round(delta_savings_usd, 6),
         "delta_cache_savings_usd": round(delta_cache_savings_usd, 6),
         "delta_semantic_cache_usd": round(delta_semantic_cache_usd, 6),
-        "delta_self_hosted_prefix_cache_usd": round(
-            delta_self_hosted_prefix_cache_usd, 6
-        ),
+        "delta_self_hosted_prefix_cache_usd": round(delta_self_hosted_prefix_cache_usd, 6),
         "delta_model_routing_usd": round(delta_model_routing_usd, 6),
         "delta_tool_schema_compaction_usd": round(delta_tool_schema_compaction_usd, 6),
         "delta_api_surface_slimming_usd": round(delta_api_surface_slimming_usd, 6),
@@ -687,25 +668,29 @@ class SavingsTracker:
             else _estimate_compression_savings_usd(model, delta_tokens_saved)
         )
         delta_cache_savings_usd = (
-            _coerce_float(cache_savings_usd_delta)
-            if cache_savings_usd_delta is not None
+            _coerce_float(cache_savings_usd_delta) if cache_savings_usd_delta is not None else 0.0
+        )
+        delta_semantic_cache_usd = (
+            _coerce_float(semantic_cache_usd_delta) if semantic_cache_usd_delta is not None else 0.0
+        )
+        delta_self_hosted_usd = (
+            _coerce_float(self_hosted_prefix_cache_usd_delta)
+            if self_hosted_prefix_cache_usd_delta is not None
             else 0.0
         )
-        delta_semantic_cache_usd = _coerce_float(
-            semantic_cache_usd_delta
-        ) if semantic_cache_usd_delta is not None else 0.0
-        delta_self_hosted_usd = _coerce_float(
-            self_hosted_prefix_cache_usd_delta
-        ) if self_hosted_prefix_cache_usd_delta is not None else 0.0
-        delta_model_routing_usd = _coerce_float(
-            model_routing_usd_delta
-        ) if model_routing_usd_delta is not None else 0.0
-        delta_tool_schema_compaction_usd = _coerce_float(
-            tool_schema_compaction_usd_delta
-        ) if tool_schema_compaction_usd_delta is not None else 0.0
-        delta_api_surface_slimming_usd = _coerce_float(
-            api_surface_slimming_usd_delta
-        ) if api_surface_slimming_usd_delta is not None else 0.0
+        delta_model_routing_usd = (
+            _coerce_float(model_routing_usd_delta) if model_routing_usd_delta is not None else 0.0
+        )
+        delta_tool_schema_compaction_usd = (
+            _coerce_float(tool_schema_compaction_usd_delta)
+            if tool_schema_compaction_usd_delta is not None
+            else 0.0
+        )
+        delta_api_surface_slimming_usd = (
+            _coerce_float(api_surface_slimming_usd_delta)
+            if api_surface_slimming_usd_delta is not None
+            else 0.0
+        )
         delta_input_cost_usd = _estimate_input_cost_usd(
             model,
             delta_input_tokens,
@@ -735,45 +720,23 @@ class SavingsTracker:
         if savings_by_source_usd is None:
             savings_by_source_usd = {}
             if delta_cache_savings_usd:
-                savings_by_source_usd["provider_prompt_cache"] = (
-                    delta_cache_savings_usd
-                )
+                savings_by_source_usd["provider_prompt_cache"] = delta_cache_savings_usd
             if delta_savings_usd:
-                savings_by_source_usd["cutctx_compression"] = (
-                    delta_savings_usd
-                )
+                savings_by_source_usd["cutctx_compression"] = delta_savings_usd
             if delta_semantic_cache_usd:
-                savings_by_source_usd["semantic_cache"] = (
-                    delta_semantic_cache_usd
-                )
+                savings_by_source_usd["semantic_cache"] = delta_semantic_cache_usd
             if delta_self_hosted_usd:
-                savings_by_source_usd["prefix_cache_self_hosted"] = (
-                    delta_self_hosted_usd
-                )
+                savings_by_source_usd["prefix_cache_self_hosted"] = delta_self_hosted_usd
             if delta_model_routing_usd:
-                savings_by_source_usd["model_routing"] = (
-                    delta_model_routing_usd
-                )
+                savings_by_source_usd["model_routing"] = delta_model_routing_usd
             if delta_tool_schema_compaction_usd:
-                savings_by_source_usd["tool_schema_compaction"] = (
-                    delta_tool_schema_compaction_usd
-                )
+                savings_by_source_usd["tool_schema_compaction"] = delta_tool_schema_compaction_usd
             if delta_api_surface_slimming_usd:
-                savings_by_source_usd["api_surface_slimming"] = (
-                    delta_api_surface_slimming_usd
-                )
-        savings_by_source_usd = {
-            str(k): float(v) for k, v in savings_by_source_usd.items()
-        }
-        delta_semantic_cache_tokens = int(
-            savings_by_source_tokens.get("semantic_cache", 0)
-        )
-        delta_self_hosted_tokens = int(
-            savings_by_source_tokens.get("prefix_cache_self_hosted", 0)
-        )
-        delta_model_routing_tokens = int(
-            savings_by_source_tokens.get("model_routing", 0)
-        )
+                savings_by_source_usd["api_surface_slimming"] = delta_api_surface_slimming_usd
+        savings_by_source_usd = {str(k): float(v) for k, v in savings_by_source_usd.items()}
+        delta_semantic_cache_tokens = int(savings_by_source_tokens.get("semantic_cache", 0))
+        delta_self_hosted_tokens = int(savings_by_source_tokens.get("prefix_cache_self_hosted", 0))
+        delta_model_routing_tokens = int(savings_by_source_tokens.get("model_routing", 0))
         delta_tool_schema_compaction_tokens = int(
             savings_by_source_tokens.get("tool_schema_compaction", 0)
         )
@@ -814,12 +777,10 @@ class SavingsTracker:
 
             lifetime["requests"] += 1
             lifetime["tokens_saved"] += delta_tokens_saved
-            lifetime["scaffolding_tokens"] = int(
-                lifetime.get("scaffolding_tokens", 0)
-            ) + delta_scaffolding_tokens
-            lifetime["ghost_tokens"] = int(
-                lifetime.get("ghost_tokens", 0)
-            ) + delta_ghost_tokens
+            lifetime["scaffolding_tokens"] = (
+                int(lifetime.get("scaffolding_tokens", 0)) + delta_scaffolding_tokens
+            )
+            lifetime["ghost_tokens"] = int(lifetime.get("ghost_tokens", 0)) + delta_ghost_tokens
             lifetime["compression_savings_usd"] = round(
                 lifetime["compression_savings_usd"] + delta_savings_usd,
                 6,
@@ -829,18 +790,15 @@ class SavingsTracker:
                 6,
             )
             lifetime["semantic_cache_savings_usd"] = round(
-                lifetime.get("semantic_cache_savings_usd", 0.0)
-                + delta_semantic_cache_usd,
+                lifetime.get("semantic_cache_savings_usd", 0.0) + delta_semantic_cache_usd,
                 6,
             )
             lifetime["self_hosted_prefix_cache_savings_usd"] = round(
-                lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0)
-                + delta_self_hosted_usd,
+                lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0) + delta_self_hosted_usd,
                 6,
             )
             lifetime["model_routing_savings_usd"] = round(
-                lifetime.get("model_routing_savings_usd", 0.0)
-                + delta_model_routing_usd,
+                lifetime.get("model_routing_savings_usd", 0.0) + delta_model_routing_usd,
                 6,
             )
             lifetime["tool_schema_compaction_savings_usd"] = round(
@@ -860,9 +818,7 @@ class SavingsTracker:
             # Phase 1.4: per-source USD lifetime accumulators.
             for src_name, usd in savings_by_source_usd.items():
                 key = f"savings_by_source_usd.{src_name}"
-                lifetime[key] = round(
-                    float(lifetime.get(key, 0.0)) + float(usd), 6
-                )
+                lifetime[key] = round(float(lifetime.get(key, 0.0)) + float(usd), 6)
             lifetime["total_input_tokens"] = next_total_input_tokens
             lifetime["total_input_cost_usd"] = next_total_input_cost_usd
 
@@ -878,12 +834,10 @@ class SavingsTracker:
 
             session["requests"] += 1
             session["tokens_saved"] += delta_tokens_saved
-            session["scaffolding_tokens"] = int(
-                session.get("scaffolding_tokens", 0)
-            ) + delta_scaffolding_tokens
-            session["ghost_tokens"] = int(
-                session.get("ghost_tokens", 0)
-            ) + delta_ghost_tokens
+            session["scaffolding_tokens"] = (
+                int(session.get("scaffolding_tokens", 0)) + delta_scaffolding_tokens
+            )
+            session["ghost_tokens"] = int(session.get("ghost_tokens", 0)) + delta_ghost_tokens
             session["compression_savings_usd"] = round(
                 session["compression_savings_usd"] + delta_savings_usd,
                 6,
@@ -893,18 +847,15 @@ class SavingsTracker:
                 6,
             )
             session["semantic_cache_savings_usd"] = round(
-                session.get("semantic_cache_savings_usd", 0.0)
-                + delta_semantic_cache_usd,
+                session.get("semantic_cache_savings_usd", 0.0) + delta_semantic_cache_usd,
                 6,
             )
             session["self_hosted_prefix_cache_savings_usd"] = round(
-                session.get("self_hosted_prefix_cache_savings_usd", 0.0)
-                + delta_self_hosted_usd,
+                session.get("self_hosted_prefix_cache_savings_usd", 0.0) + delta_self_hosted_usd,
                 6,
             )
             session["model_routing_savings_usd"] = round(
-                session.get("model_routing_savings_usd", 0.0)
-                + delta_model_routing_usd,
+                session.get("model_routing_savings_usd", 0.0) + delta_model_routing_usd,
                 6,
             )
             session["tool_schema_compaction_savings_usd"] = round(
@@ -946,18 +897,10 @@ class SavingsTracker:
             # fired (Phase 1.4). The thresholds mirror the source
             # defaults so a request with provider cache + semantic
             # cache + model routing all leaves a row.
-            has_provider_cache = (
-                int(cache_read_tokens or 0) > 0 or delta_cache_savings_usd > 0
-            )
-            has_semantic = (
-                delta_semantic_cache_tokens > 0 or delta_semantic_cache_usd > 0
-            )
-            has_self_hosted = (
-                delta_self_hosted_tokens > 0 or delta_self_hosted_usd > 0
-            )
-            has_model_routing = (
-                delta_model_routing_tokens > 0 or delta_model_routing_usd > 0
-            )
+            has_provider_cache = int(cache_read_tokens or 0) > 0 or delta_cache_savings_usd > 0
+            has_semantic = delta_semantic_cache_tokens > 0 or delta_semantic_cache_usd > 0
+            has_self_hosted = delta_self_hosted_tokens > 0 or delta_self_hosted_usd > 0
+            has_model_routing = delta_model_routing_tokens > 0 or delta_model_routing_usd > 0
             has_tool_schema_compaction = (
                 delta_tool_schema_compaction_tokens > 0 or delta_tool_schema_compaction_usd > 0
             )
@@ -981,16 +924,12 @@ class SavingsTracker:
                         # Lifetime counters (running totals at this point).
                         "total_tokens_saved": lifetime["tokens_saved"],
                         "compression_savings_usd": lifetime["compression_savings_usd"],
-                        "cache_savings_usd": round(
-                            lifetime.get("cache_savings_usd", 0.0), 6
-                        ),
+                        "cache_savings_usd": round(lifetime.get("cache_savings_usd", 0.0), 6),
                         "semantic_cache_savings_usd": round(
                             lifetime.get("semantic_cache_savings_usd", 0.0), 6
                         ),
                         "self_hosted_prefix_cache_savings_usd": round(
-                            lifetime.get(
-                                "self_hosted_prefix_cache_savings_usd", 0.0
-                            ),
+                            lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0),
                             6,
                         ),
                         "model_routing_savings_usd": round(
@@ -1002,9 +941,7 @@ class SavingsTracker:
                         "api_surface_slimming_savings_usd": round(
                             lifetime.get("api_surface_slimming_savings_usd", 0.0), 6
                         ),
-                        "scaffolding_tokens": int(
-                            lifetime.get("scaffolding_tokens", 0)
-                        ),
+                        "scaffolding_tokens": int(lifetime.get("scaffolding_tokens", 0)),
                         "ghost_tokens": int(lifetime.get("ghost_tokens", 0)),
                         "total_input_tokens": lifetime["total_input_tokens"],
                         "total_input_cost_usd": lifetime["total_input_cost_usd"],
@@ -1015,20 +952,14 @@ class SavingsTracker:
                         # lifetime.
                         "delta_tokens_saved": int(delta_tokens_saved),
                         "delta_savings_usd": round(float(delta_savings_usd), 6),
-                        "delta_cache_savings_usd": round(
-                            float(delta_cache_savings_usd), 6
-                        ),
-                        "delta_semantic_cache_usd": round(
-                            float(delta_semantic_cache_usd), 6
-                        ),
+                        "delta_cache_savings_usd": round(float(delta_cache_savings_usd), 6),
+                        "delta_semantic_cache_usd": round(float(delta_semantic_cache_usd), 6),
                         "delta_self_hosted_prefix_cache_usd": round(
                             float(delta_self_hosted_usd), 6
                         ),
-                        "delta_model_routing_usd": round(
-                            float(delta_model_routing_usd), 6
-                        ),
-            "delta_ghost_tokens": int(delta_ghost_tokens),
-            "delta_scaffolding_tokens": int(delta_scaffolding_tokens),
+                        "delta_model_routing_usd": round(float(delta_model_routing_usd), 6),
+                        "delta_ghost_tokens": int(delta_ghost_tokens),
+                        "delta_scaffolding_tokens": int(delta_scaffolding_tokens),
                         "delta_tool_schema_compaction_usd": round(
                             float(delta_tool_schema_compaction_usd), 6
                         ),
@@ -1256,9 +1187,7 @@ class SavingsTracker:
             try:
                 import time as _t
 
-                quarantine = self._path.with_suffix(
-                    f".corrupt-{int(_t.time())}.json"
-                )
+                quarantine = self._path.with_suffix(f".corrupt-{int(_t.time())}.json")
                 self._path.rename(quarantine)
                 logger.warning(
                     "Quarantined corrupt savings file to %s",
@@ -1345,9 +1274,9 @@ class SavingsTracker:
         lifetime_savings_usd = 0.0
         lifetime_input_tokens = 0
         lifetime_input_cost_usd = 0.0
-        lifetime_extra_usd = {field: 0.0 for field in SESSION_SAVINGS_USD_FIELDS}
-        lifetime_source_tokens = {source: 0 for source in PERSISTED_SAVINGS_SOURCES}
-        lifetime_source_usd = {source: 0.0 for source in PERSISTED_SAVINGS_SOURCES}
+        lifetime_extra_usd = dict.fromkeys(SESSION_SAVINGS_USD_FIELDS, 0.0)
+        lifetime_source_tokens = dict.fromkeys(PERSISTED_SAVINGS_SOURCES, 0)
+        lifetime_source_usd = dict.fromkeys(PERSISTED_SAVINGS_SOURCES, 0.0)
         if isinstance(lifetime_raw, dict):
             lifetime_requests = _coerce_int(lifetime_raw.get("requests"))
             lifetime_tokens_saved = _coerce_int(lifetime_raw.get("tokens_saved"))

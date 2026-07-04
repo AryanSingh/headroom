@@ -7,6 +7,7 @@ False for a signature the prover itself just produced, because the signer
 hashed the payload (SHA-256) but the verifier passed the payload raw.
 This file pins the fix.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -121,10 +122,15 @@ class TestResidencyVerify:
         # First sign with priv_a, then check verifier with priv_b's pub key
         # by manipulating the env temporarily.
         monkeypatch.setenv("CUTCTX_LICENSE_PRIVATE_KEY", priv_a_bytes.hex())
-        monkeypatch.setenv("CUTCTX_LICENSE_PUBLIC_KEY", priv_a.public_key().public_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PublicFormat.Raw,
-        ).hex())
+        monkeypatch.setenv(
+            "CUTCTX_LICENSE_PUBLIC_KEY",
+            priv_a.public_key()
+            .public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+            .hex(),
+        )
         monkeypatch.setenv("CUTCTX_LICENSE_KID", "test-kid-a")
         prover_a = ResidencyProver(tenant_id="tenant-test-5")
         signed = prover_a._sign(prover_a.generate(data_regions=["us-west-2"], sign=False))

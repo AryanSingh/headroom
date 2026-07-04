@@ -60,4 +60,6 @@ def test_wiki_does_not_claim_intelligent_context_manager() -> None:
     for path in files:
         if path.exists():
             text = path.read_text()
-            assert "IntelligentContext" not in text, f"{path} still references the retired IntelligentContext manager"
+            assert "IntelligentContext" not in text, (
+                f"{path} still references the retired IntelligentContext manager"
+            )

@@ -17,6 +17,7 @@ class TestIntelligencePipelineConfig:
         config.shared_context_enabled = False
         config.cost_forecast_enabled = False
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline.from_config(config)
         assert not p.any_enabled()
 
@@ -32,6 +33,7 @@ class TestIntelligencePipelineConfig:
         config.cost_forecast_enabled = True
         config.default_model = "claude-sonnet-4-5-20250929"
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline.from_config(config)
         assert p.any_enabled()
         assert p.task_aware
@@ -47,6 +49,7 @@ class TestIntelligencePipelineConfig:
     def test_from_config_defaults_missing_attrs(self):
         config = MagicMock(spec=[])  # No attributes
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline.from_config(config)
         assert not p.any_enabled()
         assert p.context_budget_max_tokens == 100_000
@@ -58,6 +61,7 @@ class TestTaskAwareCompression:
 
     def test_pre_compression_extracts_task(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(task_aware=True)
         messages = [
             {"role": "user", "content": "debug the HTTP 500 error in auth handler"},
@@ -68,6 +72,7 @@ class TestTaskAwareCompression:
 
     def test_pre_compression_no_task_when_disabled(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(task_aware=False)
         messages = [{"role": "user", "content": "debug the HTTP 500 error"}]
         ctx = p.pre_compression(messages, "claude-3-5-sonnet-20241022", "req-2")
@@ -75,12 +80,22 @@ class TestTaskAwareCompression:
 
     def test_per_message_relevance_scoring(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(task_aware=True)
         messages = [
-            {"role": "user", "content": "debug HTTP 500 error in /api/users endpoint with connection refused"},
-            {"role": "assistant", "content": "The error log shows HTTP 500 connection refused to database"},
+            {
+                "role": "user",
+                "content": "debug HTTP 500 error in /api/users endpoint with connection refused",
+            },
+            {
+                "role": "assistant",
+                "content": "The error log shows HTTP 500 connection refused to database",
+            },
             {"role": "user", "content": "continue investigating the connection refused error"},
-            {"role": "assistant", "content": "Here is the HTTP response with status 500 and error body showing connection refused"},
+            {
+                "role": "assistant",
+                "content": "Here is the HTTP response with status 500 and error body showing connection refused",
+            },
         ]
         ctx = p.pre_compression(messages, "claude-3-5-sonnet-20241022", "req-3")
         assert ctx.task is not None
@@ -91,6 +106,7 @@ class TestTaskAwareCompression:
 
     def test_relevance_scoring_short_messages_get_full_score(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(task_aware=True)
         messages = [
             {"role": "user", "content": "hi"},  # < 20 chars
@@ -102,9 +118,13 @@ class TestTaskAwareCompression:
 
     def test_task_extractor_with_question_words(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(task_aware=True)
         messages = [
-            {"role": "user", "content": "How do I configure the Redis connection pool in production?"},
+            {
+                "role": "user",
+                "content": "How do I configure the Redis connection pool in production?",
+            },
         ]
         ctx = p.pre_compression(messages, "claude-3-5-sonnet-20241022", "req-5")
         assert ctx.task is not None
@@ -144,7 +164,9 @@ class TestCompressionAutopilot:
         p = IntelligencePipeline(
             task_aware=True,
             autopilot=True,
-            autopilot_config=AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=2),
+            autopilot_config=AutopilotConfig(
+                enabled=True, min_level=1, max_level=5, hysteresis_window=2
+            ),
         )
         messages = [
             {"role": "user", "content": "debug the flaky test and fix the failing code path"},
@@ -169,7 +191,9 @@ class TestCompressionAutopilot:
 
         p = IntelligencePipeline(
             autopilot=True,
-            autopilot_config=AutopilotConfig(enabled=True, min_level=1, max_level=5, hysteresis_window=2),
+            autopilot_config=AutopilotConfig(
+                enabled=True, min_level=1, max_level=5, hysteresis_window=2
+            ),
         )
         p.record_quality_signal("code", "retrieval", timestamp_seconds=1.0)
         assert p.autopilot_snapshot()["task_levels"]["code"] == 4
@@ -198,6 +222,7 @@ class TestSemanticDedup:
 
     def test_post_compression_dedup(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(dedup=True)
         long_content = "x" * 2000  # > MIN_DEDUP_TOKENS (200)
         messages = [
@@ -216,6 +241,7 @@ class TestSemanticDedup:
     def test_deduplicator_persists_across_requests(self):
         """Deduplicator instance should be reused across post_compression calls."""
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(dedup=True)
         long_content = "y" * 2000
         messages1 = [
@@ -242,6 +268,7 @@ class TestSemanticDedup:
 
     def test_system_messages_not_deduped(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(dedup=True)
         messages = [
             {"role": "system", "content": "You are a helpful assistant. " * 100},
@@ -259,6 +286,7 @@ class TestContextBudget:
 
     def test_post_compression_context_budget(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(context_budget=True, context_budget_max_tokens=1000)
         messages = [
             {"role": "user", "content": "hello " * 500},
@@ -273,6 +301,7 @@ class TestContextBudget:
 
     def test_budget_controller_persists_across_requests(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(context_budget=True, context_budget_max_tokens=50_000)
         messages = [{"role": "user", "content": "test " * 200}]
         ctx = MagicMock()
@@ -292,6 +321,7 @@ class TestCrossSessionProfiles:
 
     def test_pre_compression_loads_profile(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(profiles=True)
         messages = [{"role": "user", "content": "test task"}]
         with patch("cutctx.profiles.CompressionProfile.load") as mock_load:
@@ -307,6 +337,7 @@ class TestCrossSessionProfiles:
 
     def test_profile_persists_across_requests(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(profiles=True)
         messages = [{"role": "user", "content": "test"}]
         with patch("cutctx.profiles.CompressionProfile.load") as mock_load:
@@ -326,6 +357,7 @@ class TestMultiAgentSharedState:
 
     def test_pre_compression_shared_context_check(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(shared_context=True)
         messages = [{"role": "user", "content": "test"}]
         with patch("cutctx.shared_context.MultiAgentCoordinator") as MockCoord:
@@ -338,6 +370,7 @@ class TestMultiAgentSharedState:
 
     def test_post_compression_shared_store(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(shared_context=True)
         messages = [{"role": "assistant", "content": "compressed result here"}]
         ctx = MagicMock()
@@ -351,6 +384,7 @@ class TestMultiAgentSharedState:
 
     def test_coordinator_persists_across_requests(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(shared_context=True)
         messages = [{"role": "user", "content": "test"}]
         ctx = MagicMock()
@@ -368,6 +402,7 @@ class TestCostForecasting:
 
     def test_pre_compression_policy_evaluation(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(cost_forecast=True, model="claude-3-5-sonnet-20241022")
         messages = [{"role": "user", "content": "hello " * 1000}]
         with patch("cutctx.cost_forecast.SessionCostTracker") as MockTracker:
@@ -375,18 +410,29 @@ class TestCostForecasting:
             mock_tracker._budget_usd = None
             MockTracker.return_value = mock_tracker
             ctx = p.pre_compression(messages, "claude-3-5-sonnet-20241022", "req-cost-1")
-            assert ctx.policy_strategy in ("none", "minimal", "light", "moderate", "aggressive", "emergency")
+            assert ctx.policy_strategy in (
+                "none",
+                "minimal",
+                "light",
+                "moderate",
+                "aggressive",
+                "emergency",
+            )
             assert ctx.policy_compression_ratio > 0
 
     def test_post_compression_cost_tracking(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(cost_forecast=True, model="claude-3-5-sonnet-20241022")
         messages = [{"role": "user", "content": "hello"}]
         ctx = MagicMock()
         ctx.cost_estimate_usd = 0.0
         ctx.cost_savings_usd = 0.0
         result = p.post_compression(
-            messages, messages, ctx, "req-cost-2",
+            messages,
+            messages,
+            ctx,
+            "req-cost-2",
             input_tokens=1000,
             output_tokens=500,
         )
@@ -394,15 +440,18 @@ class TestCostForecasting:
 
     def test_cost_tracker_persists_across_requests(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(cost_forecast=True, model="claude-3-5-sonnet-20241022")
         messages = [{"role": "user", "content": "hello"}]
         ctx = MagicMock()
-        p.post_compression(messages, messages, ctx, "req-cost-3",
-                          input_tokens=1000, output_tokens=200)
+        p.post_compression(
+            messages, messages, ctx, "req-cost-3", input_tokens=1000, output_tokens=200
+        )
         first_tracker = p._cost_tracker
         assert first_tracker is not None
-        p.post_compression(messages, messages, ctx, "req-cost-4",
-                          input_tokens=500, output_tokens=100)
+        p.post_compression(
+            messages, messages, ctx, "req-cost-4", input_tokens=500, output_tokens=100
+        )
         assert p._cost_tracker is first_tracker
         # Should have accumulated 2 requests
         assert first_tracker._request_count == 2
@@ -413,6 +462,7 @@ class TestPipelineContext:
 
     def test_to_dict_with_all_fields(self):
         from cutctx.proxy.intelligence_pipeline import PipelineContext
+
         ctx = PipelineContext(
             task="debug HTTP error",
             dedup_count=3,
@@ -447,6 +497,7 @@ class TestPipelineContext:
 
     def test_to_dict_defaults(self):
         from cutctx.proxy.intelligence_pipeline import PipelineContext
+
         ctx = PipelineContext()
         d = ctx.to_dict()
         assert d["task"] is None
@@ -462,6 +513,7 @@ class TestGracefulFailure:
 
     def test_dedup_failure_is_swallowed(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(dedup=True)
         p._deduplicator = MagicMock()
         p._deduplicator.process.side_effect = RuntimeError("dedup crash")
@@ -472,6 +524,7 @@ class TestGracefulFailure:
 
     def test_budget_failure_is_swallowed(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(context_budget=True)
         p._budget_controller = MagicMock()
         p._budget_controller.apply.side_effect = RuntimeError("budget crash")
@@ -482,6 +535,7 @@ class TestGracefulFailure:
 
     def test_cost_forecast_failure_is_swallowed(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(cost_forecast=True, model="claude-3-5-sonnet-20241022")
         p._cost_tracker = MagicMock()
         p._cost_tracker.record_request.side_effect = RuntimeError("cost crash")
@@ -492,6 +546,7 @@ class TestGracefulFailure:
 
     def test_profile_failure_is_swallowed(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(profiles=True)
         p._profile = MagicMock()
         p._profile.record_session.side_effect = RuntimeError("profile crash")
@@ -502,6 +557,7 @@ class TestGracefulFailure:
 
     def test_shared_context_failure_is_swallowed(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline(shared_context=True)
         p._coordinator = MagicMock()
         p._coordinator.compress_shared.side_effect = RuntimeError("shared crash")
@@ -512,6 +568,7 @@ class TestGracefulFailure:
 
     def test_all_disabled_noop(self):
         from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
         p = IntelligencePipeline()
         messages = [{"role": "user", "content": "hello"}]
         ctx = MagicMock()

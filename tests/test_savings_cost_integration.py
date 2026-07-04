@@ -31,9 +31,7 @@ class TestCostTrackerWiring:
     def test_multiple_requests_aggregate(self):
         t = CostTracker()
         for i in range(3):
-            b = RequestSavingsBreakdown(
-                raw_input_tokens=1000, total_tokens_saved=100
-            )
+            b = RequestSavingsBreakdown(raw_input_tokens=1000, total_tokens_saved=100)
             b.by_source.add(SavingsSource.CUTCTX_COMPRESSION, 100)
             t.record_savings_breakdown(b, provider="openai", model="gpt-4o")
         stats = t.stats()

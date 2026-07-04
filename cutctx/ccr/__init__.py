@@ -21,6 +21,12 @@ from .context_tracker import (
     get_context_tracker,
     reset_context_tracker,
 )
+from .markers import (
+    CCR_TOOL_NAME,
+    MARKER_PATTERNS,
+    extract_marker_hashes,
+    format_dedup_ref,
+)
 from .response_handler import (
     CCRResponseHandler,
     CCRToolCall,
@@ -28,12 +34,6 @@ from .response_handler import (
     ResponseHandlerConfig,
     StreamingCCRBuffer,
     StreamingCCRHandler,
-)
-from .markers import (
-    CCR_TOOL_NAME,
-    MARKER_PATTERNS,
-    extract_marker_hashes,
-    format_dedup_ref,
 )
 from .tool_injection import (
     CCRToolInjector,

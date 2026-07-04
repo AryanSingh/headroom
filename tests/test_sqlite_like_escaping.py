@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -36,9 +36,7 @@ async def test_entity_ref_filter_treats_percent_as_literal() -> None:
         await store.save(literal)
         await store.save(wildcard_neighbor)
 
-        results = await store.query(
-            MemoryFilter(user_id="alice", entity_refs=["test%injection"])
-        )
+        results = await store.query(MemoryFilter(user_id="alice", entity_refs=["test%injection"]))
         assert [memory.id for memory in results] == ["literal-entity"]
     finally:
         db_path.unlink(missing_ok=True)

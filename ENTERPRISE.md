@@ -158,5 +158,5 @@ These are not code gaps, but business workstreams:
 
 ## Contact
 
-- `hello@cutctx.dev`
-- `security@cutctx.dev`
+- `hello@cutctx.com`
+- `security@cutctx.com`

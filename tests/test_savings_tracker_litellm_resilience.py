@@ -103,9 +103,7 @@ def test_estimate_compression_savings_usd_never_raises_on_broken_litellm(
     def _broken_get_litellm_module():
         return None
 
-    monkeypatch.setattr(
-        savings_tracker, "_get_litellm_module", _broken_get_litellm_module
-    )
+    monkeypatch.setattr(savings_tracker, "_get_litellm_module", _broken_get_litellm_module)
 
     result = savings_tracker._estimate_compression_savings_usd("gpt-5.4", 1000)
 

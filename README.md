@@ -15,13 +15,13 @@
   <a href="https://app.codecov.io/gh/cutctx/cutctx"><img src="https://codecov.io/gh/cutctx/cutctx/graph/badge.svg" alt="codecov"></a>
   <a href="https://pypi.org/project/cutctx-ai/"><img src="https://img.shields.io/pypi/v/cutctx-ai.svg" alt="PyPI"></a>
   <a href="https://www.npmjs.com/package/cutctx-ai"><img src="https://img.shields.io/npm/v/cutctx-ai.svg" alt="npm"></a>
-  <a href="https://huggingface.co/chopratejas/kompress-v2-base"><img src="https://img.shields.io/badge/model-Kompress--v2--base-yellow.svg" alt="Model: Kompress-v2-base"></a>
+  <a href="https://huggingface.co/cutctx/kompress-v2-base"><img src="https://img.shields.io/badge/model-Kompress--v2--base-yellow.svg" alt="Model: Kompress-v2-base"></a>
   <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-open--core-blue.svg" alt="License: Open Core (Apache-2.0 + Commercial)"></a>
-  <a href="https://cutctx.dev/docs"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Docs"></a>
+  <a href="https://cutctx.com/docs"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Docs"></a>
 </p>
 
 <p align="center">
-  <a href="https://cutctx.dev/docs">Docs</a> ·
+  <a href="https://cutctx.com/docs">Docs</a> ·
   <a href="#get-started-60-seconds">Install</a> ·
   <a href="#proof">Proof</a> ·
   <a href="#agent-compatibility-matrix">Agents</a> ·
@@ -34,7 +34,7 @@
 </p>
 
 <p align="center"><sub>
-  <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>/llms.txt</code></a> here, or fetch <a href="https://cutctx.dev/llms.txt">the live index</a> / <a href="https://cutctx.dev/llms-full.txt">full docs blob</a>.
+  <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>/llms.txt</code></a> here, or fetch <a href="https://cutctx.com/llms.txt">the live index</a> / <a href="https://cutctx.com/llms-full.txt">full docs blob</a>.
 </sub></p>
 
 ---
@@ -87,7 +87,7 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 - **CacheAligner** — stabilizes prefixes so provider KV caches actually hit
 - **CCR** — stores originals locally; LLM calls `cutctx_retrieve` if it needs them
 
-→ [Architecture](docs/project-architecture.md) · [Docs architecture](https://cutctx.dev/docs/architecture) · [CCR reversible compression](https://cutctx.dev/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/chopratejas/kompress-v2-base)
+→ [Architecture](docs/project-architecture.md) · [Docs architecture](https://cutctx.com/docs/architecture) · [CCR reversible compression](https://cutctx.com/docs/ccr) · [Kompress-v2-base model card](https://huggingface.co/cutctx/kompress-v2-base)
 
 ## Get started (60 seconds)
 
@@ -139,7 +139,7 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | SQuAD v2   | QA       | 100 |        — |  **97%** | 19% compression |
 | BFCL       | Tools    | 100 |        — |  **97%** | 32% compression |
 
-Reproduce: `cutctx evals benchmark --dataset tool_outputs --dataset hotpotqa --dataset squad --compressors all --metrics ratio --metrics tokens_saved --metrics f1 --metrics rouge_l --markdown` · [Full benchmarks & methodology](https://cutctx.dev/docs/benchmarks)
+Reproduce: `cutctx evals benchmark --dataset tool_outputs --dataset hotpotqa --dataset squad --compressors all --metrics ratio --metrics tokens_saved --metrics f1 --metrics rouge_l --markdown` · [Full benchmarks & methodology](https://cutctx.com/docs/benchmarks)
 
 **Real output from the command above** (seed `42`, zero-LLM):
 
@@ -217,7 +217,7 @@ For buyers, operators, and security reviewers:
 | LiteLLM                | Cutctx callback integration for LiteLLM                          |
 | LangChain              | Cutctx LangChain chat wrapper                                    |
 | Agno                   | Cutctx Agno model wrapper                                        |
-| Strands                | [Strands guide](https://cutctx.dev/docs/strands)  |
+| Strands                | [Strands guide](https://cutctx.com/docs/strands)  |
 | ASGI apps              | `app.add_middleware(CompressionMiddleware)`                      |
 | Multi-agent            | `SharedContext().put / .get`                                     |
 | MCP clients            | `cutctx mcp install`                                           |
@@ -325,7 +325,7 @@ Using `pipx`? Choose a supported interpreter explicitly:
 pipx install --python python3.13 "cutctx-ai[all]"
 ```
 
-→ [Installation guide](https://cutctx.dev/docs/installation) — Docker tags, persistent service, PowerShell, devcontainers.
+→ [Installation guide](https://cutctx.com/docs/installation) — Docker tags, persistent service, PowerShell, devcontainers.
 
 ### Corporate / SSL-inspection environments
 
@@ -366,12 +366,12 @@ Running with compression disabled (pure gateway) requires neither asset.
 
 | Start here                                                                    | Go deeper                                                                          |
 |-------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| [Quickstart](https://cutctx.dev/docs/quickstart)                | [Architecture](https://cutctx.dev/docs/architecture)                 |
-| [Proxy](https://cutctx.dev/docs/proxy)                          | [How compression works](https://cutctx.dev/docs/how-compression-works) |
-| [MCP tools](https://cutctx.dev/docs/mcp)                        | [CCR — reversible compression](https://cutctx.dev/docs/ccr)          |
-| [Memory](https://cutctx.dev/docs/memory)                        | [Cache optimization](https://cutctx.dev/docs/cache-optimization)     |
-| [Failure learning](https://cutctx.dev/docs/failure-learning)    | [Benchmarks](https://cutctx.dev/docs/benchmarks)                    |
-| [Configuration](https://cutctx.dev/docs/configuration)          | [Limitations](https://cutctx.dev/docs/limitations)                  |
+| [Quickstart](https://cutctx.com/docs/quickstart)                | [Architecture](https://cutctx.com/docs/architecture)                 |
+| [Proxy](https://cutctx.com/docs/proxy)                          | [How compression works](https://cutctx.com/docs/how-compression-works) |
+| [MCP tools](https://cutctx.com/docs/mcp)                        | [CCR — reversible compression](https://cutctx.com/docs/ccr)          |
+| [Memory](https://cutctx.com/docs/memory)                        | [Cache optimization](https://cutctx.com/docs/cache-optimization)     |
+| [Failure learning](https://cutctx.com/docs/failure-learning)    | [Benchmarks](https://cutctx.com/docs/benchmarks)                    |
+| [Configuration](https://cutctx.com/docs/configuration)          | [Limitations](https://cutctx.com/docs/limitations)                  |
 
 ## Compared to
 
@@ -399,7 +399,7 @@ Devcontainers in `.devcontainer/` (default + `memory-stack` with Qdrant & Neo4j)
 ## Community
 
 - **[Discord](https://discord.gg/yRmaUNpsPJ)** — questions, feedback, war stories.
-- **[Kompress-v2-base on HuggingFace](https://huggingface.co/chopratejas/kompress-v2-base)** — the model behind our text compression.
+- **[Kompress-v2-base on HuggingFace](https://huggingface.co/cutctx/kompress-v2-base)** — the model behind our text compression.
 
 ## License
 

@@ -195,7 +195,11 @@ class LLMLinguaCompressor:
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
-            if role == "user" or not isinstance(content, str) or len(content.split()) < self.config.min_words:
+            if (
+                role == "user"
+                or not isinstance(content, str)
+                or len(content.split()) < self.config.min_words
+            ):
                 result_messages.append(msg)
                 continue
 
@@ -207,7 +211,9 @@ class LLMLinguaCompressor:
                 result_messages.append(msg)
 
         tokens_after = sum(
-            _count(m.get("content", "")) for m in result_messages if isinstance(m.get("content"), str)
+            _count(m.get("content", ""))
+            for m in result_messages
+            if isinstance(m.get("content"), str)
         )
 
         return TransformResult(

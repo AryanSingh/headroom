@@ -80,8 +80,7 @@ def _resolve_target_user_id(
     raise HTTPException(
         status_code=400,
         detail=(
-            "No user_id resolved from body, query param, SSO claim, "
-            "or X-Cutctx-User-Id header"
+            "No user_id resolved from body, query param, SSO claim, or X-Cutctx-User-Id header"
         ),
     )
 
@@ -89,12 +88,7 @@ def _resolve_target_user_id(
 def _now_iso() -> str:
     from datetime import datetime, timezone
 
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def create_dsr_router(
@@ -174,9 +168,7 @@ def create_dsr_router(
                     "records": jsonable_encoder(result.get("records", [])),
                 }
             except Exception as exc:  # noqa: BLE001
-                logger.exception(
-                    "event=dsr_export_memory_error user_id=%s error=%r", target, exc
-                )
+                logger.exception("event=dsr_export_memory_error user_id=%s error=%r", target, exc)
                 payload["store_errors"]["memory"] = str(exc)
         else:
             payload["store_errors"]["memory"] = "memory_handler not configured"
@@ -213,9 +205,7 @@ def create_dsr_router(
         except ImportError:
             payload["store_errors"]["spend_ledger"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "event=dsr_export_spend_error user_id=%s error=%r", target, exc
-            )
+            logger.exception("event=dsr_export_spend_error user_id=%s error=%r", target, exc)
             payload["store_errors"]["spend_ledger"] = str(exc)
 
         # Audit log: query events for the actor == user_id.
@@ -231,9 +221,7 @@ def create_dsr_router(
         except ImportError:
             payload["store_errors"]["audit"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "event=dsr_export_audit_error user_id=%s error=%r", target, exc
-            )
+            logger.exception("event=dsr_export_audit_error user_id=%s error=%r", target, exc)
             payload["store_errors"]["audit"] = str(exc)
 
         return payload
@@ -268,9 +256,7 @@ def create_dsr_router(
                 counts = await memory_handler.delete_for_user(target)
                 result["stores"]["memory"] = counts
             except Exception as exc:  # noqa: BLE001
-                logger.exception(
-                    "event=dsr_delete_memory_error user_id=%s error=%r", target, exc
-                )
+                logger.exception("event=dsr_delete_memory_error user_id=%s error=%r", target, exc)
                 result["store_errors"]["memory"] = str(exc)
         else:
             result["store_errors"]["memory"] = "memory_handler not configured"
@@ -297,9 +283,7 @@ def create_dsr_router(
         except ImportError:
             result["store_errors"]["spend_ledger"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "event=dsr_delete_spend_error user_id=%s error=%r", target, exc
-            )
+            logger.exception("event=dsr_delete_spend_error user_id=%s error=%r", target, exc)
             result["store_errors"]["spend_ledger"] = str(exc)
 
         # Audit log: delete events for the actor == user_id.
@@ -315,9 +299,7 @@ def create_dsr_router(
         except ImportError:
             result["store_errors"]["audit"] = "EE module not installed"
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "event=dsr_delete_audit_error user_id=%s error=%r", target, exc
-            )
+            logger.exception("event=dsr_delete_audit_error user_id=%s error=%r", target, exc)
             result["store_errors"]["audit"] = str(exc)
 
         return result

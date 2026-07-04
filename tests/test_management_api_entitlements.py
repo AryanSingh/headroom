@@ -35,7 +35,9 @@ def _make_client(tmp_path, monkeypatch, *, tier: str) -> TestClient:
     return TestClient(create_app(config))
 
 
-def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tmp_path, monkeypatch):
+def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, monkeypatch, tier="team") as client:
         headers = {"X-Cutctx-Admin-Key": "secret"}
@@ -55,7 +57,9 @@ def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(tm
         assert audit.json()["detail"]["feature"] == "audit_logs"
 
 
-def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(tmp_path, monkeypatch):
+def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, monkeypatch, tier="business") as client:
         headers = {"X-Cutctx-Admin-Key": "secret"}
@@ -136,7 +140,6 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
             headers=headers,
         )
         assert delete_deployment.status_code == 200
-
 
 
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):

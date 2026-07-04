@@ -212,9 +212,7 @@ class _FunnelHarness:
         self.cost_tracker = MagicMock() if with_cost_tracker else None
         self.logger = _CollectingLogger() if with_logger else None
         # Bind the real method to this harness.
-        self._record_request_outcome = CutctxProxy._record_request_outcome.__get__(
-            self, type(self)
-        )
+        self._record_request_outcome = CutctxProxy._record_request_outcome.__get__(self, type(self))
 
 
 @pytest.mark.asyncio
@@ -644,13 +642,10 @@ async def test_funnel_finalizes_placeholder_model_routing_metadata() -> None:
     assert log_entry.model_routing_saved_tokens == 100_000
     assert log_entry.total_saved_tokens == 100_000
     h.metrics.record_request.assert_awaited_once()
-    assert (
-        h.metrics.record_request.await_args.kwargs["model_routing_tokens_saved"]
-        == 100_000
+    assert h.metrics.record_request.await_args.kwargs["model_routing_tokens_saved"] == 100_000
+    assert h.metrics.record_request.await_args.kwargs["model_routing_usd_saved"] == pytest.approx(
+        0.4
     )
-    assert h.metrics.record_request.await_args.kwargs[
-        "model_routing_usd_saved"
-    ] == pytest.approx(0.4)
 
 
 @pytest.mark.asyncio
@@ -659,9 +654,7 @@ async def test_funnel_preserves_precomputed_model_routing_metadata() -> None:
     from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
     h = _FunnelHarness()
-    h._model_router = ModelRouter(
-        ModelRouterConfig(enabled=True, downgrade_when="always")
-    )
+    h._model_router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always"))
 
     outcome = _outcome(
         provider="openai",

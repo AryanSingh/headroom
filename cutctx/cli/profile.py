@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
 
 import click
 
@@ -66,22 +64,16 @@ def show(as_json: bool) -> None:
 
     # Header stats
     click.echo(f"  {click.style('Workspace:', bold=True):20s} {summary['workspace_hash']}")
-    click.echo(
-        f"  {click.style('Content types:', bold=True):20s} {summary['total_content_types']}"
-    )
+    click.echo(f"  {click.style('Content types:', bold=True):20s} {summary['total_content_types']}")
     click.echo(
         f"  {click.style('Total compressions:', bold=True):20s} {summary['total_compressions']}"
     )
-    click.echo(
-        f"  {click.style('Total retrievals:', bold=True):20s} {summary['total_retrievals']}"
-    )
+    click.echo(f"  {click.style('Total retrievals:', bold=True):20s} {summary['total_retrievals']}")
 
     # Overall retrieval rate as percentage
     overall_rate = summary["overall_retrieval_rate"]
     rate_pct = overall_rate * 100
-    click.echo(
-        f"  {click.style('Overall retrieval rate:', bold=True):20s} {rate_pct:.1f}%"
-    )
+    click.echo(f"  {click.style('Overall retrieval rate:', bold=True):20s} {rate_pct:.1f}%")
 
     # Per-content-type stats table
     click.echo()

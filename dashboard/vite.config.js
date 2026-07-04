@@ -21,7 +21,7 @@ const CUTCTX_PROXY_PREFIXES = [
 ];
 // SPA routes that look like they might match a proxy prefix but are not API endpoints.
 const SPA_ROUTE_PREFIXES = ['/firewall', '/governance', '/orchestrator', '/capabilities', '/memory', '/playground', '/docs', '/'];
-const DEV_ADMIN_KEY = process.env.CUTCTX_ADMIN_API_KEY || 'headroom-local-admin';
+const DEV_ADMIN_KEY = process.env.CUTCTX_ADMIN_API_KEY || 'cutctx-local-admin';
 
 function readCutctxVersion() {
   try {

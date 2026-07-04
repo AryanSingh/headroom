@@ -87,6 +87,6 @@ The CLI binary is `cutctx` (installed via the `cutctx-ai` package).
 
 ## Learn More
 
-- **Docs**: https://cutctx.dev/docs
+- **Docs**: https://cutctx.com/docs
 - **GitHub**: https://github.com/cutctx/cutctx
 - **Proxy mode**: `cutctx proxy --port ${CUTCTX_PORT:-8787}` (zero code changes, automatic compression)

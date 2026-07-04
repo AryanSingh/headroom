@@ -1853,7 +1853,7 @@ cutctx billing checkout --help
 CUTCTX_TEST_MODE=1 cutctx billing checkout --tier team 2>&1 | head -5
 ```
 
-**PASS:** prints checkout URL without opening browser; URL contains `stripe.com` or `cutctx.dev`
+**PASS:** prints checkout URL without opening browser; URL contains `stripe.com` or `cutctx.com`
 
 ---
 

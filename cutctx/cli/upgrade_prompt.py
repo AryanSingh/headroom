@@ -2,6 +2,7 @@
 Upgrade prompt for Builder-tier users approaching free tier limits.
 Shown at most once per day to avoid spamming.
 """
+
 from __future__ import annotations
 
 import sys

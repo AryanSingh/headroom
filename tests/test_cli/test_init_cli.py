@@ -346,7 +346,13 @@ def test_detect_init_targets_respects_scope(monkeypatch) -> None:
     )
 
     assert init_cli.detect_init_targets(False) == ["claude", "codex"]
-    assert init_cli.detect_init_targets(True) == ["claude", "copilot", "codex", "gemini", "openclaw"]
+    assert init_cli.detect_init_targets(True) == [
+        "claude",
+        "copilot",
+        "codex",
+        "gemini",
+        "openclaw",
+    ]
 
 
 def test_marketplace_source_prefers_env_override(monkeypatch) -> None:

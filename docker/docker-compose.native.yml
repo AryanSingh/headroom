@@ -3,7 +3,7 @@ services:
     # Medium-35 (production-audit-progress-2026-06-20.md): align
     # the docker-compose.native.yml image reference with the
     # canonical owner (aryansingh) used by the Helm chart and
-    # the github container registry. The old chopratejas/cutctx
+    # the github container registry. The old cutctx/cutctx
     # reference is a stale pre-rebrand artifact; the new
     # cutctx/cutctx reference matches helm/cutctx/values.yaml.
     image: ${CUTCTX_IMAGE:-ghcr.io/cutctx/cutctx:latest}

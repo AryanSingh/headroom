@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
+
 def _parse_int_env(name: str, default: int) -> int:
     """Parse an integer env var, returning *default* on invalid or missing."""
     val = os.environ.get(name)
@@ -96,7 +97,9 @@ def _is_git_diff(text: str) -> bool:
     return bool(
         text.startswith("diff --git ")
         or text.startswith("diff --cc ")
-        or "--- a/" in text.splitlines()[0] if text.splitlines() else False
+        or "--- a/" in text.splitlines()[0]
+        if text.splitlines()
+        else False
     )
 
 

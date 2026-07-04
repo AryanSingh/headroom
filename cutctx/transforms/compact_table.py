@@ -152,7 +152,7 @@ class CompactTableCompressor:
                 formatted = str(int(v))
             else:
                 formatted = str(v)
-        elif isinstance(v, (dict, list)):
+        elif isinstance(v, dict | list):
             formatted = json.dumps(v, ensure_ascii=False, separators=(",", ":"))
         else:
             formatted = str(v)
@@ -209,12 +209,11 @@ class CompactTableCompressor:
             elif len(unique_vals) >= 2:
                 # Check for near-constant: one value dominates
                 from collections import Counter
+
                 counts = Counter(formatted)
                 most_common_val, most_common_cnt = counts.most_common(1)[0]
                 if most_common_cnt / row_count >= self._NEAR_CONSTANT_THRESHOLD:
-                    constant_annotations[col] = (
-                        f"{col}~{most_common_val} ×{most_common_cnt}"
-                    )
+                    constant_annotations[col] = f"{col}~{most_common_val} ×{most_common_cnt}"
                 else:
                     columns_to_show.append(col)
             else:
@@ -272,9 +271,7 @@ class CompactTableCompressor:
 
             # Data rows
             for row in dict_rows:
-                cell_values = [
-                    self._format_value(row.get(col)) for col in columns_to_show
-                ]
+                cell_values = [self._format_value(row.get(col)) for col in columns_to_show]
                 lines.append(" | ".join(cell_values))
         else:
             # All columns were constant — just show the header annotations
@@ -293,7 +290,7 @@ class CompactTableCompressor:
             original=content,
             row_count=row_count,
             column_count=len(columns_to_show),
-            constant_columns={k: v for k, v in constant_annotations.items()},
+            constant_columns=dict(constant_annotations.items()),
             compression_ratio=ratio,
         )
 

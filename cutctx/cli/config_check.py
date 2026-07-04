@@ -64,7 +64,9 @@ def config_check(port: int) -> None:
     ]
     for var, required, default in checks:
         info = _check_env(var, required, default)
-        status = "set" if info["set"] else ("MISSING (required)" if required else "not set (optional)")
+        status = (
+            "set" if info["set"] else ("MISSING (required)" if required else "not set (optional)")
+        )
         color = "green" if info["set"] else ("red" if required else "yellow")
         click.echo(f"  {var}: {click.style(status, fg=color)}")
 

@@ -98,7 +98,9 @@ class TestKompressBackendSelection:
                 assert result == "auto"
                 # Verify warning was emitted mentioning "tpu"
                 warn_calls = [str(c) for c in mock_warn.call_args_list]
-                assert any("tpu" in c for c in warn_calls), f"Expected warning about 'tpu', got: {warn_calls}"
+                assert any("tpu" in c for c in warn_calls), (
+                    f"Expected warning about 'tpu', got: {warn_calls}"
+                )
         finally:
             kmod.logger.propagate = orig_propagate
 

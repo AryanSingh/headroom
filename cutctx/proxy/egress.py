@@ -36,6 +36,7 @@ The design is intentionally minimal: we don't try to be a
 general-purpose firewall. We just block egress to unknown
 domains, which is the only thing an air-gapped customer needs.
 """
+
 from __future__ import annotations
 
 import json
@@ -97,9 +98,7 @@ class EgressEnforcer:
                     escaped = re.escape(p)
                     self._patterns.append(re.compile(escaped, re.IGNORECASE))
             except re.error as exc:
-                logger.warning(
-                    "EgressEnforcer: skipping invalid pattern %r: %s", p, exc
-                )
+                logger.warning("EgressEnforcer: skipping invalid pattern %r: %s", p, exc)
 
     def check(self, url: str) -> EgressDecision:
         """Check whether ``url`` is allowed by the policy.
@@ -179,6 +178,7 @@ def load_policy_from_env() -> EgressPolicy:
     raw = os.environ.get("CUTCTX_EGRESS_POLICY", "").strip()
     if not raw:
         from cutctx.proxy.airgap import is_offline
+
         if not is_offline():
             return EgressPolicy(policy_id="default-connected", allow_all=True)
         return EgressPolicy(policy_id="default-empty")

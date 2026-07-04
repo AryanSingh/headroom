@@ -5,6 +5,29 @@ Branch: `fix/ws20-memcache-optimize`
 
 ## Current Verified State
 
+- 2026-07-04 live verification:
+  - Restored an accidentally corrupted uncommitted working-tree layer back to
+    committed source state; backup patch is at
+    `/tmp/headroom-recovery/corrupted-working-tree-2026-07-04.patch`.
+  - Full Python regression passed live:
+    `7960 passed, 258 skipped, 22 warnings in 333.35s`.
+  - Rust workspace tests passed live: `cargo test --workspace --quiet`
+    exited `0`.
+  - Rust clippy passed live:
+    `cargo clippy --workspace --quiet -- -D warnings` exited `0`.
+  - Dashboard lint/build/E2E passed live:
+    `npm run lint`, `npm run build`, and `npx playwright test e2e` exited `0`.
+  - `git diff --check` passed live.
+  - Audit-closure spot checks passed live: `cutctx report assurance --help`
+    exits `0`; dashboard `ErrorBoundary` is present; replay endpoint and
+    replay/memory export coverage are present.
+  - Release follow-up pass completed: CI-pinned `ruff==0.9.4` now passes
+    `ruff check .`, `ruff format --check .`, and a full Python regression:
+    `7960 passed, 258 skipped, 22 warnings in 304.95s`.
+  - The pass removed a dead duplicate `_create_app_legacy` block from
+    `cutctx/proxy/server.py`, restored live request-id/firewall middleware
+    checks in the real `create_app()`, and documented test/benchmark/re-export
+    Ruff per-file ignore policy in `pyproject.toml`.
 - Full Python regression passed: `7918 passed, 258 skipped, 22 warnings`.
 - Rust workspace tests, Rust clippy, Rust fmt, dashboard lint/build/E2E, text
   hygiene, and diff whitespace checks passed.

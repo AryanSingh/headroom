@@ -1,6 +1,6 @@
 # Cutctx Compressor Benchmark Report
 
-Seed: `42` | Duration: 492.9s | Datasets: ToolOutputSamples, HotpotQA, SQuAD_v2
+Seed: `42` | Duration: 400.4s | Datasets: ToolOutputSamples, HotpotQA, SQuAD_v2
 
 ## Compression Ratio by Dataset × Compressor
 

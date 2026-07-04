@@ -41,6 +41,7 @@ def test_transform_pipeline_emits_trace_spans() -> None:
 
     # Mock RANDOM_TRACE_ID to fix opentelemetry sdk/api version mismatch
     from opentelemetry.trace import TraceFlags
+
     if not hasattr(TraceFlags, "RANDOM_TRACE_ID"):
         TraceFlags.RANDOM_TRACE_ID = 0
 

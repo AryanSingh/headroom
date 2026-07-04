@@ -47,6 +47,7 @@ import tiktoken
 # Cutctx
 try:
     from cutctx import compress
+
     CUTCTX_AVAILABLE = True
 except ImportError:
     CUTCTX_AVAILABLE = False
@@ -54,6 +55,7 @@ except ImportError:
 # LLMLingua2
 try:
     from llmlingua import PromptCompressor
+
     LLMLINGUA2_AVAILABLE = True
 except ImportError:
     LLMLINGUA2_AVAILABLE = False
@@ -61,6 +63,7 @@ except ImportError:
 # Morph (hypothetical API)
 try:
     from morph import compress as morph_compress
+
     MORPH_AVAILABLE = True
 except ImportError:
     MORPH_AVAILABLE = False
@@ -76,6 +79,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ComparisonResult:
     """Result from comparing tools on a single corpus."""
+
     tool: str
     corpus: str
     input_tokens: int
@@ -98,6 +102,7 @@ class ComparisonResult:
 # =============================================================================
 # CORPUS LOADERS
 # =============================================================================
+
 
 def load_synthetic_corpus(corpus_type: str) -> str:
     """Generate synthetic test data for a corpus type."""
@@ -128,13 +133,15 @@ def load_synthetic_corpus(corpus_type: str) -> str:
 
     elif corpus_type == "longbench":
         # Simulate long document QA
-        document = " ".join([
-            f"Section {i}: " + " ".join([
-                f"The quick brown fox jumps over the lazy dog {i}_{j}. "
-                for j in range(50)
-            ])
-            for i in range(10)
-        ])
+        document = " ".join(
+            [
+                f"Section {i}: "
+                + " ".join(
+                    [f"The quick brown fox jumps over the lazy dog {i}_{j}. " for j in range(50)]
+                )
+                for i in range(10)
+            ]
+        )
         return document
 
     elif corpus_type == "mixed":
@@ -143,12 +150,12 @@ def load_synthetic_corpus(corpus_type: str) -> str:
             {"data": [{"id": i, "value": i * 10} for i in range(100)]},
             indent=2,
         )
-        prose = " ".join([
-            f"Information about topic {i}: " + " ".join([
-                f"word_{j} " for j in range(50)
-            ])
-            for i in range(5)
-        ])
+        prose = " ".join(
+            [
+                f"Information about topic {i}: " + " ".join([f"word_{j} " for j in range(50)])
+                for i in range(5)
+            ]
+        )
         return structured + "\n\n" + prose
 
     else:  # generic synthetic
@@ -195,6 +202,7 @@ def load_corpus(corpus_type: str, corpus_dir: Path, dry_run: bool) -> str:
 # =============================================================================
 # COMPRESSION TOOLS
 # =============================================================================
+
 
 class CompressionTool:
     """Base class for compression tool wrappers."""
@@ -277,6 +285,7 @@ TOOLS: dict[str, Callable[[], CompressionTool]] = {
 # =============================================================================
 # BENCHMARK RUNNER
 # =============================================================================
+
 
 def benchmark_tool(
     tool: CompressionTool,
@@ -365,14 +374,18 @@ def print_comparison_table(results: list[ComparisonResult]) -> None:
         corpus_results = by_corpus[corpus_name]
         print(f"\n{corpus_name.upper()}")
         print("-" * 100)
-        print("{:<20} {:<12} {:<12} {:<12} {:<10} {:<15}".format(
-            "Tool", "Input Tokens", "Output Tokens", "Ratio", "Latency", "Throughput"
-        ))
+        print(
+            "{:<20} {:<12} {:<12} {:<12} {:<10} {:<15}".format(
+                "Tool", "Input Tokens", "Output Tokens", "Ratio", "Latency", "Throughput"
+            )
+        )
         print("-" * 100)
 
         for result in sorted(corpus_results, key=lambda r: -r.compression_ratio):
             if result.success:
-                print(f"{result.tool:<20} {result.input_tokens:<12,} {result.output_tokens:<12,} {result.compression_ratio:<11.1%} {result.latency_ms:<9.1f}ms {result.throughput_tokens_per_sec:<14,.0f}")
+                print(
+                    f"{result.tool:<20} {result.input_tokens:<12,} {result.output_tokens:<12,} {result.compression_ratio:<11.1%} {result.latency_ms:<9.1f}ms {result.throughput_tokens_per_sec:<14,.0f}"
+                )
             else:
                 print(f"{result.tool:<20} ERROR: {result.error}")
 
@@ -422,7 +435,8 @@ def main() -> int:
     )
 
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
     )
@@ -474,9 +488,7 @@ def main() -> int:
 
         for tool_name, tool in tool_instances.items():
             logger.info(f"Benchmarking {tool_name} on {corpus_name}...")
-            result = benchmark_tool(
-                tool, tool_name, text, corpus_name, verbose=args.verbose
-            )
+            result = benchmark_tool(tool, tool_name, text, corpus_name, verbose=args.verbose)
             if result:
                 results.append(result)
 

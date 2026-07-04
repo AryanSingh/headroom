@@ -24,21 +24,16 @@ spec changed — update both.
 from __future__ import annotations
 
 import json
-from typing import Any
-
-import pytest
 
 from cutctx.proxy.memoizer import (
     DEFAULT_MEMOIZE_LRU_SIZE,
     MemoizeConfig,
     MemoizeDecision,
-    MemoizeEntry,
     ToolMemoizer,
     canonicalize_args,
     derive_key,
     is_write_tool,
 )
-
 
 # ---------------------------------------------------------------------------
 # Flag-off golden contract — the spec's permanent test
@@ -52,12 +47,8 @@ def test_default_memoize_config_is_all_off() -> None:
     cfg = MemoizeConfig()
     assert cfg.enabled is False
     assert cfg.max_entries_per_session == DEFAULT_MEMOIZE_LRU_SIZE
-    assert cfg.allowlist == frozenset(
-        {"file_read", "code_search", "cutctx_retrieve"}
-    )
-    assert cfg.write_tools == frozenset(
-        {"file_write", "file_edit", "file_delete"}
-    )
+    assert cfg.allowlist == frozenset({"file_read", "code_search", "cutctx_retrieve"})
+    assert cfg.write_tools == frozenset({"file_write", "file_edit", "file_delete"})
 
 
 def test_default_memoize_decision_is_passthrough() -> None:
@@ -349,9 +340,7 @@ def test_write_to_different_path_does_not_flush_unrelated() -> None:
     # Spec says: flush the whole session when in doubt. So /a is
     # also flushed.
     d = memoizer.maybe_memoize("s1", "file_read", {"path": "/a"})
-    assert d.action == "miss", (
-        "spec: 'when in doubt, flush the whole session cache'"
-    )
+    assert d.action == "miss", "spec: 'when in doubt, flush the whole session cache'"
 
 
 def test_write_invalidation_only_affects_target_session() -> None:

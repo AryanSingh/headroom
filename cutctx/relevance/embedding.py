@@ -45,8 +45,7 @@ def _get_numpy():
             _numpy = np
         except ImportError as e:
             raise ImportError(
-                "numpy is required for EmbeddingScorer. "
-                "Install with: pip install cutctx[relevance]"
+                "numpy is required for EmbeddingScorer. Install with: pip install cutctx[relevance]"
             ) from e
     return _numpy
 

@@ -184,12 +184,24 @@ def status_cmd() -> None:
     no = "\033[31m✗\033[0m"
 
     click.echo("\ncutctx intercept status")
-    click.echo(f"  {ok if s['hosts_entries'] else no}  /etc/hosts entries      {'active' if s['hosts_entries'] else 'not installed'}")
-    click.echo(f"  {ok if s['pf_daemon'] else no}  pfctl port forwarding  {'active' if s['pf_daemon'] else 'not installed'}")
-    click.echo(f"  {ok if s['tls_cert'] else no}  TLS certificate        {'present' if s['tls_cert'] else 'not generated'}")
-    click.echo(f"  {ok if s['launchagent_tls'] else no}  LaunchAgent TLS        {'configured' if s['launchagent_tls'] else 'not configured'}")
-    click.echo(f"  {ok if s['bypass_ips'] else no}  Proxy bypass IPs       {'saved' if s['bypass_ips'] else 'not saved (loop risk)'}")
-    click.echo(f"  {ok if s['node_tls_trust'] else no}  Node.js CA trust       {'NODE_EXTRA_CA_CERTS set' if s['node_tls_trust'] else 'not set (Node.js will reject cert)'}")
+    click.echo(
+        f"  {ok if s['hosts_entries'] else no}  /etc/hosts entries      {'active' if s['hosts_entries'] else 'not installed'}"
+    )
+    click.echo(
+        f"  {ok if s['pf_daemon'] else no}  pfctl port forwarding  {'active' if s['pf_daemon'] else 'not installed'}"
+    )
+    click.echo(
+        f"  {ok if s['tls_cert'] else no}  TLS certificate        {'present' if s['tls_cert'] else 'not generated'}"
+    )
+    click.echo(
+        f"  {ok if s['launchagent_tls'] else no}  LaunchAgent TLS        {'configured' if s['launchagent_tls'] else 'not configured'}"
+    )
+    click.echo(
+        f"  {ok if s['bypass_ips'] else no}  Proxy bypass IPs       {'saved' if s['bypass_ips'] else 'not saved (loop risk)'}"
+    )
+    click.echo(
+        f"  {ok if s['node_tls_trust'] else no}  Node.js CA trust       {'NODE_EXTRA_CA_CERTS set' if s['node_tls_trust'] else 'not set (Node.js will reject cert)'}"
+    )
 
     fully_ok = all(s.values())
     click.echo()

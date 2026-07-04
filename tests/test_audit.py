@@ -181,6 +181,7 @@ class TestAuditLogger:
 
     def test_thread_safety(self, audit_logger):
         """Log events from multiple threads simultaneously."""
+
         def log_events(prefix, count):
             for i in range(count):
                 audit_logger.log(AuditEvent(action=f"{prefix}.{i}", actor="thread"))

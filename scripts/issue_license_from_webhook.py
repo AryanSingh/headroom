@@ -44,6 +44,7 @@ TIER_TO_SEATS = {
 # License key generation (same HMAC logic as generate_license.py)
 # ---------------------------------------------------------------------------
 
+
 def encode_payload(org_name: str, seats: int, expiry: str | None = None) -> str:
     """Encode org_name, seats, and optional expiry as base64url JSON."""
     payload: dict = {
@@ -105,6 +106,7 @@ def generate_license_key(
 # ---------------------------------------------------------------------------
 # SQLite logging (~/.cutctx/licenses_issued.db)
 # ---------------------------------------------------------------------------
+
 
 def get_db_path() -> Path:
     db_dir = Path.home() / ".cutctx"
@@ -240,6 +242,7 @@ def deliver_license(to_email: str, org: str, license_key: str) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Issue a Cutctx license key (Stripe webhook handler / manual issuance)",
@@ -272,10 +275,7 @@ def parse_args() -> argparse.Namespace:
         "--seats",
         type=int,
         default=None,
-        help=(
-            "Override seat count "
-            "(defaults: team=5, business=25, enterprise=unlimited)"
-        ),
+        help=("Override seat count (defaults: team=5, business=25, enterprise=unlimited)"),
     )
     parser.add_argument(
         "--dry-run",
@@ -299,6 +299,7 @@ def main() -> None:
 
     # Check for Ed25519 Issuer Config
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from cutctx_ee.billing.license_token import get_default_issuer_config, sign_license
 
@@ -306,7 +307,10 @@ def main() -> None:
 
     if kid and priv_hex:
         if args.dry_run:
-            print("[warn] dry-run for hrk1 token uses real keys but does not email/log", file=sys.stderr)
+            print(
+                "[warn] dry-run for hrk1 token uses real keys but does not email/log",
+                file=sys.stderr,
+            )
 
         extra = {"org": args.org, "seats": seats if seats > 0 else "unlimited"}
         if expiry:
@@ -352,8 +356,7 @@ def main() -> None:
     if args.dry_run:
         seats_display = "unlimited" if seats == 0 else str(seats)
         print(
-            f"\n[dry-run] plan={args.plan} tier={tier} "
-            f"seats={seats_display} expiry={expiry}",
+            f"\n[dry-run] plan={args.plan} tier={tier} seats={seats_display} expiry={expiry}",
             file=sys.stderr,
         )
         print(f"[dry-run] email={args.email} org={args.org}", file=sys.stderr)

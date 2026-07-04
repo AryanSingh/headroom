@@ -11,6 +11,7 @@ These tests pin the wiring: the wrap_stream is invoked, PII is
 redacted from the SSE chunk stream, and the redactor is
 correctly conditional on the firewall being enabled.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,8 +29,7 @@ class TestStreamingRedactorWrapStream:
 
         # OpenAI-format SSE chunk: choices[0].delta.content
         chunk = (
-            b'data: {"choices": [{"delta": {"content": '
-            b'"send to alice@example.com please"}}]}\n\n'
+            b'data: {"choices": [{"delta": {"content": "send to alice@example.com please"}}]}\n\n'
         )
 
         async def gen():
@@ -50,8 +50,7 @@ class TestStreamingRedactorWrapStream:
         redactor = StreamingRedactor(cfg, enabled=False)
 
         chunk = (
-            b'data: {"choices": [{"delta": {"content": '
-            b'"send to alice@example.com please"}}]}\n\n'
+            b'data: {"choices": [{"delta": {"content": "send to alice@example.com please"}}]}\n\n'
         )
 
         async def gen():
@@ -72,10 +71,7 @@ class TestStreamingRedactorWrapStream:
         cfg = FirewallConfig(redact_streaming=True)
         redactor = StreamingRedactor(cfg, enabled=True)
 
-        chunk = (
-            'data: {"choices": [{"delta": {"content": '
-            '"phone 555-123-4567"}}]}\n\n'
-        )
+        chunk = 'data: {"choices": [{"delta": {"content": "phone 555-123-4567"}}]}\n\n'
 
         async def gen():
             yield chunk
@@ -93,10 +89,7 @@ class TestStreamingRedactorWrapStream:
         cfg = FirewallConfig(redact_streaming=True)
         redactor = StreamingRedactor(cfg, enabled=True)
 
-        clean_text = (
-            'data: {"choices": [{"delta": {"content": '
-            '"hello world, no PII here"}}]}\n\n'
-        )
+        clean_text = 'data: {"choices": [{"delta": {"content": "hello world, no PII here"}}]}\n\n'
 
         async def gen():
             yield clean_text.encode("utf-8")
@@ -123,10 +116,7 @@ class TestStreamingRedactorWiring:
         """Verify the streaming handler checks self._streaming_redactor."""
         from pathlib import Path
 
-        streaming = (
-            Path(__file__).parent.parent
-            / "cutctx/proxy/handlers/streaming.py"
-        )
+        streaming = Path(__file__).parent.parent / "cutctx/proxy/handlers/streaming.py"
         text = streaming.read_text()
         assert "_streaming_redactor" in text
         assert "wrap_stream" in text
@@ -135,10 +125,7 @@ class TestStreamingRedactorWiring:
         """Verify the handler only wraps when the redactor is enabled."""
         from pathlib import Path
 
-        streaming = (
-            Path(__file__).parent.parent
-            / "cutctx/proxy/handlers/streaming.py"
-        )
+        streaming = Path(__file__).parent.parent / "cutctx/proxy/handlers/streaming.py"
         text = streaming.read_text()
         # The handler must check both: redactor exists AND
         # redactor.enabled is True. Both conditions must be

@@ -63,9 +63,11 @@ except ImportError:
 # Configuration
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class StructuredOutputConfig:
     """Configuration for structured output enforcement."""
+
     enabled: bool = True
     max_retries: int = 3
     validate_response_format: bool = True  # auto-detect json_schema in requests
@@ -75,6 +77,7 @@ class StructuredOutputConfig:
     @classmethod
     def from_env(cls) -> StructuredOutputConfig:
         import os
+
         return cls(
             enabled=os.environ.get("CUTCTX_STRUCTURED_OUTPUT_ENABLED", "1").strip() != "0",
             max_retries=int(os.environ.get("CUTCTX_STRUCTURED_OUTPUT_MAX_RETRIES", "3")),
@@ -86,9 +89,11 @@ class StructuredOutputConfig:
 # Validation result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ValidationResult:
     """Result of schema validation."""
+
     valid: bool
     errors: list[str] = field(default_factory=list)
     parsed_json: Any = None
@@ -99,6 +104,7 @@ class ValidationResult:
 # ---------------------------------------------------------------------------
 # Core validator
 # ---------------------------------------------------------------------------
+
 
 class StructuredOutputValidator:
     """Validates LLM responses against a JSON schema and auto-retries on failure."""
@@ -181,7 +187,11 @@ class StructuredOutputValidator:
                 validation_time_ms=elapsed,
             )
         except jsonschema.ValidationError as e:
-            error_msg = f"{e.message} (path: {'.'.join(str(p) for p in e.absolute_path)})" if e.absolute_path else e.message
+            error_msg = (
+                f"{e.message} (path: {'.'.join(str(p) for p in e.absolute_path)})"
+                if e.absolute_path
+                else e.message
+            )
             elapsed = (time.monotonic() - t0) * 1000
             return ValidationResult(
                 valid=False,
@@ -258,7 +268,10 @@ class StructuredOutputValidator:
             if result.valid:
                 logger.info(
                     "Structured output validated on attempt %d/%d (%.1fms call, %.1fms validate)",
-                    attempt + 1, retries + 1, call_ms, result.validation_time_ms,
+                    attempt + 1,
+                    retries + 1,
+                    call_ms,
+                    result.validation_time_ms,
                 )
                 return {
                     "content": result.parsed_json,
@@ -271,7 +284,9 @@ class StructuredOutputValidator:
             last_error = result.errors
             logger.warning(
                 "Structured output validation failed on attempt %d/%d: %s",
-                attempt + 1, retries + 1, "; ".join(result.errors),
+                attempt + 1,
+                retries + 1,
+                "; ".join(result.errors),
             )
 
             if attempt < retries:
@@ -282,10 +297,12 @@ class StructuredOutputValidator:
                     f"Please correct your response to match the schema exactly. "
                     f"Return ONLY valid JSON, no markdown fences or explanations."
                 )
-                retry_messages.append({
-                    "role": "user",
-                    "content": error_feedback,
-                })
+                retry_messages.append(
+                    {
+                        "role": "user",
+                        "content": error_feedback,
+                    }
+                )
 
         raise StructuredOutputError(
             f"Failed to produce valid JSON after {retries + 1} attempts. "
@@ -312,11 +329,11 @@ class StructuredOutputValidator:
                 stripped = "\n".join(lines).strip()
 
         # Try to find JSON object or array in the text
-        for start_char, end_char in [('{', '}'), ('[', ']')]:
+        for start_char, end_char in [("{", "}"), ("[", "]")]:
             start = stripped.find(start_char)
             end = stripped.rfind(end_char)
             if start != -1 and end > start:
-                candidate = stripped[start:end + 1]
+                candidate = stripped[start : end + 1]
                 try:
                     json.loads(candidate)
                     return candidate
@@ -338,13 +355,19 @@ class StructuredOutputValidator:
         """Make an LLM call and return the text response."""
         if api_provider == "anthropic":
             return await self._call_anthropic(
-                client=client, messages=messages, model=model,
-                temperature=temperature, **kwargs,
+                client=client,
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                **kwargs,
             )
         elif api_provider == "openai":
             return await self._call_openai(
-                client=client, messages=messages, model=model,
-                temperature=temperature, **kwargs,
+                client=client,
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                **kwargs,
             )
         else:
             raise ValueError(f"Unsupported API provider: {api_provider}")
@@ -438,6 +461,7 @@ class StructuredOutputValidator:
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
 
 class StructuredOutputError(Exception):
     """Raised when structured output validation fails after all retries."""

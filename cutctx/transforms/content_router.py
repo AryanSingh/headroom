@@ -1405,15 +1405,9 @@ class ContentRouter(Transform):
                         compressed, compressed_tokens = result.compressed, result.compressed_tokens
                         decision_reason = "code_aware"
                 if compressed is None:
-                    # Fallback to Kompress
-                    compressed, compressed_tokens = self._try_ml_compressor(
-                        content, context, question
-                    )
-                    strategy = CompressionStrategy.KOMPRESS  # Update for TOIN
-                    actual_strategy = strategy
-                    compressor_name = "KompressCompressor"
-                    decision_reason = "code_aware_unavailable_fallback_kompress"
-                    strategy_chain.append(CompressionStrategy.KOMPRESS.value)
+                    # No fallback for code (Kompress is too slow and yields 0% savings without AST).
+                    # Let it fall through to PASSTHROUGH.
+                    pass
 
             elif strategy == CompressionStrategy.SMART_CRUSHER:
                 if self.config.enable_smart_crusher:
@@ -1424,7 +1418,6 @@ class ContentRouter(Transform):
                         compressed = result.compressed
                         compressed_tokens = len(compressed.split())
                         decision_reason = "smart_crusher"
-                        smart_crusher_fallback = False
 
                         if result.strategy in ("lossless", "passthrough"):
                             # Try CompactTableCompressor because it might provide better savings
@@ -1477,7 +1470,6 @@ class ContentRouter(Transform):
                                     actual_strategy = CompressionStrategy.KOMPRESS
                                     compressor_name = "KompressCompressor"
                                     decision_reason = "smart_crusher_fallback_kompress_after_no_savings"
-                                    smart_crusher_fallback = True
 
             elif strategy == CompressionStrategy.SEARCH:
                 if self.config.enable_search_compressor:
@@ -1571,7 +1563,6 @@ class ContentRouter(Transform):
         if compressed is not None and compressed_tokens is not None:
             fallback_eligible_strategy = strategy in {
                 CompressionStrategy.SMART_CRUSHER,
-                CompressionStrategy.CODE_AWARE,
             }
             fallback_no_savings = compressed == content or compressed_tokens >= original_tokens
             if fallback_eligible_strategy and fallback_no_savings:

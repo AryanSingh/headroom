@@ -299,9 +299,7 @@ class AgentContextInfo:
         """Compression savings as percentage."""
         if self.total_original_tokens == 0:
             return 0.0
-        return round(
-            (1 - self.total_compressed_tokens / self.total_original_tokens) * 100, 1
-        )
+        return round((1 - self.total_compressed_tokens / self.total_original_tokens) * 100, 1)
 
 
 class AgentRegistry:
@@ -498,9 +496,7 @@ class SharedCompressionCache:
             self._evict_if_needed()
             self._cache[content_hash] = entry
 
-        logger.debug(
-            f"SharedCompressionCache: Stored {content_hash[:8]} (agent={agent_id})"
-        )
+        logger.debug(f"SharedCompressionCache: Stored {content_hash[:8]} (agent={agent_id})")
         return compressed, False
 
     def register_compression(
@@ -546,9 +542,7 @@ class SharedCompressionCache:
 
         logger.debug(f"SharedCompressionCache: Registered {content_hash[:8]}")
 
-    def get_compressed(
-        self, content_hash: str, workspace_key: str = ""
-    ) -> str | None:
+    def get_compressed(self, content_hash: str, workspace_key: str = "") -> str | None:
         """Retrieve compressed content by hash.
 
         Args:
@@ -626,12 +620,10 @@ class SharedCompressionCache:
             active_entries = [
                 e for e in self._cache.values() if now - e.timestamp <= self._ttl_seconds
             ]
-            active_agents = set(e.agent_id for e in active_entries)
+            active_agents = {e.agent_id for e in active_entries}
 
             total_requests = self._cache_hits + self._cache_misses
-            hit_rate = (
-                (self._cache_hits / total_requests * 100) if total_requests > 0 else 0.0
-            )
+            hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0.0
 
             total_original_tokens = sum(e.original_tokens for e in active_entries)
             total_compressed_tokens = sum(e.compressed_tokens for e in active_entries)
@@ -667,9 +659,7 @@ class SharedCompressionCache:
         now = time.time()
 
         # First, remove expired entries
-        expired_keys = [
-            k for k, e in self._cache.items() if now - e.timestamp > self._ttl_seconds
-        ]
+        expired_keys = [k for k, e in self._cache.items() if now - e.timestamp > self._ttl_seconds]
         for k in expired_keys:
             del self._cache[k]
 

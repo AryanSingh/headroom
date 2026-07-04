@@ -47,6 +47,7 @@ def _provider_for_client(client: str | None) -> str:
     """Map a detected client identifier to its provider label for metrics."""
     return _CLIENT_PROVIDER_MAP.get(client or "", "openai")
 
+
 _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES = 10_000
 _OPENAI_RESPONSES_UNIT_CACHE_VERSION = "openai_responses_unit_v1"
 _OPENAI_RESPONSES_UNIT_PARALLELISM_ENV = "CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM"
@@ -388,6 +389,7 @@ class OpenAIChatMixin:
         _intel_ctx = None
         try:
             from cutctx.proxy.intelligence_pipeline import IntelligencePipeline
+
             _intel_pipeline = getattr(self, "intelligence_pipeline", None)
             if _intel_pipeline is None:
                 _intel_pipeline = IntelligencePipeline.from_config(self.config)
@@ -395,7 +397,9 @@ class OpenAIChatMixin:
                 _intel_pipeline.sync_from_config(self.config)
             if _intel_pipeline.any_enabled():
                 _intel_ctx = _intel_pipeline.pre_compression(
-                    messages, model, request_id,
+                    messages,
+                    model,
+                    request_id,
                 )
                 _hook_biases = _intel_pipeline.merge_biases(
                     _hook_biases,
@@ -425,10 +429,8 @@ class OpenAIChatMixin:
                     "tool_result_count": sum(
                         1
                         for m in messages
-                        if isinstance(m, dict) and (
-                            m.get("role") == "tool"
-                            or m.get("role") == "function"
-                        )
+                        if isinstance(m, dict)
+                        and (m.get("role") == "tool" or m.get("role") == "function")
                     ),
                     "user_turn_count": sum(1 for m in messages if m.get("role") == "user"),
                 },
@@ -842,7 +844,9 @@ class OpenAIChatMixin:
                 body.get("tools"),
                 tokenizer,
             )
-            tool_surface_query = extract_user_query(optimized_messages) or extract_user_query(messages)
+            tool_surface_query = extract_user_query(optimized_messages) or extract_user_query(
+                messages
+            )
             tool_surface_result = slim_tool_surface(
                 body.get("tools"),
                 query=tool_surface_query,
@@ -856,11 +860,7 @@ class OpenAIChatMixin:
                 optimized_tokens = max(0, optimized_tokens - tool_surface_result.tokens_saved)
                 schema_savings_metadata = merge_savings_metadata(
                     schema_savings_metadata,
-                    {
-                        "api_surface_slimming": {
-                            "tokens": tool_surface_result.tokens_saved
-                        }
-                    },
+                    {"api_surface_slimming": {"tokens": tool_surface_result.tokens_saved}},
                 )
                 transforms_applied = list(transforms_applied) + [
                     "openai:chat:tool_surface_slimming"
@@ -869,7 +869,9 @@ class OpenAIChatMixin:
             schema_tokens_saved = 0
             if body.get("tools"):
                 original_tools_payload = body["tools"]
-                compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(original_tools_payload)
+                compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(
+                    original_tools_payload
+                )
                 if tools_were_modified:
                     body["tools"] = compacted_tools
                     tools = compacted_tools
@@ -879,7 +881,9 @@ class OpenAIChatMixin:
                     try:
                         schema_tokens_saved = max(
                             0,
-                            tokenizer.count_text(json.dumps(original_tools_payload, ensure_ascii=False))
+                            tokenizer.count_text(
+                                json.dumps(original_tools_payload, ensure_ascii=False)
+                            )
                             - tokenizer.count_text(json.dumps(compacted_tools, ensure_ascii=False)),
                         )
                     except Exception:
@@ -895,9 +899,7 @@ class OpenAIChatMixin:
                 }
             residual_ghost_tokens = max(
                 0,
-                tool_scaffolding_tokens
-                - tool_surface_result.tokens_saved
-                - schema_tokens_saved,
+                tool_scaffolding_tokens - tool_surface_result.tokens_saved - schema_tokens_saved,
             )
             if tool_scaffolding_tokens > 0:
                 schema_savings_metadata = merge_savings_metadata(
@@ -1430,13 +1432,13 @@ class OpenAIChatMixin:
 
                 # Cache
                 if self.cache and response.status_code == 200:
-                        await self.cache.set(
-                            messages,
-                            model,
-                            response.content,
-                            dict(response.headers),
-                            total_input_tokens,
-                        )
+                    await self.cache.set(
+                        messages,
+                        model,
+                        response.content,
+                        dict(response.headers),
+                        total_input_tokens,
+                    )
 
                 # Capture Codex rate-limit window data from response headers
                 from cutctx.subscription.codex_rate_limits import (

@@ -216,10 +216,14 @@ def test_policies_train_watch_initial_pass(tmp_path):
         result = runner.invoke(
             main,
             [
-                "policies", "train", str(batch),
-                "--db", str(db_path),
+                "policies",
+                "train",
+                str(batch),
+                "--db",
+                str(db_path),
                 "--watch",
-                "--poll-interval", "30",
+                "--poll-interval",
+                "30",
             ],
         )
 

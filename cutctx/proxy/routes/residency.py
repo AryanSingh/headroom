@@ -67,8 +67,7 @@ def create_residency_router(
             str,
             Query(
                 description=(
-                    "Comma-separated list of data-region labels "
-                    "(e.g. 'eu-west-1,eu-central-1')."
+                    "Comma-separated list of data-region labels (e.g. 'eu-west-1,eu-central-1')."
                 )
             ),
         ] = "",

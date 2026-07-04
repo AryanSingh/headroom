@@ -1,4 +1,5 @@
 """Integration tests for billing → license flow."""
+
 from __future__ import annotations
 
 import os
@@ -28,6 +29,7 @@ from cutctx.billing import (  # noqa: E402
 # TestTierMapping
 # ---------------------------------------------------------------------------
 
+
 class TestTierMapping:
     @pytest.mark.parametrize(
         "tier, expected_plan",
@@ -49,6 +51,7 @@ class TestTierMapping:
 # ---------------------------------------------------------------------------
 # TestCheckoutURL
 # ---------------------------------------------------------------------------
+
 
 class TestCheckoutURL:
     def test_get_checkout_url_returns_fallback_on_timeout(self):
@@ -98,6 +101,7 @@ class TestCheckoutURL:
 # TestPortalURL
 # ---------------------------------------------------------------------------
 
+
 class TestPortalURL:
     def test_get_portal_url_returns_fallback_on_timeout(self):
         """Returns fallback URL when the portal HTTP call times out."""
@@ -129,6 +133,7 @@ class TestPortalURL:
 # ---------------------------------------------------------------------------
 # TestLicenseKeyFormat  (uses generate_license.py)
 # ---------------------------------------------------------------------------
+
 
 class TestLicenseKeyFormat:
     SECRET = "test-secret-for-tests"

@@ -448,53 +448,32 @@ def _build_savings_breakdown(
 
     # 1. Provider prompt cache.
     if provider_cache_tokens > 0:
-        breakdown.by_source.add(
-            SavingsSource.PROVIDER_PROMPT_CACHE, provider_cache_tokens
-        )
-        by_source_tokens[SavingsSource.PROVIDER_PROMPT_CACHE.value] = (
-            provider_cache_tokens
-        )
+        breakdown.by_source.add(SavingsSource.PROVIDER_PROMPT_CACHE, provider_cache_tokens)
+        by_source_tokens[SavingsSource.PROVIDER_PROMPT_CACHE.value] = provider_cache_tokens
 
     # Track already-attributed tokens so the Cutctx bucket does not
     # double-count when the same tokens are also a cache hit, a
     # semantic hit, a self-hosted hit, or a routed model hit.
     already_accounted = (
-        provider_cache_tokens
-        + semantic_tokens
-        + self_hosted_tokens
-        + model_routing_tokens
+        provider_cache_tokens + semantic_tokens + self_hosted_tokens + model_routing_tokens
     )
 
     # 2. Cutctx compression.
     if breakdown.total_tokens_saved > 0:
-        cutctx_tokens = max(
-            0, breakdown.total_tokens_saved - already_accounted
-        )
+        cutctx_tokens = max(0, breakdown.total_tokens_saved - already_accounted)
         if cutctx_tokens > 0:
-            breakdown.by_source.add(
-                SavingsSource.CUTCTX_COMPRESSION, cutctx_tokens
-            )
-            by_source_tokens[
-                SavingsSource.CUTCTX_COMPRESSION.value
-            ] = cutctx_tokens
+            breakdown.by_source.add(SavingsSource.CUTCTX_COMPRESSION, cutctx_tokens)
+            by_source_tokens[SavingsSource.CUTCTX_COMPRESSION.value] = cutctx_tokens
 
     # 3. Semantic cache.
     if semantic_tokens > 0:
-        breakdown.by_source.add(
-            SavingsSource.SEMANTIC_CACHE, semantic_tokens
-        )
-        by_source_tokens[SavingsSource.SEMANTIC_CACHE.value] = (
-            semantic_tokens
-        )
+        breakdown.by_source.add(SavingsSource.SEMANTIC_CACHE, semantic_tokens)
+        by_source_tokens[SavingsSource.SEMANTIC_CACHE.value] = semantic_tokens
 
     # 4. Self-hosted prefix cache (vLLM APC, etc.).
     if self_hosted_tokens > 0:
-        breakdown.by_source.add(
-            SavingsSource.PREFIX_CACHE_SELF_HOSTED, self_hosted_tokens
-        )
-        by_source_tokens[
-            SavingsSource.PREFIX_CACHE_SELF_HOSTED.value
-        ] = self_hosted_tokens
+        breakdown.by_source.add(SavingsSource.PREFIX_CACHE_SELF_HOSTED, self_hosted_tokens)
+        by_source_tokens[SavingsSource.PREFIX_CACHE_SELF_HOSTED.value] = self_hosted_tokens
 
     # 5. Model routing (tokens + USD).
     if model_routing_tokens > 0 or model_routing_usd > 0:
@@ -503,13 +482,9 @@ def _build_savings_breakdown(
             model_routing_tokens,
             model_routing_usd,
         )
-        by_source_tokens[SavingsSource.MODEL_ROUTING.value] = (
-            model_routing_tokens
-        )
+        by_source_tokens[SavingsSource.MODEL_ROUTING.value] = model_routing_tokens
         if model_routing_usd > 0:
-            by_source_usd[SavingsSource.MODEL_ROUTING.value] = (
-                model_routing_usd
-            )
+            by_source_usd[SavingsSource.MODEL_ROUTING.value] = model_routing_usd
 
     # 6. Escape hatch: extra sources via savings_metadata dict.
     # The promotion block above already merged the typed fields
@@ -578,23 +553,14 @@ def _build_savings_breakdown(
                 src == SavingsSource.CUTCTX_COMPRESSION
                 or src.value in _CUTCTX_REATTRIBUTABLE_SOURCES
             ):
-                cutctx_bucket = breakdown.by_source.get_tokens(
-                    SavingsSource.CUTCTX_COMPRESSION
-                )
+                cutctx_bucket = breakdown.by_source.get_tokens(SavingsSource.CUTCTX_COMPRESSION)
                 if cutctx_bucket >= tokens:
-                    breakdown.by_source.add(
-                        SavingsSource.CUTCTX_COMPRESSION, -tokens
-                    )
+                    breakdown.by_source.add(SavingsSource.CUTCTX_COMPRESSION, -tokens)
                     by_source_tokens[SavingsSource.CUTCTX_COMPRESSION.value] = (
-                        by_source_tokens.get(
-                            SavingsSource.CUTCTX_COMPRESSION.value, 0
-                        )
-                        - tokens
+                        by_source_tokens.get(SavingsSource.CUTCTX_COMPRESSION.value, 0) - tokens
                     )
             breakdown.by_source.add(src, tokens, usd)
-            by_source_tokens[src.value] = (
-                by_source_tokens.get(src.value, 0) + tokens
-            )
+            by_source_tokens[src.value] = by_source_tokens.get(src.value, 0) + tokens
             if usd > 0:
                 by_source_usd[src.value] = by_source_usd.get(src.value, 0.0) + usd
 
@@ -664,20 +630,14 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                             reason=meta.get("reason", ""),
                         )
                         input_tokens = int(
-                            outcome.attempted_input_tokens
-                            or outcome.optimized_tokens
-                            or 0
+                            outcome.attempted_input_tokens or outcome.optimized_tokens or 0
                         )
                         if input_tokens > 0:
                             finalized = handler._model_router.finalize_savings(
                                 decision, input_tokens=input_tokens
                             )
-                            tokens_saved = int(
-                                getattr(finalized, "tokens_saved", 0) or 0
-                            )
-                            usd_saved = float(
-                                getattr(finalized, "usd_saved", 0.0) or 0.0
-                            )
+                            tokens_saved = int(getattr(finalized, "tokens_saved", 0) or 0)
+                            usd_saved = float(getattr(finalized, "usd_saved", 0.0) or 0.0)
                     except Exception:
                         # Router not usable here (e.g. LiteLLM not
                         # installed in tests). Leave at 0.
@@ -708,13 +668,17 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # step 2a (cost_tracker orchestrator) see the same numbers. This
     # is the only place in the code path that knows how to merge the
     # tracked savings sources; handlers just set the typed fields.
-    _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = (
-        _build_savings_breakdown(outcome)
+    _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = _build_savings_breakdown(
+        outcome
     )
-    audit_meta = ((outcome.savings_metadata or {}).get("ghost_token_audit") or {})
+    audit_meta = (outcome.savings_metadata or {}).get("ghost_token_audit") or {}
     scaffolding_tokens = max(
         0,
-        int(getattr(outcome, "scaffolding_tokens", 0) or audit_meta.get("scaffolding_tokens", 0) or 0),
+        int(
+            getattr(outcome, "scaffolding_tokens", 0)
+            or audit_meta.get("scaffolding_tokens", 0)
+            or 0
+        ),
     )
     ghost_tokens = max(
         0,
@@ -744,34 +708,16 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         ghost_tokens=ghost_tokens,
         project=project,
         # Phase 1.4: extra savings sources.
-        semantic_cache_avoided_tokens=int(
-            outcome.semantic_cache_avoided_tokens or 0
-        ),
-        self_hosted_prefix_cache_hits=int(
-            outcome.self_hosted_prefix_cache_hits or 0
-        ),
-        model_routing_tokens_saved=int(
-            outcome.model_routing_tokens_saved or 0
-        ),
-        model_routing_usd_saved=float(
-            outcome.model_routing_usd_saved or 0.0
-        ),
+        semantic_cache_avoided_tokens=int(outcome.semantic_cache_avoided_tokens or 0),
+        self_hosted_prefix_cache_hits=int(outcome.self_hosted_prefix_cache_hits or 0),
+        model_routing_tokens_saved=int(outcome.model_routing_tokens_saved or 0),
+        model_routing_usd_saved=float(outcome.model_routing_usd_saved or 0.0),
         savings_by_source_tokens=_savings_by_source_tokens,
-        cache_savings_usd_delta=_savings_by_source_usd.get(
-            "provider_prompt_cache"
-        ),
-        compression_savings_usd_delta=_savings_by_source_usd.get(
-            "cutctx_compression"
-        ),
-        semantic_cache_usd_delta=_savings_by_source_usd.get(
-            "semantic_cache"
-        ),
-        self_hosted_prefix_cache_usd_delta=_savings_by_source_usd.get(
-            "prefix_cache_self_hosted"
-        ),
-        model_routing_usd_delta=_savings_by_source_usd.get(
-            "model_routing"
-        ),
+        cache_savings_usd_delta=_savings_by_source_usd.get("provider_prompt_cache"),
+        compression_savings_usd_delta=_savings_by_source_usd.get("cutctx_compression"),
+        semantic_cache_usd_delta=_savings_by_source_usd.get("semantic_cache"),
+        self_hosted_prefix_cache_usd_delta=_savings_by_source_usd.get("prefix_cache_self_hosted"),
+        model_routing_usd_delta=_savings_by_source_usd.get("model_routing"),
         savings_by_source_usd=_savings_by_source_usd,
     )
 
@@ -796,8 +742,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         # step and step 1 (Prometheus / SavingsTracker persistence)
         # see the same numbers because they share the dict.
         if _savings_meta is not None and (
-            _savings_meta.has_any_savings
-            or _savings_meta.raw_input_tokens > 0
+            _savings_meta.has_any_savings or _savings_meta.raw_input_tokens > 0
         ):
             cost_tracker.record_savings_breakdown(
                 _savings_meta,
@@ -856,11 +801,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
 
             # Fall back to the optimized prompt tokens when the provider
             # did not report cache split counters for this request.
-            if (
-                input_tokens_for_cost <= 0
-                and cache_read_tokens <= 0
-                and cache_write_tokens <= 0
-            ):
+            if input_tokens_for_cost <= 0 and cache_read_tokens <= 0 and cache_write_tokens <= 0:
                 input_tokens_for_cost = max(0, int(outcome.optimized_tokens))
 
             request_cost_usd = cost_tracker.estimate_cost(

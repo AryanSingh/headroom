@@ -14,6 +14,7 @@ import pytest
 # Learn Watcher
 # ---------------------------------------------------------------------------
 
+
 class TestSessionWatcher:
     def test_init(self):
         from cutctx.learn.watcher import SessionWatcher
@@ -40,6 +41,7 @@ class TestSessionWatcher:
             # Set mtime to 60 seconds ago
             old_time = time.time() - 60
             import os
+
             os.utime(test_file, (old_time, old_time))
 
             w = SessionWatcher([tmp], on_new)
@@ -103,6 +105,7 @@ class TestSessionWatcher:
                 f.write_text('{"test": true}')
                 old_time = time.time() - 60
                 import os
+
                 os.utime(f, (old_time, old_time))
 
             w = SessionWatcher([tmp], on_new)
@@ -117,6 +120,7 @@ class TestSessionWatcher:
 # ---------------------------------------------------------------------------
 # Learn Share
 # ---------------------------------------------------------------------------
+
 
 class TestLearnShare:
     def test_format_twitter_text_single(self):
@@ -146,6 +150,7 @@ class TestLearnShare:
 # Billing: Stripe Webhook
 # ---------------------------------------------------------------------------
 
+
 class TestStripeWebhook:
     def test_generate_license_key(self):
         from cutctx.billing.stripe_webhook import generate_license_key
@@ -170,7 +175,7 @@ class TestStripeWebhook:
             # The actual verification requires proper HMAC
             # Just verify the function exists and can be called
             with pytest.raises((ValueError, Exception)):
-                verify_stripe_signature(b'payload', "t=123,v1=bad")
+                verify_stripe_signature(b"payload", "t=123,v1=bad")
 
     def test_handle_checkout_completed(self):
         from cutctx.billing.stripe_webhook import handle_checkout_completed
@@ -270,6 +275,7 @@ class TestStripeWebhook:
 # Billing: License DB
 # ---------------------------------------------------------------------------
 
+
 class TestLicenseDB:
     def test_upsert_and_get(self, monkeypatch):
         from cutctx.billing.license_db import LicenseDB
@@ -354,6 +360,7 @@ class TestLicenseDB:
 # Firewall ML Classifier
 # ---------------------------------------------------------------------------
 
+
 class TestFirewallML:
     def test_init_no_model(self):
         from cutctx.security.firewall_ml import MLInjectionClassifier
@@ -400,6 +407,7 @@ class TestFirewallML:
 # Airgap
 # ---------------------------------------------------------------------------
 
+
 class TestAirgap:
     def test_is_offline_default(self):
         from cutctx.proxy.airgap import is_offline
@@ -416,9 +424,12 @@ class TestAirgap:
     def test_check_offline_requires_hmac(self):
         from cutctx.proxy.airgap import check_offline_compat
 
-        with patch.dict("os.environ", {
-            "CUTCTX_OFFLINE_MODE": "1",
-            "CUTCTX_LICENSE_HMAC_SECRET": "",
-        }):
+        with patch.dict(
+            "os.environ",
+            {
+                "CUTCTX_OFFLINE_MODE": "1",
+                "CUTCTX_LICENSE_HMAC_SECRET": "",
+            },
+        ):
             with pytest.raises(RuntimeError, match="CUTCTX_LICENSE_HMAC_SECRET"):
                 check_offline_compat()

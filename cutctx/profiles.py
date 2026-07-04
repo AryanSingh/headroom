@@ -193,7 +193,9 @@ class CompressionProfile:
                         name: ContentTypeStats.from_dict(s)
                         for name, s in data.get("stats", {}).items()
                     }
-                    logger.info(f"Loaded profile for workspace {workspace_hash}: {len(stats)} types")
+                    logger.info(
+                        f"Loaded profile for workspace {workspace_hash}: {len(stats)} types"
+                    )
                     return CompressionProfile(workspace_hash, stats)
             except Exception as e:
                 logger.warning(f"Failed to load profile {profile_path}: {e}")
@@ -213,10 +215,7 @@ class CompressionProfile:
             data = {
                 "workspace_hash": self.workspace_hash,
                 "saved_at": time.time(),
-                "stats": {
-                    name: stat.to_dict()
-                    for name, stat in self.stats.items()
-                },
+                "stats": {name: stat.to_dict() for name, stat in self.stats.items()},
             }
 
             try:
@@ -268,9 +267,7 @@ class CompressionProfile:
                     self.stats[content_type].sessions_seen += 1
 
             self._dirty = True
-            logger.info(
-                f"Recorded session {session_id} with {len(stats)} content types"
-            )
+            logger.info(f"Recorded session {session_id} with {len(stats)} content types")
 
     def update_from_ccr_retrieval(self, content_type: str) -> None:
         """Signal that content was retrieved via CCR (was over-compressed).

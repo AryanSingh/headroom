@@ -98,4 +98,4 @@ Nothing in this flow touches any Cutctx-operated server. The proxy is a local pr
 
 ## Contact
 
-For privacy questions or enterprise data-handling requirements, contact **privacy@cutctx.dev** or open an issue in the repository.
+For privacy questions or enterprise data-handling requirements, contact **privacy@cutctx.com** or open an issue in the repository.

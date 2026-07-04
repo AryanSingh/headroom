@@ -11,6 +11,7 @@ We extract the function from the template by parsing the
 Alpine.js x-data block. The extraction is robust to whitespace
 and comment changes.
 """
+
 from __future__ import annotations
 
 import re
@@ -83,7 +84,7 @@ def test_dashboard_has_error_toast() -> None:
     # error toast for fetch failures.
     assert "lastError" in html
     assert "aria-live" in html
-    assert "role=\"alert\"" in html or "role='alert'" in html
+    assert 'role="alert"' in html or "role='alert'" in html
 
 
 def test_dashboard_has_loading_spinner() -> None:
@@ -98,13 +99,13 @@ def test_dashboard_has_search_input() -> None:
     html = DASHBOARD_PATH.read_text()
     # Must have at least one input element with the search
     # model binding.
-    assert "x-model=\"searchQuery\"" in html
+    assert 'x-model="searchQuery"' in html
     assert 'type="search"' in html or "type='search'" in html
 
 
 def test_dashboard_has_provider_filter_select() -> None:
     html = DASHBOARD_PATH.read_text()
-    assert "x-model=\"filterProvider\"" in html
+    assert 'x-model="filterProvider"' in html
     # All five providers should be in the dropdown.
     for provider in ("anthropic", "openai", "google", "bedrock", "vertex"):
         assert f'value="{provider}"' in html, f"provider {provider} missing"
@@ -112,4 +113,4 @@ def test_dashboard_has_provider_filter_select() -> None:
 
 def test_dashboard_has_sort_select() -> None:
     html = DASHBOARD_PATH.read_text()
-    assert "x-model=\"sortBy\"" in html
+    assert 'x-model="sortBy"' in html

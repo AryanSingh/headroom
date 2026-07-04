@@ -27,14 +27,17 @@ from __future__ import annotations
 #     the signed MANIFEST.sha256.json to detect tampered binaries.
 # ---------------------------------------------------------------------------
 
+
 def _run_security_guards() -> None:
     """Execute all EE entry guards. Failures raise RuntimeError / IntegrityError."""
     import logging
+
     _log = logging.getLogger("cutctx_ee")
 
     # Guard 1: anti-debug
     try:
         from cutctx.security.antidebug import guard_ee_entry
+
         guard_ee_entry()
     except ImportError:
         _log.debug("cutctx.security.antidebug not available — skipping anti-debug guard")
@@ -42,6 +45,7 @@ def _run_security_guards() -> None:
     # Guard 2: binary integrity
     try:
         from cutctx.security.integrity import verify_ee_manifest
+
         verify_ee_manifest(strict=False)
     except ImportError:
         _log.debug("cutctx.security.integrity not available — skipping integrity check")

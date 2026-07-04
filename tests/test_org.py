@@ -111,7 +111,9 @@ class TestProject:
     def test_create_project(self, org_store):
         org = org_store.create_org(name="Org")
         ws = org_store.create_workspace(org_id=org["id"], name="WS")
-        proj = org_store.create_project(workspace_id=ws["id"], name="backend-api", path="/src/backend")
+        proj = org_store.create_project(
+            workspace_id=ws["id"], name="backend-api", path="/src/backend"
+        )
         assert proj["name"] == "backend-api"
         assert proj["path"] == "/src/backend"
         assert proj["workspace_id"] == ws["id"]
@@ -157,7 +159,9 @@ class TestAgent:
         org = org_store.create_org(name="Org")
         ws = org_store.create_workspace(org_id=org["id"], name="WS")
         proj = org_store.create_project(workspace_id=ws["id"], name="Proj")
-        agent = org_store.create_agent(project_id=proj["id"], name="claude-code", agent_type="coding")
+        agent = org_store.create_agent(
+            project_id=proj["id"], name="claude-code", agent_type="coding"
+        )
         assert agent["name"] == "claude-code"
         assert agent["agent_type"] == "coding"
 
@@ -224,7 +228,9 @@ class TestSettings:
 
     def test_workspace_settings_parsed(self, org_store):
         org = org_store.create_org(name="Org")
-        ws = org_store.create_workspace(org_id=org["id"], name="WS", settings={"auto_compress": True})
+        ws = org_store.create_workspace(
+            org_id=org["id"], name="WS", settings={"auto_compress": True}
+        )
         fetched = org_store.get_workspace(ws["id"])
         assert fetched["settings"]["auto_compress"] is True
 

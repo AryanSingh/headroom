@@ -50,7 +50,9 @@ def _collect_data(days: int) -> list[dict[str, Any]]:
     start_time = now - timedelta(days=days) if days > 0 else None
 
     all_time_stats = storage.get_summary_stats()
-    filtered_stats = storage.get_summary_stats(start_time=start_time) if days > 0 else all_time_stats
+    filtered_stats = (
+        storage.get_summary_stats(start_time=start_time) if days > 0 else all_time_stats
+    )
 
     return [
         {
@@ -115,41 +117,26 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
                 # Use per-request deltas when present (Phase 1.3+);
                 # fall back to lifetime counters for older rows.
                 "tokens_saved": int(
-                    raw.get("delta_tokens_saved")
-                    or raw.get("total_tokens_saved", 0)
-                    or 0
+                    raw.get("delta_tokens_saved") or raw.get("total_tokens_saved", 0) or 0
                 ),
                 "compression_savings_usd": float(
-                    raw.get("delta_savings_usd")
-                    or raw.get("compression_savings_usd", 0.0)
-                    or 0.0
+                    raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0
                 ),
                 "cache_savings_usd": float(
-                    raw.get("delta_cache_savings_usd")
-                    or raw.get("cache_savings_usd", 0.0)
-                    or 0.0
+                    raw.get("delta_cache_savings_usd") or raw.get("cache_savings_usd", 0.0) or 0.0
                 ),
                 "cost_savings_usd": float(
-                    (
-                        raw.get("delta_savings_usd")
-                        or raw.get("compression_savings_usd", 0.0)
-                        or 0.0
-                    )
+                    (raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0)
                     + (
                         raw.get("delta_cache_savings_usd")
                         or raw.get("cache_savings_usd", 0.0)
                         or 0.0
                     )
                     + float(
-                        sum(
-                            float(v)
-                            for v in (raw.get("savings_by_source_usd") or {}).values()
-                        )
+                        sum(float(v) for v in (raw.get("savings_by_source_usd") or {}).values())
                     )
                 ),
-                "savings_by_source_tokens": dict(
-                    raw.get("savings_by_source_tokens") or {}
-                ),
+                "savings_by_source_tokens": dict(raw.get("savings_by_source_tokens") or {}),
                 "savings_by_source_usd": dict(raw.get("savings_by_source_usd") or {}),
             }
         )
@@ -258,7 +245,9 @@ def report_schedule(daily: bool, weekly: bool, email: str, fmt: str) -> None:
     click.echo("-------------------------------")
     cron_freq = "0 8 * * *" if daily else "0 8 * * 1"
     click.echo("Run `crontab -e` and add the following line:")
-    click.echo(f"{cron_freq} cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}")
+    click.echo(
+        f"{cron_freq} cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}"
+    )
 
     click.echo("\nOption 2: launchd (macOS)")
     click.echo("-------------------------")
@@ -273,16 +262,22 @@ def report_schedule(daily: bool, weekly: bool, email: str, fmt: str) -> None:
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>cutctx report export --format {fmt} --days {1 if daily else 7} | mail -s 'Cutctx Report' {email}</string>
+        <string>cutctx report export --format {fmt} --days {
+        1 if daily else 7
+    } | mail -s 'Cutctx Report' {email}</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
         <integer>8</integer>
         <key>Minute</key>
-        <integer>0</integer>{'' if daily else '''
+        <integer>0</integer>{
+        ""
+        if daily
+        else '''
         <key>Weekday</key>
-        <integer>1</integer>'''}
+        <integer>1</integer>'''
+    }
     </dict>
 </dict>
 </plist>"""
@@ -303,7 +298,6 @@ def report_schedule_list() -> None:
     click.echo(f"  Format: {schedule.get('format', 'json')}")
     click.echo(f"  Enabled: {schedule.get('enabled', False)}")
     click.echo(f"  Created: {schedule.get('created_at', 'N/A')}")
-
 
 
 @report_group.command("buyer")
@@ -377,9 +371,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             # consistent: ``total_usd`` and ``by_source_usd`` must
             # agree to the cent. This is the restart-safety
             # attribution the buyer report needs.
-            row_compression_usd = float(
-                row.get("compression_savings_usd", 0) or 0
-            )
+            row_compression_usd = float(row.get("compression_savings_usd", 0) or 0)
             row_cache_usd = float(row.get("cache_savings_usd", 0) or 0)
             row_total = float(row.get("cost_savings_usd", 0) or 0)
             # If only the combined total is present (no per-source
@@ -389,12 +381,10 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
                 row_compression_usd = row_total
                 row_cache_usd = 0.0
             by_source_usd["cutctx_compression"] = (
-                by_source_usd.get("cutctx_compression", 0.0)
-                + row_compression_usd
+                by_source_usd.get("cutctx_compression", 0.0) + row_compression_usd
             )
             by_source_usd["provider_prompt_cache"] = (
-                by_source_usd.get("provider_prompt_cache", 0.0)
-                + row_cache_usd
+                by_source_usd.get("provider_prompt_cache", 0.0) + row_cache_usd
             )
             total_usd += row_compression_usd + row_cache_usd
             compression_usd += row_compression_usd
@@ -410,8 +400,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             "savings_by_source": by_source,
             "savings_by_source_total": total_tokens,
             "savings_by_source_usd": {
-                src.value: round(by_source_usd.get(src.value, 0.0), 4)
-                for src in SavingsSource
+                src.value: round(by_source_usd.get(src.value, 0.0), 4) for src in SavingsSource
             },
             "savings_sources": [
                 {
@@ -500,12 +489,8 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append(f"  {'Total':30s} ${total_usd:>11,.2f}")
         lines.append("")
         lines.append("Attribution:")
-        lines.append(
-            "  All tracked savings sources are tracked independently. The total is"
-        )
-        lines.append(
-            "  the sum of per-source values, not a difference, so there"
-        )
+        lines.append("  All tracked savings sources are tracked independently. The total is")
+        lines.append("  the sum of per-source values, not a difference, so there")
         lines.append("  is no double counting.")
         content = "\n".join(lines) + "\n"
 
@@ -565,9 +550,7 @@ def _build_agent_context_report(days: int) -> dict[str, Any]:
             "note": "Quality-guard stats are included when persisted outcome rows expose them.",
         },
         "policy": {
-            "context_policy_env": bool(
-                __import__("os").environ.get("CUTCTX_CONTEXT_POLICY")
-            ),
+            "context_policy_env": bool(__import__("os").environ.get("CUTCTX_CONTEXT_POLICY")),
         },
         "assurance": _assurance_section(),
         "session_replay": {
@@ -617,9 +600,12 @@ def _render_agent_context_report(payload: dict[str, Any], fmt: str) -> str:
     if fmt == "markdown":
         return markdown + "\n"
     return (
-        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        '<!doctype html><html><head><meta charset="utf-8">'
         "<title>Agent Context Report</title></head><body>"
-        + markdown.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>\n")
+        + markdown.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>\n")
         + "</body></html>\n"
     )
 

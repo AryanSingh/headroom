@@ -23,9 +23,9 @@ logger = logging.getLogger("cutctx.context_budget")
 class BudgetZone(str, Enum):
     """Budget zone indicating compression urgency."""
 
-    GREEN = "GREEN"        # 0-60%: No compression needed
-    YELLOW = "YELLOW"      # 60-80%: Light compression
-    RED = "RED"            # 80-95%: Aggressive compression
+    GREEN = "GREEN"  # 0-60%: No compression needed
+    YELLOW = "YELLOW"  # 60-80%: Light compression
+    RED = "RED"  # 80-95%: Aggressive compression
     CRITICAL = "CRITICAL"  # 95%+: Emergency summarization
 
 
@@ -47,11 +47,11 @@ class BudgetStatus:
 class BudgetPolicy:
     """Zone thresholds and compression parameters."""
 
-    green_threshold: float = 0.60       # 0-60% is GREEN
-    yellow_threshold: float = 0.80      # 60-80% is YELLOW
-    red_threshold: float = 0.95         # 80-95% is RED
+    green_threshold: float = 0.60  # 0-60% is GREEN
+    yellow_threshold: float = 0.80  # 60-80% is YELLOW
+    red_threshold: float = 0.95  # 80-95% is RED
     compression_window_yellow: int = 10  # Protect last N messages in YELLOW
-    compression_window_red: int = 5      # Protect last N messages in RED
+    compression_window_red: int = 5  # Protect last N messages in RED
 
     @classmethod
     def from_env(cls, policy: str = "balanced") -> BudgetPolicy:

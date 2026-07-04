@@ -182,9 +182,7 @@ def test_allow_rule_filters_nonmatching_content():
 
     assert not result.blocked
     # Only the third message ("Here is the code I wrote") should pass
-    dropped = [
-        msg for msg in result.redacted_messages if msg.get("_policy_dropped")
-    ]
+    dropped = [msg for msg in result.redacted_messages if msg.get("_policy_dropped")]
     assert len(dropped) == 2
     assert not result.redacted_messages[2].get("_policy_dropped")
 
@@ -194,9 +192,7 @@ def test_no_allow_rules_passes_all_content():
     result = engine.evaluate(_sample_messages())
 
     assert not result.blocked
-    dropped = [
-        msg for msg in result.redacted_messages if msg.get("_policy_dropped")
-    ]
+    dropped = [msg for msg in result.redacted_messages if msg.get("_policy_dropped")]
     assert len(dropped) == 0
     assert len(result.redacted_messages) == 3
 

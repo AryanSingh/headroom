@@ -75,13 +75,9 @@ def create_failover_router(
             found = failover_router.disable(name)
         except Exception as exc:
             logger.exception("event=disable_error provider=%s error=%r", name, exc)
-            raise HTTPException(
-                status_code=500, detail="Failed to disable provider"
-            ) from exc
+            raise HTTPException(status_code=500, detail="Failed to disable provider") from exc
         if not found:
-            raise HTTPException(
-                status_code=404, detail=f"Provider '{name}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Provider '{name}' not found")
         logger.info("event=provider_disabled provider=%s via=admin_api", name)
         return JSONResponse(content={"provider": name, "healthy": False})
 
@@ -96,13 +92,9 @@ def create_failover_router(
             found = failover_router.enable(name)
         except Exception as exc:
             logger.exception("event=enable_error provider=%s error=%r", name, exc)
-            raise HTTPException(
-                status_code=500, detail="Failed to enable provider"
-            ) from exc
+            raise HTTPException(status_code=500, detail="Failed to enable provider") from exc
         if not found:
-            raise HTTPException(
-                status_code=404, detail=f"Provider '{name}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Provider '{name}' not found")
         logger.info("event=provider_enabled provider=%s via=admin_api", name)
         return JSONResponse(content={"provider": name, "healthy": True})
 

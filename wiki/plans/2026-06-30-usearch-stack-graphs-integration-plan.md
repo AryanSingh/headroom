@@ -384,7 +384,7 @@ Add `tree-sitter-stack-graphs` to `cutctx-core` and expose a `StackGraphManager`
 | `cutctx/proxy/server.py` | Wire `StackGraphManager` into startup if `--stack-graph` flag set | fixer | 1 hr |
 | `cutctx/cli/proxy.py` | Add `--stack-graph` CLI flag (env `CUTCTX_STACK_GRAPH=1`) | fixer | 15 min |
 | `cutctx/proxy/models.py` | Add `stack_graph_enabled: bool = False` to `ProxyConfig` | fixer | 10 min |
-| `headroom.yml` or wiki | Document the new feature | fixer | 1 hr |
+| `cutctx.yml` or wiki | Document the new feature | fixer | 1 hr |
 
 ### 4.3 Detailed Implementation
 

@@ -33,11 +33,7 @@ def parse_litellm_cache(metadata: dict[str, Any] | None) -> RequestSavingsBreakd
     if not isinstance(metadata, dict):
         return RequestSavingsBreakdown()
     breakdown = RequestSavingsBreakdown()
-    cached = int(
-        metadata.get("cache_hit_tokens")
-        or metadata.get("cached_tokens")
-        or 0
-    )
+    cached = int(metadata.get("cache_hit_tokens") or metadata.get("cached_tokens") or 0)
     if cached > 0:
         breakdown.provider_cached_tokens = cached
         breakdown.total_tokens_saved = cached
@@ -76,11 +72,7 @@ def parse_gptcache_hit(metadata: dict[str, Any] | None) -> RequestSavingsBreakdo
         return RequestSavingsBreakdown()
     breakdown = RequestSavingsBreakdown()
     try:
-        saved = int(
-            metadata.get("saved_prompt_tokens")
-            or metadata.get("tokens_avoided")
-            or 0
-        )
+        saved = int(metadata.get("saved_prompt_tokens") or metadata.get("tokens_avoided") or 0)
     except (TypeError, ValueError):
         saved = 0
     if saved > 0:

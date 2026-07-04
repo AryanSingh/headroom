@@ -268,9 +268,7 @@ class TestBugFixesPhase3e4:
         substring. Python silently used the same prefix and let the
         collision break restoration. Rust salts the prefix when this
         happens."""
-        text = (
-            "User wrote {{CUTCTX_TAG_0}} on purpose. <system-reminder>real one</system-reminder>"
-        )
+        text = "User wrote {{CUTCTX_TAG_0}} on purpose. <system-reminder>real one</system-reminder>"
         cleaned, protected = protect_tags(text)
         assert len(protected) == 1
         # Placeholder picked must NOT collide with the user's literal.

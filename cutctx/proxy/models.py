@@ -115,7 +115,7 @@ class ProxyConfig:
     host: str = "127.0.0.1"
     port: int = 8787
     tls_cert: str | None = None  # Path to TLS certificate file (enables HTTPS)
-    tls_key: str | None = None   # Path to TLS private key file (enables HTTPS)
+    tls_key: str | None = None  # Path to TLS private key file (enables HTTPS)
     anthropic_api_url: str | None = None  # Custom Anthropic API URL override
     openai_api_url: str | None = None  # Custom OpenAI API URL override
     gemini_api_url: str | None = None  # Custom Gemini API URL override
@@ -325,7 +325,9 @@ class ProxyConfig:
     memory_qdrant_host: str = field(default_factory=qdrant_env.qdrant_env_host)
     memory_qdrant_port: int = field(default_factory=qdrant_env.qdrant_env_port)
     memory_qdrant_api_key: str | None = field(default_factory=qdrant_env.qdrant_env_api_key)
-    memory_neo4j_uri: str = field(default_factory=lambda: os.environ.get("NEO4J_URI", "neo4j://localhost:7687"))
+    memory_neo4j_uri: str = field(
+        default_factory=lambda: os.environ.get("NEO4J_URI", "neo4j://localhost:7687")
+    )
     memory_neo4j_user: str = field(default_factory=lambda: os.environ.get("NEO4J_USER", "neo4j"))
     memory_neo4j_password: str = field(default_factory=lambda: os.environ.get("NEO4J_PASSWORD", ""))
     memory_bridge_enabled: bool = False

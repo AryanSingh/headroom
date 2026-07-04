@@ -26,6 +26,7 @@ This module provides:
       automatically (and the oldest unacknowledged row is
       warned loudly).
 """
+
 from __future__ import annotations
 
 import json
@@ -147,27 +148,31 @@ class WebhookSubscriptionStore:
 
     def _get_fernet(self):
         """Lazily import and return Fernet cipher for secret encryption."""
-        if not hasattr(self, '_fernet'):
+        if not hasattr(self, "_fernet"):
             from cryptography.fernet import Fernet
+
             # Use CUTCTX_SECRETS_KEY if available, else CUTCTX_LICENSE_HMAC_SECRET,
             # else use a derived key from the database path for single-machine setups.
-            key = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get("CUTCTX_LICENSE_HMAC_SECRET")
+            key = os.environ.get("CUTCTX_SECRETS_KEY") or os.environ.get(
+                "CUTCTX_LICENSE_HMAC_SECRET"
+            )
             if key is None:
                 import base64
                 import hashlib
+
                 # Derive a stable key from the database path for tests/stateless mode
                 path_hash = hashlib.sha256(self._db_path.encode()).digest()
-                key = base64.urlsafe_b64encode(path_hash).decode('ascii')
-            self._fernet = Fernet(key.encode('utf-8') if isinstance(key, str) else key)
+                key = base64.urlsafe_b64encode(path_hash).decode("ascii")
+            self._fernet = Fernet(key.encode("utf-8") if isinstance(key, str) else key)
         return self._fernet
 
     def _encrypt_secret(self, secret: str) -> bytes:
         """Encrypt a secret string to ciphertext."""
-        return self._get_fernet().encrypt(secret.encode('utf-8'))
+        return self._get_fernet().encrypt(secret.encode("utf-8"))
 
     def _decrypt_secret(self, ciphertext: bytes) -> str:
         """Decrypt ciphertext back to plaintext secret."""
-        return self._get_fernet().decrypt(ciphertext).decode('utf-8')
+        return self._get_fernet().decrypt(ciphertext).decode("utf-8")
 
     def upsert(
         self,
@@ -453,9 +458,7 @@ class WebhookDeadLetterStore:
 
     def purge_acknowledged(self) -> int:
         with self._lock, self._connect() as conn:
-            cur = conn.execute(
-                "DELETE FROM webhook_dlq WHERE acknowledged = 1"
-            )
+            cur = conn.execute("DELETE FROM webhook_dlq WHERE acknowledged = 1")
             return cur.rowcount
 
     def _row_to_dlq(self, r: sqlite3.Row) -> DeadLetter:

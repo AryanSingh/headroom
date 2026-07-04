@@ -80,8 +80,7 @@ def build_manifest(ee_dir: Path, secret: str | None) -> dict:
     so_files = _find_so_files(ee_dir)
     if not so_files:
         print(
-            f"WARNING: no compiled .so files found in {ee_dir}. "
-            "Run scripts/compile_ee.py first.",
+            f"WARNING: no compiled .so files found in {ee_dir}. Run scripts/compile_ee.py first.",
             file=sys.stderr,
         )
 

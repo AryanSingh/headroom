@@ -112,7 +112,7 @@ so the model can ask for originals back (CCR — Compress-Cache-Retrieve).
      declaring `@opencode-ai/plugin` and `cutctx-ai`), `node_modules` is
      built. A symlink
      `~/.config/opencode/.opencode/plugin/cutctx.ts ->
-     /Users/aryansingh/Documents/Claude/Projects/headroom/plugins/cutctx-opencode/cutctx.ts`
+     /Users/aryansingh/Documents/Claude/Projects/cutctx/plugins/cutctx-opencode/cutctx.ts`
      lets the user edit in-repo and have opencode see the change after
      restart.
 

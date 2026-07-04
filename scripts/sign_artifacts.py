@@ -69,11 +69,13 @@ def generate_manifest(
     for filepath in sorted(artifacts_dir.rglob("*")):
         if filepath.is_file():
             rel = str(filepath.relative_to(artifacts_dir))
-            entries.append({
-                "path": rel,
-                "sha256": compute_sha256(filepath),
-                "size": filepath.stat().st_size,
-            })
+            entries.append(
+                {
+                    "path": rel,
+                    "sha256": compute_sha256(filepath),
+                    "size": filepath.stat().st_size,
+                }
+            )
 
     manifest = {
         "build_id": build_id,
@@ -92,16 +94,24 @@ def sign_manifest(manifest: dict, key_file: Path) -> dict:
 
     # Write temp file for signing
     import tempfile
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         f.write(canonical)
         tmp_path = f.name
 
     try:
         result = subprocess.run(
-            ["openssl", "pkeyutl", "-sign",
-             "-inkey", str(key_file),
-             "-in", tmp_path,
-             "-out", f"{tmp_path}.sig"],
+            [
+                "openssl",
+                "pkeyutl",
+                "-sign",
+                "-inkey",
+                str(key_file),
+                "-in",
+                tmp_path,
+                "-out",
+                f"{tmp_path}.sig",
+            ],
             capture_output=True,
             text=True,
         )
@@ -110,6 +120,7 @@ def sign_manifest(manifest: dict, key_file: Path) -> dict:
 
         with open(f"{tmp_path}.sig", "rb") as f:
             import base64
+
             signature = base64.urlsafe_b64encode(f.read()).decode()
 
         manifest["signature"] = signature
@@ -131,9 +142,11 @@ def verify_manifest_signature(manifest: dict, public_key_file: Path) -> bool:
     manifest["signature"] = signature  # Restore
 
     import base64
+
     sig_bytes = base64.urlsafe_b64decode(signature)
 
     import tempfile
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         f.write(canonical)
         tmp_path = f.name
@@ -143,10 +156,18 @@ def verify_manifest_signature(manifest: dict, public_key_file: Path) -> bool:
 
     try:
         result = subprocess.run(
-            ["openssl", "pkeyutl", "-verify",
-             "-pubin", "-inkey", str(public_key_file),
-             "-in", tmp_path,
-             "-sigfile", sig_path],
+            [
+                "openssl",
+                "pkeyutl",
+                "-verify",
+                "-pubin",
+                "-inkey",
+                str(public_key_file),
+                "-in",
+                tmp_path,
+                "-sigfile",
+                sig_path,
+            ],
             capture_output=True,
             text=True,
         )
@@ -162,20 +183,24 @@ def verify_manifest_hashes(manifest: dict, artifacts_dir: Path) -> list[dict]:
     for entry in manifest.get("entries", []):
         filepath = artifacts_dir / entry["path"]
         if not filepath.exists():
-            violations.append({
-                "path": entry["path"],
-                "expected": entry["sha256"],
-                "actual": "file_not_found",
-            })
+            violations.append(
+                {
+                    "path": entry["path"],
+                    "expected": entry["sha256"],
+                    "actual": "file_not_found",
+                }
+            )
             continue
 
         actual = compute_sha256(filepath)
         if actual != entry["sha256"]:
-            violations.append({
-                "path": entry["path"],
-                "expected": entry["sha256"],
-                "actual": actual,
-            })
+            violations.append(
+                {
+                    "path": entry["path"],
+                    "expected": entry["sha256"],
+                    "actual": actual,
+                }
+            )
 
     return violations
 
@@ -200,23 +225,29 @@ def scan_secrets(path: Path) -> list[dict]:
         # Check for secret patterns
         for pattern, desc in SECRET_PATTERNS:
             for match in re.finditer(pattern, content):
-                findings.append({
-                    "file": str(filepath.relative_to(path)),
-                    "type": "secret",
-                    "description": desc,
-                    "line": content[:match.start()].count("\n") + 1,
-                    "context": match.group()[:20] + "..." if len(match.group()) > 20 else match.group(),
-                })
+                findings.append(
+                    {
+                        "file": str(filepath.relative_to(path)),
+                        "type": "secret",
+                        "description": desc,
+                        "line": content[: match.start()].count("\n") + 1,
+                        "context": match.group()[:20] + "..."
+                        if len(match.group()) > 20
+                        else match.group(),
+                    }
+                )
 
         # Check for forbidden paths
         for forbidden in FORBIDDEN_PATHS:
             if forbidden in content:
-                findings.append({
-                    "file": str(filepath.relative_to(path)),
-                    "type": "forbidden_path",
-                    "description": f"Contains forbidden path: {forbidden}",
-                    "line": -1,
-                })
+                findings.append(
+                    {
+                        "file": str(filepath.relative_to(path)),
+                        "type": "forbidden_path",
+                        "description": f"Contains forbidden path: {forbidden}",
+                        "line": -1,
+                    }
+                )
 
     return findings
 

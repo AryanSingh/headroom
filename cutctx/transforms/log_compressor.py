@@ -126,6 +126,7 @@ class LogCompressionResult:
     @property
     def tokens_saved(self) -> int:
         return self.tokens_saved_estimate
+
     stats: dict[str, int] = field(default_factory=dict)
 
     @property

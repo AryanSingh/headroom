@@ -43,10 +43,28 @@ class TaskExtractor:
 
     # Imperative verbs indicating a task
     IMPERATIVE_VERBS = {
-        "debug", "fix", "implement", "find", "analyze", "review",
-        "summarize", "compare", "generate", "create", "optimize",
-        "test", "validate", "check", "identify", "locate", "refactor",
-        "improve", "explain", "describe", "show", "list"
+        "debug",
+        "fix",
+        "implement",
+        "find",
+        "analyze",
+        "review",
+        "summarize",
+        "compare",
+        "generate",
+        "create",
+        "optimize",
+        "test",
+        "validate",
+        "check",
+        "identify",
+        "locate",
+        "refactor",
+        "improve",
+        "explain",
+        "describe",
+        "show",
+        "list",
     }
 
     # Question words
@@ -81,9 +99,7 @@ class TaskExtractor:
 
         # Get last 3 user messages
         user_messages = [
-            msg.get("content", "")
-            for msg in messages[-3:]
-            if msg.get("role") == "user"
+            msg.get("content", "") for msg in messages[-3:] if msg.get("role") == "user"
         ]
 
         if not user_messages:
@@ -116,7 +132,7 @@ class TaskExtractor:
         for keyword in TaskExtractor.SPECIAL_KEYWORDS:
             if keyword in content_lower:
                 # Return first sentence containing the keyword
-                sentences = content.split('.')
+                sentences = content.split(".")
                 for sent in sentences:
                     if keyword in sent.lower():
                         cleaned = sent.strip()
@@ -124,16 +140,16 @@ class TaskExtractor:
                             return cleaned
                         # If too long, take first 100 chars
                         if len(cleaned) > 100:
-                            return cleaned[:100].rsplit(' ', 1)[0]
+                            return cleaned[:100].rsplit(" ", 1)[0]
                         return cleaned if len(cleaned) >= 10 else None
 
         # Check for question words
         for qword in TaskExtractor.QUESTION_WORDS:
             if content_lower.startswith(qword):
                 # Extract first sentence (up to first period or 100 chars)
-                first_sent = content.split('.')[0]
+                first_sent = content.split(".")[0]
                 if len(first_sent) > 100:
-                    return first_sent[:100].rsplit(' ', 1)[0]
+                    return first_sent[:100].rsplit(" ", 1)[0]
                 return first_sent if len(first_sent) >= 10 else None
 
         # Check for imperative verbs
@@ -141,9 +157,9 @@ class TaskExtractor:
         for verb in TaskExtractor.IMPERATIVE_VERBS:
             if verb in words:
                 # Extract first sentence
-                first_sent = content.split('.')[0]
+                first_sent = content.split(".")[0]
                 if len(first_sent) > 100:
-                    return first_sent[:100].rsplit(' ', 1)[0]
+                    return first_sent[:100].rsplit(" ", 1)[0]
                 return first_sent if len(first_sent) >= 10 else None
 
         return None
@@ -217,10 +233,11 @@ class RelevanceModulator:
         Returns:
             Score [0.0, 1.0]
         """
+
         # Tokenize both
         def tokenize(text: str) -> set[str]:
             # Extract words (alphanumeric sequences)
-            tokens = re.findall(r'\b[a-zA-Z0-9_]+\b', text.lower())
+            tokens = re.findall(r"\b[a-zA-Z0-9_]+\b", text.lower())
             # Filter short tokens
             return {t for t in tokens if len(t) > 2}
 

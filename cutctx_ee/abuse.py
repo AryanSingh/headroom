@@ -20,6 +20,7 @@ from enum import Enum
 
 class AbuseFlag(str, Enum):
     """Types of abuse that can be detected."""
+
     IMPOSSIBLE_TRAVEL = "impossible_travel"
     TOO_MANY_FINGERPRINTS = "too_many_fingerprints"
     TOO_MANY_IPS = "too_many_ips"
@@ -29,6 +30,7 @@ class AbuseFlag(str, Enum):
 
 class Severity(str, Enum):
     """Severity of detected abuse."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -38,6 +40,7 @@ class Severity(str, Enum):
 @dataclass
 class AbuseAlert:
     """An abuse detection alert."""
+
     lic_id: str
     flag: AbuseFlag
     severity: Severity
@@ -63,6 +66,7 @@ class AbuseAlert:
 @dataclass
 class ActivationRecord:
     """A single activation or heartbeat event for analysis."""
+
     lic_id: str
     fingerprint: str
     ip_address: str
@@ -169,7 +173,8 @@ class AbuseDetector:
 
         recent_cutoff = record.timestamp - IMPOSSIBLE_TRAVEL_MAX_SECS
         recent_events = [
-            e for e in self._events[record.lic_id]
+            e
+            for e in self._events[record.lic_id]
             if e.timestamp >= recent_cutoff
             and e.geo
             and e.fingerprint != record.fingerprint  # Different machine
@@ -185,8 +190,10 @@ class AbuseDetector:
                 continue
 
             distance = _haversine_km(
-                current_coords[0], current_coords[1],
-                event_coords[0], event_coords[1],
+                current_coords[0],
+                current_coords[1],
+                event_coords[0],
+                event_coords[1],
             )
             time_diff = abs(record.timestamp - event.timestamp)
 
@@ -239,8 +246,7 @@ class AbuseDetector:
                 flag=AbuseFlag.TOO_MANY_IPS,
                 severity=Severity.MEDIUM,
                 description=(
-                    f"License has {len(ips)} distinct IP addresses "
-                    f"(limit: {self.max_ips})"
+                    f"License has {len(ips)} distinct IP addresses (limit: {self.max_ips})"
                 ),
                 fingerprint=record.fingerprint,
                 ip_address=record.ip_address,
@@ -254,7 +260,8 @@ class AbuseDetector:
 
         window_cutoff = record.timestamp - self.storm_window_secs
         recent_activations = [
-            e for e in self._events[record.lic_id]
+            e
+            for e in self._events[record.lic_id]
             if e.event_type == "activation" and e.timestamp >= window_cutoff
         ]
 
@@ -278,7 +285,12 @@ class AbuseDetector:
         min_severity: Severity | None = None,
     ) -> list[AbuseAlert]:
         """Retrieve alerts, optionally filtered."""
-        severity_order = {Severity.LOW: 0, Severity.MEDIUM: 1, Severity.HIGH: 2, Severity.CRITICAL: 3}
+        severity_order = {
+            Severity.LOW: 0,
+            Severity.MEDIUM: 1,
+            Severity.HIGH: 2,
+            Severity.CRITICAL: 3,
+        }
         alerts = self._alerts
         if lic_id:
             alerts = [a for a in alerts if a.lic_id == lic_id]
@@ -311,9 +323,6 @@ def check_seat_overuse(
             lic_id=lic_id,
             flag=AbuseFlag.SEAT_OVERUSE,
             severity=Severity.HIGH,
-            description=(
-                f"Seat overuse: {current_seats} active seats "
-                f"(licensed for {max_seats})"
-            ),
+            description=(f"Seat overuse: {current_seats} active seats (licensed for {max_seats})"),
         )
     return None
