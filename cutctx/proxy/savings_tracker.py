@@ -487,7 +487,7 @@ def _normalize_display_session(entry: Any) -> dict[str, Any]:
 
     tokens_saved = _coerce_int(entry.get("tokens_saved"))
     total_input_tokens = _coerce_int(entry.get("total_input_tokens"))
-    total_before = tokens_saved + total_input_tokens
+    total_before = max(tokens_saved, total_input_tokens)
     savings_percent = round(
         (tokens_saved / total_before * 100) if total_before > 0 else 0.0,
         2,
@@ -873,7 +873,7 @@ class SavingsTracker:
                 session["total_input_cost_usd"] + session_input_cost_delta,
                 6,
             )
-            total_before = session["tokens_saved"] + session["total_input_tokens"]
+            total_before = max(session["total_input_tokens"], session["tokens_saved"])
             session["savings_percent"] = round(
                 (session["tokens_saved"] / total_before * 100) if total_before > 0 else 0.0,
                 2,
@@ -1028,9 +1028,9 @@ class SavingsTracker:
         result: dict[str, dict[str, Any]] = {}
         for name, entry in ranked:
             view = dict(entry)
-            total_before = entry["tokens_saved"] + entry["total_input_tokens"]
+            total_before = max(view["total_input_tokens"], view["tokens_saved"])
             view["savings_percent"] = round(
-                (entry["tokens_saved"] / total_before * 100) if total_before > 0 else 0.0,
+                (view["tokens_saved"] / total_before * 100) if total_before > 0 else 0.0,
                 2,
             )
             result[name] = view
@@ -1484,8 +1484,9 @@ class SavingsTracker:
         ):
             return _empty_display_session()
 
-        total_before = _coerce_int(session.get("tokens_saved")) + _coerce_int(
-            session.get("total_input_tokens")
+        total_before = max(
+            _coerce_int(session.get("tokens_saved")),
+            _coerce_int(session.get("total_input_tokens")),
         )
         session["savings_percent"] = round(
             (_coerce_int(session.get("tokens_saved")) / total_before * 100)

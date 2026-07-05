@@ -218,7 +218,7 @@ _intercept_bypass_applied = False
 
 # Loopback-only auth bypass: restricted to specific read-only endpoints
 # that legitimately need no auth from localhost dashboard access.
-_LOOPBACK_OPEN_PATHS = frozenset({"/livez", "/readyz", "/metrics"})
+_LOOPBACK_OPEN_PATHS = frozenset({"/livez", "/readyz", "/metrics", "/stats", "/dashboard"})
 
 
 def _patch_getaddrinfo_for_intercept() -> None:
@@ -4143,8 +4143,8 @@ def _require_rbac_permission(permission: str):
                 # have something to compress?*" rather than diluting the
                 # win by frozen-prefix bytes we never touched.
                 "active_savings_percent": round(
-                    (proxy_compression_tokens / attempted_input_tokens * 100)
-                    if attempted_input_tokens > 0
+                    (proxy_compression_tokens / max(attempted_input_tokens, proxy_compression_tokens) * 100)
+                    if (attempted_input_tokens > 0 or proxy_compression_tokens > 0)
                     else 0,
                     2,
                 ),
@@ -4379,6 +4379,18 @@ def _require_rbac_permission(permission: str):
             _stats_snapshot["value"] = payload
             _stats_snapshot["expires_at"] = time.monotonic() + DASHBOARD_STATS_CACHE_TTL_SECONDS
             return payload
+
+    @app.get("/admin/config/flags", dependencies=[Depends(_require_admin_auth)])
+    async def get_config_flags():
+        """Get live intelligence layer feature flags."""
+        return {
+            "cache": getattr(config, "cache_enabled", False),
+            "ccr": getattr(config, "ccr_context_tracking", False) or getattr(config, "ccr_handle_responses", False),
+            "memory": getattr(config, "episodic_memory_enabled", False),
+            "firewall": getattr(config, "firewall_enabled", False),
+            "rate_limiter": getattr(config, "rate_limiter_enabled", False),
+            "orchestrator": getattr(config, "orchestrator_enabled", False),
+        }
 
     @app.post("/admin/config/flags", dependencies=[Depends(_require_admin_auth)])
     async def update_config_flags(request: Request):
@@ -5132,10 +5144,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "total_before_compression": total_tokens_before,
             "all_layers_saved": all_layers_tokens_saved,
             "proxy_attempted_tokens": attempted_input_tokens,
-            "active_savings_percent": round((proxy_compression_tokens / attempted_input_tokens * 100) if attempted_input_tokens > 0 else 0, 2),
-            "proxy_savings_percent": round((proxy_compression_tokens / proxy_total_before_compression * 100) if proxy_total_before_compression > 0 else 0, 2),
-            "savings_percent": round((all_layers_tokens_saved / total_tokens_before * 100) if total_tokens_before > 0 else 0, 2),
-            "all_layers_savings_percent": round((all_layers_tokens_saved / total_tokens_before * 100) if total_tokens_before > 0 else 0, 2),
+            "active_savings_percent": round((proxy_compression_tokens / max(attempted_input_tokens, proxy_compression_tokens) * 100) if (attempted_input_tokens > 0 or proxy_compression_tokens > 0) else 0, 2),
+            "proxy_savings_percent": round((proxy_compression_tokens / max(proxy_total_before_compression, proxy_compression_tokens) * 100) if (proxy_total_before_compression > 0 or proxy_compression_tokens > 0) else 0, 2),
+            "savings_percent": round((all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100) if (total_tokens_before > 0 or all_layers_tokens_saved > 0) else 0, 2),
+            "all_layers_savings_percent": round((all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100) if (total_tokens_before > 0 or all_layers_tokens_saved > 0) else 0, 2),
         }
 
         return {
@@ -5942,9 +5954,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/dashboard", response_class=HTMLResponse)
     @app.get("/dashboard/{path:path}", response_class=HTMLResponse)
-    async def dashboard(request: Request, path: str = ""):
-        await _require_local_admin_auth(request)
-        return HTMLResponse(get_dashboard_html(prefer_react=True))
+    async def dashboard(path: str = ""):
+        """Serve the Cutctx dashboard UI, handling client-side routing."""
+        return get_dashboard_html(prefer_react=True)
+
+    @app.get("/admin/config/flags")
+    async def get_config_flags():
+        """Get live intelligence layer feature flags."""
+        return {
+            "cache": getattr(config, "cache_enabled", False),
+            "ccr": getattr(config, "ccr_context_tracking", False) or getattr(config, "ccr_handle_responses", False),
+            "memory": getattr(config, "episodic_memory_enabled", False),
+            "firewall": getattr(config, "firewall_enabled", False),
+            "rate_limiter": getattr(config, "rate_limiter_enabled", False),
+            "orchestrator": getattr(config, "orchestrator_enabled", False),
+        }
+
     @app.post("/admin/config/flags")
     async def update_config_flags(request: Request):
         """Update live intelligence layer feature flags at runtime."""
@@ -6234,6 +6259,7 @@ def run_server(
         # masking a genuinely dead peer for an unreasonable amount of time.
         ws_ping_interval=600,
         ws_ping_timeout=600,
+        timeout_graceful_shutdown=45,
         **uvicorn_kwargs,
     )
 

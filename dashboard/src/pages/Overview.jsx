@@ -10,8 +10,11 @@ import {
   Table2,
   TrendingUp,
   Zap,
+  Calendar,
+  Clock,
+  Activity,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   formatCurrency,
@@ -20,7 +23,7 @@ import {
   formatPercent,
   formatRelativeTime,
 } from '../lib/format';
-import { useDashboardData } from '../lib/use-dashboard-data';
+import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 
 function SkeletonCard() {
   return (
@@ -765,12 +768,13 @@ function buildTrendBuckets({
   return buckets;
 }
 
-function TrendChart({ stats, historyData }) {
-  const [period, setPeriod] = useState('24h');
-  const [mode, setMode] = useState('historical');
-  const [referenceTime, setReferenceTime] = useState(() => Date.now());
+function TrendChart({ stats, historyData, duration }) {
+  const [referenceTime] = useState(() => Date.now());
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const recentRequestsSource = stats?.recent_requests;
+
+  const mode = duration === 'session' ? 'session' : 'historical';
+  const period = duration === 'daily' ? '24h' : duration === 'weekly' ? '7d' : '30d';
 
   const buckets = useMemo(
     () =>
@@ -805,39 +809,6 @@ function TrendChart({ stats, historyData }) {
   return (
     <div className="trend-chart-shell">
       <div className="trend-chart-header">
-        <div className="trend-chart-tabs">
-          {['session', 'historical'].map((nextMode) => (
-            <button
-              key={nextMode}
-              className={`trend-tab ${mode === nextMode ? 'active' : ''}`}
-              onClick={() => {
-                setMode(nextMode);
-                setReferenceTime(Date.now());
-                setHoveredIndex(null);
-              }}
-              type="button"
-            >
-              {nextMode === 'session' ? 'Session' : 'Historical'}
-            </button>
-          ))}
-        </div>
-        <div className="trend-chart-tabs">
-          {['24h', '7d', '30d'].map((nextPeriod) => (
-            <button
-              key={nextPeriod}
-              className={`trend-tab ${period === nextPeriod ? 'active' : ''}`}
-              onClick={() => {
-                setPeriod(nextPeriod);
-                setReferenceTime(Date.now());
-                setHoveredIndex(null);
-              }}
-              type="button"
-            >
-              {nextPeriod}
-            </button>
-          ))}
-        </div>
-
         {activeBucket ? (
           <div className="trend-hover-summary">
             <div className="trend-hover-label">{activeBucket.label}</div>
@@ -1677,9 +1648,64 @@ export default function Overview() {
     historyData,
     historyLoading,
     historyError,
-    loading,
-    error,
+    loading: contextLoading,
+    error: contextError,
   } = useDashboardData();
+
+  const [duration, setDuration] = useState('lifetime');
+  const [durationData, setDurationData] = useState(null);
+  const [durationLoading, setDurationLoading] = useState(true);
+  const [durationError, setDurationError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    
+    async function fetchData() {
+      setDurationLoading(true);
+      setDurationError(null);
+      
+      if (duration === 'session') {
+        if (historyData?.display_session) {
+          setDurationData(historyData.display_session);
+        }
+        setDurationLoading(false);
+        return;
+      }
+      
+      if (duration === 'lifetime') {
+        if (historyData?.lifetime) {
+          setDurationData(historyData.lifetime);
+        }
+        setDurationLoading(false);
+        return;
+      }
+      
+      try {
+        const data = await fetchDashboardJson(`/stats-history?series=${duration}`);
+        if (active) {
+          setDurationData(data?.history_summary || data?.lifetime || null);
+        }
+      } catch (err) {
+        if (active) {
+          setDurationError(err.message || String(err));
+        }
+      } finally {
+        if (active) {
+          setDurationLoading(false);
+        }
+      }
+    }
+    
+    fetchData();
+    
+    return () => {
+      active = false;
+    };
+  }, [duration, historyData]);
+
+  const loading = contextLoading || (durationLoading && !durationData);
+  const error = contextError || durationError;
+
   const summary = stats?.summary || {};
   const cost = stats?.cost || summary?.cost || {};
   const requests = stats?.requests || {};
@@ -1737,22 +1763,25 @@ export default function Overview() {
       Number(candidate[field] || 0) >= Number(best[field] || 0) ? candidate : best,
     );
 
-  const tokensHeadline = pickHeadlineSource('tokens');
-  const requestsHeadline = pickHeadlineSource('requests');
-  const inputHeadline = pickHeadlineSource('input');
-  const savingsHeadline = pickHeadlineSource('savingsUsd');
+  const isLifetimeMode = duration === 'lifetime';
+
+  const tokensHeadline = isLifetimeMode ? pickHeadlineSource('tokens') : { tokens: durationData?.tokens_saved || 0 };
+  const requestsHeadline = isLifetimeMode ? pickHeadlineSource('requests') : { requests: durationData?.requests || 0 };
+  const inputHeadline = isLifetimeMode ? pickHeadlineSource('input') : { input: durationData?.total_input_tokens || 0 };
+  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.compression_savings_usd || 0 };
 
   const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
   const effectiveRequests = Number(requestsHeadline.requests || 0);
   const effectiveInputTokens = Number(inputHeadline.input || 0);
-  const effectiveSavingsPercent =
-    effectiveInputTokens > 0
-      ? (effectiveTokensSaved / effectiveInputTokens) * 100
-      : Number(tokens.savings_percent || displaySession.savings_percent || 0);
+  const effectiveSavingsPercent = durationData?.savings_percent != null && !isLifetimeMode
+    ? durationData.savings_percent 
+    : (effectiveInputTokens > 0 || effectiveTokensSaved > 0 ? (effectiveTokensSaved / Math.max(effectiveInputTokens, effectiveTokensSaved)) * 100 : Number(tokens.savings_percent || displaySession.savings_percent || 0));
+
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
   const effectiveSavingsUsd = Number(savingsHeadline.savingsUsd || 0);
-  const moneySavedFootnote =
+  
+  const moneySavedFootnote = isLifetimeMode ? (
     savingsHeadline.key === 'session'
       ? sessionCostWithoutCutctx > 0
         ? `from ${formatCurrency(sessionCostWithoutCutctx)} down to ${formatCurrency(sessionCostWithCutctx)}`
@@ -1763,15 +1792,22 @@ export default function Overview() {
         ? 'Rolling session savings across compression, cache, routing, and optimization'
         : lifetimeSavingsUsd > 0
           ? 'Lifetime savings across compression, cache, routing, and optimization'
-          : 'No cost data yet';
-  const requestsFootnote =
+          : 'No cost data yet'
+  ) : (
+    duration === 'session' ? 'Current proxy-session savings' : `Estimated savings for the ${duration} period`
+  );
+
+  const requestsFootnote = isLifetimeMode ? (
     requestsHeadline.key === 'session'
       ? `${formatInteger(requests.failed || 0)} failed · ${formatInteger(requests.cached || 0)} cached`
       : requestsHeadline.key === 'display_session'
         ? 'Rolling session requests tracked'
         : effectiveRequests > 0
           ? 'Lifetime requests tracked'
-          : 'No request data yet';
+          : 'No request data yet'
+  ) : (
+    `${formatInteger(effectiveRequests)} requests in the ${duration} period`
+  );
   const persistentHistory = Array.isArray(persistent.recent_history)
     ? persistent.recent_history.slice(-8).reverse().map((entry) => ({
         model: entry.model,
@@ -1789,7 +1825,7 @@ export default function Overview() {
 
   const recentRequests =
     Array.isArray(stats?.recent_requests) && stats.recent_requests.length > 0
-      ? stats.recent_requests.slice(0, 8)
+      ? stats.recent_requests
       : persistentHistory;
 
   const sourceRows = buildSourceRows(stats);
@@ -1819,6 +1855,38 @@ export default function Overview() {
 
   return (
     <section className="page-stack">
+      <div className="tab-group" style={{ marginBottom: 'var(--space-md)' }}>
+        <button 
+          className={`tab-button ${duration === 'session' ? 'active' : ''}`}
+          onClick={() => setDuration('session')}
+        >
+          <Activity size={16} /> Current Session
+        </button>
+        <button 
+          className={`tab-button ${duration === 'daily' ? 'active' : ''}`}
+          onClick={() => setDuration('daily')}
+        >
+          <Clock size={16} /> Last 24 Hours
+        </button>
+        <button 
+          className={`tab-button ${duration === 'weekly' ? 'active' : ''}`}
+          onClick={() => setDuration('weekly')}
+        >
+          <Calendar size={16} /> Last 7 Days
+        </button>
+        <button 
+          className={`tab-button ${duration === 'monthly' ? 'active' : ''}`}
+          onClick={() => setDuration('monthly')}
+        >
+          <Calendar size={16} /> Last 30 Days
+        </button>
+        <button 
+          className={`tab-button ${duration === 'lifetime' ? 'active' : ''}`}
+          onClick={() => setDuration('lifetime')}
+        >
+          <PiggyBank size={16} /> Lifetime (All Time)
+        </button>
+      </div>
       {error ? (
         <div className="alert-card" role="alert">
           <span>Failed to load data: {error}</span>
@@ -1900,7 +1968,7 @@ export default function Overview() {
             description={`The history feed failed to load: ${historyError}`}
           />
         ) : (
-          <TrendChart stats={stats} historyData={historyData} />
+          <TrendChart key={duration} stats={stats} historyData={historyData} duration={duration} />
         )}
       </div>
 
@@ -2002,7 +2070,7 @@ export default function Overview() {
               description="Start using the proxy to see request activity here."
             />
           ) : (
-            <div className="table-shell">
+            <div className="table-shell request-table-shell">
               <table className="request-table">
                   <thead>
                     <tr>
