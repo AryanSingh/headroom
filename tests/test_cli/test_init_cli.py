@@ -275,6 +275,10 @@ def test_init_gemini_global_writes_hooks_and_env(monkeypatch, tmp_path: Path) ->
         "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:9006",
         "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:9006",
         "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:9006",
+        "GEMINI_API_BASE": "http://127.0.0.1:9006",
+        "GEMINI_API_BASE_URL": "http://127.0.0.1:9006",
+        "GEMINI_BASE_URL": "http://127.0.0.1:9006",
+        "GOOGLE_API_BASE": "http://127.0.0.1:9006",
     }
 
 

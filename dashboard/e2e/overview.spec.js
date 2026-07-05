@@ -294,4 +294,43 @@ test.describe('Overview Metrics & Panels', () => {
     await expect(autopilotPanel.getByText('Summaries', { exact: true })).toBeVisible();
     await expect(autopilotPanel.getByText('Latest adjustment: Code moved from L5 to L4 after a retrieval signal.')).toBeVisible();
   });
+  test('renders all recent requests without capping and uses scrollable container', async ({ page }) => {
+    // Generate 12 mock requests to exceed the previous 8-item limit
+    const mockRequests = Array.from({ length: 12 }, (_, i) => ({
+      request_id: `req-${i}`,
+      timestamp: `2026-07-02T04:${30 + i}:00Z`,
+      model: `gpt-4o-mini-${i}`,
+      input_tokens_original: 1000,
+      total_saved_tokens: 500,
+      tokens_saved: 100,
+      cache_saved_tokens: 400,
+    }));
+
+    await page.route('**/stats?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          summary: { cost: { total_saved_usd: 1.0 } },
+          tokens: { saved: 5000 },
+          recent_requests: mockRequests,
+          persistent_savings: { lifetime: {}, display_session: {} },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+
+    // Wait for the panel
+    const recentRequestsSection = page.locator('section.panel').filter({ hasText: 'Recent requests' });
+    await expect(recentRequestsSection).toBeVisible();
+
+    // Verify the scrollable container class is applied
+    const tableShell = recentRequestsSection.locator('.request-table-shell');
+    await expect(tableShell).toBeVisible();
+
+    // Verify all 12 items are rendered (previously it was capped at 8)
+    const rows = tableShell.locator('tbody tr');
+    await expect(rows).toHaveCount(12);
+  });
 });

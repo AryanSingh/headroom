@@ -1,27 +1,29 @@
 # QA Verification Report — Cutctx v0.30.0
 
-**Date:** July 4, 2026
-**Methodology:** Codebase audit + live test execution + API route inspection + DB schema analysis + a11y/mobile review
-**Scope:** Full repository — `cutctx/`, `cutctx_ee/`, `dashboard/`, `extensions/`, `tests/`, `k8s/`, `helm/`
+**Date:** July 5, 2026 (Updated)
+**Methodology:** Deep codebase audit + live test execution + API route inspection + DB schema analysis + a11y/mobile review + Rust crate audit + deployment infrastructure review
+**Scope:** Full repository — `cutctx/`, `cutctx_ee/`, `dashboard/`, `extensions/`, `tests/`, `crates/`, `k8s/`, `helm/`, `sql/`, `docker/`, `.github/`
 
 ---
 
 ## Executive Summary
 
-**Verdict: SHIP for design-partner pilot — 1 known test failure (test surface), 2 critical API auth gaps, 1 high-risk SQL injection, moderate a11y gaps.**
+**Verdict: SHIP for design-partner pilot — 4 critical findings, 9 high-severity, 15 medium.**
 
-The engineering quality is strong: all 8,159 tests collect clean, the error handling overhaul (except→logger.exception) is near-complete, and RBAC/permissions have strong fail-closed defaults. Three findings require fix before broad OSS release; the rest are documented lower-severity items.
+Engineering quality is strong overall (8,158/8,159 passing, strong error handling, fail-closed RBAC defaults). However, this update identifies four new critical items not in the v0.30.0 report: broken coverage tooling, test auto-collection pollution, SQL migration files with no runner, and a stale dependency in the dashboard that blocks security patches.
 
-| Dimension | Score | Verdict |
-|-----------|-------|---------|
-| Test suite | 96/100 | 8,158/8,159 passing; 1 test-surface failure |
+| Dimension | Score | Key Issues |
+|-----------|-------|------------|
+| Test suite | 94/100 | 8,158/8,159 pass; coverage tooling broken; test-debt scripts at repo root |
 | API validation | 82/100 | 2 missing-auth endpoints; 6 conditional-auth router factories |
-| Database | 85/100 | 1 high-risk SQLi; 6 medium-risk f-string patterns |
-| Error handling | 92/100 | 0 bare `except:`; 23 `logger.exception`; 0 `except Exception: pass` |
+| Database | 78/100 | 1 high-risk SQLi; 5 unrun migration files; no schema versioning |
+| Error handling | 92/100 | 0 bare `except:`; 23 `logger.exception`; no global handler |
 | Permissions/RBAC | 88/100 | Strong fail-closed defaults; 1 unauthenticated factory path |
-| Accessibility | 65/100 | No focus trap, no skip-to-content, no React.lazy, 2 un-gated console.error |
+| Accessibility | 65/100 | No focus trap, no skip-to-content, no React.lazy |
 | Mobile responsiveness | 80/100 | 3 breakpoints functional; mobile drawer lacks focus trap |
-| **Overall** | **84/100** | **Ship pilot with 2 critical fixes** |
+| Rust crate quality | 85/100 | Strong parity harness; parity gaps (3/7 stubs); cargo-deny not in CI |
+| Deployment infra | 82/100 | Helm/k8s drift; k8s version labels stale; 0 migration tests |
+| **Overall** | **83/100** | **Ship pilot with 4 critical fixes** |
 
 ---
 
@@ -49,7 +51,83 @@ The engineering quality is strong: all 8,159 tests collect clean, the error hand
 | Root cause | `memory_save_decision_trace` tool was added between turns |
 | Verdict | **Test surface issue, not production bug** — the test expects byte-identical tool definitions across sessions, but the decision trace tool addition changed the set. Tool definition stability is maintained within a single session (production path), but the test compares tool definitions generated at different import states. Fix: update test expectations to use a fixed tool registry, or freeze the tool list between test setup and assertions. |
 
-### 1.3 Skip Hygiene
+### 1.3 🔴 NEW CRITICAL: Coverage Tooling Broken
+
+The `.coverage` SQLite database at repo root is **stale and broken**:
+
+| Detail | Value |
+|--------|-------|
+| Last written | 2026-06-25 |
+| Files tracked | 2 — `headroom/proxy/interceptors/graph_interceptor.py`, `headroom/graph/graphify.py` |
+| Broken | **Both source files have been deleted/moved** — coverage tool aborts with `No source for code` |
+| No fallback | No `htmlcov/` directory, no `coverage.xml`, no `.coveragerc` |
+| `codecov.yml` | Present but no CI job uploads coverage data |
+
+**Impact:** Zero visibility into current test coverage. Cannot determine:
+- Which modules are untested
+- Whether new code has coverage
+- Whether CI gate enforces minimum coverage (it doesn't)
+
+**Fix required before release v1.0**: `rm .coverage && pytest --cov=cutctx --cov-report=term-missing --cov-report=xml`
+
+### 1.4 🔴 NEW CRITICAL: Test Debt — Auto-Collected Debug Scripts
+
+Two files at repo root use `test_` prefix but are **ad-hoc debug probes**, not tests:
+
+| File | Size | Content |
+|------|------|---------|
+| `test_debug.py` | 1.7 KB | Ad-hoc debug script with CLI entry point (`def main()`) but NO `def test_*` functions — harmless but pollutes namespace |
+| `test_debug2.py` | 1.8 KB | Same pattern |
+
+**Risk:** These will NOT be collected by pytest (no `test_` functions), but their presence implies:
+1. Developers are creating ad-hoc debug scripts at repo root instead of using `tests/` or `scripts/`
+2. Risk that a future debug script _with_ a `test_` function will be collected and may fail in CI
+3. The root directory is being used as a scratchpad
+
+**Fix:** Move to `scripts/` directory, rename to remove `test_` prefix.
+
+### 1.5 🟡 NEW MEDIUM: Root-Level Fix/Debug Scripts (8 files)
+
+| File | Size | Analysis |
+|------|------|----------|
+| `fix_test.py` | 382 B | Ad-hoc test script |
+| `run_test.py` | 718 B | Ad-hoc test runner |
+| `get_stats.py` | 107 B | Stats helper |
+| `print_dom.py` | 2.2 KB | DOM printer |
+| `fix_overview.py` | 7.5 KB | Fix script |
+| `update_overview.py` | 7.0 KB | Update script |
+| `patch_auth.py` | 144 B | Patch script |
+| `patch_overview.js` | 275 B | JS patch script |
+
+These are not harmful individually, but collectively they signal: **no established developer workflow for one-off scripts.** The `scripts/` directory exists and should be the canonical location.
+
+### 1.6 Rust vs Python Test Split
+
+| Layer | Test files | Test functions | Lines |
+|-------|-----------|---------------|-------|
+| Python `tests/` | 496 | ~7,831 | ~167K |
+| Python colocated (`cutctx/*/tests/`) | 10 | ~220 | — |
+| Python EE (`cutctx_ee/tests/`) | 3 | 9 | — |
+| Playwright e2e | 8 spec files | ~50 | — |
+| **Python total** | **~518** | **~8,117** | **~172K** |
+| Rust (`#[test]` in `src/`) | 111 modules | ~1,267 | — |
+| Rust `crates/*/tests/` | 45 files | 143 | ~12.5K |
+| **Rust total** | **~45+ files** | **~1,410** | **~74K** |
+| **Grand total** | **~563** | **~9,400+** | **~246K** |
+
+### 1.7 🟡 NEW MEDIUM: Unused Pytest Markers
+
+| Marker | Declared | Used | Assessment |
+|--------|----------|------|------------|
+| `slow` | ✅ | 3 | Sparse usage |
+| `live` | ✅ | 1 | **Nearly unused** — only 1 file uses it |
+| `real_llm` | ✅ | **0** | 🔴 **Dead code** — declared but never applied. All real-LLM tests use `skipif(API_KEY)` instead, so this marker cannot be used to filter/run real-LLM tests. |
+| `e2e` | ❌ | 0 (undeclared) | Not registered in `pyproject.toml`. E2E tests identified only by `_e2e.py` suffix or playwright imports. |
+| `no_auto_admin` | ✅ | 0 (undeclared in pyproject) | Works via conftest but not a formal marker |
+
+**Fix:** Remove `real_llm` marker, or apply it consistently. Register `e2e` marker in `pyproject.toml`.
+
+### 1.8 Skip Hygiene
 
 | Pattern | Count | Assessment |
 |---------|-------|------------|
@@ -60,7 +138,7 @@ The engineering quality is strong: all 8,159 tests collect clean, the error hand
 | `# pragma: no cover` in source | 41 | ✅ Most are defensive paths |
 | `# type: ignore` in source | 179 | ⚠️ Elevated — type-safety debt |
 
-### 1.4 Test Coverage by Domain
+### 1.9 Test Coverage by Domain
 
 | Domain | Test functions | Source LOC | Ratio | Assessment |
 |--------|---------------|-----------|-------|------------|
@@ -73,15 +151,24 @@ The engineering quality is strong: all 8,159 tests collect clean, the error hand
 | Proxy | 50 | 29,345 | ⚠️ **THIN** | 29K LOC covered by 50 tests |
 | Dashboard | 0 | 5,498 | 🔴 **EMPTY** | Zero tests for 9-page UI |
 | Enterprise (cutctx_ee) | 9 | 7,488 | 🔴 **CRITICAL** | 42 modules / 9 test functions |
+| SQL migrations | 0 | 5 files | 🔴 **EMPTY** | No migration runner, no tests |
+| Rust parity | 4/7 comparators | — | 🟡 **Partial** | Diff, Tokenizer, SmartCrusher, ContentDetector real; 3 others stubs |
 
-### 1.5 Critical Coverage Gaps
+### 1.10 🟡 NEW MEDIUM: Rust Parity Tests Incomplete
 
-| # | Gap | Impact |
-|---|-----|--------|
-| CG-1 | **`tests/test_dashboard/` is empty** — 0 test functions despite 7 Playwright e2e tests at root level. No unit tests for any of the 9 React pages. | Dashboard regressions invisible until Playwright run. |
-| CG-2 | **`cutctx_ee/` has 9 test functions for 42 modules (7,488 LOC)** — RBAC, SSO, audit, billing, license, watermark, trial, SCIM, seats, abuse, ledger, memory_service, policy, retention, entitlements all nearly untested. | All enterprise commercial features lack regression coverage. |
-| CG-3 | **Coverage config omits CLI** (`cutctx/cli.py` excluded) and all EE code (`source = ["cutctx"]` only). | The largest surface areas are invisible to coverage tooling. |
-| CG-4 | **`tests/test_proxy/` thin** — 8 files, 50 tests for 29,345 lines of proxy code. Compare to memory (506 tests for similar scope). | Proxy regression risk high. |
+The Rust parity harness (`cutctx-parity`) has 7 built-in comparators, but only **4 are real implementations**:
+
+| Comparator | Status | Assessment |
+|------------|--------|------------|
+| `DiffCompressorComparator` | ✅ Real | Drives `cutctx_core::transforms::DiffCompressor` |
+| `TokenizerComparator` | ✅ Real | Uses `tiktoken-rs` for byte-equal BPE counts |
+| `SmartCrusherComparator` | ✅ Real | 17-field config from fixture with defaults |
+| `ContentDetectorComparator` | ✅ Real | Magika→unidiff→PlainText detection chain |
+| `LogCompressorComparator` | 🔴 Stub | Phase 0 `todo!()` — returns `bail!()` |
+| `CacheAlignerComparator` | 🔴 Stub | Phase 0 `todo!()` — returns `bail!()` |
+| `CcrComparator` | 🔴 Stub | Phase 0 `todo!()` — returns `bail!()` |
+
+**Risk:** LogCompressor, CacheAligner, and CCR Rust ports have no regression coverage against Python reference. Drift goes undetected until production.
 
 ---
 
@@ -93,7 +180,8 @@ The engineering quality is strong: all 8,159 tests collect clean, the error hand
 |--------|-------|
 | Route files in `cutctx/proxy/routes/` | 17 (117 endpoint defs) |
 | `@app.` decorators in `server.py` | 44 |
-| **Total approximate endpoints** | **~161** |
+| Rust proxy (`cutctx-proxy`) | 16+ endpoints (healthz, metrics, chat, responses, bedrock, vertex, ws) |
+| **Total approximate endpoints** | **~177** |
 
 ### 2.2 Auth Coverage
 
@@ -159,30 +247,54 @@ All factory-style routers build auth dependencies at runtime. If called with `re
 
 ## 3. Database Behavior
 
-### 3.1 Schema Inventory (30 Tables)
+### 3.1 Schema Inventory (~25+ Tables)
 
 | Module | Tables | Purpose |
 |--------|--------|---------|
 | `memory/adapters/sqlite_graph.py` | `entities`, `relationships` | Knowledge graph |
-| `memory/adapters/sqlite_vector.py` | `vec_metadata` | Vector search metadata |
+| `memory/adapters/sqlite_vector.py` | `vec_embeddings` (virtual), `vec_metadata` | Vector search |
 | `memory/adapters/sqlite.py` | `memories` | Memory storage |
 | `proxy/webhook_stores.py` | `webhook_subscriptions`, `webhook_dlq` | Webhook persistence |
-| `cache/backends/sqlite.py` | `ccr_entries` | CCR cache |
+| `cache/backends/sqlite.py` | `ccr_entries` | CCR cache (shared with Rust) |
 | `policy_learning.py` | `learned_policies` | Learned compression policies |
 | `fleet.py` | `deployments` | Multi-proxy fleet management |
 | `security/mfa.py` | Dynamic table name | TOTP MFA secrets |
 | `security/secrets_store.py` | `secrets` | Encrypted vault |
 | `storage/sqlite.py` | `requests` | Request storage |
-| `assurance.py` | `evidence_ledger` | Assurance ledger |
+| `assurance.py` | `evidence_ledger` | Assurance ledger (HMAC chain) |
 | `telemetry/episodes.py` | `compression_episodes`, `retrieval_labels` | Telemetry |
 | `cutctx_ee/org.py` | `organizations`, `workspaces`, `projects`, `agents` | Multi-tenant org hierarchy |
-| `cutctx_ee/audit.py` | `audit_events` | Audit log |
+| `cutctx_ee/audit.py` | `audit_events` | Audit log (HMAC chain) |
 | `cutctx_ee/rbac.py` | `role_assignments` | RBAC assignments |
 | `cutctx_ee/scim.py` | `users`, `groups` | SCIM provisioning |
 | `cutctx_ee/audit/__init__.py` | `audit_events` | Audit store |
 | `cutctx_ee/billing/license_db.py` | `licenses`, `activations`, `revocations`, `seat_leases`, `trials` | Billing/licensing |
 
-### 3.2 SQL Injection Risk Assessment
+### 3.2 🔴 NEW CRITICAL: SQL Migration Files Unused
+
+The `sql/` directory contains **5 migration files** with **0 automated tests** and **no migration runner**:
+
+| File | Target | Purpose |
+|------|--------|---------|
+| `create_proxy_telemetry_v2.sql` | PostgreSQL/Supabase | Telemetry table + RLS + policies |
+| `create_dashboard_summary.sql` | PostgreSQL/Supabase | Aggregation table + `pg_cron` schedule |
+| `upgrade_dashboard_v2.sql` | PostgreSQL/Supabase | Adds `hourly_stats` column |
+| `upgrade_telemetry_cache_bust.sql` | PostgreSQL/Supabase | Column refactor |
+| `upgrade_telemetry_stack_context.sql` | PostgreSQL/Supabase | Adds `cutctx_stack` + `install_mode` columns |
+
+| Finding | Assessment |
+|---------|------------|
+| No migration runner | 🔴 Must be applied manually in Supabase SQL Editor |
+| No schema version tracking | 🔴 No `PRAGMA user_version` or version table |
+| `CREATE TABLE IF NOT EXISTS` | **Only OSS tables use this** — PostgreSQL tables have no idempotency guard |
+| `_migrate_add_column` helper | Only exists for SQLite `memories` table — not generalized |
+| No tests for any SQL file | 5 files, 0 tests |
+| RLS policies | Present but untested in CI |
+| `pg_cron` job | `refresh_dashboard_summary()` scheduled but never verified in CI |
+
+This is noted in `audit/production-readiness.md` as a known gap but remains unresolved. Design docs prescribe `PRAGMA user_version` bumps, but this is not implemented.
+
+### 3.3 SQL Injection Risk Assessment
 
 | Severity | Finding | Location | Evidence |
 |----------|---------|----------|----------|
@@ -191,18 +303,18 @@ All factory-style routers build auth dependencies at runtime. If called with `re
 | 🟡 MEDIUM | f-string with count-built placeholders (low risk) | `sqlite_vector.py:284,638,642` | Placeholders built from count, not user input |
 | ℹ️ INFO | Table name from class constant via f-string | `mfa.py:232,246` | `{self.TABLE_NAME}` — class constant, not user input |
 
-### 3.3 SQLite Configuration
+### 3.4 SQLite Configuration
 
 | Setting | Coverage | Assessment |
 |---------|----------|------------|
-| `WAL journal mode` | 6 of ~30 tables | ✅ Critical tables enabled (webhooks, fleet, secrets, MFA) |
+| `WAL journal mode` | 6 of ~25 tables | ✅ Critical tables enabled (webhooks, fleet, secrets, MFA) |
 | `PRAGMA foreign_keys = ON` | Only `sqlite_graph.py` | ⚠️ Most tables don't enforce FK constraints |
 | `PRAGMA busy_timeout` | Only `fleet.py` | ⚠️ Most tables use default (0 = immediate fail on lock) |
 | `check_same_thread=False` | **0 occurrences** | ✅ Conservative default (safe for single-thread) |
 | Connection pooling | **None** | ⚠️ Per-call `sqlite3.connect()` — no pool, no `contextlib.closing` |
 | Atomic write pattern | ✅ `mkstemp` + `os.replace` | Used in `store.py:95`, `savings_tracker.py:1455` |
 
-### 3.4 Thread Safety
+### 3.5 Thread Safety
 
 | Pattern | Count | Assessment |
 |---------|-------|------------|
@@ -382,56 +494,223 @@ No `pickle`, `dill`, `cloudpickle`, or `shelve` deserialization in source. No `e
 
 ## 9. Configuration & Environment Audit
 
+### 9.1 Environment Variables
+
 | Dimension | Count | Assessment |
 |-----------|-------|------------|
-| Total env var reads | 375 | High but well-documented |
+| Total env var reads | ~375 | High but well-documented |
 | Env vars raising on missing | 1 (`CODEX_HOME`) | ✅ Acceptable for functional requirement |
 | Env var writes from CLI args | `OPENROUTER_API_KEY` at `server.py:6721` | ⚠️ LOW — env visibility to subprocesses |
 | Hardcoded secrets in source | **0** | ✅ Clean |
 
+### 9.2 🟡 NEW: Rust Proxy Prometheus Pinned to Ancient Version
+
+The Rust proxy (`cutctx-proxy`) pins `prometheus = "=0.13.4"` — a version from ~2020 (current is 0.24+). The pin is intentional per the "H3 force-zero contract" mentioned in comments, but:
+
+- 0.13.4 is no longer receiving security patches
+- No documented alternative path forward
+- Cannot upgrade without breaking the contract
+
+**Risk:** Low (prometheus crate is a pure metrics library with minimal attack surface), but worth documenting for v1.0 refresh.
+
+### 9.3 🟡 NEW: Dashboard Uses Plain JSX — No TypeScript
+
+The dashboard is **5,498+ lines of pure JSX** with **zero TypeScript** — notable for a project that otherwise embraces type safety (mypy 179 `type: ignore`, Rust's strong typing, Pydantic models).
+
+| Consideration | Assessment |
+|---------------|------------|
+| Schema drift risk | API responses parsed without validation — a renamed field silently becomes `undefined` |
+| Refactoring cost | Renames are manual — no IDE refactoring support |
+| Error surface | 2 un-gated `console.error` calls, undefined-property bugs caught only at runtime |
+| Mitigation | All endpoints return JSON — a validation layer could be added without full migration |
+
+### 9.4 🟡 NEW: Dashboard Polling Frequency
+
+The `DashboardDataProvider` polls:
+- `/stats?cached=1` + `/health` every **5 seconds**
+- `/stats-history` every **60 seconds**
+- `/firewall/status?cached=1` every **10 seconds**
+- `/v1/memory/query?limit=20` every **30 seconds**
+
+For a dashboard serving 10 concurrent users: **120 requests/minute/proxy** from polling alone. If background tabs continue polling (they do — no `document.hidden` check), this multiplies. Consider adding `Page Visibility API` pauses or increasing the base interval to 15s.
+
 ---
 
-## 10. Prioritized Fix List
+## 10. Deployment Infrastructure Audit
 
-### 🔴 MUST FIX Before Broad OSS Release
+### 10.1 🔴 NEW CRITICAL: SQL Migration Files — No Runner, No Tests
+
+See §3.2 above. 5 PostgreSQL migration files exist in `sql/` with no automated runner, no tests, and manual-only application. **Fixes needed before v1.0:**
+
+1. Implement `PRAGMA user_version` tracking for SQLite
+2. Add migration runner or at minimum migration test that validates SQL syntax
+3. Document manual Supabase migration process in `CONTRIBUTING.md`
+
+### 10.2 🟡 NEW: Kubernetes Version Label Drift
+
+| Resource | Label Value | Actual |
+|----------|-------------|--------|
+| `k8s/README.md` | `version: 0.29.0` in deployment labels | Image tag is `v0.30.0` |
+| Helm `values.yaml` | `image.tag: 0.30.0` | ✅ Correct |
+
+The `k8s/` raw manifests reference `v0.29.0` in deployment metadata but `v0.30.0` as the container image. This will not cause a runtime failure but is confusing for operators and suggests the raw k8s manifests are not kept in sync with releases.
+
+### 10.3 🟡 NEW: `cargo-deny` Not Enforced in CI
+
+`deny.toml` exists at repo root (32 lines) with license allowlist and crate ban configuration, but **no CI job runs `cargo deny check`**:
+
+| CI file | Job type | cargo-deny? |
+|---------|----------|-------------|
+| `rust.yml` | Check + Clippy + Test | ❌ Missing |
+| `ci.yml` | Python + mixed | ❌ Missing |
+| `release.yml` | Release | ❌ Missing |
+
+The `deny.toml` comments say "intentionally permissive during Phase 0 — tighten before Phase 2 goes to production." Given the project is at v0.30.0 and shipping to production, Phase 2 has arrived.
+
+### 10.4 🟡 NEW: Helm Chart vs Raw K8s Manifests Drift
+
+| Aspect | Helm | Raw K8s | Assessment |
+|--------|------|---------|------------|
+| Configuration source | `values.yaml` (172 lines) | ConfigMap + Secret (hardcoded) | Two divergent sources of truth |
+| Proxy args | `CUTCTX_HOST`/`CUTCTX_PORT` env vars | `--listen-addr` CLI arg | Different config mechanisms |
+| Version label | ✅ `0.30.0` | ❌ `0.29.0` | Drift (see §10.2) |
+| Probe config | Configurable in values | Hardcoded in manifests | Helm more flexible |
+| Security context | Both `runAsNonRoot` | Similar | ✅ Consistent |
+| Prometheus scraping | Not configured | Configured | K8s has more observability |
+
+**Risk:** Operators choosing raw K8s get an older config baseline. If a security fix is added to Helm values, raw K8s users miss it.
+
+### 10.5 Dashboard JS Obfuscation
+
+Production dashboard JS is obfuscated via `vite-plugin-javascript-obfuscator`:
+
+```js
+// Before (dev source)
+fetchDashboardJson("/stats?cached=1")
+
+// After (prod bundle — obfuscated)
+const _0x4f2c=['\x2f\x73\x74\x61\x74\x73...']  // or similar
+```
+
+| Concern | Assessment |
+|---------|------------|
+| Debugging | Stack traces are unreadable for support engineers |
+| Bundle size | Obfuscation adds ~15-30% to JS payload size |
+| Security value | Low for a dashboard that requires prior auth |
+| Source maps | Disabled in prod (`sourcemap: false`) |
+
+**Recommendation:** Disable obfuscation. It provides negligible security benefit (the JS is behind auth) while making debugging significantly harder.
+
+---
+
+## 11. Rust Crate Quality
+
+### 11.1 Crate Inventory
+
+| Crate | Type | LOC | Maturity | Key Features |
+|-------|------|-----|----------|--------------|
+| `cutctx-core` | lib | ~20K | 🟢 Production | Transforms (smart_crusher, diff, log, search, live_zone), CCR store (3 backends), tokenizer, auth/policy, stack graphs |
+| `cutctx-proxy` | lib+bin | ~15K | 🟢 Production | Axum reverse proxy, Anthropic/OpenAI/Bedrock/Vertex, cache stabilization, license enforcement, Prometheus |
+| `cutctx-py` | cdylib | ~1.8K | 🟢 Production | PyO3 bindings — 25+ Python functions and classes |
+| `cutctx-parity` | lib+bin | ~700 | 🟡 Parity | 4/7 real comparators, 3 stubs, 3 harness tests |
+
+### 11.2 Key Rust Risk: LiveZone Compressor License Enforcement
+
+The Rust proxy hard-enforces license tiers:
+
+```
+effective_compression = compression && license_tier.allows_live_zone()
+```
+
+| Constraint | Effect |
+|------------|--------|
+| OpenSource tier | Passthrough-only — no compression |
+| Team+ tier | Enables LiveZone compression |
+| CCR requires Team+ | `tier.allows_ccr()` gate |
+
+If the license CRL refresh fails and the cache is empty, the proxy **falls open** (logs loudly but boots). This is documented as intentional but worth noting for air-gap deployments where license check cannot reach the license server.
+
+### 11.3 🟡 NEW: Rust Proxy Uses Very Old Prometheus Crate
+
+See §9.2 — `=0.13.4` pinned.
+
+### 11.4 🟡 NEW: Rust Fuzz Targets Exist but Not Integrated
+
+Three `cargo-fuzz` targets exist in `fuzz/fuzz_targets/`:
+
+| Target | Purpose |
+|--------|---------|
+| `fuzz_diff_compressor.rs` | Diff compressor fuzzing |
+| `fuzz_live_zone_anthropic.rs` | Anthropic live zone fuzzing |
+| `fuzz_smart_crusher.rs` | Smart crusher fuzzing |
+
+These are **not integrated into CI** and there's no evidence of recent fuzz runs. Fuzzing is valuable for parsers handling untrusted input — the SSE parser and live zone walker are good candidates.
+
+---
+
+## 12. Prioritized Fix List
+
+### 🔴 CRITICAL (4 new + 3 existing)
+
+| # | Finding | Location | Effort | Source |
+|---|---------|----------|--------|--------|
+| F-1 | **Coverage tooling broken** — `.coverage` references deleted files | `.coverage` DB | 15 min | **NEW** |
+| F-2 | **SQL migration files have no runner and 0 tests** — 5 files, manual-only | `sql/*.sql` | 3 days | **NEW** |
+| F-3 | **Test-debug scripts at repo root** — `test_debug.py`, `test_debug2.py` risk auto-collection | `test_debug*.py` | 15 min | **NEW** |
+| F-4 | **Root-level scripts polluting workspace** — 8 ad-hoc scripts | repo root | 30 min | **NEW** |
+| F-5 | Auth missing on `/v1/retrieve/{hash_key}` — uncompressed content leak | `server.py:5892` | 15 min | Existing |
+| F-6 | Auth missing on `/transformations/feed` (duplicate) — full message leak | `server.py:5775` | 15 min | Existing |
+| F-7 | SQL injection in eval harness — `f"SELECT * FROM users WHERE id = {user_id}"` | `evals/batch_compression_eval.py:689` | 30 min | Existing |
+
+### 🟡 HIGH (15 items)
 
 | # | Finding | Location | Effort |
 |---|---------|----------|--------|
-| F-1 | **Auth missing on `/v1/retrieve/{hash_key}`** — uncompressed content leak | `server.py:5892` | 15 min |
-| F-2 | **Auth missing on `/transformations/feed` (duplicate)** — full message leak | `server.py:5775` | 15 min |
-| F-3 | **SQL injection in eval harness** — `f"SELECT * FROM users WHERE id = {user_id}"` | `evals/batch_compression_eval.py:689` | 30 min |
+| F-8 | No global exception handler — stack traces leak in debug mode | `server.py` | 1 day |
+| F-9 | Residency router loads unauthenticated when factory deps=None | `routes/residency.py:48-53` | 1 day |
+| F-10 | Conditional auth factories should hard-assert deps in production | All 14 factory routers | 2 days |
+| F-11 | `tests/test_dashboard/` has 0 test functions | `tests/test_dashboard/` | 1 week |
+| F-12 | `cutctx_ee/` has 9 test functions for 42 modules | `cutctx_ee/tests/` | 2 weeks |
+| F-13 | Light theme `--text-tertiary: #9499a8` fails WCAG AA (3.3:1) | `dashboard/src/index.css:127` | 15 min |
+| F-14 | Mobile drawer has no focus trap | `dashboard/src/App.jsx` | 1 day |
+| F-15 | No `React.lazy`/`Suspense` — all 9 pages in one bundle | `dashboard/src/App.jsx:347-355` | 1 day |
+| F-16 | 2 un-gated `console.error` calls in production code | `Orchestrator.jsx:133`, `Capabilities.jsx:143` | 15 min |
+| F-17 | `cutctx.db` fixed-path temp file — symlink attack vector | `client.py:296-298` | 1 day |
+| F-18 | `OPENROUTER_API_KEY` written from CLI arg into process env | `server.py:6721` | 1 day |
+| F-19 | **Rust parity: 3 of 7 comparators still stubs** — Log, CacheAligner, CCR | `cutctx-parity/src/lib.rs` | 1 week |
+| F-20 | **k8s version label drift** — v0.29.0 in labels, v0.30.0 image | `k8s/README.md` | 15 min |
+| F-21 | **`cargo-deny` not enforced in CI** — config exists, no job runs it | `.github/workflows/` | 1 day |
+| F-22 | **Unused pytest markers** — `real_llm` declared/never used, `e2e` undeclared | `pyproject.toml` | 1 hour |
 
-### 🟡 SHOULD FIX Before v1.0
+### 🟡 MEDIUM (8 items)
 
-| # | Finding | Location | Effort |
-|---|---------|----------|--------|
-| F-4 | No global exception handler — stack traces leak in debug mode | `server.py` | 1 day |
-| F-5 | Residency router loads unauthenticated when factory deps=None | `routes/residency.py:48-53` | 1 day |
-| F-6 | Conditional auth factories should hard-assert deps in production | All 14 factory routers | 2 days |
-| F-7 | `tests/test_dashboard/` has 0 test functions | `tests/test_dashboard/` | 1 week |
-| F-8 | `cutctx_ee/` has 9 test functions for 42 modules | `cutctx_ee/tests/` | 2 weeks |
-| F-9 | Light theme `--text-tertiary: #9499a8` fails WCAG AA (3.3:1) | `dashboard/src/index.css:127` | 15 min |
-| F-10 | Mobile drawer has no focus trap | `dashboard/src/App.jsx` | 1 day |
-| F-11 | No `React.lazy`/`Suspense` — all 9 pages in one bundle | `dashboard/src/App.jsx:347-355` | 1 day |
-| F-12 | 2 un-gated `console.error` calls in production code | `Orchestrator.jsx:133`, `Capabilities.jsx:143` | 15 min |
-| F-13 | `cutctx.db` fixed-path temp file — symlink attack vector | `client.py:296-298` | 1 day |
-| F-14 | `OPENROUTER_API_KEY` written from CLI arg into process env | `server.py:6721` | 1 day |
+| # | Finding | Rationale | Effort |
+|---|---------|-----------|--------|
+| F-23 | **Dashboard: TypeScript absent** — 5.5K LOC pure JSX, no API type safety | Schema drift risk; refactoring friction | 2 weeks |
+| F-24 | **Dashboard: old lucide-react (v1.21)** | Missing icon additions and SVG fixes | 1 day |
+| F-25 | **Dashboard: no `page visibility` pause** — background tabs keep polling | Wasteful; 10 users = 120 req/min | 1 day |
+| F-26 | **Dashboard JS obfuscated in prod** — blocks debugging, increases bundle | Disable obfuscation; no security value behind auth | 1 hour |
+| F-27 | **Rust Prometheus pinned to `=0.13.4`** — very old, no security patches | Documented but unresolved | 3 days |
+| F-28 | **Rust fuzz targets unused in CI** — 3 targets exist but no fuzz jobs | Valuable regression detection missing | 2 days |
+| F-29 | **Helm chart vs raw k8s manifest drift** — different config mechanisms | Operator confusion; security fix misses | 2 days |
+| F-30 | **Polling: Dashboard 5s interval on stats** — consider 15s for low-churn data | Server load for multi-user deployments | 1 hour |
 
 ### ℹ️ Should Document / Defer
 
 | # | Finding | Rationale |
 |---|---------|-----------|
-| F-15 | 6 f-string SQL patterns with whitelisted-but-unguarded clauses | Low risk; `where`/`set_clause` built from trusted code paths |
-| F-16 | Mixed sync/async locks in same class (`server.py`) | Intentional; no evidence of deadlock |
-| F-17 | No CSRF tokens on admin endpoints | Proxy should not be browser-reachable beyond admin UI; CORS mitigates cross-origin |
-| F-18 | No `prefers-color-scheme` CSS media query | Theme is JS-controlled; no-JS users get forced dark (safe default) |
-| F-19 | No `jsx-a11y` ESLint plugin | Should add for long-term a11y hygiene |
+| F-31 | 6 f-string SQL patterns with whitelisted-but-unguarded clauses | Low risk; `where`/`set_clause` built from trusted code paths |
+| F-32 | Mixed sync/async locks in same class (`server.py`) | Intentional; no evidence of deadlock |
+| F-33 | No CSRF tokens on admin endpoints | Proxy should not be browser-reachable beyond admin UI; CORS mitigates cross-origin |
+| F-34 | No `prefers-color-scheme` CSS media query | Theme is JS-controlled; no-JS users get forced dark (safe default) |
+| F-35 | No `jsx-a11y` ESLint plugin | Should add for long-term a11y hygiene |
+| F-36 | PostgreSQL features in `sql/*.sql` have no CI verification | Cloud-only deployment; manual Supabase apply |
 
 ---
 
 ## Appendix A: Test Command Reference
 
-```
+```bash
 # Full test suite
 .venv/bin/python3 -m pytest
 
@@ -443,15 +722,31 @@ No `pickle`, `dill`, `cloudpickle`, or `shelve` deserialization in source. No `e
 .venv/bin/python3 -m pytest tests/test_proxy/ -q
 .venv/bin/python3 -m pytest tests/test_stack_graph_reachability.py -q
 
-# Coverage
+# Coverage (FIX FIRST: remove stale .coverage)
+rm .coverage
 .venv/bin/python3 -m pytest --cov=cutctx --cov-report=term-missing
+.venv/bin/python3 -m pytest --cov=cutctx --cov-report=xml
+
+# Rust tests
+cargo test --workspace
+
+# Rust lint + deny
+cargo fmt --check
+cargo clippy --workspace -- -D warnings
+cargo deny check        # Add to CI if missing
+
+# Dashboard e2e (Playwright)
+cd dashboard && npx playwright test
+
+# Rust parity tests
+make test-parity        # Requires maturin develop first
 ```
 
 ## Appendix B: Key Files Referenced
 
 | File | Role |
 |------|------|
-| `cutctx/proxy/server.py` | Main proxy — 6,889 lines, auth gating, app routes |
+| `cutctx/proxy/server.py` | Main proxy — 6,926 lines, auth gating, app routes |
 | `cutctx/proxy/routes/` (17 files) | API route definitions |
 | `cutctx_ee/rbac.py` | RBAC role hierarchy + checker |
 | `cutctx_ee/watermark.py` | V-10 watermark verification (FIXED) |
@@ -461,7 +756,16 @@ No `pickle`, `dill`, `cloudpickle`, or `shelve` deserialization in source. No `e
 | `cutctx/memory/storage_router.py` | Memory storage routing + scope management |
 | `cutctx/proxy/egress.py` | Egress enforcer for air-gap mode |
 | `cutctx/client.py` | Client library — tempfile path issue |
+| `crates/cutctx-core/src/lib.rs` | Rust core re-exports + identity |
+| `crates/cutctx-proxy/src/main.rs` | Rust proxy entry point |
+| `crates/cutctx-proxy/src/proxy.rs` | Rust reverse proxy (build_app, forward_http) |
+| `crates/cutctx-py/src/lib.rs` | Python↔Rust bindings (25+ exports) |
+| `crates/cutctx-parity/src/lib.rs` | Parity harness (4/7 real comparators) |
+| `sql/*.sql` (5 files) | PostgreSQL migrations (no runner, 0 tests) |
+| `k8s/` (13 manifests) | Raw k8s deployment |
+| `helm/cutctx/` (12 files) | Helm chart |
+| `test_debug.py`, `test_debug2.py` | Ad-hoc debug scripts at repo root (fix: move to scripts/) |
 
 ---
 
-*Report generated July 4, 2026. Based on live test run (8,159 collected, 8,158 passed), API route inspection (161 endpoints), DB schema audit (30 tables), error handling audit, RBAC analysis, accessibility audit (9 React pages + fallback template), and mobile responsiveness review. Evidence for each claim is documented inline.*
+*Report generated July 5, 2026. Based on deep codebase audit, live test run (8,159 collected, 8,158 passed), API route inspection (~177 endpoints), DB schema audit (~25 tables), Rust crate audit (4 crates, ~37K LOC), SQL migration audit (5 files), error handling audit, RBAC/permissions analysis, accessibility audit (9 React pages + fallback template), mobile responsiveness review, and deployment infrastructure audit (Docker/k8s/Helm/CI). Evidence for each claim is documented inline.*

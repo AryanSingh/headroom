@@ -26,7 +26,13 @@ from cutctx.proxy.savings_metadata import extract_savings_metadata
 logger = logging.getLogger("cutctx.proxy")
 
 DEFAULT_CLOUDCODE_API_URL = "https://cloudcode-pa.googleapis.com"
-ANTIGRAVITY_DAILY_API_URL = "https://daily-cloudcode-pa.sandbox.googleapis.com"
+# Google renamed this endpoint at some point after this constant was first
+# written (it no longer has a ".sandbox." segment) — confirmed against a live
+# Antigravity IDE 2.0.4 install's actual `language_server --cloud_code_endpoint`
+# launch flag. Overridable via env for when Google moves it again.
+ANTIGRAVITY_DAILY_API_URL = os.environ.get(
+    "CUTCTX_ANTIGRAVITY_CLOUDCODE_URL", "https://daily-cloudcode-pa.googleapis.com"
+)
 
 
 class GeminiHandlerMixin:

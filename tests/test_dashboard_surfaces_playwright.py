@@ -70,6 +70,9 @@ def test_dashboard_surfaces_render_correctly() -> None:
         page = browser.new_page(viewport={"width": 1720, "height": 1400}, color_scheme="dark")
 
         _install_dashboard_routes(page)
+        
+        page.on("console", lambda msg: print(f"CONSOLE: {msg.text}"))
+        page.on("pageerror", lambda err: print(f"PAGE ERROR: {err}"))
 
         page.goto("http://cutctx.local/dashboard", wait_until="commit")
 

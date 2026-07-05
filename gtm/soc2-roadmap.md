@@ -59,7 +59,7 @@ Cutctx will pursue SOC 2 Type II under these criteria:
 |---------|--------|-------|-------|
 | SSO/OIDC for all employees | ⚠️ Partial | Engineering | Implemented but PyJWT path bypasses signature verification |
 | RBAC for production systems | ✅ Implemented | Engineering | 4 roles, 25+ permissions, ~40 admin routes enforce |
-| MFA for all admin access | 📋 To implement | Security | Not implemented |
+| MFA for all admin access | ✅ Implemented | Security | RFC 6238 TOTP, SQLite-backed MfaStore, 5-enrollment endpoints, per-request enforcement on SSO routes |
 | Quarterly access reviews | 📋 To implement | Security | |
 | Principle of least privilege | ✅ Implemented | Engineering | All EE routes gated; `_require_rbac_permission` factory |
 

@@ -11,6 +11,7 @@ import {
   Moon,
   Package,
   PanelLeftOpen,
+  PiggyBank,
   Search,
   Shield,
   Sun,
@@ -18,6 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import Overview from './pages/Overview';
+import Savings from './pages/Savings';
 import Firewall from './pages/Firewall';
 import Governance from './pages/Governance';
 import Memory from './pages/Memory';
@@ -71,6 +73,7 @@ class ErrorBoundary extends Component {
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/savings', label: 'Savings', icon: PiggyBank },
   { path: '/orchestrator', label: 'Orchestrator', icon: Activity },
   { path: '/capabilities', label: 'Capabilities', icon: Zap },
   { path: '/governance', label: 'Governance', icon: Activity },
@@ -358,6 +361,7 @@ function AppFrame() {
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Overview />} />
+              <Route path="/savings" element={<Savings />} />
               <Route path="/orchestrator" element={<Orchestrator />} />
               <Route path="/capabilities" element={<Capabilities />} />
               <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />

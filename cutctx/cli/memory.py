@@ -135,7 +135,7 @@ def _get_stats(store: SQLiteMemoryStore) -> dict[str, Any]:
         cursor = conn.execute("SELECT MIN(created_at) FROM memories")
         oldest = cursor.fetchone()[0]
         if oldest:
-            oldest_dt = datetime.fromisoformat(oldest)
+            oldest_dt = datetime.fromisoformat(oldest).replace(tzinfo=None)
             delta = now - oldest_dt
             stats["oldest_memory_age_days"] = delta.total_seconds() / 86400.0
         else:

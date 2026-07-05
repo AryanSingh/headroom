@@ -92,7 +92,7 @@ Three stages happen on every request:
 
 **Stage 2 — ContentRouter:** Auto-detects content type (JSON, code, logs, diffs, HTML, plain text) and routes each piece to the optimal compression algorithm. No configuration needed — it figures it out automatically.
 
-**Stage 3 — IntelligentContext:** If the conversation still exceeds the context limit after compression, it scores each message by importance (recency, references, information density) and drops the lowest-value ones. Dropped content goes into CCR so it can be retrieved if needed.
+**Stage 3 — Context Budgeting:** If the conversation still exceeds the context limit after compression, the Context Budget controller applies progressive compression across GREEN/YELLOW/RED/CRITICAL zones, increasing aggressiveness as the budget depletes. Over-budget content goes into CCR so it can be retrieved if needed.
 
 ---
 
@@ -518,8 +518,8 @@ Enterprise features are in the `cutctx_ee` module (compiled Cython `.so` binarie
 |---|---|---|
 | Python (any) | `compress()` function | `from cutctx import compress` |
 | TypeScript / Node | `compress()` async function | `import { compress } from 'cutctx-ai'` |
-| Anthropic SDK | Client wrapper | `CutctxAnthropicClient(client)` |
-| OpenAI SDK | Client wrapper | `CutctxOpenAIClient(client)` |
+| Anthropic SDK | Client wrapper (TS) | `withCutctx(new Anthropic())` from `cutctx-ai/anthropic` |
+| OpenAI SDK | Client wrapper (TS) | `withCutctx(new OpenAI())` from `cutctx-ai/openai` |
 | Vercel AI SDK | Middleware | `wrapLanguageModel({ model, middleware: cutctxMiddleware() })` |
 | LiteLLM | Callback | `litellm.callbacks = [CutctxCallback()]` — covers 100+ providers |
 | LangChain | Chat model wrapper | `CutctxChatModel(ChatOpenAI(...))` |

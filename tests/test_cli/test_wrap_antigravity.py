@@ -1,8 +1,9 @@
 """Tests for `cutctx wrap antigravity` — Google VS Code fork wrapper.
 
-Antigravity is a proxy-only-watcher agent (like Cline) that also supports
-an optional ``--launch`` flag to discover and launch the Antigravity CLI
-binary with proxy env vars pre-set.
+`wrap antigravity` always tries to discover and launch the Antigravity CLI
+binary with proxy env vars pre-set; if the binary isn't found, it falls back
+to the proxy-only-watcher pattern (like Cline), printing GUI setup
+instructions instead.
 """
 
 from __future__ import annotations
@@ -41,22 +42,30 @@ def test_no_context_tool_skips_rtk(runner: CliRunner, tmp_path: Path) -> None:
     assert not (tmp_path / ".antigravityrules").exists()
 
 
-def test_launch_fails_if_cli_not_found(runner: CliRunner, tmp_path: Path) -> None:
-    """`antigravity --launch` must exit with error when the binary is not found."""
+def test_launch_falls_back_to_setup_instructions_if_cli_not_found(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """When the Antigravity CLI binary isn't found, `wrap antigravity` must
+    fall back to the proxy-only-watcher (GUI setup instructions) instead of
+    hard-erroring — Antigravity.app users have no CLI binary in PATH."""
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.chdir(tmp_path)
 
     with patch.object(wrap_mod, "_claude_proxy_base_url", return_value="http://127.0.0.1:8787"):
         with patch("cutctx.providers.antigravity.find_cli", return_value=None):
-            # --no-context-tool avoids RTK setup; --launch triggers binary discovery
-            result = runner.invoke(
-                main,
-                ["wrap", "antigravity", "--launch", "--no-proxy", "--no-context-tool"],
-            )
+            with patch.object(wrap_mod, "_run_proxy_only_watcher") as mock_watcher:
+                result = runner.invoke(
+                    main,
+                    ["wrap", "antigravity", "--no-proxy", "--no-context-tool"],
+                )
 
-    assert result.exit_code != 0
-    assert "not found" in result.output.lower()
-    assert "antigravity" in result.output.lower()
+    assert result.exit_code == 0, result.output
+    mock_watcher.assert_called_once()
+    kwargs = mock_watcher.call_args.kwargs
+    assert kwargs["agent_label"] == "antigravity"
+    assert kwargs["agent_type"] == "antigravity"
+    assert kwargs["no_proxy"] is True
+    assert callable(kwargs["print_setup_lines"])
 
 
 def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path) -> None:

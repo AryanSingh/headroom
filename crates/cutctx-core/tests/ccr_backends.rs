@@ -35,7 +35,13 @@ fn sqlite_ttl_purge() {
     // resolution on unix-seconds).
     std::thread::sleep(Duration::from_millis(1_100));
     assert_eq!(store.get(&hash), None, "expired entry must be purged");
-    assert_eq!(store.len(), 0, "expired entry must be physically deleted");
+    
+    // The lazy purge sweep was moved to the write path so reads stay fast.
+    // We must trigger a write to force the physical deletion.
+    let dummy_hash = compute_key(b"dummy");
+    store.put(&dummy_hash, "dummy");
+    
+    assert_eq!(store.len(), 1, "expired entry must be physically deleted, leaving only the dummy entry");
 }
 
 #[test]

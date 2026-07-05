@@ -22,11 +22,12 @@ from cutctx.providers.claude import proxy_base_url as claude_proxy_base_url
 from cutctx.providers.codex import proxy_base_url as codex_proxy_base_url
 from cutctx.proxy.project_context import with_project_prefix
 
-#: Known locations to search for the antigravity CLI binary, in priority order.
 _CLI_SEARCH_PATHS = [
+    # The dedicated terminal CLI if it exists in PATH
+    Path(shutil.which("agy")) if shutil.which("agy") else Path("/nonexistent/fallback"),
     # Symlink managed by ~/.antigravity (often ~/.antigravity/antigravity/bin/)
     Path.home() / ".antigravity" / "antigravity" / "bin" / "antigravity",
-    # Direct app-bundle entry point (macOS)
+    # Direct app-bundle entry point (macOS) - GUI fallback
     Path("/Applications/Antigravity.app/Contents/MacOS/Antigravity"),
     # Alternative bundle name used in some releases
     Path("/Applications/Antigravity IDE.app/Contents/MacOS/Electron"),
@@ -43,14 +44,8 @@ def find_cli() -> Path | None:
         resolved = path.resolve()
         if resolved.is_file() and os.access(resolved, os.X_OK):
             return resolved
-
     # Fallback: scan PATH
     found = shutil.which("antigravity")
-    if found:
-        return Path(found)
-
-    # No AGY alias too
-    found = shutil.which("agy")
     if found:
         return Path(found)
 
@@ -77,11 +72,19 @@ def render_setup_lines(port: int, project: str | None = None) -> list[str]:
         f"    export OPENAI_BASE_URL={openai_base_url}",
         '    open -a "Antigravity"',
         "",
-        "  Option 2 — Launch Antigravity CLI through Cutctx directly:",
-        "    cutctx wrap antigravity --launch",
+        "  Option 2 — Launch the Antigravity CLI through Cutctx directly",
+        "  (once the 'antigravity' binary is installed and on PATH):",
+        "    cutctx wrap antigravity",
         "",
-        "  Claude Code for VS Code will route all API calls through the",
-        "  local Cutctx proxy at this point.",
+        "  NOTE: only the 'Claude Code' extension panel inside Antigravity reads",
+        "  ANTHROPIC_BASE_URL. Antigravity's own native agent/chat (Cascade,",
+        "  Gemini models) hardcodes its endpoint at launch and ignores these env",
+        "  vars — its traffic won't route through Cutctx this way.",
+        "",
+        "  To track native Gemini/Cascade traffic instead, use OS-level",
+        "  interception (redirects daily-cloudcode-pa.googleapis.com to Cutctx",
+        "  system-wide — requires sudo, affects any app using that domain):",
+        "    cutctx intercept install --domain daily-cloudcode-pa.googleapis.com",
     ]
 
     # Report if the CLI binary was found

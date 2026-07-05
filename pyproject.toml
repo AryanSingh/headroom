@@ -240,6 +240,11 @@ html = [
 log-ml = [
     "drain3>=0.9.11",
 ]
+# Microsoft LLMLingua-2 neural compression for prose text.
+# pip install cutctx-ai[llmlingua]
+llmlingua = [
+    "llmlingua>=0.2.2",
+]
 # Knowledge-graph compression via Graphify
 knowledge-graph = [
     "graphifyy>=0.8.0",

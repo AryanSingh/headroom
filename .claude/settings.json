@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(uv run python -m pytest tests/ -q --tb=no -x --timeout=60)",
+      "Bash(npx tsc --noEmit --skipLibCheck)",
+      "Bash(npx playwright test --project=chromium)",
+      "Bash(cutctx intercept status)",
+      "mcp__Desktop_Commander__read_process_output",
+      "mcp__cutctx__headroom_stats",
+      "mcp__Control_Chrome__get_current_tab",
+      "mcp__figma__get_design_context"
+    ]
+  }
+}

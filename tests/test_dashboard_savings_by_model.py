@@ -38,7 +38,7 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
             route.fulfill(status=200, body="")
             return
 
-        if url.endswith("/dashboard") or url.endswith("/") or url == "http://cutctx.local/":
+        if url.endswith("/dashboard") or url.endswith("/dashboard/savings") or url.endswith("/") or url == "http://cutctx.local/":
             route.fulfill(status=200, content_type="text/html", body=dashboard_html)
             return
 
@@ -64,8 +64,21 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
             )
             return
 
-        if "/history" in url:
-            route.fulfill(status=200, content_type="application/json", body=json.dumps([]))
+        if "/stats-history" in url:
+            mock_history = {
+                "lifetime": {
+                    "savings_by_source_tokens.model.gpt-4o": 5000,
+                    "savings_by_source_usd.model.gpt-4o": 0.025,
+                    "savings_by_source_tokens.model.claude-3-opus": 10000,
+                    "savings_by_source_usd.model.claude-3-opus": 0.150,
+                    "tokens_saved": 15000,
+                    "compression_savings_usd": 0.175,
+                    "total_input_tokens": 15000,
+                    "requests": 100,
+                },
+                "display_session": {}
+            }
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(mock_history))
             return
 
         route.fulfill(status=404, body="Not Found")
@@ -78,9 +91,12 @@ def test_dashboard_savings_by_model() -> None:
         browser = pw.chromium.launch()
         try:
             page = browser.new_page()
+            page.on("console", lambda msg: print(f"Browser console: {msg.text}"))
+            page.on("request", lambda request: print(">>", request.method, request.url))
+            page.on("response", lambda response: print("<<", response.status, response.url))
             _install_dashboard_routes_with_stats(page)
 
-            page.goto("http://cutctx.local/dashboard")
+            page.goto("http://cutctx.local/dashboard/savings")
             page.wait_for_load_state("networkidle")
 
             # Check if "Savings by model" header exists
@@ -88,8 +104,8 @@ def test_dashboard_savings_by_model() -> None:
             expect(header).to_be_visible(timeout=5000)
 
             # Check if the models are displayed
-            expect(page.locator("text=claude-3-opus").first).to_be_visible()
-            expect(page.locator("text=gpt-4o").first).to_be_visible()
+            expect(page.locator(".source-name:has-text('gpt-4o')")).to_be_visible()
+            expect(page.locator(".source-name:has-text('claude-3-opus')")).to_be_visible()
 
             # Save screenshot for walkthrough
             page.screenshot(

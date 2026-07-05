@@ -297,7 +297,7 @@ Cutctx exposes one stable request lifecycle across `compress()`, the SDK, and th
 
 `Setup` → `Pre-Start` → `Post-Start` → `Input Received` → `Input Cached` → `Input Routed` → `Input Compressed` → `Input Remembered` → `Pre-Send` → `Post-Send` → `Response Received`
 
-- **Transforms** do the work: CacheAligner, ContentRouter, SmartCrusher, CodeCompressor, Kompress-base, IntelligentContext / RollingWindow.
+- **Transforms** do the work: CacheAligner, ContentRouter, SmartCrusher, CodeCompressor, Kompress-v2 (Kompress-base).
 - **Pipeline extensions** observe or customize lifecycle stages via `on_pipeline_event(...)`.
 - **Compression hooks** sit alongside the canonical lifecycle as an additional extension seam.
 - **Proxy extensions** remain the server/app integration seam for ASGI middleware, routes, and startup policy.

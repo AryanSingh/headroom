@@ -62,6 +62,16 @@ def install_cmd(port: int, extra_domains: tuple[str, ...]) -> None:
       • Run `cutctx intercept status` to verify
 
     Requires sudo for /etc/hosts and pfctl changes.
+
+    \b
+    Note: this only helps for plain HTTPS/REST APIs. Google's Cloud Code
+    Assist API (used by Antigravity's native Cascade/Gemini agent and the
+    standalone Gemini CLI, at cloudcode-pa.googleapis.com /
+    daily-cloudcode-pa.googleapis.com) is plain HTTPS/JSON, not gRPC, and
+    cutctx already has a handler for it — add it with
+    --domain daily-cloudcode-pa.googleapis.com. Apps that speak genuine
+    binary gRPC/protobuf will still fail to parse if intercepted; use the
+    app's Anthropic/OpenAI-compatible surface instead where one exists.
     """
     if sys.platform != "darwin":
         raise click.ClickException("cutctx intercept is only supported on macOS.")

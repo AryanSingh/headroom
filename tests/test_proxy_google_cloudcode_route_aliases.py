@@ -64,7 +64,7 @@ def test_antigravity_cloudcode_route_uses_daily_endpoint(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {
-        "url": "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse",
+        "url": "https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse",
         "provider": "gemini",
         "model": "claude-sonnet-4-6",
     }
@@ -135,7 +135,7 @@ def test_antigravity_header_detection_is_case_insensitive(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {
-        "url": "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse",
+        "url": "https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse",
         "provider": "gemini",
         "model": "claude-opus-4-6-thinking",
     }
@@ -158,7 +158,7 @@ def test_antigravity_route_does_not_cross_route_to_cloudcode_override(monkeypatc
 
     assert response.status_code == 200
     assert response.json() == {
-        "url": "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse",
+        "url": "https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse",
         "provider": "gemini",
         "model": "claude-sonnet-4-6",
     }

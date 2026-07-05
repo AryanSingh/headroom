@@ -53,6 +53,7 @@ from cutctx.copilot_auth import (
 from cutctx.providers.aider import build_launch_env as _build_aider_launch_env
 from cutctx.providers.claude import proxy_base_url as _claude_proxy_base_url
 from cutctx.providers.codex import build_launch_env as _build_codex_launch_env
+from cutctx.providers.opencode import install_plugin as _install_opencode_plugin
 from cutctx.providers.copilot import (
     build_launch_env as _build_copilot_launch_env,
 )
@@ -3966,7 +3967,13 @@ def zed(
 # =============================================================================
 
 
-@wrap.command(context_settings={"ignore_unknown_options": True})
+@wrap.command(
+    context_settings={
+        "ignore_unknown_options": True,
+        "allow_extra_args": True,
+    }
+)
+@click.pass_context
 @click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
 @click.option(
     "--no-context-tool",
@@ -3978,20 +3985,15 @@ def zed(
 @click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
 @click.option("--learn", is_flag=True, help="Enable live traffic learning")
 @click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
-@click.option(
-    "--launch",
-    is_flag=True,
-    help="Launch the Antigravity app with ANTHROPIC_BASE_URL pre-set",
-)
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--prepare-only", is_flag=True, hidden=True)
 def antigravity(
+    ctx: click.Context,
     port: int,
     no_rtk: bool,
     no_proxy: bool,
     learn: bool,
     memory: bool,
-    launch: bool,
     verbose: bool,
     prepare_only: bool,
 ) -> None:
@@ -4005,16 +4007,16 @@ def antigravity(
     \b
     This command starts the proxy, sets up the selected CLI context tool
     (injecting RTK guidance into ``.antigravityrules`` at the project root),
-    and prints setup instructions.
+    and launches Antigravity.
 
     \b
-    With ``--launch``, it also discovers the Antigravity CLI binary and
-    launches the app with the proxy env vars pre-set.
+    If the Antigravity CLI binary isn't found in PATH, it falls back to
+    printing setup instructions for launching the Antigravity.app GUI
+    manually with the proxy env vars pre-set.
 
     \b
     Examples:
-        cutctx wrap antigravity                # Start proxy + .antigravityrules
-        cutctx wrap antigravity --launch        # Start proxy + launch Antigravity
+        cutctx wrap antigravity                # Start proxy + launch Antigravity
         cutctx wrap antigravity --no-context-tool  # Proxy only, no RTK
         cutctx wrap antigravity --port 9999    # Custom proxy port
     """
@@ -4035,65 +4037,84 @@ def antigravity(
     if prepare_only:
         return
 
-    if launch:
-        from cutctx.providers.antigravity import find_cli as _find_antigravity_cli
+    from cutctx.providers.antigravity import find_cli as _find_antigravity_cli
 
-        antigravity_bin = _find_antigravity_cli()
-        if not antigravity_bin:
-            click.echo("Error: 'antigravity' not found in PATH.")
-            click.echo("Install Antigravity: https://antigravity.dev")
-            raise SystemExit(1)
+    antigravity_bin = _find_antigravity_cli()
+    if not antigravity_bin:
 
-        openai_base = f"http://127.0.0.1:{port}/v1"
-        anthropic_base = _claude_proxy_base_url(port)
-        env = os.environ.copy()
-        env["ANTHROPIC_BASE_URL"] = anthropic_base
-        env["OPENAI_BASE_URL"] = openai_base
-        env["OPENAI_API_BASE"] = openai_base
-        env_vars_display = [
-            f"ANTHROPIC_BASE_URL={anthropic_base}",
-            f"OPENAI_BASE_URL={openai_base}",
-        ]
+        def _print_antigravity_setup() -> None:
+            for line in _render_antigravity_setup_lines(port, project=_project_name_from_cwd()):
+                click.echo(line)
+            if not no_rtk:
+                click.echo()
+                if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
+                    click.echo("  lean-ctx configured for Antigravity")
+                else:
+                    click.echo("  rtk instructions injected into .antigravityrules")
+                click.echo("  Antigravity will use token-optimized commands automatically.")
 
-        _launch_tool(
-            binary=str(antigravity_bin),
-            args=(),
-            env=env,
+        _run_proxy_only_watcher(
+            agent_label="antigravity",
             port=port,
             no_proxy=no_proxy,
-            tool_label="ANTIGRAVITY",
-            env_vars_display=env_vars_display,
             learn=learn,
             memory=memory,
             agent_type="antigravity",
+            print_setup_lines=_print_antigravity_setup,
         )
         return
 
-    def _print_antigravity_setup() -> None:
-        for line in _render_antigravity_setup_lines(port, project=_project_name_from_cwd()):
-            click.echo(line)
-        if not no_rtk:
-            click.echo()
-            if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
-                click.echo("  lean-ctx configured for Antigravity")
-            else:
-                click.echo("  rtk instructions injected into .antigravityrules")
-            click.echo("  Antigravity will use token-optimized commands automatically.")
+    openai_base = f"http://127.0.0.1:{port}/v1"
+    anthropic_base = _claude_proxy_base_url(port)
+    env = os.environ.copy()
+    env["ANTHROPIC_BASE_URL"] = anthropic_base
+    env["OPENAI_BASE_URL"] = openai_base
+    env["OPENAI_API_BASE"] = openai_base
+    env_vars_display = [
+        f"ANTHROPIC_BASE_URL={anthropic_base}",
+        f"OPENAI_BASE_URL={openai_base}",
+    ]
 
-    _run_proxy_only_watcher(
-        agent_label="antigravity",
+    # Note: unlike the standalone `gemini` CLI, Antigravity's own native
+    # agent (Cascade / native Gemini chat) does not read GOOGLE_*/CODE_ASSIST_*
+    # env vars — it talks to Google's internal Cloud Code API over gRPC and
+    # ignores them regardless of how it's launched. Only ANTHROPIC_BASE_URL
+    # (read by the bundled Claude Code extension) actually takes effect here.
+
+    _launch_tool(
+        binary=str(antigravity_bin),
+        args=tuple(ctx.args),
+        env=env,
         port=port,
         no_proxy=no_proxy,
+        tool_label="ANTIGRAVITY",
+        env_vars_display=env_vars_display,
         learn=learn,
         memory=memory,
         agent_type="antigravity",
-        print_setup_lines=_print_antigravity_setup,
     )
 
 
 # =============================================================================
 # opencode
 # =============================================================================
+
+
+def _opencode_has_routable_credentials() -> bool:
+    """Check whether opencode has 'anthropic' or 'openai' credentials configured.
+
+    opencode reads its own auth.json credential store rather than picking up
+    ANTHROPIC_BASE_URL/OPENAI_BASE_URL alone — those env vars have no effect
+    unless a provider with matching credentials is also logged in and selected.
+    """
+    auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"
+    if not auth_path.exists():
+        return False
+    try:
+        data = json.loads(auth_path.read_text())
+    except (OSError, ValueError):
+        return False
+    return any(provider in data for provider in ("anthropic", "openai"))
 
 
 @wrap.command(context_settings={"ignore_unknown_options": True})
@@ -4159,11 +4180,32 @@ def opencode(
     env["OPENAI_BASE_URL"] = openai_base
     env["OPENAI_API_BASE"] = openai_base
     env["ANTHROPIC_BASE_URL"] = anthropic_base
+    # Read by the opencode plugin's cutctx-ai client (CutctxClient) so its
+    # compress() calls hit this run's proxy port, not the localhost:8787
+    # default baked into the SDK.
+    env["CUTCTX_BASE_URL"] = f"http://127.0.0.1:{port}"
     env_vars_display = [
         f"OPENAI_BASE_URL={openai_base}",
         f"ANTHROPIC_BASE_URL={anthropic_base}",
     ]
     _apply_project_header_env(env)
+
+    plugin_path = _install_opencode_plugin(Path.cwd())
+    if plugin_path is not None:
+        click.echo(f"  opencode plugin installed at {plugin_path}")
+    elif verbose:
+        click.echo("  opencode plugin bundle not found — skipping (proxy routing still works)")
+
+    has_env_key = bool(env.get("ANTHROPIC_API_KEY") or env.get("OPENAI_API_KEY"))
+    if not has_env_key and not _opencode_has_routable_credentials():
+        click.echo()
+        click.echo("  Warning: opencode has no 'anthropic' or 'openai' credentials configured.")
+        click.echo("  Setting OPENAI_BASE_URL/ANTHROPIC_BASE_URL alone will NOT route traffic")
+        click.echo("  through Cutctx — opencode only uses those providers (and this proxy) if")
+        click.echo("  you've logged in and selected a matching model, e.g.:")
+        click.echo("    opencode auth login              # choose Anthropic or OpenAI")
+        click.echo("    cutctx wrap opencode -- --model anthropic/claude-sonnet-4-5")
+        click.echo()
 
     _launch_tool(
         binary=opencode_bin,

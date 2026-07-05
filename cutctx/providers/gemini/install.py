@@ -13,4 +13,8 @@ def build_install_env(*, port: int, backend: str) -> dict[str, str]:
         "GOOGLE_GEMINI_BASE_URL": base_url,
         "GOOGLE_VERTEX_BASE_URL": base_url,
         "CODE_ASSIST_ENDPOINT": base_url,
+        "GEMINI_API_BASE": base_url,
+        "GEMINI_API_BASE_URL": base_url,
+        "GEMINI_BASE_URL": base_url,
+        "GOOGLE_API_BASE": base_url,
     }

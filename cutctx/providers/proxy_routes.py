@@ -488,10 +488,13 @@ async def _handle_chatgpt_model_metadata(
             content=body,
             timeout=120.0,
         )
+        response_headers = dict(resp.headers)
+        response_headers.pop("content-encoding", None)
+        response_headers.pop("content-length", None)
         return Response(
             content=resp.content,
             status_code=resp.status_code,
-            headers=dict(resp.headers),
+            headers=response_headers,
         )
     except Exception as exc:
         logger.error("Passthrough %s failed: %s", upstream_path, exc)
@@ -607,10 +610,13 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
                 content=body,
                 timeout=120.0,
             )
+            response_headers = dict(resp.headers)
+            response_headers.pop("content-encoding", None)
+            response_headers.pop("content-length", None)
             return Response(
                 content=resp.content,
                 status_code=resp.status_code,
-                headers=dict(resp.headers),
+                headers=response_headers,
             )
         except Exception as exc:
             logger.error("Passthrough /v1/responses/%s failed: %s", sub_path, exc)
@@ -673,6 +679,84 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     @app.post("/v1/v1internal:streamGenerateContent")
     async def google_cloudcode_stream_generate_content_v1(request: Request):
         return await proxy.handle_google_cloudcode_stream(request)
+
+    @app.post("/v1internal:generateContent")
+    async def google_cloudcode_generate_content(request: Request):
+        return await proxy.handle_gemini_generate_content(
+            request,
+            model="cloudcode-assist",
+            provider_name="gemini",
+        )
+
+    @app.post("/v1/v1internal:generateContent")
+    async def google_cloudcode_generate_content_v1(request: Request):
+        return await proxy.handle_gemini_generate_content(
+            request,
+            model="cloudcode-assist",
+            provider_name="gemini",
+        )
+
+    async def _cloudcode_internal_passthrough(request: Request, action: str) -> Response:
+        """Forward Cloud Code Assist setup/metadata calls (not generation).
+
+        loadCodeAssist/onboardUser/countTokens are non-generative calls the
+        Gemini CLI and Antigravity make before/alongside generateContent; they
+        carry no compressible message content, so they're passed straight
+        through to the resolved Cloud Code Assist upstream rather than routed
+        through the optimization pipeline.
+        """
+        headers = dict(request.headers.items())
+        headers.pop("host", None)
+        is_antigravity = headers.get("user-agent", "").lower().startswith("antigravity/")
+        base_url = proxy._resolve_cloudcode_base_url(is_antigravity)
+        url = f"{base_url}/v1internal:{action}"
+        if request.url.query:
+            url = f"{url}?{request.url.query}"
+        body = await request.body()
+        try:
+            assert proxy.http_client is not None
+            resp = await proxy.http_client.request(
+                request.method,
+                url,
+                headers=headers,
+                content=body,
+                timeout=120.0,
+            )
+            response_headers = dict(resp.headers)
+            response_headers.pop("content-encoding", None)
+            response_headers.pop("content-length", None)
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                headers=response_headers,
+            )
+        except Exception as exc:
+            logger.error("Cloud Code Assist passthrough %s failed: %s", action, exc)
+            return Response(content=str(exc), status_code=502)
+
+    @app.post("/v1internal:loadCodeAssist")
+    async def google_cloudcode_load_code_assist(request: Request):
+        return await _cloudcode_internal_passthrough(request, "loadCodeAssist")
+
+    @app.post("/v1/v1internal:loadCodeAssist")
+    async def google_cloudcode_load_code_assist_v1(request: Request):
+        return await _cloudcode_internal_passthrough(request, "loadCodeAssist")
+
+    @app.post("/v1internal:onboardUser")
+    async def google_cloudcode_onboard_user(request: Request):
+        return await _cloudcode_internal_passthrough(request, "onboardUser")
+
+    @app.post("/v1/v1internal:onboardUser")
+    async def google_cloudcode_onboard_user_v1(request: Request):
+        return await _cloudcode_internal_passthrough(request, "onboardUser")
+
+    @app.post("/v1internal:countTokens")
+    async def google_cloudcode_count_tokens(request: Request):
+        return await _cloudcode_internal_passthrough(request, "countTokens")
+
+    @app.post("/v1/v1internal:countTokens")
+    async def google_cloudcode_count_tokens_v1(request: Request):
+        return await _cloudcode_internal_passthrough(request, "countTokens")
 
     @app.post(
         "/{api_version}/projects/{project}/locations/{location}/publishers/{publisher}/models/{model}:generateContent"
