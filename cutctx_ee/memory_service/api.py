@@ -2,10 +2,13 @@
 # Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from cutctx_ee.memory_service.models import MemoryRecord
 from cutctx_ee.memory_service.store import MemoryStore
@@ -136,10 +139,10 @@ async def review_memory(
             action=f"memory.{req.action.lower()}",
             payload={"memory_id": req.memory_id},
         )
-    except Exception:
+    except Exception as exc:
         # Audit store not configured (OSS-only deployment) or
         # transient failure. The review itself succeeded.
-        pass
+        logger.debug("Audit event for memory %s skipped: %s", req.memory_id, exc)
 
     return {
         "status": "success",

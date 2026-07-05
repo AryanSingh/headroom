@@ -1844,6 +1844,39 @@ def _should_use_copilot_oauth(
     return has_oauth_auth()
 
 
+def _find_free_port() -> int:
+    """Ask the OS for an unused localhost TCP port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _resolve_wrap_port(
+    port: int,
+    *,
+    openai_api_url: str | None = None,
+    anthropic_api_url: str | None = None,
+) -> tuple[int, bool]:
+    """Swap `port` for a fresh private port if it belongs to a persistent,
+    shared deployment that can't satisfy a requested upstream override.
+
+    DeploymentManifest carries no per-invocation override field, so a
+    persistent proxy (installed via `cutctx install`, potentially serving
+    other wrap targets like claude/codex) can never honor `openai_api_url`/
+    `anthropic_api_url` — restart or not. Reusing it silently would misroute
+    requests to the wrong upstream; mutating it would disrupt whatever else
+    depends on it. A private, ephemeral proxy sidesteps both, and still
+    shares the same on-disk savings store (~/.cutctx by default) so its
+    stats show up in the same dashboard as the persistent deployment's.
+    Returns (port_to_use, True) if a swap happened, else (port, False).
+    """
+    if not (openai_api_url or anthropic_api_url):
+        return port, False
+    if _live_wrap_module()._find_persistent_manifest(port) is None:
+        return port, False
+    return _find_free_port(), True
+
+
 def _ensure_proxy(
     port: int,
     no_proxy: bool,
@@ -1871,6 +1904,25 @@ def _ensure_proxy(
                 )
         if manifest is not None:
             from cutctx.install.health import probe_ready
+
+            if openai_api_url or anthropic_api_url:
+                # DeploymentManifest never carries a per-invocation upstream
+                # override, and this proxy is a shared, persistent deployment
+                # (potentially serving other targets, e.g. claude/codex) — it
+                # can never satisfy this request, restart or not. Reusing it
+                # as-is would silently send requests to the wrong upstream
+                # (e.g. real api.openai.com instead of a BYOK/opencode-go
+                # gateway); mutating/restarting it would disrupt whatever
+                # else depends on it. Fail loudly instead of either.
+                flag = "--openai-api-url" if openai_api_url else "--anthropic-api-url"
+                raise click.ClickException(
+                    f"A persistent Cutctx proxy ('{manifest.profile}') is already "
+                    f"running on port {port} and does not support the {flag} "
+                    "override this session needs. It's a shared deployment "
+                    f"(targets: {', '.join(manifest.targets) or 'none'}), so it can't "
+                    "be reconfigured for one session. Retry with a different --port "
+                    "to start a private proxy for this session."
+                )
 
             if probe_ready(manifest.health_url):
                 health_payload = helpers._query_proxy_health(port)
@@ -1983,6 +2035,13 @@ def _ensure_proxy(
                     requested_openai_url = _normalize_proxy_api_url(openai_api_url)
                     if running_openai_url != requested_openai_url:
                         missing.append("openai-api-url")
+                if anthropic_api_url:
+                    running_anthropic_url = _normalize_proxy_api_url(
+                        running_config.get("anthropic_api_url")
+                    )
+                    requested_anthropic_url = _normalize_proxy_api_url(anthropic_api_url)
+                    if running_anthropic_url != requested_anthropic_url:
+                        missing.append("anthropic-api-url")
 
                 if missing:
                     flags_str = ", ".join(
@@ -4117,6 +4176,63 @@ def _opencode_has_routable_credentials() -> bool:
     return any(provider in data for provider in ("anthropic", "openai"))
 
 
+# opencode's built-in "opencode-go" provider is OpenAI-compatible and hits
+# this fixed host (npm: "@ai-sdk/openai-compatible", confirmed via
+# anomalyco/opencode#27853 and `opencode models`) rather than api.openai.com,
+# so routing it through Cutctx requires pointing the proxy's OpenAI upstream
+# here instead of relying on the default.
+_OPENCODE_GO_UPSTREAM_URL = "https://opencode.ai/zen/go/v1"
+
+
+def _opencode_go_configured() -> bool:
+    """Check whether opencode has 'opencode-go' credentials configured."""
+    auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"
+    if not auth_path.exists():
+        return False
+    try:
+        data = json.loads(auth_path.read_text())
+    except (OSError, ValueError):
+        return False
+    return "opencode-go" in data
+
+
+def _write_opencode_go_config_override(port: int, existing_config_path: str | None) -> Path:
+    """Write an OPENCODE_CONFIG override file redirecting opencode-go at the proxy.
+
+    opencode merges whatever ``OPENCODE_CONFIG`` points at on top of the
+    project/global config (confirmed live: `opencode debug config` still
+    showed the user's models/plugins/mcp servers with only the provider
+    block added) rather than replacing it — so this only needs to carry the
+    one field being overridden. If the caller already has its own
+    ``OPENCODE_CONFIG`` set, that file's contents are read and our provider
+    override is merged on top so we don't clobber it.
+
+    Directly overriding the built-in ``opencode-go`` provider's ``baseURL``
+    is a documented opencode footgun (anomalyco/opencode#27853) when the
+    target doesn't actually speak its wire protocol — but here it does,
+    since Cutctx forwards to the same upstream unmodified.
+    """
+    from cutctx import paths as _paths
+
+    base: dict[str, Any] = {}
+    if existing_config_path:
+        try:
+            base = json.loads(Path(existing_config_path).expanduser().read_text())
+        except (OSError, ValueError):
+            base = {}
+
+    provider_block = base.setdefault("provider", {})
+    opencode_go_block = provider_block.setdefault("opencode-go", {})
+    options_block = opencode_go_block.setdefault("options", {})
+    options_block["baseURL"] = f"http://127.0.0.1:{port}/v1"
+
+    override_dir = _paths.ensure_workspace_dir() / "opencode"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_path = override_dir / f"config-override-{port}.json"
+    override_path.write_text(json.dumps(base))
+    return override_path
+
+
 @wrap.command(context_settings={"ignore_unknown_options": True})
 @click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
 @click.option(
@@ -4175,6 +4291,34 @@ def opencode(
 
     # opencode accepts OpenAI- and Anthropic-compatible providers; route both.
     env = os.environ.copy()
+    has_env_key = bool(env.get("ANTHROPIC_API_KEY") or env.get("OPENAI_API_KEY"))
+    route_opencode_go = (
+        not has_env_key
+        and not _opencode_has_routable_credentials()
+        and backend is None
+        and _opencode_go_configured()
+    )
+    warn_no_credentials = (
+        not has_env_key and not _opencode_has_routable_credentials() and not route_opencode_go
+    )
+    # opencode-go is OpenAI-compatible but hits its own hosted gateway, not
+    # api.openai.com — repoint this run's proxy at that upstream.
+    openai_api_url = _OPENCODE_GO_UPSTREAM_URL if route_opencode_go else None
+
+    # DeploymentManifest carries no per-invocation upstream override, so a
+    # persistent, shared proxy on `port` (e.g. one also serving claude/codex)
+    # can never honor this. Resolve to a private port for this session
+    # instead of silently misrouting or disrupting the shared deployment —
+    # savings still land in the same shared ~/.cutctx store either way.
+    requested_port = port
+    port, port_reassigned = _resolve_wrap_port(port, openai_api_url=openai_api_url)
+    if port_reassigned:
+        click.echo(
+            f"  Port {requested_port} is a shared, persistent Cutctx proxy that can't be "
+            f"reconfigured for opencode-go — using a private proxy on port {port} for this "
+            "session instead. Savings still land in the same shared dashboard."
+        )
+
     openai_base = f"http://127.0.0.1:{port}/v1"
     anthropic_base = _claude_proxy_base_url(port)
     env["OPENAI_BASE_URL"] = openai_base
@@ -4196,8 +4340,14 @@ def opencode(
     elif verbose:
         click.echo("  opencode plugin bundle not found — skipping (proxy routing still works)")
 
-    has_env_key = bool(env.get("ANTHROPIC_API_KEY") or env.get("OPENAI_API_KEY"))
-    if not has_env_key and not _opencode_has_routable_credentials():
+    if route_opencode_go:
+        # Redirect opencode-go's baseURL at the proxy via a merged
+        # OPENCODE_CONFIG override (process-scoped, like OPENAI_BASE_URL;
+        # never written into the project's real opencode.json).
+        override_path = _write_opencode_go_config_override(port, env.get("OPENCODE_CONFIG"))
+        env["OPENCODE_CONFIG"] = str(override_path)
+        env_vars_display.append(f"OPENCODE_CONFIG={override_path} (opencode-go -> proxy)")
+    elif warn_no_credentials:
         click.echo()
         click.echo("  Warning: opencode has no 'anthropic' or 'openai' credentials configured.")
         click.echo("  Setting OPENAI_BASE_URL/ANTHROPIC_BASE_URL alone will NOT route traffic")
@@ -4205,6 +4355,11 @@ def opencode(
         click.echo("  you've logged in and selected a matching model, e.g.:")
         click.echo("    opencode auth login              # choose Anthropic or OpenAI")
         click.echo("    cutctx wrap opencode -- --model anthropic/claude-sonnet-4-5")
+        if not _opencode_go_configured():
+            click.echo(
+                "  (kimi-for-coding traffic cannot be routed through Cutctx — its "
+                "upstream API is undocumented.)"
+            )
         click.echo()
 
     _launch_tool(
@@ -4219,6 +4374,7 @@ def opencode(
         memory=memory,
         agent_type="opencode",
         backend=backend,
+        openai_api_url=openai_api_url,
     )
 
 

@@ -1040,15 +1040,14 @@ class StreamingMixin:
             if upstream_response is None:
                 raise last_connect_error or RuntimeError("upstream connection did not start")
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
-            error_msg = str(e) or repr(e)
-            logger.error(f"[{request_id}] Connection error to upstream API: {error_msg}")
+            logger.error(f"[{request_id}] Connection error to upstream API: {e}")
 
             async def _error_gen():
                 error_event = {
                     "type": "error",
                     "error": {
                         "type": "connection_error",
-                        "message": f"Failed to connect to upstream API: {error_msg}",
+                        "message": "Failed to connect to upstream API",
                     },
                 }
                 yield f"event: error\ndata: {json.dumps(error_event)}\n\n".encode()
@@ -1513,7 +1512,7 @@ class StreamingMixin:
                 logger.error(f"[{request_id}] Unexpected streaming error: {e}")
                 error_event = {
                     "type": "error",
-                    "error": {"type": "api_error", "message": str(e)},
+                    "error": {"type": "api_error", "message": "Internal streaming error"},
                 }
                 yield f"event: error\ndata: {json.dumps(error_event)}\n\n".encode()
             finally:
@@ -1660,7 +1659,7 @@ class StreamingMixin:
                 logger.error(f"[{request_id}] Bedrock streaming error: {e}")
                 error_event = {
                     "type": "error",
-                    "error": {"type": "api_error", "message": str(e)},
+                    "error": {"type": "api_error", "message": "Internal streaming error"},
                 }
                 yield f"event: error\ndata: {json.dumps(error_event)}\n\n".encode()
 
@@ -1825,7 +1824,7 @@ class StreamingMixin:
                 logger.error(f"[{request_id}] Backend streaming error: {e}")
                 error_data = {
                     "error": {
-                        "message": str(e),
+                        "message": "Internal server error",
                         "type": "api_error",
                         "code": "backend_error",
                     }

@@ -1188,7 +1188,7 @@ class OpenAIChatMixin:
                     status_code=500,
                     content={
                         "error": {
-                            "message": str(e),
+                            "message": "Internal server error",
                             "type": "api_error",
                             "code": "backend_error",
                         }

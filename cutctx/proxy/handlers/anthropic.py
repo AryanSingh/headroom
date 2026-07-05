@@ -937,7 +937,7 @@ class AnthropicHandlerMixin:
                                 "type": "error",
                                 "error": {
                                     "type": "security_block",
-                                    "message": str(e),
+                                    "message": "Request blocked by security scanner",
                                 },
                             },
                         )
@@ -2167,7 +2167,7 @@ class AnthropicHandlerMixin:
                         status_code=500,
                         content={
                             "type": "error",
-                            "error": {"type": "api_error", "message": str(e)},
+                            "error": {"type": "api_error", "message": "Internal server error"},
                         },
                     )
 

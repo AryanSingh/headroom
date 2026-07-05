@@ -2600,12 +2600,13 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
 
         return await call_next(request)
 
-    # API versioning header — every response gets X-Cutctx-Version so
-    # clients and load balancers can verify which proxy version is serving.
+    # API versioning header — gated behind CUTCTX_EXPOSE_VERSION env var.
+    # Off by default to avoid leaking version info for CVE reconnaissance.
     @app.middleware("http")
     async def _add_version_header(request, call_next):
         response = await call_next(request)
-        response.headers["X-Cutctx-Version"] = __version__
+        if os.environ.get("CUTCTX_EXPOSE_VERSION"):
+            response.headers["X-Cutctx-Version"] = __version__
         return response
 
     # ── LLM Firewall ───────────────────────────────────────────────
@@ -5526,6 +5527,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
                 "code_graph": config.code_graph_watcher,
+                "anthropic_api_url": config.anthropic_api_url,
+                "openai_api_url": config.openai_api_url,
+                "gemini_api_url": config.gemini_api_url,
+                "cloudcode_api_url": config.cloudcode_api_url,
+                "vertex_api_url": config.vertex_api_url,
                 "savings_profile": config.savings_profile,
                 "target_ratio": effective_target_ratio,
                 "target_savings_percent": (
@@ -5959,8 +5965,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return get_dashboard_html(prefer_react=True)
 
     @app.get("/admin/config/flags")
-    async def get_config_flags():
+    async def get_config_flags(request: Request):
         """Get live intelligence layer feature flags."""
+        await _require_local_admin_auth(request)
         return {
             "cache": getattr(config, "cache_enabled", False),
             "ccr": getattr(config, "ccr_context_tracking", False) or getattr(config, "ccr_handle_responses", False),

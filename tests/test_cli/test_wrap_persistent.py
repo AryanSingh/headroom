@@ -71,6 +71,34 @@ def test_ensure_proxy_recovers_persistent_deployment_when_socket_is_bound(monkey
     assert calls == ["start:default"]
 
 
+def test_ensure_proxy_rejects_openai_api_url_override_against_persistent_deployment(
+    monkeypatch,
+) -> None:
+    """A persistent, shared deployment can never satisfy a per-invocation
+    upstream override (DeploymentManifest has no such field) — reusing it
+    silently would misroute requests to the wrong upstream, and restarting it
+    would disrupt any other targets it serves. It must fail loudly instead."""
+
+    class _SharedManifest(_Manifest):
+        targets = ["claude", "codex"]
+
+    monkeypatch.setattr(wrap_cli, "_check_proxy", lambda port: True)
+    monkeypatch.setattr(wrap_cli, "_find_persistent_manifest", lambda port: _SharedManifest())
+    monkeypatch.setattr(
+        "cutctx.install.health.probe_ready",
+        lambda url: (_ for _ in ()).throw(AssertionError("should fail before probing health")),
+    )
+
+    with pytest.raises(click.ClickException) as excinfo:
+        wrap_cli._ensure_proxy(8787, False, openai_api_url="https://opencode.ai/zen/go/v1")
+
+    message = str(excinfo.value)
+    assert "--openai-api-url" in message
+    assert "default" in message
+    assert "claude, codex" in message
+    assert "different --port" in message
+
+
 def test_ensure_proxy_rejects_unhealthy_persistent_deployment(monkeypatch) -> None:
     monkeypatch.setattr(wrap_cli, "_check_proxy", lambda port: True)
     monkeypatch.setattr(wrap_cli, "_find_persistent_manifest", lambda port: _Manifest())

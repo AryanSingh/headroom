@@ -4267,7 +4267,7 @@ class OpenAIResponsesMixin:
                 if termination_cause == "unknown":
                     termination_cause = "client_error"
             with contextlib.suppress(Exception):
-                await websocket.close(code=1011, reason=str(e)[:120])
+                await websocket.close(code=1011, reason="Internal server error")
         finally:
             # Unit 2: emit structured per-session stage timings.
             stage_timer.record(
