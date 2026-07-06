@@ -822,6 +822,16 @@ class StreamingMixin:
             model_routing_tokens_saved=_routing_tokens,
             model_routing_usd_saved=_routing_usd,
         )
+        cache = getattr(self, "cache", None)
+        if cache and parsed_response and original_messages:
+            await cache.set(
+                messages=original_messages,
+                model=model,
+                response_body=json.dumps(parsed_response).encode("utf-8"),
+                response_headers={},
+                tokens_saved=max(effective_optimized_tokens, cache_read_tokens),
+            )
+
         await self._record_request_outcome(outcome)
 
     async def _stream_response(

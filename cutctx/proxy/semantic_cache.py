@@ -36,11 +36,36 @@ class SemanticCache:
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
         """Compute cache key from messages and model."""
+        import re
+
+        from cutctx.proxy.helpers import _strip_per_call_annotations
+
         # Normalize messages for consistent hashing
+        # 1. Strip cache_control and other known per-call annotations
+        cleaned_messages = _strip_per_call_annotations(messages)
+
+        # 2. Strip system-reminders and trailing whitespace, and metadata.user_id
+        for msg in cleaned_messages:
+            if isinstance(msg, dict):
+                # Strip user_id from metadata
+                if "metadata" in msg and isinstance(msg["metadata"], dict):
+                    msg["metadata"].pop("user_id", None)
+
+                # Strip <system-reminder> blocks and trailing whitespace from text content
+                content = msg.get("content")
+                if isinstance(content, str):
+                    content = re.sub(r"<system-reminder>.*?</system-reminder>", "", content, flags=re.DOTALL)
+                    msg["content"] = content.strip()
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+                            text = re.sub(r"<system-reminder>.*?</system-reminder>", "", block["text"], flags=re.DOTALL)
+                            block["text"] = text.strip()
+
         normalized = json.dumps(
             {
                 "model": model,
-                "messages": messages,
+                "messages": cleaned_messages,
             },
             sort_keys=True,
         )

@@ -76,6 +76,10 @@ def test_build_manifest_uses_provider_slice_env_builders_for_all_supported_targe
         "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:9999",
         "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:9999",
         "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:9999",
+        "GEMINI_API_BASE": "http://127.0.0.1:9999",
+        "GEMINI_API_BASE_URL": "http://127.0.0.1:9999",
+        "GEMINI_BASE_URL": "http://127.0.0.1:9999",
+        "GOOGLE_API_BASE": "http://127.0.0.1:9999",
     }
     assert manifest.tool_envs["copilot"] == {
         "COPILOT_PROVIDER_TYPE": "openai",

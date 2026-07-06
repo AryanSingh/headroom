@@ -154,6 +154,7 @@ class TestSsoValidator(unittest.TestCase):
             import base64
             import json
             import time
+
             from cutctx_ee.sso import SsoTokenExpiredError
 
             parts = token.split(".")

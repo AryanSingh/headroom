@@ -152,7 +152,7 @@ class TestCutctxConfig:
         """Default values are correctly set."""
         config = CutctxConfig()
         assert config.store_url == "sqlite:///cutctx.db"
-        assert config.default_mode == CutctxMode.AUDIT
+        assert config.default_mode == CutctxMode.OPTIMIZE
         assert config.generate_diff_artifact is False
         # Nested configs exist
         assert isinstance(config.smart_crusher, SmartCrusherConfig)

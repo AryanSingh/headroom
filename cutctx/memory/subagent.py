@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SubAgentBridge:
     """Bridge for managing context handoffs to sub-agents."""
-    
+
     memory: HierarchicalMemory
     parent_session_id: str
     user_id: str
-    
+
     async def provision_subagent(self, task: str, limit: int = 20) -> dict[str, Any]:
         """Generate a payload that the orchestrator can pass to the sub-agent.
         
@@ -47,18 +47,18 @@ class SubAgentBridge:
             session_id=self.parent_session_id,
             limit=100
         ))
-        
+
         # Sort by importance and time to get the most relevant
         memories.sort(key=lambda m: (m.importance, m.created_at.timestamp()), reverse=True)
-        
+
         # Take the top N items for the distillation
         top_memories = memories[:limit]
-        
+
         # Sort chronologically for the summary
         top_memories.sort(key=lambda m: m.created_at.timestamp())
-        
+
         context_summary = "\n".join([f"- {m.content}" for m in top_memories])
-        
+
         payload = {
             "task": task,
             "context_summary": context_summary,
@@ -67,16 +67,16 @@ class SubAgentBridge:
                 "session_id": self.parent_session_id
             }
         }
-        
+
         if not memories:
             logger.warning(
                 "No context found for session %s when provisioning sub-agent task: %s",
                 self.parent_session_id, task
             )
             payload["warning"] = "No context found for this session. Sub-agent will start with zero context."
-            
+
         return payload
-        
+
     async def merge_result(self, subagent_id: str, distilled_result: str, importance: float = 0.8) -> None:
         """Merge the distilled sub-agent result back into the parent's memory.
         
@@ -91,9 +91,9 @@ class SubAgentBridge:
             raise ValueError("distilled_result must be a non-empty string")
         if not 0.0 <= importance <= 1.0:
             raise ValueError("importance must be between 0.0 and 1.0")
-            
+
         content = f"[Sub-Agent {subagent_id} Result]: {distilled_result}"
-        
+
         await self.memory.add(
             content=content,
             user_id=self.user_id,

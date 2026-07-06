@@ -1,9 +1,11 @@
 import os
-import pytest
 from unittest.mock import patch
+
 import keyring
+import pytest
 
 from cutctx.proxy.auth_keyring import get_api_key
+
 
 def test_adversarial_keyring_locked():
     """Verify that if the OS keyring throws an exception (e.g. locked or missing backend),

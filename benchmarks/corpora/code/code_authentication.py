@@ -2,10 +2,10 @@
 import hashlib
 import os
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
+from cutctx.models import Session, User
 from cutctx.security import validate_token
-from cutctx.models import User, Session
 
 
 class AuthManager:
@@ -14,9 +14,9 @@ class AuthManager:
     def __init__(self, secret_key: str, token_ttl: int = 3600):
         self.secret_key = secret_key
         self.token_ttl = token_ttl
-        self._sessions: Dict[str, Session] = {}
+        self._sessions: dict[str, Session] = {}
 
-    def authenticate(self, username: str, password: str) -> Optional[str]:
+    def authenticate(self, username: str, password: str) -> str | None:
         """Authenticate user and return a JWT token."""
         user = self._lookup_user(username)
         if user is None:
@@ -27,7 +27,7 @@ class AuthManager:
         self._sessions[token] = Session(user_id=user.id, created_at=time.time())
         return token
 
-    def validate(self, token: str) -> Optional[User]:
+    def validate(self, token: str) -> User | None:
         """Validate a token and return the associated user."""
         if token not in self._sessions:
             return None
@@ -51,11 +51,11 @@ class AuthManager:
     def _verify_password(self, password: str, password_hash: str) -> bool:
         return hashlib.sha256(password.encode()).hexdigest() == password_hash
 
-    def _lookup_user(self, username: str) -> Optional[User]:
+    def _lookup_user(self, username: str) -> User | None:
         # In production, this queries the database
         return None
 
-    def _lookup_user_by_id(self, user_id: str) -> Optional[User]:
+    def _lookup_user_by_id(self, user_id: str) -> User | None:
         return None
 
 

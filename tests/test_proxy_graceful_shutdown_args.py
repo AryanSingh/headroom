@@ -1,8 +1,10 @@
 import inspect
+from unittest.mock import MagicMock, patch
+
 import uvicorn
-from unittest.mock import patch, MagicMock
-from cutctx.proxy.server import run_server
+
 from cutctx.proxy.models import ProxyConfig
+from cutctx.proxy.server import run_server
 
 
 @patch("uvicorn.run")

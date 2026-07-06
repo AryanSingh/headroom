@@ -6030,6 +6030,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.proxy.routes.airgap import create_airgap_router
         from cutctx.proxy.routes.audit import create_audit_router
         from cutctx.proxy.routes.dsr import create_dsr_router
+        from cutctx.proxy.routes.license_validation import create_license_validation_router
         from cutctx.proxy.routes.memory import create_memory_router
         from cutctx.proxy.routes.policy import create_policy_router
         from cutctx.proxy.routes.rate_limit import create_rate_limit_router
@@ -6038,7 +6039,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.proxy.routes.secrets import create_secrets_router
         from cutctx.proxy.routes.spend import create_spend_router
         from cutctx.proxy.routes.sso import create_sso_router
-        from cutctx.proxy.routes.license_validation import create_license_validation_router
 
         admin_dep = _require_local_admin_auth
         rbac_dep = _runtime_require_rbac_permission

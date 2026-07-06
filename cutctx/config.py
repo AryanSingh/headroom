@@ -463,7 +463,7 @@ class CutctxConfig:
     """Main configuration for CutctxClient."""
 
     store_url: str = "sqlite:///cutctx.db"
-    default_mode: CutctxMode = CutctxMode.AUDIT
+    default_mode: CutctxMode = CutctxMode.OPTIMIZE
     model_context_limits: dict[str, int] = field(
         default_factory=lambda: DEFAULT_MODEL_CONTEXT_LIMITS.copy()
     )

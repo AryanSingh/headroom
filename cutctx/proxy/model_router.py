@@ -113,7 +113,26 @@ class ModelRouterConfig:
 
     enabled: bool = False
     downgrade_when: str = "low_cache_read"
-    routes: list[ModelRoute] = field(default_factory=list)
+    routes: list[ModelRoute] = field(
+        default_factory=lambda: [
+            ModelRoute(
+                source="claude-3-5-sonnet-20241022",
+                target="claude-3-5-haiku-20241022",
+            ),
+            ModelRoute(
+                source="claude-3-5-sonnet-latest",
+                target="claude-3-5-haiku-latest",
+            ),
+            ModelRoute(
+                source="gpt-4o",
+                target="gpt-4o-mini",
+            ),
+            ModelRoute(
+                source="gpt-4o-2024-08-06",
+                target="gpt-4o-mini",
+            ),
+        ]
+    )
     # Workload-classifier thresholds. A request is
     # "downgradeable" when (cache_read_tokens /
     # attempted_input_tokens) < cache_read_threshold

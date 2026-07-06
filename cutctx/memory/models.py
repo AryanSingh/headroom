@@ -198,12 +198,12 @@ class DecisionTrace(Memory):
     This provides agents with "reasoning memory" to understand why past
     decisions were made, avoiding repeated mistakes.
     """
-    
+
     situation: str = ""
     rationale: str = ""
     action: str = ""
     outcome: str = ""
-    
+
     def __post_init__(self):
         # Ensure the content string also reflects the decision trace
         if not self.content:
@@ -234,7 +234,7 @@ class DecisionTrace(Memory):
         rationale = data.get("rationale") or data.get("metadata", {}).get("rationale", "")
         action = data.get("action") or data.get("metadata", {}).get("action", "")
         outcome = data.get("outcome") or data.get("metadata", {}).get("outcome", "")
-        
+
         # Fallback to parent from_dict to avoid duplicating all field parsing
         base = Memory.from_dict(data)
         import dataclasses

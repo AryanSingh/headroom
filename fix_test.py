@@ -1,6 +1,5 @@
-import re
 
-with open("tests/test_dashboard_surfaces_playwright.py", "r") as f:
+with open("tests/test_dashboard_surfaces_playwright.py") as f:
     content = f.read()
 
 content = content.replace(

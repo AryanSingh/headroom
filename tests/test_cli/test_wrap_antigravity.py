@@ -123,7 +123,7 @@ def test_unwrap_noop_when_no_file(runner: CliRunner, tmp_path: Path) -> None:
 
 def test_cli_binary_find_finds_app_bundle() -> None:
     """``find_cli`` returns a path for the known app bundle on macOS."""
-    from cutctx.providers.antigravity.runtime import find_cli, _CLI_SEARCH_PATHS
+    from cutctx.providers.antigravity.runtime import _CLI_SEARCH_PATHS, find_cli
 
     # We just verify the search paths include the known locations.
     # On a machine without Antigravity installed, find_cli returns None.

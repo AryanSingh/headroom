@@ -1,7 +1,8 @@
 import subprocess
-with open('tests/test_dashboard_savings_by_model.py', 'r') as f:
+
+with open('tests/test_dashboard_savings_by_model.py') as f:
     code = f.read()
-code = code.replace('page.on("console", lambda msg: print(f"Browser console: {msg.text}"))', 
+code = code.replace('page.on("console", lambda msg: print(f"Browser console: {msg.text}"))',
                     'page.on("console", lambda msg: print(f"Browser console: {msg.text}"))\n            page.on("request", lambda request: print(">>", request.method, request.url))\n            page.on("response", lambda response: print("<<", response.status, response.url))')
 with open('tests/test_dashboard_savings_by_model.py', 'w') as f:
     f.write(code)

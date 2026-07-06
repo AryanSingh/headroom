@@ -44,9 +44,6 @@ PERSISTED_SAVINGS_SOURCES = (
     "semantic_cache",
     "prefix_cache_self_hosted",
     "model_routing",
-    "output_optimization",
-    "memoization",
-    "batch_routing",
     "normalization",
 )
 
@@ -57,9 +54,6 @@ SESSION_SAVINGS_USD_FIELDS = (
     "model_routing_savings_usd",
     "tool_schema_compaction_savings_usd",
     "api_surface_slimming_savings_usd",
-    "output_optimization_savings_usd",
-    "memoization_savings_usd",
-    "batch_routing_savings_usd",
     "normalization_savings_usd",
 )
 
@@ -737,21 +731,22 @@ class SavingsTracker:
         # per-source deltas.
         if savings_by_source_usd is None:
             savings_by_source_usd = {}
-            if delta_cache_savings_usd:
-                savings_by_source_usd["provider_prompt_cache"] = delta_cache_savings_usd
-            if delta_savings_usd:
-                savings_by_source_usd["cutctx_compression"] = delta_savings_usd
-            if delta_semantic_cache_usd:
-                savings_by_source_usd["semantic_cache"] = delta_semantic_cache_usd
-            if delta_self_hosted_usd:
-                savings_by_source_usd["prefix_cache_self_hosted"] = delta_self_hosted_usd
-            if delta_model_routing_usd:
-                savings_by_source_usd["model_routing"] = delta_model_routing_usd
-            if delta_tool_schema_compaction_usd:
-                savings_by_source_usd["tool_schema_compaction"] = delta_tool_schema_compaction_usd
-            if delta_api_surface_slimming_usd:
-                savings_by_source_usd["api_surface_slimming"] = delta_api_surface_slimming_usd
         savings_by_source_usd = {str(k): float(v) for k, v in savings_by_source_usd.items()}
+
+        if "provider_prompt_cache" not in savings_by_source_usd and delta_cache_savings_usd:
+            savings_by_source_usd["provider_prompt_cache"] = delta_cache_savings_usd
+        if "cutctx_compression" not in savings_by_source_usd and delta_savings_usd:
+            savings_by_source_usd["cutctx_compression"] = delta_savings_usd
+        if "semantic_cache" not in savings_by_source_usd and delta_semantic_cache_usd:
+            savings_by_source_usd["semantic_cache"] = delta_semantic_cache_usd
+        if "prefix_cache_self_hosted" not in savings_by_source_usd and delta_self_hosted_usd:
+            savings_by_source_usd["prefix_cache_self_hosted"] = delta_self_hosted_usd
+        if "model_routing" not in savings_by_source_usd and delta_model_routing_usd:
+            savings_by_source_usd["model_routing"] = delta_model_routing_usd
+        if "tool_schema_compaction" not in savings_by_source_usd and delta_tool_schema_compaction_usd:
+            savings_by_source_usd["tool_schema_compaction"] = delta_tool_schema_compaction_usd
+        if "api_surface_slimming" not in savings_by_source_usd and delta_api_surface_slimming_usd:
+            savings_by_source_usd["api_surface_slimming"] = delta_api_surface_slimming_usd
         delta_semantic_cache_tokens = int(savings_by_source_tokens.get("semantic_cache", 0))
         delta_self_hosted_tokens = int(savings_by_source_tokens.get("prefix_cache_self_hosted", 0))
         delta_model_routing_tokens = int(savings_by_source_tokens.get("model_routing", 0))

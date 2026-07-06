@@ -1,8 +1,10 @@
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from cutctx.proxy.auth_keyring import get_api_key
+
 
 def test_get_api_key_env_var():
     with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env-key"}):

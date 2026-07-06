@@ -1,5 +1,6 @@
-import os
 import glob
+import os
+
 
 def test_dashboard_assets_path_regression():
     """
@@ -29,7 +30,7 @@ def test_dashboard_css_components_regression():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     css_file = os.path.join(base_dir, "dashboard", "src", "index.css")
     
-    with open(css_file, "r", encoding="utf-8") as f:
+    with open(css_file, encoding="utf-8") as f:
         content = f.read()
         
     assert ".tab-group" in content, "Regression: .tab-group CSS class is missing"

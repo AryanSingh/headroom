@@ -719,6 +719,8 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         semantic_cache_usd_delta=_savings_by_source_usd.get("semantic_cache"),
         self_hosted_prefix_cache_usd_delta=_savings_by_source_usd.get("prefix_cache_self_hosted"),
         model_routing_usd_delta=_savings_by_source_usd.get("model_routing"),
+        tool_schema_compaction_usd_delta=_savings_by_source_usd.get("tool_schema_compaction"),
+        api_surface_slimming_usd_delta=_savings_by_source_usd.get("api_surface_slimming"),
         savings_by_source_usd=_savings_by_source_usd,
     )
 

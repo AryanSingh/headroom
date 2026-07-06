@@ -838,7 +838,7 @@ class AnthropicHandlerMixin:
 
             # Check cache (non-streaming only)
             cache_hit = False
-            if self.cache and not stream:
+            if self.cache:
                 cached = await self.cache.get(messages, model)
                 if cached:
                     cache_hit = True
@@ -901,11 +901,26 @@ class AnthropicHandlerMixin:
                     # Unit 4: release the pre-upstream semaphore on cache
                     # hit — no upstream call will happen.
                     await _finalize_pre_upstream()
-                    return Response(
-                        content=cached.response_body,
-                        headers=response_headers,
-                        media_type="application/json",
-                    )
+
+                    if stream:
+                        cached_dict = json.loads(cached.response_body)
+                        chunks = self._response_to_sse(cached_dict, provider="anthropic")
+
+                        async def generate():
+                            for chunk in chunks:
+                                yield chunk
+
+                        return StreamingResponse(
+                            generate(),
+                            media_type="text/event-stream",
+                            headers=response_headers,
+                        )
+                    else:
+                        return Response(
+                            content=cached.response_body,
+                            headers=response_headers,
+                            media_type="application/json",
+                        )
 
             # Count original tokens
             tokenizer = get_tokenizer(model)
@@ -2118,18 +2133,17 @@ class AnthropicHandlerMixin:
                                 output_tokens=output_tokens,
                                 tokens_saved=tokens_saved,
                                 attempted_input_tokens=attempted_input_tokens,
-                                # Phase 1.4: explicit per-source
-                                # attribution. Cutctx does not route
-                                # Bedrock/Vertex requests to a
-                                # different model or serve them from a
-                                # self-hosted prefix cache, so the
-                                # routing and prefix-cache sources are
-                                # structurally zero. Setting them
-                                # explicitly keeps the funnel's
-                                # per-source merge honest.
-                                self_hosted_prefix_cache_hits=0,
-                                model_routing_tokens_saved=0,
-                                model_routing_usd_saved=0.0,
+                                self_hosted_prefix_cache_hits=int(
+                                    (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
+                                    or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
+                                    or 0
+                                ),
+                                model_routing_tokens_saved=int(
+                                    (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                                ),
+                                model_routing_usd_saved=float(
+                                    (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                                ),
                                 total_latency_ms=total_latency,
                                 overhead_ms=optimization_latency,
                                 pipeline_timing=pipeline_timing,
@@ -2694,20 +2708,17 @@ class AnthropicHandlerMixin:
                             cache_write_5m_tokens=cw_5m_tokens,
                             cache_write_1h_tokens=cw_1h_tokens,
                             uncached_input_tokens=uncached_input_tokens,
-                            # Phase 1.4: explicit per-source attribution.
-                            # Cutctx does not currently route
-                            # Anthropic requests to a different model
-                            # or serve them from a self-hosted prefix
-                            # cache, so the routing and prefix-cache
-                            # sources are structurally zero. Setting
-                            # them explicitly keeps the funnel's
-                            # per-source merge honest: a future
-                            # change that introduces routing or
-                            # self-hosted caching can populate these
-                            # without touching this call site.
-                            self_hosted_prefix_cache_hits=0,
-                            model_routing_tokens_saved=0,
-                            model_routing_usd_saved=0.0,
+                            self_hosted_prefix_cache_hits=int(
+                                (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
+                                or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
+                                or 0
+                            ),
+                            model_routing_tokens_saved=int(
+                                (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                            ),
+                            model_routing_usd_saved=float(
+                                (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                            ),
                             total_latency_ms=total_latency,
                             overhead_ms=optimization_latency,
                             pipeline_timing=pipeline_timing,

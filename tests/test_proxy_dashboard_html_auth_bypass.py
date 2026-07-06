@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from cutctx.proxy.server import create_app
 from cutctx.proxy.models import ProxyConfig
+from cutctx.proxy.server import create_app
 
 
 @pytest.fixture

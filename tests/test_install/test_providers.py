@@ -95,6 +95,10 @@ def test_gemini_build_install_env_returns_proxy_base_urls() -> None:
         "GOOGLE_GEMINI_BASE_URL": "http://127.0.0.1:5566",
         "GOOGLE_VERTEX_BASE_URL": "http://127.0.0.1:5566",
         "CODE_ASSIST_ENDPOINT": "http://127.0.0.1:5566",
+        "GEMINI_API_BASE": "http://127.0.0.1:5566",
+        "GEMINI_API_BASE_URL": "http://127.0.0.1:5566",
+        "GEMINI_BASE_URL": "http://127.0.0.1:5566",
+        "GOOGLE_API_BASE": "http://127.0.0.1:5566",
     }
 
 

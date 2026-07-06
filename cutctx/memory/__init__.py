@@ -66,7 +66,6 @@ from cutctx.memory.backends.local import LocalBackend, LocalBackendConfig
 # Memory Bridge (markdown <-> Cutctx bidirectional sync)
 # =============================================================================
 from cutctx.memory.bridge import ImportStats, MemoryBridge, SyncStats
-from cutctx.memory.subagent import SubAgentBridge
 from cutctx.memory.bridge_config import BridgeConfig, MarkdownFormat
 from cutctx.memory.config import (
     EmbedderBackend,
@@ -123,6 +122,7 @@ from cutctx.memory.ports import (
     VectorIndex,
     VectorSearchResult,
 )
+from cutctx.memory.subagent import SubAgentBridge
 
 # =============================================================================
 # Memory system orchestrator

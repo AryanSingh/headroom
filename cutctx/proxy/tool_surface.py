@@ -14,8 +14,8 @@ _ENABLE_ENV = "CUTCTX_TOOL_SURFACE_SLIMMING"
 _MAX_TOOLS_ENV = "CUTCTX_TOOL_SURFACE_MAX_TOOLS"
 _MIN_TOOLS_ENV = "CUTCTX_TOOL_SURFACE_MIN_TOOLS"
 
-_DEFAULT_MAX_TOOLS = 24
-_DEFAULT_MIN_TOOLS = 12
+_DEFAULT_MAX_TOOLS = 16
+_DEFAULT_MIN_TOOLS = 8
 _MAX_SCHEMA_CHARS = 1600
 _STOPWORDS = {
     "a",
@@ -64,7 +64,10 @@ def estimate_tool_scaffolding_tokens(
 
 
 def tool_surface_slimming_enabled() -> bool:
-    return os.environ.get(_ENABLE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+    env_val = os.environ.get(_ENABLE_ENV, "").strip().lower()
+    if env_val in {"0", "false", "no", "off"}:
+        return False
+    return True
 
 
 def tool_surface_limits() -> tuple[int, int]:

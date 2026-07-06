@@ -53,7 +53,6 @@ from cutctx.copilot_auth import (
 from cutctx.providers.aider import build_launch_env as _build_aider_launch_env
 from cutctx.providers.claude import proxy_base_url as _claude_proxy_base_url
 from cutctx.providers.codex import build_launch_env as _build_codex_launch_env
-from cutctx.providers.opencode import install_plugin as _install_opencode_plugin
 from cutctx.providers.copilot import (
     build_launch_env as _build_copilot_launch_env,
 )
@@ -95,6 +94,7 @@ from cutctx.providers.openclaw import (
 from cutctx.providers.openclaw import (
     normalize_gateway_provider_ids as _normalize_openclaw_gateway_provider_ids_impl,
 )
+from cutctx.providers.opencode import install_plugin as _install_opencode_plugin
 from cutctx.proxy.project_context import with_project_prefix as _with_project_prefix
 
 from .main import main

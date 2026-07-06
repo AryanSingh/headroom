@@ -591,7 +591,7 @@ class MemorySystem:
         action = arguments.get("action", "")
         outcome = arguments.get("outcome", "")
         importance = arguments.get("importance", 0.5)
-        
+
         content = (
             f"Decision Trace:\n"
             f"Situation: {situation}\n"
@@ -599,7 +599,7 @@ class MemorySystem:
             f"Action: {action}\n"
             f"Outcome: {outcome}"
         )
-        
+
         return await self.handle_memory_save(
             content=content,
             importance=importance,

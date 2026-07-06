@@ -1,11 +1,12 @@
-import pytest
 from datetime import UTC, datetime
 
-from cutctx.memory.models import DecisionTrace
-from cutctx.memory.subagent import SubAgentBridge
-from cutctx.memory.core import HierarchicalMemory
-from cutctx.memory.ports import MemoryFilter
+import pytest
+
 from cutctx.memory.config import MemoryConfig
+from cutctx.memory.core import HierarchicalMemory
+from cutctx.memory.models import DecisionTrace
+from cutctx.memory.ports import MemoryFilter
+from cutctx.memory.subagent import SubAgentBridge
 
 
 @pytest.mark.asyncio

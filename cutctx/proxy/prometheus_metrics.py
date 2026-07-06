@@ -578,6 +578,8 @@ class PrometheusMetrics:
         semantic_cache_usd_delta: float | None = None,
         self_hosted_prefix_cache_usd_delta: float | None = None,
         model_routing_usd_delta: float | None = None,
+        tool_schema_compaction_usd_delta: float | None = None,
+        api_surface_slimming_usd_delta: float | None = None,
         savings_by_source_usd: dict[str, float] | None = None,
     ):
         """Record metrics for a request."""

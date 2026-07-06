@@ -1,9 +1,12 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi.testclient import TestClient
+
+from cutctx.backends.base import BackendResponse
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.server import create_app
-from cutctx.backends.base import BackendResponse
+
 
 def test_live_toggle_dedup_compression() -> None:
     config = ProxyConfig(
@@ -58,7 +61,9 @@ def test_live_toggle_dedup_compression() -> None:
             
             headers = {"Authorization": "Bearer mock-key"}
             
+            client.app.state.raise_server_exceptions = True # Try to force error
             response1 = client.post("/v1/chat/completions", json=payload, headers=headers)
+            print("RESPONSE BODY:", response1.text)
             assert response1.status_code == 200
             
             stats1 = client.get("/stats", headers=admin_headers).json()

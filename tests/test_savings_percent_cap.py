@@ -1,6 +1,9 @@
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from cutctx.proxy.savings_tracker import SavingsTracker
+
 
 def test_savings_percent_capped_at_100_when_output_saved(tmp_path):
     """
@@ -12,7 +15,7 @@ def test_savings_percent_capped_at_100_when_output_saved(tmp_path):
     db_path = tmp_path / "savings.json"
     tracker = SavingsTracker(db_path)
     
-    # Simulate a request where the input is 5000 tokens, 
+    # Simulate a request where the input is 5000 tokens,
     # but the cache hit saved 5000 input + 10000 output = 15000 tokens.
     tracker.record_request(
         model="claude-3-sonnet",

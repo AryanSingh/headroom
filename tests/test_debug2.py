@@ -1,8 +1,11 @@
-import pytest
 import os
-from playwright.sync_api import sync_playwright
 from pathlib import Path
+
+import pytest
+from playwright.sync_api import sync_playwright
+
 from cutctx.dashboard import get_dashboard_html
+
 
 def test_debug():
     with sync_playwright() as pw:
