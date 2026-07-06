@@ -24,6 +24,7 @@ import {
   formatRelativeTime,
 } from '../lib/format';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
+import { fetchPeriodStats } from '../lib/period-stats';
 
 function SkeletonCard() {
   return (
@@ -333,6 +334,12 @@ function buildClientRows(stats) {
   const cost = stats?.cost || stats?.summary?.cost || {};
   const byClient =
     cost?.savings_by_client || stats?.summary?.cost?.savings_by_client || stats?.savings_by_client || {};
+  // Real per-client (tool/harness identity, e.g. "claude-code"/"opencode")
+  // attribution, durable across restarts — see SavingsTracker.clients.
+  // Takes priority over the legacy `byClient`/`byProject` shapes below,
+  // neither of which is real client data: `byClient` is never populated
+  // by the backend, and `byProject` is per-working-directory, not per-tool.
+  const realByClient = stats?.persistent_savings?.clients || {};
   const byProject = stats?.savings?.per_project || stats?.persistent_savings?.projects || {};
   const { totalTokensSaved, totalSavingsUsd } = getSessionAttributionTotals(stats);
   const usdPerToken =
@@ -340,6 +347,23 @@ function buildClientRows(stats) {
   const estimateUsd = (tokens, explicitUsd = 0) => (
     explicitUsd > 0 ? explicitUsd : tokens > 0 ? tokens * usdPerToken : 0
   );
+
+  const realRows = Object.entries(realByClient)
+    .map(([client, data]) => ({
+      key: client,
+      label: client,
+      tokens: Number(data?.tokens_saved || data?.total_tokens_saved || 0),
+      usd: estimateUsd(
+        Number(data?.tokens_saved || data?.total_tokens_saved || 0),
+        sumSavingsUsd(data),
+      ),
+      requests: Number(data?.requests || 0),
+    }))
+    .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+
+  if (realRows.length > 0) {
+    return realRows;
+  }
 
   const rows = Object.entries(byClient)
     .map(([client, data]) => ({
@@ -362,6 +386,11 @@ function buildClientRows(stats) {
     return rows;
   }
 
+  // Last resort: no identified-harness data at all (e.g. Codex-only
+  // traffic, which the User-Agent classifier can't attribute yet).
+  // Falling back to per-project data here is a known mislabeling — it's
+  // directory names, not tool identity — but it's still more useful
+  // than an empty panel.
   const projectRows = Object.entries(byProject)
     .map(([project, data]) => ({
       key: project,
@@ -411,6 +440,27 @@ function buildModelRows(stats) {
 const cost = stats?.cost || stats?.summary?.cost || {};
 const byModel = cost?.per_model || stats?.summary?.cost?.per_model || {};
 const requestCountsByModel = stats?.requests?.by_model || {};
+
+// Real per-model lifetime attribution, durable across restarts — see
+// SavingsTracker.models. Takes priority over the fallbacks below, which
+// either read a field the backend never populates (`byModel`) or bucket
+// only the last ~10 requests (`stats.recent_requests`), a recency sample
+// that made a brief burst of cheap-model traffic look bigger than a
+// model that had actually run for far longer.
+const realByModel = stats?.persistent_savings?.models || {};
+const realRows = Object.entries(realByModel)
+.map(([model, data]) => ({
+key: model,
+label: model,
+tokens: Number(data?.tokens_saved || data?.total_tokens_saved || 0),
+usd: sumSavingsUsd(data),
+requests: Number(data?.requests || 0),
+}))
+.sort((a, b) => b.tokens - a.tokens || b.requests - a.requests);
+
+if (realRows.length > 0) {
+return realRows;
+}
 
 const rows = Object.entries(byModel)
 .map(([model, data]) => ({
@@ -981,7 +1031,33 @@ function QuickAction({ to, icon: Icon, label, description }) {
   );
 }
 
-function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle, emptyDescription }) {
+function AttributionMetricToggle({ metric, onChange }) {
+  return (
+    <div className="attribution-toolbar">
+      <span className="attribution-toolbar-label">Show by</span>
+      <div className="tab-group tab-group-compact">
+        <button
+          className={`tab-button tab-button-compact ${metric === 'tokens' ? 'active' : ''}`}
+          onClick={() => onChange('tokens')}
+        >
+          Tokens
+        </button>
+        <button
+          className={`tab-button tab-button-compact ${metric === 'usd' ? 'active' : ''}`}
+          onClick={() => onChange('usd')}
+        >
+          Cost
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emptyIcon, emptyTitle, emptyDescription }) {
+  const byUsd = metric === 'usd';
+  const total = byUsd ? totalUsd : totalTokens;
+  const sortedRows = [...rows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
+
   return (
     <section className="panel">
       <div className="section-heading">
@@ -991,20 +1067,22 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon, emptyTitle
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {sortedRows.length === 0 ? (
         <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />
       ) : (
         <div className="source-stack">
-          {rows.map((row) => {
-            const percent = totalTokens > 0 ? (row.tokens / totalTokens) * 100 : 0;
+          {sortedRows.map((row) => {
+            const value = byUsd ? row.usd : row.tokens;
+            const percent = total > 0 ? (value / total) * 100 : 0;
+            const requestsPart = row.requests > 0 ? ` · ${formatInteger(row.requests)} requests` : '';
             return (
               <div key={row.key} className="source-row">
                 <div className="source-labels">
                   <div className="source-name">{row.label}</div>
                   <div className="source-meta">
-{formatInteger(row.tokens)} tokens
-{row.requests > 0 ? ` · ${formatInteger(row.requests)} requests` : ''}
-· {formatCurrency(row.usd)}
+                    {byUsd
+                      ? `${formatCurrency(row.usd)}${requestsPart} · ${formatInteger(row.tokens)} tokens`
+                      : `${formatInteger(row.tokens)} tokens${requestsPart} · ${formatCurrency(row.usd)}`}
                   </div>
                 </div>
 
@@ -1656,6 +1734,7 @@ export default function Overview() {
   const [durationData, setDurationData] = useState(null);
   const [durationLoading, setDurationLoading] = useState(true);
   const [durationError, setDurationError] = useState(null);
+  const [attributionMetric, setAttributionMetric] = useState('tokens'); // 'tokens' | 'usd'
 
   useEffect(() => {
     let active = true;
@@ -1681,9 +1760,9 @@ export default function Overview() {
       }
       
       try {
-        const data = await fetchDashboardJson(`/stats-history?series=${duration}`);
+        const period = await fetchPeriodStats(fetchDashboardJson, duration);
         if (active) {
-          setDurationData(data?.history_summary || data?.lifetime || null);
+          setDurationData(period);
         }
       } catch (err) {
         if (active) {
@@ -1841,6 +1920,8 @@ export default function Overview() {
     activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
   const totalModelTokens =
     activeModelRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
+  const totalClientUsd = activeClientRows.reduce((sum, row) => sum + row.usd, 0);
+  const totalModelUsd = activeModelRows.reduce((sum, row) => sum + row.usd, 0);
   const activeCompressionPercent =
     tokens.active_savings_percent != null ? Number(tokens.active_savings_percent || 0) : null;
   const effectiveActiveCompressionPercent =
@@ -2025,11 +2106,15 @@ export default function Overview() {
             )}
           </section>
 
+          <AttributionMetricToggle metric={attributionMetric} onChange={setAttributionMetric} />
+
           <SavingsPanel
             title="Savings by client"
             eyebrow="Attribution"
             rows={activeClientRows}
             totalTokens={totalClientTokens}
+            totalUsd={totalClientUsd}
+            metric={attributionMetric}
             emptyIcon={Sparkles}
             emptyTitle="No client data yet"
             emptyDescription="Client-level attribution appears once requests include client tags."
@@ -2040,6 +2125,8 @@ export default function Overview() {
             eyebrow="Attribution"
             rows={activeModelRows}
             totalTokens={totalModelTokens}
+            totalUsd={totalModelUsd}
+            metric={attributionMetric}
             emptyIcon={Layers}
             emptyTitle="No model data yet"
             emptyDescription="Model-level attribution appears once requests flow through the proxy."

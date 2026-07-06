@@ -707,6 +707,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         scaffolding_tokens=scaffolding_tokens,
         ghost_tokens=ghost_tokens,
         project=project,
+        client=outcome.client,
         # Phase 1.4: extra savings sources.
         semantic_cache_avoided_tokens=int(outcome.semantic_cache_avoided_tokens or 0),
         self_hosted_prefix_cache_hits=int(outcome.self_hosted_prefix_cache_hits or 0),

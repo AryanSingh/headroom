@@ -1062,8 +1062,14 @@ var COMPRESS_THRESHOLD_BYTES = Number(
   process.env.CUTCTX_COMPRESS_THRESHOLD_BYTES ?? 4096
 );
 var DEFAULT_MODEL = process.env.CUTCTX_MODEL ?? "claude-sonnet-4-5";
+var lastKnownModel;
 var plugin = async () => {
   return {
+    "chat.params": async (input) => {
+      if (input.model?.id) {
+        lastKnownModel = input.model.id;
+      }
+    },
     "tool.execute.after": async (input, output) => {
       if (process.env.CUTCTX_DISABLED === "1") return;
       const text = output.output;
@@ -1072,7 +1078,7 @@ var plugin = async () => {
       }
       try {
         const messages = [{ role: "user", content: text }];
-        const result = await compress(messages, { model: DEFAULT_MODEL });
+        const result = await compress(messages, { model: lastKnownModel ?? DEFAULT_MODEL });
         const handle = result.ccrHashes[0] ?? "n/a";
         const header = `[cutctx: compressed ${result.tokensBefore} \u2192 ${result.tokensAfter} tokens (handle: ${handle})]`;
         const first = result.messages[0];
@@ -1105,7 +1111,7 @@ ${body}`;
         content: textOf(item)
       }));
       try {
-        const result = await compress(canonical, { model: DEFAULT_MODEL });
+        const result = await compress(canonical, { model: lastKnownModel ?? DEFAULT_MODEL });
         const compressedText = result.messages.map(
           (m) => typeof m.content === "string" ? m.content : JSON.stringify(m)
         ).join("\n\n");

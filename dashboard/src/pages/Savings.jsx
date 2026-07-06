@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PiggyBank, Calendar, Clock, Sparkles, Layers, Activity, Coins } from 'lucide-react';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
+import { fetchPeriodStats } from '../lib/period-stats';
 import {
   formatCurrency,
   formatInteger,
@@ -33,7 +34,11 @@ function MetricCard({ icon: Icon, iconColor, label, value, footnote }) {
   );
 }
 
-function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon: EmptyIcon, emptyTitle, emptyDescription }) {
+function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emptyIcon: EmptyIcon, emptyTitle, emptyDescription }) {
+  const byUsd = metric === 'usd';
+  const total = byUsd ? totalUsd : totalTokens;
+  const sortedRows = [...rows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
+
   return (
     <section className="panel panel-compact">
       <div className="section-heading">
@@ -42,8 +47,8 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon: EmptyIcon,
           <h2>{title}</h2>
         </div>
       </div>
-      
-      {rows.length === 0 ? (
+
+      {sortedRows.length === 0 ? (
         <div className="overview-empty">
           <div className="overview-empty-illustration">
             <EmptyIcon size={28} />
@@ -53,14 +58,17 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon: EmptyIcon,
         </div>
       ) : (
         <div className="source-stack">
-          {rows.map((row) => {
-            const percent = totalTokens > 0 ? (row.tokens / totalTokens) * 100 : 0;
+          {sortedRows.map((row) => {
+            const value = byUsd ? row.usd : row.tokens;
+            const percent = total > 0 ? (value / total) * 100 : 0;
             return (
               <div key={row.key} className="source-row">
                 <div className="source-labels">
                   <div className="source-name">{row.label}</div>
                   <div className="source-meta">
-                    {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
+                    {byUsd
+                      ? `${formatCurrency(row.usd)} · ${formatInteger(row.tokens)} tokens`
+                      : `${formatInteger(row.tokens)} tokens · ${formatCurrency(row.usd)}`}
                   </div>
                 </div>
                 <div className="source-bar-track">
@@ -79,9 +87,32 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, emptyIcon: EmptyIcon,
   );
 }
 
+function AttributionMetricToggle({ metric, onChange }) {
+  return (
+    <div className="attribution-toolbar">
+      <span className="attribution-toolbar-label">Show by</span>
+      <div className="tab-group tab-group-compact">
+        <button
+          className={`tab-button tab-button-compact ${metric === 'tokens' ? 'active' : ''}`}
+          onClick={() => onChange('tokens')}
+        >
+          Tokens
+        </button>
+        <button
+          className={`tab-button tab-button-compact ${metric === 'usd' ? 'active' : ''}`}
+          onClick={() => onChange('usd')}
+        >
+          Cost
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Savings() {
   const { historyData, loading: contextLoading, error: contextError } = useDashboardData();
   const [duration, setDuration] = useState('lifetime'); // 'session', 'lifetime', 'daily', 'weekly', 'monthly'
+  const [attributionMetric, setAttributionMetric] = useState('tokens'); // 'tokens' | 'usd'
   const [durationData, setDurationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -110,11 +141,9 @@ export default function Savings() {
       }
       
       try {
-        const data = await fetchDashboardJson(`/stats-history?series=${duration}`);
+        const period = await fetchPeriodStats(fetchDashboardJson, duration);
         if (active) {
-          // stats-history with a series parameter returns the history array and a history_summary object
-          // We can use the history_summary for the aggregate stats.
-          setDurationData(data?.history_summary || data?.lifetime || null);
+          setDurationData(period);
         }
       } catch (err) {
         if (active) {
@@ -160,10 +189,38 @@ export default function Savings() {
       .sort((a, b) => b.tokens - a.tokens);
   };
 
-  const modelRows = parseRows('savings_by_source_tokens.model');
-  const clientRows = parseRows('savings_by_source_tokens.client');
+  // Real per-model/per-client attribution — see SavingsTracker.models/.clients.
+  // `savings_by_source_tokens.model.*`/`.client.*` (parseRows above) is dead:
+  // the backend only ever writes compression-technique keys under that
+  // prefix (cutctx_compression, semantic_cache, ...), never per-model or
+  // per-client breakdowns, so parseRows always returned []. historyData.models
+  // and historyData.clients are the real, restart-safe lifetime totals.
+  // Per-period model attribution comes from durationData.models, built by
+  // aggregatePeriodBuckets from the series' by_model breakdown — but the
+  // history series has no by_client breakdown, so client attribution stays
+  // lifetime-only.
+  const mapAttributionRows = (entries) => Object.entries(entries || {})
+    .map(([key, data]) => ({
+      key,
+      label: key,
+      tokens: Number(data?.tokens_saved || 0),
+      usd: Number(data?.compression_savings_usd || 0),
+    }))
+    .filter((r) => r.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens);
+
+  const modelRows = duration === 'lifetime' && historyData?.models
+    ? mapAttributionRows(historyData.models)
+    : duration !== 'session' && durationData?.models
+      ? mapAttributionRows(durationData.models)
+      : parseRows('savings_by_source_tokens.model');
+  const clientRows = duration === 'lifetime' && historyData?.clients
+    ? mapAttributionRows(historyData.clients)
+    : parseRows('savings_by_source_tokens.client');
   const totalModelTokens = modelRows.reduce((sum, r) => sum + r.tokens, 0);
+  const totalModelUsd = modelRows.reduce((sum, r) => sum + r.usd, 0);
   const totalClientTokens = clientRows.reduce((sum, r) => sum + r.tokens, 0);
+  const totalClientUsd = clientRows.reduce((sum, r) => sum + r.usd, 0);
 
   return (
     <section className="page-stack">
@@ -245,16 +302,19 @@ export default function Savings() {
             />
           </div>
 
-          <div className="overview-bottom-grid" style={{ marginTop: 'var(--space-xl)' }}>
+          <AttributionMetricToggle metric={attributionMetric} onChange={setAttributionMetric} />
+          <div className="overview-bottom-grid">
             <div className="overview-side-stack">
               <SavingsPanel
                 title="Savings by model"
                 eyebrow="Attribution"
                 rows={modelRows}
                 totalTokens={totalModelTokens}
+                totalUsd={totalModelUsd}
+                metric={attributionMetric}
                 emptyIcon={Layers}
                 emptyTitle="No model data yet"
-                emptyDescription={`No model attribution data for the ${duration} period.`}
+                emptyDescription="No model attribution data yet — send some traffic through the proxy."
               />
             </div>
             <div className="overview-side-stack">
@@ -263,9 +323,13 @@ export default function Savings() {
                 eyebrow="Attribution"
                 rows={clientRows}
                 totalTokens={totalClientTokens}
+                totalUsd={totalClientUsd}
+                metric={attributionMetric}
                 emptyIcon={Sparkles}
                 emptyTitle="No client data yet"
-                emptyDescription={`No client attribution data for the ${duration} period.`}
+                emptyDescription={duration === 'lifetime'
+                  ? 'No client attribution data yet — send some traffic through the proxy.'
+                  : 'Per-client attribution is only tracked lifetime; switch to the Lifetime tab to see it.'}
               />
             </div>
           </div>

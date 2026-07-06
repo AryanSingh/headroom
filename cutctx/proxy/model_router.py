@@ -135,7 +135,8 @@ class ModelRouterConfig:
         try:
             payload = _json.loads(raw)
         except _json.JSONDecodeError as exc:
-            logger.warning("CUTCTX_MODEL_ROUTING is not valid JSON: %s", exc)
+            import logging
+            logging.getLogger(__name__).warning("CUTCTX_MODEL_ROUTING is not valid JSON: %s", exc)
             return cls()
         routes = [
             ModelRoute(

@@ -448,6 +448,28 @@ async def test_funnel_stamps_client_into_request_log_tags() -> None:
     assert h.logger.logs[0].tags.get("client") == "aider"
 
 
+@pytest.mark.asyncio
+async def test_funnel_passes_client_to_metrics_for_durable_attribution() -> None:
+    """``client`` was previously dropped between ``RequestOutcome`` and
+    ``PrometheusMetrics.record_request`` — it only reached the PERF log
+    and RequestLog.tags, never the durable SavingsTracker aggregate, so
+    per-client savings could never be reconstructed after a restart or
+    across the last-10-requests recency window. The funnel must forward
+    it exactly like ``project``."""
+    h = _FunnelHarness()
+    await h._record_request_outcome(_outcome(client="opencode"))
+    kwargs = h.metrics.record_request.await_args.kwargs
+    assert kwargs["client"] == "opencode"
+
+
+@pytest.mark.asyncio
+async def test_funnel_passes_none_client_when_unidentified() -> None:
+    h = _FunnelHarness()
+    await h._record_request_outcome(_outcome(client=None))
+    kwargs = h.metrics.record_request.await_args.kwargs
+    assert kwargs["client"] is None
+
+
 # ── from_stream classmethod (streaming-finalizer construction shape) ──
 #
 # Three streaming finalizers (``_finalize_stream_response``,

@@ -565,6 +565,7 @@ class PrometheusMetrics:
         scaffolding_tokens: int = 0,
         ghost_tokens: int = 0,
         project: str | None = None,
+        client: str | None = None,
         # Phase 1.4: extra savings sources. Defaults to 0/None so old
         # callers keep working.
         semantic_cache_avoided_tokens: int = 0,
@@ -666,6 +667,7 @@ class PrometheusMetrics:
                 tokens_saved=tokens_saved,
                 provider=provider,
                 project=project,
+                client=client,
                 cache_read_tokens=cache_read_tokens,
                 cache_write_tokens=cache_write_tokens,
                 uncached_input_tokens=uncached_input_tokens,

@@ -6,8 +6,23 @@ const COMPRESS_THRESHOLD_BYTES = Number(
 )
 const DEFAULT_MODEL = process.env.CUTCTX_MODEL ?? "claude-sonnet-4-5"
 
+// The active model as reported by opencode's own request pipeline, not
+// what this plugin defaults to. Without this, every housekeeping
+// compress() call (tool-output shrinking, history compaction) was
+// hardcoded to DEFAULT_MODEL — so a user running e.g. MiMo v2.5 had all
+// their compression savings misattributed to "claude-sonnet-4-5" on the
+// dashboard. `experimental.chat.messages.transform` gets no session
+// context in its input, so a best-effort last-seen-model global (updated
+// on every real LLM call via chat.params) is the closest we can get.
+let lastKnownModel: string | undefined
+
 const plugin: Plugin = async () => {
   return {
+    "chat.params": async (input) => {
+      if (input.model?.id) {
+        lastKnownModel = input.model.id
+      }
+    },
     "tool.execute.after": async (input, output) => {
       if (process.env.CUTCTX_DISABLED === "1") return
 
@@ -18,7 +33,7 @@ const plugin: Plugin = async () => {
 
       try {
         const messages = [{ role: "user" as const, content: text }]
-        const result = await compress(messages, { model: DEFAULT_MODEL })
+        const result = await compress(messages, { model: lastKnownModel ?? DEFAULT_MODEL })
         const handle = result.ccrHashes[0] ?? "n/a"
         const header = `[cutctx: compressed ${result.tokensBefore} → ${result.tokensAfter} tokens (handle: ${handle})]`
 
@@ -73,7 +88,7 @@ const plugin: Plugin = async () => {
       }))
 
       try {
-        const result = await compress(canonical, { model: DEFAULT_MODEL })
+        const result = await compress(canonical, { model: lastKnownModel ?? DEFAULT_MODEL })
         const compressedText = result.messages
           .map((m) =>
             typeof (m as { content?: unknown }).content === "string"
