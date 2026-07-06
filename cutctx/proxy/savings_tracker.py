@@ -546,6 +546,7 @@ class SavingsTracker:
         )
         self._lock = threading.Lock()
         self._state = self._load_state()
+        self._loaded_mtime = self._current_mtime()
 
     @property
     def storage_path(self) -> str:
@@ -579,6 +580,7 @@ class SavingsTracker:
         delta_usd = _estimate_compression_savings_usd(model, delta_tokens)
 
         with self._lock:
+            self._reload_if_stale_locked()
             lifetime = self._state["lifetime"]
             lifetime["tokens_saved"] += delta_tokens
             lifetime["compression_savings_usd"] = round(
@@ -745,6 +747,7 @@ class SavingsTracker:
         )
 
         with self._lock:
+            self._reload_if_stale_locked()
             lifetime = self._state["lifetime"]
             previous_total_input_tokens = lifetime["total_input_tokens"]
             previous_total_input_cost_usd = lifetime["total_input_cost_usd"]
@@ -1127,6 +1130,7 @@ class SavingsTracker:
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
+            self._reload_if_stale_locked()
             history = [dict(item) for item in self._state["history"]]
             return {
                 "schema_version": SCHEMA_VERSION,
@@ -1471,6 +1475,30 @@ class SavingsTracker:
                 raise
         except OSError as e:
             logger.warning("Failed to save savings history to %s: %s", self._path, e)
+        self._loaded_mtime = self._current_mtime()
+
+    def _current_mtime(self) -> float | None:
+        try:
+            return self._path.stat().st_mtime
+        except OSError:
+            return None
+
+    def _reload_if_stale_locked(self) -> None:
+        """Reload state from disk if another process has written since we last saw it.
+
+        Must be called while holding ``self._lock``, before reading or
+        mutating ``self._state``. Cross-process shared storage means a
+        different cutctx proxy (e.g. one on an auto-reassigned port) may
+        have appended savings since this process last loaded/saved — this
+        keeps Attribution/lifetime totals live-consistent across processes
+        instead of reflecting only this process's own requests, and avoids
+        a stale-base overwrite clobbering the other process's writes.
+        Cheap in the common case: one stat() syscall, no reload needed.
+        """
+        current = self._current_mtime()
+        if current is not None and current != self._loaded_mtime:
+            self._state = self._load_state()
+            self._loaded_mtime = current
 
     def _display_session_snapshot_locked(
         self,

@@ -359,6 +359,52 @@ class TestNewEnvVarWiring:
         assert mock_run_server["config"].memory_top_k == 20
 
 
+class TestLogFileDefault:
+    """`cutctx proxy` must default log_file to the shared, workspace-relative
+    request-history path (not None) so every proxy — whether launched via
+    `wrap`, a persistent/launchd-managed deployment, or a raw manual
+    invocation — durably logs requests to the same place. Without this,
+    'Recent Activity'/Attribution on one proxy's dashboard can't reflect
+    requests handled by a different cutctx proxy process."""
+
+    def test_log_file_defaults_to_shared_request_history_path(
+        self, runner: CliRunner, mock_run_server: dict, tmp_path, monkeypatch
+    ) -> None:
+        from cutctx import paths as _paths
+
+        monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(tmp_path))
+        expected = str(_paths.request_history_path())
+
+        result = runner.invoke(main, ["proxy"], catch_exceptions=False)
+        assert result.exit_code == 0, result.output
+        assert mock_run_server["config"].log_file == expected
+
+    def test_explicit_log_file_flag_still_wins(
+        self, runner: CliRunner, mock_run_server: dict, tmp_path
+    ) -> None:
+        custom_path = str(tmp_path / "custom.jsonl")
+        result = runner.invoke(
+            main,
+            ["proxy", "--log-file", custom_path],
+            env={"CUTCTX_WORKSPACE_DIR": str(tmp_path)},
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert mock_run_server["config"].log_file == custom_path
+
+    def test_stateless_mode_still_disables_log_file(
+        self, runner: CliRunner, mock_run_server: dict, tmp_path
+    ) -> None:
+        result = runner.invoke(
+            main,
+            ["proxy", "--stateless"],
+            env={"CUTCTX_WORKSPACE_DIR": str(tmp_path)},
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert mock_run_server["config"].log_file is None
+
+
 class TestHelpTextCompleteness:
     """Verify key flags appear in --help output with non-trivial descriptions."""
 

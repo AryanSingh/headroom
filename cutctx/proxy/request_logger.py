@@ -181,6 +181,31 @@ def redact_image_base64(payload: Any) -> Any:
     return _redact_value(payload, in_image_path=False)
 
 
+def _tail_lines(path: Path, n: int, chunk_size: int = 65_536) -> list[bytes]:
+    """Return up to the last ``n`` non-empty lines of ``path``.
+
+    Reads backwards in chunks so the cost is bounded by ``n`` (usually one
+    chunk read) rather than growing with total file size — this is what
+    lets ``get_recent`` stay cheap on a long-lived, multi-process-shared
+    JSONL log that keeps growing.
+    """
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            pos = f.tell()
+            buffer = b""
+            lines: list[bytes] = []
+            while pos > 0 and len(lines) <= n:
+                read_size = min(chunk_size, pos)
+                pos -= read_size
+                f.seek(pos)
+                buffer = f.read(read_size) + buffer
+                lines = [ln for ln in buffer.split(b"\n") if ln.strip()]
+            return lines[-n:]
+    except OSError:
+        return []
+
+
 class RequestLogger:
     """Log requests to JSONL file.
 
@@ -288,17 +313,46 @@ class RequestLogger:
                 pass  # Graceful degradation: memory-only logging continues
 
     def get_recent(self, n: int = 100) -> list[dict]:
-        """Get recent log entries (without request/compressed messages and response_content)."""
-        # Convert deque to list for slicing (deque doesn't support slicing)
-        entries = list(self._logs)[-n:]
+        """Get recent log entries (without request/compressed messages and response_content).
+
+        When a shared log file is configured, reads live from its tail
+        rather than the in-memory deque, so this reflects requests handled
+        by ANY cutctx proxy process writing to the same file — not just
+        this process. Falls back to the in-memory deque (this process's
+        own requests only) if no log file is configured or it can't be
+        read yet.
+        """
+        entries = self._read_recent_from_file(n)
+        if entries is None:
+            entries = [asdict(e) for e in list(self._logs)[-n:]]
         return [
             {
                 k: v
-                for k, v in asdict(e).items()
+                for k, v in e.items()
                 if k not in ("request_messages", "compressed_messages", "response_content")
             }
             for e in entries
         ]
+
+    def _read_recent_from_file(self, n: int) -> list[dict] | None:
+        """Tail-read up to ``n`` entries from the shared JSONL log, if any.
+
+        Returns None (signalling "fall back to the in-memory deque") when
+        no log file is configured, the file doesn't exist yet, or it holds
+        no parseable lines.
+        """
+        if not self.log_file:
+            return None
+        raw_lines = _tail_lines(self.log_file, n)
+        if not raw_lines:
+            return None
+        entries: list[dict] = []
+        for raw in raw_lines:
+            try:
+                entries.append(json.loads(raw))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+        return entries or None
 
     def get_recent_with_messages(self, n: int = 20) -> list[dict]:
         """Get recent log entries including full request/response messages."""

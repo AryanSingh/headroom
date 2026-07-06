@@ -103,6 +103,35 @@ def test_request_logger_warms_recent_entries_from_jsonl(tmp_path):
     assert recent[0]["request_id"] == "warm-1"
 
 
+def test_get_recent_reads_live_from_shared_file_across_instances(tmp_path):
+    """Two RequestLogger instances (simulating two proxy processes) sharing
+    the same log_file must both see entries the other one wrote, without
+    either process restarting — this is what lets 'Recent Activity' on any
+    cutctx proxy's dashboard show requests handled by a different proxy."""
+    log_file = tmp_path / "requests.jsonl"
+    logger_a = RequestLogger(log_file=str(log_file), log_full_messages=False)
+    logger_b = RequestLogger(log_file=str(log_file), log_full_messages=False)
+
+    logger_a.log(_entry(request_id="from-a"))
+    logger_b.log(_entry(request_id="from-b"))
+
+    recent_on_a = logger_a.get_recent(10)
+    recent_on_b = logger_b.get_recent(10)
+
+    ids_on_a = {e["request_id"] for e in recent_on_a}
+    ids_on_b = {e["request_id"] for e in recent_on_b}
+    assert ids_on_a == {"from-a", "from-b"}
+    assert ids_on_b == {"from-a", "from-b"}
+
+
+def test_get_recent_falls_back_to_memory_when_no_log_file():
+    logger = RequestLogger(log_file=None)
+    logger.log(_entry(request_id="mem-only"))
+
+    recent = logger.get_recent(10)
+    assert [e["request_id"] for e in recent] == ["mem-only"]
+
+
 def test_get_memory_stats_accounts_for_compressed_messages():
     logger = RequestLogger(log_file=None)
     logger.log(

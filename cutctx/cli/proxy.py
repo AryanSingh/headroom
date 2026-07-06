@@ -1117,7 +1117,11 @@ def proxy(
         else 10,
         max_connections=max_connections,
         max_keepalive_connections=max_keepalive_connections,
-        log_file=None if is_stateless else log_file,
+        # Default to the shared, workspace-relative request-history file so
+        # every cutctx proxy (wrap-launched, persistent/launchd-managed, or a
+        # raw manual invocation) durably logs to the same place — letting any
+        # proxy's dashboard tail requests handled by a different process.
+        log_file=None if is_stateless else (log_file or str(_paths.request_history_path())),
         log_full_messages=log_messages
         or os.environ.get("CUTCTX_LOG_MESSAGES", "").lower() in ("true", "1", "yes", "on"),
         budget_limit_usd=budget,

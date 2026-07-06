@@ -6764,6 +6764,8 @@ if __name__ == "__main__":
         args.sso_role_mapping or os.environ.get("CUTCTX_SSO_ROLE_MAPPING")
     )
 
+    from cutctx import paths as _hr_paths
+
     config = ProxyConfig(
         host=_get_env_str("CUTCTX_HOST", args.host),
         port=_get_env_int("CUTCTX_PORT", args.port),
@@ -6785,9 +6787,9 @@ if __name__ == "__main__":
         rate_limit_tokens_per_minute=_get_env_int("CUTCTX_TPM", args.tpm),
         budget_limit_usd=args.budget,
         budget_period=args.budget_period,
-        log_file=_get_env_str("CUTCTX_LOG_FILE", args.log_file)
-        if args.log_file
-        else os.environ.get("CUTCTX_LOG_FILE"),
+        log_file=os.environ.get("CUTCTX_LOG_FILE")
+        or args.log_file
+        or str(_hr_paths.request_history_path()),
         log_full_messages=args.log_messages or _get_env_bool("CUTCTX_LOG_MESSAGES", False),
         code_aware_enabled=code_aware_enabled,
         disable_kompress=disable_kompress,
