@@ -166,6 +166,7 @@ export default function Savings() {
   // Aggregate stats from durationData
   const tokensSaved = durationData?.tokens_saved || 0;
   const savingsUsd = durationData?.compression_savings_usd || 0;
+  const savingsObservedUsd = durationData?.compression_savings_observed_usd || 0;
   const totalInputTokens = durationData?.total_input_tokens || 1;
   const savingsPercent = durationData?.savings_percent != null 
     ? durationData.savings_percent 
@@ -290,7 +291,11 @@ export default function Savings() {
               icon={Coins}
               iconColor="yellow"
               label="Estimated savings"
-              value={formatCurrency(savingsUsd)}
+              value={
+                savingsUsd > savingsObservedUsd && savingsObservedUsd > 0
+                  ? `${formatCurrency(savingsUsd)} (list) / ${formatCurrency(savingsObservedUsd)} (observed)`
+                  : formatCurrency(savingsUsd)
+              }
               footnote={`from ${formatNumber(durationData?.requests || 0)} proxy requests`}
             />
             <MetricCard

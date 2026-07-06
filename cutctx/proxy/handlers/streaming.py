@@ -823,14 +823,26 @@ class StreamingMixin:
             model_routing_usd_saved=_routing_usd,
         )
         cache = getattr(self, "cache", None)
-        if cache and parsed_response and original_messages:
-            await cache.set(
-                messages=original_messages,
-                model=model,
-                response_body=json.dumps(parsed_response).encode("utf-8"),
-                response_headers={},
-                tokens_saved=max(effective_optimized_tokens, cache_read_tokens),
-            )
+        print(f"DEBUG: cache={cache is not None} original_messages={bool(original_messages)} full_sse_data={bool(full_sse_data)}")
+        if cache and original_messages:
+            if full_sse_data:
+                await cache.set(
+                    messages=original_messages,
+                    model=model,
+                    response_body=full_sse_data.encode("utf-8"),
+                    response_headers={"content-type": "text/event-stream"},
+                    tokens_saved=max(effective_optimized_tokens, cache_read_tokens),
+                )
+                print("DEBUG: cache.set called with full_sse_data")
+            elif parsed_response:
+                await cache.set(
+                    messages=original_messages,
+                    model=model,
+                    response_body=json.dumps(parsed_response).encode("utf-8"),
+                    response_headers={"content-type": "application/json"},
+                    tokens_saved=max(effective_optimized_tokens, cache_read_tokens),
+                )
+                print("DEBUG: cache.set called with parsed_response")
 
         await self._record_request_outcome(outcome)
 
@@ -1526,13 +1538,7 @@ class StreamingMixin:
                 }
                 yield f"event: error\ndata: {json.dumps(error_event)}\n\n".encode()
             finally:
-                # PR-A8 / P1-8: best-effort decode for downstream
-                # finalization. This runs in `finally` so it must not
-                # raise — if the upstream sent invalid bytes mid-stream
-                # we surface them as `errors="strict"` would in the
-                # success path above, but here we accept the
-                # diagnostic-grade fallback so the finalization log
-                # line still emits.
+                print(f"DEBUG: inside finally stream_complete={stream_complete} full_sse_bytes={len(full_sse_bytes)}")
                 try:
                     _final_full_sse_data: str = (
                         full_sse_bytes.decode("utf-8") if full_sse_bytes else ""

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 CUTCTX_SAVINGS_PATH_ENV_VAR = _paths.CUTCTX_SAVINGS_PATH_ENV
 DEFAULT_SAVINGS_DIR = ".cutctx"
 DEFAULT_SAVINGS_FILE = "proxy_savings.json"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DEFAULT_MAX_HISTORY_POINTS = 5000
 DEFAULT_MAX_PROJECTS = 50
 DEFAULT_MAX_MODELS = 50
@@ -49,12 +49,19 @@ PERSISTED_SAVINGS_SOURCES = (
 
 SESSION_SAVINGS_USD_FIELDS = (
     "cache_savings_usd",
+    "cache_savings_observed_usd",
     "semantic_cache_savings_usd",
+    "semantic_cache_savings_observed_usd",
     "self_hosted_prefix_cache_savings_usd",
+    "self_hosted_prefix_cache_savings_observed_usd",
     "model_routing_savings_usd",
+    "model_routing_savings_observed_usd",
     "tool_schema_compaction_savings_usd",
+    "tool_schema_compaction_savings_observed_usd",
     "api_surface_slimming_savings_usd",
+    "api_surface_slimming_savings_observed_usd",
     "normalization_savings_usd",
+    "normalization_savings_observed_usd",
 )
 
 LITELLM_AVAILABLE = importlib.util.find_spec("litellm") is not None
@@ -405,6 +412,7 @@ def _empty_display_session() -> dict[str, Any]:
         "requests": 0,
         "tokens_saved": 0,
         "compression_savings_usd": 0.0,
+        "compression_savings_observed_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
         "savings_percent": 0.0,
@@ -795,36 +803,35 @@ class SavingsTracker:
                 int(lifetime.get("scaffolding_tokens", 0)) + delta_scaffolding_tokens
             )
             lifetime["ghost_tokens"] = int(lifetime.get("ghost_tokens", 0)) + delta_ghost_tokens
-            lifetime["compression_savings_usd"] = round(
-                lifetime["compression_savings_usd"] + delta_savings_usd,
-                6,
-            )
-            lifetime["cache_savings_usd"] = round(
-                lifetime.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
-                6,
-            )
-            lifetime["semantic_cache_savings_usd"] = round(
-                lifetime.get("semantic_cache_savings_usd", 0.0) + delta_semantic_cache_usd,
-                6,
-            )
-            lifetime["self_hosted_prefix_cache_savings_usd"] = round(
-                lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0) + delta_self_hosted_usd,
-                6,
-            )
-            lifetime["model_routing_savings_usd"] = round(
-                lifetime.get("model_routing_savings_usd", 0.0) + delta_model_routing_usd,
-                6,
-            )
-            lifetime["tool_schema_compaction_savings_usd"] = round(
-                lifetime.get("tool_schema_compaction_savings_usd", 0.0)
-                + delta_tool_schema_compaction_usd,
-                6,
-            )
-            lifetime["api_surface_slimming_savings_usd"] = round(
-                lifetime.get("api_surface_slimming_savings_usd", 0.0)
-                + delta_api_surface_slimming_usd,
-                6,
-            )
+            from cutctx.proxy.savings_pricing import value_tokens_usd
+            created_compression = value_tokens_usd(model, max(0, delta_tokens_saved - int(cache_read_tokens or 0)))
+            created_cache = value_tokens_usd(model, int(cache_read_tokens or 0))
+            created_semantic = value_tokens_usd(model, delta_semantic_cache_tokens)
+            created_self_hosted = value_tokens_usd(model, delta_self_hosted_tokens)
+            created_routing = value_tokens_usd(model, delta_model_routing_tokens)
+            created_tool_schema = value_tokens_usd(model, delta_tool_schema_compaction_tokens)
+            created_api_surface = value_tokens_usd(model, delta_api_surface_slimming_tokens)
+
+            lifetime["compression_savings_usd"] = round(lifetime.get("compression_savings_usd", 0.0) + created_compression, 6)
+            lifetime["compression_savings_observed_usd"] = round(lifetime.get("compression_savings_observed_usd", 0.0) + delta_savings_usd, 6)
+
+            lifetime["cache_savings_usd"] = round(lifetime.get("cache_savings_usd", 0.0) + created_cache, 6)
+            lifetime["cache_savings_observed_usd"] = round(lifetime.get("cache_savings_observed_usd", 0.0) + delta_cache_savings_usd, 6)
+
+            lifetime["semantic_cache_savings_usd"] = round(lifetime.get("semantic_cache_savings_usd", 0.0) + created_semantic, 6)
+            lifetime["semantic_cache_savings_observed_usd"] = round(lifetime.get("semantic_cache_savings_observed_usd", 0.0) + delta_semantic_cache_usd, 6)
+
+            lifetime["self_hosted_prefix_cache_savings_usd"] = round(lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0) + created_self_hosted, 6)
+            lifetime["self_hosted_prefix_cache_savings_observed_usd"] = round(lifetime.get("self_hosted_prefix_cache_savings_observed_usd", 0.0) + delta_self_hosted_usd, 6)
+
+            lifetime["model_routing_savings_usd"] = round(lifetime.get("model_routing_savings_usd", 0.0) + created_routing, 6)
+            lifetime["model_routing_savings_observed_usd"] = round(lifetime.get("model_routing_savings_observed_usd", 0.0) + delta_model_routing_usd, 6)
+
+            lifetime["tool_schema_compaction_savings_usd"] = round(lifetime.get("tool_schema_compaction_savings_usd", 0.0) + created_tool_schema, 6)
+            lifetime["tool_schema_compaction_savings_observed_usd"] = round(lifetime.get("tool_schema_compaction_savings_observed_usd", 0.0) + delta_tool_schema_compaction_usd, 6)
+
+            lifetime["api_surface_slimming_savings_usd"] = round(lifetime.get("api_surface_slimming_savings_usd", 0.0) + created_api_surface, 6)
+            lifetime["api_surface_slimming_savings_observed_usd"] = round(lifetime.get("api_surface_slimming_savings_observed_usd", 0.0) + delta_api_surface_slimming_usd, 6)
             # Phase 1.3: lifetime by-source accumulators.
             for src_name, n in savings_by_source_tokens.items():
                 key = f"savings_by_source_tokens.{src_name}"
@@ -852,36 +859,26 @@ class SavingsTracker:
                 int(session.get("scaffolding_tokens", 0)) + delta_scaffolding_tokens
             )
             session["ghost_tokens"] = int(session.get("ghost_tokens", 0)) + delta_ghost_tokens
-            session["compression_savings_usd"] = round(
-                session["compression_savings_usd"] + delta_savings_usd,
-                6,
-            )
-            session["cache_savings_usd"] = round(
-                session.get("cache_savings_usd", 0.0) + delta_cache_savings_usd,
-                6,
-            )
-            session["semantic_cache_savings_usd"] = round(
-                session.get("semantic_cache_savings_usd", 0.0) + delta_semantic_cache_usd,
-                6,
-            )
-            session["self_hosted_prefix_cache_savings_usd"] = round(
-                session.get("self_hosted_prefix_cache_savings_usd", 0.0) + delta_self_hosted_usd,
-                6,
-            )
-            session["model_routing_savings_usd"] = round(
-                session.get("model_routing_savings_usd", 0.0) + delta_model_routing_usd,
-                6,
-            )
-            session["tool_schema_compaction_savings_usd"] = round(
-                session.get("tool_schema_compaction_savings_usd", 0.0)
-                + delta_tool_schema_compaction_usd,
-                6,
-            )
-            session["api_surface_slimming_savings_usd"] = round(
-                session.get("api_surface_slimming_savings_usd", 0.0)
-                + delta_api_surface_slimming_usd,
-                6,
-            )
+            session["compression_savings_usd"] = round(session["compression_savings_usd"] + created_compression, 6)
+            session["compression_savings_observed_usd"] = round(session.get("compression_savings_observed_usd", 0.0) + delta_savings_usd, 6)
+
+            session["cache_savings_usd"] = round(session.get("cache_savings_usd", 0.0) + created_cache, 6)
+            session["cache_savings_observed_usd"] = round(session.get("cache_savings_observed_usd", 0.0) + delta_cache_savings_usd, 6)
+
+            session["semantic_cache_savings_usd"] = round(session.get("semantic_cache_savings_usd", 0.0) + created_semantic, 6)
+            session["semantic_cache_savings_observed_usd"] = round(session.get("semantic_cache_savings_observed_usd", 0.0) + delta_semantic_cache_usd, 6)
+
+            session["self_hosted_prefix_cache_savings_usd"] = round(session.get("self_hosted_prefix_cache_savings_usd", 0.0) + created_self_hosted, 6)
+            session["self_hosted_prefix_cache_savings_observed_usd"] = round(session.get("self_hosted_prefix_cache_savings_observed_usd", 0.0) + delta_self_hosted_usd, 6)
+
+            session["model_routing_savings_usd"] = round(session.get("model_routing_savings_usd", 0.0) + created_routing, 6)
+            session["model_routing_savings_observed_usd"] = round(session.get("model_routing_savings_observed_usd", 0.0) + delta_model_routing_usd, 6)
+
+            session["tool_schema_compaction_savings_usd"] = round(session.get("tool_schema_compaction_savings_usd", 0.0) + created_tool_schema, 6)
+            session["tool_schema_compaction_savings_observed_usd"] = round(session.get("tool_schema_compaction_savings_observed_usd", 0.0) + delta_tool_schema_compaction_usd, 6)
+
+            session["api_surface_slimming_savings_usd"] = round(session.get("api_surface_slimming_savings_usd", 0.0) + created_api_surface, 6)
+            session["api_surface_slimming_savings_observed_usd"] = round(session.get("api_surface_slimming_savings_observed_usd", 0.0) + delta_api_surface_slimming_usd, 6)
             session["total_input_tokens"] += session_input_tokens_delta
             session["total_input_cost_usd"] = round(
                 session["total_input_cost_usd"] + session_input_cost_delta,
@@ -964,22 +961,40 @@ class SavingsTracker:
                         # Lifetime counters (running totals at this point).
                         "total_tokens_saved": lifetime["tokens_saved"],
                         "compression_savings_usd": lifetime["compression_savings_usd"],
+                        "compression_savings_observed_usd": lifetime.get("compression_savings_observed_usd", 0.0),
                         "cache_savings_usd": round(lifetime.get("cache_savings_usd", 0.0), 6),
+                        "cache_savings_observed_usd": round(lifetime.get("cache_savings_observed_usd", 0.0), 6),
                         "semantic_cache_savings_usd": round(
                             lifetime.get("semantic_cache_savings_usd", 0.0), 6
+                        ),
+                        "semantic_cache_savings_observed_usd": round(
+                            lifetime.get("semantic_cache_savings_observed_usd", 0.0), 6
                         ),
                         "self_hosted_prefix_cache_savings_usd": round(
                             lifetime.get("self_hosted_prefix_cache_savings_usd", 0.0),
                             6,
                         ),
+                        "self_hosted_prefix_cache_savings_observed_usd": round(
+                            lifetime.get("self_hosted_prefix_cache_savings_observed_usd", 0.0),
+                            6,
+                        ),
                         "model_routing_savings_usd": round(
                             lifetime.get("model_routing_savings_usd", 0.0), 6
+                        ),
+                        "model_routing_savings_observed_usd": round(
+                            lifetime.get("model_routing_savings_observed_usd", 0.0), 6
                         ),
                         "tool_schema_compaction_savings_usd": round(
                             lifetime.get("tool_schema_compaction_savings_usd", 0.0), 6
                         ),
+                        "tool_schema_compaction_savings_observed_usd": round(
+                            lifetime.get("tool_schema_compaction_savings_observed_usd", 0.0), 6
+                        ),
                         "api_surface_slimming_savings_usd": round(
                             lifetime.get("api_surface_slimming_savings_usd", 0.0), 6
+                        ),
+                        "api_surface_slimming_savings_observed_usd": round(
+                            lifetime.get("api_surface_slimming_savings_observed_usd", 0.0), 6
                         ),
                         "scaffolding_tokens": int(lifetime.get("scaffolding_tokens", 0)),
                         "ghost_tokens": int(lifetime.get("ghost_tokens", 0)),
@@ -1254,7 +1269,7 @@ class SavingsTracker:
         with self._lock:
             self._reload_if_stale_locked()
             history = [dict(item) for item in self._state["history"]]
-            return {
+            ret = {
                 "schema_version": SCHEMA_VERSION,
                 "storage_path": str(self._path),
                 "lifetime": dict(self._state["lifetime"]),
@@ -1272,6 +1287,68 @@ class SavingsTracker:
                 "models": self._models_snapshot_locked(),
                 "clients": self._clients_snapshot_locked(),
             }
+            if "attribution_note" in self._state:
+                ret["attribution_note"] = self._state["attribution_note"]
+            return ret
+
+    def get_summary_stats(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Summary stats in the same shape as ``Storage.get_summary_stats``.
+
+        Lets CLI reporting (``cutctx savings``) read the live proxy store
+        instead of the SDK-client SQLite/JSONL backends, which the proxy
+        never writes to. History rows carry running lifetime totals rather
+        than per-request deltas for tokens saved/input tokens, so a windowed
+        query subtracts the running totals at the window boundaries; only
+        requests that produced a savings row are counted towards the
+        windowed request count (unfiltered queries use the true lifetime
+        counter).
+        """
+        with self._lock:
+            self._reload_if_stale_locked()
+            lifetime = self._state["lifetime"]
+
+            if start_time is None and end_time is None:
+                total_requests = int(lifetime.get("requests", 0))
+                total_tokens_before = int(lifetime.get("total_input_tokens", 0))
+                total_tokens_saved = int(lifetime.get("tokens_saved", 0))
+            else:
+                entries = []
+                for row in self._state["history"]:
+                    ts = _parse_timestamp(row.get("timestamp"))
+                    if ts is not None:
+                        entries.append((ts, row))
+                entries.sort(key=lambda pair: pair[0])
+
+                baseline_tokens_saved = 0
+                baseline_input_tokens = 0
+                end_tokens_saved = 0
+                end_input_tokens = 0
+                total_requests = 0
+                for ts, row in entries:
+                    if start_time is not None and ts < start_time:
+                        baseline_tokens_saved = _coerce_int(row.get("total_tokens_saved"))
+                        baseline_input_tokens = _coerce_int(row.get("total_input_tokens"))
+                        continue
+                    if end_time is not None and ts > end_time:
+                        continue
+                    end_tokens_saved = _coerce_int(row.get("total_tokens_saved"))
+                    end_input_tokens = _coerce_int(row.get("total_input_tokens"))
+                    total_requests += 1
+
+                total_tokens_saved = max(0, end_tokens_saved - baseline_tokens_saved)
+                total_tokens_before = max(0, end_input_tokens - baseline_input_tokens)
+
+            total_tokens_after = max(0, total_tokens_before - total_tokens_saved)
+            return {
+                "total_requests": total_requests,
+                "total_tokens_before": total_tokens_before,
+                "total_tokens_after": total_tokens_after,
+                "total_tokens_saved": total_tokens_saved,
+            }
 
     def _default_state(self) -> dict[str, Any]:
         return {
@@ -1280,6 +1357,7 @@ class SavingsTracker:
                 "requests": 0,
                 "tokens_saved": 0,
                 "compression_savings_usd": 0.0,
+                "compression_savings_observed_usd": 0.0,
                 "total_input_tokens": 0,
                 "total_input_cost_usd": 0.0,
             },
@@ -1388,6 +1466,13 @@ class SavingsTracker:
         if not isinstance(raw, dict):
             return self._default_state()
 
+        if raw.get("schema_version", 0) < 4:
+            raw["attribution_note"] = (
+                "created_usd/observed_usd split introduced in schema v4; "
+                "historical rows before this version report observed_usd only"
+            )
+            raw["schema_version"] = SCHEMA_VERSION
+
         history_raw = raw.get("history", [])
         normalized_history = []
         if isinstance(history_raw, list):
@@ -1402,6 +1487,7 @@ class SavingsTracker:
         lifetime_requests = 0
         lifetime_tokens_saved = 0
         lifetime_savings_usd = 0.0
+        lifetime_savings_observed_usd = 0.0
         lifetime_input_tokens = 0
         lifetime_input_cost_usd = 0.0
         lifetime_extra_usd = dict.fromkeys(SESSION_SAVINGS_USD_FIELDS, 0.0)
@@ -1411,6 +1497,7 @@ class SavingsTracker:
             lifetime_requests = _coerce_int(lifetime_raw.get("requests"))
             lifetime_tokens_saved = _coerce_int(lifetime_raw.get("tokens_saved"))
             lifetime_savings_usd = _coerce_float(lifetime_raw.get("compression_savings_usd"))
+            lifetime_savings_observed_usd = _coerce_float(lifetime_raw.get("compression_savings_observed_usd"))
             lifetime_input_tokens = _coerce_int(lifetime_raw.get("total_input_tokens"))
             lifetime_input_cost_usd = _coerce_float(lifetime_raw.get("total_input_cost_usd"))
             for field in SESSION_SAVINGS_USD_FIELDS:
@@ -1431,7 +1518,11 @@ class SavingsTracker:
             )
             lifetime_savings_usd = max(
                 lifetime_savings_usd,
-                _coerce_float(last["compression_savings_usd"]),
+                _coerce_float(last.get("compression_savings_usd")),
+            )
+            lifetime_savings_observed_usd = max(
+                lifetime_savings_observed_usd,
+                _coerce_float(last.get("compression_savings_observed_usd")),
             )
             lifetime_input_tokens = max(
                 lifetime_input_tokens,
@@ -1470,6 +1561,7 @@ class SavingsTracker:
                 "requests": lifetime_requests,
                 "tokens_saved": lifetime_tokens_saved,
                 "compression_savings_usd": round(lifetime_savings_usd, 6),
+                "compression_savings_observed_usd": round(lifetime_savings_observed_usd, 6),
                 "total_input_tokens": lifetime_input_tokens,
                 "total_input_cost_usd": round(lifetime_input_cost_usd, 6),
             },
@@ -1479,6 +1571,8 @@ class SavingsTracker:
             "models": _normalize_models(raw.get("models")),
             "clients": _normalize_clients(raw.get("clients")),
         }
+        if "attribution_note" in raw:
+            state["attribution_note"] = raw["attribution_note"]
         for field, value in lifetime_extra_usd.items():
             if value > 0 or (isinstance(lifetime_raw, dict) and field in lifetime_raw):
                 state["lifetime"][field] = round(value, 6)

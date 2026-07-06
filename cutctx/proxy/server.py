@@ -3796,6 +3796,13 @@ def _require_rbac_permission(permission: str):
     @app.get("/health")
     async def health():
         await _check_upstream()
+        payload = _health_payload(include_config=False)
+        return JSONResponse(status_code=200, content=payload)
+
+    @app.get("/health/config")
+    async def health_config(request: Request):
+        await _authenticate_admin_request(request)
+        await _check_upstream()
         payload = _health_payload(include_config=True)
         return JSONResponse(status_code=200, content=payload)
 
@@ -5782,6 +5789,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.get("/health")
     async def health():
+        await _check_upstream()
+        return JSONResponse(status_code=200, content=_health_payload(include_config=False))
+
+    @app.get("/health/config")
+    async def health_config(request: Request):
+        await _require_local_admin_auth(request)
         await _check_upstream()
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 

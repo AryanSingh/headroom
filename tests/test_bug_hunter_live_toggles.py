@@ -15,6 +15,7 @@ def test_live_toggle_dedup_compression() -> None:
         cache_enabled=False,
         rate_limit_enabled=False,
         optimize=True,
+        admin_api_key="admin_12345",
     )
 
     mock_backend = MagicMock()

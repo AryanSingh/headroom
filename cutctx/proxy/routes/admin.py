@@ -2008,7 +2008,7 @@ def create_admin_router(
 
     @router.get(
         "/v1/retrieve/stats",
-        dependencies=[_Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_stats():
         """Get CCR compression store statistics."""
@@ -2253,7 +2253,7 @@ def create_admin_router(
 
     @router.get(
         "/v1/retrieve/{hash_key}",
-        dependencies=[_Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_retrieve_get(hash_key: str, query: str | None = None):
         """GET version of CCR retrieve for easier testing."""
@@ -2300,7 +2300,7 @@ def create_admin_router(
 
     @router.post(
         "/v1/retrieve/tool_call",
-        dependencies=[_Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_handle_tool_call(request: Request):
         """Handle a CCR tool call from an LLM response."""

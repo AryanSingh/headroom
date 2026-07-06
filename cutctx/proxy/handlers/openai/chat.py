@@ -380,12 +380,17 @@ class OpenAIChatMixin:
 
                 if stream:
                     from fastapi.responses import StreamingResponse
-                    cached_dict = json.loads(cached.response_body)
-                    chunks = self._response_to_sse(cached_dict, provider="openai")
 
                     async def generate():
-                        for chunk in chunks:
-                            yield chunk
+                        if cached.is_streaming:
+                            for chunk in cached.response_body.split(b"\n\n"):
+                                if chunk.strip():
+                                    yield chunk + b"\n\n"
+                        else:
+                            cached_dict = json.loads(cached.response_body)
+                            chunks = self._response_to_sse(cached_dict, provider="openai")
+                            for chunk in chunks:
+                                yield chunk
 
                     return StreamingResponse(
                         generate(),

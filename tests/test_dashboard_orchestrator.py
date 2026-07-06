@@ -12,6 +12,7 @@ def test_legacy_admin_config_flags_orchestrator_surface() -> None:
     config = ProxyConfig(
         backend="mock",
         cache_enabled=False,
+        admin_api_key="admin_12345",
     )
     app = create_app(config)
 

@@ -64,8 +64,18 @@ def test_readyz_reports_core_subsystem_checks(client):
     assert runtime["websocket_sessions"]["active_relay_tasks"] == 0
 
 
-def test_health_preserves_backwards_compatible_config_payload(client):
+def test_health_does_not_leak_config_to_unauthenticated_callers(client):
     response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["ready"] is True
+    assert "config" not in data
+
+
+def test_health_config_preserves_backwards_compatible_config_payload(client):
+    response = client.get("/health/config")
 
     assert response.status_code == 200
     data = response.json()
@@ -106,7 +116,7 @@ def test_health_reports_agent_savings_config():
     app = create_app(config)
 
     with TestClient(app) as client:
-        response = client.get("/health")
+        response = client.get("/health/config")
 
     assert response.status_code == 200
     reported = response.json()["config"]

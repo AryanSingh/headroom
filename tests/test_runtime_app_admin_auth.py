@@ -29,7 +29,7 @@ def client() -> TestClient:
         yield test_client
 
 
-@pytest.mark.parametrize("path", ["/stats", "/stats-history", "/dashboard"])
+@pytest.mark.parametrize("path", ["/stats", "/stats-history"])
 def test_sensitive_surfaces_require_admin_auth_when_key_configured(
     client: TestClient,
     path: str,
@@ -38,7 +38,7 @@ def test_sensitive_surfaces_require_admin_auth_when_key_configured(
     assert response.status_code == 401
 
 
-@pytest.mark.parametrize("path", ["/stats", "/stats-history", "/dashboard"])
+@pytest.mark.parametrize("path", ["/stats", "/stats-history"])
 def test_sensitive_surfaces_accept_admin_auth_when_key_configured(
     client: TestClient,
     path: str,

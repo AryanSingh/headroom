@@ -923,12 +923,18 @@ class AnthropicHandlerMixin:
                     await _finalize_pre_upstream()
 
                     if stream:
-                        cached_dict = json.loads(cached.response_body)
-                        chunks = self._response_to_sse(cached_dict, provider="anthropic")
-
+                        from fastapi.responses import StreamingResponse
                         async def generate():
-                            for chunk in chunks:
-                                yield chunk
+                            if cached.is_streaming:
+                                # Replay as chunks
+                                for chunk in cached.response_body.split(b"\n\n"):
+                                    if chunk.strip():
+                                        yield chunk + b"\n\n"
+                            else:
+                                cached_dict = json.loads(cached.response_body)
+                                chunks = self._response_to_sse(cached_dict, provider="anthropic")
+                                for chunk in chunks:
+                                    yield chunk
 
                         return StreamingResponse(
                             generate(),
@@ -1192,6 +1198,7 @@ class AnthropicHandlerMixin:
                 logger.info(
                     f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
                 )
+                self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
             if _decision.should_compress:
                 try:
                     from cutctx.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS
@@ -1924,6 +1931,7 @@ class AnthropicHandlerMixin:
                     query=tool_surface_query,
                     tokenizer=tokenizer,
                     tool_choice=body.get("tool_choice"),
+                    config=self.config,
                 )
                 if tool_surface_result.modified:
                     body["tools"] = tool_surface_result.tools

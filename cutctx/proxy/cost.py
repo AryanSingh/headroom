@@ -929,18 +929,10 @@ class CostTracker:
 
     def _get_list_price(self, model: str) -> float | None:
         """Get list input price per 1M tokens for a model."""
-        litellm = _get_litellm_module()
-        if litellm is None:
-            return None
-        try:
-            from cutctx.pricing.litellm_pricing import resolve_litellm_model
-
-            resolved = resolve_litellm_model(model)
-            info = litellm.model_cost.get(resolved, {})
-            cost_per_token = info.get("input_cost_per_token")
-            return cost_per_token * 1_000_000 if cost_per_token else None
-        except Exception:
-            return None
+        from cutctx.proxy.savings_pricing import value_tokens_usd
+        
+        cost_for_1m = value_tokens_usd(model, 1_000_000)
+        return cost_for_1m if cost_for_1m > 0 else None
 
     def _get_cache_prices(self, model: str) -> tuple[float, float, float] | None:
         """Get per-token prices for cache read, cache write, and uncached input.

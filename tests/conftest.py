@@ -10,6 +10,33 @@ os.environ["CUTCTX_CCR_BACKEND"] = "memory"
 # The test mode bypass (CUTCTX_TEST_MODE) has been REMOVED as a security
 # hardening measure. Tests authenticate via this key instead.
 os.environ.setdefault("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
+_SUITE_DEFAULT_ADMIN_KEY = os.environ["CUTCTX_ADMIN_API_KEY"]
+
+# Admin-gated proxy routes (added as part of the QA/product-audit security
+# hardening pass) reject requests that don't carry the admin key above.
+# Older tests built their TestClient before that hardening landed and don't
+# send it. Rather than touch every call site, default every TestClient to
+# carry it. This only applies when the suite-wide default key above is still
+# in effect: a handful of test files (test_route_modules.py,
+# test_dsr_endpoints.py, test_management_api_entitlements.py) monkeypatch
+# CUTCTX_ADMIN_API_KEY to their own value specifically to test the
+# unauthenticated-rejection path, and injecting a header there would falsely
+# "authenticate" a request that's supposed to prove auth is required.
+# Per-request headers (e.g. a test deliberately sending a wrong key) still
+# take precedence over this client-level default either way.
+try:
+    from starlette.testclient import TestClient as _TestClient
+
+    _orig_test_client_init = _TestClient.__init__
+
+    def _test_client_init_with_admin_key(self, *args, **kwargs):
+        _orig_test_client_init(self, *args, **kwargs)
+        if os.environ.get("CUTCTX_ADMIN_API_KEY") == _SUITE_DEFAULT_ADMIN_KEY:
+            self.headers.setdefault("x-cutctx-admin-key", _SUITE_DEFAULT_ADMIN_KEY)
+
+    _TestClient.__init__ = _test_client_init_with_admin_key
+except ImportError:
+    pass
 
 
 import json

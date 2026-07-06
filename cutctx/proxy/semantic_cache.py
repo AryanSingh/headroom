@@ -111,12 +111,15 @@ class SemanticCache:
             while len(self._cache) >= self.max_entries:
                 self._cache.popitem(last=False)  # Remove oldest (first) entry
 
+            is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
+            
             self._cache[key] = CacheEntry(
                 response_body=response_body,
                 response_headers=response_headers,
                 created_at=datetime.now(),
                 ttl_seconds=self.ttl_seconds,
                 tokens_saved_per_hit=tokens_saved,
+                is_streaming=is_stream,
             )
 
     async def stats(self) -> dict:

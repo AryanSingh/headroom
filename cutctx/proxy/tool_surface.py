@@ -63,7 +63,10 @@ def estimate_tool_scaffolding_tokens(
         return 0
 
 
-def tool_surface_slimming_enabled() -> bool:
+def tool_surface_slimming_enabled(config: Any | None = None) -> bool:
+    if config is not None and hasattr(config, "tool_surface_slimming_enabled"):
+        if not config.tool_surface_slimming_enabled:
+            return False
     env_val = os.environ.get(_ENABLE_ENV, "").strip().lower()
     if env_val in {"0", "false", "no", "off"}:
         return False
@@ -82,8 +85,9 @@ def slim_tool_surface(
     query: str,
     tokenizer: Any | None = None,
     tool_choice: Any = None,
+    config: Any | None = None,
 ) -> ToolSurfaceResult:
-    if not tool_surface_slimming_enabled() or not isinstance(tools, list):
+    if not tool_surface_slimming_enabled(config) or not isinstance(tools, list):
         return ToolSurfaceResult(tools or [], False, 0, 0, len(tools or []))
 
     max_tools, min_tools = tool_surface_limits()

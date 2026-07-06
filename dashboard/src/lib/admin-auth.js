@@ -18,18 +18,30 @@ function readStorageKey() {
 
   try {
     const ls = window.localStorage.getItem(STORAGE_KEY);
-    if (ls) return ls;
-  } catch {}
+    if (ls) {
+      return ls;
+    }
+  } catch {
+    // ignore
+  }
 
   try {
     const ss = window.sessionStorage.getItem(STORAGE_KEY);
-    if (ss) return ss;
-  } catch {}
+    if (ss) {
+      return ss;
+    }
+  } catch {
+    // ignore
+  }
 
   try {
     const match = document.cookie.match(new RegExp(`(^| )${STORAGE_KEY}=([^;]+)`));
-    if (match) return decodeURIComponent(match[2]);
-  } catch {}
+    if (match) {
+      return decodeURIComponent(match[2]);
+    }
+  } catch {
+    // ignore
+  }
 
   return '';
 }
@@ -49,13 +61,37 @@ export function writeStoredAdminKey(value) {
   window[WINDOW_MEMORY_KEY] = normalized;
 
   if (normalized) {
-    try { window.localStorage.setItem(STORAGE_KEY, normalized); } catch {}
-    try { window.sessionStorage.setItem(STORAGE_KEY, normalized); } catch {}
-    try { document.cookie = `${STORAGE_KEY}=${encodeURIComponent(normalized)}; path=/; max-age=31536000; SameSite=Lax`; } catch {}
+    try {
+      window.localStorage.setItem(STORAGE_KEY, normalized);
+    } catch {
+      // ignore
+    }
+    try {
+      window.sessionStorage.setItem(STORAGE_KEY, normalized);
+    } catch {
+      // ignore
+    }
+    try {
+      document.cookie = `${STORAGE_KEY}=${encodeURIComponent(normalized)}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+      // ignore
+    }
   } else {
-    try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
-    try { window.sessionStorage.removeItem(STORAGE_KEY); } catch {}
-    try { document.cookie = `${STORAGE_KEY}=; path=/; max-age=0; SameSite=Lax`; } catch {}
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    try {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    try {
+      document.cookie = `${STORAGE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+    } catch {
+      // ignore
+    }
   }
 }
 

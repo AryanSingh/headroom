@@ -1,5 +1,7 @@
 """Tests for the /transformations/feed endpoint in the proxy server."""
 
+import os
+
 import pytest
 
 # Skip if fastapi not available
@@ -8,6 +10,8 @@ pytest.importorskip("fastapi")
 from httpx import ASGITransport, AsyncClient
 
 from cutctx.proxy.server import create_app
+
+_ADMIN_HEADERS = {"x-cutctx-admin-key": os.environ.get("CUTCTX_ADMIN_API_KEY", "")}
 
 
 @pytest.fixture
@@ -19,7 +23,7 @@ def app():
 async def test_transformations_feed_endpoint_returns_list(app):
     """The endpoint should return a list of recent transformations."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/transformations/feed")
+        response = await client.get("/transformations/feed", headers=_ADMIN_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
@@ -37,7 +41,7 @@ async def test_transformations_feed_returns_messages(app):
     the two to see what the pipeline stripped, replaced, or kept.
     """
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/transformations/feed")
+        response = await client.get("/transformations/feed", headers=_ADMIN_HEADERS)
 
     data = response.json()
     transformations = data["transformations"]
@@ -54,7 +58,7 @@ async def test_transformations_feed_returns_messages(app):
 async def test_transformations_feed_respects_limit(app):
     """The endpoint should respect a ?limit= query parameter."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/transformations/feed?limit=5")
+        response = await client.get("/transformations/feed?limit=5", headers=_ADMIN_HEADERS)
 
     data = response.json()
     assert len(data["transformations"]) <= 5

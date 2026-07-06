@@ -91,6 +91,13 @@ function sumSavingsUsd(record) {
   );
 }
 
+function sumSavingsObservedUsd(record) {
+  return LIFETIME_SAVINGS_SOURCES.reduce(
+    (sum, [key]) => sum + Number(record?.[key.replace('_usd', '_observed_usd')] || 0),
+    0,
+  );
+}
+
 function getSessionSavingsUsd(stats) {
   const cost = stats?.cost || {};
   const summaryCost = stats?.summary?.cost || {};
@@ -178,6 +185,18 @@ function getSessionSavingsUsd(stats) {
   );
 }
 
+function getSessionSavingsObservedUsd(stats) {
+  const cost = stats?.cost || {};
+  
+  // Just use the sum of observed_usd fields from cost
+  let observedSum = 0;
+  for (const [key] of LIFETIME_SAVINGS_SOURCES) {
+    const observedKey = key.replace('_usd', '_observed_usd');
+    observedSum += Number(cost?.[observedKey] || 0);
+  }
+  return observedSum;
+}
+
 function getSessionAttributionTotals(stats) {
   const cost = stats?.cost || stats?.summary?.cost || {};
   const source = cost?.savings_by_source || stats?.savings_by_source || {};
@@ -205,6 +224,13 @@ function getLifetimeTotalSavingsUsd(stats) {
 
   return LIFETIME_SAVINGS_SOURCES.reduce((sum, [lifetimeKey, sourceKey]) => {
     return sum + Math.max(Number(lifetime[lifetimeKey] || 0), Number(sourceUsd[sourceKey] || 0));
+  }, 0);
+}
+
+function getLifetimeTotalSavingsObservedUsd(stats) {
+  const lifetime = stats?.persistent_savings?.lifetime || {};
+  return LIFETIME_SAVINGS_SOURCES.reduce((sum, [lifetimeKey]) => {
+    return sum + Number(lifetime[lifetimeKey.replace('_usd', '_observed_usd')] || 0);
   }, 0);
 }
 
@@ -1803,9 +1829,11 @@ export default function Overview() {
   const sessionTokensSaved = Number(tokens.saved || 0);
   const sessionRequests = Number(requests.total || 0);
   const sessionSavingsUsd = getSessionSavingsUsd(stats);
+  const sessionSavingsObservedUsd = getSessionSavingsObservedUsd(stats);
   const displaySessionTokensSaved = Number(displaySession.tokens_saved || 0);
   const displaySessionRequests = Number(displaySession.requests || 0);
   const displaySessionSavingsUsd = sumSavingsUsd(displaySession);
+  const displaySessionSavingsObservedUsd = sumSavingsObservedUsd(displaySession);
   const lifetimeTokensSaved = Number(lifetime.tokens_saved || 0);
   const sessionInputTokens = Math.max(
     Number(tokens.total_before_compression || 0),
@@ -1814,6 +1842,7 @@ export default function Overview() {
   const displaySessionInputTokens = Number(displaySession.total_input_tokens || 0);
   const lifetimeInputTokens = Number(lifetime.total_input_tokens || 0);
   const lifetimeSavingsUsd = getLifetimeTotalSavingsUsd(stats);
+  const lifetimeSavingsObservedUsd = getLifetimeTotalSavingsObservedUsd(stats);
   const headlineSources = [
     {
       key: 'session',
@@ -1821,6 +1850,7 @@ export default function Overview() {
       requests: sessionRequests,
       input: sessionInputTokens,
       savingsUsd: sessionSavingsUsd,
+      savingsObservedUsd: sessionSavingsObservedUsd,
     },
     {
       key: 'display_session',
@@ -1828,6 +1858,7 @@ export default function Overview() {
       requests: displaySessionRequests,
       input: displaySessionInputTokens,
       savingsUsd: displaySessionSavingsUsd,
+      savingsObservedUsd: displaySessionSavingsObservedUsd,
     },
     {
       key: 'lifetime',
@@ -1835,6 +1866,7 @@ export default function Overview() {
       requests: Number(lifetime.requests || 0),
       input: lifetimeInputTokens,
       savingsUsd: lifetimeSavingsUsd,
+      savingsObservedUsd: lifetimeSavingsObservedUsd,
     },
   ];
   const pickHeadlineSource = (field) =>
@@ -1847,7 +1879,7 @@ export default function Overview() {
   const tokensHeadline = isLifetimeMode ? pickHeadlineSource('tokens') : { tokens: durationData?.tokens_saved || 0 };
   const requestsHeadline = isLifetimeMode ? pickHeadlineSource('requests') : { requests: durationData?.requests || 0 };
   const inputHeadline = isLifetimeMode ? pickHeadlineSource('input') : { input: durationData?.total_input_tokens || 0 };
-  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.compression_savings_usd || 0 };
+  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.compression_savings_usd || 0, savingsObservedUsd: durationData?.compression_savings_observed_usd || 0 };
 
   const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
   const effectiveRequests = Number(requestsHeadline.requests || 0);
@@ -1859,6 +1891,7 @@ export default function Overview() {
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
   const effectiveSavingsUsd = Number(savingsHeadline.savingsUsd || 0);
+  const effectiveSavingsObservedUsd = Number(savingsHeadline.savingsObservedUsd || 0);
   
   const moneySavedFootnote = isLifetimeMode ? (
     savingsHeadline.key === 'session'
@@ -2025,7 +2058,11 @@ export default function Overview() {
             icon={Coins}
             iconColor="amber"
             label="Money saved"
-            value={formatCurrency(effectiveSavingsUsd)}
+            value={
+              effectiveSavingsUsd > effectiveSavingsObservedUsd && effectiveSavingsObservedUsd > 0
+                ? `${formatCurrency(effectiveSavingsUsd)} (list) / ${formatCurrency(effectiveSavingsObservedUsd)} (observed)`
+                : formatCurrency(effectiveSavingsUsd)
+            }
             footnote={moneySavedFootnote}
           />
         </div>

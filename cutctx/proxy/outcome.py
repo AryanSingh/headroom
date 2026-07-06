@@ -564,6 +564,13 @@ def _build_savings_breakdown(
             if usd > 0:
                 by_source_usd[src.value] = by_source_usd.get(src.value, 0.0) + usd
 
+    from cutctx.proxy.savings_pricing import value_tokens_usd
+    for source, tokens in by_source_tokens.items():
+        if source not in by_source_usd and tokens > 0:
+            usd_val = value_tokens_usd(outcome.model, tokens)
+            if usd_val > 0:
+                by_source_usd[source] = usd_val
+
     return by_source_tokens, by_source_usd, breakdown
 
 

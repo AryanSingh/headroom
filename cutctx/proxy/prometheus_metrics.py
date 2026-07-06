@@ -180,6 +180,8 @@ class PrometheusMetrics:
         # Aggregate waste signals
         self.waste_signals_total: dict[str, int] = defaultdict(int)
 
+        self.compression_declined_total: dict[str, int] = defaultdict(int)
+
         # Cumulative ContentRouter protection counts. Each routing pass
         # categorises every message — `user_msg`, `system_msg`,
         # `recent_code`, `excluded_tool`, `analysis_ctx`, `small`,
@@ -319,6 +321,7 @@ class PrometheusMetrics:
             self.transform_timing_max.clear()
 
             self.waste_signals_total.clear()
+            self.compression_declined_total.clear()
             self.cache_by_provider.clear()
             self._cache_requests_by_model.clear()
 
@@ -439,6 +442,9 @@ class PrometheusMetrics:
         for category, count in counts.items():
             if count > 0:
                 self.router_route_counts[category] += int(count)
+
+    def record_compression_declined(self, reason: str) -> None:
+        self.compression_declined_total[reason] += 1
 
     def record_codex_ws_unit(
         self,
@@ -1141,6 +1147,19 @@ class PrometheusMetrics:
                 for signal_name, token_count in self.waste_signals_total.items():
                     lines.append(
                         f'cutctx_waste_signal_tokens_total{{signal="{_escape_label_value(signal_name)}"}} {token_count}'
+                    )
+                lines.append("")
+
+            if self.compression_declined_total:
+                lines.extend(
+                    [
+                        "# HELP cutctx_compression_declined_total Requests where compression was not applied, by reason",
+                        "# TYPE cutctx_compression_declined_total counter",
+                    ]
+                )
+                for reason, count in self.compression_declined_total.items():
+                    lines.append(
+                        f'cutctx_compression_declined_total{{reason="{_escape_label_value(reason)}"}} {count}'
                     )
                 lines.append("")
 

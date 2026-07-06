@@ -97,6 +97,8 @@ class CacheEntry:
     ttl_seconds: int
     hit_count: int = 0
     tokens_saved_per_hit: int = 0
+    is_streaming: bool = False
+    output_tokens: int = 0
 
 
 @dataclass
@@ -134,6 +136,7 @@ class ProxyConfig:
 
     # Optimization
     optimize: bool = True
+    tool_surface_slimming_enabled: bool = True
     image_optimize: bool = True
     audio_optimize: bool = True
     min_tokens_to_crush: int = 500

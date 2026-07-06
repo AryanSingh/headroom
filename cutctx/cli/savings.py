@@ -17,7 +17,13 @@ from .main import main
 
 
 def _get_storage_path() -> Path:
-    """Get the storage path, trying multiple backends."""
+    """Get the legacy SDK-client storage path, trying multiple backends.
+
+    Used only as a fallback when the live proxy has never recorded any
+    savings (see ``_load_storage``) — the proxy itself writes to the
+    separate ``SavingsTracker`` store (``get_default_savings_storage_path``),
+    not to these SQLite/JSONL backends.
+    """
     from cutctx import paths as _paths
 
     workspace = _paths.workspace_dir()
@@ -36,8 +42,50 @@ def _get_storage_path() -> Path:
     return db_path
 
 
+class _SavingsTrackerStorageAdapter:
+    """Adapts ``SavingsTracker`` to the CLI's ``get_summary_stats``/``close`` contract."""
+
+    def __init__(self, tracker: Any) -> None:
+        self._tracker = tracker
+
+    def get_summary_stats(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> dict[str, Any]:
+        return self._tracker.get_summary_stats(start_time=start_time, end_time=end_time)
+
+    def close(self) -> None:
+        pass
+
+
+def _live_proxy_tracker_if_populated() -> Any | None:
+    """Return a ``SavingsTracker`` over the live proxy store, if it has data.
+
+    The proxy records every request's savings to ``proxy_savings.json`` via
+    ``SavingsTracker`` — a completely different store from the legacy
+    SQLite/JSONL backends the SDK client (non-proxy) mode writes to. Reading
+    the wrong one is why ``cutctx savings --stats-only`` used to report "No
+    sessions recorded" even with thousands of real proxy requests on disk.
+    """
+    from cutctx.proxy.savings_tracker import SavingsTracker, get_default_savings_storage_path
+
+    path = Path(get_default_savings_storage_path())
+    if not path.exists():
+        return None
+
+    tracker = SavingsTracker(path=path)
+    if int(tracker.snapshot()["lifetime"].get("requests", 0)) <= 0:
+        return None
+    return tracker
+
+
 def _load_storage():
-    """Load storage backend from disk."""
+    """Load storage backend from disk, preferring the live proxy store."""
+    proxy_tracker = _live_proxy_tracker_if_populated()
+    if proxy_tracker is not None:
+        return _SavingsTrackerStorageAdapter(proxy_tracker)
+
     storage_path = _get_storage_path()
 
     if storage_path.name.endswith(".db"):
@@ -797,10 +845,9 @@ def savings(
     # verify_integrity() method the HTTP /audit/verify endpoint
     # exposes; the CLI just surfaces the result.
     if verify_integrity:
-        storage_path = _get_storage_path()
-        from cutctx.proxy.savings_tracker import SavingsTracker
+        from cutctx.proxy.savings_tracker import SavingsTracker, get_default_savings_storage_path
 
-        tracker = SavingsTracker(path=storage_path)
+        tracker = SavingsTracker(path=get_default_savings_storage_path())
         result = tracker.verify_integrity()
         ok = bool(result.get("ok"))
         if output_format == "json":
