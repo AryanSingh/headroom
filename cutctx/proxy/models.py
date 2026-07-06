@@ -171,6 +171,15 @@ class ProxyConfig:
     # CLI: --disable-kompress; env: CUTCTX_DISABLE_KOMPRESS=1.
     disable_kompress: bool = False
 
+    # WS13: Batch API arbitrage
+    batch_routing: bool = False
+
+    # WS10: Output-side optimization
+    output_optimization: bool = False
+
+    # WS11: Tool-result memoization
+    memoization: bool = False
+
     # Deprecated: LLMLingua was removed. Field kept for CLI/env backward compat.
     use_llmlingua: bool = False
 

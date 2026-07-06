@@ -598,6 +598,26 @@ class AnthropicHandlerMixin:
                     },
                 )
             model = body.get("model") or model_override or "unknown"
+            
+            # WS13 Batch Routing
+            batch_router = getattr(self, "batch_router", None)
+            if batch_router:
+                batch_decision = batch_router.route(
+                    request_body=body,
+                    headers=request.headers,
+                    origin=request.headers.get("x-cutctx-origin")
+                )
+                if batch_decision.action == "enqueued":
+                    await _finalize_pre_upstream()
+                    return JSONResponse(
+                        status_code=202,
+                        content={
+                            "id": batch_decision.queue_id,
+                            "status": "in_progress",
+                            "metadata": batch_decision.metadata,
+                        }
+                    )
+
             messages = body.get("messages", [])
             request_savings_metadata = extract_savings_metadata(
                 request_headers=request.headers,
@@ -1053,6 +1073,12 @@ class AnthropicHandlerMixin:
 
             # Get prefix cache tracker for this session
             session_id = self.session_tracker_store.compute_session_id(request, model, messages)
+
+            # WS11 Tool Memoization Recording
+            if getattr(self, "memoizer", None):
+                from cutctx.proxy.memoizer import record_tool_results_from_messages
+                record_tool_results_from_messages(self.memoizer, messages, session_id)
+                
             prefix_tracker = self.session_tracker_store.get_or_create(session_id, "anthropic")
             frozen_message_count = prefix_tracker.get_frozen_message_count()
             if is_cache_mode(self.config.mode):
@@ -1957,6 +1983,20 @@ class AnthropicHandlerMixin:
             except Exception as e:
                 logger.debug(f"[{request_id}] Schema compression failed: {e}")
 
+            # WS10 Output Optimization
+            output_optimizer = getattr(self, "output_optimizer", None)
+            if output_optimizer and output_optimizer.config.enabled:
+                opt_decision = output_optimizer.optimize(
+                    messages=optimized_messages,
+                    provider="anthropic"
+                )
+                if opt_decision.action == "optimized":
+                    # Only apply if it didn't fail the safety rails
+                    optimized_messages = opt_decision.messages
+                    body["messages"] = optimized_messages
+                    transforms_applied = list(transforms_applied) + opt_decision.metadata.get("transforms", [])
+                    logger.info(f"[{request_id}] WS10 output optimization applied: {opt_decision.metadata.get('levers')}")
+
             presend_event = self.pipeline_extensions.emit(
                 PipelineStage.PRE_SEND,
                 operation="proxy.request",
@@ -2381,7 +2421,9 @@ class AnthropicHandlerMixin:
                         self.ccr_response_handler
                         and resp_json
                         and response.status_code == 200
-                        and self.ccr_response_handler.has_ccr_tool_calls(resp_json, "anthropic")
+                        and self.ccr_response_handler.has_ccr_tool_calls(
+                            resp_json, "anthropic", session_id=session_id
+                        )
                     ):
                         logger.info(
                             f"[{request_id}] CCR: Detected retrieval tool call, handling..."
@@ -2487,6 +2529,7 @@ class AnthropicHandlerMixin:
                                 tools,
                                 api_call_fn,
                                 provider="anthropic",
+                                session_id=session_id,
                             )
                             # Update response content with final response
                             resp_json = final_resp_json

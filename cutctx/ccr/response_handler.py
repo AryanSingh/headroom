@@ -129,6 +129,7 @@ class CCRResponseHandler:
         self,
         response: dict[str, Any],
         provider: str = "anthropic",
+        **kwargs: Any,
     ) -> bool:
         """Check if response contains CCR tool calls.
 
@@ -140,12 +141,21 @@ class CCRResponseHandler:
             True if response contains cutctx_retrieve tool calls.
         """
         tool_calls = self._extract_tool_calls(response, provider)
-        return any(
+        has_ccr = any(
             tc.get("name") == CCR_TOOL_NAME
             or tc.get("function", {}).get("name") == CCR_TOOL_NAME
             or tc.get("functionCall", {}).get("name") == CCR_TOOL_NAME  # Google format
             for tc in tool_calls
         )
+        if has_ccr:
+            return True
+
+        if getattr(self, "memoize_interceptor", None) and kwargs.get("session_id"):
+            intercept_res = self.memoize_interceptor.intercept_tool_calls(response, kwargs.get("session_id"))
+            if intercept_res.fabricated:
+                return True
+
+        return False
 
     def _extract_tool_calls(
         self,
@@ -528,6 +538,7 @@ class CCRResponseHandler:
             [list[dict[str, Any]], list[dict[str, Any]] | None], Awaitable[dict[str, Any]]
         ],
         provider: str = "anthropic",
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Handle CCR tool calls in a response.
 
@@ -584,6 +595,24 @@ class CCRResponseHandler:
 
             # Execute all CCR retrievals
             results = [self._execute_retrieval(call) for call in ccr_calls]
+
+            # WS11 Tool Memoization interception
+            memoize_results = []
+            if getattr(self, "memoize_interceptor", None) and kwargs.get("session_id"):
+                intercept_res = self.memoize_interceptor.intercept_tool_calls(
+                    current_response, kwargs.get("session_id")
+                )
+                if intercept_res.fabricated:
+                    other_calls = intercept_res.passthrough_tool_calls
+                    for fab in intercept_res.fabricated:
+                        memoize_results.append(CCRToolResult(
+                            tool_call_id=fab.tool_call_id,
+                            content=fab.content,
+                            success=True,
+                        ))
+                    logger.info(f"WS11 Memoize: Fabricated {len(memoize_results)} tool result(s)")
+
+            results.extend(memoize_results)
 
             # Log retrieval stats
             total_items = sum(r.items_retrieved for r in results)

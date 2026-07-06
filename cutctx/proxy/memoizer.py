@@ -376,3 +376,63 @@ __all__ = [
     "derive_key",
     "is_write_tool",
 ]
+
+def record_tool_results_from_messages(memoizer: ToolMemoizer, messages: list[dict], session_id: str) -> None:
+    """Scan conversation history and record tool results / invalidate on writes."""
+    if not memoizer.config.enabled or not messages:
+        return
+
+    # Map tool_call_id -> (tool_name, args) from assistant tool_calls
+    tool_calls = {}
+    for msg in messages:
+        # OpenAI format
+        if msg.get("role") == "assistant" and msg.get("tool_calls"):
+            for tc in msg.get("tool_calls", []):
+                tcid = tc.get("id")
+                fn = tc.get("function", {})
+                name = fn.get("name")
+                args = fn.get("arguments", "{}")
+                if tcid and name:
+                    try:
+                        parsed_args = json.loads(args)
+                    except Exception:
+                        parsed_args = args
+                    tool_calls[tcid] = (name, parsed_args)
+        # Anthropic format
+        elif msg.get("role") == "assistant" and isinstance(msg.get("content"), list):
+            for block in msg.get("content", []):
+                if isinstance(block, dict) and block.get("type") == "tool_use":
+                    tcid = block.get("id")
+                    name = block.get("name")
+                    args = block.get("input", {})
+                    if tcid and name:
+                        tool_calls[tcid] = (name, args)
+
+    # Process tool results
+    for msg in messages:
+        # OpenAI format
+        if msg.get("role") == "tool":
+            tcid = msg.get("tool_call_id")
+            content = msg.get("content")
+            if tcid in tool_calls and content is not None:
+                name, args = tool_calls[tcid]
+                if is_write_tool(name, memoizer.config.write_tools):
+                    memoizer.invalidate_for_write(session_id, name, args)
+                else:
+                    # record returns immediately if not allowlisted
+                    memoizer.record(session_id, name, args, content)
+        # Anthropic format
+        elif msg.get("role") == "user" and isinstance(msg.get("content"), list):
+            for block in msg.get("content", []):
+                if isinstance(block, dict) and block.get("type") == "tool_result":
+                    tcid = block.get("tool_use_id")
+                    content = block.get("content")
+                    if isinstance(content, list):
+                        # Anthropic can have array of blocks for content
+                        content = json.dumps(content)
+                    if tcid in tool_calls and content is not None:
+                        name, args = tool_calls[tcid]
+                        if is_write_tool(name, memoizer.config.write_tools):
+                            memoizer.invalidate_for_write(session_id, name, args)
+                        else:
+                            memoizer.record(session_id, name, args, content)

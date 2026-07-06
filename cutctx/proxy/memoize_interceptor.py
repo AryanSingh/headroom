@@ -105,11 +105,15 @@ class MemoizeInterceptor:
         interceptor.memoizer.record(session_id, tool_name, args, response_bytes)
     """
 
-    def __init__(self, config: MemoizeConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: MemoizeConfig | None = None,
+        memoizer: ToolMemoizer | None = None,
+    ) -> None:
         # Default to flag-off. The flag-off golden contract: with the
         # default config, this module is a no-op.
         self.config = config or MemoizeConfig()
-        self.memoizer = ToolMemoizer(self.config)
+        self.memoizer = memoizer or ToolMemoizer(self.config)
 
     def intercept_tool_calls(self, response: Any, session_id: str) -> InterceptResult:
         """Inspect the response for tool calls. For each allowlisted

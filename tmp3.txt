@@ -1,0 +1,37 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.14, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.11/bin/python3.11
+cachedir: .pytest_cache
+rootdir: /Users/aryansingh/Documents/Claude/Projects/headroom
+configfile: pyproject.toml
+plugins: langsmith-0.9.4, mock-3.15.1, cov-7.1.0, asyncio-1.4.0, bdd-8.1.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_bug_hunter_live_toggles.py::test_live_toggle_dedup_compression RESPONSE BODY: {"error":{"message":"Internal server error","type":"api_error","code":"backend_error"}}
+FAILED
+
+=================================== FAILURES ===================================
+______________________ test_live_toggle_dedup_compression ______________________
+tests/test_bug_hunter_live_toggles.py:67: in test_live_toggle_dedup_compression
+    assert response1.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+=============================== warnings summary ===============================
+../../../../../../opt/homebrew/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /opt/homebrew/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_bug_hunter_live_toggles.py::test_live_toggle_dedup_compression
+  /opt/homebrew/lib/python3.11/site-packages/sklearn/utils/_param_validation.py:14: UserWarning: A NumPy version >=1.22.4 and <2.3.0 is required for this version of SciPy (detected version 2.4.6)
+    from scipy.sparse import csr_matrix, issparse
+
+tests/test_bug_hunter_live_toggles.py::test_live_toggle_dedup_compression
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/test_bug_hunter_live_toggles.py::test_live_toggle_dedup_compression
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_bug_hunter_live_toggles.py::test_live_toggle_dedup_compression
+======================== 1 failed, 4 warnings in 5.38s =========================

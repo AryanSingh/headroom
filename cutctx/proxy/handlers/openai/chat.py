@@ -124,6 +124,24 @@ class OpenAIChatMixin:
                     }
                 },
             )
+        # WS13 Batch Routing
+        batch_router = getattr(self, "batch_router", None)
+        if batch_router:
+            batch_decision = batch_router.route(
+                request_body=body,
+                headers=request.headers,
+                origin=request.headers.get("x-cutctx-origin")
+            )
+            if batch_decision.action == "enqueued":
+                return JSONResponse(
+                    status_code=202,
+                    content={
+                        "id": batch_decision.queue_id,
+                        "status": "in_progress",
+                        "metadata": batch_decision.metadata,
+                    }
+                )
+
         model = body.get("model", "unknown")
         messages = body.get("messages", [])
         request_savings_metadata = extract_savings_metadata(
@@ -455,6 +473,12 @@ class OpenAIChatMixin:
 
         # Get prefix cache tracker for this session
         openai_session_id = self.session_tracker_store.compute_session_id(request, model, messages)
+
+        # WS11 Tool Memoization Recording
+        if getattr(self, "memoizer", None):
+            from cutctx.proxy.memoizer import record_tool_results_from_messages
+            record_tool_results_from_messages(self.memoizer, messages, openai_session_id)
+        
         openai_prefix_tracker = self.session_tracker_store.get_or_create(
             openai_session_id, "openai"
         )
@@ -929,6 +953,19 @@ class OpenAIChatMixin:
         except Exception as e:
             logger.debug(f"[{request_id}] Schema compression failed: {e}")
 
+        # WS10 Output Optimization
+        output_optimizer = getattr(self, "output_optimizer", None)
+        if output_optimizer and output_optimizer.config.enabled:
+            opt_decision = output_optimizer.optimize(
+                messages=optimized_messages,
+                provider="openai"
+            )
+            if opt_decision.action == "optimized":
+                optimized_messages = opt_decision.messages
+                body["messages"] = optimized_messages
+                transforms_applied = list(transforms_applied) + opt_decision.metadata.get("transforms", [])
+                logger.info(f"[{request_id}] WS10 output optimization applied: {opt_decision.metadata.get('levers')}")
+
         presend_event = self.pipeline_extensions.emit(
             PipelineStage.PRE_SEND,
             operation="proxy.request",
@@ -1045,7 +1082,7 @@ class OpenAIChatMixin:
                         and backend_response.body
                         and backend_response.status_code == 200
                         and self.ccr_response_handler.has_ccr_tool_calls(
-                            backend_response.body, "openai"
+                            backend_response.body, "openai", session_id=openai_session_id
                         )
                     ):
                         logger.info(
@@ -1095,6 +1132,7 @@ class OpenAIChatMixin:
                                 tools,
                                 api_call_fn,
                                 provider="openai",
+                                session_id=openai_session_id,
                             )
                             backend_response.body = final_resp_json
                             logger.info(

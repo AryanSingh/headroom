@@ -167,6 +167,10 @@ from cutctx.proxy.semantic_cache import SemanticCache  # noqa: F401
 from cutctx.proxy.ssl_context import find_ca_bundle
 from cutctx.proxy.warmup import WarmupRegistry
 from cutctx.proxy.ws_session_registry import WebSocketSessionRegistry
+from cutctx.proxy.batch_router import BatchRouter, BatchRouterConfig
+from cutctx.proxy.output_optimizer import OutputOptimizer, OutputOptimizeConfig
+from cutctx.proxy.memoize_interceptor import MemoizeInterceptor
+from cutctx.proxy.memoizer import ToolMemoizer, MemoizeConfig
 from cutctx.savings import SavingsSource
 from cutctx.subscription.base import get_quota_registry, reset_quota_registry
 from cutctx.subscription.codex_rate_limits import get_codex_rate_limit_state
@@ -431,6 +435,18 @@ class CutctxProxy(
         # so the proxy no longer needs a "context manager" transform stage.
         # Reported via metrics as `_context_manager_status = "passthrough"`.
         self._context_manager_status = "passthrough"
+
+        # Initialize restored features WS10, WS11, WS13
+        self.batch_router = BatchRouter(
+            BatchRouterConfig(enabled=config.batch_routing)
+        )
+        self.output_optimizer = OutputOptimizer(
+            OutputOptimizeConfig(enabled=config.output_optimization)
+        )
+        self.memoizer = ToolMemoizer(
+            MemoizeConfig(enabled=config.memoization)
+        )
+        self.memoize_interceptor = MemoizeInterceptor(memoizer=self.memoizer)
 
         # ContentRouter is the single proxy routing surface. Provider handlers
         # normalize their request shapes into messages or CompressionUnits, and
@@ -698,6 +714,8 @@ class CutctxProxy(
             if config.ccr_handle_responses
             else None
         )
+        if self.ccr_response_handler:
+            self.ccr_response_handler.memoize_interceptor = self.memoize_interceptor
 
         # CCR Context Tracker (tracks compressed content across turns)
         self.ccr_context_tracker = (
