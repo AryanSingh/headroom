@@ -337,7 +337,7 @@ class TestSessionTrackerStore:
         assert store.active_sessions == 0
 
     def test_compute_session_id_from_header(self, store):
-        """Should use x-cutctx-session-id header if present."""
+        """Should use x-cutctx-session-id header if present, prefixed with caller fingerprint."""
 
         class MockRequest:
             headers = {"x-cutctx-session-id": "explicit-id-123"}
@@ -345,7 +345,8 @@ class TestSessionTrackerStore:
         session_id = store.compute_session_id(
             MockRequest(), "claude-3", [{"role": "user", "content": "Hi"}]
         )
-        assert session_id == "explicit-id-123"
+        # Format: "{caller_fp}:{session_header}" where caller_fp is "anon" (no auth)
+        assert session_id == "anon:explicit-id-123"
 
     def test_compute_session_id_from_hash(self, store):
         """Should hash model + system prompt as fallback."""
@@ -361,7 +362,9 @@ class TestSessionTrackerStore:
         id1 = store.compute_session_id(MockRequest(), "claude-3", messages)
         id2 = store.compute_session_id(MockRequest(), "claude-3", messages)
         assert id1 == id2  # Stable hash
-        assert len(id1) == 16
+        # Format: "anon:{16-char-hash}" = 21 chars
+        assert len(id1) == 21
+        assert id1.startswith("anon:")
 
         # Different model = different session
         id3 = store.compute_session_id(MockRequest(), "gpt-4", messages)
@@ -376,7 +379,120 @@ class TestSessionTrackerStore:
         messages = [{"role": "user", "content": "Hi"}]
         session_id = store.compute_session_id(MockRequest(), "claude-3", messages)
         assert isinstance(session_id, str)
-        assert len(session_id) == 16
+        # Format: "anon:{16-char-hash}" = 21 chars
+        assert len(session_id) == 21
+        assert session_id.startswith("anon:")
+
+    def test_compute_session_id_caller_isolation_explicit_header(self, store):
+        """Security: Two callers with same explicit header should get different session_ids."""
+
+        class MockRequest:
+            def __init__(self, api_key=None):
+                self.headers = {"x-cutctx-session-id": "shared-session-id"}
+                if api_key:
+                    self.headers["x-api-key"] = api_key
+
+        # Caller 1 with api key "key-1"
+        id1 = store.compute_session_id(
+            MockRequest(api_key="key-1"), "claude-3", [{"role": "user", "content": "Hi"}]
+        )
+
+        # Caller 2 with api key "key-2"
+        id2 = store.compute_session_id(
+            MockRequest(api_key="key-2"), "claude-3", [{"role": "user", "content": "Hi"}]
+        )
+
+        # Different callers should NOT collide on the same explicit session header
+        assert id1 != id2
+        # Both should have the format "{caller_fp}:shared-session-id"
+        assert id1.endswith(":shared-session-id")
+        assert id2.endswith(":shared-session-id")
+        # But different caller fingerprints in the prefix
+        assert id1.split(":")[0] != id2.split(":")[0]
+
+    def test_compute_session_id_caller_isolation_hash_fallback(self, store):
+        """Security: Two callers with same model+prompt should get different session_ids."""
+
+        class MockRequest:
+            def __init__(self, api_key=None):
+                self.headers = {}
+                if api_key:
+                    self.headers["x-api-key"] = api_key
+
+        messages = [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "Question"},
+        ]
+
+        # Caller 1 with api key "key-1"
+        id1 = store.compute_session_id(MockRequest(api_key="key-1"), "claude-3", messages)
+
+        # Caller 2 with api key "key-2"
+        id2 = store.compute_session_id(MockRequest(api_key="key-2"), "claude-3", messages)
+
+        # Different callers should NOT collide even with identical model+prompt
+        assert id1 != id2
+        # Both should have format "{caller_fp}:{16-char-hash}"
+        assert ":" in id1
+        assert ":" in id2
+        # Different caller fingerprints
+        assert id1.split(":")[0] != id2.split(":")[0]
+
+    def test_compute_session_id_same_caller_explicit_header_stable(self, store):
+        """No regression: Same caller with explicit header should be stable."""
+
+        class MockRequest:
+            def __init__(self):
+                self.headers = {
+                    "x-api-key": "stable-key",
+                    "x-cutctx-session-id": "explicit-session",
+                }
+
+        messages = [{"role": "user", "content": "Hi"}]
+
+        # Call twice with the same request
+        id1 = store.compute_session_id(MockRequest(), "claude-3", messages)
+        id2 = store.compute_session_id(MockRequest(), "claude-3", messages)
+
+        # Same caller should produce identical session_id
+        assert id1 == id2
+
+    def test_compute_session_id_same_caller_hash_fallback_stable(self, store):
+        """No regression: Same caller with hash fallback should be stable."""
+
+        class MockRequest:
+            def __init__(self):
+                self.headers = {"x-api-key": "stable-key"}
+
+        messages = [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "Question"},
+        ]
+
+        # Call twice with the same request
+        id1 = store.compute_session_id(MockRequest(), "claude-3", messages)
+        id2 = store.compute_session_id(MockRequest(), "claude-3", messages)
+
+        # Same caller should produce identical session_id
+        assert id1 == id2
+
+    def test_compute_session_id_authorization_fallback(self, store):
+        """Should use authorization header as fallback if x-api-key missing."""
+
+        class MockRequest:
+            def __init__(self, use_authorization=False):
+                self.headers = {"x-cutctx-session-id": "session-123"}
+                if use_authorization:
+                    self.headers["authorization"] = "Bearer some-token"
+
+        req1 = MockRequest(use_authorization=True)
+        id1 = store.compute_session_id(req1, "claude-3", [{"role": "user", "content": "Hi"}])
+
+        # Should have used the authorization header to derive fingerprint
+        assert ":" in id1
+        assert id1.endswith(":session-123")
+        # Fingerprint should not be "anon" since we provided authorization
+        assert not id1.startswith("anon:")
 
 
 class TestMultiTurnScenario:

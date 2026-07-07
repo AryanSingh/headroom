@@ -175,6 +175,135 @@ class ModelRouterConfig:
             tool_complexity_threshold=float(payload.get("tool_complexity_threshold", 2.0)),
         )
 
+    @classmethod
+    def economy_preset(cls) -> ModelRouterConfig:
+        """Aggressive downgrade: routes any eligible request to the
+        cheapest capable model. Opt-in only — changes response quality
+        tradeoffs.
+
+        Adds more source→target pairs beyond the default four, and sets
+        lower thresholds so more requests qualify for downgrade.
+        """
+        return cls(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="claude-opus-4-5",
+                    target="claude-sonnet-4-5",
+                ),
+                ModelRoute(
+                    source="claude-opus-4-5-20250514",
+                    target="claude-sonnet-4-5",
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5-20250514",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-3-5-sonnet-20241022",
+                    target="claude-3-5-haiku-20241022",
+                ),
+                ModelRoute(
+                    source="claude-3-5-sonnet-latest",
+                    target="claude-3-5-haiku-latest",
+                ),
+                ModelRoute(
+                    source="gpt-4o",
+                    target="gpt-4o-mini",
+                ),
+                ModelRoute(
+                    source="gpt-4o-2024-08-06",
+                    target="gpt-4o-mini",
+                ),
+                ModelRoute(
+                    source="gpt-4o-mini",
+                    target="gpt-4o-mini",  # already cheapest — identity route
+                ),
+                ModelRoute(
+                    source="gemini-2.5-pro",
+                    target="gemini-2.5-flash",
+                ),
+            ],
+            cache_read_threshold=0.8,  # route even when cache-read share is high
+            tool_complexity_threshold=5.0,  # route even moderately complex requests
+        )
+
+    @classmethod
+    def subrequest_haiku_preset(cls) -> ModelRouterConfig:
+        """Routes internal subrequests (tool-loop helpers, summarization calls)
+        to Haiku-tier models. Direct downgrade to Haiku, skipping intermediate
+        steps. Opt-in only — applies only to requests marked internally as
+        subrequests.
+
+        Adds routes that map all capable models directly to their Haiku
+        equivalents, and sets high thresholds so all internal requests route.
+        """
+        return cls(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="claude-opus-4-5",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-opus-4-5-20250514",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5-20250514",
+                    target="claude-haiku-4-5",
+                ),
+                ModelRoute(
+                    source="claude-3-5-sonnet-20241022",
+                    target="claude-3-5-haiku-20241022",
+                ),
+                ModelRoute(
+                    source="claude-3-5-sonnet-latest",
+                    target="claude-3-5-haiku-latest",
+                ),
+                ModelRoute(
+                    source="claude-haiku-4-5",
+                    target="claude-haiku-4-5",  # already Haiku — identity route
+                ),
+                ModelRoute(
+                    source="claude-3-5-haiku-20241022",
+                    target="claude-3-5-haiku-20241022",  # already Haiku — identity route
+                ),
+                ModelRoute(
+                    source="claude-3-5-haiku-latest",
+                    target="claude-3-5-haiku-latest",  # already Haiku — identity route
+                ),
+                ModelRoute(
+                    source="gpt-4o",
+                    target="gpt-4o-mini",
+                ),
+                ModelRoute(
+                    source="gpt-4o-2024-08-06",
+                    target="gpt-4o-mini",
+                ),
+                ModelRoute(
+                    source="gpt-4o-mini",
+                    target="gpt-4o-mini",  # already cheapest — identity route
+                ),
+                ModelRoute(
+                    source="gemini-2.5-pro",
+                    target="gemini-2.5-flash",
+                ),
+            ],
+            cache_read_threshold=0.8,  # route even when cache-read share is high
+            tool_complexity_threshold=5.0,  # route even moderately complex requests
+        )
+
 
 @dataclass
 class RoutingDecision:

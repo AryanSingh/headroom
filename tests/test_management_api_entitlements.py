@@ -142,6 +142,36 @@ def test_enterprise_can_access_enterprise_management_routes(tmp_path, monkeypatc
         assert delete_deployment.status_code == 200
 
 
+def test_unset_entitlement_tier_defaults_to_builder_not_enterprise(tmp_path, monkeypatch):
+    """Regression test: an unconfigured entitlement_tier must fail closed
+    (builder) rather than fail open (enterprise) for admin-gated enterprise
+    routes. _runtime_require_entitlement previously re-derived the tier from
+    raw config.entitlement_tier with a fail-open "enterprise" default,
+    unconditionally granting audit/rbac/fleet/scim access to any deployment
+    that never configured a license or entitlement tier.
+    """
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    with _make_client(tmp_path, monkeypatch, tier=None) as client:
+        headers = {"X-Cutctx-Admin-Key": "secret"}
+
+        audit = client.get("/audit/events", headers=headers)
+        assert audit.status_code == 403
+        assert audit.json()["detail"]["feature"] == "audit_logs"
+        assert audit.json()["detail"]["current_tier"] == "builder"
+
+        rbac = client.get("/rbac/roles", headers=headers)
+        assert rbac.status_code == 403
+        assert rbac.json()["detail"]["feature"] == "rbac"
+
+        fleet = client.get("/fleet/summary", headers=headers)
+        assert fleet.status_code == 403
+        assert fleet.json()["detail"]["feature"] == "fleet_management"
+
+        scim = client.get("/scim/v2/Users", headers=headers)
+        assert scim.status_code == 403
+        assert scim.json()["detail"]["feature"] == "scim"
+
+
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, monkeypatch, tier="builder") as client:

@@ -11,8 +11,10 @@ import importlib.util
 import json
 import logging
 import os
+import random
 import tempfile
 import threading
+from collections.abc import Callable
 from csv import DictWriter
 from datetime import datetime, timedelta, timezone
 from io import StringIO
@@ -36,6 +38,73 @@ DEFAULT_MAX_HISTORY_AGE_DAYS = 365
 DEFAULT_MAX_RESPONSE_HISTORY_POINTS = 500
 DEFAULT_DISPLAY_SESSION_INACTIVITY_MINUTES = 60
 
+# Commercial-readiness runbook Task 1 (Savings Validation Protocol / shadow
+# mode). Every normal per-request/history savings row is an *estimate*
+# (token-count delta x list price). Shadow mode replays a sampled fraction
+# of requests upstream with compression disabled and compares the actual
+# provider-billed cost of the compressed vs. uncompressed call, recording
+# that empirical comparison as a ``savings_basis="measured"`` data point
+# alongside (never replacing) the normal ``"estimated"`` rows. Configuration
+# is via environment variables, following the same pattern as
+# ``circuit_breaker.py`` (no config-schema change):
+#   * ``CUTCTX_SHADOW_MODE`` - "1"/"true"/"yes"/"on" enables shadow mode
+#     (default: disabled).
+#   * ``CUTCTX_SHADOW_SAMPLE_RATE`` - fraction (0.0-1.0) of eligible
+#     requests to shadow-check (default 0.0, i.e. none even when enabled).
+SAVINGS_BASIS_ESTIMATED = "estimated"
+SAVINGS_BASIS_MEASURED = "measured"
+DEFAULT_SHADOW_SAMPLE_RATE = 0.0
+DEFAULT_MAX_SHADOW_CHECKS = 2000
+
+
+def shadow_mode_enabled_from_env() -> bool:
+    """Read ``CUTCTX_SHADOW_MODE`` (default: disabled)."""
+    raw = os.environ.get("CUTCTX_SHADOW_MODE", "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def shadow_sample_rate_from_env() -> float:
+    """Read ``CUTCTX_SHADOW_SAMPLE_RATE`` (default 0.0), clamped to [0, 1]."""
+    raw = os.environ.get("CUTCTX_SHADOW_SAMPLE_RATE")
+    if not raw:
+        return DEFAULT_SHADOW_SAMPLE_RATE
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "event=shadow_mode_bad_env var=CUTCTX_SHADOW_SAMPLE_RATE value=%r; "
+            "using default %.2f",
+            raw,
+            DEFAULT_SHADOW_SAMPLE_RATE,
+        )
+        return DEFAULT_SHADOW_SAMPLE_RATE
+    return min(max(value, 0.0), 1.0)
+
+
+def should_run_shadow_check(
+    sample_rate: float,
+    rng: Callable[[], float] | None = None,
+) -> bool:
+    """Deterministic sampling decision for a shadow-mode duplicate upstream call.
+
+    ``sample_rate`` <= 0 always returns ``False``; ``sample_rate`` >= 1
+    always returns ``True`` (both short-circuit before drawing from
+    ``rng``, so callers never need to inject an rng just to exercise the
+    boundary cases). For a rate strictly between 0 and 1, ``rng`` — a
+    zero-arg callable returning a value in ``[0, 1)`` — is compared
+    against the rate. Defaults to ``random.random`` in production; tests
+    inject any deterministic callable (e.g. ``lambda: 0.3``) instead of
+    monkeypatching the ``random`` module, so the decision is exercised
+    without real randomness.
+    """
+    rate = sample_rate if isinstance(sample_rate, int | float) else 0.0
+    if rate <= 0.0:
+        return False
+    if rate >= 1.0:
+        return True
+    draw = (rng or random.random)()
+    return draw < rate
+
 PERSISTED_SAVINGS_SOURCES = (
     "provider_prompt_cache",
     "cutctx_compression",
@@ -45,6 +114,9 @@ PERSISTED_SAVINGS_SOURCES = (
     "prefix_cache_self_hosted",
     "model_routing",
     "normalization",
+    "memoization",
+    "output_optimization",
+    "batch_routing",
 )
 
 SESSION_SAVINGS_USD_FIELDS = (
@@ -62,6 +134,12 @@ SESSION_SAVINGS_USD_FIELDS = (
     "api_surface_slimming_savings_observed_usd",
     "normalization_savings_usd",
     "normalization_savings_observed_usd",
+    "memoization_savings_usd",
+    "memoization_savings_observed_usd",
+    "output_optimization_savings_usd",
+    "output_optimization_savings_observed_usd",
+    "batch_routing_savings_usd",
+    "batch_routing_savings_observed_usd",
 )
 
 LITELLM_AVAILABLE = importlib.util.find_spec("litellm") is not None
@@ -293,6 +371,32 @@ def _estimate_input_cost_usd(
         return 0.0
 
 
+def estimate_request_cost_usd(
+    model: str,
+    *,
+    input_tokens: int,
+    cache_read_tokens: int = 0,
+    cache_write_tokens: int = 0,
+    uncached_input_tokens: int = 0,
+) -> float:
+    """Public cache-aware input-cost estimate, in USD.
+
+    Thin public wrapper around :func:`_estimate_input_cost_usd` (the same
+    logic the primary savings estimate uses) so shadow mode's compressed-
+    vs-uncompressed cost comparison (Task 1, commercial-readiness runbook)
+    stays apples-to-apples with the rest of the pricing pipeline instead of
+    reimplementing cache-aware pricing. Never raises — returns 0.0 if
+    tokens are non-positive or pricing data is unavailable.
+    """
+    return _estimate_input_cost_usd(
+        model,
+        input_tokens,
+        cache_read_tokens=cache_read_tokens,
+        cache_write_tokens=cache_write_tokens,
+        uncached_input_tokens=uncached_input_tokens,
+    )
+
+
 def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
     """Normalize persisted history entries across schema shapes.
 
@@ -304,12 +408,19 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
     timestamp: datetime | None = None
     total_tokens_saved = 0
     compression_savings_usd = 0.0
+    compression_savings_observed_usd = 0.0
     cache_savings_usd = 0.0
+    cache_savings_observed_usd = 0.0
     semantic_cache_savings_usd = 0.0
+    semantic_cache_savings_observed_usd = 0.0
     self_hosted_prefix_cache_savings_usd = 0.0
+    self_hosted_prefix_cache_savings_observed_usd = 0.0
     model_routing_savings_usd = 0.0
+    model_routing_savings_observed_usd = 0.0
     tool_schema_compaction_savings_usd = 0.0
+    tool_schema_compaction_savings_observed_usd = 0.0
     api_surface_slimming_savings_usd = 0.0
+    api_surface_slimming_savings_observed_usd = 0.0
     total_input_tokens = 0
     total_input_cost_usd = 0.0
     provider = PROVIDER_UNKNOWN
@@ -324,22 +435,36 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
     delta_api_surface_slimming_usd = 0.0
     savings_by_source_tokens: dict[str, int] = {}
     savings_by_source_usd: dict[str, float] = {}
+    savings_basis = SAVINGS_BASIS_ESTIMATED
 
     if isinstance(entry, dict):
         timestamp = _parse_timestamp(entry.get("timestamp"))
         total_tokens_saved = _coerce_int(entry.get("total_tokens_saved"))
         compression_savings_usd = _coerce_float(entry.get("compression_savings_usd"))
+        compression_savings_observed_usd = _coerce_float(entry.get("compression_savings_observed_usd"))
         cache_savings_usd = _coerce_float(entry.get("cache_savings_usd"))
+        cache_savings_observed_usd = _coerce_float(entry.get("cache_savings_observed_usd"))
         semantic_cache_savings_usd = _coerce_float(entry.get("semantic_cache_savings_usd"))
+        semantic_cache_savings_observed_usd = _coerce_float(entry.get("semantic_cache_savings_observed_usd"))
         self_hosted_prefix_cache_savings_usd = _coerce_float(
             entry.get("self_hosted_prefix_cache_savings_usd")
         )
+        self_hosted_prefix_cache_savings_observed_usd = _coerce_float(
+            entry.get("self_hosted_prefix_cache_savings_observed_usd")
+        )
         model_routing_savings_usd = _coerce_float(entry.get("model_routing_savings_usd"))
+        model_routing_savings_observed_usd = _coerce_float(entry.get("model_routing_savings_observed_usd"))
         tool_schema_compaction_savings_usd = _coerce_float(
             entry.get("tool_schema_compaction_savings_usd")
         )
+        tool_schema_compaction_savings_observed_usd = _coerce_float(
+            entry.get("tool_schema_compaction_savings_observed_usd")
+        )
         api_surface_slimming_savings_usd = _coerce_float(
             entry.get("api_surface_slimming_savings_usd")
+        )
+        api_surface_slimming_savings_observed_usd = _coerce_float(
+            entry.get("api_surface_slimming_savings_observed_usd")
         )
         total_input_tokens = _coerce_int(entry.get("total_input_tokens"))
         total_input_cost_usd = _coerce_float(entry.get("total_input_cost_usd"))
@@ -365,6 +490,15 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         raw_by_source_usd = entry.get("savings_by_source_usd") or {}
         if isinstance(raw_by_source_usd, dict):
             savings_by_source_usd = {str(k): _coerce_float(v) for k, v in raw_by_source_usd.items()}
+        # Task 1 (commercial-readiness runbook): every history row recorded
+        # by ``record_request``/``record_compression_savings`` is an
+        # estimate (token-count delta x list price); "measured" rows live
+        # in the separate ``shadow_checks`` list instead, so any unknown
+        # or missing value here defaults to "estimated" rather than
+        # silently accepting an unvalidated string.
+        savings_basis = entry.get("savings_basis")
+        if savings_basis not in (SAVINGS_BASIS_ESTIMATED, SAVINGS_BASIS_MEASURED):
+            savings_basis = SAVINGS_BASIS_ESTIMATED
     elif isinstance(entry, list | tuple) and len(entry) >= 2:
         timestamp = _parse_timestamp(entry[0])
         total_tokens_saved = _coerce_int(entry[1])
@@ -384,14 +518,22 @@ def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
         "timestamp": _to_utc_iso(timestamp),
         "provider": provider,
         "model": model,
+        "savings_basis": savings_basis,
         "total_tokens_saved": total_tokens_saved,
         "compression_savings_usd": round(compression_savings_usd, 6),
+        "compression_savings_observed_usd": round(compression_savings_observed_usd, 6),
         "cache_savings_usd": round(cache_savings_usd, 6),
+        "cache_savings_observed_usd": round(cache_savings_observed_usd, 6),
         "semantic_cache_savings_usd": round(semantic_cache_savings_usd, 6),
+        "semantic_cache_savings_observed_usd": round(semantic_cache_savings_observed_usd, 6),
         "self_hosted_prefix_cache_savings_usd": round(self_hosted_prefix_cache_savings_usd, 6),
+        "self_hosted_prefix_cache_savings_observed_usd": round(self_hosted_prefix_cache_savings_observed_usd, 6),
         "model_routing_savings_usd": round(model_routing_savings_usd, 6),
+        "model_routing_savings_observed_usd": round(model_routing_savings_observed_usd, 6),
         "tool_schema_compaction_savings_usd": round(tool_schema_compaction_savings_usd, 6),
+        "tool_schema_compaction_savings_observed_usd": round(tool_schema_compaction_savings_observed_usd, 6),
         "api_surface_slimming_savings_usd": round(api_surface_slimming_savings_usd, 6),
+        "api_surface_slimming_savings_observed_usd": round(api_surface_slimming_savings_observed_usd, 6),
         "total_input_tokens": total_input_tokens,
         "total_input_cost_usd": round(total_input_cost_usd, 6),
         "delta_tokens_saved": delta_tokens_saved,
@@ -490,6 +632,50 @@ def _normalize_models(raw: Any) -> dict[str, dict[str, Any]]:
 
 def _normalize_clients(raw: Any) -> dict[str, dict[str, Any]]:
     return _normalize_named_entries(raw, DEFAULT_MAX_CLIENTS)
+
+
+def _normalize_shadow_check_entry(entry: Any) -> dict[str, Any] | None:
+    """Normalize one persisted shadow-mode comparison row (Task 1)."""
+    if not isinstance(entry, dict):
+        return None
+    timestamp = _parse_timestamp(entry.get("timestamp"))
+    if timestamp is None:
+        return None
+    return {
+        "timestamp": _to_utc_iso(timestamp),
+        "request_id": entry.get("request_id") if isinstance(entry.get("request_id"), str) else None,
+        "provider": _normalize_provider(entry.get("provider")),
+        "model": _normalize_model(entry.get("model")),
+        "savings_basis": SAVINGS_BASIS_MEASURED,
+        "estimated_savings_usd": round(_coerce_float(entry.get("estimated_savings_usd")), 6),
+        # Measured savings may legitimately be negative (compression cost
+        # MORE than the uncompressed baseline, e.g. cache invalidation) —
+        # unlike other USD fields in this module, do not clamp to >= 0.
+        "measured_savings_usd": round(_safe_float(entry.get("measured_savings_usd")), 6),
+        "measured_delta_usd": round(_safe_float(entry.get("measured_delta_usd")), 6),
+    }
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Like ``_coerce_float`` but does not clamp negative values to 0."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_shadow_checks(raw: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    normalized = []
+    for item in raw:
+        entry = _normalize_shadow_check_entry(item)
+        if entry is not None:
+            normalized.append(entry)
+    normalized.sort(key=lambda item: item["timestamp"])
+    if len(normalized) > DEFAULT_MAX_SHADOW_CHECKS:
+        normalized = normalized[-DEFAULT_MAX_SHADOW_CHECKS:]
+    return normalized
 
 
 def _normalize_display_session(entry: Any) -> dict[str, Any]:
@@ -623,6 +809,7 @@ class SavingsTracker:
                     "timestamp": _to_utc_iso(timestamp_dt),
                     "provider": _normalize_provider(provider),
                     "model": _normalize_model(model),
+                    "savings_basis": SAVINGS_BASIS_ESTIMATED,
                     "total_tokens_saved": lifetime["tokens_saved"],
                     "compression_savings_usd": lifetime["compression_savings_usd"],
                     "total_input_tokens": lifetime["total_input_tokens"],
@@ -958,6 +1145,14 @@ class SavingsTracker:
                         "timestamp": _to_utc_iso(timestamp_dt),
                         "provider": _normalize_provider(provider),
                         "model": _normalize_model(model),
+                        # Task 1 (commercial-readiness runbook): every row
+                        # this method records is a token-count-delta
+                        # estimate. Shadow mode's empirical measurements
+                        # live in the separate ``shadow_checks`` list
+                        # (see ``record_measured_savings``) so they are
+                        # never double-counted against these lifetime
+                        # running totals.
+                        "savings_basis": SAVINGS_BASIS_ESTIMATED,
                         # Lifetime counters (running totals at this point).
                         "total_tokens_saved": lifetime["tokens_saved"],
                         "compression_savings_usd": lifetime["compression_savings_usd"],
@@ -1027,6 +1222,85 @@ class SavingsTracker:
                 )
                 self._trim_history_locked(reference_time=timestamp_dt)
 
+            self._save_locked()
+            return True
+
+    def record_measured_savings(
+        self,
+        *,
+        model: str,
+        estimated_savings_usd: float,
+        measured_savings_usd: float,
+        provider: str | None = None,
+        request_id: str | None = None,
+        timestamp: datetime | str | None = None,
+    ) -> bool:
+        """Persist one shadow-mode measured-vs-estimated savings comparison.
+
+        Task 1 (commercial-readiness runbook): shadow mode duplicates a
+        sampled fraction of requests upstream with compression disabled and
+        compares the actual provider-billed cost of the compressed vs.
+        uncompressed call. ``measured_savings_usd`` is that real cost
+        delta (uncompressed cost minus compressed cost); ``estimated_savings_usd``
+        is the normal token-count-delta estimate for the same request, so
+        the two can be compared directly.
+
+        The entry is appended to a dedicated ``shadow_checks`` list (bounded
+        the same way as ``history``) rather than folded into the lifetime/
+        session aggregates: a shadow check deliberately duplicates a
+        request's upstream cost, and must never be double-counted as if it
+        were a second real, billable request.
+
+        ``measured_savings_usd`` may legitimately be negative — that means
+        compression cost MORE than the uncompressed baseline for this
+        sampled request (e.g. compression busted a provider prompt-cache
+        hit). That case is logged at WARNING so it surfaces instead of
+        being silently averaged away, per the runbook's negative-savings
+        guard.
+        """
+        timestamp_dt = (
+            _parse_timestamp(timestamp)
+            if isinstance(timestamp, str)
+            else timestamp.astimezone(timezone.utc)
+            if isinstance(timestamp, datetime)
+            else _utc_now()
+        )
+        if timestamp_dt is None:
+            timestamp_dt = _utc_now()
+
+        estimated = _coerce_float(estimated_savings_usd)
+        measured = _safe_float(measured_savings_usd)
+        delta = measured - estimated
+
+        if measured < 0:
+            logger.warning(
+                "event=shadow_negative_savings request_id=%s model=%s provider=%s "
+                "measured_savings_usd=%.6f estimated_savings_usd=%.6f — compression "
+                "cost MORE than the uncompressed baseline for this sampled request",
+                request_id,
+                model,
+                provider,
+                measured,
+                estimated,
+            )
+
+        entry = {
+            "timestamp": _to_utc_iso(timestamp_dt),
+            "request_id": request_id,
+            "provider": _normalize_provider(provider),
+            "model": _normalize_model(model),
+            "savings_basis": SAVINGS_BASIS_MEASURED,
+            "estimated_savings_usd": round(estimated, 6),
+            "measured_savings_usd": round(measured, 6),
+            "measured_delta_usd": round(delta, 6),
+        }
+
+        with self._lock:
+            self._reload_if_stale_locked()
+            shadow_checks: list[dict[str, Any]] = self._state.setdefault("shadow_checks", [])
+            shadow_checks.append(entry)
+            if len(shadow_checks) > DEFAULT_MAX_SHADOW_CHECKS:
+                self._state["shadow_checks"] = shadow_checks[-DEFAULT_MAX_SHADOW_CHECKS:]
             self._save_locked()
             return True
 
@@ -1188,6 +1462,9 @@ class SavingsTracker:
             "projects_limit": DEFAULT_MAX_PROJECTS,
             "models": snapshot["models"],
             "clients": snapshot["clients"],
+            # Task 1 (commercial-readiness runbook): shadow-mode
+            # measured-vs-estimated comparisons, most recent first slice.
+            "shadow_checks": snapshot["shadow_checks"][-recent_points:],
         }
 
     def history_response(self, history_mode: str = "compact") -> dict[str, Any]:
@@ -1286,6 +1563,13 @@ class SavingsTracker:
                 "projects": self._projects_snapshot_locked(),
                 "models": self._models_snapshot_locked(),
                 "clients": self._clients_snapshot_locked(),
+                # Task 1 (commercial-readiness runbook): shadow-mode
+                # measured-vs-estimated savings comparisons. Kept separate
+                # from ``history`` (see ``record_measured_savings``) since
+                # each entry duplicates a sampled request's upstream cost
+                # and must never be folded into the lifetime/session
+                # aggregates as if it were a second real request.
+                "shadow_checks": [dict(item) for item in self._state.get("shadow_checks", [])],
             }
             if "attribution_note" in self._state:
                 ret["attribution_note"] = self._state["attribution_note"]
@@ -1366,6 +1650,7 @@ class SavingsTracker:
             "projects": {},
             "models": {},
             "clients": {},
+            "shadow_checks": [],
         }
 
     def _load_state(self) -> dict[str, Any]:
@@ -1570,6 +1855,7 @@ class SavingsTracker:
             "projects": _normalize_projects(raw.get("projects")),
             "models": _normalize_models(raw.get("models")),
             "clients": _normalize_clients(raw.get("clients")),
+            "shadow_checks": _normalize_shadow_checks(raw.get("shadow_checks")),
         }
         if "attribution_note" in raw:
             state["attribution_note"] = raw["attribution_note"]
@@ -1677,6 +1963,7 @@ class SavingsTracker:
                 "projects": self._state.get("projects", {}),
                 "models": self._state.get("models", {}),
                 "clients": self._state.get("clients", {}),
+                "shadow_checks": self._state.get("shadow_checks", []),
             }
             json_data = json.dumps(payload, indent=2)
 
@@ -1779,6 +2066,20 @@ class SavingsTracker:
         prev_total_usd = 0.0
         prev_total_input_tokens = 0
         prev_total_input_cost_usd = 0.0
+        # Phase 1.4 sources: each history point also carries a running
+        # lifetime total for these, exactly like ``compression_savings_usd``
+        # above. Without diffing them here too, every non-lifetime duration
+        # tab (Daily/Weekly/Monthly) silently reports compression-only
+        # savings and undercounts cache/routing/schema savings for the period.
+        extra_sources = (
+            "cache_savings_usd",
+            "semantic_cache_savings_usd",
+            "self_hosted_prefix_cache_savings_usd",
+            "model_routing_savings_usd",
+            "tool_schema_compaction_savings_usd",
+            "api_surface_slimming_savings_usd",
+        )
+        prev_extra = {key: 0.0 for key in extra_sources}
 
         for point in history:
             timestamp = _parse_timestamp(point["timestamp"])
@@ -1800,10 +2101,16 @@ class SavingsTracker:
                 0.0,
             )
 
+            extra_totals = {key: _coerce_float(point.get(key)) for key in extra_sources}
+            extra_deltas = {
+                key: max(extra_totals[key] - prev_extra[key], 0.0) for key in extra_sources
+            }
+
             prev_total_tokens = total_tokens_saved
             prev_total_usd = total_usd
             prev_total_input_tokens = total_input_tokens
             prev_total_input_cost_usd = total_input_cost_usd
+            prev_extra = extra_totals
 
             entry = aggregated.setdefault(
                 bucket_key,
@@ -1814,6 +2121,7 @@ class SavingsTracker:
                     "compression_savings_usd_delta": 0.0,
                     "total_tokens_saved": total_tokens_saved,
                     "compression_savings_usd": total_usd,
+                    **{f"{key}_delta": 0.0 for key in extra_sources},
                     "total_input_tokens_delta": 0,
                     "total_input_tokens": total_input_tokens,
                     "total_input_cost_usd_delta": 0.0,
@@ -1828,6 +2136,9 @@ class SavingsTracker:
                 entry["compression_savings_usd_delta"] + delta_usd,
                 6,
             )
+            for key in extra_sources:
+                delta_key = f"{key}_delta"
+                entry[delta_key] = round(entry[delta_key] + extra_deltas[key], 6)
             entry["total_input_tokens_delta"] += delta_input_tokens
             entry["total_input_cost_usd_delta"] = round(
                 entry["total_input_cost_usd_delta"] + delta_input_cost_usd,

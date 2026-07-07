@@ -25,6 +25,7 @@ import {
 } from '../lib/format';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 import { fetchPeriodStats } from '../lib/period-stats';
+import { LIFETIME_SAVINGS_SOURCES, sumSavingsUsd, sumSavingsObservedUsd } from '../lib/savings-sources';
 
 function SkeletonCard() {
   return (
@@ -70,33 +71,6 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
-const LIFETIME_SAVINGS_SOURCES = [
-  ['compression_savings_usd', 'cutctx_compression'],
-  ['cache_savings_usd', 'provider_prompt_cache'],
-  ['semantic_cache_savings_usd', 'semantic_cache'],
-  ['self_hosted_prefix_cache_savings_usd', 'prefix_cache_self_hosted'],
-  ['model_routing_savings_usd', 'model_routing'],
-  ['tool_schema_compaction_savings_usd', 'tool_schema_compaction'],
-  ['api_surface_slimming_savings_usd', 'api_surface_slimming'],
-  ['normalization_savings_usd', 'normalization'],
-  ['batch_routing_savings_usd', 'batch_routing'],
-  ['memoization_savings_usd', 'memoization'],
-  ['output_optimization_savings_usd', 'output_optimization'],
-];
-
-function sumSavingsUsd(record) {
-  return LIFETIME_SAVINGS_SOURCES.reduce(
-    (sum, [key]) => sum + Number(record?.[key] || 0),
-    0,
-  );
-}
-
-function sumSavingsObservedUsd(record) {
-  return LIFETIME_SAVINGS_SOURCES.reduce(
-    (sum, [key]) => sum + Number(record?.[key.replace('_usd', '_observed_usd')] || 0),
-    0,
-  );
-}
 
 function getSessionSavingsUsd(stats) {
   const cost = stats?.cost || {};
@@ -166,6 +140,10 @@ function getSessionSavingsUsd(stats) {
     Number(sourceUsd.api_surface_slimming || 0),
     Number(breakdown.api_surface_slimming_savings_usd || 0),
   );
+  // Estimated (session's most-used model list price), not tied to a
+  // single upstream request like the other rows — see
+  // cli_filtering_savings_usd in the backend.
+  const cliFilteringUsd = Number(stats?.tokens?.cli_filtering_savings_usd || 0);
 
   return Math.max(
     Number(cost?.total_savings_usd || 0),
@@ -181,7 +159,8 @@ function getSessionSavingsUsd(stats) {
       + memoizationUsd
       + outputOptimizationUsd
       + toolSchemaUsd
-      + apiSurfaceUsd,
+      + apiSurfaceUsd
+      + cliFilteringUsd,
   );
 }
 
@@ -290,7 +269,10 @@ usd: Math.max(
       key: 'cli_filtering',
       label: 'CLI output filtering',
       tokens: Math.max(Number(sourceTokens.cli_filtering || 0), sessionCliFiltering),
-      usd: 0,
+      // Estimated: RTK/lean-ctx run outside the request/response cycle, so
+      // this isn't tied to one upstream request's exact price like the
+      // other rows — see cli_filtering_savings_usd in the backend.
+      usd: Number(sessionTokens.cli_filtering_savings_usd || 0),
       session: sessionCliFiltering,
     },
     {
@@ -1879,7 +1861,7 @@ export default function Overview() {
   const tokensHeadline = isLifetimeMode ? pickHeadlineSource('tokens') : { tokens: durationData?.tokens_saved || 0 };
   const requestsHeadline = isLifetimeMode ? pickHeadlineSource('requests') : { requests: durationData?.requests || 0 };
   const inputHeadline = isLifetimeMode ? pickHeadlineSource('input') : { input: durationData?.total_input_tokens || 0 };
-  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.compression_savings_usd || 0, savingsObservedUsd: durationData?.compression_savings_observed_usd || 0 };
+  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.total_savings_usd || 0, savingsObservedUsd: durationData?.compression_savings_observed_usd || 0 };
 
   const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
   const effectiveRequests = Number(requestsHeadline.requests || 0);
@@ -1949,6 +1931,12 @@ export default function Overview() {
   const totalSourceTokens =
     activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
     Number(tokens.total_before_compression || 0);
+  const totalSourceUsd = activeSourceRows.reduce((sum, row) => sum + row.usd, 0);
+  const sourceByUsd = attributionMetric === 'usd';
+  const sortedSourceRows = [...activeSourceRows].sort((a, b) =>
+    sourceByUsd ? b.usd - a.usd : b.tokens - a.tokens,
+  );
+  const totalActiveSourceValue = sourceByUsd ? totalSourceUsd : totalSourceTokens;
   const totalClientTokens =
     activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
   const totalModelTokens =
@@ -2101,6 +2089,8 @@ export default function Overview() {
               </div>
             </div>
 
+            <AttributionMetricToggle metric={attributionMetric} onChange={setAttributionMetric} />
+
             {loading ? (
               <SkeletonBar />
             ) : activeSourceRows.length === 0 ? (
@@ -2118,14 +2108,17 @@ export default function Overview() {
                 </div>
 
                 <div className="source-stack">
-                  {activeSourceRows.map((row) => {
-                    const percent = totalSourceTokens > 0 ? (row.tokens / totalSourceTokens) * 100 : 0;
+                  {sortedSourceRows.map((row) => {
+                    const value = sourceByUsd ? row.usd : row.tokens;
+                    const percent = totalActiveSourceValue > 0 ? (value / totalActiveSourceValue) * 100 : 0;
                     return (
                       <div key={row.key} className="source-row">
                         <div className="source-labels">
                           <div className="source-name">{row.label}</div>
                           <div className="source-meta">
-                            {formatInteger(row.tokens)} tokens · {formatCurrency(row.usd)}
+                            {sourceByUsd
+                              ? `${formatCurrency(row.usd)} · ${formatInteger(row.tokens)} tokens`
+                              : `${formatInteger(row.tokens)} tokens · ${formatCurrency(row.usd)}`}
                           </div>
                         </div>
                         <div className="source-bar-track">
@@ -2142,8 +2135,6 @@ export default function Overview() {
               </>
             )}
           </section>
-
-          <AttributionMetricToggle metric={attributionMetric} onChange={setAttributionMetric} />
 
           <SavingsPanel
             title="Savings by client"

@@ -65,8 +65,7 @@ def estimate_tool_scaffolding_tokens(
 
 def tool_surface_slimming_enabled(config: Any | None = None) -> bool:
     if config is not None and hasattr(config, "tool_surface_slimming_enabled"):
-        if not config.tool_surface_slimming_enabled:
-            return False
+        return bool(config.tool_surface_slimming_enabled)
     env_val = os.environ.get(_ENABLE_ENV, "").strip().lower()
     if env_val in {"0", "false", "no", "off"}:
         return False
@@ -86,6 +85,7 @@ def slim_tool_surface(
     tokenizer: Any | None = None,
     tool_choice: Any = None,
     config: Any | None = None,
+    messages: Any = None,
 ) -> ToolSurfaceResult:
     if not tool_surface_slimming_enabled(config) or not isinstance(tools, list):
         return ToolSurfaceResult(tools or [], False, 0, 0, len(tools or []))
@@ -95,6 +95,7 @@ def slim_tool_surface(
         return ToolSurfaceResult(tools, False, 0, 0, len(tools))
 
     explicit_tool_names = _explicit_tool_names(tool_choice)
+    used_tool_names = _history_tool_names(messages)
     query_terms = _query_terms(query)
 
     ranked: list[tuple[int, int, dict[str, Any], str | None, bool]] = []
@@ -103,6 +104,7 @@ def slim_tool_surface(
         forced = (
             not tool_name
             or tool_name in explicit_tool_names
+            or tool_name in used_tool_names
             or any(tool_name.startswith(prefix) for prefix in _FORCED_PREFIXES)
         )
         ranked.append((_tool_score(tool, query_terms), index, tool, tool_name, forced))
@@ -188,6 +190,42 @@ def _query_terms(query: str) -> set[str]:
         for token in re.findall(r"[a-z0-9_]{3,}", (query or "").lower())
         if token not in _STOPWORDS
     }
+
+
+_HISTORY_TOOL_CALL_TYPES = {"tool_use", "tool_call", "function_call", "function"}
+
+
+def _history_tool_names(messages: Any) -> set[str]:
+    """Collect tool names referenced by prior tool calls in conversation history.
+
+    The Anthropic/OpenAI APIs reject a request if a message history contains a
+    tool call whose name has no matching entry in the current `tools` array, so
+    any such name must never be slimmed out regardless of its relevance score.
+    Walks Anthropic content blocks (`type: tool_use`), OpenAI chat completions
+    (`tool_calls: [{type: function, function: {name}}]`), and OpenAI Responses
+    API items (`type: function_call`) uniformly via a generic structural scan.
+    """
+    found: set[str] = set()
+    _collect_history_tool_names(messages, found)
+    return found
+
+
+def _collect_history_tool_names(data: Any, found: set[str]) -> None:
+    if isinstance(data, dict):
+        if data.get("type") in _HISTORY_TOOL_CALL_TYPES:
+            name = data.get("name")
+            if isinstance(name, str) and name:
+                found.add(name)
+            fn = data.get("function")
+            if isinstance(fn, dict):
+                fn_name = fn.get("name")
+                if isinstance(fn_name, str) and fn_name:
+                    found.add(fn_name)
+        for value in data.values():
+            _collect_history_tool_names(value, found)
+    elif isinstance(data, list):
+        for item in data:
+            _collect_history_tool_names(item, found)
 
 
 def _explicit_tool_names(tool_choice: Any) -> set[str]:

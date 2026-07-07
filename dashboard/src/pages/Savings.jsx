@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PiggyBank, Calendar, Clock, Sparkles, Layers, Activity, Coins } from 'lucide-react';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 import { fetchPeriodStats } from '../lib/period-stats';
+import { getDurationSavingsUsd } from '../lib/savings-sources';
 import {
   formatCurrency,
   formatInteger,
@@ -165,7 +166,7 @@ export default function Savings() {
 
   // Aggregate stats from durationData
   const tokensSaved = durationData?.tokens_saved || 0;
-  const savingsUsd = durationData?.compression_savings_usd || 0;
+  const savingsUsd = getDurationSavingsUsd(durationData);
   const savingsObservedUsd = durationData?.compression_savings_observed_usd || 0;
   const totalInputTokens = durationData?.total_input_tokens || 1;
   const savingsPercent = durationData?.savings_percent != null 

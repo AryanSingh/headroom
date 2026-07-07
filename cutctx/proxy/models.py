@@ -174,14 +174,48 @@ class ProxyConfig:
     # CLI: --disable-kompress; env: CUTCTX_DISABLE_KOMPRESS=1.
     disable_kompress: bool = False
 
-    # WS13: Batch API arbitrage
-    batch_routing: bool = False
+    # WS13: Batch API arbitrage. On by default — routing only ever fires
+    # for requests carrying the explicit `x-cutctx-batch: allow` header or
+    # originating from internal jobs (learn/evals); interactive traffic
+    # (Claude Code, any normal chat/coding-agent client) always takes the
+    # synchronous path regardless of this flag, so there's no risk of an
+    # interactive request silently landing on the ~24h async Batch API.
+    batch_routing: bool = True
 
-    # WS10: Output-side optimization
+    # Named model-routing preset. None/"default" → default behavior
+    # (empty routes). "economy" → broader downgrade set that routes
+    # more requests to cheaper models.
+    #
+    # Left off by default (and with no built-in non-empty default preset):
+    # every preset with real routes silently swaps the model that actually
+    # answers the request (e.g. Sonnet -> Haiku) with no regard for tool
+    # calls, conversation length, or task complexity, and no way for the
+    # client to opt out or even know before the response comes back with a
+    # different `model` field. That's a customer-trust problem for a paid
+    # proxy, not just a savings knob — must stay opt-in.
+    model_routing_preset: str | None = None
+
+    # WS10: Output-side optimization. Left off by default: its max_tokens
+    # auto-cap lever silently truncates legitimate long output (e.g. a
+    # large generated file) once a session's rolling p95 estimate is
+    # exceeded, with no user consent and no quality/correctness testing.
     output_optimization: bool = False
 
-    # WS11: Tool-result memoization
+    # WS11: Tool-result memoization. Left off by default: cached tool
+    # results can go stale if the underlying file/resource changes outside
+    # the agent's own tool calls (e.g. the user edits in their IDE) — only
+    # writes made *through* the agent itself invalidate the cache.
     memoization: bool = False
+
+    # Actively insert Anthropic cache_control breakpoints (system prompt,
+    # tool definitions) instead of only measuring cache the client already
+    # set up. On by default: a cache write costs 1.25x with only future
+    # reads (0.1x) to offset it, so `_apply_anthropic_cache_breakpoints`
+    # gates on the session already having a completed prior turn before it
+    # ever writes a breakpoint — a true one-shot request never pays the
+    # premium, and any genuinely multi-turn session (the dominant case for
+    # coding agents) starts benefiting from turn 2 onward.
+    anthropic_cache_control: bool = True
 
     # Deprecated: LLMLingua was removed. Field kept for CLI/env backward compat.
     use_llmlingua: bool = False

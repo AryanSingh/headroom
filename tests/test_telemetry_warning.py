@@ -215,8 +215,11 @@ class TestStatsEndpointTelemetryFlag:
 
         from httpx import ASGITransport, AsyncClient
 
+        import os
+        admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.get("/stats")
+            resp = await client.get("/stats", headers={"x-cutctx-admin-key": admin_key})
 
         assert resp.status_code == 200
         data = resp.json()
@@ -237,8 +240,11 @@ class TestStatsEndpointTelemetryFlag:
 
         from httpx import ASGITransport, AsyncClient
 
+        import os
+        admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.get("/stats")
+            resp = await client.get("/stats", headers={"x-cutctx-admin-key": admin_key})
 
         assert resp.status_code == 200
         data = resp.json()

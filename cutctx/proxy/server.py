@@ -171,6 +171,9 @@ from cutctx.proxy.batch_router import BatchRouter, BatchRouterConfig
 from cutctx.proxy.output_optimizer import OutputOptimizer, OutputOptimizeConfig
 from cutctx.proxy.memoize_interceptor import MemoizeInterceptor
 from cutctx.proxy.memoizer import ToolMemoizer, MemoizeConfig
+from cutctx.cache.anthropic import AnthropicCacheOptimizer
+from cutctx.cache.base import CacheConfig
+from cutctx.proxy.savings_tracker import _estimate_compression_savings_usd
 from cutctx.savings import SavingsSource
 from cutctx.subscription.base import get_quota_registry, reset_quota_registry
 from cutctx.subscription.codex_rate_limits import get_codex_rate_limit_state
@@ -447,6 +450,9 @@ class CutctxProxy(
             MemoizeConfig(enabled=config.memoization)
         )
         self.memoize_interceptor = MemoizeInterceptor(memoizer=self.memoizer)
+        self.anthropic_cache_optimizer = AnthropicCacheOptimizer(
+            CacheConfig(enabled=config.anthropic_cache_control)
+        )
 
         # ContentRouter is the single proxy routing surface. Provider handlers
         # normalize their request shapes into messages or CompressionUnits, and
@@ -1694,20 +1700,41 @@ class CutctxProxy(
                 detail=f"Egress to {url} blocked by policy {egress_decision.policy_id}: {egress_decision.reason}",
             )
 
+        # Commercial-readiness runbook Task 4: per-provider circuit breaker.
+        # Fail fast if the provider is known-down instead of dialing it again.
+        from cutctx.proxy.circuit_breaker import get_circuit_breaker, infer_provider_from_url
+
+        circuit_provider = infer_provider_from_url(url)
+        circuit_breaker = get_circuit_breaker(circuit_provider)
+        if not circuit_breaker.allow_request():
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"Circuit breaker open for provider={circuit_provider!r}; "
+                    f"retry after {circuit_breaker.retry_after_s():.1f}s"
+                ),
+            )
+
         for attempt in range(self.config.retry_max_attempts):
             try:
                 if stream:
                     # For streaming, we return early - retry happens at higher level
-                    return await self.http_client.post(  # type: ignore[union-attr]
+                    stream_response = await self.http_client.post(  # type: ignore[union-attr]
                         url, content=outbound_bytes, headers=outbound_headers
                     )
+                    circuit_breaker.record_success()
+                    return stream_response
                 else:
                     response = await self.http_client.post(  # type: ignore[union-attr]
                         url, content=outbound_bytes, headers=outbound_headers
                     )
 
-                    # Don't retry client errors (4xx)
+                    # Don't retry client errors (4xx) - the provider responded,
+                    # so it's reachable; this is a caller error, not an outage.
                     if 400 <= response.status_code < 500:
+                        circuit_breaker.record_success()
                         return response
 
                     # Retry server errors (5xx)
@@ -1718,10 +1745,12 @@ class CutctxProxy(
                             response=response,
                         )
 
+                    circuit_breaker.record_success()
                     return response
 
             except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
                 last_error = e
+                circuit_breaker.record_failure()
 
                 if not self.config.retry_enabled or attempt >= self.config.retry_max_attempts - 1:
                     raise
@@ -2053,13 +2082,19 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
                 # is OFF by default unless the operator populates
                 # CUTCTX_MODEL_ROUTING.
                 try:
-                    from cutctx.proxy.model_router import ModelRouter
+                    from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
-                    proxy._model_router = ModelRouter()
+                    preset = getattr(config, "model_routing_preset", None)
+                    if preset == "economy":
+                        router_config = ModelRouterConfig.economy_preset()
+                    else:
+                        router_config = None
+                    proxy._model_router = ModelRouter(config=router_config)
                     if proxy._model_router.config.enabled:
                         logger.info(
-                            "ModelRouter enabled with %d routes",
+                            "ModelRouter enabled with %d routes (preset=%s)",
                             len(proxy._model_router.config.routes),
+                            preset or "default",
                         )
                 except Exception as mr_exc:
                     logger.debug("ModelRouter not bound: %s", mr_exc)
@@ -2963,10 +2998,10 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
         if not code:
             error = HTTPException(
                 status_code=401,
-                detail=(
-                    "MFA required. Pass the current TOTP code in the "
-                    "X-Cutctx-MFA-Code header. Enroll via POST /v1/admin/mfa."
-                ),
+                detail={
+                    "message": "MFA required for this account.",
+                    "remediation": "Pass the current TOTP code from your authenticator in the X-Cutctx-MFA-Code header. To enroll or manage MFA, POST to /v1/admin/mfa with your credentials."
+                },
             )
             request.state._cutctx_admin_error = error
             try:
@@ -3002,11 +3037,10 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
         if not ok:
             error = HTTPException(
                 status_code=401,
-                detail=(
-                    "MFA TOTP invalid or replayed. "
-                    "Wait for a fresh 30s code from your "
-                    "authenticator app."
-                ),
+                detail={
+                    "message": "MFA TOTP invalid or replayed.",
+                    "remediation": "The TOTP code is invalid (check the code matches your authenticator exactly) or was already used. Wait for a fresh 30-second code from your authenticator app and retry."
+                },
             )
             request.state._cutctx_admin_error = error
             try:
@@ -3129,7 +3163,10 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
             if not bearer_token:
                 error = HTTPException(
                     status_code=401,
-                    detail="Missing Bearer token for SSO-protected admin endpoint.",
+                    detail={
+                        "message": "Missing Bearer token for SSO-protected admin endpoint.",
+                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>"
+                    },
                 )
                 request.state._cutctx_admin_checked = True
                 request.state._cutctx_admin_error = error
@@ -3169,7 +3206,10 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
                 logger.debug("SSO token validation failed: %s", exc)
                 error = HTTPException(
                     status_code=401,
-                    detail="Invalid or expired SSO bearer token for admin endpoint.",
+                    detail={
+                        "message": "Invalid or expired SSO bearer token for admin endpoint.",
+                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry."
+                    },
                 )
                 request.state._cutctx_admin_checked = True
                 request.state._cutctx_admin_error = error
@@ -3188,8 +3228,10 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
         # If we reach here, the key didn't match and no SSO authenticated.
         error = HTTPException(
             status_code=401,
-            detail="Invalid or missing admin credentials. Set Authorization: Bearer <token> "
-            "or X-Cutctx-Admin-Key: <key>.",
+            detail={
+                "message": "Invalid or missing admin credentials. Set Authorization: Bearer <token> or X-Cutctx-Admin-Key: <key>.",
+                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct."
+            },
         )
         request.state._cutctx_admin_checked = True
         request.state._cutctx_admin_error = error
@@ -3921,6 +3963,26 @@ def _require_rbac_permission(permission: str):
         rtk_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "rtk" else 0
         lean_ctx_tokens_avoided = cli_tokens_avoided if cli_filtering_tool == "lean-ctx" else 0
 
+        # CLI-filtered tokens are avoided *before* they'd have become
+        # billed input tokens on the next request, so they have the same
+        # dollar basis as any other saved-input-token category. Unlike
+        # proxy-side compression, RTK/lean-ctx run outside the
+        # request/response cycle (a local shell hook), so there's no
+        # single request to attribute a token count to — approximate
+        # using whichever model this session has actually been billing
+        # against most, same estimation function proxy-side compression
+        # uses (litellm list price; returns 0.0 if the model is unknown).
+        cli_filtering_dominant_model = (
+            max(m.requests_by_model, key=lambda k: m.requests_by_model[k])
+            if m.requests_by_model
+            else None
+        )
+        cli_filtering_savings_usd = (
+            _estimate_compression_savings_usd(cli_filtering_dominant_model, cli_tokens_avoided)
+            if cli_filtering_dominant_model
+            else 0.0
+        )
+
         # Calculate total tokens before Cutctx-side reduction. Proxy
         # compression and the configured context tool both remove tokens before
         # they reach model context, so dashboard-facing savings combines them.
@@ -4090,6 +4152,8 @@ def _require_rbac_permission(permission: str):
                         "label": cli_filtering_label,
                         "tokens": cli_tokens_avoided,
                         "tokens_saved": cli_tokens_avoided,
+                        "savings_usd": round(cli_filtering_savings_usd, 6),
+                        "savings_usd_is_estimate": True,
                         "session": cli_filtering_session,
                         "lifetime": cli_filtering_lifetime,
                         "session_savings_pct": (
@@ -4110,8 +4174,9 @@ def _require_rbac_permission(permission: str):
                         "included_in": "tokens.saved",
                         "description": (
                             f"Tokens avoided by CLI output filtering ({cli_filtering_label}) "
-                            "before reaching context. "
-                            "Included in dashboard token savings, but not in dollar savings."
+                            "before reaching context. Dollar value is an estimate "
+                            "(list price of the session's most-used model), since these "
+                            "tokens aren't tied to any single upstream request."
                         ),
                     },
                     "compression": {
@@ -4151,6 +4216,7 @@ def _require_rbac_permission(permission: str):
                 "saved": all_layers_tokens_saved,
                 "proxy_compression_saved": proxy_compression_tokens,
                 "cli_filtering_saved": cli_tokens_avoided,
+                "cli_filtering_savings_usd": round(cli_filtering_savings_usd, 6),
                 "rtk_saved": rtk_tokens_avoided,
                 "lean_ctx_saved": lean_ctx_tokens_avoided,
                 "cli_tokens_avoided": cli_tokens_avoided,
@@ -4906,6 +4972,82 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
 
+    # Register error handlers with remediation hints
+    @app.exception_handler(json.JSONDecodeError)
+    async def _json_decode_error_handler(request: Request, exc: json.JSONDecodeError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": f"Invalid JSON in request body: {exc!s}",
+                    "remediation": "Check that your request body is valid JSON. Ensure quotes are properly escaped and all brackets/braces are balanced.",
+                },
+            },
+        )
+
+    # Handle RequestValidationError from FastAPI/Pydantic (invalid request body format)
+    from fastapi.exceptions import RequestValidationError as _RequestValidationError
+
+    @app.exception_handler(_RequestValidationError)
+    async def _validation_error_handler(request: Request, exc: _RequestValidationError) -> JSONResponse:
+        errors = exc.errors()
+        error_details = [f"{e['loc']}: {e['msg']}" for e in errors]
+        return JSONResponse(
+            status_code=400,
+            content={
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": f"Invalid request: {'; '.join(error_details[:2])}",
+                    "remediation": "Check that your request body matches the expected schema. Verify all required fields are present and have the correct type.",
+                },
+            },
+        )
+
+    from starlette.exceptions import HTTPException as _HTTPException
+
+    @app.exception_handler(_HTTPException)
+    async def _http_exception_handler(request: Request, exc: _HTTPException) -> JSONResponse:
+        # Detail may be a string, dict, or list. The Anthropic/OpenAI-style
+        # "error" envelope below is a flat message for SDK clients hitting
+        # the LLM proxy paths, but management/admin endpoints raise
+        # dict details (e.g. {"feature": ..., "required_tier": ...}) that
+        # callers (CLI, dashboard, tests) key off directly — so the
+        # original dict/list/str detail is preserved verbatim under
+        # "detail" alongside the flattened envelope, instead of being
+        # collapsed into just a message string.
+        detail = exc.detail
+        remediation = None
+        if isinstance(detail, dict):
+            message = detail.get("message") or detail.get("error") or str(detail)
+            remediation = detail.get("remediation")
+        elif isinstance(detail, list):
+            message = "; ".join(str(d) for d in detail)
+        else:
+            message = str(detail)
+
+        logger.warning(
+            f"HTTPException path={request.url.path} method={request.method} "
+            f"status={exc.status_code} detail={detail!r}"
+        )
+        response_error = {
+            "type": "invalid_request_error" if exc.status_code < 500 else "server_error",
+            "message": message,
+            "code": f"http_{exc.status_code}",
+        }
+        if remediation:
+            response_error["remediation"] = remediation
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "type": "error",
+                "error": response_error,
+                "detail": detail,
+            },
+        )
+
     _firewall_scanner = None
     _streaming_redactor = None
     try:
@@ -4946,9 +5088,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         logger.debug("Team memory service not available", exc_info=True)
 
     try:
-        from cutctx.proxy.model_router import ModelRouter
+        from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
-        proxy._model_router = ModelRouter()
+        preset = getattr(config, "model_routing_preset", None)
+        if preset == "economy":
+            router_config = ModelRouterConfig.economy_preset()
+        else:
+            router_config = None
+        proxy._model_router = ModelRouter(config=router_config)
         if getattr(proxy._model_router.config, "enabled", False):
             config.orchestrator_enabled = True
             logger.info(
@@ -5158,11 +5305,26 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         all_layers_tokens_saved = proxy_compression_tokens + cli_tokens_avoided
         requests_total = int(getattr(m, "requests_total", 0) or 0)
 
+        # See the equivalent block in the dashboard-stats builder above for
+        # why this is an estimate against the session's most-used model
+        # rather than an exact per-request figure.
+        _cli_filtering_dominant_model = (
+            max(m.requests_by_model, key=lambda k: m.requests_by_model[k])
+            if getattr(m, "requests_by_model", None)
+            else None
+        )
+        cli_filtering_savings_usd = (
+            _estimate_compression_savings_usd(_cli_filtering_dominant_model, cli_tokens_avoided)
+            if _cli_filtering_dominant_model
+            else 0.0
+        )
+
         summary = {
             "saved": all_layers_tokens_saved,
             "input": total_tokens_before,
             "proxy_compression_saved": proxy_compression_tokens,
             "cli_filtering_saved": cli_tokens_avoided,
+            "cli_filtering_savings_usd": round(cli_filtering_savings_usd, 6),
             "rtk_saved": rtk_tokens_avoided,
             "lean_ctx_saved": lean_ctx_tokens_avoided,
             "cli_tokens_avoided": cli_tokens_avoided,
@@ -5641,7 +5803,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         if sso_configured:
             if not bearer_token:
-                raise HTTPException(status_code=401, detail="Unauthorized")
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "message": "Missing Bearer token for SSO-protected endpoint.",
+                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>"
+                    }
+                )
             try:
                 from cutctx.sso import SsoConfig, SsoValidator
 
@@ -5656,11 +5824,23 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 return
             except Exception as exc:
                 logger.debug("SSO validation failed in runtime app", exc_info=True)
-                raise HTTPException(status_code=401, detail="Unauthorized") from exc
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "message": "Invalid or expired SSO bearer token.",
+                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry."
+                    }
+                ) from exc
 
         if not expected_admin_key:
             return
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "message": "Invalid or missing admin credentials.",
+                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct."
+            }
+        )
 
     def _runtime_require_rbac_permission(permission: str):
         async def _check(request: Request) -> None:
@@ -5682,33 +5862,29 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return _check
 
     def _runtime_require_entitlement(feature: str):
-        min_tier_by_feature = {
-            "usage_reports": "team",
-            "workspace_model": "business",
-            "project_model": "business",
-            "audit_logs": "enterprise",
-            "retention_controls": "enterprise",
-            "rbac": "enterprise",
-            "fleet_management": "enterprise",
-            "scim": "enterprise",
-        }
-        tier_rank = {"builder": 0, "team": 1, "business": 2, "enterprise": 3}
+        # Delegates to proxy.entitlement_checker (fail-closed BUILDER default,
+        # kept in sync with the validated license — see the
+        # "Entitlement tier synced from license" block above). This used to
+        # re-derive the tier from raw config.entitlement_tier with a
+        # fail-open "enterprise" default, which granted every admin-gated
+        # enterprise feature (audit logs, RBAC, retention, SCIM, fleet
+        # management) to any deployment that never configured a license.
+        from cutctx.entitlements import FEATURE_TIERS
 
         async def _check(_request: Request) -> None:
-            required_tier = min_tier_by_feature.get(feature)
-            if required_tier is None:
+            checker = proxy.entitlement_checker
+            if checker.is_entitled(feature):
                 return
-            current_tier = str(getattr(config, "entitlement_tier", "enterprise") or "enterprise").lower()
-            if tier_rank.get(current_tier, 99) < tier_rank[required_tier]:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "error": "feature_not_available",
-                        "feature": feature,
-                        "required_tier": required_tier,
-                        "current_tier": current_tier,
-                    },
-                )
+            required = FEATURE_TIERS.get(feature)
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "feature_not_available",
+                    "feature": feature,
+                    "required_tier": required.name.lower() if required else "unknown",
+                    "current_tier": checker.plan_name,
+                },
+            )
 
         return _check
 

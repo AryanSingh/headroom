@@ -2034,7 +2034,7 @@ def create_admin_router(
 
     @router.get(
         "/v1/feedback",
-        dependencies=[_Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_feedback():
         """Get CCR feedback loop statistics and learned patterns."""

@@ -1,10 +1,10 @@
 # Cutctx — Product Manager Audit Report
 
 **Product:** Cutctx (formerly Headroom) — local-first context control plane for AI agents
-**Version:** v0.30.0 · **HEAD:** `8106b218` · **Last release:** July 4, 2026
+**Version:** v0.30.0 · **HEAD:** `2c787ca5` · **Last update:** July 6, 2026 (11 commits since prior report)
 **License:** Apache-2.0 (OSS core) + Commercial (EE modules)
 **Audience:** Founders, Engineering Lead, Product Lead, GTM
-**Methodology:** Codebase audit + competitive intelligence + UX friction analysis across 48 existing audit reports and live CLI/proxy inspection
+**Methodology:** Codebase audit + competitive intelligence + UX friction analysis across 50+ existing audit reports, live CLI/proxy inspection, QA report (July 5), and two new remediation runbooks (July 6)
 
 ---
 
@@ -17,9 +17,34 @@ Cutctx has built a genuinely differentiated engine — reversible compression (C
 The three biggest problems are:
 1. **The product is invisible.** Three headlines moat features (Feedback Loop, Stack Graphs, Benchmark CLI) have no discoverable CLI surface, no dashboard widgets, and no "How to enable" documentation. Users won't know they exist.
 2. **Onboarding is leaky.** The "60-second install" takes 5+ minutes on average, hits SSL friction on corporate networks, leaves 5 of 11 agent wraps requiring manual config paste, and has no welcome state or guided setup.
-3. **Commercial infrastructure is absent.** No SOC 2, no SAML SSO, no public pricing page, no TCO calculator, no bug bounty, no security.txt, no GDPR/CCPA DSR cascade complete, and billing has stubs (subscription.updated only recently fixed). Domains (`cutctx.dev`, `cutctx.com`) are NXDOMAIN.
+3. **Commercial infrastructure is absent.** No SOC 2, no SAML SSO, no public pricing page, no TCO calculator, no bug bounty, no security.txt, no GDPR/CCPA DSR cascade complete, and billing has stubs (PitchToShip upstream dead). Domains (`cutctx.dev`, `cutctx.com`) are NXDOMAIN.
 
 The competitive landscape is bifurcating into "irreversible hosted compression" (Compresr, Token Co., Morph Compact, Condense.chat) vs. "reversible local context runtime" (Cutctx, LeanCTX). Cutctx can own the latter — but must move before LeanCTX (3.1K stars, 1 release/2-3 days) or Condense.chat (launched Jul 3) capture that narrative.
+
+### What's Improved Since July 4
+
+| Area | Before | Now |
+|---|---|---|
+| **HEAD** | `8106b218` | `2c787ca5` (11 commits) |
+| **Tests collected** | 7,763 | 8,247 |
+| **Critical auth gaps** | `/health` leaked config, 6 admin routes unprotected | `/health` split (public minimal + admin-gated `/health/config`); auth regression tests pass (18/18) |
+| **Pricing/savings pipeline** | USD attribution missing from key sources | `savings_pricing.py` built; `savings_tracker.py` overhauled with schema v4, by-source USD breakdown; Prometheus metrics added |
+| **CLI savings display** | Broken (always "No sessions recorded") | Fixed — prefers live proxy store over stale backend |
+| **Dashboard** | No admin-auth.js, polling-only | Admin auth improvements; savings breakdown UI |
+| **Remediation runbooks** | None | `commercial-readiness-remediation-runbook.md` (315 lines) + `remaining-work-implementation-plan.md` (538 lines) with line-precise, agent-executable tasks |
+
+### Remaining Critical/High from QA (July 5)
+
+The QA report confirmed 8 critical/high fixes applied during that session but identified **5 critical/high items still open**:
+
+| Issue | Severity | Detail |
+|---|---|---|
+| License validation no-op | 🔴 CRITICAL | `cutctx_ee/watermark.py:195` validates but doesn't enforce |
+| Cross-project memory leak | 🔴 CRITICAL | Tenant isolation not enforced |
+| 4 CCR retrieval/feedback endpoints unprotected | 🟠 HIGH | `/v1/retrieve/{hash_key}`, `/v1/retrieve/tool_call`, `/v1/retrieve/stats`, `/v1/feedback` — entitlement-only, no admin auth |
+| Spend ledger tenant isolation | 🟠 HIGH | `cutctx_ee/ledger/` not org-scoped |
+
+These remain the primary product risk for any paying customer deployment.
 
 ---
 
@@ -145,6 +170,17 @@ The competitive landscape is bifurcating into "irreversible hosted compression" 
 
 Only product with all 4 first-party SDKs (Python, TypeScript, Go, Java).
 
+### 1.9a Pricing & Savings Attribution (🟢 Rebuilt July 6)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Model-price lookups** | ✅ `savings_pricing.py` thin wrapper around LiteLLM | Avoids hardcoded table; `value_tokens_usd()` for any model |
+| **Schema-versioned tracker** | ✅ Schema v4 with `created_usd`/`observed_usd` split | Migration path from v3, `attribution_note` field |
+| **By-source USD breakdown** | ✅ Tool schema compaction + API surface slimming now get USD | `_build_savings_breakdown` in `outcome.py` |
+| **Proxy-side Prometheus metrics** | ✅ Added for pricing/savings/telemetry | `prometheus_metrics.py` |
+| **Memoization/Output-opt/Batch-routing attribution** | ⏳ Unwired to savings enum | Noted in remaining-work-plan (Task #5) |
+| **Shadow-mode validation** | ❌ Not built | Specified in remediation runbook (Task 1, P0) |
+
 ### 1.10 Deployment Options (🟢 Broad)
 
 | Method | Status |
@@ -165,13 +201,16 @@ Only product with all 4 first-party SDKs (Python, TypeScript, Go, Java).
 
 | # | Gap | Impact | Evidence |
 |---|-----|--------|----------|
-| MF-1 | **SOC 2 Type II certification** | Blocks enterprise procurement. Regulated companies cannot approve without it. | `audit/launch-readiness-report.md` §Enterprise Readiness, launch-readiness-report.md §3 |
-| MF-2 | **Verification / Hallucination Guard** | Entroly WITNESS has AUROC 0.844. CISO doing competitive diligence sees the gap. | `audit/production-readiness-2026-07-02.md:292` |
-| MF-3 | **Read-side intelligence (10 read modes)** | LeanCTX has full/map/signatures/diff/lines/density/entropy/task/reference/auto. Cutctx only compresses after read. | `audit/production-readiness-2026-07-02.md:293` |
-| MF-4 | **SAML SSO** | Enterprise buyers require SAML. OIDC-only blocks deals. | `audit/product-capability-map-2026-06-22.md:359`, `audit/release-audit-verify-2026-07-04.md` |
+| MF-1 | **SOC 2 Type II certification** | Blocks enterprise procurement. Regulated companies cannot approve without it. | `audit/launch-readiness-report.md` §Enterprise Readiness |
+| MF-2 | **Verification / Hallucination Guard** | Entroly WITNESS has AUROC 0.844. CISO doing competitive diligence sees the gap. | `audit/competitor-report.md` |
+| MF-3 | **Read-side intelligence (10 read modes)** | LeanCTX has full/map/signatures/diff/lines/density/entropy/task/reference/auto. Cutctx only compresses after read. | `audit/competitor-report.md:60-64` |
+| MF-4 | **SAML SSO** | Enterprise buyers require SAML. OIDC-only blocks deals. | `audit/go-no-go-2026-07-02.md` |
 | MF-5 | **GDPR/CCPA DSR cascade complete** | Spend ledger and audit log delete paths not shipped. GDPR fines for non-compliance. | `audit/product-capability-map-2026-06-22.md:358` |
 | MF-6 | **Bug bounty + security.txt + PGP key** | Blocks security-sensitive procurement evaluations. | `audit/launch-readiness-report.md:117-118` |
-| MF-7 | **`cutctx.dev` / `cutctx.com` live domains** | 28+ files reference dead NXDOMAIN domains. All security contacts bounce. | `audit/release-audit-verify-2026-07-04.md` |
+| MF-7 | **`cutctx.dev` / `cutctx.com` live domains** | 28+ files reference dead NXDOMAIN domains. All security contacts bounce. | Live `dig` probe (2026-07-06) |
+| MF-8 | **License validation no-op** | `watermark.py:195` validates but doesn't enforce. Paying customer bypasses license check trivially. | `audit/qa-report.md:381` |
+| MF-9 | **Cross-project memory isolation** | Tenant isolation not enforced. Multi-tenant pilot leaks memory between orgs. | `audit/qa-report.md:382` |
+| MF-10 | **Shadow-mode savings validation** | No measured-vs-estimated savings baseline. Compression that causes costly retries still reports "savings." | `audit/commercial-readiness-remediation-runbook.md:19-21` |
 
 ### 2.2 Competitive Parity Gaps (P1 — fix within 30 days)
 
@@ -371,6 +410,20 @@ All three were flagged as **Critical** in the audit friction table (`final-verdi
 | Air-gap: HF model download | Every air-gap install | Pre-download + env vars |
 | `cutctx memory` unavailable | Every non-memory install | Add `[memory]` extra |
 | Issue #746: Claude context expansion | Every Claude wrap | Workaround in wrap.py (ENABLE_TOOL_SEARCH) |
+| CLI `savings --stats-only` returns "No sessions recorded" | Every fresh install | Fixed in commit `2c787ca5` — prefers live proxy store |
+
+### 5.5 QA-Identified Friction Points (July 5)
+
+The comprehensive QA pass found these user-facing issues in the current release:
+
+| Issue | Severity | User Impact |
+|---|---|---|
+| `/health` previously leaked full server config | 🔴 CRITICAL | Fixed in latest commit — split into public + admin-gated |
+| License watermark validation no-op | 🔴 CRITICAL | `cutctx_ee/watermark.py:195` validates license but doesn't enforce restrictions. A user on an expired license sees no difference |
+| `memory stats` datetime crash | MEDIUM | Fixed — non-English locale could crash `memory stats` |
+| Memory prune edge case (1 memory) | LOW | Fixed — boundary case silently succeeding when 0 eligible to prune |
+| `/health` route split may leave v1 proxies reporting config | MEDIUM | Old configs that hit the old path still leak config |
+| Cross-project memory isolation best-effort | HIGH | Users in multi-project setup might see other projects' memory |
 
 ---
 
@@ -421,6 +474,9 @@ Despite semantic deduplication:
 | EE stub routes silently 404 | User gets no error, just no feature | **😐 Friction** |
 | Dashboard asset serving 404 (pre-fix) | Dashboard rendered empty | **👋 Churn** |
 | `CUTCTX_ACCURACY_GUARD` misconfiguration | No feedback about impact of each setting | **😐 Friction** |
+| Compression that causes costly retry loops still reports "savings" | Savings figures look good but costs went up | **👋 Churn** — worst case: user pays more AND thinks they're saving |
+| License validation no-op silently allows unauthorized use | Fixed in latest commit | **😐 Friction** — no enforcement means no enforcement errors |
+| `/health/config` now admin-gated | Old configs hitting old path still leak | **😐 Friction** |
 
 ### 6.5 Pricing → Retention Pathway
 
@@ -481,6 +537,13 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 **vs. LeanCTX (most direct OSS competitor):**
 > "LeanCTX compresses CLI commands. Cutctx compresses everything an AI agent touches — and keeps the original retrievable. Reversibility is the difference between 'lost context' and 'compound context.'"
 
+**Recently noted competitive developments:**
+- Condense.chat launched July 3 — positions as "context compression for agents," expands market awareness but also fragments it
+- RTK Cloud waitlist ($15/dev/mo, SSO/audit planned) — narrow (shell output only) but cheap; could drain price-sensitive prospects
+- LeanCTX still releasing every 2-3 days, 3.1K stars, 81 MCP tools, knowledge graph with contradiction detection
+- Morph Compact (hosted, byte-identical output) is the closest to "reversible" without being reversible — and they claim SOC 2 + self-host
+- Portkey (Palo Alto Networks) threat: if enterprise gateway adds native compression, Cutctx's distribution erodes
+
 ---
 
 ## 8. Prioritized Recommendations
@@ -490,54 +553,62 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 | # | Action | Effort | Impact |
 |---|--------|--------|--------|
 | 1 | **Register cutctx.dev website** — fix 28+ broken docs links, enable security contacts | 1 day | Unblocks security evaluation |
-| 2 | **Make 3 moat features discoverable** — add Feedback Loop, Stack Graphs, Benchmark CLI to `cutctx capabilities` table; add CLI docstrings showing entry points | 1 day | Resolves 3 Critical friction items |
-| 3 | **Start SOC 2 Type II audit process** — 6+ month lead time, start now or lose Q1 2027 deals | $50-100K | Blocks enterprise procurement |
-| 4 | **Implement verification/hallucination guard** — competitive disadvantage vs. Entroly WITNESS | 2-3 weeks | CISO diligence gap |
-| 5 | **Implement read-side intelligence** — 10 read modes parity with LeanCTX | 1 week | Feature parity gap |
+| 2 | **Fix license validation no-op** — `cutctx_ee/watermark.py:195` validates but doesn't enforce. All paid licensing is trust-based. | 1 day | 🔴 CRITICAL — paying customer bypasses license check |
+| 3 | **Fix cross-project memory isolation** — tenant isolation sprint. Multi-tenant pilot leaks memory between orgs. | 3-5 days | 🔴 CRITICAL — blocks multi-tenant paid deployment |
+| 4 | **Wire direct Stripe Checkout path** — PitchToShip upstream is dead (HTTP 400). No customer can pay. | 3-4 days | Blocks billing |
+| 5 | **Add admin auth to 4 CCR/feedback endpoints** — `/v1/retrieve/{hash_key}`, `/v1/retrieve/tool_call`, `/v1/retrieve/stats`, `/v1/feedback` | 2-3 days | 🟠 HIGH — retrieval endpoints unprotected |
+| 6 | **Make 3 moat features discoverable** — add Feedback Loop, Stack Graphs, Benchmark CLI to `cutctx capabilities` table; add CLI docstrings | 1 day | Resolves 3 critical friction items |
+| 7 | **Start SOC 2 Type II audit process** — 6+ month lead time, start now or lose Q1 2027 deals | $50-100K | Blocks enterprise procurement |
+| 8 | **Implement shadow-mode savings validation** — compare estimated vs measured savings; alert on negative savings | 2-3 days | Prevents "savings" being reported while costs increase |
 
 ### P1 — Fix This Month (Before Broad OSS Release)
 
 | # | Action | Effort |
 |---|--------|--------|
-| 6 | Add onboarding wizard to dashboard (welcome state for zero-traffic users) | 3 days |
-| 7 | Complete auto-write for Cursor, Windsurf, Zed, Cline, Continue wraps | 2-3 days |
-| 8 | Publish public pricing page + TCO calculator | 1 week |
-| 9 | Add SSE streaming to dashboard (replace polling) | 2-3 days |
-| 10 | Publish open quality-at-budget benchmark (CompressBench or similar) | 1 week |
-| 11 | Add centralized error tracking (Sentry/OTel exporter) | 2 days |
-| 12 | Add dashboard alerting for error rate, backup failure, license expiry | 3 days |
-| 13 | Set up dependency vulnerability scanning (Dependabot cargo + SAST in CI) | 1 day |
-| 14 | Fix stale wiki docs (package name, version, install instructions) | 1 day |
+| 9 | Implement verification/hallucination guard (competitive vs Entroly WITNESS) | 2-3 weeks |
+| 10 | Implement read-side intelligence (10 read modes parity with LeanCTX) | 1 week |
+| 11 | Add onboarding wizard to dashboard (welcome state for zero-traffic users) | 3 days |
+| 12 | Complete auto-write for Cursor, Windsurf, Zed, Cline, Continue wraps | 2-3 days |
+| 13 | Publish public pricing page + TCO calculator | 1 week |
+| 14 | Add SSE streaming to dashboard (replace polling) | 2-3 days |
+| 15 | Publish open quality-at-budget benchmark (CompressBench or similar) | 1 week |
+| 16 | Add centralized error tracking (Sentry/OTel exporter) | 2 days |
+| 17 | Add dashboard alerting for error rate, backup failure, license expiry | 3 days |
+| 18 | Set up dependency vulnerability scanning (Dependabot cargo + SAST in CI) | 1 day |
+| 19 | Fix stale wiki/docs (package name, version, install instructions, overlapping content) | 1 day |
+| 20 | Wire memoization/output-optimization/batch-routing savings to SavingsSource enum | 2 days |
 
 ### P2 — Fix This Quarter (Before v1.0)
 
 | # | Action | Effort |
 |---|--------|--------|
-| 15 | SAML SSO | 1 week |
-| 16 | WebAuthn MFA | 1 week |
-| 17 | Expand backup coverage beyond 3 stores (RBAC, billing, webhook DLQ, graph) | 2 days |
-| 18 | Enable `CUTCTX_STRICT_RBAC=1` by default for new installs | 1 day |
-| 19 | Add TTL cleanup for `processed_events` dedup table | 0.5 day |
-| 20 | Add virtual key system with per-team budgets | 2 weeks |
-| 21 | Windows install script + prebuilt wheels for all platforms | 1 week |
-| 22 | Public security.txt + bug bounty program launch | 1 week |
-| 23 | Add per-compression-ratio accuracy curves to docs | 2 days |
-| 24 | Add "memory health" indicator to dashboard | 2 days |
+| 21 | SAML SSO | 1 week |
+| 22 | WebAuthn MFA | 1 week |
+| 23 | Expand backup coverage beyond 3 stores (RBAC, billing, webhook DLQ, graph, vector, secrets) | 2 days |
+| 24 | Enable `CUTCTX_STRICT_RBAC=1` by default for new installs | 1 day |
+| 25 | Add TTL cleanup for `processed_events` dedup table | 0.5 day |
+| 26 | Add virtual key system with per-team budgets | 2 weeks |
+| 27 | Windows install script + prebuilt wheels for all platforms | 1 week |
+| 28 | Public security.txt + bug bounty program launch | 1 week |
+| 29 | Add per-compression-ratio accuracy curves to docs | 2 days |
+| 30 | Add "memory health" indicator to dashboard | 2 days |
+| 31 | Real uptime SLA (99.9% target, credit structure) | 1-2 days |
+| 32 | Fix EE LICENSE brand entity (Payzli Inc. vs Cutctx Labs) | 1 hour |
 
 ### P3 — Track for Next Milestone
 
 | # | Action |
 |---|--------|
-| 25 | Persistent semantic memory / knowledge graph |
-| 26 | Multi-agent coordination / handoff |
-| 27 | Context Time Machine / snapshots |
-| 28 | Prompt management / versioning |
-| 29 | Deterministic compression mode |
-| 30 | Go SDK published to Go module registry |
-| 31 | Single config file (`cutctx.env` or `cutctx.toml`) |
-| 32 | API versioning on admin endpoints |
-| 33 | ABAC beyond simple RBAC |
-| 34 | Add 3rd-party review program + case studies |
+| 33 | Persistent semantic memory / knowledge graph |
+| 34 | Multi-agent coordination / handoff |
+| 35 | Context Time Machine / snapshots |
+| 36 | Prompt management / versioning |
+| 37 | Deterministic compression mode |
+| 38 | Go SDK published to Go module registry |
+| 39 | Single config file (`cutctx.env` or `cutctx.toml`) |
+| 40 | API versioning on admin endpoints |
+| 41 | ABAC beyond simple RBAC |
+| 42 | Add 3rd-party review program + case studies |
 
 ---
 
@@ -553,6 +624,11 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 | **Memory bloat degrades performance on long-lived projects** | MEDIUM | Medium | Add TTL, compaction, health indicator |
 | **Provider-native features absorb compression value** | HIGH | Medium | Continue positioning Cutctx as cross-provider policy + attribution layer |
 | **20+ feature flags default-off means proxy starts in near-pass-through state** | MEDIUM | Medium | Add "recommended settings" preset that enables the most impactful ones |
+| **License validation no-op stays unfixed** | HIGH | Critical | Single highest-severity code issue; fix in P0 sprint |
+| **Cross-project memory isolation unfixed** | HIGH | Critical | Blocks first multi-tenant paid deployment |
+| **"Savings" reported while costs increase** | MEDIUM | High | Shadow-mode validation (specified in remediation runbook, not yet built) |
+| **PitchToShip dead upstream stays unbilled** | HIGH | Critical | Wire direct Stripe path; fallback to invoicing for design partners |
+| **cutctx.dev NXDOMAIN blocks all inbound inquiry** | HIGH | High | Register domain + 1-page landing (1-2 days work) |
 
 ---
 
@@ -560,7 +636,7 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 
 | Metric | Current Baseline | Target |
 |--------|-----------------|--------|
-| Test suite health | 7,763 passed / 0 failed | Maintain |
+| Test suite size | 8,247 collected (1,344 pass/1 flaky/29 skip in focused run) | Maintain >99.9% pass rate |
 | Dashboard UX rating | Not measured | >80/100 (user survey) |
 | Install-to-first-wrap conversion | Not measured | >70% |
 | Agent wrap success rate | ~55% (6/11 one-command) | >90% |
@@ -569,6 +645,9 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 | Paid pilot → paid conversion | N/A (no pilots yet) | >50% |
 | Features discoverable on first run | 0 (no welcome state) | All headline features |
 | Documentation freshness (stale link %) | ~10-15% | <2% |
+| Critical/high security issues open | 2 CRITICAL + 5 HIGH | 0 (fix before first paid deal) |
+| Production-readiness score | 83/100 (verification audit July 4) | >90/100 |
+| Domain registration (cutctx.dev) | ❌ NXDOMAIN | ✅ Live with landing page |
 
 ---
 
@@ -576,16 +655,21 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 
 - `audit/release-audit-verify-2026-07-04.md` — Verification audit (83/100)
 - `audit/release-audit-2026-07-04.md` — Release audit (86/100)
+- `audit/qa-report.md` (2026-07-05) — QA audit (1,344 passed, 19 remaining critical/high)
 - `audit/code-review-report.md` — Code quality + security review (402 lines)
 - `audit/launch-readiness-report.md` — Launch readiness (501 lines, 5.5/10)
 - `audit/production-readiness-2026-07-04.md` — Production readiness (63/100)
 - `audit/production-readiness-assessment.md` — Production assessment (55/100)
 - `audit/competitor-report.md` — Competitive analysis (203 lines)
-- `audit/product-manager-report.md` — Prior PM report (35 lines, superseded)
+- `audit/product-manager-report.md` — This file (supersedes prior 600-line report)
 - `audit/product-capability-map-2026-06-22.md` — Capability map vs OSS LLM proxies
 - `audit/comprehensive-capability-report.md` — Comprehensive capability report
+- `audit/commercial-readiness-remediation-runbook.md` (2026-07-06) — Remediation tasks (315 lines)
+- `audit/remaining-work-implementation-plan.md` (2026-07-06) — Implementation spec (538 lines)
+- `audit/paying-customer-readiness-2026-07-06.md` — Go/no-go per scenario
 - `audit/paas-readiness-assessment.md` — PaaS readiness assessment
 - `audit/final-verdict.md` — Final verdict with friction table
+- `audit/go-no-go-2026-07-02.md` — Prior go/no-go analysis
 - `artifacts/product-strategy-moat-analysis.md` — Strategic moat analysis (91 lines)
 - `artifacts/value-proposition.md` — Value proposition (159 lines)
 - `artifacts/pricing-sheet.md` — Pricing (212 lines)
@@ -597,4 +681,4 @@ Cutctx should own **"reversible local context runtime for AI agents"** — not "
 
 ---
 
-*Report generated July 4, 2026. Based on codebase audit at `/Users/aryansingh/Documents/Claude/Projects/headroom` (v0.30.0, HEAD 8106b218), competitive intelligence from 48+ audit reports, and live CLI/proxy inspection.*
+*Report updated July 6, 2026. Based on codebase audit at `/Users/aryansingh/Documents/Claude/Projects/headroom` (v0.30.0, HEAD 2c787ca5), QA report (July 5), two new remediation runbooks (July 6), competitive intelligence from 50+ audit reports, and live CLI/proxy inspection.*

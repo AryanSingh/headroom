@@ -36,6 +36,9 @@ class _DummyMetrics:
     async def record_rate_limited(self, **kwargs):
         return None
 
+    def record_compression_declined(self, reason: str) -> None:
+        return None
+
 
 class _ResponseStub:
     status_code = 200

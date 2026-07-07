@@ -371,8 +371,8 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             # consistent: ``total_usd`` and ``by_source_usd`` must
             # agree to the cent. This is the restart-safety
             # attribution the buyer report needs.
-            row_compression_usd = float(row.get("compression_savings_usd", 0) or 0)
-            row_cache_usd = float(row.get("cache_savings_usd", 0) or 0)
+            row_compression_usd = float(row.get("compression_savings_observed_usd") or row.get("compression_savings_usd", 0) or 0)
+            row_cache_usd = float(row.get("cache_savings_observed_usd") or row.get("cache_savings_usd", 0) or 0)
             row_total = float(row.get("cost_savings_usd", 0) or 0)
             # If only the combined total is present (no per-source
             # split), attribute it all to Cutctx compression — that

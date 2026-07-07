@@ -836,6 +836,7 @@ class GeminiHandlerMixin:
             logger.info(
                 f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
             )
+            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
@@ -1119,6 +1120,7 @@ class GeminiHandlerMixin:
             logger.info(
                 f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
             )
+            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)

@@ -375,12 +375,42 @@ __all__ = [
     "canonicalize_args",
     "derive_key",
     "is_write_tool",
+    "record_tool_results_from_messages",
 ]
 
-def record_tool_results_from_messages(memoizer: ToolMemoizer, messages: list[dict], session_id: str) -> None:
-    """Scan conversation history and record tool results / invalidate on writes."""
+def _estimate_tokens_for_payload(payload: Any) -> int:
+    """Rough, conservative token estimate for a cached tool payload
+    (~4 bytes/token, same heuristic used elsewhere in the funnel for
+    payloads that never go through the real tokenizer)."""
+    if not payload:
+        return 0
+    text = payload if isinstance(payload, str) else json.dumps(payload, default=str)
+    return max(0, len(text) // 4)
+
+
+def record_tool_results_from_messages(
+    memoizer: ToolMemoizer, messages: list[dict], session_id: str
+) -> tuple[int, int]:
+    """Scan conversation history and record tool results / invalidate on writes.
+
+    Before recording each read-only tool result, this consults
+    ``memoizer.maybe_memoize`` first. If an identical (session, tool,
+    args) call was already recorded earlier in this same conversation
+    history, that occurrence is a genuine memoization hit — the
+    duplicate round-trip could have been served from cache instead of
+    resent in full. Those hits are exactly what WS11
+    (``RequestOutcome.memoization_hits`` / ``memoization_tokens_saved``)
+    is meant to attribute.
+
+    Returns:
+        A ``(hits, tokens_saved)`` tuple for THIS call. Both are 0 when
+        the memoizer is disabled, there are no messages, or no
+        duplicate calls were found.
+    """
+    hits = 0
+    tokens_saved = 0
     if not memoizer.config.enabled or not messages:
-        return
+        return hits, tokens_saved
 
     # Map tool_call_id -> (tool_name, args) from assistant tool_calls
     tool_calls = {}
@@ -408,6 +438,21 @@ def record_tool_results_from_messages(memoizer: ToolMemoizer, messages: list[dic
                     if tcid and name:
                         tool_calls[tcid] = (name, args)
 
+    def _record_or_invalidate(name: str, args: Any, content: Any) -> None:
+        nonlocal hits, tokens_saved
+        if is_write_tool(name, memoizer.config):
+            memoizer.invalidate_for_write(session_id, name, args)
+            return
+        # Consult the cache BEFORE recording: if this exact call was
+        # already recorded earlier in this same history, it's a hit.
+        decision = memoizer.maybe_memoize(session_id, name, args)
+        if decision.action == MemoizeAction.HIT:
+            hits += 1
+            tokens_saved += _estimate_tokens_for_payload(decision.payload)
+        # record() is idempotent (overwrites the same key) and keeps
+        # the LRU entry fresh — safe to call on both hit and miss.
+        memoizer.record(session_id, name, args, content)
+
     # Process tool results
     for msg in messages:
         # OpenAI format
@@ -416,11 +461,7 @@ def record_tool_results_from_messages(memoizer: ToolMemoizer, messages: list[dic
             content = msg.get("content")
             if tcid in tool_calls and content is not None:
                 name, args = tool_calls[tcid]
-                if is_write_tool(name, memoizer.config.write_tools):
-                    memoizer.invalidate_for_write(session_id, name, args)
-                else:
-                    # record returns immediately if not allowlisted
-                    memoizer.record(session_id, name, args, content)
+                _record_or_invalidate(name, args, content)
         # Anthropic format
         elif msg.get("role") == "user" and isinstance(msg.get("content"), list):
             for block in msg.get("content", []):
@@ -432,7 +473,6 @@ def record_tool_results_from_messages(memoizer: ToolMemoizer, messages: list[dic
                         content = json.dumps(content)
                     if tcid in tool_calls and content is not None:
                         name, args = tool_calls[tcid]
-                        if is_write_tool(name, memoizer.config.write_tools):
-                            memoizer.invalidate_for_write(session_id, name, args)
-                        else:
-                            memoizer.record(session_id, name, args, content)
+                        _record_or_invalidate(name, args, content)
+
+    return hits, tokens_saved

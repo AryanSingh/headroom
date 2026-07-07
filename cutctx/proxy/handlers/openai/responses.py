@@ -1538,6 +1538,7 @@ class OpenAIResponsesMixin:
                     tokenizer=tokenizer,
                     tool_choice=body.get("tool_choice"),
                     config=self.config,
+                    messages=body.get("input"),
                 )
                 tool_surface_tokens_saved = tool_surface_result.tokens_saved
                 if tool_surface_result.modified:
@@ -2880,6 +2881,7 @@ class OpenAIResponsesMixin:
                                 tool_choice=_inner.get("tool_choice")
                                 if isinstance(_inner, dict)
                                 else None,
+                                messages=_inner if isinstance(_inner, dict) else None,
                             )
                             _tool_surface_saved = _tool_surface_result.tokens_saved
                             if _tool_surface_result.modified and isinstance(_inner, dict):
@@ -3226,6 +3228,7 @@ class OpenAIResponsesMixin:
                                     tool_choice=inner_payload.get("tool_choice")
                                     if isinstance(inner_payload, dict)
                                     else None,
+                                    messages=inner_payload if isinstance(inner_payload, dict) else None,
                                 )
                                 frame_surface_saved = frame_surface_result.tokens_saved
                                 if frame_surface_result.modified and isinstance(

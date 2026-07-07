@@ -20,6 +20,19 @@ export const PERIOD_SERIES_KEY = {
   monthly: 'daily',
 };
 
+// Non-compression savings sources also carry a per-checkpoint delta in
+// each bucket (see savings_tracker.py `_build_rollup`). Without summing
+// these too, a period tab's "money saved" would only reflect compression
+// and silently drop cache/routing/schema savings for the window.
+const EXTRA_SAVINGS_SOURCE_DELTA_KEYS = [
+  'cache_savings_usd_delta',
+  'semantic_cache_savings_usd_delta',
+  'self_hosted_prefix_cache_savings_usd_delta',
+  'model_routing_savings_usd_delta',
+  'tool_schema_compaction_savings_usd_delta',
+  'api_surface_slimming_savings_usd_delta',
+];
+
 export function aggregatePeriodBuckets(buckets, windowMs) {
   const cutoff = Date.now() - windowMs;
   const inWindow = buckets.filter((b) => new Date(b.timestamp).getTime() >= cutoff);
@@ -28,6 +41,8 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     requests: 0,
     tokens_saved: 0,
     compression_savings_usd: 0,
+    other_savings_usd: 0,
+    total_savings_usd: 0,
     total_input_tokens: 0,
     total_input_cost_usd: 0,
     models: {},
@@ -40,6 +55,10 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     summary.total_input_tokens += bucket.total_input_tokens_delta || 0;
     summary.total_input_cost_usd += bucket.total_input_cost_usd_delta || 0;
 
+    for (const key of EXTRA_SAVINGS_SOURCE_DELTA_KEYS) {
+      summary.other_savings_usd += bucket[key] || 0;
+    }
+
     for (const [model, data] of Object.entries(bucket.by_model || {})) {
       const entry = summary.models[model] || { tokens_saved: 0, compression_savings_usd: 0 };
       entry.tokens_saved += data.tokens_saved || 0;
@@ -48,6 +67,7 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     }
   }
 
+  summary.total_savings_usd = summary.compression_savings_usd + summary.other_savings_usd;
   summary.savings_percent = summary.total_input_tokens > 0
     ? (summary.tokens_saved / summary.total_input_tokens) * 100
     : 0;

@@ -43,7 +43,13 @@ def create_license_router(
     except ImportError:
 
         def get_license_db() -> Any:
-            raise HTTPException(status_code=501, detail="Enterprise billing module not installed")
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "message": "Enterprise billing module not installed",
+                    "remediation": "License management requires cutctx-ee (enterprise edition). Install via: pip install cutctx-ai[ee] or contact sales@cutctx.io"
+                }
+            )
 
     class ActivateRequest(BaseModel):
         license_key: str
@@ -53,10 +59,22 @@ def create_license_router(
     async def activate_license(req: ActivateRequest) -> dict:
         db = get_license_db()
         if db.is_revoked(req.license_key):
-            raise HTTPException(status_code=403, detail="License revoked")
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": "License revoked",
+                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance."
+                }
+            )
         record = db.get(req.license_key)
         if not record or not record.active:
-            raise HTTPException(status_code=401, detail="Invalid license")
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "message": "Invalid license",
+                    "remediation": "The license key is invalid or inactive. Verify the key is correct and hasn't expired. Contact sales@cutctx.io if you need a new license."
+                }
+            )
         success = db.activate_instance(req.license_key, req.instance_id)
         if not success:
             return {"status": "already_activated"}
@@ -77,10 +95,22 @@ def create_license_router(
     async def checkout_seat(req: CheckoutSeatRequest) -> dict:
         db = get_license_db()
         if db.is_revoked(req.license_key):
-            raise HTTPException(status_code=403, detail="License revoked")
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": "License revoked",
+                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance."
+                }
+            )
         success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
         if not success:
-            return {"status": "seat_leased"}
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "No seats available",
+                    "remediation": "Your license has no available seats. Upgrade your plan at https://cutctx.io/pricing or contact sales@cutctx.io"
+                }
+            )
         return {"status": "seat_leased"}
 
     class StartTrialRequest(BaseModel):

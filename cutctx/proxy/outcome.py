@@ -127,6 +127,21 @@ class RequestOutcome:
     #   ``cache_read_tokens`` (provider cache).
     model_routing_tokens_saved: int = 0
     model_routing_usd_saved: float = 0.0
+    # WS11 (memoization): tool calls served from the memoization cache
+    #   rather than making an upstream round-trip. memoization_hits is
+    #   the count of fabricated tool results; memoization_tokens_saved
+    #   is an estimate of the input tokens that were avoided (content
+    #   of the memoized tool result, estimated).
+    memoization_hits: int = 0
+    memoization_tokens_saved: int = 0
+    # WS10 (output optimization): output tokens removed by the output
+    #   optimizer. The value from OutputOptimizeDecision.estimated_tokens_saved.
+    output_optimization_tokens_saved: int = 0
+    # WS13 (batch routing): dollars saved by routing via a batch queue
+    #   at a discounted rate (50% of list price). Tokens field is the
+    #   input tokens that were batch-routed; usd is the computed delta.
+    batch_routing_tokens_saved: int = 0
+    batch_routing_usd_saved: float = 0.0
     # Optional escape hatch for sources that do not yet have a
     # dedicated field. Keys are stable lowercase source ids, values
     # are dicts with at least ``tokens`` and optionally ``usd``. The
@@ -401,6 +416,11 @@ def _build_savings_breakdown(
     model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
     model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
     provider_cache_tokens = int(outcome.cache_read_tokens or 0)
+    memoization_tokens = int(outcome.memoization_tokens_saved or 0)
+    memoization_hits = int(outcome.memoization_hits or 0)
+    output_optimization_tokens = int(outcome.output_optimization_tokens_saved or 0)
+    batch_routing_tokens = int(outcome.batch_routing_tokens_saved or 0)
+    batch_routing_usd = float(outcome.batch_routing_usd_saved or 0.0)
 
     # Promote savings_metadata to the typed fields BEFORE the
     # residual calculation. The audit (production-audit-2026-06-20.md)
@@ -486,7 +506,28 @@ def _build_savings_breakdown(
         if model_routing_usd > 0:
             by_source_usd[SavingsSource.MODEL_ROUTING.value] = model_routing_usd
 
-    # 6. Escape hatch: extra sources via savings_metadata dict.
+    # 6. Memoization (WS11).
+    if memoization_hits > 0 or memoization_tokens > 0:
+        breakdown.by_source.add(SavingsSource.MEMOIZATION, memoization_tokens)
+        by_source_tokens[SavingsSource.MEMOIZATION.value] = memoization_tokens
+
+    # 7. Output optimization (WS10).
+    if output_optimization_tokens > 0:
+        breakdown.by_source.add(SavingsSource.OUTPUT_OPTIMIZATION, output_optimization_tokens)
+        by_source_tokens[SavingsSource.OUTPUT_OPTIMIZATION.value] = output_optimization_tokens
+
+    # 8. Batch routing (WS13) — tokens + USD.
+    if batch_routing_tokens > 0 or batch_routing_usd > 0:
+        breakdown.by_source.add(
+            SavingsSource.BATCH_ROUTING,
+            batch_routing_tokens,
+            batch_routing_usd,
+        )
+        by_source_tokens[SavingsSource.BATCH_ROUTING.value] = batch_routing_tokens
+        if batch_routing_usd > 0:
+            by_source_usd[SavingsSource.BATCH_ROUTING.value] = batch_routing_usd
+
+    # 9. Escape hatch: extra sources via savings_metadata dict.
     # The promotion block above already merged the typed fields
     # with the metadata values, so by the time we reach this block,
     # any source that the metadata also named is already accounted

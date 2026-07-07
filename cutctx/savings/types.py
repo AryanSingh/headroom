@@ -22,6 +22,15 @@ class SavingsSource(str, Enum):
     # other source and aggregate it into the total. See
     # artifacts/savings-moat-expansion-specs.md §WS16.
     NORMALIZATION = "normalization"
+    # WS10: output optimization — predicted baseline output tokens vs
+    # actual (see artifacts/savings-moat-expansion-specs.md §WS10).
+    OUTPUT_OPTIMIZATION = "output_optimization"
+    # WS11: memoization — avoided request's estimated input tokens
+    # (see artifacts/savings-moat-expansion-specs.md §WS11).
+    MEMOIZATION = "memoization"
+    # WS13: batch routing — price delta from routing via batch queue
+    # (see artifacts/savings-moat-expansion-specs.md §WS13).
+    BATCH_ROUTING = "batch_routing"
 
     @classmethod
     def from_str(cls, value: str) -> SavingsSource:
@@ -48,6 +57,9 @@ _LABELS = {
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
     SavingsSource.NORMALIZATION: "Tokenizer Normalization",
+    SavingsSource.MEMOIZATION: "Memoization",
+    SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
+    SavingsSource.BATCH_ROUTING: "Batch Routing",
 }
 
 _DESCRIPTIONS = {
@@ -62,6 +74,18 @@ _DESCRIPTIONS = {
         "Tokens removed by the WS16 normalization pre-pass "
         "(NFC, whitespace collapse, blob-to-CCR-pointer, decimal-precision cap). "
         "Universal 3-8% savings on tool-output content."
+    ),
+    SavingsSource.MEMOIZATION: (
+        "Tokens avoided by serving a prior response from the tool-memoization cache. "
+        "WS11: memoization attribution."
+    ),
+    SavingsSource.OUTPUT_OPTIMIZATION: (
+        "Output tokens removed by the output optimizer (predicted baseline vs actual). "
+        "WS10: output optimization attribution."
+    ),
+    SavingsSource.BATCH_ROUTING: (
+        "Dollars saved by routing via a batch queue (e.g. 50% list-price discount). "
+        "WS13: batch routing attribution."
     ),
 }
 

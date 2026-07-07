@@ -665,6 +665,20 @@ def build_session_summary(
     primary_model = max(models, key=lambda k: models[k]) if models else "unknown"
     api_requests = sum(v for k, v in models.items() if "count_tokens" not in k)
 
+    # CLI-filtered tokens are avoided before they'd have become billed
+    # input tokens on the next request, so they share compression's dollar
+    # basis. They just can't be tied to one specific upstream request (RTK
+    # runs outside the request/response cycle), so this is an estimate
+    # against whichever model this session has actually been billing
+    # against most, reusing the same list-price lookup compression uses.
+    from cutctx.proxy.savings_tracker import _estimate_compression_savings_usd
+
+    cli_filtering_savings_usd = (
+        _estimate_compression_savings_usd(primary_model, cli_tokens_avoided)
+        if models
+        else 0.0
+    )
+
     # Build the summary
     summary: dict[str, Any] = {
         "mode": proxy.config.mode,
@@ -694,15 +708,17 @@ def build_session_summary(
             "breakdown": {
                 "cache_savings_usd": round(cache_net, 2),
                 "compression_savings_usd": round(compression_savings, 2),
-                "cli_filtering_savings_usd": None,
+                "cli_filtering_savings_usd": round(cli_filtering_savings_usd, 6),
                 "cli_filtering_savings_note": (
-                    "CLI filtering tokens are included in token savings only; "
-                    "dollar savings use proxy compression tokens at model list price."
+                    "Estimated using the session's most-used model list price — "
+                    "unlike compression, these tokens aren't tied to a single "
+                    "upstream request, so this is not folded into total_saved_usd."
                 ),
-                "rtk_savings_usd": None,
+                "rtk_savings_usd": round(cli_filtering_savings_usd, 6),
                 "rtk_savings_note": (
-                    "CLI filtering tokens are included in token savings only; dollar savings "
-                    "use proxy compression tokens at model list price."
+                    "Estimated using the session's most-used model list price — "
+                    "unlike compression, these tokens aren't tied to a single "
+                    "upstream request, so this is not folded into total_saved_usd."
                 ),
             },
         },

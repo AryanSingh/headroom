@@ -415,8 +415,10 @@ def test_session_summary_uses_generic_cli_filtering_keys() -> None:
     assert payload["cost"]["without_cutctx_usd"] == 2.7
     assert payload["cost"]["with_cutctx_usd"] == 2.0
     assert payload["cost"]["savings_pct"] == pytest.approx(25.9)
-    assert payload["cost"]["breakdown"]["cli_filtering_savings_usd"] is None
-    assert payload["cost"]["breakdown"]["rtk_savings_usd"] is None
+    # "gpt-test" isn't a real litellm model, so the estimate gracefully
+    # resolves to 0.0 rather than raising or staying an unexplained None.
+    assert payload["cost"]["breakdown"]["cli_filtering_savings_usd"] == 0.0
+    assert payload["cost"]["breakdown"]["rtk_savings_usd"] == 0.0
 
 
 def test_stats_reset_clears_runtime_proxy_counters(monkeypatch: pytest.MonkeyPatch) -> None:

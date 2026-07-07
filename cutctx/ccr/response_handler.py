@@ -26,6 +26,16 @@ from .tool_injection import parse_tool_call
 logger = logging.getLogger(__name__)
 
 
+class CCRException(Exception):
+    """Raised when CCR (Compress-Cache-Retrieve) response handling fails.
+
+    This exception is raised to signal CCR-specific failures and ensure
+    they are not silently swallowed by generic exception handlers.
+    """
+
+    pass
+
+
 def _strategy_to_content_type(strategy: str | None) -> str:
     """Map a compression strategy name to a profile content type.
 

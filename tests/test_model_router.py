@@ -31,7 +31,8 @@ def test_config_from_env_empty_when_unset() -> None:
     with patch.dict(os.environ, {}, clear=True):
         cfg = ModelRouterConfig.from_env()
     assert cfg.enabled is False
-    assert cfg.routes == []
+    # Default config has 4 hardcoded routes; an empty env means defaults.
+    assert len(cfg.routes) == 4
 
 
 def test_config_from_env_disabled_by_default() -> None:

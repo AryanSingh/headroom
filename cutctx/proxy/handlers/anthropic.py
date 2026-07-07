@@ -141,6 +141,104 @@ class AnthropicHandlerMixin:
         return sorted(tools, key=cls._tool_sort_key)
 
     @staticmethod
+    def _has_cache_control(value: Any) -> bool:
+        """Detect a client-placed cache_control block anywhere in a value.
+
+        Used to decide whether cutctx should engineer its own breakpoints.
+        If the client already did (e.g. Claude Code caching its own stable
+        turns), skip entirely rather than fight over Anthropic's 4-breakpoint
+        budget or disturb a cache lineage that's already working.
+        """
+        if isinstance(value, dict):
+            if "cache_control" in value:
+                return True
+            return any(
+                AnthropicHandlerMixin._has_cache_control(v) for v in value.values()
+            )
+        if isinstance(value, list):
+            return any(AnthropicHandlerMixin._has_cache_control(v) for v in value)
+        return False
+
+    def _apply_anthropic_cache_breakpoints(
+        self,
+        body: dict[str, Any],
+        *,
+        request_id: str,
+        model: str,
+        turn_number: int = 0,
+    ) -> list[str]:
+        """Actively engineer Anthropic prompt-cache breakpoints.
+
+        Without this, cutctx only measures cache the client already set up
+        (see AnthropicCacheOptimizer) rather than creating any of its own.
+        Scoped to the system prompt: AnthropicCacheOptimizer expects
+        `system` as a `role == "system"` message inside `messages`, but
+        Anthropic's wire format puts it in a separate top-level field, so a
+        synthetic message is built and split back out afterward. Tool
+        definitions are cached separately below (directly, not via the
+        optimizer) because its "tools" section handling targets the
+        content of whichever message carried a `tools` key rather than the
+        top-level `tools` array — not reusable here without carrying that
+        bug forward.
+
+        ``turn_number`` gates the write: a cache write costs 1.25x the base
+        input price with only a 90% discount on later *reads* to offset it.
+        A session that never sends a second request pays that premium for
+        nothing. ``turn_number`` is the count of turns already completed in
+        this session (0 on the first request), so we only start writing
+        once we have direct evidence this session is multi-turn — skipping
+        the unrecoverable loss case at the cost of deferring the first
+        cache read by one turn.
+        """
+        if turn_number <= 0:
+            return []
+
+        cache_optimizer = getattr(self, "anthropic_cache_optimizer", None)
+        if cache_optimizer is None or not cache_optimizer.config.enabled:
+            return []
+
+        transforms: list[str] = []
+        system = body.get("system")
+        tools = body.get("tools")
+
+        if self._has_cache_control(system) or self._has_cache_control(
+            body.get("messages")
+        ) or self._has_cache_control(tools):
+            return transforms
+
+        breakpoints_used = 0
+        max_breakpoints = cache_optimizer.config.max_breakpoints
+
+        if system:
+            from cutctx.cache.base import OptimizationContext
+
+            synthetic_system = {"role": "system", "content": system}
+            context = OptimizationContext(
+                request_id=request_id, provider="anthropic", model=model or ""
+            )
+            result = cache_optimizer.optimize([synthetic_system], context)
+            if result.metrics.breakpoints_inserted > 0:
+                body["system"] = result.messages[0]["content"]
+                breakpoints_used += result.metrics.breakpoints_inserted
+                transforms.append("anthropic_cache_control:system")
+
+        if (
+            isinstance(tools, list)
+            and tools
+            and breakpoints_used < max_breakpoints
+            and cache_optimizer._estimate_tools_tokens(tools)
+            >= cache_optimizer.config.min_cacheable_tokens
+        ):
+            tools_copy = copy.deepcopy(tools)
+            last_tool = tools_copy[-1]
+            if isinstance(last_tool, dict):
+                last_tool["cache_control"] = {"type": "ephemeral"}
+                body["tools"] = tools_copy
+                transforms.append("anthropic_cache_control:tools")
+
+        return transforms
+
+    @staticmethod
     def _compress_latest_user_turn_images_cache_safe(
         messages: list[dict[str, Any]],
         *,
@@ -404,6 +502,146 @@ class AnthropicHandlerMixin:
             "content": copy.deepcopy(resp_json.get("content", "")),
         }
 
+    async def _maybe_shadow_check(
+        self,
+        *,
+        request_id: str,
+        model: str,
+        provider_name: str,
+        url: str,
+        headers: dict[str, Any],
+        original_body_bytes: bytes | None,
+        body_mutated: bool,
+        tokens_saved: int,
+        compressed_cache_read_tokens: int,
+        compressed_cache_write_tokens: int,
+        compressed_uncached_input_tokens: int,
+    ) -> None:
+        """Task 1 (commercial-readiness runbook): Savings Validation Protocol.
+
+        Every normal savings number cutctx reports is an *estimate*
+        (token-count delta x list price). For a sampled fraction of
+        requests, shadow mode empirically validates that estimate by
+        replaying the SAME request upstream with compression disabled —
+        using the pre-compression ``original_body_bytes`` this handler
+        already captured for byte-faithful forwarding — and comparing the
+        actual provider-billed cost of the compressed vs. uncompressed
+        call. The comparison is recorded via
+        ``SavingsTracker.record_measured_savings`` with
+        ``savings_basis="measured"``, alongside (never replacing) the
+        normal ``"estimated"`` per-request row.
+
+        Reuses the existing ``self._retry_request`` upstream-call path
+        (no new HTTP call machinery) with ``body_mutated=False`` so the
+        shared byte-faithful-forwarding logic
+        (``prepare_outbound_body_bytes``) sends ``original_body_bytes``
+        verbatim — i.e. exactly what would have been sent had compression
+        never run.
+
+        Off by default (``CUTCTX_SHADOW_MODE`` unset) and a no-op unless
+        this request both had compression savings to validate AND was
+        sampled (``CUTCTX_SHADOW_SAMPLE_RATE``): in the default-off case
+        this function returns immediately without reading any additional
+        environment state beyond the one flag check, so it adds no
+        upstream calls and no meaningful latency to the primary request
+        path. When it does fire, the extra upstream call happens
+        synchronously (awaited) before the primary response is returned —
+        acceptable because shadow mode is opt-in, expected to run at a low
+        sample rate, and only a customer/operator validating cutctx's
+        savings claims would enable it.
+
+        Best-effort and strictly additive: ANY failure here (network
+        error, malformed response, missing tracker, ...) is caught and
+        logged, never re-raised — it must never affect the primary
+        response already computed by the caller.
+
+        Scope note: only wired into the direct-Anthropic, non-streaming
+        path (``handle_anthropic_messages``'s single-shot branch). The
+        streaming response path and the Bedrock/Vertex backend path are
+        intentionally NOT covered by this hook yet — duplicating a
+        streaming upstream call safely is a separate, larger piece of
+        work left for a follow-up.
+        """
+        from cutctx.proxy.savings_pricing import value_tokens_usd
+        from cutctx.proxy.savings_tracker import (
+            estimate_request_cost_usd,
+            shadow_mode_enabled_from_env,
+            shadow_sample_rate_from_env,
+            should_run_shadow_check,
+        )
+
+        if not shadow_mode_enabled_from_env():
+            return
+        if tokens_saved <= 0 or not body_mutated or not original_body_bytes:
+            # Nothing was actually compressed for this request (or there
+            # are no original bytes to replay), so there is no meaningful
+            # compressed-vs-uncompressed comparison to make.
+            return
+        if not should_run_shadow_check(shadow_sample_rate_from_env()):
+            return
+
+        try:
+            shadow_response = await self._retry_request(
+                "POST",
+                url,
+                headers,
+                {},
+                original_body_bytes=original_body_bytes,
+                body_mutated=False,
+                request_id=request_id,
+                forwarder_name="anthropic_messages_shadow",
+                path_for_log="/v1/messages (shadow)",
+            )
+            if shadow_response.status_code >= 400:
+                logger.warning(
+                    "[%s] shadow_check_upstream_error status=%d",
+                    request_id,
+                    shadow_response.status_code,
+                )
+                return
+
+            shadow_json = shadow_response.json()
+            shadow_usage = shadow_json.get("usage", {}) if isinstance(shadow_json, dict) else {}
+            shadow_cache_read = shadow_usage.get("cache_read_input_tokens", 0)
+            shadow_cache_write = shadow_usage.get("cache_creation_input_tokens", 0)
+            shadow_uncached = shadow_usage.get("input_tokens", 0)
+
+            compressed_cost = estimate_request_cost_usd(
+                model,
+                input_tokens=(
+                    compressed_uncached_input_tokens
+                    + compressed_cache_read_tokens
+                    + compressed_cache_write_tokens
+                ),
+                cache_read_tokens=compressed_cache_read_tokens,
+                cache_write_tokens=compressed_cache_write_tokens,
+                uncached_input_tokens=compressed_uncached_input_tokens,
+            )
+            shadow_cost = estimate_request_cost_usd(
+                model,
+                input_tokens=shadow_uncached + shadow_cache_read + shadow_cache_write,
+                cache_read_tokens=shadow_cache_read,
+                cache_write_tokens=shadow_cache_write,
+                uncached_input_tokens=shadow_uncached,
+            )
+            # Positive => compression saved money (uncompressed cost more);
+            # negative => compression cost MORE than the uncompressed
+            # baseline (e.g. it busted a provider prompt-cache hit).
+            measured_savings_usd = shadow_cost - compressed_cost
+            estimated_savings_usd = value_tokens_usd(model, tokens_saved)
+
+            savings_tracker = getattr(self.metrics, "savings_tracker", None)
+            if savings_tracker is not None:
+                savings_tracker.record_measured_savings(
+                    model=model,
+                    provider=provider_name,
+                    estimated_savings_usd=estimated_savings_usd,
+                    measured_savings_usd=measured_savings_usd,
+                    request_id=request_id,
+                )
+        except Exception as exc:  # noqa: BLE001 - best-effort, must never be fatal
+            logger.warning("[%s] shadow_check_failed error=%s", request_id, exc)
+
     async def handle_anthropic_messages(
         self,
         request: Request,
@@ -608,6 +846,50 @@ class AnthropicHandlerMixin:
                     origin=request.headers.get("x-cutctx-origin")
                 )
                 if batch_decision.action == "enqueued":
+                    # WS13: the request is being deferred to the batch
+                    # queue instead of going upstream synchronously —
+                    # this IS the savings event (the batch API prices at
+                    # ``estimated_discount`` off list price), so it must
+                    # be recorded, not just short-circuited silently.
+                    from cutctx.proxy.savings_pricing import value_tokens_usd
+
+                    try:
+                        _batch_tokens = get_tokenizer(model).count_messages(
+                            body.get("messages", [])
+                        )
+                    except Exception:
+                        _batch_tokens = 0
+                    _batch_usd_saved = (
+                        value_tokens_usd(model, _batch_tokens) * batch_decision.estimated_discount
+                        if _batch_tokens > 0
+                        else 0.0
+                    )
+                    await self._record_request_outcome(
+                        RequestOutcome(
+                            request_id=request_id,
+                            provider=provider_name,
+                            model=model,
+                            original_tokens=_batch_tokens,
+                            optimized_tokens=_batch_tokens,
+                            output_tokens=0,
+                            tokens_saved=0,
+                            attempted_input_tokens=_batch_tokens,
+                            batch_routing_tokens_saved=_batch_tokens,
+                            batch_routing_usd_saved=_batch_usd_saved,
+                            total_latency_ms=(time.time() - start_time) * 1000,
+                            num_messages=len(body.get("messages", [])),
+                            tags=extract_tags(request.headers),
+                            client=classify_client(request.headers),
+                            savings_metadata=merge_savings_metadata(
+                                {
+                                    "batch_routing": {
+                                        "tokens": _batch_tokens,
+                                        "usd": _batch_usd_saved,
+                                    }
+                                },
+                            ),
+                        )
+                    )
                     await _finalize_pre_upstream()
                     return JSONResponse(
                         status_code=202,
@@ -1080,11 +1362,19 @@ class AnthropicHandlerMixin:
             # Get prefix cache tracker for this session
             session_id = self.session_tracker_store.compute_session_id(request, model, messages)
 
-            # WS11 Tool Memoization Recording
+            # WS11 Tool Memoization Recording. ``memoization_hits`` /
+            # ``memoization_tokens_saved`` are threaded into whichever
+            # RequestOutcome this request ultimately builds (below),
+            # so the funnel's WS11 attribution actually sees them
+            # instead of staying permanently 0.
+            memoization_hits = 0
+            memoization_tokens_saved = 0
             if getattr(self, "memoizer", None):
                 from cutctx.proxy.memoizer import record_tool_results_from_messages
-                record_tool_results_from_messages(self.memoizer, messages, session_id)
-                
+                memoization_hits, memoization_tokens_saved = record_tool_results_from_messages(
+                    self.memoizer, messages, session_id
+                )
+
             prefix_tracker = self.session_tracker_store.get_or_create(session_id, "anthropic")
             frozen_message_count = prefix_tracker.get_frozen_message_count()
             if is_cache_mode(self.config.mode):
@@ -1932,6 +2222,7 @@ class AnthropicHandlerMixin:
                     tokenizer=tokenizer,
                     tool_choice=body.get("tool_choice"),
                     config=self.config,
+                    messages=body.get("messages"),
                 )
                 if tool_surface_result.modified:
                     body["tools"] = tool_surface_result.tools
@@ -1991,19 +2282,39 @@ class AnthropicHandlerMixin:
             except Exception as e:
                 logger.debug(f"[{request_id}] Schema compression failed: {e}")
 
-            # WS10 Output Optimization
+            # WS10 Output Optimization. ``output_optimization_tokens_saved``
+            # is threaded directly into the RequestOutcome kwargs below
+            # (_build_savings_breakdown reads the typed field, not
+            # savings_metadata["output_optimization"] — a dict-only
+            # write here was previously silently dropped).
+            output_optimization_tokens_saved = 0
             output_optimizer = getattr(self, "output_optimizer", None)
             if output_optimizer and output_optimizer.config.enabled:
                 opt_decision = output_optimizer.optimize(
-                    messages=optimized_messages,
-                    provider="anthropic"
+                    request_body=body,
+                    session_id=session_id,
                 )
-                if opt_decision.action == "optimized":
-                    # Only apply if it didn't fail the safety rails
-                    optimized_messages = opt_decision.messages
-                    body["messages"] = optimized_messages
-                    transforms_applied = list(transforms_applied) + opt_decision.metadata.get("transforms", [])
-                    logger.info(f"[{request_id}] WS10 output optimization applied: {opt_decision.metadata.get('levers')}")
+                if opt_decision.actions_applied:
+                    # Only apply if a lever actually fired (safety rails
+                    # already accounted for inside optimize()).
+                    body = opt_decision.request_body
+                    optimized_messages = body.get("messages", optimized_messages)
+                    body_mutation_tracker.mark_mutated("output_optimization")
+                    transforms_applied = list(transforms_applied) + [
+                        f"output_optimization:{lever}" for lever in opt_decision.actions_applied
+                    ]
+                    output_optimization_tokens_saved = opt_decision.estimated_tokens_saved
+                    logger.info(
+                        f"[{request_id}] WS10 output optimization applied: "
+                        f"{opt_decision.actions_applied}"
+                    )
+                    # Also surface it via savings_metadata for any consumer
+                    # that inspects the escape-hatch dict directly.
+                    if request_savings_metadata is None:
+                        request_savings_metadata = {}
+                    request_savings_metadata["output_optimization"] = {
+                        "tokens": opt_decision.estimated_tokens_saved,
+                    }
 
             presend_event = self.pipeline_extensions.emit(
                 PipelineStage.PRE_SEND,
@@ -2028,6 +2339,20 @@ class AnthropicHandlerMixin:
             if presend_event.messages is not previous_presend_messages:
                 optimized_tokens = tokenizer.count_messages(body["messages"])
                 tokens_saved = max(0, original_tokens - optimized_tokens)
+
+            try:
+                cache_transforms = self._apply_anthropic_cache_breakpoints(
+                    body,
+                    request_id=request_id,
+                    model=model,
+                    turn_number=getattr(prefix_tracker, "_turn_number", 0),
+                )
+                if cache_transforms:
+                    tools = body.get("tools", tools)
+                    body_mutation_tracker.mark_mutated("anthropic_cache_control")
+                    transforms_applied = list(transforms_applied) + cache_transforms
+            except Exception as e:
+                logger.debug(f"[{request_id}] Anthropic cache breakpoint insertion failed: {e}")
 
             # Unit 2: mark end of pre-upstream phase. Everything after this
             # point is upstream I/O or post-response bookkeeping.
@@ -2192,6 +2517,9 @@ class AnthropicHandlerMixin:
                                 model_routing_usd_saved=float(
                                     (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
                                 ),
+                                memoization_hits=memoization_hits,
+                                memoization_tokens_saved=memoization_tokens_saved,
+                                output_optimization_tokens_saved=output_optimization_tokens_saved,
                                 total_latency_ms=total_latency,
                                 overhead_ms=optimization_latency,
                                 pipeline_timing=pipeline_timing,
@@ -2645,6 +2973,27 @@ class AnthropicHandlerMixin:
                         )
                         uncached_input_tokens = usage.get("input_tokens", 0)
 
+                    # Task 1 (commercial-readiness runbook): shadow-mode
+                    # savings validation. Off by default and strictly
+                    # best-effort — see ``_maybe_shadow_check`` for the
+                    # full contract. Only wired into this direct-Anthropic,
+                    # non-streaming path; streaming and the Bedrock/Vertex
+                    # backend path are intentionally out of scope for now
+                    # (see docstring).
+                    await self._maybe_shadow_check(
+                        request_id=request_id,
+                        model=model,
+                        provider_name=provider_name,
+                        url=url,
+                        headers=headers,
+                        original_body_bytes=original_body_bytes,
+                        body_mutated=body_mutation_tracker.mutated,
+                        tokens_saved=tokens_saved,
+                        compressed_cache_read_tokens=cr_tokens,
+                        compressed_cache_write_tokens=cw_tokens,
+                        compressed_uncached_input_tokens=uncached_input_tokens,
+                    )
+
                     # Track cache bust: tokens that lost their cache discount due to compression.
                     # If we had X tokens cached last turn and only Y hit cache this turn,
                     # then (X - Y) tokens were busted by our modifications.
@@ -2770,6 +3119,9 @@ class AnthropicHandlerMixin:
                             model_routing_usd_saved=float(
                                 (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
                             ),
+                            memoization_hits=memoization_hits,
+                            memoization_tokens_saved=memoization_tokens_saved,
+                            output_optimization_tokens_saved=output_optimization_tokens_saved,
                             total_latency_ms=total_latency,
                             overhead_ms=optimization_latency,
                             pipeline_timing=pipeline_timing,

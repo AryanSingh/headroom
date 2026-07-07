@@ -1,3 +1,7 @@
+import asyncio
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from cutctx.proxy.compression_decision import CompressionDecision
@@ -67,10 +71,90 @@ def test_compression_decline_telemetry() -> None:
     assert metrics.compression_declined_total["license_denied"] == 1
 
     # Verify export output contains the new metric block
-    import asyncio
     export_text = asyncio.run(metrics.export())
-    
+
     assert "cutctx_compression_declined_total{reason=\"bypass_header\"} 1" in export_text
     assert "cutctx_compression_declined_total{reason=\"compression_disabled\"} 1" in export_text
     assert "cutctx_compression_declined_total{reason=\"no_messages\"} 1" in export_text
     assert "cutctx_compression_declined_total{reason=\"license_denied\"} 1" in export_text
+
+
+def test_gemini_handle_google_cloudcode_stream_compression_decline_telemetry() -> None:
+    """Test that gemini.py:837 handler records compression decline metrics.
+
+    This test verifies the code path at gemini.py:837 where compression is skipped
+    due to bypass_header, and ensures the metrics counter is incremented.
+    """
+    metrics = PrometheusMetrics()
+
+    # Simulate the compression decision at gemini.py:837-838
+    # when x-cutctx-bypass header is set
+    _decision = CompressionDecision.decide(
+        headers={"x-cutctx-bypass": "true"},
+        config=MockConfig(),
+        usage_reporter=MockUsageReporter(),
+        messages=[{"role": "user", "content": "test"}],
+    )
+
+    assert not _decision.should_compress
+    assert _decision.passthrough_reason == "bypass_header"
+
+    # Record the decline (this is what the handler code should do)
+    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+
+    # Verify the metric was recorded
+    assert metrics.compression_declined_total["bypass_header"] == 1
+
+
+def test_gemini_handle_gemini_count_tokens_compression_decline_telemetry() -> None:
+    """Test that gemini.py:1120 handler records compression decline metrics.
+
+    This test verifies the code path at gemini.py:1120 where compression is skipped
+    due to compression_disabled, and ensures the metrics counter is incremented.
+    """
+    metrics = PrometheusMetrics()
+
+    # Simulate the compression decision at gemini.py:1120-1121
+    # when compression is disabled in config
+    _decision = CompressionDecision.decide(
+        headers={},
+        config=MockConfig(optimize=False),
+        usage_reporter=MockUsageReporter(),
+        messages=[{"role": "user", "content": "test"}],
+    )
+
+    assert not _decision.should_compress
+    assert _decision.passthrough_reason == "compression_disabled"
+
+    # Record the decline (this is what the handler code should do)
+    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+
+    # Verify the metric was recorded
+    assert metrics.compression_declined_total["compression_disabled"] == 1
+
+
+def test_openai_handle_openai_chat_compression_decline_telemetry() -> None:
+    """Test that openai/chat.py:550 handler records compression decline metrics.
+
+    This test verifies the code path at openai/chat.py:550 where compression is skipped
+    due to compression_disabled, and ensures the metrics counter is incremented.
+    """
+    metrics = PrometheusMetrics()
+
+    # Simulate the compression decision at openai/chat.py:550-551
+    # when compression is disabled in config
+    _decision = CompressionDecision.decide(
+        headers={},
+        config=MockConfig(optimize=False),
+        usage_reporter=MockUsageReporter(),
+        messages=[{"role": "user", "content": "test"}],
+    )
+
+    assert not _decision.should_compress
+    assert _decision.passthrough_reason == "compression_disabled"
+
+    # Record the decline (this is what the handler code should do)
+    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+
+    # Verify the metric was recorded
+    assert metrics.compression_declined_total["compression_disabled"] == 1

@@ -331,6 +331,28 @@ class SessionTrackerStore:
         self._trackers[session_id] = tracker
         return tracker
 
+    def _derive_caller_fingerprint(self, request: Any) -> str:
+        """Derive a caller fingerprint from request auth headers.
+
+        Security: Binds session_id to calling client identity.
+        - Extracts x-api-key or authorization header
+        - Hashes with sha256 (never stores raw key)
+        - Uses "anon" placeholder if no auth header present
+        """
+        auth_key = ""
+        if hasattr(request, "headers"):
+            # Try x-api-key first (preferred), then authorization
+            auth_key = request.headers.get("x-api-key", "")
+            if not auth_key:
+                auth_key = request.headers.get("authorization", "")
+
+        if auth_key:
+            # Hash the key, never store or log raw value
+            return hashlib.sha256(auth_key.encode()).hexdigest()[:16]
+        else:
+            # Proxy may run without upstream auth in some deployments
+            return "anon"
+
     def compute_session_id(
         self,
         request: Any,
@@ -339,15 +361,20 @@ class SessionTrackerStore:
     ) -> str:
         """Compute a session ID from the request.
 
+        Binds session_id to calling client's identity for isolation.
+
         Priority:
-        1. x-cutctx-session-id header (explicit)
-        2. Hash of (model + system prompt) — stable per conversation
+        1. x-cutctx-session-id header (explicit) + caller fingerprint
+        2. Hash of (model + system prompt) + caller fingerprint
         """
+        # Derive caller fingerprint to prevent cross-client collisions
+        caller_fp = self._derive_caller_fingerprint(request)
+
         # Check for explicit session header
         if hasattr(request, "headers"):
             session_header = request.headers.get("x-cutctx-session-id")
             if session_header:
-                return str(session_header)
+                return f"{caller_fp}:{session_header}"
 
         # Fall back to hashing model + system prompt
         system_content = ""
@@ -364,7 +391,8 @@ class SessionTrackerStore:
                 break
 
         key = f"{model}:{system_content}"
-        return hashlib.md5(key.encode()).hexdigest()[:16]  # nosec B324
+        content_hash = hashlib.md5(key.encode()).hexdigest()[:16]  # nosec B324
+        return f"{caller_fp}:{content_hash}"
 
     def _maybe_cleanup(self) -> None:
         """Remove expired trackers periodically."""

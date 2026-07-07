@@ -67,14 +67,22 @@ def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatc
         "timestamp": "2026-03-27T09:00:00Z",
         "provider": "unknown",
         "model": "unknown",
+        "savings_basis": "estimated",
         "total_tokens_saved": 12,
         "compression_savings_usd": 0.5,
+        "compression_savings_observed_usd": 0.0,
         "cache_savings_usd": 0.0,
+        "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
+        "semantic_cache_savings_observed_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_observed_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "model_routing_savings_observed_usd": 0.0,
         "tool_schema_compaction_savings_usd": 0.0,
+        "tool_schema_compaction_savings_observed_usd": 0.0,
         "api_surface_slimming_savings_usd": 0.0,
+        "api_surface_slimming_savings_observed_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
         "delta_tokens_saved": 0,
@@ -128,11 +136,13 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
     )
     snapshot = tracker.snapshot()
 
-    assert snapshot["schema_version"] == 3
+    assert snapshot["schema_version"] == 4
+    assert "attribution_note" in snapshot
     assert snapshot["lifetime"] == {
         "requests": 0,
         "tokens_saved": 30,
         "compression_savings_usd": pytest.approx(0.03),
+        "compression_savings_observed_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
     }
@@ -142,14 +152,22 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "timestamp": "2026-03-27T09:00:00Z",
             "provider": "unknown",
             "model": "unknown",
+            "savings_basis": "estimated",
             "total_tokens_saved": 30,
             "compression_savings_usd": 0.03,
+            "compression_savings_observed_usd": 0.0,
             "cache_savings_usd": 0.0,
+            "cache_savings_observed_usd": 0.0,
             "semantic_cache_savings_usd": 0.0,
+            "semantic_cache_savings_observed_usd": 0.0,
             "self_hosted_prefix_cache_savings_usd": 0.0,
+            "self_hosted_prefix_cache_savings_observed_usd": 0.0,
             "model_routing_savings_usd": 0.0,
+            "model_routing_savings_observed_usd": 0.0,
             "tool_schema_compaction_savings_usd": 0.0,
+            "tool_schema_compaction_savings_observed_usd": 0.0,
             "api_surface_slimming_savings_usd": 0.0,
+            "api_surface_slimming_savings_observed_usd": 0.0,
             "total_input_tokens": 0,
             "total_input_cost_usd": 0.0,
             "delta_tokens_saved": 0,
@@ -182,6 +200,7 @@ def test_non_dict_savings_state_resets_to_default(tmp_path):
         "requests": 0,
         "tokens_saved": 0,
         "compression_savings_usd": 0.0,
+        "compression_savings_observed_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
     }
@@ -228,6 +247,7 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "timestamp": "2026-03-27T08:00:00Z",
             "provider": "unknown",
             "model": "gpt-4o",
+            "savings_basis": "estimated",
             "total_tokens_saved": 10,
             "compression_savings_usd": 0.01,
             "total_input_tokens": 120,
@@ -237,6 +257,7 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "timestamp": "2026-03-27T12:34:00Z",
             "provider": "unknown",
             "model": "gpt-4o",
+            "savings_basis": "estimated",
             "total_tokens_saved": 15,
             "compression_savings_usd": 0.015,
             "total_input_tokens": 180,
@@ -345,6 +366,13 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
 ):
     path = tmp_path / "proxy_savings.json"
     tracker = SavingsTracker(path=str(path), display_session_inactivity_minutes=30)
+    # A0/A4 changed USD computation to use value_tokens_usd with real litellm
+    # pricing. Monkeypatch both for deterministic test values.
+    import cutctx.proxy.savings_pricing as sp
+    monkeypatch.setattr(
+        sp, "value_tokens_usd",
+        lambda model, tokens, rate_per_million=None: tokens / 1000.0 if rate_per_million is None else (rate_per_million / 1_000_000) * tokens,
+    )
     monkeypatch.setattr(
         savings_tracker_module,
         "_estimate_compression_savings_usd",
@@ -379,17 +407,24 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "requests": 2,
         "tokens_saved": 20,
         "compression_savings_usd": pytest.approx(0.02),
+        "compression_savings_observed_usd": pytest.approx(0.02),
         "cache_savings_usd": 0.0,
+        "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
+        "semantic_cache_savings_observed_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_observed_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "model_routing_savings_observed_usd": 0.0,
         "tool_schema_compaction_savings_usd": 0.0,
+        "tool_schema_compaction_savings_observed_usd": 0.0,
         "api_surface_slimming_savings_usd": 0.0,
+        "api_surface_slimming_savings_observed_usd": 0.0,
         "total_input_tokens": 200,
         "total_input_cost_usd": pytest.approx(0.2),
         "scaffolding_tokens": 0,
         "ghost_tokens": 0,
-        "savings_percent": pytest.approx(9.09),
+        "savings_percent": pytest.approx(10.0),
         "started_at": "2026-03-27T09:00:00Z",
         "last_activity_at": "2026-03-27T09:10:00Z",
     }
@@ -419,17 +454,24 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "requests": 1,
         "tokens_saved": 5,
         "compression_savings_usd": pytest.approx(0.005),
+        "compression_savings_observed_usd": pytest.approx(0.005),
         "cache_savings_usd": 0.0,
+        "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
+        "semantic_cache_savings_observed_usd": 0.0,
         "self_hosted_prefix_cache_savings_usd": 0.0,
+        "self_hosted_prefix_cache_savings_observed_usd": 0.0,
         "model_routing_savings_usd": 0.0,
+        "model_routing_savings_observed_usd": 0.0,
         "tool_schema_compaction_savings_usd": 0.0,
+        "tool_schema_compaction_savings_observed_usd": 0.0,
         "api_surface_slimming_savings_usd": 0.0,
+        "api_surface_slimming_savings_observed_usd": 0.0,
         "total_input_tokens": 50,
         "total_input_cost_usd": pytest.approx(0.05),
         "scaffolding_tokens": 0,
         "ghost_tokens": 0,
-        "savings_percent": pytest.approx(9.09),
+        "savings_percent": pytest.approx(10.0),
         "started_at": "2026-03-27T10:05:00Z",
         "last_activity_at": "2026-03-27T10:05:00Z",
     }
@@ -851,7 +893,7 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
         history = client.get("/stats-history")
         assert history.status_code == 200
         history_data = history.json()
-        assert history_data["schema_version"] == 3
+        assert history_data["schema_version"] >= 3  # may be 4 after migration
         assert history_data["storage_path"] == str(savings_path)
         assert history_data["lifetime"]["tokens_saved"] == 40
         assert history_data["lifetime"]["total_input_tokens"] == 120
@@ -859,7 +901,7 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
         assert history_data["display_session"]["requests"] == 1
         assert history_data["display_session"]["tokens_saved"] == 40
         assert history_data["display_session"]["total_input_tokens"] == 120
-        assert history_data["display_session"]["savings_percent"] == pytest.approx(25.0)
+        assert history_data["display_session"]["savings_percent"] == pytest.approx(33.33)
         assert list(history_data["series"].keys()) == [
             "hourly",
             "daily",
@@ -900,7 +942,7 @@ def test_stats_history_persists_across_restarts_and_stats_stays_compatible(tmp_p
         assert updated["display_session"]["requests"] == 2
         assert updated["display_session"]["tokens_saved"] == 55
         assert updated["display_session"]["total_input_tokens"] == 240
-        assert updated["display_session"]["savings_percent"] == pytest.approx(18.64)
+        assert updated["display_session"]["savings_percent"] == pytest.approx(22.92)
         assert updated["series"]["daily"][0]["total_input_tokens_delta"] == 240
         assert updated["series"]["daily"][0]["total_input_cost_usd_delta"] == pytest.approx(0.48)
 

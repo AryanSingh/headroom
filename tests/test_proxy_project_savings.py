@@ -96,7 +96,7 @@ def test_tracker_accumulates_per_project_and_persists(tmp_path):
     assert projects["api"]["requests"] == 2
     assert projects["api"]["tokens_saved"] == 500
     assert projects["api"]["total_input_tokens"] == 1500
-    assert projects["api"]["savings_percent"] == pytest.approx(25.0)
+    assert projects["api"]["savings_percent"] == pytest.approx(33.33)
     assert projects["web"]["requests"] == 1
     assert projects["api"]["last_activity_at"] is not None
 
@@ -240,7 +240,7 @@ def test_funnel_attributes_savings_from_context_and_stats_exposes_them(tmp_path,
         assert stats["persistent_savings"]["projects_limit"] == DEFAULT_MAX_PROJECTS
 
         history = client.get("/stats-history").json()
-        assert history["schema_version"] == 3
+        assert history["schema_version"] == 4
         assert history["projects"]["ctx-project"]["requests"] == 1
 
 

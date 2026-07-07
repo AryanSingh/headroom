@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from fastapi.responses import Response, StreamingResponse
 
 
+from cutctx.ccr.response_handler import CCRException
 from cutctx.copilot_auth import apply_copilot_api_auth, build_copilot_upstream_url
 from cutctx.pipeline import PipelineStage, summarize_routing_markers
 from cutctx.proxy.auth_mode import classify_auth_mode, classify_client
@@ -365,6 +366,9 @@ class OpenAIChatMixin:
                         self_hosted_prefix_cache_hits=0,
                         model_routing_tokens_saved=0,
                         model_routing_usd_saved=0.0,
+                        memoization_hits=0,
+                        memoization_tokens_saved=0,
+                        output_optimization_tokens_saved=0,
                         total_latency_ms=_cache_hit_latency,
                         num_messages=len(messages),
                         tags=tags,
@@ -479,10 +483,18 @@ class OpenAIChatMixin:
         # Get prefix cache tracker for this session
         openai_session_id = self.session_tracker_store.compute_session_id(request, model, messages)
 
-        # WS11 Tool Memoization Recording
+        # WS11 Tool Memoization Recording. ``memoization_hits`` /
+        # ``memoization_tokens_saved`` are threaded into whichever
+        # RequestOutcome construction site(s) exist below. Initialize
+        # here so the funnel's WS11 attribution actually sees them
+        # instead of staying permanently 0.
+        memoization_hits = 0
+        memoization_tokens_saved = 0
         if getattr(self, "memoizer", None):
             from cutctx.proxy.memoizer import record_tool_results_from_messages
-            record_tool_results_from_messages(self.memoizer, messages, openai_session_id)
+            memoization_hits, memoization_tokens_saved = record_tool_results_from_messages(
+                self.memoizer, messages, openai_session_id
+            )
         
         openai_prefix_tracker = self.session_tracker_store.get_or_create(
             openai_session_id, "openai"
@@ -549,6 +561,7 @@ class OpenAIChatMixin:
             logger.info(
                 f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
             )
+            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
@@ -896,6 +909,7 @@ class OpenAIChatMixin:
                 query=tool_surface_query,
                 tokenizer=tokenizer,
                 tool_choice=body.get("tool_choice"),
+                messages=body.get("messages"),
             )
             if tool_surface_result.modified:
                 body["tools"] = tool_surface_result.tools
@@ -959,17 +973,26 @@ class OpenAIChatMixin:
             logger.debug(f"[{request_id}] Schema compression failed: {e}")
 
         # WS10 Output Optimization
+        output_optimization_tokens_saved = 0
         output_optimizer = getattr(self, "output_optimizer", None)
         if output_optimizer and output_optimizer.config.enabled:
             opt_decision = output_optimizer.optimize(
-                messages=optimized_messages,
-                provider="openai"
+                request_body=body,
+                session_id=openai_session_id,
             )
-            if opt_decision.action == "optimized":
-                optimized_messages = opt_decision.messages
-                body["messages"] = optimized_messages
-                transforms_applied = list(transforms_applied) + opt_decision.metadata.get("transforms", [])
-                logger.info(f"[{request_id}] WS10 output optimization applied: {opt_decision.metadata.get('levers')}")
+            if opt_decision.actions_applied:
+                # Only apply if a lever actually fired (safety rails
+                # already accounted for inside optimize()).
+                body = opt_decision.request_body
+                optimized_messages = body.get("messages", optimized_messages)
+                transforms_applied = list(transforms_applied) + [
+                    f"output_optimization:{lever}" for lever in opt_decision.actions_applied
+                ]
+                output_optimization_tokens_saved = opt_decision.estimated_tokens_saved
+                logger.info(
+                    f"[{request_id}] WS10 output optimization applied: "
+                    f"{opt_decision.actions_applied}"
+                )
 
         presend_event = self.pipeline_extensions.emit(
             PipelineStage.PRE_SEND,
@@ -1154,7 +1177,7 @@ class OpenAIChatMixin:
                             )
                             # No silent fallback — fail loud per
                             # feedback_no_silent_fallbacks.md.
-                            raise
+                            raise CCRException(f"CCR handling failed: {e}") from e
 
                     # Extract usage from the FINAL backend body (after
                     # any CCR resolution) so the prefix tracker counts
@@ -1216,6 +1239,9 @@ class OpenAIChatMixin:
                             model_routing_usd_saved=float(
                                 (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
                             ),
+                            memoization_hits=memoization_hits,
+                            memoization_tokens_saved=memoization_tokens_saved,
+                            output_optimization_tokens_saved=output_optimization_tokens_saved,
                             total_latency_ms=total_latency,
                             overhead_ms=optimization_latency,
                             pipeline_timing=pipeline_timing,
@@ -1241,6 +1267,23 @@ class OpenAIChatMixin:
                         status_code=backend_response.status_code,
                         content=backend_response.body,
                     )
+            except CCRException as e:
+                import traceback
+                traceback.print_exc()
+                logger.error(f"[{request_id}] CCR error: {e}")
+                # Preserve the original exception message to allow clients to debug
+                # the specific CCR failure while signaling it's CCR-specific
+                original_msg = str(e.__cause__) if e.__cause__ else str(e)
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": {
+                            "message": original_msg,
+                            "type": "api_error",
+                            "code": "ccr_error",
+                        }
+                    },
+                )
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -1555,6 +1598,9 @@ class OpenAIChatMixin:
                         model_routing_usd_saved=float(
                             (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
                         ),
+                        memoization_hits=memoization_hits,
+                        memoization_tokens_saved=memoization_tokens_saved,
+                        output_optimization_tokens_saved=output_optimization_tokens_saved,
                         total_latency_ms=total_latency,
                         overhead_ms=optimization_latency,
                         pipeline_timing=pipeline_timing,
