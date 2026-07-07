@@ -491,6 +491,7 @@ def merge_cost_stats(
     cost_stats: dict | None,
     cache_stats: dict,
     cli_tokens_avoided: int = 0,
+    display_session: dict | None = None,
 ) -> dict | None:
     """Merge compression, cache, and CLI savings into cost stats.
 
@@ -512,12 +513,25 @@ def merge_cost_stats(
     Also surfaces ``savings_by_source`` and ``savings_by_provider`` from the
     unified savings ledger so consumers can attribute savings correctly
     without double-counting across provider cache and Cutctx compression.
+
+    When ``display_session`` is provided, its ``compression_savings_usd``
+    (from the SavingsTracker) takes precedence over the CostTracker's
+    ``savings_usd``, which is always zero unless cache-read discounts are
+    present. This ensures the dashboard shows real compression savings
+    rather than $0 for the current session.
     """
     if cost_stats is None:
         return None
 
     cache_net = cache_stats.get("totals", {}).get("net_savings_usd", 0.0)
-    compression_savings = cost_stats.get("savings_usd", 0.0)
+    # Prefer the SavingsTracker's session savings (captures all 11
+    # compression sources) over the CostTracker's near-zero figure
+    # (which only tracks cache-read discounts).
+    compression_savings = (
+        float(display_session.get("compression_savings_usd", 0.0) or 0.0)
+        if display_session
+        else cost_stats.get("savings_usd", 0.0)
+    )
 
     savings_by_source = cost_stats.get("savings_by_source") or {}
     savings_by_provider = cost_stats.get("savings_by_provider") or {}

@@ -4376,6 +4376,7 @@ def _require_rbac_permission(permission: str):
                 proxy.cost_tracker.stats() if proxy.cost_tracker else None,
                 prefix_cache_stats,
                 cli_tokens_avoided=cli_tokens_avoided,
+                display_session=display_session,
             ),
             "compression": {
                 "ccr_entries": compression_stats.get("entry_count", 0),
@@ -5418,7 +5419,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "otel": get_otel_metrics_status(),
             "langfuse": get_langfuse_tracing_status(),
             "prefix_cache": prefix_cache_stats,
-            "cost": _merge_cost_stats(proxy.cost_tracker.stats() if proxy.cost_tracker else None, prefix_cache_stats, cli_tokens_avoided=cli_tokens_avoided),
+            "cost": _merge_cost_stats(proxy.cost_tracker.stats() if proxy.cost_tracker else None, prefix_cache_stats, cli_tokens_avoided=cli_tokens_avoided, display_session=display_session),
             "compression": {
                 "ccr_entries": compression_stats.get("entry_count", 0),
                 "ccr_max_entries": compression_stats.get("max_entries", 0),
