@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://cutctx.dev/testing/manual-testing-guide/">
+        <link rel="canonical" href="https://cutctx.com/testing/manual-testing-guide/">
       
       
       
@@ -4625,7 +4625,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-123-1"><a id="__codelineno-123-1" name="__codelineno-123-1" href="#__codelineno-123-1"></a><span class="c1"># Dry run — show what would happen (don&#39;t actually open browser in CI)</span>
 </span><span id="__span-123-2"><a id="__codelineno-123-2" name="__codelineno-123-2" href="#__codelineno-123-2"></a><span class="nv">CUTCTX_TEST_MODE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>cutctx<span class="w"> </span>billing<span class="w"> </span>checkout<span class="w"> </span>--tier<span class="w"> </span>team<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
 </span></code></pre></div>
-<p><strong>PASS:</strong> prints checkout URL without opening browser; URL contains <code>stripe.com</code> or <code>cutctx.dev</code></p>
+<p><strong>PASS:</strong> prints checkout URL without opening browser; URL contains <code>stripe.com</code> or <code>cutctx.com</code></p>
 <hr />
 <h2 id="45-admin-api-spend-ledger">45. Admin API — Spend Ledger<a class="headerlink" href="#45-admin-api-spend-ledger" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-124-1"><a id="__codelineno-124-1" name="__codelineno-124-1" href="#__codelineno-124-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--port<span class="w"> </span><span class="m">8920</span><span class="w"> </span><span class="p">&amp;</span>

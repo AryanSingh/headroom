@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://cutctx.dev/plans/2026-04-17-fix-codex-proxy-resilience-plan/">
+        <link rel="canonical" href="https://cutctx.com/plans/2026-04-17-fix-codex-proxy-resilience-plan/">
       
       
       
@@ -2264,7 +2264,7 @@
 <h2 id="open-questions">Open Questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <h3 id="resolved-during-planning">Resolved During Planning<a class="headerlink" href="#resolved-during-planning" title="Permanent link">&para;</a></h3>
 <ul>
-<li><em>Q: Target upstream or the fork?</em> Resolved: target the fork (<code>fix/responses-retries-keep-compression</code>), structured so each unit is cherry-pickable into a PR against <code>chopratejas/cutctx#172</code>.</li>
+<li><em>Q: Target upstream or the fork?</em> Resolved: target the fork (<code>fix/responses-retries-keep-compression</code>), structured so each unit is cherry-pickable into a PR against <code>cutctx/cutctx#172</code>.</li>
 <li><em>Q: Should Unit 5's debug endpoints require an explicit flag to enable?</em> Resolved: <strong>no</strong> — loopback-only gating is sufficient and the debug data is useless if it isn't always available when the process is struggling.</li>
 <li><em>Q: Does <code>MemoryHandler._ensure_initialized</code> already have a concurrency guard?</em> Resolved: <strong>no</strong>. It relies on <code>self._initialized = True</code> flip, which is not atomic across <code>await</code> points. Unit 1 adds an <code>asyncio.Lock</code>.</li>
 <li><em>Q: Are the WS relay tasks already cancelled on partner exit?</em> Resolved: <strong>no</strong>. <code>asyncio.gather(return_exceptions=True)</code> waits for both; the survivor only exits when its own loop raises. Unit 3 fixes this.</li>
@@ -2661,7 +2661,7 @@
 <li><code>cutctx/transforms/content_router.py</code> — <code>eager_load_compressors</code></li>
 <li><code>cutctx/transforms/kompress_compressor.py</code> — <code>_load_kompress_onnx</code>, <code>_kompress_cache</code></li>
 <li>Related PRs/issues:</li>
-<li>Upstream: <code>https://github.com/chopratejas/cutctx/issues/172</code></li>
+<li>Upstream: <code>https://github.com/cutctx/cutctx/issues/172</code></li>
 <li>Fork branch: <code>fix/responses-retries-keep-compression</code> (commit <code>0b11637</code>)</li>
 <li>External docs: none used for this plan.</li>
 </ul>

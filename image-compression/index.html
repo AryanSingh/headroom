@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://cutctx.dev/image-compression/">
+        <link rel="canonical" href="https://cutctx.com/image-compression/">
       
       
         <link rel="prev" href="../ccr/">
@@ -2908,7 +2908,7 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cutctx.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageCompressor</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">compressor</span> <span class="o">=</span> <span class="n">ImageCompressor</span><span class="p">(</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_id</span><span class="o">=</span><span class="s2">&quot;chopratejas/technique-router&quot;</span><span class="p">,</span>  <span class="c1"># HuggingFace model</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_id</span><span class="o">=</span><span class="s2">&quot;cutctx/technique-router&quot;</span><span class="p">,</span>  <span class="c1"># HuggingFace model</span>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">use_siglip</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>   <span class="c1"># Enable image analysis</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span>     <span class="c1"># Use GPU if available</span>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">)</span>
@@ -2986,7 +2986,7 @@
 <h2 id="the-trained-router">The Trained Router<a class="headerlink" href="#the-trained-router" title="Permanent link">&para;</a></h2>
 <p>The routing decision is made by a fine-tuned <strong>MiniLM</strong> classifier:</p>
 <ul>
-<li><strong>Model</strong>: <code>chopratejas/technique-router</code> on HuggingFace</li>
+<li><strong>Model</strong>: <code>cutctx/technique-router</code> on HuggingFace</li>
 <li><strong>Size</strong>: ~128MB</li>
 <li><strong>Accuracy</strong>: 93.7% on validation set</li>
 <li><strong>Training data</strong>: 1,157 examples across 4 techniques</li>
@@ -3089,7 +3089,7 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">ImageCompressor</span><span class="p">:</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>        <span class="bp">self</span><span class="p">,</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>        <span class="n">model_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chopratejas/technique-router&quot;</span><span class="p">,</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>        <span class="n">model_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cutctx/technique-router&quot;</span><span class="p">,</span>
 </span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>        <span class="n">use_siglip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>        <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="p">):</span> <span class="o">...</span>
