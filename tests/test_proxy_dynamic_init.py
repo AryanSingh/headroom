@@ -28,6 +28,7 @@ async def test_dynamic_initialization_of_memory_module(
     config.episodic_memory_enabled = False
     config.firewall_enabled = False
     config.admin_api_key = "test_admin"
+    config.entitlement_tier = "business"
 
     app = create_app(config)
     proxy = app.state.proxy
@@ -56,3 +57,42 @@ async def test_dynamic_initialization_of_memory_module(
     assert proxy.config.episodic_memory_enabled is True
     assert proxy.episodic_tracker is not None
     assert proxy.config.firewall_enabled is True
+
+
+def test_business_tier_can_enable_episodic_memory_live_without_mocks(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify the shipped config route enables the real tracker for entitled tiers."""
+    monkeypatch.setenv("CUTCTX_SKIP_INTEGRITY_CHECK", "1")
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_EPISODIC_MEMORY_DIR", str(tmp_path / "episodic-memory"))
+
+    config = ProxyConfig(
+        admin_api_key="test_admin",
+        entitlement_tier="business",
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        episodic_memory_enabled=False,
+    )
+
+    app = create_app(config)
+    proxy = app.state.proxy
+    assert getattr(proxy, "episodic_tracker", None) is None
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/flags",
+            json={"memory": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["applied_live"]["episodic_memory_enabled"]["enabled"] is True
+        assert payload["applied_live"]["memory"]["normalized_to"] == "episodic_memory_enabled"
+
+    assert proxy.config.episodic_memory_enabled is True
+    assert proxy.episodic_tracker is not None
+    assert proxy.episodic_tracker.enabled is True
+    assert proxy.episodic_tracker._sweep_task is not None

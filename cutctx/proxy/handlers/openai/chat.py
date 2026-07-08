@@ -392,6 +392,8 @@ class OpenAIChatMixin:
                 response_headers = dict(cached.response_headers)
                 response_headers.pop("content-encoding", None)
                 response_headers.pop("content-length", None)
+                response_headers["x-cutctx-response-cache"] = "hit"
+                response_headers["x-cutctx-cache-kind"] = "exact-match"
 
                 if stream:
                     from fastapi.responses import StreamingResponse

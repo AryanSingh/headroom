@@ -191,19 +191,19 @@ export default function Capabilities() {
       configKey: surfaceFlags.rate_limiter == null ? null : 'rate_limiter',
     },
     {
-      label: 'Semantic cache',
+      label: 'Response cache',
       value: formatInteger(stats?.cache?.total_hits || 0),
       detail:
         stats?.cache != null
-          ? `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.max_entries || 0)} max`
-          : 'This proxy is not exposing semantic cache metrics',
+          ? `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.total_misses || 0)} misses · ${formatInteger(stats?.cache?.tokens_avoided || 0)} tokens avoided`
+          : 'This proxy is not exposing response cache metrics',
       status: surfaceFlags.cache ?? stats?.cache != null,
       configKey: surfaceFlags.cache == null ? null : 'cache',
     },
     {
       label: 'CCR store',
       value: formatInteger(stats?.compression?.ccr_entries || 0),
-      detail: `${formatInteger(stats?.compression?.ccr_retrievals || 0)} retrievals`,
+      detail: `${formatInteger(stats?.compression?.ccr_retrievals || 0)} retrievals · ${formatInteger(stats?.compression?.original_tokens_cached || 0)} original tokens stored`,
       status: surfaceFlags.ccr ?? stats?.compression != null,
       configKey: surfaceFlags.ccr == null ? null : 'ccr',
     },

@@ -1203,7 +1203,7 @@ class AnthropicHandlerMixin:
                             attempted_input_tokens=0,
                             from_response_cache=True,
                             semantic_cache_hit=True,
-                            semantic_cache_avoided_tokens=0,
+                            semantic_cache_avoided_tokens=cached.tokens_saved_per_hit,
                             # Self-hosted prefix cache and model
                             # routing do not apply to a response-cache
                             # hit: the proxy never reached the
@@ -1228,6 +1228,8 @@ class AnthropicHandlerMixin:
                     response_headers = dict(cached.response_headers)
                     response_headers.pop("content-encoding", None)
                     response_headers.pop("content-length", None)
+                    response_headers["x-cutctx-response-cache"] = "hit"
+                    response_headers["x-cutctx-cache-kind"] = "exact-match"
 
                     # Unit 4: release the pre-upstream semaphore on cache
                     # hit — no upstream call will happen.

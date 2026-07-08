@@ -1,8 +1,9 @@
-"""Semantic cache for the Cutctx proxy.
+"""Response-cache implementation for the Cutctx proxy.
 
-Simple semantic cache based on message content hash with LRU eviction.
-
-Extracted from server.py for maintainability.
+Despite the historical module name, this is currently an exact-match response
+cache keyed by normalized ``{model, messages}`` content. The stats emitted here
+feed the dashboard's runtime capability cards, so we track misses, evictions,
+and avoided tokens explicitly.
 """
 
 from __future__ import annotations
@@ -10,84 +11,77 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import sys
+import re
 from collections import OrderedDict
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ..memory.tracker import ComponentStats
-
+from cutctx.proxy.helpers import _strip_per_call_annotations
 from cutctx.proxy.models import CacheEntry
+from cutctx.memory.tracker import ComponentStats
 
 
 class SemanticCache:
-    """Simple semantic cache based on message content hash.
-
-    Uses OrderedDict for O(1) LRU eviction instead of list with O(n) pop(0).
-    """
+    """Exact-match response cache with LRU eviction."""
 
     def __init__(self, max_entries: int = 1000, ttl_seconds: int = 3600):
         self.max_entries = max_entries
         self.ttl_seconds = ttl_seconds
-        # OrderedDict maintains insertion order and supports O(1) move_to_end/popitem
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._lock = asyncio.Lock()
+        self._hits = 0
+        self._misses = 0
+        self._stores = 0
+        self._evictions = 0
+        self._expired = 0
+        self._tokens_avoided = 0
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
-        """Compute cache key from messages and model."""
-        import re
-
-        from cutctx.proxy.helpers import _strip_per_call_annotations
-
-        # Normalize messages for consistent hashing
-        # 1. Strip cache_control and other known per-call annotations
+        """Compute a normalized cache key for a request."""
         cleaned_messages = _strip_per_call_annotations(messages)
 
-        # 2. Strip system-reminders and trailing whitespace, and metadata.user_id
         for msg in cleaned_messages:
-            if isinstance(msg, dict):
-                # Strip user_id from metadata
-                if "metadata" in msg and isinstance(msg["metadata"], dict):
-                    msg["metadata"].pop("user_id", None)
+            if not isinstance(msg, dict):
+                continue
 
-                # Strip <system-reminder> blocks and trailing whitespace from text content
-                content = msg.get("content")
-                if isinstance(content, str):
-                    content = re.sub(r"<system-reminder>.*?</system-reminder>", "", content, flags=re.DOTALL)
-                    msg["content"] = content.strip()
-                elif isinstance(content, list):
-                    for block in content:
-                        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
-                            text = re.sub(r"<system-reminder>.*?</system-reminder>", "", block["text"], flags=re.DOTALL)
-                            block["text"] = text.strip()
+            metadata = msg.get("metadata")
+            if isinstance(metadata, dict):
+                metadata.pop("user_id", None)
+
+            content = msg.get("content")
+            if isinstance(content, str):
+                content = re.sub(
+                    r"<system-reminder>.*?</system-reminder>",
+                    "",
+                    content,
+                    flags=re.DOTALL,
+                )
+                msg["content"] = content.strip()
 
         normalized = json.dumps(
-            {
-                "model": model,
-                "messages": cleaned_messages,
-            },
+            {"model": model, "messages": cleaned_messages},
             sort_keys=True,
         )
         return hashlib.sha256(normalized.encode()).hexdigest()[:32]
 
     async def get(self, messages: list[dict], model: str) -> CacheEntry | None:
-        """Get cached response if exists and not expired."""
+        """Return a cached response when present and still valid."""
         key = self._compute_key(messages, model)
         async with self._lock:
             entry = self._cache.get(key)
-
             if entry is None:
+                self._misses += 1
                 return None
 
-            # Check expiration
             age = (datetime.now() - entry.created_at).total_seconds()
             if age > entry.ttl_seconds:
                 del self._cache[key]
+                self._expired += 1
+                self._misses += 1
                 return None
 
             entry.hit_count += 1
-            # Move to end for LRU (O(1) operation)
+            self._hits += 1
+            self._tokens_avoided += max(0, entry.tokens_saved_per_hit)
             self._cache.move_to_end(key)
             return entry
 
@@ -98,78 +92,71 @@ class SemanticCache:
         response_body: bytes,
         response_headers: dict[str, str],
         tokens_saved: int = 0,
-    ):
-        """Cache a response."""
+    ) -> None:
+        """Store a response in the cache."""
         key = self._compute_key(messages, model)
-
         async with self._lock:
-            # If key already exists, remove it first to update position
             if key in self._cache:
                 del self._cache[key]
 
-            # Evict oldest entries if at capacity (LRU) - O(1) with popitem
             while len(self._cache) >= self.max_entries:
-                self._cache.popitem(last=False)  # Remove oldest (first) entry
+                self._cache.popitem(last=False)
+                self._evictions += 1
 
             is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
-            
             self._cache[key] = CacheEntry(
                 response_body=response_body,
                 response_headers=response_headers,
                 created_at=datetime.now(),
                 ttl_seconds=self.ttl_seconds,
-                tokens_saved_per_hit=tokens_saved,
+                tokens_saved_per_hit=max(0, tokens_saved),
                 is_streaming=is_stream,
             )
+            self._stores += 1
 
     async def stats(self) -> dict:
-        """Get cache statistics."""
+        """Return cache statistics for the admin surface."""
         async with self._lock:
-            total_hits = sum(e.hit_count for e in self._cache.values())
+            total_hit_count = sum(entry.hit_count for entry in self._cache.values())
+            total_saved_per_hit = sum(entry.tokens_saved_per_hit for entry in self._cache.values())
             return {
                 "entries": len(self._cache),
                 "max_entries": self.max_entries,
-                "total_hits": total_hits,
                 "ttl_seconds": self.ttl_seconds,
+                "total_hits": self._hits,
+                "total_hit_count": total_hit_count,
+                "total_misses": self._misses,
+                "total_stores": self._stores,
+                "total_evictions": self._evictions,
+                "total_expired": self._expired,
+                "tokens_avoided": self._tokens_avoided,
+                "tokens_saved_per_hit_capacity": total_saved_per_hit,
             }
 
-    async def clear(self):
-        """Clear all cache entries."""
+    async def clear(self) -> None:
+        """Clear all cache entries and counters."""
         async with self._lock:
             self._cache.clear()
+            self._hits = 0
+            self._misses = 0
+            self._stores = 0
+            self._evictions = 0
+            self._expired = 0
+            self._tokens_avoided = 0
 
     def get_memory_stats(self) -> ComponentStats:
-        """Get memory statistics for the MemoryTracker.
-
-        Returns:
-            ComponentStats with current memory usage.
-        """
-        from ..memory.tracker import ComponentStats
-
-        # Take a snapshot of cache values under the lock to avoid iterating
-        # over a dict that may be mutated concurrently by async coroutines.
-        # The lock is an asyncio.Lock and cannot be acquired in a sync method,
-        # so we do a single atomic copy of the values view instead.
-        snapshot = list(self._cache.values())
-        entry_count = len(snapshot)
-
-        size_bytes = sys.getsizeof(self._cache)
-        total_hits = 0
-
-        for entry in snapshot:
-            size_bytes += sys.getsizeof(entry)
-            size_bytes += len(entry.response_body)
-            size_bytes += sys.getsizeof(entry.response_headers)
-            for k, v in entry.response_headers.items():
-                size_bytes += len(k) + len(v)
-            total_hits += entry.hit_count
+        """Return a best-effort memory snapshot for the memory tracker."""
+        entries = list(self._cache.values())
+        size_bytes = sum(len(entry.response_body) for entry in entries)
+        size_bytes += sum(len(json.dumps(entry.response_headers)) for entry in entries)
+        size_bytes += sum(len(str(entry.tokens_saved_per_hit)) for entry in entries)
 
         return ComponentStats(
             name="semantic_cache",
-            entry_count=entry_count,
+            entry_count=len(entries),
             size_bytes=size_bytes,
             budget_bytes=None,
-            hits=total_hits,
-            misses=0,  # Would need to track this separately
-            evictions=0,  # Would need to track this separately
+            hits=self._hits,
+            misses=self._misses,
+            evictions=self._evictions + self._expired,
         )
