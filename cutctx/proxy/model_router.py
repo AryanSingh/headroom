@@ -262,6 +262,30 @@ class ModelRouterConfig:
             downgrade_when="low_complexity",
             routes=[
                 ModelRoute(
+                    source="claude-opus-4-5",
+                    target="claude-sonnet-4-5",
+                    source_cost_per_mtok=15.0,
+                    target_cost_per_mtok=3.0,
+                ),
+                ModelRoute(
+                    source="claude-opus-4-5-20250514",
+                    target="claude-sonnet-4-5",
+                    source_cost_per_mtok=15.0,
+                    target_cost_per_mtok=3.0,
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5",
+                    target="claude-haiku-4-5",
+                    source_cost_per_mtok=3.0,
+                    target_cost_per_mtok=0.8,
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5-20250514",
+                    target="claude-haiku-4-5",
+                    source_cost_per_mtok=3.0,
+                    target_cost_per_mtok=0.8,
+                ),
+                ModelRoute(
                     source="gpt-5.5",
                     target="gpt-5.4-mini",
                     source_cost_per_mtok=10.0,

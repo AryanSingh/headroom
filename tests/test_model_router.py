@@ -337,6 +337,46 @@ def test_codex_preset_routes_tiny_greeting_to_mini() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
+def test_codex_preset_routes_simple_claude_sonnet_to_haiku() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "claude-sonnet-4-5",
+        messages=[{"role": "user", "content": "hi"}],
+        request_savings_metadata={},
+    )
+
+    assert model == "claude-haiku-4-5"
+    assert metadata is not None
+    assert metadata["model_routing"]["source_model"] == "claude-sonnet-4-5"
+    assert metadata["model_routing"]["target_model"] == "claude-haiku-4-5"
+
+
+def test_codex_preset_routes_simple_claude_opus_to_sonnet() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "claude-opus-4-5",
+        messages=[{"role": "user", "content": "fix typo in README"}],
+        request_savings_metadata={},
+    )
+
+    assert model == "claude-sonnet-4-5"
+    assert metadata is not None
+    assert metadata["model_routing"]["source_model"] == "claude-opus-4-5"
+    assert metadata["model_routing"]["target_model"] == "claude-sonnet-4-5"
+
+
 # ─- finalize_savings() ──────────────────────────────────────────
 
 

@@ -42,6 +42,45 @@ class AnthropicHandlerMixin:
     """Mixin providing Anthropic API handler methods for CutctxProxy."""
 
     @staticmethod
+    def _anthropic_messages_to_routing_messages(
+        messages: list[dict[str, Any]] | Any,
+    ) -> list[dict[str, Any]]:
+        """Flatten Anthropic message content into text-only routing messages."""
+
+        if not isinstance(messages, list):
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            role = str(message.get("role") or "")
+            if role not in {"system", "user", "assistant"}:
+                continue
+
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                normalized.append({"role": role, "content": content})
+                continue
+
+            if not isinstance(content, list):
+                continue
+
+            text_parts: list[str] = []
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("type") not in {None, "text"}:
+                    continue
+                text = part.get("text")
+                if isinstance(text, str) and text.strip():
+                    text_parts.append(text)
+            if text_parts:
+                normalized.append({"role": role, "content": "\n".join(text_parts)})
+
+        return normalized
+
+    @staticmethod
     def _resolve_ccr_workspace(
         request: Any,
         body: Any,
@@ -918,9 +957,12 @@ class AnthropicHandlerMixin:
             if getattr(self, "_model_router", None) is not None:
                 try:
                     from dataclasses import replace as _dc_replace
+                    from cutctx.proxy.model_router import prepare_model_routing
 
-                    decision = self._model_router.maybe_route(
+                    routed_model, request_savings_metadata = prepare_model_routing(
+                        self,
                         model,
+                        request_savings_metadata=request_savings_metadata,
                         cache_read_tokens=0,
                         attempted_input_tokens=0,
                         tool_calls=sum(
@@ -930,28 +972,15 @@ class AnthropicHandlerMixin:
                             if isinstance(c, dict) and c.get("type") == "tool_use"
                         ),
                         num_messages=len(messages),
+                        messages=self._anthropic_messages_to_routing_messages(messages),
                     )
-                    if decision.routing_applied and decision.target_model:
+                    if routed_model != model:
                         # Override the model in the request body so the
                         # upstream call goes to the cheaper model. The
                         # decision will be finalized (savings computed)
                         # by emit_request_outcome based on actual tokens.
-                        model = decision.target_model
-                        body = _dc_replace(body, model=decision.target_model)
-                        # Attach to request_savings_metadata so the funnel
-                        # can pick it up.
-                        if request_savings_metadata is None:
-                            request_savings_metadata = {}
-                        request_savings_metadata = {
-                            **request_savings_metadata,
-                            "model_routing": {
-                                "source_model": decision.source_model,
-                                "target_model": decision.target_model,
-                                "reason": decision.reason,
-                                "tokens_saved": 0,  # finalized in outcome
-                                "usd_saved": 0.0,  # finalized in outcome
-                            },
-                        }
+                        model = routed_model
+                        body = _dc_replace(body, model=routed_model)
                 except Exception:
                     # Routing is best-effort; never let a router error
                     # poison the request path.

@@ -131,6 +131,16 @@ class TestCodexGpt54MiniHighPreset:
         pairs = {(r.source, r.target) for r in cfg.routes}
         assert ("gpt-5.5", "gpt-5.4-mini") in pairs
 
+    def test_codex_gpt54mini_high_routes_claude_opus_to_sonnet(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("claude-opus-4-5", "claude-sonnet-4-5") in pairs
+
+    def test_codex_gpt54mini_high_routes_claude_sonnet_to_haiku(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("claude-sonnet-4-5", "claude-haiku-4-5") in pairs
+
     def test_codex_gpt54mini_high_routes_gpt54_to_gpt54_mini(self) -> None:
         cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
         pairs = {(r.source, r.target) for r in cfg.routes}

@@ -1,0 +1,53 @@
+---
+title: Model Routing Presets
+description: Canonical model-routing preset, aliases, and routing behavior for Cutctx agents.
+---
+
+# Model Routing Presets
+
+Cutctx supports an opt-in named model-routing preset through `CUTCTX_MODEL_ROUTING_PRESET`.
+
+## Canonical preset
+
+- `codex-gpt54mini-high`
+
+## Compatibility aliases
+
+- `codex-opencode-slim`
+- `oh-my-opencode-slim`
+
+## Behavior
+
+The preset is intentionally conservative:
+
+- Heavy GPT-5-tier and Claude-tier work stays on the originally requested model.
+- Low-complexity GPT tasks route to `gpt-5.4-mini`.
+- Low-complexity Claude tasks route to the next cheaper Claude tier.
+- Routed low-complexity requests also receive `reasoning: { effort: "high" }` on OpenAI request paths.
+
+## Current route table
+
+- `claude-opus-4-5 -> claude-sonnet-4-5`
+- `claude-opus-4-5-20250514 -> claude-sonnet-4-5`
+- `claude-sonnet-4-5 -> claude-haiku-4-5`
+- `claude-sonnet-4-5-20250514 -> claude-haiku-4-5`
+- `gpt-5.5 -> gpt-5.4-mini`
+- `gpt-5.4 -> gpt-5.4-mini`
+- `gpt-5 -> gpt-5.4-mini`
+
+## Low-complexity heuristic
+
+The router only applies the low-complexity branch when a request is clearly simple, such as:
+
+- short docstring or type-hint edits
+- lint fixes and formatting-only requests
+- small renames
+- obvious one-file or one-function cleanups
+
+If the task looks ambiguous, broad, or risky, Cutctx keeps the original requested model.
+
+## Implementation notes
+
+- Router config: [`cutctx/proxy/model_router.py`](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/model_router.py)
+- OpenAI Chat request override path: [`cutctx/proxy/handlers/openai/chat.py`](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/chat.py)
+- OpenAI Responses request override path: [`cutctx/proxy/handlers/openai/responses.py`](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/handlers/openai/responses.py)
