@@ -1365,6 +1365,7 @@ class OpenAIResponsesMixin:
             messages.append({"role": "system", "content": instructions})
         if isinstance(input_data, str):
             messages.append({"role": "user", "content": input_data})
+        routing_messages = _responses_payload_to_routing_messages(body)
         from cutctx.proxy.model_router import prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
@@ -1372,8 +1373,8 @@ class OpenAIResponsesMixin:
             model,
             request_savings_metadata=request_savings_metadata,
             tool_calls=len(body.get("tools") or []),
-            num_messages=len(messages),
-            messages=messages,
+            num_messages=len(routing_messages),
+            messages=routing_messages,
         )
         body["model"] = model
         _apply_model_routing_request_overrides(body, request_savings_metadata)
