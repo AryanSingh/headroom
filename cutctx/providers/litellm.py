@@ -36,13 +36,19 @@ try:
     # LiteLLM can print its provider-list banner during import, before the
     # module-level suppression flags below can be set.
     os.environ.setdefault("LITELLM_SUPPRESS_DEBUG_INFO", "True")
+    os.environ.setdefault("LITELLM_LOG", "WARNING")
 
     import litellm
 
     # Suppress litellm's startup banner ("Provider List: https://...") and
     # verbose debug output that spams stdout on every worker import.
+    # Note: set_verbose is checked at import time, not as a runtime flag,
+    # so assigning it here is a no-op for the startup banner. The env var
+    # above (LITELLM_SUPPRESS_DEBUG_INFO) is what actually suppresses it.
+    # The logging-level call below silences any remaining noise from the
+    # runtime path.
     litellm.suppress_debug_info = True
-    litellm.set_verbose = False
+    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
     from litellm import get_model_info as litellm_get_model_info
     from litellm import model_cost as litellm_model_cost

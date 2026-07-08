@@ -133,13 +133,14 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
 
 @license.command()
-def status() -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output raw JSON.")
+def status(as_json: bool = False) -> None:
     """Show current license and trial status.
 
     Displays the active license tier, org info, trial status, and
     seat usage.
     """
-    import json
+    import json as _json
 
     from cutctx import paths
     from cutctx.entitlements import EntitlementChecker, EntitlementTier
@@ -149,44 +150,123 @@ def status() -> None:
 
     cache_path = paths.license_cache_path()
 
-    click.echo("Cutctx License Status")
-    click.echo("=" * 50)
+    # --- Collect data ---
 
-    # License info (with HMAC integrity verification)
+    license_info: dict[str, str | bool | None] = {}
+    plan = "builder"
+
     if cache_path.exists():
         try:
             cache = read_hmac_json(cache_path)
             if cache is None:
-                click.echo("  License:    Unknown (integrity check failed — file may be tampered)")
-                plan = "builder"
+                license_info["status"] = "unknown"
+                license_info["integrity_failed"] = True
             else:
                 plan = cache.get("plan", "builder")
-                status_str = cache.get("status", "unknown")
-                org_name = cache.get("org_name", "Unknown")
-                org_id = cache.get("org_id", "")
-                validated_at = cache.get("validated_at", "unknown")
+                license_info["status"] = cache.get("status", "unknown")
+                license_info["plan"] = plan
+                license_info["org_name"] = cache.get("org_name", "Unknown")
+                license_info["org_id"] = cache.get("org_id", "")
+                license_info["validated_at"] = cache.get("validated_at", "unknown")
+                license_info["integrity_failed"] = False
+        except (_json.JSONDecodeError, KeyError):
+            license_info["status"] = "corrupt"
+            license_info["integrity_failed"] = True
+    else:
+        license_info["status"] = "none"
+        license_info["plan"] = "builder"
 
-                tier = EntitlementTier.from_str(plan)
-                click.echo("  License:    Active")
-                click.echo(f"  Plan:       {tier.name} ({plan})")
-                click.echo(f"  Status:     {status_str}")
-                click.echo(f"  Org:        {org_name}")
-                if org_id:
-                    click.echo(f"  Org ID:     {org_id}")
-                click.echo(f"  Validated:  {validated_at}")
-        except (json.JSONDecodeError, KeyError):
-            click.echo("  License:    Unknown (corrupt cache)")
-            plan = "builder"
+    tm = TrialManager()
+    trial = tm.check_trial()
+
+    checker = EntitlementChecker(plan)
+    tier = EntitlementTier.from_str(plan)
+
+    sm = SeatManager()
+    state = sm.state
+
+    # --- Build result dict ---
+
+    license_data = {}
+    if license_info.get("status") == "active":
+        license_data = {
+            "status": license_info.get("status"),
+            "plan": license_info.get("plan"),
+            "org_name": license_info.get("org_name"),
+            "org_id": license_info.get("org_id"),
+            "validated_at": license_info.get("validated_at"),
+        }
+    elif license_info.get("status") == "none":
+        license_data = {"status": "none", "plan": "builder"}
+    elif license_info.get("status") == "unknown":
+        license_data = {"status": "unknown", "plan": "builder"}
+    elif license_info.get("status") == "corrupt":
+        license_data = {"status": "corrupt", "plan": "builder"}
+
+    if license_info.get("integrity_failed"):
+        license_data["integrity_failed"] = True
+
+    next_tier_name = None
+    missing_features: list[str] = []
+    if tier != EntitlementTier.ENTERPRISE:
+        next_tier = EntitlementTier(tier.value + 1)
+        next_tier_name = next_tier.name
+        missing_features = checker.list_missing(next_tier)
+
+    features_data = checker.list_features()
+
+    result = {
+        "license": license_data,
+        "trial": {
+            "activated": trial["activated"],
+            "active": trial["active"],
+            "expired": trial["expired"],
+            "remaining_days": trial.get("remaining_days"),
+            "elapsed_days": trial.get("elapsed_days"),
+        },
+        "features": {
+            "available": len(features_data),
+            "tier": tier.name,
+            "next_tier": next_tier_name,
+            "missing": missing_features[:10] if missing_features else [],
+        },
+        "seats": {
+            "used": state.seats_used,
+            "limit": state.seats_limit,
+            "available": state.seats_available,
+            "at_limit": state.is_at_limit,
+        },
+    }
+
+    if as_json:
+        click.echo(_json.dumps(result, indent=2, default=str))
+        return
+
+    # --- Formatted output ---
+
+    click.echo("Cutctx License Status")
+    click.echo("=" * 50)
+
+    # License info (with HMAC integrity verification)
+    if license_info.get("status") == "unknown" and license_info.get("integrity_failed"):
+        click.echo("  License:    Unknown (integrity check failed — file may be tampered)")
+    elif license_info.get("status") == "active":
+        click.echo("  License:    Active")
+        click.echo(f"  Plan:       {tier.name} ({plan})")
+        click.echo(f"  Status:     {license_info.get('status')}")
+        click.echo(f"  Org:        {license_info.get('org_name')}")
+        if license_info.get("org_id"):
+            click.echo(f"  Org ID:     {license_info.get('org_id')}")
+        click.echo(f"  Validated:  {license_info.get('validated_at')}")
+    elif license_info.get("status") == "corrupt":
+        click.echo("  License:    Unknown (corrupt cache)")
     else:
         click.echo("  License:    None (using free tier)")
-        plan = "builder"
 
     # Trial info
     click.echo("")
     click.echo("Trial Status")
     click.echo("-" * 50)
-    tm = TrialManager()
-    trial = tm.check_trial()
     if trial["activated"]:
         click.echo("  Status:     Activated (paid license)")
     elif trial["active"]:
@@ -201,12 +281,9 @@ def status() -> None:
     click.echo("")
     click.echo("Available Features")
     click.echo("-" * 50)
-    checker = EntitlementChecker(plan)
-    features = checker.list_features()
-    click.echo(f"  {len(features)} features available")
+    click.echo(f"  {len(features_data)} features available")
 
     # Show missing features for next tier
-    tier = EntitlementTier.from_str(plan)
     if tier != EntitlementTier.ENTERPRISE:
         next_tier = EntitlementTier(tier.value + 1)
         missing = checker.list_missing(next_tier)
@@ -221,8 +298,6 @@ def status() -> None:
     click.echo("")
     click.echo("Seat Usage")
     click.echo("-" * 50)
-    sm = SeatManager()
-    state = sm.state
     click.echo(f"  Used:       {state.seats_used}/{state.seats_limit}")
     click.echo(f"  Available:  {state.seats_available}")
 

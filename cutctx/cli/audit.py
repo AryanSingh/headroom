@@ -31,7 +31,8 @@ def audit() -> None:
 @click.option("--actor", help="Filter by actor")
 @click.option("--limit", "-n", default=20, help="Max events to show")
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
-def list_events(action: str | None, actor: str | None, limit: int, admin_key: str | None) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output raw JSON.")
+def list_events(action: str | None, actor: str | None, limit: int, admin_key: str | None, as_json: bool = False) -> None:
     """List recent audit events."""
     try:
         params = f"?limit={limit}"
@@ -47,6 +48,9 @@ def list_events(action: str | None, actor: str | None, limit: int, admin_key: st
         r.raise_for_status()
         data = r.json()
         events = data.get("events", [])
+        if as_json:
+            click.echo(json.dumps(events, indent=2, default=str))
+            return
         if not events:
             click.echo("No audit events found.")
             return
@@ -100,7 +104,8 @@ def export_events(
 
 @audit.command("stats")
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
-def audit_stats(admin_key: str | None) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output raw JSON.")
+def audit_stats(admin_key: str | None, as_json: bool = False) -> None:
     """Show audit log statistics."""
     try:
         r = httpx.get(
@@ -111,14 +116,21 @@ def audit_stats(admin_key: str | None) -> None:
         r.raise_for_status()
         data = r.json()
         events = data.get("events", [])
+        by_action: dict[str, int] = {}
+        for e in events:
+            a = e.get("action", "unknown")
+            by_action[a] = by_action.get(a, 0) + 1
+        result = {
+            "total": len(events),
+            "by_action": dict(sorted(by_action.items(), key=lambda x: -x[1])),
+        }
+        if as_json:
+            click.echo(json.dumps(result, indent=2, default=str))
+            return
         click.echo(f"Total events loaded: {len(events)}")
-        if events:
-            by_action: dict[str, int] = {}
-            for e in events:
-                a = e.get("action", "unknown")
-                by_action[a] = by_action.get(a, 0) + 1
+        if by_action:
             click.echo("\nBy action:")
-            for a, count in sorted(by_action.items(), key=lambda x: -x[1]):
+            for a, count in result["by_action"].items():
                 click.echo(f"  {a}: {count}")
     except Exception as e:
         click.echo(f"Error: {e}")

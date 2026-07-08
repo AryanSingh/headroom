@@ -19,21 +19,16 @@ import pytest
 class TestBudgetTrackerPipeline:
     """Tests that BudgetTracker is correctly used in the streaming pipeline."""
 
-    def test_budget_config_from_env(self):
+    def test_budget_config_from_env(self, monkeypatch):
         from cutctx.proxy.budget import BudgetConfig
 
-        os.environ["CUTCTX_BUDGET_ENABLED"] = "1"
-        os.environ["CUTCTX_BUDGET_TOKENS"] = "5000"
-        os.environ["CUTCTX_BUDGET_USD"] = "0.10"
-        try:
-            cfg = BudgetConfig.from_env()
-            assert cfg.enabled is True
-            assert cfg.default_budget_tokens == 5000
-            assert cfg.default_budget_usd == 0.10
-        finally:
-            os.environ.pop("CUTCTX_BUDGET_ENABLED", None)
-            os.environ.pop("CUTCTX_BUDGET_TOKENS", None)
-            os.environ.pop("CUTCTX_BUDGET_USD", None)
+        monkeypatch.setenv("CUTCTX_BUDGET_ENABLED", "1")
+        monkeypatch.setenv("CUTCTX_BUDGET_TOKENS", "5000")
+        monkeypatch.setenv("CUTCTX_BUDGET_USD", "0.10")
+        cfg = BudgetConfig.from_env()
+        assert cfg.enabled is True
+        assert cfg.default_budget_tokens == 5000
+        assert cfg.default_budget_usd == 0.10
 
     def test_budget_tracker_warning_at_threshold(self):
         from cutctx.proxy.budget import BudgetConfig, BudgetTracker
@@ -228,21 +223,16 @@ class TestEnsemblePipeline:
             )
 
     @pytest.mark.asyncio
-    async def test_ensemble_config_from_env(self):
-        os.environ["CUTCTX_ENSEMBLE_ENABLED"] = "1"
-        os.environ["CUTCTX_ENSEMBLE_EVALUATOR_MODEL"] = "gpt-4o-mini"
-        os.environ["CUTCTX_ENSEMBLE_TIMEOUT"] = "30"
-        try:
-            from cutctx.proxy.ensemble import EnsembleConfig
+    async def test_ensemble_config_from_env(self, monkeypatch):
+        monkeypatch.setenv("CUTCTX_ENSEMBLE_ENABLED", "1")
+        monkeypatch.setenv("CUTCTX_ENSEMBLE_EVALUATOR_MODEL", "gpt-4o-mini")
+        monkeypatch.setenv("CUTCTX_ENSEMBLE_TIMEOUT", "30")
+        from cutctx.proxy.ensemble import EnsembleConfig
 
-            cfg = EnsembleConfig.from_env()
-            assert cfg.enabled is True
-            assert cfg.evaluator_model == "gpt-4o-mini"
-            assert cfg.timeout_seconds == 30.0
-        finally:
-            os.environ.pop("CUTCTX_ENSEMBLE_ENABLED", None)
-            os.environ.pop("CUTCTX_ENSEMBLE_EVALUATOR_MODEL", None)
-            os.environ.pop("CUTCTX_ENSEMBLE_TIMEOUT", None)
+        cfg = EnsembleConfig.from_env()
+        assert cfg.enabled is True
+        assert cfg.evaluator_model == "gpt-4o-mini"
+        assert cfg.timeout_seconds == 30.0
 
     def test_model_result_creation(self):
         from cutctx.proxy.ensemble import ModelResult
