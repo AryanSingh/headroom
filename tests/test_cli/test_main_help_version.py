@@ -77,3 +77,12 @@ def test_proxy_help_mentions_learned_policies_flag() -> None:
     assert result.exit_code == 0, result.output
     assert "--enable-learned-policies" in result.output
     assert "CUTCTX_LEARNED_POLICIES" in result.output
+
+
+def test_proxy_help_mentions_model_routing_preset_flag() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["proxy", "-?"])
+
+    assert result.exit_code == 0, result.output
+    assert "--model-routing-preset" in result.output
+    assert "CUTCTX_MODEL_ROUTING_PRESET" in result.output

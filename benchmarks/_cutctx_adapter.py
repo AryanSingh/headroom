@@ -61,7 +61,13 @@ def compress_text_with_cutctx(
     from cutctx.transforms.content_router import ContentRouterConfig
 
     start = time.perf_counter()
-    router = ContentRouter(ContentRouterConfig(use_llmlingua=True))
+    router = ContentRouter(
+        ContentRouterConfig(
+            enable_kompress=True,
+            smart_crusher_max_items_after_crush=8,
+            smart_crusher_with_compaction=False,
+        )
+    )
     result = router.compress(text)
     latency_ms = (time.perf_counter() - start) * 1000
     return result.compressed, latency_ms

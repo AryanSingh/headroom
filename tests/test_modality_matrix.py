@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+_TEST_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _TEST_ROOT.parent
+
 
 def test_log_compressor_importable() -> None:
     mod = importlib.import_module("cutctx.transforms.log_compressor")
@@ -79,7 +82,7 @@ def test_feature_availability_snapshot_structure() -> None:
         "code_ast",
         "audio",
     }
-    server_src = Path("cutctx/proxy/server.py").read_text()
+    server_src = (_PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
     for key in required_keys:
         assert f'"{key}"' in server_src, (
             f"feature_availability snapshot missing key {key!r} in cutctx/proxy/server.py"
@@ -88,7 +91,7 @@ def test_feature_availability_snapshot_structure() -> None:
 
 def test_audio_route_modality_is_passthrough() -> None:
     """Dedicated audio routes stay pass-through for fidelity."""
-    server_src = Path("cutctx/proxy/server.py").read_text()
+    server_src = (_PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
     assert "pass-through" in server_src, (
         "Audio must be documented as pass-through in _feature_availability_snapshot(). "
         "We proxy /v1/audio/* routes without token compression."
@@ -97,27 +100,27 @@ def test_audio_route_modality_is_passthrough() -> None:
 
 def test_audio_proxy_routes_present() -> None:
     """The proxy exposes /v1/audio/* pass-through routes."""
-    routes_src = Path("cutctx/providers/proxy_routes.py").read_text()
+    routes_src = (_PROJECT_ROOT / "cutctx/providers/proxy_routes.py").read_text()
     assert "/v1/audio/transcriptions" in routes_src
     assert "/v1/audio/speech" in routes_src
 
 
 def test_enterprise_doc_matches_audio_surface_claim() -> None:
     """Public enterprise docs should distinguish inline audio from audio routes."""
-    enterprise_doc = Path("docs/enterprise.html").read_text()
+    enterprise_doc = (_PROJECT_ROOT / "docs/enterprise.html").read_text()
     assert "inline WAV optimization" in enterprise_doc
     assert "audio routes pass-through" in enterprise_doc
 
 
 def test_pyproject_has_recommended_extra() -> None:
-    toml = Path("pyproject.toml").read_text()
+    toml = (_PROJECT_ROOT / "pyproject.toml").read_text()
     assert "recommended" in toml, (
         "pyproject.toml must define a [recommended] extras group for production installs"
     )
 
 
 def test_pyproject_has_full_extra() -> None:
-    toml = Path("pyproject.toml").read_text()
+    toml = (_PROJECT_ROOT / "pyproject.toml").read_text()
     assert "full" in toml, (
         "pyproject.toml must define a [full] extras group for complete production installs"
     )

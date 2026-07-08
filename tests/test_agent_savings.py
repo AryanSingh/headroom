@@ -9,6 +9,7 @@ from click.testing import CliRunner
 
 from cutctx.agent_savings import (
     AGENT_90_PROFILE,
+    MAX_SAVINGS_PROFILE,
     apply_agent_savings_env_defaults,
     apply_agent_savings_profile,
     get_agent_savings_profile,
@@ -79,6 +80,19 @@ def test_agent_savings_env_defaults_preserve_user_overrides() -> None:
 def test_unknown_agent_savings_profile_lists_valid_profiles() -> None:
     with pytest.raises(ValueError, match="agent-90"):
         get_agent_savings_profile("missing")
+
+
+def test_max_savings_profile_aliases_resolve_to_aggressive_policy() -> None:
+    hyphen = get_agent_savings_profile(MAX_SAVINGS_PROFILE)
+    underscore = get_agent_savings_profile("max_savings")
+
+    assert hyphen.name == "max-savings"
+    assert underscore.name == "max-savings"
+    assert hyphen.compress_user_messages is True
+    assert hyphen.compress_system_messages is True
+    assert hyphen.protect_recent == 0
+    assert hyphen.protect_analysis_context is False
+    assert hyphen.target_ratio == 0.10
 
 
 def test_with_target_savings_recomputes_target_ratio() -> None:

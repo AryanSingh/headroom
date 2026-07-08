@@ -1689,6 +1689,11 @@ def create_admin_router(
         "log_template_mining_enabled": "CUTCTX_LOG_TEMPLATE_MINING_ENABLED",
         "audit_enabled": "CUTCTX_AUDIT_DISABLED=0",
     }
+    _FLAG_ENTITLEMENTS = {
+        "shared_context_enabled": "cross_agent_memory",
+        "episodic_memory_enabled": "episodic_memory",
+        "audit_enabled": "audit_logs",
+    }
 
     def _normalize_flag_key(key: str) -> str:
         return _LEGACY_FLAG_ALIASES.get(key, key)
@@ -1759,14 +1764,21 @@ def create_admin_router(
     def _apply_orchestrator_toggle(value: bool) -> None:
         _set_flag_on_config("orchestrator", value)
         model_router = getattr(_proxy, "_model_router", None)
-        if model_router is None:
-            try:
-                from cutctx.proxy.model_router import ModelRouter
+        try:
+            from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
+            preset = getattr(_config, "model_routing_preset", None)
+            preset_config = ModelRouterConfig.from_preset_name(preset)
+            if preset_config is not None:
+                preset_config.enabled = value
+                _proxy._model_router = ModelRouter(config=preset_config)
+                return
+
+            if model_router is None:
                 model_router = ModelRouter()
                 _proxy._model_router = model_router
-            except Exception:
-                model_router = None
+        except Exception:
+            model_router = None
         if model_router is not None and getattr(model_router, "config", None) is not None:
             model_router.config.enabled = value
 
@@ -1792,7 +1804,7 @@ def create_admin_router(
         "/config/flags",
         dependencies=[_Dep(require_admin_auth)],
     )
-    async def set_config_flags(body: dict):
+    async def set_config_flags(body: dict, request: Request):
         """
         Toggle feature flags for the dashboard.
 
@@ -1817,6 +1829,10 @@ def create_admin_router(
         for raw_key, value in body.items():
             key = _normalize_flag_key(raw_key)
             enabled = bool(value)
+
+            entitlement_feature = _FLAG_ENTITLEMENTS.get(key)
+            if entitlement_feature is not None:
+                await require_entitlement(entitlement_feature)(request)
 
             if key in _LIVE_TOGGLE_KEYS:
                 if key in runtime_keys:

@@ -272,6 +272,16 @@ Requires `CUTCTX_LICENSE_HMAC_SECRET` to be set. Models pre-downloaded via `HF_H
 | OpenClaw | ✅ | Installs as ContextEngine plugin |
 | Any OpenAI-compatible client | ✅ | via `cutctx proxy` |
 
+### Model Routing Preset
+
+For agent-facing setups, the canonical preset is `codex-gpt54mini-high`.
+
+- Compatibility aliases: `codex-opencode-slim`, `oh-my-opencode-slim`
+- Low-complexity GPT tasks route to `gpt-5.4-mini` with `reasoning.effort = high`
+- Heavier tasks stay on the requested model
+
+See `docs/content/docs/model-routing-presets.mdx` for the full routing table and implementation pointers.
+
 ### LLM Providers
 
 Works with any provider via the proxy:
@@ -673,15 +683,16 @@ Monthly billing available at 20% premium over annual.
 
 Target 10–20% of measurable annual customer value. If Cutctx saves $60k/year, $18k/year pricing (30%) is aggressive but fair for early lighthouse accounts.
 
-### Savings Attribution (5 Independent Sources)
+### Savings Attribution (6 Independent Sources)
 
-Cutctx never double-counts. Savings are attributed to exactly one of five sources:
+Cutctx never double-counts. Savings are attributed to exactly one of six sources:
 
 1. **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`
 2. **Cutctx compression** — tokens removed by the compression pipeline
-3. **Semantic cache** — prior near-duplicate request served from response cache
-4. **Self-hosted prefix cache** — vLLM Automatic Prefix Caching
-5. **Model routing** — cheaper model served instead of requested model
+3. **RTK CLI filtering** — tokens avoided before the proxy by command-side filtering such as RTK or lean-ctx
+4. **Semantic cache** — prior near-duplicate request served from response cache
+5. **Self-hosted prefix cache** — vLLM Automatic Prefix Caching
+6. **Model routing** — cheaper model served instead of requested model
 
 A buyer who already uses Anthropic prompt caching sees that on line 1, and Cutctx on line 2. They are independent, not redundant.
 

@@ -40,8 +40,32 @@ except ImportError:
 
 
 import json
+import logging
+import shutil
 import tempfile
+
+import pytest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_cutctx_logger():
+    """Restore cutctx logger propagation and remove file handlers after
+    every test.
+
+    Several proxy lifecycle paths call ``_setup_file_logging()`` which
+    sets ``cutctx_logger.propagate = False`` and adds a
+    ``RotatingFileHandler``. This prevents caplog from capturing
+    ``cutctx.*`` log records (caplog attaches handlers to the root
+    logger). This fixture ensures clean logger state for every test.
+    """
+    yield
+    cutctx_logger = logging.getLogger("cutctx")
+    cutctx_logger.propagate = True
+    for handler in list(cutctx_logger.handlers):
+        if "RotatingFile" in type(handler).__name__:
+            cutctx_logger.removeHandler(handler)
+            handler.close()
 

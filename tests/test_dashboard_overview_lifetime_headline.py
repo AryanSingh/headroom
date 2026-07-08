@@ -10,6 +10,9 @@ import pytest
 
 from cutctx.dashboard import get_dashboard_html
 
+_TEST_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _TEST_ROOT.parent
+
 playwright = pytest.importorskip("playwright.sync_api")
 Page = playwright.Page
 expect = playwright.expect
@@ -83,10 +86,22 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
-def _install_dashboard_routes(page: Page, stats_override: dict | None = None) -> None:
+def _install_dashboard_routes(
+    page: Page,
+    stats_override: dict | None = None,
+    history_override: dict | None = None,
+) -> None:
     dashboard_html = get_dashboard_html(prefer_react=True)
-    root_dir = Path(__file__).parent.parent
+    root_dir = _PROJECT_ROOT
     mock_stats = _deep_merge(BASE_STATS, stats_override or {})
+    mock_history = {
+        "schema_version": 3,
+        "history": [],
+        "series": {},
+        "history_summary": {},
+    }
+    if history_override:
+        mock_history = _deep_merge(mock_history, history_override)
 
     def handler(route) -> None:  # type: ignore[no-untyped-def]
         url = route.request.url
@@ -127,14 +142,7 @@ def _install_dashboard_routes(page: Page, stats_override: dict | None = None) ->
             route.fulfill(
                 status=200,
                 content_type="application/json",
-                body=json.dumps(
-                    {
-                        "schema_version": 3,
-                        "history": [],
-                        "series": {},
-                        "history_summary": {},
-                    }
-                ),
+                body=json.dumps(mock_history),
             )
             return
 
@@ -239,5 +247,46 @@ def test_overview_prefers_session_money_saved_when_session_exceeds_lifetime() ->
             expect(money_card).to_contain_text("$6.750")
             expect(money_card).to_contain_text("$8.000")
             expect(money_card).to_contain_text("$1.250")
+        finally:
+            browser.close()
+
+
+def test_overview_current_session_sums_display_session_money_saved() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1200})
+            _install_dashboard_routes(
+                page,
+                {
+                    "tokens": {
+                        "saved": 15_900_000,
+                        "total_before_compression": 54_266_211,
+                        "active_savings_percent": 29.3,
+                        "proxy_savings_percent": 10.0,
+                    },
+                    "requests": {"total": 1_732},
+                },
+                {
+                    "display_session": {
+                        "requests": 1_732,
+                        "tokens_saved": 15_900_000,
+                        "total_input_tokens": 54_266_211,
+                        "compression_savings_usd": 12.34,
+                        "cache_savings_usd": 5.67,
+                        "model_routing_savings_usd": 1.25,
+                    }
+                },
+            )
+
+            page.goto("http://cutctx.local/dashboard")
+            page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="Current Session").click()
+
+            money_card = page.locator("article").filter(
+                has=page.get_by_text("Money saved", exact=True)
+            )
+            expect(money_card).to_contain_text("$19.26")
+            expect(money_card).to_contain_text("Current proxy-session savings")
         finally:
             browser.close()

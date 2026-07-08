@@ -369,7 +369,7 @@ class TestStreamingRatelimitHeaderForwarding:
         assert "event: error" in raw
         error_data = json.loads(raw.split("data: ")[1].strip())
         assert error_data["error"]["type"] == "connection_error"
-        assert "Connection refused" in error_data["error"]["message"]
+        assert "Failed to connect" in error_data["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_connect_timeout_retries_before_returning_stream(self):

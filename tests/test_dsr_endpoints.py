@@ -60,7 +60,11 @@ def test_dsr_delete_no_user_id_returns_400(client: TestClient) -> None:
     r = client.post("/v1/dsr/delete", json={}, headers=_auth_headers())
     assert r.status_code in (400, 422)
     if r.status_code == 400:
-        assert "user_id" in r.json()["detail"]
+        detail = r.json().get("detail", r.json().get("error", {}))
+        if isinstance(detail, str):
+            assert "user_id" in detail
+        elif isinstance(detail, dict):
+            assert "user_id" in str(detail)
     else:
         # 422: Pydantic body validation rejected the empty body.
         assert "user_id" in str(r.json())

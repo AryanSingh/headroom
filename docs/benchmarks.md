@@ -11,13 +11,17 @@ Use it to report:
 
 - Tokens saved.
 - Compression ratio.
-- F1 / information recall.
+- F1 / information recall. For corpora without labels, `benchmarks/compare.py`
+  reports unique-token recall and a quality-at-budget proxy
+  (`compression_ratio * unique_token_recall`).
 - Latency.
 - Accepted/rejected decision outcome.
-- Whether savings came from Cutctx or provider-native cache behavior.
+- Whether savings came from Cutctx, RTK command filtering, model routing, or
+  provider-native cache behavior.
 
-Provider-native prompt caching and compaction are complementary. They should
-not be mixed into one undifferentiated savings number with Cutctx compression.
+Provider-native prompt caching, RTK command filtering, model routing, and
+Cutctx compression are complementary. Do not mix them into one
+undifferentiated Cutctx compression number.
 
 ## Fresh Local Verification
 
@@ -75,6 +79,9 @@ What we can support from current evidence:
 - Cutctx delivers meaningful token reduction on structured agent context.
 - Cutctx has first-class proxy, wrap, CCR retrieval, observability, and dashboard integration.
 - Cutctx can compete on compression while using a much smaller reported model artifact than LLMLingua2 in the local comparison harness.
+- Cutctx is strongest as a local, reversible, cross-provider agent-context
+  control plane with separate attribution for `rtk_cli_filtering`,
+  `cutctx_compression`, cache savings, and model routing.
 
 What we should avoid claiming without broader runs:
 - "Best in market" across every workload

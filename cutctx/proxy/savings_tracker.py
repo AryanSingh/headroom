@@ -113,6 +113,7 @@ PERSISTED_SAVINGS_SOURCES = (
     "semantic_cache",
     "prefix_cache_self_hosted",
     "model_routing",
+    "rtk_cli_filtering",
     "normalization",
     "memoization",
     "output_optimization",
@@ -558,6 +559,7 @@ def _empty_display_session() -> dict[str, Any]:
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
         "savings_percent": 0.0,
+        "total_savings_usd": 0.0,
         "started_at": None,
         "last_activity_at": None,
     }
@@ -703,11 +705,17 @@ def _normalize_display_session(entry: Any) -> dict[str, Any]:
             _coerce_float(entry.get("compression_savings_usd")),
             6,
         ),
+        "compression_savings_observed_usd": round(
+            _coerce_float(entry.get("compression_savings_observed_usd")),
+            6,
+        ),
         "total_input_tokens": total_input_tokens,
         "total_input_cost_usd": round(
             _coerce_float(entry.get("total_input_cost_usd")),
             6,
         ),
+        "scaffolding_tokens": _coerce_int(entry.get("scaffolding_tokens")),
+        "ghost_tokens": _coerce_int(entry.get("ghost_tokens")),
         "savings_percent": savings_percent,
         "started_at": _to_utc_iso(started_at),
         "last_activity_at": _to_utc_iso(last_activity_at),
@@ -716,6 +724,18 @@ def _normalize_display_session(entry: Any) -> dict[str, Any]:
         value = round(_coerce_float(entry.get(field)), 6)
         if value > 0 or field in entry:
             session[field] = value
+    # Pre-compute total_savings_usd so the dashboard's session view
+    # (which reads durationData?.total_savings_usd) shows money saved
+    # instead of falling back to $0.
+    session["total_savings_usd"] = round(
+        sum(
+            _coerce_float(session.get(field))
+            for field in SESSION_SAVINGS_USD_FIELDS
+            if field.endswith("_usd") and not field.endswith("_observed_usd")
+        )
+        + _coerce_float(session.get("compression_savings_usd")),
+        4,
+    )
     return session
 
 
@@ -2023,25 +2043,7 @@ class SavingsTracker:
         ):
             return _empty_display_session()
 
-        total_before = max(
-            _coerce_int(session.get("tokens_saved")),
-            _coerce_int(session.get("total_input_tokens")),
-        )
-        session["savings_percent"] = round(
-            (_coerce_int(session.get("tokens_saved")) / total_before * 100)
-            if total_before > 0
-            else 0.0,
-            2,
-        )
-        session["compression_savings_usd"] = round(
-            _coerce_float(session.get("compression_savings_usd")),
-            6,
-        )
-        session["total_input_cost_usd"] = round(
-            _coerce_float(session.get("total_input_cost_usd")),
-            6,
-        )
-        return session
+        return _normalize_display_session(session)
 
     def _is_display_session_expired(
         self,

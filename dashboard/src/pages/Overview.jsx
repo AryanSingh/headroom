@@ -25,7 +25,12 @@ import {
 } from '../lib/format';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 import { fetchPeriodStats } from '../lib/period-stats';
-import { LIFETIME_SAVINGS_SOURCES, sumSavingsUsd, sumSavingsObservedUsd } from '../lib/savings-sources';
+import {
+  getDurationSavingsUsd,
+  LIFETIME_SAVINGS_SOURCES,
+  sumSavingsUsd,
+  sumSavingsObservedUsd,
+} from '../lib/savings-sources';
 
 function SkeletonCard() {
   return (
@@ -227,6 +232,11 @@ const sourceUsd = {
 const costBreakdown = cost?.breakdown || {};
 const sessionTokens = stats?.tokens || {};
 const prefixTotals = stats?.prefix_cache?.totals || {};
+const cliFilteringLabel =
+  stats?.savings?.by_layer?.cli_filtering?.label
+  || stats?.context_tool?.label
+  || stats?.context_tool?.configured
+  || 'RTK / CLI filtering';
 
   const sessionCompression = Number(sessionTokens.proxy_compression_saved || 0);
   const sessionSchemaCompaction = Number(sessionTokens.schema_compaction_saved || 0);
@@ -266,9 +276,12 @@ usd: Math.max(
       session: sessionCacheRead,
     },
     {
-      key: 'cli_filtering',
-      label: 'CLI output filtering',
-      tokens: Math.max(Number(sourceTokens.cli_filtering || 0), sessionCliFiltering),
+      key: 'rtk_cli_filtering',
+      label: cliFilteringLabel,
+      tokens: Math.max(
+        Number(sourceTokens.rtk_cli_filtering || sourceTokens.cli_filtering || 0),
+        sessionCliFiltering,
+      ),
       // Estimated: RTK/lean-ctx run outside the request/response cycle, so
       // this isn't tied to one upstream request's exact price like the
       // other rows — see cli_filtering_savings_usd in the backend.
@@ -1861,7 +1874,14 @@ export default function Overview() {
   const tokensHeadline = isLifetimeMode ? pickHeadlineSource('tokens') : { tokens: durationData?.tokens_saved || 0 };
   const requestsHeadline = isLifetimeMode ? pickHeadlineSource('requests') : { requests: durationData?.requests || 0 };
   const inputHeadline = isLifetimeMode ? pickHeadlineSource('input') : { input: durationData?.total_input_tokens || 0 };
-  const savingsHeadline = isLifetimeMode ? pickHeadlineSource('savingsUsd') : { savingsUsd: durationData?.total_savings_usd || 0, savingsObservedUsd: durationData?.compression_savings_observed_usd || 0 };
+  const savingsHeadline = isLifetimeMode
+    ? pickHeadlineSource('savingsUsd')
+    : {
+        savingsUsd: getDurationSavingsUsd(durationData),
+        savingsObservedUsd:
+          sumSavingsObservedUsd(durationData)
+          || Number(durationData?.compression_savings_observed_usd || 0),
+      };
 
   const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
   const effectiveRequests = Number(requestsHeadline.requests || 0);
@@ -1873,7 +1893,6 @@ export default function Overview() {
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
   const effectiveSavingsUsd = Number(savingsHeadline.savingsUsd || 0);
-  const effectiveSavingsObservedUsd = Number(savingsHeadline.savingsObservedUsd || 0);
   
   const moneySavedFootnote = isLifetimeMode ? (
     savingsHeadline.key === 'session'
@@ -2046,11 +2065,7 @@ export default function Overview() {
             icon={Coins}
             iconColor="amber"
             label="Money saved"
-            value={
-              effectiveSavingsUsd > effectiveSavingsObservedUsd && effectiveSavingsObservedUsd > 0
-                ? `${formatCurrency(effectiveSavingsUsd)} (list) / ${formatCurrency(effectiveSavingsObservedUsd)} (observed)`
-                : formatCurrency(effectiveSavingsUsd)
-            }
+            value={formatCurrency(effectiveSavingsUsd)}
             footnote={moneySavedFootnote}
           />
         </div>
@@ -2085,7 +2100,7 @@ export default function Overview() {
               <div>
                 <div className="eyebrow">Attribution</div>
                 <h2>Where savings come from</h2>
-                <p>Compression, cache, routing, and optimization passes are split out so total savings stays legible.</p>
+                <p>Compression, cache, routing, and CLI filtering are split out so total savings stays legible.</p>
               </div>
             </div>
 
@@ -2105,6 +2120,10 @@ export default function Overview() {
                   <span>Direct compression: {formatInteger(directCompressionRow?.tokens || 0)} tokens</span>
                   <span>Tool schema: {formatInteger(toolSchemaRow?.tokens || 0)} tokens</span>
                   <span>Provider cache: {formatInteger(providerCacheRow?.tokens || 0)} tokens</span>
+                </div>
+
+                <div className="attribution-note">
+                  <span>CLI filtering stays separate from proxy compression so RTK savings do not inflate Cutctx compression totals.</span>
                 </div>
 
                 <div className="source-stack">

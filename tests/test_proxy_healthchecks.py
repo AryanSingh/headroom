@@ -161,12 +161,12 @@ def test_health_includes_deployment_metadata_when_present(monkeypatch):
     }
 
 
-def test_health_remains_200_when_proxy_is_not_ready(client):
+def test_health_returns_503_when_proxy_is_not_ready(client):
     client.app.state.ready = False
 
     response = client.get("/health")
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     assert response.json()["ready"] is False
 
 
@@ -317,7 +317,7 @@ def test_readyz_upstream_check_failure_returns_503(monkeypatch):
 
 
 def test_health_includes_upstream_check_result(monkeypatch):
-    """/health always returns 200 but exposes the upstream check result."""
+    """/health exposes the upstream check result alongside health status."""
     monkeypatch.setenv("CUTCTX_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,

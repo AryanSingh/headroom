@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, MinusCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { formatInteger, formatRelativeTime } from "../lib/format";
 import {
   fetchDashboardJson,
@@ -9,6 +10,7 @@ import {
 
 const GOVERNANCE_PATHS = {
   audit: "/audit/events",
+  entitlements: "/entitlements",
   rbac: "/rbac/roles",
 };
 
@@ -40,8 +42,7 @@ const FEATURE_CONFIG = [
     flagKey: "task_aware_enabled",
     label: "Task-aware compression",
     envVar: "CUTCTX_TASK_AWARE_ENABLED=1",
-    description:
-      "Modulate compression depth based on relevance to the active task.",
+    description: "Modulate compression depth based on relevance to the active task.",
     tier: "free",
     liveToggle: true,
     statPath: () => null,
@@ -82,21 +83,23 @@ const FEATURE_CONFIG = [
   {
     key: "shared_context",
     flagKey: "shared_context_enabled",
+    entitlementKey: "cross_agent_memory",
     label: "Cross-agent memory",
     envVar: "CUTCTX_SHARED_CONTEXT_ENABLED=1",
     description:
       "Share compressed context and cache hits across agents working in the same workspace.",
-    tier: "enterprise",
+    tier: "business",
     liveToggle: true,
     statPath: () => null,
   },
   {
     key: "episodic_memory",
     flagKey: "episodic_memory_enabled",
+    entitlementKey: "episodic_memory",
     label: "Episodic memory",
     envVar: "CUTCTX_EPISODIC_MEMORY_ENABLED=1",
     description: "Store and reinject project memories across sessions.",
-    tier: "enterprise",
+    tier: "business",
     liveToggle: true,
     statPath: (stats) => stats?.config?.memory,
   },
@@ -123,19 +126,32 @@ const FEATURE_CONFIG = [
     statPath: () => null,
   },
   {
+    key: "orchestrator",
+    flagKey: "orchestrator",
+    label: "Easy-task routing",
+    envVar: "CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high",
+    description:
+      "Send easy Codex tasks to GPT-5.4 mini and keep harder tasks on GPT-5.5.",
+    tier: "free",
+    liveToggle: true,
+    statPath: (stats) => stats?.config?.orchestrator,
+  },
+  {
     key: "audit",
     flagKey: "audit_enabled",
+    entitlementKey: "audit_logs",
     label: "Audit trail",
     envVar: "CUTCTX_AUDIT_DISABLED=0",
     description:
       "Persist admin and governance activity in an audit log. Restart required to fully apply changes.",
     tier: "enterprise",
     liveToggle: false,
-    statPath: () => null,
+    statPath: (_, sections) => sections?.audit?.ok || false,
   },
   {
     key: "rbac",
     flagKey: null,
+    entitlementKey: "rbac",
     label: "RBAC admin controls",
     envVar: "Enterprise entitlement required",
     description:
@@ -147,7 +163,7 @@ const FEATURE_CONFIG = [
 ];
 
 function emptySection() {
-  return { ok: false, data: null, error: "Loading…" };
+  return { ok: false, data: null, error: "Loading...", status: null };
 }
 
 function normalizeAssignments(rbacData) {
@@ -164,6 +180,45 @@ function normalizeAssignments(rbacData) {
   return [];
 }
 
+function titleCase(value) {
+  return String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getEntitlementEntry(feature, sections) {
+  if (!feature.entitlementKey) {
+    return null;
+  }
+  return sections?.entitlements?.data?.features?.[feature.entitlementKey] || null;
+}
+
+function getFeatureAvailability(feature, sections) {
+  const entitlement = getEntitlementEntry(feature, sections);
+  if (!entitlement) {
+    return null;
+  }
+  return Boolean(entitlement.available);
+}
+
+function getRequiredTierLabel(feature, sections) {
+  const entitlement = getEntitlementEntry(feature, sections);
+  return titleCase(entitlement?.required_tier || feature.tier);
+}
+
+function describeSectionStatus(section, sections) {
+  if (section.ok) {
+    return "Reachable";
+  }
+  if (section.status === 403) {
+    const tier = sections?.entitlements?.data?.current_tier;
+    return tier ? `Unavailable on ${tier} tier` : "Unavailable on current tier";
+  }
+  return section.error || "Unavailable";
+}
+
 function CopyButton({ text, label = "Copy to clipboard" }) {
   const [copied, setCopied] = useState(false);
 
@@ -178,22 +233,22 @@ function CopyButton({ text, label = "Copy to clipboard" }) {
     <button
       className="copy-btn"
       onClick={handleCopy}
-title="Copy to clipboard"
-aria-label={label}
-type="button"
+      title="Copy to clipboard"
+      aria-label={label}
+      type="button"
     >
       {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
     </button>
   );
 }
 
-function FeatureToggle({ enabled, onToggle, busy, label }) {
+function FeatureToggle({ enabled, onToggle, busy, disabled, label }) {
   return (
     <button
       className={`feature-toggle ${enabled ? "feature-toggle-on" : "feature-toggle-off"}`}
       onClick={onToggle}
-      disabled={busy}
-aria-label={label || (enabled ? "Disable feature" : "Enable feature")}
+      disabled={busy || disabled}
+      aria-label={label || (enabled ? "Disable feature" : "Enable feature")}
       type="button"
     >
       <span className="feature-toggle-knob" />
@@ -205,19 +260,15 @@ function resolveFeatureState(feature, stats, configFlags, liveFlags, sections) {
   if (!feature.flagKey) {
     return feature.statPath(stats, sections);
   }
-
   if (feature.flagKey in liveFlags) {
     return liveFlags[feature.flagKey];
   }
-
   if (configFlags?.live_toggleable?.[feature.flagKey]?.enabled != null) {
     return Boolean(configFlags.live_toggleable[feature.flagKey].enabled);
   }
-
   if (configFlags?.restart_required?.[feature.flagKey]?.enabled != null) {
     return Boolean(configFlags.restart_required[feature.flagKey].enabled);
   }
-
   return feature.statPath(stats, sections);
 }
 
@@ -242,53 +293,58 @@ function FeatureRow({
   onToggle,
   toggleBusy,
 }) {
-  const isActive = resolveFeatureState(
-    feature,
-    stats,
-    configFlags,
-    liveFlags,
-    sections,
-  );
+  const isActive = resolveFeatureState(feature, stats, configFlags, liveFlags, sections);
+  const availability = getFeatureAvailability(feature, sections);
+  const requiredTier = getRequiredTierLabel(feature, sections);
   const toggleable = Boolean(feature.flagKey);
+  const locked = availability === false;
+  const statusText = locked
+    ? "Unavailable"
+    : isActive === true
+      ? "Active"
+      : isActive === false
+        ? "Inactive"
+        : null;
 
   return (
     <div className="feature-config-row">
       <div className="feature-config-main">
         <div className="feature-config-header">
           <span className="feature-config-name">{feature.label}</span>
-          {feature.tier === "enterprise" ? (
-            <span className="tier-badge tier-enterprise">Enterprise</span>
+          {feature.tier !== "free" ? (
+            <span className="tier-badge tier-enterprise">{titleCase(feature.tier)}</span>
           ) : null}
           {toggleable && !feature.liveToggle ? (
             <span className="tier-badge tier-restart">
               <RefreshCw size={10} /> Restart required
             </span>
           ) : null}
-          {isActive === true ? (
-            <span className="status-active">
-              <CheckCircle2 size={12} /> Active
-            </span>
-          ) : isActive === false ? (
-            <span className="status-inactive">
-              <MinusCircle size={12} /> Inactive
+          {statusText ? (
+            <span className={locked || isActive === false ? "status-inactive" : "status-active"}>
+              {locked || isActive === false ? <MinusCircle size={12} /> : <CheckCircle2 size={12} />}
+              {statusText}
             </span>
           ) : null}
         </div>
         <p className="feature-config-desc">{feature.description}</p>
+        {locked ? (
+          <p className="feature-config-desc">Available on {requiredTier} tier.</p>
+        ) : null}
       </div>
 
       <div className="feature-config-controls">
         {toggleable ? (
           <>
             <FeatureToggle
-              enabled={Boolean(isActive)}
+              enabled={!locked && Boolean(isActive)}
               onToggle={() => onToggle(feature.flagKey, !isActive)}
-busy={toggleBusy === feature.flagKey}
-label={`${isActive ? "Disable" : "Enable"} ${feature.label}`}
-/>
+              busy={toggleBusy === feature.flagKey}
+              disabled={locked}
+              label={`${isActive ? "Disable" : "Enable"} ${feature.label}`}
+            />
             <div className="feature-config-env">
               <code>{feature.envVar}</code>
-<CopyButton text={feature.envVar} label={`Copy ${feature.envVar}`} />
+              <CopyButton text={feature.envVar} label={`Copy ${feature.envVar}`} />
             </div>
           </>
         ) : (
@@ -304,40 +360,42 @@ label={`${isActive ? "Disable" : "Enable"} ${feature.label}`}
 export default function Governance({ searchQuery = "" }) {
   const {
     stats,
+    health,
     loading: statsLoading,
     configFlags,
     configFlagsError,
     refresh,
   } = useDashboardData();
+
   const [sections, setSections] = useState({
     audit: emptySection(),
+    entitlements: emptySection(),
     rbac: emptySection(),
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveFlags, setLiveFlags] = useState({});
   const [toggleBusy, setToggleBusy] = useState(null);
+
   const configLiveFlags = useMemo(() => {
     if (!configFlags) {
       return {};
     }
 
     const next = {};
-
     for (const [key, value] of Object.entries(configFlags.live_toggleable || {})) {
       if (value?.enabled != null) {
         next[key] = Boolean(value.enabled);
       }
     }
-
     for (const [key, value] of Object.entries(configFlags.restart_required || {})) {
       if (value?.enabled != null) {
         next[key] = Boolean(value.enabled);
       }
     }
-
     return next;
   }, [configFlags]);
+
   const effectiveLiveFlags = { ...configLiveFlags, ...liveFlags };
 
   useEffect(() => {
@@ -348,7 +406,7 @@ export default function Governance({ searchQuery = "" }) {
         Object.entries(GOVERNANCE_PATHS).map(async ([key, path]) => {
           try {
             const data = await fetchDashboardJson(path);
-            return [key, { ok: true, data, error: null }];
+            return [key, { ok: true, data, error: null, status: 200 }];
           } catch (error) {
             return [
               key,
@@ -356,6 +414,7 @@ export default function Governance({ searchQuery = "" }) {
                 ok: false,
                 data: null,
                 error: error?.message || String(error),
+                status: error?.status ?? null,
               },
             ];
           }
@@ -404,14 +463,27 @@ export default function Governance({ searchQuery = "" }) {
     () => normalizeAssignments(sections.rbac.data),
     [sections.rbac.data],
   );
+
   const failedSections = Object.entries(sections).filter(
-    ([, section]) => !section.ok && !loading,
+    ([key, section]) => key !== "entitlements" && !section.ok && section.status !== 403 && !loading,
   );
+
   const rateLimiter = stats?.rate_limiter || null;
+  const rateLimiterHealth = health?.checks?.rate_limiter || null;
   const rateLimitEnabled =
     stats?.config?.rate_limiter ??
     configFlags?.restart_required?.rate_limit_enabled?.enabled ??
     false;
+  const rateLimitStatusLabel = rateLimitEnabled
+    ? rateLimiter
+      ? "Active"
+      : "Configured"
+    : "Inactive";
+  const rateLimitSummary = rateLimitEnabled
+    ? rateLimiter
+      ? "Token-bucket throttling is active and reporting live metrics."
+      : "Rate limiting is enabled, but this proxy is not exposing live limiter metrics on /stats."
+    : "Rate limiting is not enabled yet.";
   const query = searchQuery.trim().toLowerCase();
   const filteredFeatures = FEATURE_CONFIG.filter((feature) => {
     if (!query) {
@@ -427,15 +499,13 @@ export default function Governance({ searchQuery = "" }) {
     <section className="page-stack">
       {failedSections.length > 0 ? (
         <div className="alert-card" role="alert">
-          Some governance surfaces could not be reached:{" "}
-          {failedSections.map(([key]) => key).join(", ")}.
+          Some governance surfaces could not be reached: {failedSections.map(([key]) => key).join(", ")}.
         </div>
       ) : null}
 
       {configFlagsError ? (
         <div className="alert-card" role="status">
-          Runtime config API unavailable: {configFlagsError}. Dashboard toggles
-          only work once the backend exposes config flag routes.
+          Runtime config API unavailable: {configFlagsError}. Dashboard toggles only work once the backend exposes config flag routes.
         </div>
       ) : null}
 
@@ -445,38 +515,32 @@ export default function Governance({ searchQuery = "" }) {
             <div className="eyebrow">Live control</div>
             <h2>Rate limiting</h2>
           </div>
-          <p>
-            {rateLimitEnabled
-              ? "Token-bucket throttling configured."
-              : "Rate limiting is not enabled yet."}
-          </p>
+          <p>{rateLimitSummary}</p>
         </div>
 
         <div className="metric-grid metric-grid-four" aria-busy={statsLoading}>
           <article className="metric-card metric-card-compact">
             <div className="metric-label">Status</div>
-            <div className="metric-value">
-              {rateLimitEnabled ? "Active" : "Inactive"}
-            </div>
+            <div className="metric-value">{rateLimitStatusLabel}</div>
             <div className="metric-footnote">
-              Dashboard toggle updates config. Restart may still be required.
+              {rateLimiter
+                ? "Dashboard toggle updates config. Restart may still be required."
+                : rateLimiterHealth?.ready
+                  ? "Health checks report the limiter is loaded, but /stats has no live limiter payload."
+                  : "Dashboard toggle updates config. Restart may still be required."}
             </div>
           </article>
 
           <article className="metric-card metric-card-compact">
             <div className="metric-label">Active keys</div>
-            <div className="metric-value">
-              {formatInteger(rateLimiter?.active_keys || 0)}
-            </div>
+            <div className="metric-value">{formatInteger(rateLimiter?.active_keys || 0)}</div>
             <div className="metric-footnote">Keys with live rate state</div>
           </article>
 
           <article className="metric-card metric-card-compact">
             <div className="metric-label">Token limit</div>
             <div className="metric-value">
-              {rateLimiter
-                ? formatInteger(rateLimiter.tokens_per_minute || 0)
-                : "—"}
+              {rateLimiter ? formatInteger(rateLimiter.tokens_per_minute || 0) : "-"}
             </div>
             <div className="metric-footnote">Tokens per minute per key</div>
           </article>
@@ -484,9 +548,7 @@ export default function Governance({ searchQuery = "" }) {
           <article className="metric-card metric-card-compact">
             <div className="metric-label">Request limit</div>
             <div className="metric-value">
-              {rateLimiter
-                ? formatInteger(rateLimiter.requests_per_minute || 0)
-                : "—"}
+              {rateLimiter ? formatInteger(rateLimiter.requests_per_minute || 0) : "-"}
             </div>
             <div className="metric-footnote">Requests per minute per key</div>
           </article>
@@ -500,9 +562,7 @@ export default function Governance({ searchQuery = "" }) {
             <h2>Enable optional features</h2>
           </div>
           <p>
-            Dashboard toggles write proxy config when supported. Some features
-            apply on the next request, while others need a restart to take
-            effect fully.
+            Dashboard toggles write proxy config when supported. Some features apply on the next request, while others need a restart to take full effect.
           </p>
         </div>
 
@@ -538,17 +598,11 @@ export default function Governance({ searchQuery = "" }) {
           <div className="graphify-kv-grid">
             <div className="graphify-kv">
               <span>Status</span>
-              <strong>
-                {sections.audit.ok
-                  ? "Reachable"
-                  : sections.audit.error || "Unavailable"}
-              </strong>
+              <strong>{describeSectionStatus(sections.audit, sections)}</strong>
             </div>
             <div className="graphify-kv">
               <span>Recent events</span>
-              <strong>
-                {formatInteger(sections.audit.data?.events?.length || 0)}
-              </strong>
+              <strong>{formatInteger(sections.audit.data?.events?.length || 0)}</strong>
             </div>
           </div>
         </section>
@@ -568,11 +622,7 @@ export default function Governance({ searchQuery = "" }) {
           <div className="graphify-kv-grid">
             <div className="graphify-kv">
               <span>Status</span>
-              <strong>
-                {sections.rbac.ok
-                  ? "Reachable"
-                  : sections.rbac.error || "Unavailable"}
-              </strong>
+              <strong>{describeSectionStatus(sections.rbac, sections)}</strong>
             </div>
             <div className="graphify-kv">
               <span>Assignments</span>

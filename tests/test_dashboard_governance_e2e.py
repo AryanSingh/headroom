@@ -29,7 +29,6 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
             or url.endswith("/dashboard")
             or url == "http://cutctx.local/"
         ):
-            # For react router SPA, we serve the same HTML
             route.fulfill(status=200, content_type="text/html", body=dashboard_html)
             return
 
@@ -37,7 +36,10 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
             from pathlib import Path
 
             root_dir = Path(__file__).parent.parent
-            asset_path = root_dir / "dashboard/dist" / url.split("cutctx.local/")[1]
+            asset_rel = url.split("cutctx.local/")[1]
+            if asset_rel.startswith("dashboard/"):
+                asset_rel = asset_rel[len("dashboard/") :]
+            asset_path = root_dir / "cutctx/dashboard" / asset_rel
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(
@@ -50,48 +52,90 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
 
         if "/stats" in url:
             route.fulfill(
-                status=200, content_type="application/json", body=json.dumps(stats_payload)
+                status=200,
+                content_type="application/json",
+                body=json.dumps(stats_payload),
             )
             return
 
         if "/health" in url:
             route.fulfill(
-                status=200, content_type="application/json", body=json.dumps({"status": "ok"})
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {"status": "ok", "checks": {"rate_limiter": {"ready": True}}}
+                ),
             )
             return
 
-        # Mock governance section endpoints
-        for endpoint in [
-            "/audit/events",
-            "/orgs",
-            "/quota",
-            "/rbac/roles",
-            "/retention",
-            "/subscription",
-        ]:
-            if endpoint in url:
-                key = endpoint.split("/")[-1]
-                if key == "events":
-                    key = "audit"
-                if key == "roles":
-                    key = "rbac"
+        if "/config/flags" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                "live_toggleable": {
+                            "orchestrator": {"enabled": True},
+                            "task_aware_enabled": {"enabled": False},
+                            "episodic_memory_enabled": {"enabled": False},
+                        },
+                        "restart_required": {
+                            "rate_limit_enabled": {"enabled": True},
+                            "audit_enabled": {"enabled": True},
+                        },
+                    }
+                ),
+            )
+            return
 
-                # Mock a 403 or 501 for enterprise stubs
-                if key in ["orgs", "quota", "retention", "subscription"]:
+        if "/entitlements" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "current_tier": "builder",
+                        "features": {
+                            "episodic_memory": {
+                                "available": False,
+                                "required_tier": "business",
+                            },
+                            "cross_agent_memory": {
+                                "available": False,
+                                "required_tier": "business",
+                            },
+                            "audit_logs": {
+                                "available": False,
+                                "required_tier": "enterprise",
+                            },
+                            "rbac": {
+                                "available": False,
+                                "required_tier": "enterprise",
+                            },
+                        },
+                    }
+                ),
+            )
+            return
+
+        for endpoint in ["/audit/events", "/rbac/roles"]:
+            if endpoint in url:
+                key = "audit" if endpoint.endswith("events") else "rbac"
+                section = sections_payload.get(key)
+                if section is None:
                     route.fulfill(
                         status=403,
                         content_type="application/json",
-                        body=json.dumps({"detail": "Enterprise feature"}),
+                        body=json.dumps({"detail": {"error": "feature_not_available"}}),
                     )
                 else:
                     route.fulfill(
                         status=200,
                         content_type="application/json",
-                        body=json.dumps(sections_payload.get(key, {})),
+                        body=json.dumps(section),
                     )
                 return
 
-        # fallback for everything else
         route.fulfill(status=404, body="Not Found")
 
     page.route("**/*", handler)
@@ -100,35 +144,47 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
 def test_governance_ui_e2e() -> None:
     stats = {
         "config": {
-            "rate_limit": True,
+            "orchestrator": True,
             "rate_limiter": True,
         },
-        "rate_limiter": {
-            "active_keys": 5,
-            "total_requests": 150,
-            "throttled_requests": 2,
-            "total_tokens": 50000,
-        },
+        "rate_limiter": None,
     }
-
-    sections = {"audit": {"logs": []}, "rbac": {"roles": []}}
+    sections = {"audit": None, "rbac": None}
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1720, "height": 1400}, color_scheme="dark")
 
         _install_dashboard_routes(page, stats, sections)
-
         page.goto("http://cutctx.local/dashboard/governance", wait_until="commit")
 
-        # Verify the section loaded
         expect(page.get_by_text("Rate limiting").first).to_be_visible(timeout=5000)
+        expect(page.get_by_text("Some governance surfaces could not be reached")).not_to_be_visible()
 
-        # Ensure the confusing error banner is suppressed!
-        expect(page.locator(".alert-card")).not_to_be_visible()
+        expect(page.locator(".metric-card").filter(has_text="Status")).to_contain_text(
+            "Configured"
+        )
+        expect(page.locator(".metric-card").filter(has_text="Token limit")).to_contain_text(
+            "-"
+        )
 
-        # Check rate limiter metrics
-        expect(page.locator(".metric-card").filter(has_text="Active keys")).to_contain_text("5")
-        expect(page.locator(".metric-card").filter(has_text="Request limit")).to_be_visible()
+        orchestrator_row = page.locator(".feature-config-row").filter(has_text="Easy-task routing")
+        expect(orchestrator_row).to_contain_text("Easy-task routing")
+        expect(orchestrator_row).to_contain_text("Send easy Codex tasks to GPT-5.4 mini and keep harder tasks on GPT-5.5.")
+        expect(orchestrator_row).to_contain_text("CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high")
+        expect(orchestrator_row.locator(".feature-toggle")).to_be_enabled()
+
+        episodic_row = page.locator(".feature-config-row").filter(has_text="Episodic memory")
+        expect(episodic_row).to_contain_text("Business")
+        expect(episodic_row).to_contain_text("Unavailable")
+        expect(episodic_row).to_contain_text("Available on Business tier")
+        expect(episodic_row.locator(".feature-toggle")).to_be_disabled()
+
+        audit_row = page.locator(".feature-config-row").filter(has_text="Audit trail")
+        expect(audit_row).to_contain_text("Unavailable")
+
+        expect(page.locator(".graphify-kv").filter(has_text="Status").first).to_contain_text(
+            "Unavailable on builder tier"
+        )
 
         browser.close()

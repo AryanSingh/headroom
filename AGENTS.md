@@ -43,3 +43,11 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 - For debugging, use raw command without rtk prefix
 - `rtk proxy <cmd>` runs command without filtering but tracks usage
 <!-- /cutctx:rtk-instructions -->
+
+## Project Notes
+
+- Model-routing preset docs live in `docs/content/docs/model-routing-presets.mdx`.
+- Canonical preset: `codex-gpt54mini-high`.
+- Compatibility aliases: `codex-opencode-slim`, `oh-my-opencode-slim`.
+- Low-complexity GPT tasks route to `gpt-5.4-mini` with `reasoning.effort = high`; heavier tasks stay on the requested model.
+- See `cutctx/proxy/model_router.py` and the OpenAI handler tests for implementation details.

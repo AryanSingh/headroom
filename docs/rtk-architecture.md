@@ -27,6 +27,10 @@ Both signals feed `wrap_rtk_invocations_total` and
 observability surface so a single `/metrics` scrape exposes the full
 picture).
 
+Dashboard/API attribution reports RTK as `rtk_cli_filtering`, separate from
+`cutctx_compression`, provider prompt cache savings, and model routing. This
+keeps shell-output filtering from inflating proxy compression savings.
+
 ## Proxy-side RTK was considered and rejected
 
 At Phase G scoping, three reviewers floated the idea of invoking

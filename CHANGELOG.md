@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Added a documented model-routing preset path for agent-facing setups: `codex-gpt54mini-high` now routes low-complexity GPT tasks to `gpt-5.4-mini` with `reasoning.effort = high`, while heavy work keeps the requested model; compatibility aliases `codex-opencode-slim` and `oh-my-opencode-slim` are documented in project guidance and docs.
 - EE audit-chain source and operator-facing docs now match the intended cryptographic contract again: `cutctx_ee/audit/store.py` now uses HMAC-SHA256 over canonical length-prefixed fields, residency/compliance/SOC2 docs were updated to the same framing, and the regression suite now guards the fixed contract instead of the old truthfulness workaround.
 - Development hygiene now catches accidental line-collapsed source/docs earlier: pre-commit wiring was normalized and a dependency-free `scripts/check_text_hygiene.py` hook guards editable Python, Markdown, YAML, TOML, and JSON files before heavier lint lanes run.
 - Dashboard packaged-asset sync now copies Vite hashed JS/CSS into the directory actually mounted by the proxy (`cutctx/dashboard/assets/assets`), preventing stale bundled dashboard assets after `make build-dashboard`.

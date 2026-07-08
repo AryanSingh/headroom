@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -75,6 +76,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_./:-]*|\d+(?:\.\d+)?")
+
+
+def _unique_token_recall(original: str, compressed: str) -> float:
+    """Return a cheap, tool-agnostic proxy for retained evidence.
+
+    This is not task F1. It measures how many unique identifiers, words,
+    numbers, paths, and symbol-like tokens from the input still appear after
+    compression, giving the comparison harness a quality-at-budget signal even
+    when a corpus has no ground-truth answers.
+    """
+
+    original_terms = {term.lower() for term in _WORD_RE.findall(original)}
+    if not original_terms:
+        return 1.0
+    compressed_terms = {term.lower() for term in _WORD_RE.findall(compressed)}
+    return len(original_terms & compressed_terms) / len(original_terms)
+
 
 @dataclass
 class ComparisonResult:
@@ -87,6 +106,8 @@ class ComparisonResult:
     compression_ratio: float  # 1 - (output / input)
     latency_ms: float
     throughput_tokens_per_sec: float
+    unique_token_recall: float = 0.0
+    quality_at_budget_score: float = 0.0
     model_size_mb: float = 0.0
     memory_rss_mb: float = 0.0
     success: bool = True
@@ -332,6 +353,8 @@ def benchmark_tool(
 
     compression_ratio = 1.0 - (output_tokens / input_tokens)
     throughput = (output_tokens / latency * 1000) if latency > 0 else 0.0
+    unique_token_recall = _unique_token_recall(text, compressed_text)
+    quality_at_budget_score = compression_ratio * unique_token_recall
 
     result = ComparisonResult(
         tool=tool_name,
@@ -341,6 +364,8 @@ def benchmark_tool(
         compression_ratio=compression_ratio,
         latency_ms=latency,
         throughput_tokens_per_sec=throughput,
+        unique_token_recall=unique_token_recall,
+        quality_at_budget_score=quality_at_budget_score,
     )
 
     # Add tool-specific metrics
@@ -375,8 +400,8 @@ def print_comparison_table(results: list[ComparisonResult]) -> None:
         print(f"\n{corpus_name.upper()}")
         print("-" * 100)
         print(
-            "{:<20} {:<12} {:<12} {:<12} {:<10} {:<15}".format(
-                "Tool", "Input Tokens", "Output Tokens", "Ratio", "Latency", "Throughput"
+            "{:<20} {:<12} {:<12} {:<12} {:<10} {:<10} {:<15}".format(
+                "Tool", "Input Tokens", "Output Tokens", "Ratio", "Recall", "Q@Budget", "Latency"
             )
         )
         print("-" * 100)
@@ -384,7 +409,7 @@ def print_comparison_table(results: list[ComparisonResult]) -> None:
         for result in sorted(corpus_results, key=lambda r: -r.compression_ratio):
             if result.success:
                 print(
-                    f"{result.tool:<20} {result.input_tokens:<12,} {result.output_tokens:<12,} {result.compression_ratio:<11.1%} {result.latency_ms:<9.1f}ms {result.throughput_tokens_per_sec:<14,.0f}"
+                    f"{result.tool:<20} {result.input_tokens:<12,} {result.output_tokens:<12,} {result.compression_ratio:<11.1%} {result.unique_token_recall:<9.1%} {result.quality_at_budget_score:<14.3f} {result.latency_ms:<9.1f}ms"
                 )
             else:
                 print(f"{result.tool:<20} ERROR: {result.error}")

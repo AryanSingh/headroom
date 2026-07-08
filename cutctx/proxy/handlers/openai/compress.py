@@ -214,8 +214,32 @@ class OpenAICompressMixin:
             min_ratio_override = compress_config.get("min_ratio_override")
 
             # /v1/compress is an explicit compaction surface, so default it to a
-            # more aggressive acceptance policy than the live proxy path.
-            if compression_profile == "max_savings":
+            # more aggressive acceptance policy than the live proxy path. Named
+            # agent profiles are accepted here too so users can compare balanced
+            # vs. high-savings behavior without starting a proxy subprocess.
+            if compression_profile == "agent-90":
+                from cutctx.agent_savings import get_agent_savings_profile
+
+                profile = get_agent_savings_profile(compression_profile)
+                if compress_user_messages is None:
+                    compress_user_messages = profile.compress_user_messages
+                if protect_recent is None:
+                    protect_recent = profile.protect_recent
+                if protect_analysis_context is None:
+                    protect_analysis_context = profile.protect_analysis_context
+                if target_ratio is None:
+                    target_ratio = profile.target_ratio
+                pipeline_kwargs_profile = {
+                    "compress_system_messages": profile.compress_system_messages,
+                    "min_tokens_to_compress": profile.min_tokens_to_compress,
+                    "max_items_after_crush": profile.max_items_after_crush,
+                    "smart_crusher_with_compaction": profile.smart_crusher_with_compaction,
+                    "force_kompress": profile.force_kompress,
+                }
+            else:
+                pipeline_kwargs_profile = {}
+
+            if compression_profile in {"max_savings", "max-savings"}:
                 if compress_user_messages is None:
                     compress_user_messages = True
                 if compress_assistant_text_blocks is None:
@@ -233,6 +257,7 @@ class OpenAICompressMixin:
                     compress_assistant_text_blocks = False
 
             pipeline_kwargs: dict[str, Any] = {"model_limit": context_limit}
+            pipeline_kwargs.update(pipeline_kwargs_profile)
             if compress_user_messages:
                 pipeline_kwargs["compress_user_messages"] = True
             if compress_assistant_text_blocks:
@@ -255,6 +280,8 @@ class OpenAICompressMixin:
             total_tokens_before = result.tokens_before + int(image_metrics.get("tokens_before", 0))
             total_tokens_after = result.tokens_after + int(image_metrics.get("tokens_after", 0))
             total_tokens_saved = max(0, total_tokens_before - total_tokens_after)
+            pipeline_tokens_saved = max(0, result.tokens_before - result.tokens_after)
+            image_tokens_saved = int(image_metrics.get("tokens_saved", 0) or 0)
 
             transforms_applied = list(result.transforms_applied)
             if audio_metrics.get("bytes_saved", 0) > 0:
@@ -284,6 +311,14 @@ class OpenAICompressMixin:
                 "tokens_before": total_tokens_before,
                 "tokens_after": total_tokens_after,
                 "tokens_saved": total_tokens_saved,
+                "savings_by_source": {
+                    "total_tokens": total_tokens_saved,
+                    "tokens": {
+                        "cutctx_compression": pipeline_tokens_saved,
+                        "image_optimization": image_tokens_saved,
+                    },
+                    "usd": {},
+                },
                 "compression_ratio": (
                     total_tokens_after / total_tokens_before if total_tokens_before > 0 else 1.0
                 ),

@@ -322,6 +322,35 @@ class TestSessionTrackerStore:
         store.get_or_create("s2", "openai")
         assert store.active_sessions == 2
 
+    def test_persists_across_store_instances(self, tmp_path):
+        """Tracker state should survive a fresh SessionTrackerStore instance."""
+        db_path = tmp_path / "prefix_tracker.db"
+        config = PrefixFreezeConfig(min_cached_tokens=1)
+
+        store1 = SessionTrackerStore(default_config=config, db_path=db_path)
+        tracker1 = store1.get_or_create("session-1", "anthropic")
+        messages = [
+            {"role": "system", "content": "System" * 200},
+            {"role": "user", "content": "Hello"},
+        ]
+
+        tracker1.update_from_response(
+            cache_read_tokens=0,
+            cache_write_tokens=2050,
+            messages=messages,
+            message_token_counts=[2000, 50],
+        )
+
+        assert tracker1.get_frozen_message_count() == 1
+
+        store2 = SessionTrackerStore(default_config=config, db_path=db_path)
+        tracker2 = store2.get_or_create("session-1", "anthropic")
+
+        assert tracker2 is not tracker1
+        assert tracker2.get_frozen_message_count() == 1
+        assert tracker2._turn_number == 1
+        assert tracker2.get_last_forwarded_messages() == messages
+
     def test_cleanup_expired(self, store):
         """Should remove expired sessions on cleanup."""
         config = PrefixFreezeConfig(session_ttl_seconds=1)

@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from typing import Protocol
 
 AGENT_90_PROFILE = "agent-90"
+MAX_SAVINGS_PROFILE = "max-savings"
 
 
 class CompressConfigLike(Protocol):
@@ -81,6 +82,36 @@ _PROFILES: dict[str, AgentSavingsProfile] = {
         force_kompress=True,
         proxy_mode="token",
         accuracy_guard="strict",
+    ),
+    MAX_SAVINGS_PROFILE: AgentSavingsProfile(
+        name=MAX_SAVINGS_PROFILE,
+        target_savings=0.90,
+        target_ratio=0.10,
+        compress_user_messages=True,
+        compress_system_messages=True,
+        protect_recent=0,
+        protect_analysis_context=False,
+        min_tokens_to_compress=120,
+        max_items_after_crush=8,
+        smart_crusher_with_compaction=False,
+        force_kompress=True,
+        proxy_mode="token",
+        accuracy_guard="standard",
+    ),
+    "max_savings": AgentSavingsProfile(
+        name=MAX_SAVINGS_PROFILE,
+        target_savings=0.90,
+        target_ratio=0.10,
+        compress_user_messages=True,
+        compress_system_messages=True,
+        protect_recent=0,
+        protect_analysis_context=False,
+        min_tokens_to_compress=120,
+        max_items_after_crush=8,
+        smart_crusher_with_compaction=False,
+        force_kompress=True,
+        proxy_mode="token",
+        accuracy_guard="standard",
     ),
     "balanced": AgentSavingsProfile(
         name="balanced",

@@ -18,6 +18,8 @@ covered by `tests/test_ccr_tool_injection.py`.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from cutctx.ccr.tool_injection import (
@@ -91,6 +93,39 @@ def test_tool_registered_on_every_request_after_first_ccr():
     )
     assert injected_3 is True
     assert _has_ccr_tool(tools_3)
+
+
+def test_ccr_sticky_state_survives_tracker_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Persisted CCR state should survive a fresh tracker instance."""
+
+    session_id = "sess-persist-ccr"
+    persist_path = tmp_path / "session_ccr_tracker.json"
+
+    monkeypatch.setenv("CUTCTX_CCR_TRACKER_PATH", str(persist_path))
+
+    tracker_a = SessionCcrTracker(max_sessions=10, persist_path=persist_path)
+    expected_bytes = serialize_tool_definition_canonical(create_ccr_tool_definition("openai"))
+    tracker_a.record_ccr_done("openai", session_id, expected_bytes)
+
+    _reset_session_ccr_tracker_for_test()
+    tracker_b = get_session_ccr_tracker()
+    assert tracker_b.has_done_ccr("openai", session_id) is True
+
+    golden_bytes = tracker_b.get_golden_tool_bytes("openai", session_id)
+    assert golden_bytes is not None
+    assert golden_bytes == expected_bytes
+
+    tools_out, injected = apply_session_sticky_ccr_tool(
+        provider="openai",
+        session_id=session_id,
+        request_id="req-persisted",
+        existing_tools=None,
+        has_compressed_content_this_turn=False,
+    )
+    assert injected is True
+    assert _has_ccr_tool(tools_out)
 
 
 def test_tool_not_registered_if_session_never_did_ccr():

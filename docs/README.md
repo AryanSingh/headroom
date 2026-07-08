@@ -15,3 +15,4 @@ This folder has two main tracks:
 - [Task-aware compression](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/specs/task-aware-compression.md)
 - [Semantic dedup](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/specs/semantic-dedup.md)
 - [Compression profiles](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/specs/compression-profiles.md)
+- [Model routing presets](/Users/aryansingh/Documents/Claude/Projects/headroom/docs/content/docs/model-routing-presets.mdx)

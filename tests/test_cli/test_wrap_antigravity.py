@@ -43,12 +43,11 @@ def test_no_context_tool_skips_rtk(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_launch_falls_back_to_setup_instructions_if_cli_not_found(
-    runner: CliRunner, tmp_path: Path
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When the Antigravity CLI binary isn't found, `wrap antigravity` must
     fall back to the proxy-only-watcher (GUI setup instructions) instead of
     hard-erroring — Antigravity.app users have no CLI binary in PATH."""
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.chdir(tmp_path)
 
     with patch.object(wrap_mod, "_claude_proxy_base_url", return_value="http://127.0.0.1:8787"):
@@ -68,9 +67,8 @@ def test_launch_falls_back_to_setup_instructions_if_cli_not_found(
     assert callable(kwargs["print_setup_lines"])
 
 
-def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path) -> None:
+def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`unwrap antigravity` removes the Cutctx block from an existing .antigravityrules."""
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.chdir(tmp_path)
 
     antigravityrules = tmp_path / ".antigravityrules"
@@ -94,9 +92,8 @@ def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path
     assert "cutctx:rtk-instructions" not in remaining
 
 
-def test_unwrap_removes_empty_file(runner: CliRunner, tmp_path: Path) -> None:
+def test_unwrap_removes_empty_file(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`unwrap antigravity` removes .antigravityrules if it only contained the Cutctx block."""
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.chdir(tmp_path)
 
     antigravityrules = tmp_path / ".antigravityrules"
@@ -110,9 +107,8 @@ def test_unwrap_removes_empty_file(runner: CliRunner, tmp_path: Path) -> None:
     assert not antigravityrules.exists()
 
 
-def test_unwrap_noop_when_no_file(runner: CliRunner, tmp_path: Path) -> None:
+def test_unwrap_noop_when_no_file(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`unwrap antigravity` is a no-op when no .antigravityrules exists."""
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(main, ["unwrap", "antigravity"])

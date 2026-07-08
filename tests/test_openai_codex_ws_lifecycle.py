@@ -15,7 +15,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from cutctx.cache.prefix_tracker import SessionTrackerStore
 from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
+from cutctx.proxy.handlers.openai.responses import (
+    _compute_responses_ws_conversation_session_id,
+)
 from cutctx.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS
 from cutctx.proxy.ws_session_registry import WebSocketSessionRegistry
 
@@ -78,6 +82,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         self.anthropic_backend = None
         self.cost_tracker = None
         self.memory_handler = None
+        self.session_tracker_store = SessionTrackerStore()
         self.ws_sessions = ws_sessions or WebSocketSessionRegistry()
         self.compression_executor_calls = 0
         self.compression_executor_timeouts: list[float] = []
@@ -173,6 +178,62 @@ class _FakeWebSocket:
 
     def trigger_disconnect(self) -> None:
         self._disconnect_event.set()
+
+
+class TestResponsesWsConversationSessionId:
+    def test_prefers_previous_response_id_for_reconnects(self):
+        store = SessionTrackerStore()
+        headers = {"authorization": "Bearer test-key"}
+        body = {
+            "type": "response.create",
+            "response": {
+                "model": "gpt-5",
+                "previous_response_id": "resp_123",
+                "instructions": "Be concise.",
+            },
+        }
+
+        session_id = _compute_responses_ws_conversation_session_id(
+            store,
+            headers,
+            body,
+            fallback_session_id="socket-1",
+        )
+
+        assert session_id == store.compute_session_id(
+            SimpleNamespace(
+                headers={
+                    "authorization": "Bearer test-key",
+                    "x-cutctx-session-id": "resp:resp_123",
+                }
+            ),
+            "gpt-5",
+            [{"role": "system", "content": "Be concise."}],
+        )
+
+    def test_falls_back_to_instructions_when_no_response_id(self):
+        store = SessionTrackerStore()
+        headers = {"authorization": "Bearer test-key"}
+        body = {
+            "type": "response.create",
+            "response": {
+                "model": "gpt-5",
+                "instructions": "Keep answers under 10 words.",
+            },
+        }
+
+        session_id = _compute_responses_ws_conversation_session_id(
+            store,
+            headers,
+            body,
+            fallback_session_id="socket-1",
+        )
+
+        assert session_id == store.compute_session_id(
+            SimpleNamespace(headers=headers),
+            "gpt-5",
+            [{"role": "system", "content": "Keep answers under 10 words."}],
+        )
 
 
 class _FakeHeaders:

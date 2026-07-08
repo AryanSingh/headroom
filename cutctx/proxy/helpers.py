@@ -993,10 +993,33 @@ def _setup_file_logging() -> None:
         cutctx_logger.setLevel(logging.INFO)
         if not any(isinstance(h, RotatingFileHandler) for h in cutctx_logger.handlers):
             cutctx_logger.addHandler(handler)
-        cutctx_logger.propagate = False
+        # Disable propagation to root to avoid duplicate writes when
+        # wrap.py redirects stderr to the same log file. Only do this
+        # when running outside pytest — caplog relies on logs reaching
+        # the root handler for capture.
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            cutctx_logger.propagate = False
     except OSError:
         # Non-fatal: can't write logs (read-only fs, permissions, etc.)
         pass
+
+
+def _teardown_file_logging() -> None:
+    """Remove the RotatingFileHandler added by _setup_file_logging and
+    restore propagation to the root logger.
+
+    Called during proxy shutdown to leave the logging hierarchy in a
+    clean state (important for test isolation — caplog relies on
+    propagation to the root logger's LogCaptureHandler).
+    """
+    from logging.handlers import RotatingFileHandler
+
+    cutctx_logger = logging.getLogger("cutctx")
+    cutctx_logger.propagate = True
+    for handler in list(cutctx_logger.handlers):
+        if isinstance(handler, RotatingFileHandler):
+            cutctx_logger.removeHandler(handler)
+            handler.close()
 
 
 def _selected_context_tool() -> str:
@@ -1667,6 +1690,34 @@ def get_beta_tracker_max_sessions() -> int:
     return value
 
 
+_BETA_TRACKER_PATH_ENV = "CUTCTX_BETA_TRACKER_PATH"
+
+
+def _beta_tracker_persist_path(explicit: str | os.PathLike[str] | None = None) -> Path:
+    """Return the JSON persistence path for session-sticky beta state."""
+
+    if explicit is not None and str(explicit).strip():
+        return Path(explicit).expanduser()
+    env_value = os.environ.get(_BETA_TRACKER_PATH_ENV, "").strip()
+    if env_value:
+        return Path(env_value).expanduser()
+    return _paths.workspace_dir() / "session_beta_tracker.json"
+
+
+_CCR_TRACKER_PATH_ENV = "CUTCTX_CCR_TRACKER_PATH"
+
+
+def _ccr_tracker_persist_path(explicit: str | os.PathLike[str] | None = None) -> Path:
+    """Return the JSON persistence path for sticky CCR session state."""
+
+    if explicit is not None and str(explicit).strip():
+        return Path(explicit).expanduser()
+    env_value = os.environ.get(_CCR_TRACKER_PATH_ENV, "").strip()
+    if env_value:
+        return Path(env_value).expanduser()
+    return _paths.workspace_dir() / "session_ccr_tracker.json"
+
+
 def _split_beta_tokens(value: str | None) -> list[str]:
     """Split a comma-separated beta-header value into trimmed tokens.
 
@@ -1761,7 +1812,12 @@ class SessionBetaTracker:
     which tokens are valid).
     """
 
-    def __init__(self, max_sessions: int | None = None) -> None:
+    def __init__(
+        self,
+        max_sessions: int | None = None,
+        *,
+        persist_path: str | os.PathLike[str] | None = None,
+    ) -> None:
         if max_sessions is None:
             max_sessions = get_beta_tracker_max_sessions()
         if max_sessions <= 0:
@@ -1773,6 +1829,77 @@ class SessionBetaTracker:
         # method to enter without self-deadlock.
         self._lock = threading.RLock()
         self._sessions: OrderedDict[tuple[str, str], list[str]] = OrderedDict()
+        self._persist_path = (
+            _beta_tracker_persist_path(persist_path) if persist_path is not None else None
+        )
+        self._load_persisted_sessions()
+
+    def _load_persisted_sessions(self) -> None:
+        if self._persist_path is None or not self._persist_path.exists():
+            return
+        try:
+            payload = json.loads(self._persist_path.read_text(encoding="utf-8"))
+        except Exception:
+            logger.debug(
+                "Failed to load persisted beta tracker state from %s",
+                self._persist_path,
+                exc_info=True,
+            )
+            return
+
+        if not isinstance(payload, dict):
+            return
+        entries = payload.get("entries")
+        if not isinstance(entries, list):
+            return
+
+        loaded: OrderedDict[tuple[str, str], list[str]] = OrderedDict()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            provider = entry.get("provider")
+            session_id = entry.get("session_id")
+            tokens = entry.get("tokens")
+            if not isinstance(provider, str) or not provider:
+                continue
+            if not isinstance(session_id, str) or not session_id:
+                continue
+            if not isinstance(tokens, list):
+                continue
+            normalized_tokens = [token for token in tokens if isinstance(token, str) and token.strip()]
+            loaded[(provider, session_id)] = normalized_tokens
+
+        while len(loaded) > self._max_sessions:
+            loaded.popitem(last=False)
+        self._sessions = loaded
+
+    def _persist_sessions(self) -> None:
+        if self._persist_path is None:
+            return
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "entries": [
+                    {
+                        "provider": provider,
+                        "session_id": session_id,
+                        "tokens": list(tokens),
+                    }
+                    for (provider, session_id), tokens in self._sessions.items()
+                ]
+            }
+            tmp_path = self._persist_path.with_name(self._persist_path.name + ".tmp")
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            tmp_path.replace(self._persist_path)
+        except Exception:
+            logger.debug(
+                "Failed to persist beta tracker state to %s",
+                self._persist_path,
+                exc_info=True,
+            )
 
     @property
     def active_sessions(self) -> int:
@@ -1843,12 +1970,19 @@ class SessionBetaTracker:
             while len(self._sessions) > self._max_sessions:
                 self._sessions.popitem(last=False)
 
+            self._persist_sessions()
+
             return ",".join(merged_list)
 
     def reset(self) -> None:
         """Clear all session state (test helper)."""
         with self._lock:
             self._sessions.clear()
+            if self._persist_path is not None:
+                try:
+                    self._persist_path.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 # Process-wide singleton. Lazily replaced by tests via `reset` /
@@ -1867,7 +2001,9 @@ def get_session_beta_tracker() -> SessionBetaTracker:
     global _session_beta_tracker
     with _session_beta_tracker_lock:
         if _session_beta_tracker is None:
-            _session_beta_tracker = SessionBetaTracker()
+            _session_beta_tracker = SessionBetaTracker(
+                persist_path=_beta_tracker_persist_path(),
+            )
         return _session_beta_tracker
 
 
@@ -2432,7 +2568,12 @@ class SessionCcrTracker:
     is one tracker pattern, not two.
     """
 
-    def __init__(self, max_sessions: int | None = None) -> None:
+    def __init__(
+        self,
+        max_sessions: int | None = None,
+        *,
+        persist_path: str | os.PathLike[str] | None = None,
+    ) -> None:
         if max_sessions is None:
             max_sessions = get_tool_tracker_max_sessions()
         if max_sessions <= 0:
@@ -2441,6 +2582,89 @@ class SessionCcrTracker:
         self._lock = threading.RLock()
         # Value is (has_done_ccr, golden_tool_bytes_or_none).
         self._sessions: OrderedDict[tuple[str, str], tuple[bool, bytes | None]] = OrderedDict()
+        self._persist_path = (
+            _ccr_tracker_persist_path(persist_path) if persist_path is not None else None
+        )
+        self._load_persisted_sessions()
+
+    def _load_persisted_sessions(self) -> None:
+        if self._persist_path is None or not self._persist_path.exists():
+            return
+        try:
+            payload = json.loads(self._persist_path.read_text(encoding="utf-8"))
+        except Exception:
+            logger.debug(
+                "Failed to load persisted CCR tracker state from %s",
+                self._persist_path,
+                exc_info=True,
+            )
+            return
+        if not isinstance(payload, dict):
+            return
+        entries = payload.get("entries")
+        if not isinstance(entries, list):
+            return
+
+        loaded: OrderedDict[tuple[str, str], tuple[bool, bytes | None]] = OrderedDict()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            provider = entry.get("provider")
+            session_id = entry.get("session_id")
+            has_done_ccr = bool(entry.get("has_done_ccr"))
+            golden_tool_hex = entry.get("golden_tool_bytes")
+            if not isinstance(provider, str) or not provider:
+                continue
+            if not isinstance(session_id, str) or not session_id:
+                continue
+            golden_tool_bytes: bytes | None = None
+            if isinstance(golden_tool_hex, str) and golden_tool_hex:
+                try:
+                    golden_tool_bytes = bytes.fromhex(golden_tool_hex)
+                except ValueError:
+                    logger.debug(
+                        "Skipping corrupt persisted CCR golden bytes for %s/%s",
+                        provider,
+                        session_id,
+                        exc_info=True,
+                    )
+                    continue
+            loaded[(provider, session_id)] = (has_done_ccr, golden_tool_bytes)
+
+        while len(loaded) > self._max_sessions:
+            loaded.popitem(last=False)
+        self._sessions = loaded
+
+    def _persist_sessions(self) -> None:
+        if self._persist_path is None:
+            return
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "entries": [
+                    {
+                        "provider": provider,
+                        "session_id": session_id,
+                        "has_done_ccr": has_done_ccr,
+                        "golden_tool_bytes": golden_tool_bytes.hex()
+                        if golden_tool_bytes is not None
+                        else None,
+                    }
+                    for (provider, session_id), (has_done_ccr, golden_tool_bytes) in self._sessions.items()
+                ]
+            }
+            tmp_path = self._persist_path.with_name(self._persist_path.name + ".tmp")
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            tmp_path.replace(self._persist_path)
+        except Exception:
+            logger.debug(
+                "Failed to persist CCR tracker state to %s",
+                self._persist_path,
+                exc_info=True,
+            )
 
     @property
     def active_sessions(self) -> int:
@@ -2461,6 +2685,7 @@ class SessionCcrTracker:
             if entry is None:
                 return False
             self._sessions.move_to_end(self._key(provider, session_id))
+            self._persist_sessions()
             return entry[0]
 
     def get_golden_tool_bytes(self, provider: str, session_id: str) -> bytes | None:
@@ -2474,6 +2699,7 @@ class SessionCcrTracker:
             if entry is None:
                 return None
             self._sessions.move_to_end(self._key(provider, session_id))
+            self._persist_sessions()
             return entry[1]
 
     def record_ccr_done(
@@ -2507,11 +2733,13 @@ class SessionCcrTracker:
             self._sessions.move_to_end(key)
             while len(self._sessions) > self._max_sessions:
                 self._sessions.popitem(last=False)
+            self._persist_sessions()
 
     def reset(self) -> None:
         """Clear all session state (test helper)."""
         with self._lock:
             self._sessions.clear()
+            self._persist_sessions()
 
 
 # Process-wide singleton.
@@ -2524,7 +2752,9 @@ def get_session_ccr_tracker() -> SessionCcrTracker:
     global _session_ccr_tracker
     with _session_ccr_tracker_lock:
         if _session_ccr_tracker is None:
-            _session_ccr_tracker = SessionCcrTracker()
+            _session_ccr_tracker = SessionCcrTracker(
+                persist_path=_ccr_tracker_persist_path(),
+            )
         return _session_ccr_tracker
 
 

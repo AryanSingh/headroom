@@ -9,6 +9,9 @@ import pytest
 
 from cutctx.dashboard import get_dashboard_html
 
+_TEST_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _TEST_ROOT.parent
+
 playwright = pytest.importorskip("playwright.sync_api")
 Page = playwright.Page
 expect = playwright.expect
@@ -17,7 +20,7 @@ sync_playwright = playwright.sync_playwright
 
 def _install_dashboard_routes_with_stats(page: Page) -> None:
     dashboard_html = get_dashboard_html(prefer_react=True)
-    root_dir = Path(__file__).parent.parent
+    root_dir = _PROJECT_ROOT
 
     mock_stats = {
         "summary": {
@@ -111,6 +114,27 @@ def test_dashboard_savings_by_model() -> None:
             page.screenshot(
                 path="/Users/aryansingh/.gemini/antigravity/brain/109383ec-01a4-4dc7-bc11-9f895839864c/savings_by_model_screenshot.png"
             )
+
+        finally:
+            browser.close()
+
+
+def test_dashboard_savings_headline_shows_single_estimated_value() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1200})
+            _install_dashboard_routes_with_stats(page)
+
+            page.goto("http://cutctx.local/dashboard/savings")
+            page.wait_for_load_state("networkidle")
+
+            savings_card = page.locator(".metric-card").filter(
+                has=page.get_by_text("Estimated savings", exact=True)
+            )
+            expect(savings_card).to_contain_text("$0.175", timeout=5000)
+            expect(savings_card).not_to_contain_text("(list)")
+            expect(savings_card).not_to_contain_text("(observed)")
 
         finally:
             browser.close()

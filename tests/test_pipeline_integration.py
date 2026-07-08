@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -333,6 +334,12 @@ class TestFirewallPipeline:
         assert len(violations) == 0
 
 
+# ─── Helpers ────────────────────────────────────────────────────────
+
+_TEST_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = _TEST_ROOT.parent
+
+
 # ─── Request ID Middleware Integration ──────────────────────────────
 
 
@@ -341,20 +348,20 @@ class TestRequestIdMiddleware:
 
     def test_request_id_middleware_code_exists(self):
         """Verify the middleware function is defined in server.py source."""
-        source = open("cutctx/proxy/server.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
         assert "_request_id_middleware" in source
         assert "cutctx_request_id" in source
         assert "X-Request-ID" in source
 
     def test_request_id_uses_client_header_if_present(self):
         """Verify the middleware respects incoming X-Request-ID."""
-        source = open("cutctx/proxy/server.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
         # The middleware reads x-request-id from incoming headers
         assert 'request.headers.get("x-request-id")' in source
 
     def test_request_id_generates_uuid_when_absent(self):
         """Verify UUID generation fallback."""
-        source = open("cutctx/proxy/server.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
         assert "uuid" in source.lower() or "_uuid" in source
 
 
@@ -365,36 +372,36 @@ class TestFeatureFlagWiring:
     """Tests that all new features are properly wired in server.py."""
 
     def test_firewall_middleware_present(self):
-        source = open("cutctx/proxy/server.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
         assert "_firewall_scan_middleware" in source
 
     def test_firewall_endpoints_present(self):
-        source = open("cutctx/proxy/routes/admin.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/routes/admin.py").read_text()
         assert "/firewall/status" in source
         assert "/firewall/scan" in source
 
     def test_structured_output_endpoints_present(self):
-        source = open("cutctx/proxy/routes/admin.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/routes/admin.py").read_text()
         assert "/structured-output/status" in source
         assert "/structured-output/validate" in source
 
     def test_ensemble_endpoints_present(self):
-        source = open("cutctx/proxy/routes/admin.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/routes/admin.py").read_text()
         assert "/ensemble/status" in source
 
     def test_budget_endpoints_present(self):
-        source = open("cutctx/proxy/routes/admin.py").read()
+        source = (PROJECT_ROOT / "cutctx/proxy/routes/admin.py").read_text()
         assert "/budget/status" in source
 
     def test_entitlement_enforcement_on_compression(self):
         """Verify Rust proxy enforces license tier on compression."""
-        source = open("crates/cutctx-proxy/src/proxy.rs").read()
+        source = (PROJECT_ROOT / "crates/cutctx-proxy/src/proxy.rs").read_text()
         assert "allows_live_zone" in source
         assert "effective_compression" in source
 
     def test_ccr_store_wired_in_proxy(self):
         """Verify CCR store is passed through to compression."""
-        source = open("crates/cutctx-proxy/src/proxy.rs").read()
+        source = (PROJECT_ROOT / "crates/cutctx-proxy/src/proxy.rs").read_text()
         assert "ccr_store" in source
         assert "compress_anthropic_request_with_ccr" in source
 

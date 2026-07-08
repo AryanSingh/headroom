@@ -172,6 +172,36 @@ def test_unset_entitlement_tier_defaults_to_builder_not_enterprise(tmp_path, mon
         assert scim.json()["detail"]["feature"] == "scim"
 
 
+def test_builder_cannot_toggle_entitlement_gated_governance_flags(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    with _make_client(tmp_path, monkeypatch, tier="builder") as client:
+        headers = {"X-Cutctx-Admin-Key": "secret"}
+
+        episodic = client.post(
+            "/config/flags",
+            headers=headers,
+            json={"episodic_memory_enabled": True},
+        )
+        assert episodic.status_code == 403
+        assert episodic.json()["detail"]["feature"] == "episodic_memory"
+
+        shared = client.post(
+            "/config/flags",
+            headers=headers,
+            json={"shared_context_enabled": True},
+        )
+        assert shared.status_code == 403
+        assert shared.json()["detail"]["feature"] == "cross_agent_memory"
+
+        audit = client.post(
+            "/config/flags",
+            headers=headers,
+            json={"audit_enabled": False},
+        )
+        assert audit.status_code == 403
+        assert audit.json()["detail"]["feature"] == "audit_logs"
+
+
 def test_license_status_remains_available_with_admin_auth_across_tiers(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, monkeypatch, tier="builder") as client:

@@ -346,9 +346,18 @@
                             <div class="text-xs text-gray-600">Routed to a cheaper model</div>
                         </div>
                     </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-sky-400"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-gray-500">RTK / CLI Filtering</div>
+                            <div class="text-lg tabular-nums" x-text="formatNumber((stats.savings_by_source.tokens || {}).rtk_cli_filtering || (stats.savings_by_source.tokens || {}).cli_filtering || 0) + ' tokens'"></div>
+                            <div class="text-sm tabular-nums text-sky-300" x-text="'$' + (((stats.savings_by_source.usd || {}).rtk_cli_filtering || 0)).toFixed(4)"></div>
+                            <div class="text-xs text-gray-600">Command-side filtering before proxy compression</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500">
-                    Provider prompt cache and CutCtx compression are reported independently so the marginal value of CutCtx above native caching is visible.
+                    Provider prompt cache, RTK CLI filtering, and CutCtx compression are reported independently so each layer's marginal value stays visible.
                 </div>
             </div>
         </template>

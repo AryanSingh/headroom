@@ -130,6 +130,12 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | GitHub issue triage           | 54,174 | 14,761 | **73%** |
 | Codebase exploration          | 78,502 | 41,254 | **47%** |
 
+Savings are reported by source: RTK CLI filtering, Cutctx compression,
+provider/native cache behavior, semantic cache hits, and model routing are
+separate line items. Cutctx is positioned as a local, reversible,
+cross-provider agent context control plane; raw compression-ratio leadership
+should be evaluated with the reproducible benchmark harness.
+
 **Accuracy preserved on standard benchmarks:**
 
 | Benchmark  | Category | N   | Baseline | Cutctx | Delta      |
@@ -256,12 +262,13 @@ For buyers, operators, and security reviewers:
 </details>
 
 <details>
-<summary><b>Savings attribution (5 sources)</b></summary>
+<summary><b>Savings attribution (6 sources)</b></summary>
 
-Every token saved is tagged with the source that produced it. The buyer report and the dashboard never double-count. The five sources:
+Every token saved is tagged with the source that produced it. The buyer report and the dashboard never double-count. The six sources:
 
 - **Provider prompt cache** — Anthropic `cache_read_input_tokens`, OpenAI `cached_tokens`, Gemini `cachedContentTokenCount`. Observed on the upstream side.
 - **Cutctx compression** — tokens removed by SmartCrusher, LiveZone, CodeCompressor, LogCompressor, etc. Observed on the proxy side.
+- **RTK CLI filtering** — tokens never forwarded because RTK trimmed shell/tool output before it reached Cutctx. Reported separately from proxy compression.
 - **Semantic cache** — tokens avoided by serving a prior near-duplicate request from the response cache. Cross-provider.
 - **Self-hosted prefix cache** — tokens served by vLLM Automatic Prefix Caching. Reported separately from provider cache.
 - **Model routing** — tokens served by a cheaper model than the user originally requested, plus the resulting USD savings.
@@ -374,6 +381,7 @@ Running with compression disabled (pure gateway) requires neither asset.
 | [Failure learning](https://cutctx.com/docs/failure-learning)    | [Benchmarks](https://cutctx.com/docs/benchmarks)                    |
 | [Configuration](https://cutctx.com/docs/configuration)          | [Limitations](https://cutctx.com/docs/limitations)                  |
 
+| [Model routing presets](docs/content/docs/model-routing-presets.mdx) | [Agent compatibility guide](PRODUCT_GUIDE.md#7-agent-compatibility) |
 ## Compared to
 
 Cutctx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.

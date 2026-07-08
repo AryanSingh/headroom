@@ -512,9 +512,11 @@ def test_python_source_imports_hmac_module() -> None:
 
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 def test_audit_store_source_describes_hmac_chain_honestly() -> None:
-    text = Path("cutctx_ee/audit/store.py").read_text(encoding="utf-8")
+    text = (PROJECT_ROOT / "cutctx_ee/audit/store.py").read_text(encoding="utf-8")
 
     assert "HMAC-SHA256 chain value" in text
     assert "hmac.new(" in text
@@ -524,10 +526,10 @@ def test_audit_store_source_describes_hmac_chain_honestly() -> None:
 
 
 def test_audit_docs_match_hmac_source_contract() -> None:
-    compliance = Path("docs/audit-compliance.md").read_text(encoding="utf-8")
-    residency = Path("docs/data-residency.md").read_text(encoding="utf-8")
-    roadmap = Path("gtm/soc2-roadmap.md").read_text(encoding="utf-8")
-    controls = Path("docs/security/SOC2_CONTROLS.md").read_text(encoding="utf-8")
+    compliance = (PROJECT_ROOT / "docs/audit-compliance.md").read_text(encoding="utf-8")
+    residency = (PROJECT_ROOT / "docs/data-residency.md").read_text(encoding="utf-8")
+    roadmap = (PROJECT_ROOT / "gtm/soc2-roadmap.md").read_text(encoding="utf-8")
+    controls = (PROJECT_ROOT / "docs/security/SOC2_CONTROLS.md").read_text(encoding="utf-8")
 
     assert "HMAC-SHA256 chain value" in compliance
     assert "HMAC-SHA256(secret" in compliance

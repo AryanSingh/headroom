@@ -21,6 +21,7 @@ import pytest
 from cutctx.proxy.helpers import (
     SessionBetaTracker,
     _reset_session_beta_tracker_for_test,
+    get_session_beta_tracker,
     merge_openai_beta,
 )
 
@@ -201,6 +202,31 @@ def test_provider_namespaces_are_independent() -> None:
     )
     assert out_openai == "o-token"
     assert out_anth == "a-token"
+
+
+def test_singleton_survives_proxy_restart_for_existing_session(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    persist_path = tmp_path / "session_beta_tracker.json"
+    monkeypatch.setenv("CUTCTX_BETA_TRACKER_PATH", str(persist_path))
+
+    tracker1 = get_session_beta_tracker()
+    out1 = tracker1.record_and_get_sticky_betas(
+        provider="openai",
+        session_id="anon:resp:resp_123",
+        client_value="responses_websockets=2026-02-06,extra-beta=1",
+    )
+    assert out1 == "responses_websockets=2026-02-06,extra-beta=1"
+
+    _reset_session_beta_tracker_for_test()
+
+    tracker2 = get_session_beta_tracker()
+    out2 = tracker2.record_and_get_sticky_betas(
+        provider="openai",
+        session_id="anon:resp:resp_123",
+        client_value="responses_websockets=2026-02-06",
+    )
+    assert out2 == "responses_websockets=2026-02-06,extra-beta=1"
 
 
 def test_ws_required_token_appended_deterministically() -> None:

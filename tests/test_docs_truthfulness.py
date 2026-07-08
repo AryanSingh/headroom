@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 
+_TEST_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _TEST_ROOT.parent
+
+
 def test_user_docs_describe_routing_as_appropriate_not_best() -> None:
     files = [
-        Path("docs/components/marketing.tsx"),
-        Path("docs/content/docs/quickstart.mdx"),
-        Path("docs/content/docs/shared-context.mdx"),
+        _PROJECT_ROOT / "docs/components/marketing.tsx",
+        _PROJECT_ROOT / "docs/content/docs/quickstart.mdx",
+        _PROJECT_ROOT / "docs/content/docs/shared-context.mdx",
     ]
 
     for path in files:
@@ -20,14 +24,14 @@ def test_user_docs_describe_routing_as_appropriate_not_best() -> None:
 
 
 def test_marketing_component_does_not_ship_hardcoded_live_stats() -> None:
-    text = Path("docs/components/marketing.tsx").read_text()
+    text = (_PROJECT_ROOT / "docs/components/marketing.tsx").read_text()
     assert "const liveStats" not in text
     assert "export function LiveStats" not in text
     assert "$176.6K" not in text
 
 
 def test_installation_docs_describe_voice_extra_truthfully() -> None:
-    text = Path("docs/content/docs/installation.mdx").read_text()
+    text = (_PROJECT_ROOT / "docs/content/docs/installation.mdx").read_text()
     assert "Voice ML extras" in text
     assert "Audio API routes still proxy pass-through" in text
     assert "Voice/audio support" not in text
@@ -35,10 +39,10 @@ def test_installation_docs_describe_voice_extra_truthfully() -> None:
 
 def test_community_stats_docs_do_not_claim_realtime_fetch() -> None:
     files = [
-        Path("docs/lib/telemetry.ts"),
-        Path("docs/components/live-stats.tsx"),
-        Path("docs/components/community-stats-header.tsx"),
-        Path("docs/content/docs/community-savings.mdx"),
+        _PROJECT_ROOT / "docs/lib/telemetry.ts",
+        _PROJECT_ROOT / "docs/components/live-stats.tsx",
+        _PROJECT_ROOT / "docs/components/community-stats-header.tsx",
+        _PROJECT_ROOT / "docs/content/docs/community-savings.mdx",
     ]
 
     combined = "\n".join(path.read_text() for path in files)

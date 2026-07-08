@@ -309,6 +309,10 @@ class ProxyConfig:
     # Prefix freeze
     prefix_freeze_enabled: bool = True
     prefix_freeze_session_ttl: int = 600
+    # Persistent store for session prefix-freeze state. None -> default
+    # path chosen by SessionTrackerStore (~/.cutctx/prefix_tracker.db).
+    # Env: CUTCTX_PREFIX_TRACKER_DB_PATH.
+    prefix_freeze_db_path: str | None = None
 
     # Cost tracking
     cost_tracking_enabled: bool = True

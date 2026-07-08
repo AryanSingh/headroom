@@ -386,6 +386,7 @@ def test_learn_aggregate_share_flag_fails_explicitly(
 
 
 def test_learn_aggregate_module_has_no_network_client_imports() -> None:
-    source = Path("cutctx/learn/aggregate.py").read_text()
+    project_root = Path(__file__).resolve().parent.parent
+    source = (project_root / "cutctx/learn/aggregate.py").read_text()
     assert "import httpx" not in source
     assert "import requests" not in source

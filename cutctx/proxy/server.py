@@ -135,6 +135,7 @@ from cutctx.proxy.helpers import (
     _get_rtk_stats,  # noqa: F401
     _read_request_json,  # noqa: F401
     _setup_file_logging,  # noqa: F401
+    _teardown_file_logging,
     initialize_context_tool_session_baseline,
     is_anthropic_auth,  # noqa: F401
     jitter_delay_ms,
@@ -212,9 +213,10 @@ _build_session_summary = build_session_summary
 _merge_cost_stats = merge_cost_stats
 
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+if not logging.root.handlers:
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 logger = logging.getLogger("cutctx.proxy")
 
 _MULTI_WORKER_CONFIG_ENV = "CUTCTX_PROXY_CONFIG_JSON"
@@ -577,7 +579,8 @@ class CutctxProxy(
             default_config=PrefixFreezeConfig(
                 enabled=config.prefix_freeze_enabled,
                 session_ttl_seconds=config.prefix_freeze_session_ttl,
-            )
+            ),
+            db_path=config.prefix_freeze_db_path,
         )
 
         # Compression cache store for token mode (session-scoped). The dict
@@ -1557,6 +1560,9 @@ class CutctxProxy(
         # Stop all quota trackers via the registry
         await get_quota_registry().stop_all()
 
+        # Restore logging propagation for root handler (caplog compatibility).
+        _teardown_file_logging()
+
         # Print final stats
         self._print_summary()
 
@@ -2085,10 +2091,7 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
                     from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
                     preset = getattr(config, "model_routing_preset", None)
-                    if preset == "economy":
-                        router_config = ModelRouterConfig.economy_preset()
-                    else:
-                        router_config = None
+                    router_config = ModelRouterConfig.from_preset_name(preset)
                     proxy._model_router = ModelRouter(config=router_config)
                     if proxy._model_router.config.enabled:
                         logger.info(
@@ -3839,7 +3842,7 @@ def _require_rbac_permission(permission: str):
     async def health():
         await _check_upstream()
         payload = _health_payload(include_config=False)
-        return JSONResponse(status_code=200, content=payload)
+        return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
 
     @app.get("/health/config")
     async def health_config(request: Request):
@@ -3866,6 +3869,12 @@ def _require_rbac_permission(permission: str):
     DASHBOARD_STATS_CACHE_TTL_SECONDS = 5.0
     _stats_snapshot_lock = asyncio.Lock()
     _stats_snapshot: dict[str, Any] = {"expires_at": 0.0, "value": None}
+
+    def _ensure_stats_payload_shape(payload: dict[str, Any]) -> dict[str, Any]:
+        feature_availability = payload.get("feature_availability")
+        if "model_routing" not in payload and isinstance(feature_availability, dict):
+            payload["model_routing"] = feature_availability.get("model_routing", {})
+        return payload
 
     async def _build_stats_payload() -> dict[str, Any]:
         """Build the full `/stats` response payload.
@@ -3938,6 +3947,7 @@ def _require_rbac_permission(permission: str):
             if _content_router is not None and getattr(_content_router, "config", None) is not None
             else 0
         )
+        _feature_availability = _feature_availability_snapshot()
 
         # Build prefix cache stats once (used in both prefix_cache and cost)
         prefix_cache_stats = _build_prefix_cache_stats(m, proxy.cost_tracker)
@@ -4102,6 +4112,7 @@ def _require_rbac_permission(permission: str):
                 )
 
         savings_sources = tuple(src.value for src in SavingsSource)
+        rtk_source = SavingsSource.RTK_CLI_FILTERING.value
 
         return {
             "summary": summary,
@@ -4119,6 +4130,7 @@ def _require_rbac_permission(permission: str):
                         )
                         or 0
                     )
+                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
                     for src in savings_sources
                 ),
                 "tokens": {
@@ -4128,6 +4140,7 @@ def _require_rbac_permission(permission: str):
                         )
                         or 0
                     )
+                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
                     for src in savings_sources
                 },
                 "usd": {
@@ -4137,7 +4150,8 @@ def _require_rbac_permission(permission: str):
                                 f"savings_by_source_usd.{src}", 0.0
                             )
                             or 0.0
-                        ),
+                        )
+                        + (float(cli_filtering_savings_usd or 0.0) if src == rtk_source else 0.0),
                         6,
                     )
                     for src in savings_sources
@@ -4403,7 +4417,8 @@ def _require_rbac_permission(permission: str):
                 "nodes": getattr(proxy.stack_graph_resolver, "node_count", lambda: 0)()
                     if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
             },
-            "feature_availability": _feature_availability_snapshot(),
+            "model_routing": _feature_availability.get("model_routing", {}),
+            "feature_availability": _feature_availability,
             "anon_telemetry_shipping": is_telemetry_enabled(),
             "telemetry": {
                 "enabled": telemetry_stats.get("enabled", False),
@@ -4468,7 +4483,7 @@ def _require_rbac_permission(permission: str):
             if cached_payload is not None and now < float(_stats_snapshot["expires_at"]):
                 return cached_payload
 
-            payload = await _build_stats_payload()
+            payload = _ensure_stats_payload_shape(await _build_stats_payload())
             _stats_snapshot["value"] = payload
             _stats_snapshot["expires_at"] = time.monotonic() + DASHBOARD_STATS_CACHE_TTL_SECONDS
             return payload
@@ -4516,8 +4531,22 @@ def _require_rbac_permission(permission: str):
         if "rate_limiter" in payload:
             config.rate_limit_enabled = bool(payload["rate_limiter"])
         if "orchestrator" in payload:
-            if hasattr(proxy, "_model_router") and proxy._model_router is not None:
-                proxy._model_router.config.enabled = bool(payload["orchestrator"])
+            desired = bool(payload["orchestrator"])
+            try:
+                from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
+
+                preset = getattr(config, "model_routing_preset", None)
+                preset_config = ModelRouterConfig.from_preset_name(preset)
+                if preset_config is not None:
+                    preset_config.enabled = desired
+                    proxy._model_router = ModelRouter(config=preset_config)
+                elif hasattr(proxy, "_model_router") and proxy._model_router is not None:
+                    proxy._model_router.config.enabled = desired
+                else:
+                    proxy._model_router = ModelRouter()
+                    proxy._model_router.config.enabled = desired
+            except Exception:
+                logger.debug("ModelRouter runtime toggle failed", exc_info=True)
 
         logger.info(f"Runtime configuration updated: {payload}")
         return {
@@ -4551,7 +4580,7 @@ def _require_rbac_permission(permission: str):
         """
         if cached:
             return await _get_cached_stats_payload()
-        return await _build_stats_payload()
+        return _ensure_stats_payload_shape(await _build_stats_payload())
 
     @app.post("/stats/reset", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("stats.reset"))])
     async def stats_reset(request: Request):
@@ -5092,10 +5121,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
         preset = getattr(config, "model_routing_preset", None)
-        if preset == "economy":
-            router_config = ModelRouterConfig.economy_preset()
-        else:
-            router_config = None
+        router_config = ModelRouterConfig.from_preset_name(preset)
         proxy._model_router = ModelRouter(config=router_config)
         if getattr(proxy._model_router.config, "enabled", False):
             config.orchestrator_enabled = True
@@ -5110,6 +5136,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     stats_cache_ttl_seconds = 5.0
     stats_snapshot: dict[str, Any] = {"value": None, "expires_at": 0.0}
     stats_snapshot_lock = asyncio.Lock()
+
+    def _ensure_runtime_stats_payload_shape(payload: dict[str, Any]) -> dict[str, Any]:
+        feature_availability = payload.get("feature_availability")
+        if "model_routing" not in payload and isinstance(feature_availability, dict):
+            payload["model_routing"] = feature_availability.get("model_routing", {})
+        return payload
     _UPSTREAM_CHECK_TTL = 30.0
     _upstream_check_cache: dict[str, Any] = {
         "expires_at": 0.0,
@@ -5242,6 +5274,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "requested": model_router_enabled,
             "available": model_router is not None,
             "configured_routes": len(model_router_routes),
+            "preset": getattr(proxy.config, "model_routing_preset", None),
             "reason": (
                 "router_uninitialized"
                 if model_router is None
@@ -5280,6 +5313,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
         savings_sources = tuple(src.value for src in SavingsSource)
+        rtk_source = SavingsSource.RTK_CLI_FILTERING.value
         cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
         cli_filtering_lifetime = cli_filtering_stats.get("lifetime", {}) if cli_filtering_stats else {}
         kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
@@ -5349,6 +5383,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         )
                         or 0
                     )
+                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
                     for src in savings_sources
                 ),
                 "tokens": {
@@ -5358,6 +5393,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         )
                         or 0
                     )
+                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
                     for src in savings_sources
                 },
                 "usd": {
@@ -5367,7 +5403,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                                 f"savings_by_source_usd.{src}", 0.0
                             )
                             or 0.0
-                        ),
+                        )
+                        + (float(cli_filtering_savings_usd or 0.0) if src == rtk_source else 0.0),
                         6,
                     )
                     for src in savings_sources
@@ -5776,7 +5813,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             cached_payload = cast(dict[str, Any] | None, stats_snapshot.get("value"))
             if cached_payload is not None and now < float(stats_snapshot["expires_at"]):
                 return cached_payload
-            payload = await _build_stats_payload()
+            payload = _ensure_runtime_stats_payload_shape(await _build_stats_payload())
             stats_snapshot["value"] = payload
             stats_snapshot["expires_at"] = time.monotonic() + stats_cache_ttl_seconds
             return payload
@@ -5896,7 +5933,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         await _require_local_admin_auth(request)
         if cached:
             return await _get_cached_payload()
-        return await _build_stats_payload()
+        return _ensure_runtime_stats_payload_shape(await _build_stats_payload())
 
     @app.get("/v1/sessions/{session_id}/replay")
     async def session_replay(session_id: str, request: Request):
@@ -5967,7 +6004,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.get("/health")
     async def health():
         await _check_upstream()
-        return JSONResponse(status_code=200, content=_health_payload(include_config=False))
+        payload = _health_payload(include_config=False)
+        return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
 
     @app.get("/health/config")
     async def health_config(request: Request):
@@ -6216,8 +6254,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.rate_limit_enabled = bool(payload["rate_limiter"])
         if "orchestrator" in payload:
             config.orchestrator_enabled = bool(payload["orchestrator"])
-            if hasattr(proxy, "_model_router") and proxy._model_router is not None:
-                proxy._model_router.config.enabled = bool(payload["orchestrator"])
+            desired = bool(payload["orchestrator"])
+            try:
+                from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
+
+                preset = getattr(config, "model_routing_preset", None)
+                preset_config = ModelRouterConfig.from_preset_name(preset)
+                if preset_config is not None:
+                    preset_config.enabled = desired
+                    proxy._model_router = ModelRouter(config=preset_config)
+                elif hasattr(proxy, "_model_router") and proxy._model_router is not None:
+                    proxy._model_router.config.enabled = desired
+                else:
+                    proxy._model_router = ModelRouter()
+                    proxy._model_router.config.enabled = desired
+            except Exception:
+                logger.debug("ModelRouter runtime toggle failed", exc_info=True)
 
         logger.info("Runtime configuration updated: %s", payload)
         return {
@@ -6408,7 +6460,9 @@ def run_server(
     app_target: Any
     uvicorn_kwargs: dict[str, Any] = {}
     if workers > 1:
-        # CompressionCache and PrefixTracker are always per-worker instance vars.
+        # CompressionCache and several other optimization caches are still
+        # per-worker instance vars. PrefixTracker state is now persisted to
+        # SQLite by default, but each worker still hydrates its own live copy.
         # Python CompressionStore defaults to InMemoryBackend (per-process), so
         # CCR markers written on worker A are invisible to worker B unless a
         # cross-worker backend is configured via CUTCTX_CCR_BACKEND.
@@ -6416,7 +6470,7 @@ def run_server(
         if os.environ.get("CUTCTX_CCR_BACKEND", "").strip():
             logger.warning(
                 "Cutctx is running with workers=%d. Compression cache, "
-                "prefix tracker, TOIN state, and CostTracker are all per-process; "
+                "prefix tracker live state is still per-worker until hydrated; TOIN state, and CostTracker are all per-process; "
                 "multi-worker deployments produce avoidable cache busts and an "
                 "unstable dashboard 'Proxy $ Saved' hero tile (each /stats poll "
                 "hits a different worker's partial total) when sessions land on "
@@ -7008,6 +7062,7 @@ if __name__ == "__main__":
         tool_profiles=tool_profiles if tool_profiles else None,
         exclude_tools=exclude_tools if exclude_tools else None,
         mode=normalize_proxy_mode(_get_env_str("CUTCTX_MODE", PROXY_MODE_TOKEN)),
+        prefix_freeze_db_path=os.environ.get("CUTCTX_PREFIX_TRACKER_DB_PATH"),
         compress_user_messages=args.compress_user_messages
         or _get_env_bool("CUTCTX_COMPRESS_USER_MESSAGES", False),
         # Security

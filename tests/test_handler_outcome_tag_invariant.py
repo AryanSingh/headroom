@@ -27,14 +27,17 @@ from pathlib import Path
 
 import pytest
 
+_TEST_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _TEST_ROOT.parent
+
 HANDLER_FILES = [
-    Path("cutctx/proxy/handlers/anthropic.py"),
-    Path("cutctx/proxy/handlers/openai/chat.py"),
-    Path("cutctx/proxy/handlers/openai/responses.py"),
-    Path("cutctx/proxy/handlers/openai/passthrough.py"),
-    Path("cutctx/proxy/handlers/openai/compress.py"),
-    Path("cutctx/proxy/handlers/gemini.py"),
-    Path("cutctx/proxy/handlers/batch.py"),
+    _PROJECT_ROOT / "cutctx/proxy/handlers/anthropic.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/openai/chat.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/openai/responses.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/openai/passthrough.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/openai/compress.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/gemini.py",
+    _PROJECT_ROOT / "cutctx/proxy/handlers/batch.py",
 ]
 
 

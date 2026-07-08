@@ -4,6 +4,7 @@ import json
 
 from fastapi.testclient import TestClient
 
+from cutctx.proxy.model_router import ModelRouterConfig
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.server import create_app
 
@@ -61,11 +62,11 @@ def test_config_flags_can_enable_live_orchestrator_when_routes_are_configured(
             }
         ),
     )
-
     config = ProxyConfig(
         backend="mock",
         cache_enabled=False,
         rate_limit_enabled=False,
+        admin_api_key="admin_12345",
     )
     app = create_app(config)
 
@@ -93,6 +94,36 @@ def test_config_flags_can_enable_live_orchestrator_when_routes_are_configured(
         model_routing = stats.json()["model_routing"]
         assert "available" in model_routing
         assert "configured_routes" in model_routing
-
         config_state = stats.json()["config"]
         assert config_state["orchestrator"] is True
+
+
+def test_config_flags_enable_orchestrator_uses_configured_preset_routes() -> None:
+    config = ProxyConfig(
+        backend="mock",
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        admin_api_key="admin_12345",
+        model_routing_preset="codex-gpt54mini-high",
+    )
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/flags",
+            json={"orchestrator": True},
+            headers={"x-cutctx-admin-key": "admin_12345"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["applied_live"]["orchestrator"]["enabled"] is True
+
+        stats = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
+        assert stats.status_code == 200
+
+        payload = stats.json()
+        assert payload["config"]["orchestrator"] is True
+        assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
+        assert payload["model_routing"]["configured_routes"] == len(
+            ModelRouterConfig.codex_gpt54mini_high_preset().routes
+        )

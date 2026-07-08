@@ -17,6 +17,7 @@ class SavingsSource(str, Enum):
     SEMANTIC_CACHE = "semantic_cache"
     PREFIX_CACHE_SELF_HOSTED = "prefix_cache_self_hosted"
     MODEL_ROUTING = "model_routing"
+    RTK_CLI_FILTERING = "rtk_cli_filtering"
     # WS16: tokenizer-aware normalization pre-pass. Additive enum member;
     # older consumers that don't know about it should treat it like any
     # other source and aggregate it into the total. See
@@ -56,6 +57,7 @@ _LABELS = {
     SavingsSource.SEMANTIC_CACHE: "Semantic Cache",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Self-Hosted Prefix Cache",
     SavingsSource.MODEL_ROUTING: "Model Routing",
+    SavingsSource.RTK_CLI_FILTERING: "RTK CLI Filtering",
     SavingsSource.NORMALIZATION: "Tokenizer Normalization",
     SavingsSource.MEMOIZATION: "Memoization",
     SavingsSource.OUTPUT_OPTIMIZATION: "Output Optimization",
@@ -70,6 +72,7 @@ _DESCRIPTIONS = {
     SavingsSource.SEMANTIC_CACHE: "Tokens avoided by semantic cache hits.",
     SavingsSource.PREFIX_CACHE_SELF_HOSTED: "Tokens avoided by self-hosted prefix caching.",
     SavingsSource.MODEL_ROUTING: "Tokens avoided or dollars saved by routing to a cheaper model.",
+    SavingsSource.RTK_CLI_FILTERING: "Tokens avoided before model ingress by RTK command filtering.",
     SavingsSource.NORMALIZATION: (
         "Tokens removed by the WS16 normalization pre-pass "
         "(NFC, whitespace collapse, blob-to-CCR-pointer, decimal-precision cap). "

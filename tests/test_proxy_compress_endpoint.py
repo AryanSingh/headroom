@@ -201,6 +201,8 @@ class TestCompressEndpointCompression:
         assert data["tokens_after"] > 0
         assert data["tokens_after"] <= data["tokens_before"]
         assert data["tokens_saved"] == data["tokens_before"] - data["tokens_after"]
+        assert data["savings_by_source"]["total_tokens"] == data["tokens_saved"]
+        assert data["savings_by_source"]["tokens"]["cutctx_compression"] >= 0
 
     def test_image_payload_reports_multimodal_token_savings(self, client):
         class _FakeImageCompressor:
@@ -250,6 +252,7 @@ class TestCompressEndpointCompression:
         assert data["tokens_before"] >= 1000
         assert data["tokens_saved"] >= 660
         assert data["tokens_after"] == data["tokens_before"] - data["tokens_saved"]
+        assert data["savings_by_source"]["tokens"]["image_optimization"] == 660
         assert "image:preserve" in data["transforms_applied"]
         assert data["image_metrics"]["tokens_saved"] == 660
 

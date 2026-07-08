@@ -845,6 +845,16 @@ def _selected_context_tool() -> str:
     envvar="CUTCTX_ENSEMBLE_ENABLED",
     help="Fan-out to multiple models + evaluator. Env: CUTCTX_ENSEMBLE_ENABLED=1",
 )
+@click.option(
+    "--model-routing-preset",
+    default=None,
+    envvar="CUTCTX_MODEL_ROUTING_PRESET",
+    help=(
+        "Named model-routing preset to load at startup. "
+        "Supported presets include codex-gpt54mini-high. "
+        "Env: CUTCTX_MODEL_ROUTING_PRESET."
+    ),
+)
 @click.pass_context
 def proxy(
     ctx: click.Context,
@@ -939,6 +949,7 @@ def proxy(
     enable_firewall: bool,
     enable_cache_aligner: bool,
     enable_ensemble: bool,
+    model_routing_preset: str | None,
 ) -> None:
     """Start the optimization proxy server.
 
@@ -1138,6 +1149,7 @@ def proxy(
         ),
         disable_kompress=disable_kompress,
         query_aware_compression=query_aware_compression,
+        model_routing_preset=model_routing_preset or os.environ.get("CUTCTX_MODEL_ROUTING_PRESET") or None,
         selective_filter=selective_filter,
         selective_filter_threshold=(
             selective_filter_threshold if selective_filter_threshold is not None else 0.15

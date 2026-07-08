@@ -20,9 +20,15 @@ import copy
 import hashlib
 import json
 import logging
+import os
+import sqlite3
+import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from cutctx.proxy.helpers import is_stateless
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +91,13 @@ class PrefixCacheTracker:
         )
     """
 
-    def __init__(self, provider: str, config: PrefixFreezeConfig | None = None):
+    def __init__(
+        self,
+        provider: str,
+        config: PrefixFreezeConfig | None = None,
+        *,
+        on_change: Any | None = None,
+    ):
         self.provider = provider
         self.config = config or PrefixFreezeConfig()
         self._cached_token_count: int = 0
@@ -100,6 +112,49 @@ class PrefixCacheTracker:
         self._tokens_preserved: int = 0
         self._compression_foregone_tokens: int = 0
         self._consecutive_write_only_turns: int = 0
+        self._on_change = on_change
+
+    def _notify_change(self) -> None:
+        if self._on_change is None:
+            return
+        try:
+            self._on_change(self)
+        except Exception:
+            logger.debug("PrefixCacheTracker persistence callback failed", exc_info=True)
+
+    def snapshot_state(self) -> dict[str, Any]:
+        """Return a JSON-serializable snapshot of the tracker state."""
+        return {
+            "provider": self.provider,
+            "cached_token_count": self._cached_token_count,
+            "cached_message_count": self._cached_message_count,
+            "turn_number": self._turn_number,
+            "last_activity": self._last_activity,
+            "last_original_messages": copy.deepcopy(self._last_original_messages),
+            "last_forwarded_messages": copy.deepcopy(self._last_forwarded_messages),
+            "busts_avoided": self._busts_avoided,
+            "tokens_preserved": self._tokens_preserved,
+            "compression_foregone_tokens": self._compression_foregone_tokens,
+            "consecutive_write_only_turns": self._consecutive_write_only_turns,
+        }
+
+    def restore_state(self, state: dict[str, Any]) -> None:
+        """Restore tracker state from a previously persisted snapshot."""
+        self.provider = str(state.get("provider", self.provider))
+        self._cached_token_count = int(state.get("cached_token_count", 0) or 0)
+        self._cached_message_count = int(state.get("cached_message_count", 0) or 0)
+        self._turn_number = int(state.get("turn_number", 0) or 0)
+        self._last_activity = float(state.get("last_activity", time.time()) or time.time())
+        self._last_original_messages = list(state.get("last_original_messages") or [])
+        self._last_forwarded_messages = list(state.get("last_forwarded_messages") or [])
+        self._busts_avoided = int(state.get("busts_avoided", 0) or 0)
+        self._tokens_preserved = int(state.get("tokens_preserved", 0) or 0)
+        self._compression_foregone_tokens = int(
+            state.get("compression_foregone_tokens", 0) or 0
+        )
+        self._consecutive_write_only_turns = int(
+            state.get("consecutive_write_only_turns", 0) or 0
+        )
 
     def get_frozen_message_count(self) -> int:
         """How many leading messages to skip compression on the next turn.
@@ -163,6 +218,7 @@ class PrefixCacheTracker:
             self._cached_token_count = 0
             self._cached_message_count = 0
             self._consecutive_write_only_turns = 0
+            self._notify_change()
             return
 
         # Estimate per-message token counts if not provided
@@ -189,6 +245,7 @@ class PrefixCacheTracker:
 
         self._cached_token_count = total_cached
         self._cached_message_count = frozen_count
+        self._notify_change()
 
         logger.debug(
             "PrefixCacheTracker[%s]: turn=%d, cached=%d tokens (system=%d, msg_budget=%d), "
@@ -215,6 +272,7 @@ class PrefixCacheTracker:
         self._busts_avoided += 1
         self._tokens_preserved += tokens_preserved
         self._compression_foregone_tokens += compression_foregone
+        self._notify_change()
 
     def should_force_compress(
         self,
@@ -312,24 +370,139 @@ class SessionTrackerStore:
     Automatically cleans up expired sessions.
     """
 
-    def __init__(self, default_config: PrefixFreezeConfig | None = None):
+    DEFAULT_DB_PATH = "~/.cutctx/prefix_tracker.db"
+
+    def __init__(
+        self,
+        default_config: PrefixFreezeConfig | None = None,
+        *,
+        db_path: str | os.PathLike[str] | None = None,
+    ):
         self._trackers: dict[str, PrefixCacheTracker] = {}
         self._default_config = default_config or PrefixFreezeConfig()
         self._last_cleanup: float = time.time()
         self._cleanup_interval: float = 60.0  # Cleanup every 60s
+        self._lock = threading.RLock()
+        self._stateless = is_stateless()
+        if self._stateless:
+            self._db_path = ":memory:"
+            self._memory_conn: sqlite3.Connection | None = None
+        else:
+            path = Path(os.path.expanduser(str(db_path or self.DEFAULT_DB_PATH)))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._db_path = str(path)
+        self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        if self._stateless:
+            if self._memory_conn is None:
+                self._memory_conn = sqlite3.connect(":memory:", timeout=5.0)
+                self._memory_conn.row_factory = sqlite3.Row
+            return self._memory_conn
+        conn = sqlite3.connect(self._db_path, timeout=5.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+
+    def _init_db(self) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS session_prefix_trackers (
+                    session_id         TEXT PRIMARY KEY,
+                    provider           TEXT NOT NULL,
+                    state_json         TEXT NOT NULL,
+                    last_activity_ts   REAL NOT NULL,
+                    updated_at_ts      REAL NOT NULL
+                )
+                """
+            )
+
+    def _tracker_state_json(self, tracker: PrefixCacheTracker) -> str:
+        return json.dumps(tracker.snapshot_state(), separators=(",", ":"), ensure_ascii=False)
+
+    def _save_tracker(self, session_id: str, tracker: PrefixCacheTracker) -> None:
+        if not session_id:
+            return
+        if tracker.is_expired:
+            self._delete_persisted_tracker(session_id)
+            return
+        payload = self._tracker_state_json(tracker)
+        now = time.time()
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO session_prefix_trackers
+                    (session_id, provider, state_json, last_activity_ts, updated_at_ts)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    provider = excluded.provider,
+                    state_json = excluded.state_json,
+                    last_activity_ts = excluded.last_activity_ts,
+                    updated_at_ts = excluded.updated_at_ts
+                """,
+                (session_id, tracker.provider, payload, tracker._last_activity, now),
+            )
+
+    def _delete_persisted_tracker(self, session_id: str) -> None:
+        if self._stateless:
+            return
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "DELETE FROM session_prefix_trackers WHERE session_id = ?",
+                (session_id,),
+            )
+
+    def _load_tracker(self, session_id: str) -> PrefixCacheTracker | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT provider, state_json, last_activity_ts FROM session_prefix_trackers "
+                "WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        if row is None:
+            return None
+
+        tracker = PrefixCacheTracker(
+            str(row["provider"]),
+            self._default_config,
+            on_change=lambda t, sid=session_id: self._save_tracker(sid, t),
+        )
+        try:
+            state = json.loads(row["state_json"])
+            if isinstance(state, dict):
+                tracker.restore_state(state)
+        except Exception:
+            logger.debug("Failed to restore prefix tracker state for %s", session_id, exc_info=True)
+            return None
+
+        tracker._last_activity = float(row["last_activity_ts"] or tracker._last_activity)
+        if tracker.is_expired:
+            self._delete_persisted_tracker(session_id)
+            return None
+        tracker._on_change = lambda t, sid=session_id: self._save_tracker(sid, t)
+        return tracker
 
     def get_or_create(self, session_id: str, provider: str) -> PrefixCacheTracker:
         """Get existing tracker or create a new one for this session."""
         self._maybe_cleanup()
 
-        if session_id in self._trackers:
-            tracker = self._trackers[session_id]
-            tracker._last_activity = time.time()
-            return tracker
+        with self._lock:
+            if session_id in self._trackers:
+                tracker = self._trackers[session_id]
+                tracker._last_activity = time.time()
+                return tracker
 
-        tracker = PrefixCacheTracker(provider, self._default_config)
-        self._trackers[session_id] = tracker
-        return tracker
+            tracker = self._load_tracker(session_id)
+            if tracker is None:
+                tracker = PrefixCacheTracker(
+                    provider,
+                    self._default_config,
+                    on_change=lambda t, sid=session_id: self._save_tracker(sid, t),
+                )
+                self._save_tracker(session_id, tracker)
+            self._trackers[session_id] = tracker
+            return tracker
 
     def _derive_caller_fingerprint(self, request: Any) -> str:
         """Derive a caller fingerprint from request auth headers.
@@ -400,9 +573,11 @@ class SessionTrackerStore:
         if now - self._last_cleanup < self._cleanup_interval:
             return
 
-        expired = [sid for sid, tracker in self._trackers.items() if tracker.is_expired]
-        for sid in expired:
-            del self._trackers[sid]
+        with self._lock:
+            expired = [sid for sid, tracker in self._trackers.items() if tracker.is_expired]
+            for sid in expired:
+                del self._trackers[sid]
+                self._delete_persisted_tracker(sid)
 
         if expired:
             logger.debug("SessionTrackerStore: cleaned up %d expired sessions", len(expired))
