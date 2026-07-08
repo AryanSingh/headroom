@@ -87,13 +87,41 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"fix\s*lint(?:ing)?",
         r"rename\s*(?:the)?\s*variable",
         r"format\s*(?:the)?\s*code",
+        r"\bsummar(?:y|ize|ise)\b",
+        r"\bexplain\b",
+        r"\bwhat\s+is\b",
+        r"\bhow\s+do\s+i\b",
+        r"\bwhere\s+is\b",
+        r"\blist\b",
+        r"\bshow\b",
+        r"\bgive\s+me\b",
+    ]
+
+    high_complexity_patterns = [
+        r"\bimplement\b",
+        r"\bdebug\b",
+        r"\brefactor\b",
+        r"\barchitecture\b",
+        r"\bmigration\b",
+        r"\bwire\b",
+        r"\bfix\s+(?:bug|issue|failure|error|crash|broken|routing)\b",
+        r"\bcomplete\s+work\b",
+        r"\btest\s+.*\bend\s*to\s*end\b",
     ]
 
     # If the text is short AND matches a low complexity pattern
     if len(content) < 500:
+        for pattern in high_complexity_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                return TaskComplexity.MEDIUM
         for pattern in low_complexity_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.LOW
+
+        # Short, single-turn informational prompts are good candidates for
+        # mini routing; multi-sentence or code/task-heavy asks stay medium.
+        if len(content) < 160 and "\n" not in content and normalized_content.count(".") <= 1:
+            return TaskComplexity.LOW
 
     if len(content) > 5000:
         return TaskComplexity.HIGH

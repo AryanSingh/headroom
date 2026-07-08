@@ -20,6 +20,8 @@ from cutctx.proxy.model_router import (
     ModelRoute,
     ModelRouter,
     ModelRouterConfig,
+    TaskComplexity,
+    classify_task_complexity,
     prepare_model_routing,
 )
 
@@ -335,6 +337,64 @@ def test_codex_preset_routes_tiny_greeting_to_mini() -> None:
     assert metadata is not None
     assert metadata["model_routing"]["source_model"] == "gpt-5.5"
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "summarize this briefly",
+        "what is episodic memory?",
+        "give me the restart command",
+        "where is the governance tab wired?",
+    ],
+)
+def test_codex_preset_routes_short_informational_requests_to_mini(content: str) -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.5",
+        messages=[{"role": "user", "content": content}],
+        request_savings_metadata={},
+    )
+
+    assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.LOW
+    assert model == "gpt-5.4-mini"
+    assert metadata is not None
+    assert metadata["model_routing"]["source_model"] == "gpt-5.5"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "implement model routing in the proxy and test it end to end",
+        "debug why websocket responses are not preserving routing metadata",
+        "refactor the orchestrator architecture",
+        "wire Claude routing for low complexity tasks",
+    ],
+)
+def test_codex_preset_keeps_complex_work_on_requested_model(content: str) -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.5",
+        messages=[{"role": "user", "content": content}],
+        request_savings_metadata={},
+    )
+
+    assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.MEDIUM
+    assert model == "gpt-5.5"
+    assert metadata == {}
 
 
 def test_codex_preset_routes_simple_claude_sonnet_to_haiku() -> None:
