@@ -19,6 +19,7 @@ import uuid
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from cutctx.proxy.helpers import (
@@ -104,6 +105,71 @@ def _ws_connect_header_kwargs(
     return {"extra_headers": upstream_headers}
 
 
+def _compute_responses_ws_conversation_session_id(
+    session_tracker_store: Any,
+    ws_headers: dict[str, str],
+    body: dict[str, Any] | None,
+    *,
+    fallback_session_id: str,
+) -> str:
+    """Derive a stable conversation key for Responses WebSocket sessions.
+
+    The socket itself has a short-lived connection UUID, but sticky helpers
+    should follow the logical conversation so reconnects and proxy restarts can
+    recover the same session state.
+    """
+    if session_tracker_store is None:
+        return fallback_session_id
+
+    payload = body if isinstance(body, dict) else {}
+    response_body = payload.get("response") if isinstance(payload.get("response"), dict) else payload
+    if not isinstance(response_body, dict):
+        response_body = {}
+
+    normalized_headers = dict(ws_headers)
+    has_explicit_session_header = any(
+        key.lower() == "x-cutctx-session-id" for key in normalized_headers
+    )
+    if not has_explicit_session_header:
+        previous_response_id = response_body.get("previous_response_id")
+        conversation = response_body.get("conversation")
+        derived_session_key: str | None = None
+
+        if isinstance(previous_response_id, str) and previous_response_id.strip():
+            derived_session_key = f"resp:{previous_response_id.strip()}"
+        elif isinstance(conversation, str) and conversation.strip():
+            derived_session_key = f"conv:{conversation.strip()}"
+        elif isinstance(conversation, dict):
+            conversation_id = conversation.get("id")
+            if isinstance(conversation_id, str) and conversation_id.strip():
+                derived_session_key = f"conv:{conversation_id.strip()}"
+
+        if derived_session_key:
+            normalized_headers["x-cutctx-session-id"] = derived_session_key
+
+    model = str(response_body.get("model") or payload.get("model") or "unknown")
+    instructions = response_body.get("instructions")
+    if instructions is None:
+        instructions = payload.get("instructions")
+
+    messages: list[dict[str, Any]] = []
+    if isinstance(instructions, str) and instructions:
+        messages = [{"role": "system", "content": instructions}]
+    elif isinstance(instructions, list) and instructions:
+        messages = [{"role": "system", "content": instructions}]
+
+    try:
+        synthetic_request = SimpleNamespace(headers=normalized_headers)
+        return session_tracker_store.compute_session_id(
+            synthetic_request,
+            model,
+            messages,
+        )
+    except Exception:
+        logger.debug("Failed to derive stable Responses WS session id", exc_info=True)
+        return fallback_session_id
+
+
 def _sanitize_chatgpt_subscription_responses_body(
     body: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
@@ -124,6 +190,96 @@ def _sanitize_chatgpt_subscription_responses_body(
         sanitized["model"] = migrated
         stripped.append(f"model:{current_model}->{migrated}")
     return sanitized, stripped
+
+
+def _apply_model_routing_request_overrides(
+    body: dict[str, Any],
+    savings_metadata: dict[str, Any] | None,
+) -> None:
+    """Apply request-shape overrides attached by model routing."""
+
+    overrides = (savings_metadata or {}).get("model_routing", {}).get("request_overrides") or {}
+    if not isinstance(overrides, dict):
+        return
+
+    reasoning_override = overrides.get("reasoning")
+    if isinstance(reasoning_override, dict):
+        existing_reasoning = body.get("reasoning")
+        if isinstance(existing_reasoning, dict):
+            merged_reasoning = dict(existing_reasoning)
+            merged_reasoning.update(reasoning_override)
+            body["reasoning"] = merged_reasoning
+        else:
+            body["reasoning"] = dict(reasoning_override)
+
+
+def _responses_payload_to_routing_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build minimal chat-shaped messages for model-routing classification."""
+
+    messages: list[dict[str, Any]] = []
+    instructions = payload.get("instructions")
+    if isinstance(instructions, str) and instructions.strip():
+        messages.append({"role": "system", "content": instructions})
+
+    input_data = payload.get("input")
+    if isinstance(input_data, str):
+        messages.append({"role": "user", "content": input_data})
+    elif isinstance(input_data, list):
+        input_messages: list[dict[str, Any]] = []
+        current_user_candidates: list[dict[str, Any]] = []
+        for item in input_data:
+            if not isinstance(item, dict):
+                continue
+
+            item_type = item.get("type")
+            if isinstance(item_type, str) and item_type not in {
+                "message",
+                "input_message",
+                "input_text",
+            }:
+                # Responses input arrays include tool outputs, reasoning, and
+                # call records. Those are context, not the user's current task.
+                continue
+
+            role = str(item.get("role") or "user")
+            if role not in {"system", "developer", "user", "assistant"}:
+                continue
+
+            if item_type == "input_text":
+                text = item.get("text")
+                if isinstance(text, str) and text.strip():
+                    message = {"role": role, "content": text}
+                    input_messages.append(message)
+                    if role == "user" and not item.get("id"):
+                        current_user_candidates.append(message)
+                continue
+
+            content = item.get("content")
+            if isinstance(content, str):
+                message = {"role": role, "content": content}
+                input_messages.append(message)
+                if role == "user" and not item.get("id"):
+                    current_user_candidates.append(message)
+            elif isinstance(content, list):
+                text_parts: list[str] = []
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    text = part.get("text")
+                    if isinstance(text, str) and text.strip():
+                        text_parts.append(text)
+                if text_parts:
+                    message = {"role": role, "content": "\n".join(text_parts)}
+                    input_messages.append(message)
+                    if role == "user" and not item.get("id"):
+                        current_user_candidates.append(message)
+
+        if current_user_candidates:
+            messages.append(current_user_candidates[-1])
+        else:
+            messages.extend(input_messages)
+
+    return messages
 
 
 def _truncate_body_for_chatgpt(
@@ -1220,6 +1376,7 @@ class OpenAIResponsesMixin:
             messages=messages,
         )
         body["model"] = model
+        _apply_model_routing_request_overrides(body, request_savings_metadata)
 
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -1957,6 +2114,7 @@ class OpenAIResponsesMixin:
                         else None,
                         client=client,
                         savings_metadata=merge_savings_metadata(
+                            request_savings_metadata,
                             extract_savings_metadata(
                                 request_headers=request.headers,
                                 response_headers=response.headers,
@@ -2039,6 +2197,12 @@ class OpenAIResponsesMixin:
 
         # Forward client headers to upstream, adding required OpenAI-Beta header
         ws_headers = dict(websocket.headers)
+        conversation_session_id = _compute_responses_ws_conversation_session_id(
+            self.session_tracker_store,
+            ws_headers,
+            None,
+            fallback_session_id=session_id,
+        )
         # Identify the WS harness before downstream auth/header rewrites.
         # Captured in closure so per-turn RequestOutcome can stamp it.
         client = classify_client(ws_headers)
@@ -2217,7 +2381,7 @@ class OpenAIResponsesMixin:
         # tracker stores the canonical client baseline.
         _ws_sticky_beta = _get_session_beta_tracker_ws().record_and_get_sticky_betas(
             provider="openai",
-            session_id=session_id,
+            session_id=conversation_session_id,
             client_value=_ws_client_beta_value,
         )
         _ws_merged_beta = _merge_openai_beta_ws(_ws_sticky_beta, _ws_required_tokens)
@@ -2238,7 +2402,7 @@ class OpenAIResponsesMixin:
         )
         _log_beta_header_merge_ws(
             provider="openai",
-            session_id=session_id,
+            session_id=conversation_session_id,
             client_betas_count=_ws_client_beta_count,
             sticky_betas_count=_ws_merged_beta_count,
             cutctx_added=_ws_required_tokens,
@@ -2454,6 +2618,12 @@ class OpenAIResponsesMixin:
             except json.JSONDecodeError:
                 # Not JSON — pass through as-is
                 pass
+            conversation_session_id = _compute_responses_ws_conversation_session_id(
+                self.session_tracker_store,
+                ws_headers,
+                body,
+                fallback_session_id=conversation_session_id,
+            )
             ws_savings_metadata = extract_savings_metadata(
                 request_headers=ws_headers,
                 body=body,
@@ -2468,14 +2638,12 @@ class OpenAIResponsesMixin:
                 or (body.get("model") if isinstance(body, dict) else None)
                 or "unknown"
             )
-            ws_num_messages = 0
-            ws_messages = None
+            ws_messages = _responses_payload_to_routing_messages(ws_routing_body)
+            ws_num_messages = len(ws_messages)
             if isinstance(ws_routing_body, dict):
                 if isinstance(ws_routing_body.get("messages"), list):
                     ws_messages = ws_routing_body.get("messages")
                     ws_num_messages = len(ws_messages or [])
-                elif isinstance(ws_routing_body.get("input"), list):
-                    ws_num_messages = len(ws_routing_body.get("input") or [])
             ws_model, ws_savings_metadata = prepare_model_routing(
                 self,
                 ws_model,
@@ -2487,6 +2655,7 @@ class OpenAIResponsesMixin:
                 body["model"] = ws_model
                 if isinstance(body.get("response"), dict):
                     body["response"]["model"] = ws_model
+                _apply_model_routing_request_overrides(body, ws_savings_metadata)
             ws_input_tokens_total = 0
             ws_output_tokens_total = 0
             ws_cache_read_tokens_total = 0
@@ -2522,7 +2691,7 @@ class OpenAIResponsesMixin:
             capture_codex_wire_debug(
                 "ws_inbound_first_frame",
                 request_id=request_id,
-                session_id=session_id,
+                session_id=conversation_session_id,
                 transport="websocket",
                 direction="client_to_cutctx",
                 url=_ws_url,
@@ -2772,7 +2941,7 @@ class OpenAIResponsesMixin:
                     ws_tools = ws_response_body.get("tools") or []
                     ws_tools, mem_injected = _apply_sticky_mem_tools_ws(
                         provider="openai",
-                        session_id=session_id,
+                        session_id=conversation_session_id,
                         request_id=request_id,
                         existing_tools=ws_tools,
                         memory_tools_to_inject=ws_mem_defs_responses,
@@ -3204,6 +3373,29 @@ class OpenAIResponsesMixin:
                                 frame_type="response.create",
                             )
                             return raw_msg, False, "invalid_inner_payload"
+                        frame_routed = False
+                        from cutctx.proxy.model_router import prepare_model_routing
+
+                        original_frame_model = str(inner_payload.get("model") or "unknown")
+                        frame_messages = _responses_payload_to_routing_messages(inner_payload)
+                        routed_frame_model, ws_savings_metadata = prepare_model_routing(
+                            self,
+                            original_frame_model,
+                            request_savings_metadata=ws_savings_metadata,
+                            num_messages=len(frame_messages),
+                            messages=frame_messages,
+                        )
+                        if routed_frame_model != original_frame_model:
+                            inner_payload = {**inner_payload, "model": routed_frame_model}
+                            if wrapped_frame:
+                                parsed_frame["response"] = inner_payload
+                            else:
+                                parsed_frame = inner_payload
+                            _apply_model_routing_request_overrides(
+                                inner_payload,
+                                ws_savings_metadata,
+                            )
+                            frame_routed = True
                         frame_compression_elapsed_ms = 0.0
                         try:
                             model_for_frame = inner_payload.get("model") or ""
@@ -3319,23 +3511,46 @@ class OpenAIResponsesMixin:
                                         bytes_before=len(raw_msg.encode("utf-8", errors="replace")),
                                         failed=True,
                                     )
-                            logger.warning(
-                                "[%s] WS /v1/responses frame compression "
-                                "failed; forwarding original: %s: %s",
-                                request_id,
-                                type(_frame_err).__name__,
-                                _frame_err,
-                            )
-                            _log_ws_passthrough(
-                                "compression_exception",
-                                frame_index=frame_index,
-                                raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
-                                frame_type="response.create",
-                                model=str(inner_payload.get("model") or "unknown"),
-                            )
-                            return raw_msg, False, "compression_exception"
+                                logger.warning(
+                                    "[%s] WS /v1/responses frame compression "
+                                    "failed; forwarding %s: %s: %s",
+                                    request_id,
+                                    "routed frame" if frame_routed else "original",
+                                    type(_frame_err).__name__,
+                                    _frame_err,
+                                )
+                                _log_ws_passthrough(
+                                    "compression_exception",
+                                    frame_index=frame_index,
+                                    raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
+                                    frame_type="response.create",
+                                    model=str(inner_payload.get("model") or "unknown"),
+                                )
+                                if frame_routed:
+                                    _rewrite_started = time.perf_counter()
+                                    rewritten = json.dumps(parsed_frame)
+                                    _rewrite_ms = (
+                                        time.perf_counter() - _rewrite_started
+                                    ) * 1000.0
+                                    _record_ws_compression_timing(
+                                        "compression_payload_rewrite_json_dump",
+                                        _rewrite_ms,
+                                    )
+                                    _record_ws_compression_overhead(_rewrite_ms)
+                                    return rewritten, True, "model_routing"
+                                return raw_msg, False, "compression_exception"
                         if not modified:
                             reason = frame_reason or "no_compression"
+                            if frame_routed:
+                                _rewrite_started = time.perf_counter()
+                                rewritten = json.dumps(parsed_frame)
+                                _rewrite_ms = (time.perf_counter() - _rewrite_started) * 1000.0
+                                _record_ws_compression_timing(
+                                    "compression_payload_rewrite_json_dump",
+                                    _rewrite_ms,
+                                )
+                                _record_ws_compression_overhead(_rewrite_ms)
+                                return rewritten, True, "model_routing"
                             _log_ws_passthrough(
                                 reason,
                                 frame_index=frame_index,
@@ -3433,7 +3648,7 @@ class OpenAIResponsesMixin:
                                 capture_codex_wire_debug(
                                     "ws_inbound_client_frame",
                                     request_id=request_id,
-                                    session_id=session_id,
+                                    session_id=conversation_session_id,
                                     transport="websocket",
                                     direction="client_to_cutctx",
                                     url=_ws_url,
@@ -3462,7 +3677,7 @@ class OpenAIResponsesMixin:
                                 capture_codex_wire_debug(
                                     "ws_upstream_client_frame",
                                     request_id=request_id,
-                                    session_id=session_id,
+                                    session_id=conversation_session_id,
                                     transport="websocket",
                                     direction="cutctx_to_upstream",
                                     url=upstream_url,
@@ -3732,7 +3947,7 @@ class OpenAIResponsesMixin:
                                     capture_codex_wire_debug(
                                         "ws_upstream_binary_frame",
                                         request_id=request_id,
-                                        session_id=session_id,
+                                        session_id=conversation_session_id,
                                         transport="websocket",
                                         direction="upstream_to_cutctx",
                                         url=upstream_url,
@@ -3752,7 +3967,7 @@ class OpenAIResponsesMixin:
                                 capture_codex_wire_debug(
                                     "ws_upstream_text_frame",
                                     request_id=request_id,
-                                    session_id=session_id,
+                                    session_id=conversation_session_id,
                                     transport="websocket",
                                     direction="upstream_to_cutctx",
                                     url=upstream_url,
@@ -4331,7 +4546,7 @@ class OpenAIResponsesMixin:
             await emit_stage_timings_log(
                 path="openai_responses_ws",
                 request_id=request_id,
-                session_id=session_id,
+                session_id=conversation_session_id,
                 stage_timer=stage_timer,
                 expected_stages=(
                     "accept",

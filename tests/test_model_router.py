@@ -288,8 +288,53 @@ def test_prepare_model_routing_attaches_placeholder_metadata() -> None:
     assert metadata["semantic_cache"]["tokens"] == 12
     assert metadata["model_routing"]["source_model"] == "claude-opus-4-5"
     assert metadata["model_routing"]["target_model"] == "claude-sonnet-4-5"
+
+
+def test_prepare_model_routing_attaches_request_overrides_for_codex_slim() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    handler = DummyHandler()
+    handler._model_router._lookup_costs = lambda src, tgt: (10.0, 1.0)
+
+    model, metadata = prepare_model_routing(
+        handler,
+        "gpt-5.5",
+        messages=[{"role": "user", "content": "fix typo in README"}],
+        request_savings_metadata={},
+    )
+
+    assert model == "gpt-5.4-mini"
+    assert metadata is not None
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+    assert metadata["model_routing"]["request_overrides"] == {
+        "reasoning": {"effort": "high"}
+    }
     assert metadata["model_routing"]["tokens_saved"] == 0
     assert metadata["model_routing"]["usd_saved"] == 0.0
+
+
+def test_codex_preset_routes_tiny_greeting_to_mini() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.5",
+        messages=[{"role": "user", "content": "hi"}],
+        request_savings_metadata={},
+    )
+
+    assert model == "gpt-5.4-mini"
+    assert metadata is not None
+    assert metadata["model_routing"]["source_model"] == "gpt-5.5"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
 # ─- finalize_savings() ──────────────────────────────────────────

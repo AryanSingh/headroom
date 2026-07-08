@@ -110,6 +110,51 @@ class TestSubrequestHaikuPreset:
         assert cfg.downgrade_when in ["low_cache_read", "always"]
 
 
+class TestCodexGpt54MiniHighPreset:
+    """Canonical preset keeps heavy models requested but routes
+    low-complexity work to GPT-5.4 mini with high reasoning."""
+
+    def test_codex_gpt54mini_high_exists(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        assert isinstance(cfg, ModelRouterConfig)
+
+    def test_codex_gpt54mini_high_is_enabled(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        assert cfg.enabled is True
+
+    def test_codex_gpt54mini_high_uses_low_complexity_gate(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        assert cfg.downgrade_when == "low_complexity"
+
+    def test_codex_gpt54mini_high_routes_gpt55_to_gpt54_mini(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("gpt-5.5", "gpt-5.4-mini") in pairs
+
+    def test_codex_gpt54mini_high_routes_gpt54_to_gpt54_mini(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("gpt-5.4", "gpt-5.4-mini") in pairs
+
+    def test_codex_gpt54mini_high_routes_gpt5_to_gpt54_mini(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("gpt-5", "gpt-5.4-mini") in pairs
+
+    def test_codex_gpt54mini_high_does_not_force_gpt54_mini_lower(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert not any(source == "gpt-5.4-mini" for source, _ in pairs)
+
+    def test_codex_gpt54mini_high_keeps_default_config_off(self) -> None:
+        cfg = ModelRouterConfig()
+        assert cfg.enabled is False
+
+    def test_codex_opencode_slim_alias_still_works(self) -> None:
+        cfg = ModelRouterConfig.codex_opencode_slim_preset()
+        assert cfg.routes == ModelRouterConfig.codex_gpt54mini_high_preset().routes
+
+
 class TestPresetSelection:
     """Tests that proxy config routing_preset field maps correctly."""
 
@@ -130,3 +175,17 @@ class TestPresetSelection:
             cfg = ModelRouterConfig()
         assert cfg.enabled is True
         assert len(cfg.routes) > 4
+
+    def test_codex_gpt54mini_high_preset_selection(self) -> None:
+        preset = "codex-gpt54mini-high"
+        if preset == "codex-gpt54mini-high":
+            cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        else:
+            cfg = ModelRouterConfig()
+        assert cfg.enabled is True
+        assert cfg.downgrade_when == "low_complexity"
+
+    def test_codex_opencode_slim_alias_selection(self) -> None:
+        cfg = ModelRouterConfig.from_preset_name("codex-opencode-slim")
+        assert cfg is not None
+        assert cfg.routes == ModelRouterConfig.codex_gpt54mini_high_preset().routes

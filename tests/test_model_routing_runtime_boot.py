@@ -35,3 +35,29 @@ def test_model_routing_initializes_from_env_on_runtime_boot(monkeypatch) -> None
         assert payload["model_routing"]["requested"] is True
         assert payload["model_routing"]["available"] is True
         assert payload["model_routing"]["configured_routes"] == 1
+
+
+def test_model_routing_preset_initializes_on_runtime_boot() -> None:
+    config = ProxyConfig()
+    config.admin_api_key = "test_admin"
+    config.optimize = False
+    config.cache_enabled = False
+    config.rate_limit_enabled = False
+    config.cost_tracking_enabled = False
+    config.model_routing_preset = "codex-gpt54mini-high"
+
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        stats = client.get(
+            "/stats",
+            headers={"X-Cutctx-Admin-Key": "test_admin"},
+        )
+
+        assert stats.status_code == 200, stats.text
+        payload = stats.json()
+        assert payload["config"]["orchestrator"] is True
+        assert payload["model_routing"]["requested"] is True
+        assert payload["model_routing"]["available"] is True
+        assert payload["model_routing"]["configured_routes"] >= 2
+        assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"

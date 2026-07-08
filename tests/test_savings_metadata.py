@@ -82,6 +82,31 @@ def test_merge_savings_metadata_adds_duplicate_sources() -> None:
     assert metadata[SavingsSource.SEMANTIC_CACHE.value]["usd"] == 0.03
 
 
+def test_merge_savings_metadata_preserves_model_routing_decision() -> None:
+    metadata = merge_savings_metadata(
+        {
+            "model_routing": {
+                "source_model": "gpt-5.5",
+                "target_model": "gpt-5.4-mini",
+                "reason": "downgrade_applied",
+                "tokens_saved": 0,
+                "usd_saved": 0.0,
+                "request_overrides": {"reasoning": {"effort": "high"}},
+            }
+        },
+        {"tool_schema_compaction": {"tokens": 10}},
+    )
+
+    assert metadata is not None
+    routing = metadata[SavingsSource.MODEL_ROUTING.value]
+    assert routing["source_model"] == "gpt-5.5"
+    assert routing["target_model"] == "gpt-5.4-mini"
+    assert routing["reason"] == "downgrade_applied"
+    assert routing["tokens_saved"] == 0
+    assert routing["request_overrides"] == {"reasoning": {"effort": "high"}}
+    assert metadata["tool_schema_compaction"]["tokens"] == 10
+
+
 async def test_semantic_cache_preserves_tokens_saved_per_hit() -> None:
     cache = SemanticCache()
     messages = [{"role": "user", "content": "hello"}]

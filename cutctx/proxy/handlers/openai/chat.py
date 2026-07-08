@@ -161,6 +161,17 @@ class OpenAIChatMixin:
             messages=messages,
         )
         body["model"] = model
+        reasoning_override = (
+            (request_savings_metadata or {}).get("model_routing", {}).get("request_overrides", {}).get("reasoning")
+        )
+        if isinstance(reasoning_override, dict):
+            existing_reasoning = body.get("reasoning")
+            if isinstance(existing_reasoning, dict):
+                merged_reasoning = dict(existing_reasoning)
+                merged_reasoning.update(reasoning_override)
+                body["reasoning"] = merged_reasoning
+            else:
+                body["reasoning"] = dict(reasoning_override)
         original_client_messages = copy.deepcopy(messages)
         input_event = self.pipeline_extensions.emit(
             PipelineStage.INPUT_RECEIVED,
@@ -1567,6 +1578,7 @@ class OpenAIChatMixin:
                 from cutctx.proxy.helpers import compute_turn_id
 
                 outcome_savings_metadata = merge_savings_metadata(
+                    request_savings_metadata,
                     extract_savings_metadata(
                         request_headers=request.headers,
                         response_headers=response.headers,

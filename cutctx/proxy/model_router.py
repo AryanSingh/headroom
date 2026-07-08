@@ -66,6 +66,18 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         return TaskComplexity.HIGH
 
     content = str(last_user_message.get("content", ""))
+    normalized_content = content.strip().lower()
+
+    if normalized_content in {
+        "hi",
+        "hello",
+        "hey",
+        "thanks",
+        "thank you",
+        "ok",
+        "okay",
+    }:
+        return TaskComplexity.LOW
 
     # Regex heuristic for low complexity
     low_complexity_patterns = [
@@ -234,6 +246,51 @@ class ModelRouterConfig:
         )
 
     @classmethod
+    def codex_gpt54mini_high_preset(cls) -> ModelRouterConfig:
+        """Keep GPT-5-tier models as the requested surface for serious work,
+        but opportunistically route lightweight Codex turns to GPT-5.4 mini
+        with high reasoning effort.
+
+        This preset is intentionally conservative: it only activates on
+        ``low_complexity`` text prompts so complex coding/review tasks stay on
+        the original heavy model. It is also fully opt-in to avoid silently
+        changing behavior for existing deployments.
+        """
+
+        return cls(
+            enabled=True,
+            downgrade_when="low_complexity",
+            routes=[
+                ModelRoute(
+                    source="gpt-5.5",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.4",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+            ],
+            cache_read_threshold=0.5,
+            tool_complexity_threshold=2.0,
+        )
+
+    @classmethod
+    def codex_opencode_slim_preset(cls) -> ModelRouterConfig:
+        """Backward-compatible alias for the newer GPT-5.4-mini preset."""
+
+        return cls.codex_gpt54mini_high_preset()
+
+    @classmethod
     def subrequest_haiku_preset(cls) -> ModelRouterConfig:
         """Routes internal subrequests (tool-loop helpers, summarization calls)
         to Haiku-tier models. Direct downgrade to Haiku, skipping intermediate
@@ -304,6 +361,31 @@ class ModelRouterConfig:
             tool_complexity_threshold=5.0,  # route even moderately complex requests
         )
 
+    @classmethod
+    def from_preset_name(cls, preset: str | None) -> ModelRouterConfig | None:
+        """Return a named preset config, or ``None`` when no preset is set.
+
+        ``None`` / empty / ``default`` preserve the historical behavior where
+        routing only activates when the operator provides explicit JSON routes.
+        We also accept older preset aliases so existing local setups keep
+        working while the product-facing name tracks the actual behavior.
+        """
+
+        normalized = (preset or "").strip().lower()
+        if normalized in {"", "default", "none"}:
+            return None
+        if normalized == "economy":
+            return cls.economy_preset()
+        if normalized == "subrequest-haiku":
+            return cls.subrequest_haiku_preset()
+        if normalized in {
+            "codex-gpt54mini-high",
+            "codex-opencode-slim",
+            "oh-my-opencode-slim",
+        }:
+            return cls.codex_gpt54mini_high_preset()
+        return None
+
 
 @dataclass
 class RoutingDecision:
@@ -321,6 +403,7 @@ class RoutingDecision:
     tokens_saved: int = 0
     usd_saved: float = 0.0
     reason: str = "no_route"
+    request_overrides: dict[str, Any] | None = None
 
 
 class ModelRouter:
@@ -394,7 +477,13 @@ class ModelRouter:
             tokens_saved=0,  # filled by caller after the request
             usd_saved=0.0,  # filled by caller after the request
             reason="downgrade_applied",
+            request_overrides=self._request_overrides_for_route(route),
         )
+
+    def _request_overrides_for_route(self, route: ModelRoute) -> dict[str, Any] | None:
+        if route.target == "gpt-5.4-mini":
+            return {"reasoning": {"effort": "high"}}
+        return None
 
     def finalize_savings(
         self,
@@ -533,6 +622,8 @@ def prepare_model_routing(
         "tokens_saved": 0,
         "usd_saved": 0.0,
     }
+    if decision.request_overrides:
+        updated_metadata["model_routing"]["request_overrides"] = decision.request_overrides
     return decision.target_model, updated_metadata
 
 

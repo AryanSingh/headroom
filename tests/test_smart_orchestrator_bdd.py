@@ -84,3 +84,48 @@ class TestSmartOrchestratorBDD:
         assert "model_routing" in result
         assert result["model_routing"]["tokens"] == 500
         assert result["model_routing"]["usd"] == 0.05
+
+    def test_given_codex_opencode_slim_when_low_complexity_then_routes_to_lighter_gpt(self):
+        # GIVEN the named Codex/OpenCode slim preset
+        config = ModelRouterConfig.codex_gpt54mini_high_preset()
+        router = ModelRouter(config=config)
+        router._lookup_costs = lambda src, tgt: (10.0, 1.0)
+
+        # WHEN a simple Codex task arrives on a heavy GPT model
+        messages = [{"role": "user", "content": "fix typo in README"}]
+        handler = MockHandler(_model_router=router)
+        target_model, meta = prepare_model_routing(
+            handler,
+            "gpt-5.5",
+            messages=messages,
+            request_savings_metadata={},
+        )
+
+        # THEN it routes to the configured lighter GPT model
+        assert target_model == "gpt-5.4-mini"
+        assert meta["model_routing"]["target_model"] == "gpt-5.4-mini"
+        assert meta["model_routing"]["request_overrides"] == {
+            "reasoning": {"effort": "high"}
+        }
+
+    def test_given_codex_opencode_slim_when_high_complexity_then_keeps_gpt_model(self):
+        # GIVEN the named Codex/OpenCode slim preset
+        config = ModelRouterConfig.codex_gpt54mini_high_preset()
+        router = ModelRouter(config=config)
+        router._lookup_costs = lambda src, tgt: (10.0, 1.0)
+
+        # WHEN the request is a heavy coding task
+        messages = [
+            {"role": "user", "content": "build an orchestrator with AST parsing, retries, and replay tooling"}
+        ]
+        handler = MockHandler(_model_router=router)
+        target_model, meta = prepare_model_routing(
+            handler,
+            "gpt-5.5",
+            messages=messages,
+            request_savings_metadata={},
+        )
+
+        # THEN the heavy GPT model is preserved
+        assert target_model == "gpt-5.5"
+        assert "model_routing" not in meta

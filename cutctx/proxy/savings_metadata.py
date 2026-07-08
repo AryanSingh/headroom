@@ -58,6 +58,41 @@ def _merge(
     bucket["usd"] = round(_coerce_float(bucket.get("usd")) + usd_value, 6)
 
 
+_MODEL_ROUTING_DECISION_KEYS = (
+    "source_model",
+    "target_model",
+    "reason",
+    "tokens_saved",
+    "usd_saved",
+    "request_overrides",
+)
+
+
+def _preserve_model_routing_decision(
+    result: dict[str, dict[str, Any]],
+    values: Mapping[str, Any] | None,
+) -> None:
+    """Keep routing decision metadata even before usage savings are known.
+
+    Model routing is decided before the upstream response returns token usage.
+    At that point the metadata intentionally has zero saved tokens; the request
+    outcome funnel later turns source/target models plus usage into real savings.
+    Generic numeric merging would otherwise drop the zero-token decision.
+    """
+    if not isinstance(values, Mapping):
+        return
+    if not any(key in values for key in _MODEL_ROUTING_DECISION_KEYS):
+        return
+
+    source_name = SavingsSource.MODEL_ROUTING.value
+    bucket = result.setdefault(source_name, {"tokens": 0, "usd": 0.0})
+    bucket["tokens"] = _coerce_int(bucket.get("tokens", 0))
+    bucket["usd"] = round(_coerce_float(bucket.get("usd", 0.0)), 6)
+    for key in _MODEL_ROUTING_DECISION_KEYS:
+        if key in values:
+            bucket[key] = values[key]
+
+
 def _merge_breakdown(result: dict[str, dict[str, Any]], breakdown: Any) -> None:
     by_source = getattr(breakdown, "by_source", None)
     if by_source is None:
@@ -98,6 +133,8 @@ def _merge_payload(result: dict[str, dict[str, Any]], payload: Any) -> None:
         alias_payload = payload.get(alias)
         if isinstance(alias_payload, dict):
             _merge_breakdown(result, parser(alias_payload))
+            if alias == "model_routing":
+                _preserve_model_routing_decision(result, alias_payload)
 
     # Flat metadata shape, useful for simple proxies and harness adapters.
     _merge_breakdown(result, parse_gptcache_hit(payload))
@@ -196,6 +233,8 @@ def merge_savings_metadata(
                     "ghost_tokens": _coerce_int(values.get("ghost_tokens", 0)),
                 }
                 continue
+            if str(source) == SavingsSource.MODEL_ROUTING.value:
+                _preserve_model_routing_decision(result, values)
             _merge(
                 result,
                 source,

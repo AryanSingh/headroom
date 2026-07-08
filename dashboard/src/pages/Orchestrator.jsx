@@ -233,7 +233,7 @@ export default function Orchestrator() {
             </div>
             <div className="metric-value">{formatInteger(tokensSaved)}</div>
             <div className="metric-footnote">
-              Offloaded to cheaper local models
+              Offloaded to lower-cost route targets
             </div>
           </article>
         </section>
@@ -242,7 +242,7 @@ export default function Orchestrator() {
           <div className="section-heading">
             <div>
               <div className="eyebrow">Routing status</div>
-              <h2>Why it is not routing yet</h2>
+              <h2>{modelRouting.reason ? "Why routing is blocked" : "Routing readiness"}</h2>
             </div>
           </div>
 
