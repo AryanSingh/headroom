@@ -82,6 +82,8 @@ PERMISSION_MAP: dict[str, AdminRole] = {
     "secrets.write": AdminRole.OPERATOR,
     "sso.read": AdminRole.OPERATOR,
     "sso.write": AdminRole.OPERATOR,
+    "providers.read": AdminRole.VIEWER,
+    "providers.write": AdminRole.OPERATOR,
     # Admin-only
     "stats.reset": AdminRole.ADMIN,
     "config.reset": AdminRole.ADMIN,

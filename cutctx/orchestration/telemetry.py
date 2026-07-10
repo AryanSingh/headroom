@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from collections import deque
 from pathlib import Path
 
 from .models import ExecutionRecord, to_dict
+
+_SENSITIVE_ERROR_VALUE = re.compile(
+    r"(?i)(\b(?:api[-_ ]?key|authorization|token|secret|password|key)\b\s*(?:=|:)\s*)"
+    r"(?:bearer\s+)?[^\s,;&]+"
+)
+_BEARER_TOKEN = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/-]+=*")
+
+
+def _redact_error(value: str) -> str:
+    """Avoid persisting credentials that an upstream exception may include."""
+    value = _SENSITIVE_ERROR_VALUE.sub(r"\1[REDACTED]", value)
+    return _BEARER_TOKEN.sub("Bearer [REDACTED]", value)
 
 
 class ExecutionTelemetryStore:
@@ -34,6 +47,8 @@ class ExecutionTelemetryStore:
 
     def record(self, execution: ExecutionRecord) -> None:
         payload = to_dict(execution)
+        if isinstance(payload.get("error"), str):
+            payload["error"] = _redact_error(payload["error"])
         with self._lock:
             self._records.append(payload)
             if self.path is not None:

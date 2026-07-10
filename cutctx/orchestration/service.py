@@ -176,8 +176,21 @@ class OrchestrationService:
         reference = account.credential_ref or f"provider:{account.id}"
         self.credential_store.put(reference, secret)
         if account.credential_ref != reference:
-            account.credential_ref = reference
-            self.replace_config(self.config)
+            with self._state_lock:
+                payload, effective = self.config_store.prepare_provider_patch(
+                    account.id,
+                    {"credential_ref": reference},
+                )
+                self._validate_config(effective)
+                candidate_engine = DeterministicRoutingEngine(
+                    effective,
+                    self.model_registry,
+                    require_configured_accounts=True,
+                )
+                self.config_store.save_payload(payload)
+                self.model_registry.sync_configured(effective.models)
+                self.config = effective
+                self.engine = candidate_engine
         return reference
 
     def delete_credential(self, account_id: str) -> bool:

@@ -58,6 +58,35 @@ class LayeredConfigStore:
         return merged
 
     def save(self, config: OrchestrationConfig, *, layer: str = "project") -> None:
+        self.save_payload(to_dict(config), layer=layer)
+
+    def prepare_provider_patch(
+        self,
+        provider_id: str,
+        values: dict[str, Any],
+        *,
+        layer: str = "project",
+    ) -> tuple[dict[str, Any], OrchestrationConfig]:
+        """Create a minimal provider override without flattening other layers."""
+        if layer not in self.ORDER:
+            raise ValueError(f"Unknown config layer: {layer}")
+        if self.paths.get(layer) is None:
+            raise ValueError(f"No path configured for {layer} orchestration config")
+        with self._lock:
+            payload = self._layer_payload(layer)
+            providers = payload.setdefault("providers", [])
+            if not isinstance(providers, list):
+                raise ValueError(f"Invalid providers configuration in {layer} layer")
+            for item in providers:
+                if isinstance(item, dict) and str(item.get("id", "")) == provider_id:
+                    item.update(values)
+                    break
+            else:
+                providers.append({"id": provider_id, **values})
+            effective = config_from_dict(self._load_merged(override=(layer, payload)))
+            return payload, effective
+
+    def save_payload(self, payload: dict[str, Any], *, layer: str = "project") -> None:
         if layer not in self.ORDER:
             raise ValueError(f"Unknown config layer: {layer}")
         path = self.paths.get(layer)
@@ -68,7 +97,7 @@ class LayeredConfigStore:
             fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                    json.dump(to_dict(config), handle, indent=2, sort_keys=True)
+                    json.dump(payload, handle, indent=2, sort_keys=True)
                     handle.write("\n")
                     handle.flush()
                     os.fsync(handle.fileno())
@@ -76,6 +105,16 @@ class LayeredConfigStore:
             finally:
                 if os.path.exists(temporary):
                     os.unlink(temporary)
+
+    def _layer_payload(self, layer: str) -> dict[str, Any]:
+        path = self.paths.get(layer)
+        if path is None or not path.exists():
+            return {"version": 1}
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Invalid configuration object in {layer} layer")
+        return payload
 
     @classmethod
     def _merge(cls, base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:

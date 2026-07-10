@@ -1035,6 +1035,20 @@ class CodeAwareCompressor(Transform):
         # Check if tree-sitter is available
         if not _check_tree_sitter_available():
             logger.warning("tree-sitter not available. Install with: pip install cutctx-ai[code]")
+            # The lossy fallback cannot honour call-path preservation.  Returning
+            # source unchanged is the safe outcome when a caller explicitly
+            # protects symbols (including request-scoped thread-local symbols).
+            if protected_symbols or self._protected_symbols:
+                return CodeCompressionResult(
+                    compressed=code,
+                    original=code,
+                    original_tokens=original_tokens,
+                    compressed_tokens=original_tokens,
+                    compression_ratio=1.0,
+                    language=detected_lang,
+                    language_confidence=confidence,
+                    syntax_valid=True,
+                )
             if self.config.fallback_to_kompress:
                 return self._fallback_compress(code, original_tokens)
             return CodeCompressionResult(

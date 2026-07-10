@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -412,6 +413,42 @@ def test_credentials_are_encrypted_and_support_multiple_accounts(tmp_path: Path)
         "headers": {"x-org": "acme"},
     }
     assert oct((tmp_path / "credentials.key").stat().st_mode & 0o777) == "0o600"
+
+
+def test_credential_write_preserves_layered_config_boundaries(tmp_path: Path) -> None:
+    global_path = tmp_path / "global.json"
+    project_path = tmp_path / "project.json"
+    global_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "providers": [
+                    {"id": "shared-openai", "provider": "openai", "display_name": "Shared"}
+                ],
+                "settings": {"mode": "strict"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    service = OrchestrationService(
+        config_store=LayeredConfigStore({"global": global_path, "project": project_path}),
+        credential_store=EncryptedCredentialStore(tmp_path / "credentials.enc"),
+        model_registry=DynamicModelRegistry(),
+        provider_registry=builtin_provider_registry(),
+        telemetry=ExecutionTelemetryStore(),
+    )
+
+    assert service.put_credential("shared-openai", {"api_key": "test-secret"}) == (
+        "provider:shared-openai"
+    )
+
+    assert json.loads(project_path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "providers": [{"id": "shared-openai", "credential_ref": "provider:shared-openai"}],
+    }
+    assert service.config.providers[0].provider == "openai"
+    assert service.config.providers[0].credential_ref == "provider:shared-openai"
+    assert service.config.settings.mode == "strict"
 
 
 @pytest.mark.asyncio
@@ -988,6 +1025,31 @@ def test_execution_telemetry_survives_restart(tmp_path: Path) -> None:
     reloaded = ExecutionTelemetryStore(path)
 
     assert reloaded.list()[0]["request_id"] == "request-1"
+
+
+def test_execution_telemetry_redacts_upstream_credentials(tmp_path: Path) -> None:
+    store = ExecutionTelemetryStore(tmp_path / "executions.jsonl")
+    secret = "sk-live-never-persist"
+    store.record(
+        ExecutionRecord(
+            request_id="request-secret",
+            requested_role="worker",
+            assigned_model=None,
+            actual_model="model-a",
+            provider="openai",
+            account_id="openai-main",
+            binding_id=None,
+            routing_reason="provider_error",
+            mode="strict",
+            policy="role_locked",
+            started_at="2026-07-10T00:00:00+00:00",
+            error=f"Authorization: Bearer {secret}; api_key={secret}",
+        )
+    )
+
+    serialized = (tmp_path / "executions.jsonl").read_text(encoding="utf-8")
+    assert secret not in serialized
+    assert "[REDACTED]" in serialized
 
 
 @pytest.mark.asyncio
