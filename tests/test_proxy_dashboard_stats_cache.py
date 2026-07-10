@@ -381,6 +381,26 @@ def test_cost_merge_uses_generic_cli_filtering_name() -> None:
     assert payload["cli_tokens_included_in_compression"] is True
 
 
+def test_cost_tracker_stats_include_budget_snapshot() -> None:
+    from cutctx.proxy.cost import CostTracker
+
+    tracker = CostTracker(budget_limit_usd=10.0, budget_period="daily")
+    tracker._costs.append((tracker._last_prune_time, 2.5))
+
+    payload = tracker.stats()
+
+    assert payload["budget"] == {
+        "enabled": True,
+        "period": "daily",
+        "limit_usd": 10.0,
+        "spent_usd": 2.5,
+        "remaining_usd": 7.5,
+        "allowed": True,
+        "exceeded": False,
+        "percent_used": 25.0,
+    }
+
+
 def test_session_summary_uses_generic_cli_filtering_keys() -> None:
     from cutctx.proxy.cost import build_session_summary
 

@@ -402,7 +402,7 @@ class TestPointerFormat:
         assert pointer.startswith("[cutctx:ref:")
         assert pointer.endswith("]")
         # Extract hash (should be 16 chars)
-        hash_part = pointer[14:-1]
+        hash_part = pointer[12:-1]
         assert len(hash_part) == 16
         # Hash should be hex
         assert all(c in "0123456789abcdef" for c in hash_part)

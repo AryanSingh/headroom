@@ -38,6 +38,26 @@ _CUTCTX_REATTRIBUTABLE_SOURCES = {
     "tool_schema_compaction",
     "api_surface_slimming",
 }
+_OBSERVED_PROVIDER_SOURCES = {"provider_prompt_cache"}
+_DECLINE_REASON_ALIASES = {
+    "cache_protected": "cache_protection",
+    "prefix_cache_protected": "cache_protection",
+    "too_small": "below_threshold",
+    "below_min_tokens": "below_threshold",
+    "disabled": "feature_disabled",
+    "compression_disabled": "feature_disabled",
+    "unsupported": "unsupported_request",
+    "guardrail": "quality_guardrail",
+    "empty": "no_eligible_content",
+    "no_messages": "no_eligible_content",
+}
+
+
+def normalize_decline_reason(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    return _DECLINE_REASON_ALIASES.get(normalized, normalized)
 
 
 @dataclass(frozen=True)
@@ -148,6 +168,20 @@ class RequestOutcome:
     # funnel merges these into the breakdown after the typed fields
     # have been applied.
     savings_metadata: dict[str, dict[str, Any]] | None = None
+
+    # Canonical attribution and opportunity-funnel fields.  These are
+    # deliberately explicit rather than inferred from lifetime counters.
+    savings_basis: str = "estimated"
+    pricing_basis: str = "model_input_list_price"
+    eligible_input_tokens: int = 0
+    cache_protected_tokens: int = 0
+    compressed_tokens: int = 0
+    decline_reason: str | None = None
+    canary_arm: str = "control"
+    canary_eligible: bool = False
+    quality_success: bool | None = None
+    retry_count: int = 0
+    user_corrections: int = 0
 
     # ── Timing ────────────────────────────────────────────────────────
     # total_latency_ms: wall-clock end-to-end for this request
@@ -719,6 +753,65 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     _savings_by_source_tokens, _savings_by_source_usd, _savings_meta = _build_savings_breakdown(
         outcome
     )
+    created_savings_tokens = sum(
+        value
+        for source, value in _savings_by_source_tokens.items()
+        if source not in _OBSERVED_PROVIDER_SOURCES
+    )
+    observed_provider_savings_tokens = sum(
+        value
+        for source, value in _savings_by_source_tokens.items()
+        if source in _OBSERVED_PROVIDER_SOURCES
+    )
+    created_savings_usd = sum(
+        value
+        for source, value in _savings_by_source_usd.items()
+        if source not in _OBSERVED_PROVIDER_SOURCES
+    )
+    observed_provider_savings_usd = sum(
+        value
+        for source, value in _savings_by_source_usd.items()
+        if source in _OBSERVED_PROVIDER_SOURCES
+    )
+    eligible_input_tokens = max(
+        0,
+        int(outcome.eligible_input_tokens or outcome.attempted_input_tokens or outcome.original_tokens),
+    )
+    cache_protected_tokens = max(
+        0,
+        int(outcome.cache_protected_tokens or outcome.cache_read_tokens),
+    )
+    compressed_tokens = max(
+        0,
+        int(outcome.compressed_tokens or (outcome.original_tokens - outcome.optimized_tokens)),
+    )
+    decline_reason = normalize_decline_reason(
+        outcome.decline_reason
+        or outcome.tags.get("decline_reason")
+        or outcome.tags.get("passthrough_reason")
+    )
+    canary_meta = (outcome.savings_metadata or {}).get("savings_canary") or {}
+    canary_arm = (
+        str(canary_meta.get("arm") or outcome.canary_arm or "control")
+        if isinstance(canary_meta, dict)
+        else outcome.canary_arm
+    )
+    canary_eligible = (
+        bool(canary_meta.get("eligible"))
+        if isinstance(canary_meta, dict) and "eligible" in canary_meta
+        else outcome.canary_eligible
+    )
+    canary_enabled = bool(canary_meta.get("enabled")) if isinstance(canary_meta, dict) else False
+    canary_identity_source = (
+        str(canary_meta.get("assignment_identity_source") or "unknown")
+        if isinstance(canary_meta, dict)
+        else "unknown"
+    )
+    canary_assignment_sticky = (
+        bool(canary_meta.get("assignment_sticky"))
+        if isinstance(canary_meta, dict)
+        else False
+    )
     audit_meta = (outcome.savings_metadata or {}).get("ghost_token_audit") or {}
     scaffolding_tokens = max(
         0,
@@ -770,7 +863,34 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         tool_schema_compaction_usd_delta=_savings_by_source_usd.get("tool_schema_compaction"),
         api_surface_slimming_usd_delta=_savings_by_source_usd.get("api_surface_slimming"),
         savings_by_source_usd=_savings_by_source_usd,
+        created_savings_tokens=created_savings_tokens,
+        observed_provider_savings_tokens=observed_provider_savings_tokens,
+        eligible_input_tokens=eligible_input_tokens,
+        cache_protected_tokens=cache_protected_tokens,
+        compressed_tokens=compressed_tokens,
+        decline_reason=decline_reason,
+        savings_basis=outcome.savings_basis,
+        pricing_basis=outcome.pricing_basis,
     )
+
+    # Canary evaluation is fed from the same reconciled per-request values
+    # that persistence and the dashboard consume.
+    try:
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        if canary_enabled and canary_eligible and canary_assignment_sticky:
+            get_savings_canary_coordinator().record(
+                canary_arm,
+                input_tokens=outcome.optimized_tokens,
+                created_savings_usd=created_savings_usd,
+                observed_provider_savings_usd=observed_provider_savings_usd,
+                quality_success=outcome.quality_success,
+                retries=outcome.retry_count,
+                user_corrections=outcome.user_corrections,
+                latency_ms=outcome.total_latency_ms,
+            )
+    except Exception:
+        logger.debug("Savings canary observation failed", exc_info=True)
 
     # 2. Cost tracker (optional).
     cost_tracker = getattr(handler, "cost_tracker", None)
@@ -864,6 +984,67 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             )
 
     if request_logger is not None:
+        routing_meta = None
+        model_routing_meta = (outcome.savings_metadata or {}).get("model_routing") or {}
+        if isinstance(model_routing_meta, dict) and model_routing_meta:
+            source_model = str(model_routing_meta.get("source_model") or "").strip()
+            target_model = str(model_routing_meta.get("target_model") or outcome.model).strip()
+            routing_meta = {
+                "requested_model": source_model or outcome.model,
+                "actual_model": outcome.model,
+                "routed": bool(source_model and source_model != target_model),
+                "source_model": source_model or outcome.model,
+                "target_model": target_model or outcome.model,
+                "reason": model_routing_meta.get("reason"),
+                "request_overrides": model_routing_meta.get("request_overrides") or None,
+                "saved_tokens": model_routing_saved_tokens,
+                "saved_usd": float(outcome.model_routing_usd_saved or 0.0),
+            }
+
+        fallback_meta = None
+        fallback_reason = log_tags.get("fallback_reason") or log_tags.get("fallback_error")
+        fallback_attempted = log_tags.get("fallback_attempted")
+        fallback_provider = log_tags.get("fallback_provider") or log_tags.get("upstream_provider")
+        fallback_meta_candidate: dict[str, Any] = {}
+        if fallback_provider not in (None, ""):
+            fallback_meta_candidate["provider"] = fallback_provider
+        if fallback_reason not in (None, ""):
+            fallback_meta_candidate["reason"] = fallback_reason
+        if fallback_attempted is not None:
+            fallback_meta_candidate["attempted"] = (
+                str(fallback_attempted).lower() == "true"
+            )
+        circuit_state = log_tags.get("circuit_breaker_state")
+        if circuit_state not in (None, ""):
+            fallback_meta_candidate["circuit_breaker_state"] = circuit_state
+        circuit_retry_after = log_tags.get("circuit_breaker_retry_after_s")
+        if circuit_retry_after not in (None, ""):
+            try:
+                fallback_meta_candidate["circuit_breaker_retry_after_s"] = float(
+                    circuit_retry_after
+                )
+            except (TypeError, ValueError):
+                pass
+        circuit_failures = log_tags.get("circuit_breaker_consecutive_failures")
+        if circuit_failures not in (None, ""):
+            try:
+                fallback_meta_candidate["circuit_breaker_consecutive_failures"] = int(
+                    circuit_failures
+                )
+            except (TypeError, ValueError):
+                pass
+        active_provider = log_tags.get("failover_active_provider")
+        if active_provider not in (None, ""):
+            fallback_meta_candidate["active_provider"] = active_provider
+        active_base_url = log_tags.get("failover_active_base_url")
+        if active_base_url not in (None, ""):
+            fallback_meta_candidate["active_base_url"] = active_base_url
+        active_healthy = log_tags.get("failover_active_healthy")
+        if active_healthy not in (None, ""):
+            fallback_meta_candidate["active_healthy"] = str(active_healthy).lower() == "true"
+        if fallback_meta_candidate:
+            fallback_meta = fallback_meta_candidate
+
         request_logger.log(
             RequestLog(
                 request_id=outcome.request_id,
@@ -890,7 +1071,35 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 total_saved_tokens=total_saved_tokens,
                 total_savings_percent=total_savings_percent,
                 request_cost_usd=request_cost_usd,
+                savings_by_source_tokens=dict(_savings_by_source_tokens),
+                savings_by_source_usd=dict(_savings_by_source_usd),
                 waste_signals=outcome.waste_signals,
+                pipeline_timing=outcome.pipeline_timing,
+                decline_reason=decline_reason,
+                routing_metadata=routing_meta,
+                fallback=fallback_meta,
+                created_savings_tokens=created_savings_tokens,
+                observed_provider_savings_tokens=observed_provider_savings_tokens,
+                created_savings_usd=created_savings_usd,
+                observed_provider_savings_usd=observed_provider_savings_usd,
+                savings_basis=outcome.savings_basis,
+                pricing_basis=outcome.pricing_basis,
+                opportunity_funnel={
+                    "eligible_input_tokens": eligible_input_tokens,
+                    "cache_protected_tokens": cache_protected_tokens,
+                    "compressed_tokens": compressed_tokens,
+                    "declined_tokens": max(
+                        eligible_input_tokens - cache_protected_tokens - compressed_tokens,
+                        0,
+                    ),
+                },
+                canary={
+                    "arm": canary_arm,
+                    "eligible": canary_eligible,
+                    "enabled": canary_enabled,
+                    "assignment_identity_source": canary_identity_source,
+                    "assignment_sticky": canary_assignment_sticky,
+                },
                 request_messages=outcome.request_messages,
                 compressed_messages=outcome.compressed_messages,
                 turn_id=outcome.turn_id,

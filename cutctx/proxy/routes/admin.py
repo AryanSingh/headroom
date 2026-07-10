@@ -1645,6 +1645,76 @@ def create_admin_router(
             "description": "Auto-tune compression aggressiveness per task type from recent quality signals",
         }
 
+    @router.get(
+        "/savings-canary/report",
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+    )
+    async def savings_canary_report():
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        return get_savings_canary_coordinator().report()
+
+    @router.post(
+        "/savings-canary/feedback",
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+    )
+    async def savings_canary_feedback(body: dict[str, Any]):
+        from cutctx.proxy.savings_canary import TREATMENT_ARMS, get_savings_canary_coordinator
+
+        if not str(body.get("event_id") or "").strip():
+            raise HTTPException(status_code=422, detail="event_id is required")
+        if not str(body.get("arm") or "").strip():
+            raise HTTPException(status_code=422, detail="arm is required")
+        arm = str(body["arm"])
+        if arm not in ("control", *TREATMENT_ARMS):
+            raise HTTPException(status_code=422, detail="unknown savings canary arm")
+        if "quality_success" not in body:
+            raise HTTPException(status_code=422, detail="quality_success is required")
+        if not isinstance(body["quality_success"], bool):
+            raise HTTPException(status_code=422, detail="quality_success must be boolean")
+        request_id = str(body.get("request_id") or "").strip()
+        if request_id:
+            trace = (
+                _proxy.logger.get_request_with_messages(request_id)
+                if getattr(_proxy, "logger", None) is not None
+                else None
+            )
+            if trace is None:
+                raise HTTPException(status_code=422, detail="request_id trace was not found")
+            trace_arm = str((trace.get("canary") or {}).get("arm") or "control")
+            if trace_arm != arm:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"request trace arm is {trace_arm}, not {arm}",
+                )
+        coordinator = get_savings_canary_coordinator()
+        duplicate = coordinator.record_feedback(
+            arm,
+            event_id=str(body["event_id"]),
+            quality_success=bool(body["quality_success"]),
+            retries=int(body.get("retries") or 0),
+            user_corrections=int(body.get("user_corrections") or 0),
+        )
+        return {**coordinator.report(), "duplicate": duplicate}
+
+    @router.post(
+        "/savings-canary/promote",
+        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+    )
+    async def savings_canary_promote(body: dict[str, Any]):
+        from cutctx.proxy.savings_canary import TREATMENT_ARMS, get_savings_canary_coordinator
+
+        arm = str(body.get("arm") or "")
+        if arm not in TREATMENT_ARMS:
+            raise HTTPException(status_code=422, detail="a treatment arm is required")
+        try:
+            return get_savings_canary_coordinator().promote(
+                arm,
+                int(body.get("percent") or 0),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     # ── Runtime feature flag toggle API ──────────────────────────────────────
     # The dashboard uses this route as the canonical config surface. Keep it
     # compatible with both the newer *_enabled feature keys and the legacy
@@ -2054,7 +2124,7 @@ def create_admin_router(
     )
     async def ccr_feedback():
         """Get CCR feedback loop statistics and learned patterns."""
-        from cutctx.cache.compression_store import get_compression_feedback
+        from cutctx.cache.compression_feedback import get_compression_feedback
 
         feedback = get_compression_feedback()
         stats = feedback.get_stats()
@@ -2078,11 +2148,15 @@ def create_admin_router(
 
     @router.get(
         "/v1/feedback/{tool_name}",
-        dependencies=[_Dep(require_admin_auth), _Dep(require_rbac_permission("stats.read"))],
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("stats.read")),
+            _Dep(require_entitlement("ccr")),
+        ],
     )
     async def ccr_feedback_for_tool(tool_name: str):
         """Get compression hints for a specific tool."""
-        from cutctx.cache.compression_store import get_compression_feedback
+        from cutctx.cache.compression_feedback import get_compression_feedback
 
         feedback = get_compression_feedback()
         hints = feedback.get_compression_hints(tool_name)

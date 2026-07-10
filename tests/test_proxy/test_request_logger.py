@@ -124,12 +124,107 @@ def test_get_recent_reads_live_from_shared_file_across_instances(tmp_path):
     assert ids_on_b == {"from-a", "from-b"}
 
 
+def test_get_recent_with_messages_reads_live_from_shared_file_across_instances(tmp_path):
+    log_file = tmp_path / "requests.jsonl"
+    logger_a = RequestLogger(log_file=str(log_file), log_full_messages=True)
+    logger_b = RequestLogger(log_file=str(log_file), log_full_messages=True)
+
+    logger_a.log(
+        _entry(
+            request_id="from-a",
+            request_messages=[{"role": "user", "content": "pre-a"}],
+            compressed_messages=[{"role": "user", "content": "post-a"}],
+        )
+    )
+    logger_b.log(
+        _entry(
+            request_id="from-b",
+            request_messages=[{"role": "user", "content": "pre-b"}],
+            compressed_messages=[{"role": "user", "content": "post-b"}],
+        )
+    )
+
+    recent = logger_a.get_recent_with_messages(10)
+
+    by_id = {entry["request_id"]: entry for entry in recent}
+    assert by_id["from-a"]["request_messages"] == [{"role": "user", "content": "pre-a"}]
+    assert by_id["from-b"]["compressed_messages"] == [
+        {"role": "user", "content": "post-b"}
+    ]
+
+
+def test_get_request_with_messages_prefers_shared_log_file(tmp_path):
+    log_file = tmp_path / "requests.jsonl"
+    logger_a = RequestLogger(log_file=str(log_file), log_full_messages=True)
+    logger_b = RequestLogger(log_file=str(log_file), log_full_messages=True)
+
+    logger_a.log(
+        _entry(
+            request_id="from-a",
+            request_messages=[{"role": "user", "content": "pre-a"}],
+            compressed_messages=[{"role": "user", "content": "post-a"}],
+        )
+    )
+
+    entry = logger_b.get_request_with_messages("from-a")
+
+    assert entry is not None
+    assert entry["request_id"] == "from-a"
+    assert entry["request_messages"] == [{"role": "user", "content": "pre-a"}]
+
+
 def test_get_recent_falls_back_to_memory_when_no_log_file():
     logger = RequestLogger(log_file=None)
     logger.log(_entry(request_id="mem-only"))
 
     recent = logger.get_recent(10)
     assert [e["request_id"] for e in recent] == ["mem-only"]
+
+
+def test_get_recent_with_messages_falls_back_to_memory_when_shared_log_unavailable(tmp_path, monkeypatch):
+    log_file = tmp_path / "requests.jsonl"
+    logger = RequestLogger(log_file=str(log_file), log_full_messages=True)
+    logger.log(
+        _entry(
+            request_id="mem-fallback",
+            request_messages=[{"role": "user", "content": "pre"}],
+            compressed_messages=[{"role": "user", "content": "post"}],
+        )
+    )
+
+    monkeypatch.setattr(
+        "cutctx.proxy.request_logger._tail_lines",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk unavailable")),
+    )
+
+    recent = logger.get_recent_with_messages(10)
+
+    assert len(recent) == 1
+    assert recent[0]["request_id"] == "mem-fallback"
+    assert recent[0]["compressed_messages"] == [{"role": "user", "content": "post"}]
+
+
+def test_get_request_with_messages_falls_back_to_memory_when_shared_log_unavailable(tmp_path, monkeypatch):
+    log_file = tmp_path / "requests.jsonl"
+    logger = RequestLogger(log_file=str(log_file), log_full_messages=True)
+    logger.log(
+        _entry(
+            request_id="mem-detail",
+            request_messages=[{"role": "user", "content": "pre"}],
+            compressed_messages=[{"role": "user", "content": "post"}],
+        )
+    )
+
+    monkeypatch.setattr(
+        "cutctx.proxy.request_logger._tail_lines",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk unavailable")),
+    )
+
+    entry = logger.get_request_with_messages("mem-detail")
+
+    assert entry is not None
+    assert entry["request_id"] == "mem-detail"
+    assert entry["request_messages"] == [{"role": "user", "content": "pre"}]
 
 
 def test_get_memory_stats_accounts_for_compressed_messages():

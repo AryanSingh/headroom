@@ -77,6 +77,119 @@ def test_tracker_accumulates_per_client_and_persists(tmp_path):
     assert reloaded.stats_preview()["clients"]["claude-code"]["tokens_saved"] == 500
 
 
+def test_client_and_model_buckets_include_full_savings_not_just_compression(tmp_path):
+    """Behavior: a client/model lifetime row should reflect the same broad
+    savings mix the request recorded, not collapse everything into direct
+    compression only.
+
+    This guards the Codex attribution bug where live traffic was correctly
+    tagged as ``codex`` but durable client rows only accumulated
+    ``compression_savings_usd``. Provider-cache and routing savings then made
+    session totals climb while lifetime client attribution looked far too low.
+    """
+    path = tmp_path / "savings.json"
+    tracker = SavingsTracker(path=str(path))
+
+    tracker.record_request(
+        model="gpt-5.4-mini",
+        input_tokens=10_000,
+        tokens_saved=300,
+        client="codex",
+        cache_read_tokens=12_000,
+        savings_by_source_tokens={
+            "cutctx_compression": 300,
+            "provider_prompt_cache": 12_000,
+            "model_routing": 200,
+        },
+        savings_by_source_usd={
+            "cutctx_compression": 1.25,
+            "provider_prompt_cache": 8.5,
+            "model_routing": 0.75,
+        },
+        compression_savings_usd_delta=1.25,
+        cache_savings_usd_delta=8.5,
+        model_routing_usd_delta=0.75,
+    )
+
+    preview = tracker.stats_preview()
+    client = preview["clients"]["codex"]
+    model = preview["models"]["gpt-5.4-mini"]
+
+    for bucket in (client, model):
+        assert bucket["compression_savings_usd"] == 1.25
+        assert bucket["cache_savings_usd"] == 8.5
+        assert bucket["model_routing_savings_usd"] == 0.75
+        assert bucket["created_savings_usd"] == pytest.approx(2.0)
+        assert bucket["observed_provider_savings_usd"] == pytest.approx(8.5)
+        assert bucket["total_savings_usd"] == pytest.approx(10.5)
+
+    reloaded = SavingsTracker(path=str(path))
+    reloaded_client = reloaded.stats_preview()["clients"]["codex"]
+    assert reloaded_client["total_savings_usd"] == pytest.approx(10.5)
+    assert reloaded_client["cache_savings_usd"] == pytest.approx(8.5)
+
+
+def test_named_bucket_normalization_preserves_legacy_rows_and_new_total_fields(tmp_path):
+    """Behavior: older persisted rows still load, and newer total-savings
+    fields survive reload so dashboard attribution remains restart-safe.
+    """
+    path = tmp_path / "savings.json"
+    path.write_text(
+        """
+        {
+          "schema_version": 5,
+          "lifetime": {},
+          "display_session": {},
+          "history": [],
+          "projects": {},
+          "models": {
+            "gpt-5.4": {
+              "requests": 1,
+              "tokens_saved": 10,
+              "compression_savings_usd": 0.5,
+              "cache_savings_usd": 1.25,
+              "created_savings_usd": 0.5,
+              "observed_provider_savings_usd": 1.25,
+              "total_savings_usd": 1.75,
+              "total_input_tokens": 100,
+              "total_input_cost_usd": 2.0,
+              "last_activity_at": "2026-07-09T09:40:16Z"
+            }
+          },
+          "clients": {
+            "codex": {
+              "requests": 2,
+              "tokens_saved": 20,
+              "compression_savings_usd": 0.75,
+              "cache_savings_usd": 2.0,
+              "created_savings_usd": 0.75,
+              "observed_provider_savings_usd": 2.0,
+              "total_savings_usd": 2.75,
+              "total_input_tokens": 200,
+              "total_input_cost_usd": 3.0,
+              "last_activity_at": "2026-07-09T09:40:16Z"
+            },
+            "legacy": {
+              "requests": 1,
+              "tokens_saved": 5,
+              "compression_savings_usd": 0.25,
+              "total_input_tokens": 50,
+              "total_input_cost_usd": 1.0,
+              "last_activity_at": "2026-07-08T09:40:16Z"
+            }
+          },
+          "shadow_checks": []
+        }
+        """.strip(),
+        encoding="utf-8",
+    )
+
+    preview = SavingsTracker(path=str(path)).stats_preview()
+    assert preview["models"]["gpt-5.4"]["total_savings_usd"] == pytest.approx(1.75)
+    assert preview["clients"]["codex"]["cache_savings_usd"] == pytest.approx(2.0)
+    assert preview["clients"]["legacy"]["total_savings_usd"] == pytest.approx(0.25)
+
+
 def test_per_client_is_distinct_from_per_project(tmp_path):
     """The dashboard bug showed directory names ("headroom",
     "aryansingh") under "Savings by client" because client rows fell

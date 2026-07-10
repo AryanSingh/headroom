@@ -118,6 +118,15 @@ jobs:
         env:
           MANUAL_VER: ${{ steps.manualver.outputs.value }}
 
+  product-release-evidence:
+    needs: [detect-version]
+    uses: ./.github/workflows/product-release-evidence.yml
+    with:
+      # PR dry-runs keep the deterministic fixture matrix mandatory. A real
+      # release additionally requires the staging environment and its secrets.
+      require_staging: ${{ github.event_name == 'release' && github.event.inputs.dry_run != 'true' }}
+    secrets: inherit
+
   # Single source of truth for changelog + npm packaging. Wheels are
   # built per-platform in `build-wheels` below. publish-pypi merges them.
   build:
@@ -893,13 +902,14 @@ jobs:
       enable_ref_tags: false
 
   create-release:
-    needs: [detect-version, build, build-wheels, collect-dist, smoke-import-wheels, publish-pypi, publish-npm, publish-github-packages, publish-docker]
+    needs: [detect-version, product-release-evidence, build, build-wheels, collect-dist, smoke-import-wheels, publish-pypi, publish-npm, publish-github-packages, publish-docker]
     if: >-
       ${{
         always() &&
         github.event_name != 'pull_request' &&
         github.event.inputs.dry_run != 'true' &&
         needs.detect-version.result == 'success' &&
+        needs.product-release-evidence.result == 'success' &&
         needs.build.result == 'success' &&
         needs.build-wheels.result == 'success' &&
         needs.collect-dist.result == 'success' &&

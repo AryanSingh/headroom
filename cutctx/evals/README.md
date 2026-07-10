@@ -43,6 +43,18 @@ python -m cutctx.evals suite --tier 1 -o eval_results/
 # Extended suite (Tiers 1+2, ~$8, ~1 hr)
 python -m cutctx.evals suite --tier 2 -o eval_results/
 
+# Zero-cost compression-only slice (CCR, info retention, verbatim, schema)
+python -m cutctx.evals suite --tier 2 --compression-only --no-proxy -o eval_results/
+
+# LLMLingua research baseline preset on local fixed fixtures
+cutctx evals benchmark --preset llmlingua_research --parallel 1 --output eval_results/llmlingua.json --markdown
+
+# Named benchmark subset within the selected tiers
+python -m cutctx.evals suite --tier 2 --compression-only \
+  --benchmark-name "Verbatim Compaction" \
+  --benchmark-name "Tool Schema Compaction" \
+  --no-proxy -o eval_results/
+
 # CI mode — exit 1 on any regression
 python -m cutctx.evals suite --tier 1 --ci
 
@@ -103,6 +115,8 @@ save_reports(result, "eval_results/")
 | MS MARCO | Before/After | RAG with compressed search results |
 | CodeSearchNet | Before/After | Code understanding after compression |
 | Info Retention | Compression-only | Probe fact survival in compressed output |
+| Verbatim Compaction | Compression-only | Exact file path, line, and error-string preservation |
+| Tool Schema Compaction | Compression-only | Schema property names survive annotation stripping |
 
 ### Tier 3: Deep Dive (~$9 more, ~45 min)
 
@@ -222,6 +236,24 @@ jobs:
           assert result.passed, f'CCR failures: {result.errors}'
           print(f'CCR: {result.passed_cases}/{result.total_cases} PASS')
           "
+      - name: Verbatim Compaction (zero cost)
+        run: |
+          python -c "
+          from cutctx.evals.runners.compression_only import CompressionOnlyRunner
+          r = CompressionOnlyRunner()
+          result = r.evaluate_verbatim_compaction(fidelity_threshold=0.90)
+          assert result.accuracy_rate >= 0.90, result.errors
+          print(f'Verbatim fidelity: {result.accuracy_rate:.3f}')
+          "
+      - name: Tool Schema Compaction (zero cost)
+        run: |
+          python -c "
+          from cutctx.evals.runners.compression_only import CompressionOnlyRunner
+          r = CompressionOnlyRunner()
+          result = r.evaluate_tool_schema_compaction()
+          assert result.passed, result.errors
+          print(f'Tool schema compaction: {result.passed_cases}/{result.total_cases} PASS')
+          "
       - name: Quick eval
         run: python -m cutctx.evals quick -n 8 --provider openai --model gpt-4o-mini
         env:
@@ -247,11 +279,11 @@ cutctx/evals/
 ├── datasets.py              # 12 dataset loaders (HuggingFace + built-in)
 ├── metrics.py               # F1, semantic similarity, ROUGE-L, BLEU
 ├── cost_tracker.py          # API spend tracking + budget enforcement
-├── suite_runner.py          # Tiered suite orchestrator (16 benchmarks)
+├── suite_runner.py          # Tiered suite orchestrator (18 benchmarks)
 ├── comprehensive_benchmark.py  # EleutherAI lm-eval harness wrapper
 ├── runners/
 │   ├── before_after.py      # Before/After + LLM-as-Judge + proxy support
-│   └── compression_only.py  # Zero-cost CCR + info retention evals
+│   └── compression_only.py  # Zero-cost CCR, info retention, verbatim, and schema evals
 ├── reports/
 │   └── report_card.py       # Markdown, JSON, HTML report generation
 └── memory/

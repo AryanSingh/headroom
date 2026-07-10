@@ -22,8 +22,10 @@ Batch compression eval:
 Available datasets:
     - RAG: hotpotqa, natural_questions, triviaqa, msmarco, squad
     - Long Context: longbench, narrativeqa
-    - Tool Use: bfcl, toolbench, tool_outputs
-    - Code: codesearchnet, humaneval
+    - Tool Use: bfcl, toolbench, tool_outputs, mixed_agent_traces
+    - Code: codesearchnet, humaneval, code_samples
+    - Local prose/RAG: rag_samples
+    - Verbatim compaction: verbatim_compaction
 """
 
 from cutctx.evals.batch_compression_eval import (
@@ -51,6 +53,7 @@ from cutctx.evals.datasets import (
     DATASET_REGISTRY,
     list_available_datasets,
     load_bfcl,
+    load_code_samples,
     load_codesearchnet,
     load_custom_dataset,
     load_dataset_by_name,
@@ -60,10 +63,13 @@ from cutctx.evals.datasets import (
     load_msmarco,
     load_narrativeqa,
     load_natural_questions,
+    load_rag_samples,
     load_squad,
+    load_mixed_agent_traces,
     load_tool_output_samples,
     load_toolbench,
     load_triviaqa,
+    load_verbatim_compaction_samples,
 )
 from cutctx.evals.metrics import (
     compute_answer_equivalence,
@@ -121,9 +127,13 @@ __all__ = [
     "load_longbench",
     "load_narrativeqa",
     "load_bfcl",
+    "load_code_samples",
     "load_toolbench",
     "load_codesearchnet",
     "load_humaneval",
+    "load_rag_samples",
+    "load_mixed_agent_traces",
+    "load_verbatim_compaction_samples",
     "load_tool_output_samples",
     "load_custom_dataset",
     "load_dataset_by_name",

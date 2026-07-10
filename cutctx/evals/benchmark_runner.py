@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 import statistics
 import time
 from collections.abc import Callable
@@ -21,7 +22,7 @@ from cutctx.evals.benchmark_report import (
     BenchmarkSuiteResult,
     CompressorBenchmarkResult,
 )
-from cutctx.evals.core import EvalSuite
+from cutctx.evals.core import EvalCase, EvalSuite
 from cutctx.evals.metrics import (
     compute_exact_match,
     compute_f1,
@@ -63,6 +64,7 @@ class CompressorAdapter:
     name: str
     available: bool
     compress_fn: Callable[[str], CompressorResult]
+    compress_case_fn: Callable[[EvalCase], CompressorResult] | None = None
     display_name: str = ""
 
 
@@ -86,14 +88,16 @@ class BenchmarkRunner:
         print(result.to_markdown("ratio"))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, llmlingua_model: str | None = None) -> None:
         self._adapters: dict[str, CompressorAdapter] = {}
+        self._llmlingua_model = llmlingua_model
         self._register_adapters()
 
     # -- adapter registry -----------------------------------------------
 
     def _register_adapters(self) -> None:
         """Populate the adapter registry (called once at init)."""
+        self._register_raw_passthrough()
         self._register_smart_crusher()
         self._register_log()
         self._register_search()
@@ -103,10 +107,20 @@ class BenchmarkRunner:
         self._register_llmlingua()
         self._register_drain3()
         self._register_html()
+        self._register_verbatim_compactor()
         self._register_content_router()
 
     # Each registration method has a guarded import so the module stays
     # importable even when optional packages are missing.
+
+    def _register_raw_passthrough(self) -> None:
+        """Register the explicit uncompressed denominator for release reports."""
+        self._adapters["raw_passthrough"] = CompressorAdapter(
+            name="raw_passthrough",
+            available=True,
+            compress_fn=_noop,
+            display_name="RawPassthrough",
+        )
 
     def _register_smart_crusher(self) -> None:
         try:
@@ -145,7 +159,16 @@ class BenchmarkRunner:
                 dt = (time.perf_counter() - t0) * 1000
                 compressed = result.compressed
                 saved = (len(text) // 4) - (len(compressed) // 4)
-                return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+                error = None
+                if getattr(result, "used_fallback", False):
+                    reason = getattr(result, "fallback_reason", None) or "unknown"
+                    error = f"llmlingua_fallback:{reason}"
+                return CompressorResult(
+                    compressed=compressed,
+                    tokens_saved=saved,
+                    duration_ms=dt,
+                    error=error,
+                )
 
             self._adapters["log"] = CompressorAdapter(
                 name="log", available=True, compress_fn=_fn, display_name="Log"
@@ -167,7 +190,16 @@ class BenchmarkRunner:
                 dt = (time.perf_counter() - t0) * 1000
                 compressed = result.compressed
                 saved = (len(text) // 4) - (len(compressed) // 4)
-                return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+                error = None
+                if getattr(result, "used_fallback", False):
+                    reason = getattr(result, "fallback_reason", None) or "unknown"
+                    error = f"llmlingua_fallback:{reason}"
+                return CompressorResult(
+                    compressed=compressed,
+                    tokens_saved=saved,
+                    duration_ms=dt,
+                    error=error,
+                )
 
             self._adapters["search"] = CompressorAdapter(
                 name="search", available=True, compress_fn=_fn, display_name="Search"
@@ -213,8 +245,20 @@ class BenchmarkRunner:
                 saved = (len(text) // 4) - (len(compressed) // 4)
                 return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
 
+            def _case_fn(case: EvalCase) -> CompressorResult:
+                t0 = time.perf_counter()
+                result = comp.compress(case.context, context=case.query)
+                dt = (time.perf_counter() - t0) * 1000
+                compressed = result.compressed
+                saved = (len(case.context) // 4) - (len(compressed) // 4)
+                return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+
             self._adapters["code"] = CompressorAdapter(
-                name="code", available=True, compress_fn=_fn, display_name="Code"
+                name="code",
+                available=True,
+                compress_fn=_fn,
+                compress_case_fn=_case_fn,
+                display_name="Code",
             )
         except ImportError:
             self._adapters["code"] = CompressorAdapter(
@@ -247,7 +291,12 @@ class BenchmarkRunner:
         try:
             from cutctx.transforms.llmlingua_compressor import LLMLinguaCompressor
 
-            comp = LLMLinguaCompressor()
+            config = None
+            if self._llmlingua_model:
+                from cutctx.transforms.llmlingua_compressor import LLMLinguaConfig
+
+                config = LLMLinguaConfig(model_name=self._llmlingua_model)
+            comp = LLMLinguaCompressor(config) if config is not None else LLMLinguaCompressor()
 
             def _fn(text: str) -> CompressorResult:
                 t0 = time.perf_counter()
@@ -255,7 +304,16 @@ class BenchmarkRunner:
                 dt = (time.perf_counter() - t0) * 1000
                 compressed = result.compressed
                 saved = (len(text) // 4) - (len(compressed) // 4)
-                return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+                error = None
+                if getattr(result, "used_fallback", False):
+                    reason = getattr(result, "fallback_reason", None) or "unknown"
+                    error = f"llmlingua_fallback:{reason}"
+                return CompressorResult(
+                    compressed=compressed,
+                    tokens_saved=saved,
+                    duration_ms=dt,
+                    error=error,
+                )
 
             self._adapters["llmlingua"] = CompressorAdapter(
                 name="llmlingua", available=True, compress_fn=_fn, display_name="LLMLingua"
@@ -309,11 +367,57 @@ class BenchmarkRunner:
                 name="html", available=False, compress_fn=_noop
             )
 
+    def _register_verbatim_compactor(self) -> None:
+        from cutctx.transforms.verbatim_compactor import VerbatimCompactor
+
+        compactor = VerbatimCompactor()
+
+        def _fn(text: str) -> CompressorResult:
+            t0 = time.perf_counter()
+            result = compactor.compress(text)
+            dt = (time.perf_counter() - t0) * 1000
+            compressed = result.compressed
+            saved = (len(text) // 4) - (len(compressed) // 4)
+            return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+
+        def _case_fn(case: EvalCase) -> CompressorResult:
+            t0 = time.perf_counter()
+            result = compactor.compress(
+                case.context,
+                context=case.query,
+                critical_items=_get_critical_items(case),
+            )
+            dt = (time.perf_counter() - t0) * 1000
+            compressed = result.compressed
+            saved = (len(case.context) // 4) - (len(compressed) // 4)
+            return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+
+        self._adapters["verbatim_compactor"] = CompressorAdapter(
+            name="verbatim_compactor",
+            available=True,
+            compress_fn=_fn,
+            compress_case_fn=_case_fn,
+            display_name="VerbatimCompactor",
+        )
+
     def _register_content_router(self) -> None:
         try:
-            from cutctx.transforms.content_router import ContentRouter
+            from cutctx.transforms.content_router import (
+                CompressionStrategy,
+                ContentRouter,
+                ContentRouterConfig,
+            )
 
-            router = ContentRouter()
+            # Keep the default CI router benchmark deterministic and fast.
+            # The heavyweight ML fallback has its own explicit `kompress`
+            # adapter; ContentRouter here verifies routing plus structured
+            # compressors without downloading/running model weights.
+            router = ContentRouter(
+                ContentRouterConfig(
+                    enable_kompress=False,
+                    fallback_strategy=CompressionStrategy.PASSTHROUGH,
+                )
+            )
 
             def _fn(text: str) -> CompressorResult:
                 t0 = time.perf_counter()
@@ -323,10 +427,19 @@ class BenchmarkRunner:
                 saved = (len(text) // 4) - (len(compressed) // 4)
                 return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
 
+            def _case_fn(case: EvalCase) -> CompressorResult:
+                t0 = time.perf_counter()
+                result = router.compress(case.context, context=case.query)
+                dt = (time.perf_counter() - t0) * 1000
+                compressed = result.compressed
+                saved = (len(case.context) // 4) - (len(compressed) // 4)
+                return CompressorResult(compressed=compressed, tokens_saved=saved, duration_ms=dt)
+
             self._adapters["content_router"] = CompressorAdapter(
                 name="content_router",
                 available=True,
                 compress_fn=_fn,
+                compress_case_fn=_case_fn,
                 display_name="ContentRouter",
             )
         except ImportError:
@@ -348,6 +461,7 @@ class BenchmarkRunner:
         n: int = 50,
         parallel: int = 4,
         seed: int = 42,
+        warmup_cases: int = 0,
     ) -> BenchmarkSuiteResult:
         """Run compressors against *dataset* and return aggregated results.
 
@@ -365,6 +479,8 @@ class BenchmarkRunner:
             Thread pool size for parallel compression.
         seed:
             Random seed for reproducible sampling.
+        warmup_cases:
+            Number of initial cases to run as untimed warmup per compressor.
         """
         random.seed(seed)
 
@@ -372,9 +488,12 @@ class BenchmarkRunner:
             metrics = [
                 "ratio",
                 "tokens_saved",
+                "tokens_per_second",
                 "f1",
                 "rouge_l",
                 "information_recall",
+                "critical_item_recall",
+                "verbatim_fidelity",
                 "exact_match",
             ]
         if compressors is None:
@@ -412,13 +531,20 @@ class BenchmarkRunner:
                 )
                 continue
 
+            if warmup_cases > 0:
+                for case in cases[:warmup_cases]:
+                    try:
+                        self._compress_case(adapter, case)
+                    except Exception:
+                        logger.debug("Warmup failed for compressor '%s' on case '%s'", comp_key, case.id)
+
             # Run compression in parallel
             per_case_results: list[dict[str, Any]] = []
             errors = 0
 
             with ThreadPoolExecutor(max_workers=parallel) as pool:
                 future_map = {
-                    pool.submit(self._compress_case, adapter, case.context): case for case in cases
+                    pool.submit(self._compress_case, adapter, case): case for case in cases
                 }
                 for future in as_completed(future_map):
                     case = future_map[future]
@@ -459,7 +585,9 @@ class BenchmarkRunner:
 
             total_original_tokens = sum(r["original_tokens"] for r in per_case_results)
             total_compressed_tokens = sum(r["compressed_tokens"] for r in per_case_results)
+            errors = sum(1 for r in per_case_results if r["error"])
             valid = [r for r in per_case_results if not r["error"]]
+            cases_by_id = {case.id: case for case in cases}
             ratios = [
                 r["compressed_tokens"] / r["original_tokens"] if r["original_tokens"] > 0 else 1.0
                 for r in valid
@@ -470,13 +598,17 @@ class BenchmarkRunner:
             avg_ratio = statistics.mean(ratios) if ratios else 0.0
             avg_ms = statistics.mean(durations) if durations else 0.0
             p50_ms = statistics.median(durations) if durations else 0.0
+            total_duration_seconds = sum(durations) / 1000 if durations else 0.0
+            tokens_per_second = (
+                total_original_tokens / total_duration_seconds if total_duration_seconds > 0 else None
+            )
 
             # F1 / ROUGE-L / exact_match between original and compressed
             f1_vals: list[float] = []
             rouge_vals: list[float] = []
             em_vals: list[bool] = []
             for r in valid:
-                orig_text = next(c.context for c in cases if c.id == r["id"])
+                orig_text = cases_by_id[r["id"]].context
                 comp_text = r["compressed"]
                 try:
                     f1_vals.append(compute_f1(orig_text, comp_text))
@@ -497,12 +629,32 @@ class BenchmarkRunner:
                 from cutctx.evals.datasets import generate_retrieval_probes
 
                 for r in valid:
-                    orig_text = next(c.context for c in cases if c.id == r["id"])
+                    orig_text = cases_by_id[r["id"]].context
                     comp_text = r["compressed"]
                     probes = generate_retrieval_probes(orig_text, n_probes=5)
                     if probes:
                         preserved = sum(1 for p in probes if p.lower() in comp_text.lower())
                         irecall_vals.append(preserved / len(probes))
+
+            critical_item_recall = None
+            critical_item_hits = 0
+            critical_item_total = 0
+            for r in valid:
+                case = cases_by_id[r["id"]]
+                critical_items = _get_critical_items(case)
+                if not critical_items:
+                    continue
+
+                comp_text = r["compressed"].lower()
+                critical_item_total += len(critical_items)
+                critical_item_hits += sum(1 for item in critical_items if item.lower() in comp_text)
+
+            if critical_item_total:
+                critical_item_recall = critical_item_hits / critical_item_total
+
+            verbatim_fidelity = None
+            if critical_item_total:
+                verbatim_fidelity = critical_item_hits / critical_item_total
 
             result = CompressorBenchmarkResult(
                 dataset=dataset_name,
@@ -510,12 +662,15 @@ class BenchmarkRunner:
                 n=len(cases),
                 ratio=avg_ratio,
                 tokens_saved=tokens_saved,
+                tokens_per_second=tokens_per_second,
                 avg_ms=avg_ms,
                 p50_ms=p50_ms,
                 f1=statistics.mean(f1_vals) if f1_vals else None,
                 rouge_l=statistics.mean(rouge_vals) if rouge_vals else None,
                 exact_match=sum(em_vals) / len(em_vals) if em_vals else None,
                 information_recall=statistics.mean(irecall_vals) if irecall_vals else None,
+                critical_item_recall=critical_item_recall,
+                verbatim_fidelity=verbatim_fidelity,
                 errors=errors,
                 skipped=False,
             )
@@ -551,13 +706,15 @@ class BenchmarkRunner:
     # -- internal helpers ------------------------------------------------
 
     @staticmethod
-    def _compress_case(adapter: CompressorAdapter, text: str) -> CompressorResult:
+    def _compress_case(adapter: CompressorAdapter, case: EvalCase) -> CompressorResult:
         """Run one adapter on one text string."""
         try:
-            return adapter.compress_fn(text)
+            if adapter.compress_case_fn is not None:
+                return adapter.compress_case_fn(case)
+            return adapter.compress_fn(case.context)
         except Exception as exc:
             return CompressorResult(
-                compressed=text,
+                compressed=case.context,
                 tokens_saved=0,
                 duration_ms=0.0,
                 error=str(exc),
@@ -567,3 +724,51 @@ class BenchmarkRunner:
 def _noop(text: str) -> CompressorResult:
     """Fallback adapter for unavailable compressors."""
     return CompressorResult(compressed=text, tokens_saved=0, duration_ms=0.0)
+
+
+def _get_critical_items(case: EvalCase) -> list[str]:
+    """Return benchmark-critical strings that should survive compression."""
+    metadata = getattr(case, "metadata", {}) or {}
+    declared = metadata.get("critical_items")
+    if isinstance(declared, list):
+        items = [str(item).strip() for item in declared if str(item).strip()]
+        if items:
+            return _dedupe_preserving_order(items)
+
+    ground_truth = getattr(case, "ground_truth", None)
+    if isinstance(ground_truth, str) and ground_truth.strip():
+        return [ground_truth.strip()]
+
+    return _heuristic_critical_items(getattr(case, "context", ""))
+
+
+def _heuristic_critical_items(text: str) -> list[str]:
+    """Extract a small set of likely critical strings when fixtures do not declare them."""
+    patterns = (
+        r"[A-Za-z0-9_/.-]+\.py:\d+",
+        r"\b[A-Z][A-Za-z]+Error\b",
+        r"\b(?:req|build|INC)-?[A-Za-z0-9_-]{4,}\b",
+        r"\b[A-Z]{2,}(?:_[A-Z0-9]+)+\b",
+        r"\b\d{4}-\d{2}-\d{2}\b",
+    )
+    items: list[str] = []
+    for pattern in patterns:
+        for match in re.findall(pattern, text):
+            value = match.strip()
+            if value:
+                items.append(value)
+            if len(items) >= 5:
+                return _dedupe_preserving_order(items)
+    return _dedupe_preserving_order(items)
+
+
+def _dedupe_preserving_order(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in items:
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+    return unique

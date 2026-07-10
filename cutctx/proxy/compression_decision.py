@@ -47,8 +47,8 @@ class CompressionDecision:
     """
 
     should_compress: bool
-    # When ``should_compress`` is False, this is the canonical reason
-    # surfaced in logs and (later) in the RequestOutcome tags so the
+    # When ``should_compress`` is False, this is the canonical decline
+    # reason surfaced in logs and in the RequestOutcome tags so the
     # dashboard can slice passthrough traffic by cause. One of:
     #   * ``"bypass_header"``      — user set x-cutctx-bypass or
     #                                x-cutctx-mode=passthrough
@@ -67,6 +67,17 @@ class CompressionDecision:
     config_optimize_enabled: bool
     license_allows: bool
     has_messages: bool
+
+    @property
+    def decline_reason(self) -> str | None:
+        """Canonical name for the no-compress reason.
+
+        ``passthrough_reason`` remains the stored field for compatibility
+        with existing handlers and tests, but ``decline_reason`` is the
+        preferred public alias for new code.
+        """
+
+        return self.passthrough_reason
 
     @classmethod
     def decide(
@@ -164,5 +175,7 @@ class CompressionDecision:
             # it for free, which flows through emit_request_outcome()
             # → RequestLog.tags → dashboard.
         """
-        if self.passthrough_reason is not None:
-            tags["passthrough_reason"] = self.passthrough_reason
+        reason = self.decline_reason
+        if reason is not None:
+            tags["decline_reason"] = reason
+            tags["passthrough_reason"] = reason

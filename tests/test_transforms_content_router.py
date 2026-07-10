@@ -272,6 +272,288 @@ def test_content_router_strategy_and_compress_paths(monkeypatch: pytest.MonkeyPa
     assert router.compress("   ").strategy_used is CompressionStrategy.PASSTHROUGH
 
 
+def test_detect_content_prefers_regex_log_and_search_over_source_code() -> None:
+    log_content = "\n".join(
+        [
+            "ERROR: failed to compile",
+            "WARNING: retrying",
+            "INFO: done",
+        ]
+    )
+    search_content = "\n".join(
+        [
+            "src/app.py:10:def main():",
+            "src/app.py:11:return 1",
+        ]
+    )
+
+    log_detection = _detect_content(log_content)
+    search_detection = _detect_content(search_content)
+
+    assert log_detection.content_type is ContentType.BUILD_OUTPUT
+    assert search_detection.content_type is ContentType.SEARCH_RESULTS
+
+    router = ContentRouter()
+    assert router._determine_strategy(log_content) is CompressionStrategy.LOG
+    assert router._determine_strategy(search_content) is CompressionStrategy.SEARCH
+
+
+class _FakeCompressedResult:
+    def __init__(self, compressed: str, strategy: str = "compress") -> None:
+        self.compressed = compressed
+        self.compressed_tokens = len(compressed.split())
+        self.strategy = strategy
+
+
+class _FakeCompressor:
+    def __init__(self, compressed: str) -> None:
+        self._result = _FakeCompressedResult(compressed)
+
+    def compress(self, *args: object, **kwargs: object) -> _FakeCompressedResult:
+        return self._result
+
+
+class _FakeCrusher:
+    def __init__(self, compressed: str) -> None:
+        self._result = _FakeCompressedResult(compressed)
+        self._result.strategy = "compress"
+
+    def crush(self, *args: object, **kwargs: object) -> _FakeCompressedResult:
+        return self._result
+
+
+def test_content_router_diagnostics_record_strategy_chain_and_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router = ContentRouter()
+
+    cases = [
+        (
+            "[{\"id\": 1}, {\"id\": 2}]",
+            DetectionResult(ContentType.JSON_ARRAY, 1.0, {}),
+            "_get_smart_crusher",
+            _FakeCrusher("one two"),
+            CompressionStrategy.SMART_CRUSHER,
+        ),
+        (
+            "src/app.py:10:def main():\nsrc/app.py:11:return 1",
+            DetectionResult(ContentType.SEARCH_RESULTS, 1.0, {}),
+            "_get_search_compressor",
+            _FakeCompressor("search hit"),
+            CompressionStrategy.SEARCH,
+        ),
+        (
+            "def main():\n    return 1\nclass X:\n    pass",
+            DetectionResult(ContentType.SOURCE_CODE, 1.0, {}),
+            "_get_code_compressor",
+            _FakeCompressor("def main(): return 1 extra words extra"),
+            CompressionStrategy.CODE_AWARE,
+        ),
+        (
+            "plain words plain words plain words plain words",
+            DetectionResult(ContentType.PLAIN_TEXT, 1.0, {}),
+            "_try_ml_compressor",
+            ("plain words", 2),
+            CompressionStrategy.TEXT,
+        ),
+    ]
+
+    for content, detection, getter_name, fake_result, expected_strategy in cases:
+        monkeypatch.setattr(content_router_module, "_detect_content", lambda _content, det=detection: det)
+        if getter_name == "_try_ml_compressor":
+            monkeypatch.setattr(router, getter_name, lambda *args, **kwargs: fake_result)
+        else:
+            monkeypatch.setattr(router, getter_name, lambda *args, **kwargs: fake_result)
+
+        result = router.compress(content)
+
+        assert result.strategy_used is expected_strategy
+        assert result.diagnostics["selected_strategy"] == expected_strategy.value
+        assert result.diagnostics["strategy_chain"] == [expected_strategy.value]
+        assert result.diagnostics["fallback_used"] is False
+        assert result.diagnostics["before_tokens"] == len(content.split())
+        assert result.diagnostics["after_tokens"] == result.routing_log[0].compressed_tokens
+        assert result.diagnostics["compression_ratio"] == pytest.approx(result.compression_ratio)
+
+
+def test_content_router_pipeline_rejects_expansion_and_marginal_savings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router = ContentRouter()
+
+    # Expansion: the direct router can emit a longer result, but the pipeline
+    # acceptance gate should refuse it and leave the original block untouched.
+    monkeypatch.setattr(
+        router,
+        "compress",
+        lambda content, context="", bias=1.0: RouterCompressionResult(
+            compressed=content + " extra extra",
+            original=content,
+            strategy_used=CompressionStrategy.CODE_AWARE,
+            routing_log=[
+                RoutingDecision(
+                    content_type=ContentType.SOURCE_CODE,
+                    strategy=CompressionStrategy.CODE_AWARE,
+                    original_tokens=len(content.split()),
+                    compressed_tokens=len(content.split()) + 2,
+                )
+            ],
+            diagnostics={
+                "selected_strategy": CompressionStrategy.CODE_AWARE.value,
+                "strategy_chain": [CompressionStrategy.CODE_AWARE.value],
+                "fallback_used": False,
+                "before_tokens": len(content.split()),
+                "after_tokens": len(content.split()) + 2,
+                "compression_ratio": (len(content.split()) + 2) / max(1, len(content.split())),
+                "tokens_saved": 0,
+            },
+        ),
+    )
+
+    expanding_msg = {
+        "role": "tool",
+        "content": [{"type": "text", "text": "def main(): return 1\n" * 40}],
+    }
+    expanding_counts = {
+        "excluded_tool": 0,
+        "user_msg": 0,
+        "small": 0,
+        "recent_code": 0,
+        "analysis_ctx": 0,
+        "ratio_too_high": 0,
+        "non_string": 0,
+        "content_blocks": 0,
+    }
+    expanding_result = router._process_content_blocks(
+        expanding_msg,
+        expanding_msg["content"],
+        "",
+        [],
+        set(),
+        route_counts=expanding_counts,
+        min_ratio=0.85,
+        compress_assistant_text_blocks=True,
+    )
+    assert expanding_result["content"][0]["text"] == expanding_msg["content"][0]["text"]
+    assert expanding_counts["ratio_too_high"] == 1
+
+    # Marginal savings: if the compressor only trims a little, the pipeline
+    # still rejects it when the ratio stays above the threshold.
+    monkeypatch.setattr(
+        router,
+        "compress",
+        lambda content, context="", bias=1.0: RouterCompressionResult(
+            compressed=" ".join(["plain"] * max(1, len(content.split()) - 1)),
+            original=content,
+            strategy_used=CompressionStrategy.TEXT,
+            routing_log=[
+                RoutingDecision(
+                    content_type=ContentType.PLAIN_TEXT,
+                    strategy=CompressionStrategy.TEXT,
+                    original_tokens=len(content.split()),
+                    compressed_tokens=max(1, len(content.split()) - 1),
+                )
+            ],
+            diagnostics={
+                "selected_strategy": CompressionStrategy.TEXT.value,
+                "strategy_chain": [CompressionStrategy.TEXT.value],
+                "fallback_used": False,
+                "before_tokens": len(content.split()),
+                "after_tokens": max(1, len(content.split()) - 1),
+                "compression_ratio": max(1, len(content.split()) - 1)
+                / max(1, len(content.split())),
+                "tokens_saved": 1,
+            },
+        ),
+    )
+    marginal_msg = {
+        "role": "tool",
+        "content": [{"type": "text", "text": "plain words plain words plain words plain words"}],
+    }
+    marginal_counts = {
+        "excluded_tool": 0,
+        "user_msg": 0,
+        "small": 0,
+        "recent_code": 0,
+        "analysis_ctx": 0,
+        "ratio_too_high": 0,
+        "non_string": 0,
+        "content_blocks": 0,
+    }
+    marginal_result = router._process_content_blocks(
+        marginal_msg,
+        marginal_msg["content"],
+        "",
+        [],
+        set(),
+        route_counts=marginal_counts,
+        min_ratio=0.85,
+        min_chars=1,
+        compress_assistant_text_blocks=True,
+    )
+    assert marginal_result["content"][0]["text"] == marginal_msg["content"][0]["text"]
+    assert marginal_counts["ratio_too_high"] == 1
+
+
+def test_content_router_apply_exposes_accept_and_reject_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router = ContentRouter()
+
+    def fake_compress(content: str, context: str = "", bias: float = 1.0) -> RouterCompressionResult:
+        token_count = len(content.split())
+        if content.startswith("accept"):
+            compressed_tokens = max(1, token_count // 2)
+            compressed = " ".join(["ok"] * compressed_tokens)
+            strategy = CompressionStrategy.TEXT
+        else:
+            compressed_tokens = max(1, token_count - 1)
+            compressed = " ".join(["near"] * compressed_tokens)
+            strategy = CompressionStrategy.TEXT
+        return RouterCompressionResult(
+            compressed=compressed,
+            original=content,
+            strategy_used=strategy,
+            routing_log=[
+                RoutingDecision(
+                    content_type=ContentType.PLAIN_TEXT,
+                    strategy=strategy,
+                    original_tokens=token_count,
+                    compressed_tokens=compressed_tokens,
+                )
+            ],
+            diagnostics={
+                "selected_strategy": strategy.value,
+                "strategy_chain": [strategy.value],
+                "fallback_used": False,
+                "before_tokens": token_count,
+                "after_tokens": compressed_tokens,
+                "compression_ratio": compressed_tokens / max(1, token_count),
+                "tokens_saved": max(0, token_count - compressed_tokens),
+            },
+        )
+
+    monkeypatch.setattr(router, "compress", fake_compress)
+
+    messages = [
+        {"role": "tool", "content": "accept " * 60},
+        {"role": "tool", "content": "reject " * 60},
+    ]
+    tokenizer = SimpleNamespace(
+        count_messages=lambda msgs: sum(len(str(m.get("content", "")).split()) for m in msgs),
+        count_text=lambda text: len(text.split()),
+    )
+
+    result = router.apply(messages, tokenizer, min_ratio_override=0.85)
+    router_diag = result.diagnostics["content_router"]
+
+    assert router_diag["min_ratio_threshold"] == 0.85
+    assert len(router_diag["accepted_routes"]) == 1
+    assert len(router_diag["rejected_routes"]) == 1
+    assert router_diag["accepted_routes"][0]["acceptance_reason"] == "ratio_below_threshold"
+    assert router_diag["rejected_routes"][0]["rejection_reason"] == "ratio_at_or_above_threshold"
+
+
 def test_content_router_mixed_pure_apply_and_toin(monkeypatch: pytest.MonkeyPatch) -> None:
     router = ContentRouter()
     mixed_content = "\n".join(["before", "```python", "print('x')", "```", "after"])

@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-09T15:32:47.489380",
+  "model": "gpt-5.4-mini",
+  "tiers_run": [
+    2
+  ],
+  "total_cost_usd": 0.0,
+  "total_duration_seconds": 0.0,
+  "summary": {
+    "total_benchmarks": 1,
+    "passed": 1,
+    "failed": 0,
+    "all_passed": true,
+    "avg_delta": 0.0,
+    "avg_compression_ratio": 0.2861,
+    "total_tokens_saved": 151
+  },
+  "benchmarks": [
+    {
+      "name": "Verbatim Compaction",
+      "category": "compression",
+      "tier": 2,
+      "n_samples": 3,
+      "model": "",
+      "metric": "verbatim_fidelity",
+      "metric_label": "Verbatim Fidelity",
+      "passed": true,
+      "avg_compression_ratio": 0.2861,
+      "tokens_saved": 151,
+      "duration_seconds": 0.0,
+      "accuracy_rate": 0.9333,
+      "metric_value": 0.9333,
+      "tokens_per_second": 4245075.52,
+      "critical_item_recall": 0.9333,
+      "verbatim_fidelity": 0.9333
+    }
+  ]
+}

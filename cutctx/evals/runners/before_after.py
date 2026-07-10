@@ -459,10 +459,19 @@ Answer:"""
         """
         start_time = time.time()
         results: list[EvalResult] = []
+        from cutctx.evals.canary_feedback import CanaryFeedbackReporter
+
+        feedback_reporter = CanaryFeedbackReporter()
 
         for i, case in enumerate(suite):
             result = self.evaluate_case(case, mode=mode)
             results.append(result)
+
+            feedback_reporter.report(
+                task_id=f"{suite.name}/{case.id}",
+                quality_success=result.accuracy_preserved,
+                request_id=(case.metadata or {}).get("cutctx_request_id"),
+            )
 
             if progress_callback:
                 progress_callback(i + 1, len(suite), result)

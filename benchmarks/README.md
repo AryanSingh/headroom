@@ -15,6 +15,11 @@ Optional: For comparisons with other tools:
 pip install llmlingua2
 ```
 
+For the main eval CLI preset, install the optional adapter extra:
+```bash
+pip install "cutctx-ai[llmlingua]"
+```
+
 ### Run Benchmarks
 
 #### Run all benchmarks with synthetic data (no corpus download needed):
@@ -32,6 +37,15 @@ python run_all.py --output results.json
 ```bash
 python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench --dry-run
 ```
+
+#### Run the fixed-fixture LLMLingua research preset through the main eval CLI:
+```bash
+cutctx evals benchmark --preset llmlingua_research --parallel 1 --output artifacts/llmlingua-research-preset.json --markdown
+```
+
+This preset pins four repo-local fixture datasets and runs `content_router` and
+`llmlingua` side by side on the same prompts with ratio, savings, throughput,
+F1, information recall, critical-item recall, and verbatim fidelity.
 
 ## Setup
 

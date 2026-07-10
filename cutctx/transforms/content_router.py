@@ -135,6 +135,15 @@ def _detect_content(content: str) -> DetectionResult:
         regex_result = _regex_detect_content_type(content)
         if regex_result.content_type is not ContentType.PLAIN_TEXT:
             return regex_result
+    elif content_type is ContentType.SOURCE_CODE:
+        regex_result = _regex_detect_content_type(content)
+        if regex_result.content_type in {
+            ContentType.SEARCH_RESULTS,
+            ContentType.BUILD_OUTPUT,
+            ContentType.GIT_DIFF,
+            ContentType.HTML,
+        }:
+            return regex_result
     return DetectionResult(
         content_type=content_type,
         confidence=rust_result.confidence,
@@ -371,6 +380,7 @@ class RouterCompressionResult:
     sections_processed: int = 1
     strategy_chain: list[str] = field(default_factory=list)
     cache_hit: bool = False
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def strategy(self) -> CompressionStrategy:
@@ -1014,6 +1024,15 @@ class ContentRouter(Transform):
                 original=content,
                 strategy_used=CompressionStrategy.PASSTHROUGH,
                 routing_log=[],
+                diagnostics={
+                    "selected_strategy": CompressionStrategy.PASSTHROUGH.value,
+                    "strategy_chain": [CompressionStrategy.PASSTHROUGH.value],
+                    "fallback_used": False,
+                    "before_tokens": 0,
+                    "after_tokens": 0,
+                    "compression_ratio": 1.0,
+                    "tokens_saved": 0,
+                },
             )
         else:
             # WS16 Tokenizer-aware normalization pre-pass. Default-off
@@ -1244,6 +1263,15 @@ class ContentRouter(Transform):
                 compressed=content,
                 original=content,
                 strategy_used=CompressionStrategy.PASSTHROUGH,
+                diagnostics={
+                    "selected_strategy": CompressionStrategy.PASSTHROUGH.value,
+                    "strategy_chain": [CompressionStrategy.PASSTHROUGH.value],
+                    "fallback_used": False,
+                    "before_tokens": len(content.split()),
+                    "after_tokens": len(content.split()),
+                    "compression_ratio": 1.0,
+                    "tokens_saved": 0,
+                },
             )
 
         compressed_sections: list[str] = []
@@ -1285,6 +1313,24 @@ class ContentRouter(Transform):
             strategy_used=CompressionStrategy.MIXED,
             routing_log=routing_log,
             sections_processed=len(sections),
+            diagnostics={
+                "selected_strategy": CompressionStrategy.MIXED.value,
+                "strategy_chain": [CompressionStrategy.MIXED.value],
+                "fallback_used": False,
+                "before_tokens": sum(r.original_tokens for r in routing_log),
+                "after_tokens": sum(r.compressed_tokens for r in routing_log),
+                "compression_ratio": (
+                    sum(r.compressed_tokens for r in routing_log)
+                    / sum(r.original_tokens for r in routing_log)
+                    if sum(r.original_tokens for r in routing_log)
+                    else 1.0
+                ),
+                "tokens_saved": max(
+                    0,
+                    sum(r.original_tokens for r in routing_log)
+                    - sum(r.compressed_tokens for r in routing_log),
+                ),
+            },
         )
 
     def _compress_pure(
@@ -1318,6 +1364,17 @@ class ContentRouter(Transform):
             original=content,
             strategy_used=strategy,
             strategy_chain=strategy_chain,
+            diagnostics={
+                "selected_strategy": strategy.value,
+                "strategy_chain": list(strategy_chain),
+                "fallback_used": len(strategy_chain) > 1,
+                "before_tokens": original_tokens,
+                "after_tokens": compressed_tokens,
+                "compression_ratio": (
+                    compressed_tokens / original_tokens if original_tokens else 1.0
+                ),
+                "tokens_saved": max(0, original_tokens - compressed_tokens),
+            },
             routing_log=[
                 RoutingDecision(
                     content_type=self._content_type_from_strategy(strategy),
@@ -1402,7 +1459,14 @@ class ContentRouter(Transform):
                             content, language=language, context=context,
                             protected_symbols=ps,
                         )
-                        compressed, compressed_tokens = result.compressed, result.compressed_tokens
+                        compressed = result.compressed
+                        # CodeAwareCompressor reports `compressed_tokens` using its own
+                        # chars/4 estimate. The router compares token counts across all
+                        # strategies using whitespace-tokenized counts (`len(text.split())`),
+                        # so mixing the two units here made valid code compression look
+                        # like an expansion and triggered passthrough fallback. Recompute
+                        # in the router's native unit for fair acceptance gating.
+                        compressed_tokens = len(result.compressed.split())
                         decision_reason = "code_aware"
                 if compressed is None:
                     # No fallback for code (Kompress is too slow and yields 0% savings without AST).
@@ -1702,8 +1766,15 @@ class ContentRouter(Transform):
         compressed_tokens: int | None = None
 
 
-        # Primary: Kompress — downloads from chopratejas/kompress-v2-base on first use
-        if compressed is None and self.config.enable_kompress:
+        runtime_kompress_requested = bool(
+            getattr(self, "_runtime_force_kompress", False)
+            or getattr(self, "_runtime_kompress_model", None)
+        )
+
+        # Primary: Kompress — downloads from chopratejas/kompress-v2-base on first use.
+        # Production pipelines can disable opportunistic ML fallback for latency
+        # while still allowing explicit per-request opt-ins.
+        if compressed is None and (self.config.enable_kompress or runtime_kompress_requested):
             compressor = self._get_kompress()
             if compressor:
                 try:
@@ -1762,12 +1833,13 @@ class ContentRouter(Transform):
         """Get CodeAwareCompressor (lazy load)."""
         if self._code_compressor is None:
             try:
-                from .code_compressor import CodeAwareCompressor, _check_tree_sitter_available
+                from .code_compressor import CodeAwareCompressor
 
-                if _check_tree_sitter_available():
-                    self._code_compressor = CodeAwareCompressor()
-                else:
-                    logger.debug("tree-sitter not available")
+                # Instantiate even when tree-sitter is unavailable: the
+                # compressor owns the safe textual fallback path for code
+                # snippets, while its `compress()` method still uses the AST
+                # path when tree-sitter is present.
+                self._code_compressor = CodeAwareCompressor()
             except ImportError:
                 logger.debug("CodeAwareCompressor not available")
         return self._code_compressor
@@ -2373,6 +2445,8 @@ class ContentRouter(Transform):
             "content_blocks": 0,
         }
         compressed_details: list[str] = []  # e.g. ["code_aware:0.72", "kompress:0.65"]
+        accepted_routes: list[dict[str, Any]] = []
+        rejected_routes: list[dict[str, Any]] = []
 
         # Check for analysis intent in the most recent user message
         analysis_intent = False
@@ -2628,11 +2702,29 @@ class ContentRouter(Transform):
                     compressed_details.append(
                         f"{result.strategy_used.value}:{result.compression_ratio:.2f}"
                     )
+                    accepted_routes.append(
+                        {
+                            **dict(result.diagnostics),
+                            "min_ratio_threshold": round(min_ratio, 4),
+                            "acceptance_reason": "ratio_below_threshold",
+                            "rejection_reason": None,
+                            "accepted": True,
+                        }
+                    )
                 else:
                     # Didn't compress — add to skip set
                     self._cache.mark_skip(content_key)
                     result_slots[slot_idx] = message
                     route_counts["ratio_too_high"] += 1
+                    rejected_routes.append(
+                        {
+                            **dict(result.diagnostics),
+                            "min_ratio_threshold": round(min_ratio, 4),
+                            "acceptance_reason": None,
+                            "rejection_reason": "ratio_at_or_above_threshold",
+                            "accepted": False,
+                        }
+                    )
 
         # Build final message list from slots
         transformed_messages = [m for m in result_slots if m is not None]
@@ -2698,6 +2790,8 @@ class ContentRouter(Transform):
             "content_router": {
                 "compressed_count": len(compressed_details),
                 "compressed_details": list(compressed_details),
+                "accepted_routes": accepted_routes,
+                "rejected_routes": rejected_routes,
                 "route_counts": dict(route_counts),
                 "summary": route_summary,
                 "context_pressure": round(context_pressure, 4),

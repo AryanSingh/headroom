@@ -1,0 +1,130 @@
+# Orchestration platform
+
+Cutctx includes a provider-neutral orchestration control plane for deterministic model assignment. It is separate from the optional cost-routing presets: presets may opportunistically optimize unassigned traffic, while orchestration roles are explicit assignments that are always enforced.
+
+## Architecture
+
+Requests move through independently testable layers:
+
+```text
+Provider adapter → encrypted account credentials → dynamic model registry
+→ capability requirements → role/selector bindings → deterministic routing
+→ retries and fallbacks → provider execution → execution telemetry
+```
+
+Provider-specific URL, authentication, discovery, invocation, and streaming behavior stays inside an adapter. The routing engine only sees provider-neutral model records and capabilities. Execution is backed by the MIT-licensed core of [LiteLLM](https://github.com/BerriAI/litellm), which normalizes provider request formats, tools, reasoning controls, streaming, errors, and pricing. Cutctx retains ownership of role enforcement, account isolation, fallback policy, credentials, observability, and configuration.
+
+Built-in declarative adapters cover OpenAI, Anthropic, Google, OpenRouter, DeepSeek, Kimi, MiniMax, Qwen, GLM, Groq, Ollama, LM Studio, Azure OpenAI, OpenAI-compatible APIs, and custom endpoints. A new provider is added by registering one `ProviderSpec` (including its LiteLLM provider name) or adapter factory; routing and configuration code do not change.
+
+### Why this substrate
+
+The orchestration landscape contains two different layers that should not be conflated:
+
+- [Paperclip](https://github.com/paperclipai/paperclip) is the strongest open-source option from the evaluated products for managing agents, goals, and work. It is an external **work plane**, not an embeddable model transport.
+- [T3 Code](https://github.com/pingdotgg/t3code), [Stitch](https://github.com/UseStitch/stitch), [tmux-ide](https://github.com/wavyrai/tmux-ide), and Conductor-style products manage coding sessions, terminals, or worktrees. Embedding them would duplicate Cutctx's UI without solving provider execution.
+- [OpenJarvis](https://github.com/open-jarvis/OpenJarvis) targets personal-device AI rather than a multi-provider gateway. Factory's public repository does not declare an open-source license, and several other evaluated names did not expose a clear canonical licensed repository.
+
+Cutctx therefore uses LiteLLM in-process for the model data plane and keeps an integration boundary for a future Paperclip-style work-plane connector. This avoids vendoring another application or coupling deterministic routing to a particular agent UI.
+
+The broader open-source gateway and agent-framework ecosystem was evaluated as well:
+
+- [Bifrost](https://github.com/maximhq/bifrost) (Apache-2.0) is the strongest sidecar option for very high request rates. [Portkey Gateway](https://github.com/Portkey-AI/gateway) (MIT) and [Envoy AI Gateway](https://github.com/envoyproxy/ai-gateway) (Apache-2.0) are also good external gateway choices. They are separate services, so making one mandatory would duplicate Cutctx's proxy, configuration, caching, observability, and failure policy.
+- [AnyLLM](https://github.com/mozilla-ai/any-llm) (Apache-2.0) is a good lightweight embedded alternative and remains available through Cutctx's optional `anyllm` backend. [aisuite](https://github.com/andrewyng/aisuite) is intentionally simpler, but does not replace LiteLLM's model metadata, pricing, error normalization, and provider breadth.
+- [PydanticAI](https://github.com/pydantic/pydantic-ai) and [LangGraph](https://github.com/langchain-ai/langgraph) are strong agent-workflow frameworks. They solve durable multi-step execution above this routing layer; adding either to single-request model selection would introduce a second policy engine without improving deterministic provider enforcement.
+- [Temporal](https://github.com/temporalio/temporal) is the preferred optional durability layer if future workflows must survive process restarts, wait on human approval, use durable timers, or coordinate worker queues. A future integration should sit behind a `WorkflowRuntime` boundary and call Cutctx activities; Temporal must not choose or silently substitute models.
+- OpenHands, OpenCode, Cline, SWE-agent, and Aider are capable coding-agent runtimes rather than provider-routing substrates. Paperclip remains the better external work-plane fit when centralized task and agent management is required.
+- TensorZero was not selected for new integration because its upstream repository is archived as of this evaluation.
+
+### External gateway composition
+
+An organization that needs Bifrost, Portkey, Envoy, or another OpenAI-compatible gateway can use it without replacing Cutctx orchestration. Register the gateway as an `openai-compatible` provider account and point `base_url` at its API prefix:
+
+```json
+{
+  "id": "bifrost-production",
+  "provider": "openai-compatible",
+  "display_name": "Bifrost production cluster",
+  "base_url": "http://bifrost.internal:8080/v1",
+  "metadata": {"litellm_provider": "openai"}
+}
+```
+
+The model ID in a binding should be the ID expected by that gateway. In strict mode, disable the downstream gateway's independent model fallback or mirror the exact Cutctx fallback policy; otherwise the downstream service could substitute a model that Cutctx cannot observe.
+
+## Configuration hierarchy
+
+Configuration is versioned and merged in this order:
+
+1. Global
+2. User
+3. Workspace
+4. Project
+
+Provider accounts, roles, and bindings merge by stable `id`; later layers replace matching entities. Settings and metadata deep-merge. Writes use atomic file replacement.
+
+The default project file is `.cutctx/orchestration.json`. Override it with `CUTCTX_ORCHESTRATION_CONFIG`. Runtime state, the encrypted credential database, discovered model cache, and execution JSONL live under `CUTCTX_ORCHESTRATION_DIR` (default `~/.cutctx/orchestration`).
+
+```json
+{
+  "version": 1,
+  "providers": [
+    {"id": "openai-main", "provider": "openai", "display_name": "Production"}
+  ],
+  "roles": [
+    {"id": "worker", "name": "Worker", "required_capabilities": ["tool_calling"]}
+  ],
+  "bindings": [
+    {
+      "id": "worker-mini",
+      "role": "worker",
+      "model": "openai:gpt-5.4-mini",
+      "fallback_chain": ["anthropic:claude-sonnet-4-5"]
+    }
+  ],
+  "settings": {
+    "mode": "strict",
+    "policy": "role_locked",
+    "retries": 1,
+    "timeout_seconds": 120
+  }
+}
+```
+
+Roles are data, not an enum. Create any number of custom roles. Bindings can additionally match `agent`, `workflow`, `command`, `skill`, `task_type`, `repository`, `workspace`, or `organization`. The binding with the most matching selectors wins; ties use documented selector precedence and then binding ID, making every decision repeatable.
+
+If two accounts expose the same provider/model pair, use its deployment key (`provider:account-id:model-id`) in the binding. Ambiguous `provider:model` assignments are rejected rather than silently choosing an account.
+
+## Strict and relaxed enforcement
+
+- **Strict** refuses execution when the assigned model is unavailable, deprecated, missing required capabilities, or cannot run through the selected compatibility transport. It never silently substitutes a fallback.
+- **Relaxed** walks only the configured fallback chain. Optional fastest, cheapest, highest-quality, and balanced policies may choose another capability-compatible registered model after the explicit chain is exhausted.
+
+Fallback triggers include timeout, rate limit, authentication failure, quota exhaustion, provider outage, unsupported capabilities, model deprecation, and unavailability. Routing uses capability metadata—not model-name heuristics. Data-plane requests can opt into stricter handling, but can never relax configured strict mode or replace its routing policy. Mode and policy overrides are accepted only by the authenticated route-preview API for simulation.
+
+## Requesting a role
+
+OpenAI, Anthropic, and Gemini compatibility endpoints accept `X-Cutctx-Role`, structured `cutctx_routing`, or a `role:<id>` model alias. These are the production data-plane surfaces because they traverse Cutctx compression, firewall, cache, rate limiting, audit, and outcome accounting. Same-provider assignments execute only when the endpoint integration can prove the exact configured account through its transport binding. The built-in compatibility handlers do not infer that binding from a process-global API key; account-scoped assignments therefore fail closed until the embedding supplies the account identity. Cross-provider or unproven account assignments also fail closed instead of using different credentials.
+
+The raw provider-neutral `/v1/orchestration/execute` endpoint is disabled by default because it does not yet traverse that canonical pipeline. It may be enabled for isolated development diagnostics with `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION=true`; do not enable it for production traffic. Its parameter allowlist prevents callers from overriding routing, credentials, cloud deployment fields, or LiteLLM retry/fallback controls.
+
+Fine-grained selectors use headers such as `X-Cutctx-Agent`, `X-Cutctx-Workflow`, `X-Cutctx-Skill`, and `X-Cutctx-Repository`. Required capabilities can be passed as a comma-separated `X-Cutctx-Required-Capabilities` value.
+
+## Management and observability APIs
+
+All endpoints require admin authentication and RBAC permissions.
+
+- `GET|PUT /v1/orchestration/config`
+- `GET /v1/orchestration/providers`
+- `PUT|DELETE /v1/orchestration/providers/{account}/credential`
+- `POST /v1/orchestration/providers/{account}/test`
+- `GET /v1/orchestration/models`
+- `POST /v1/orchestration/models/refresh/{account}`
+- `POST /v1/orchestration/route`
+- `POST /v1/orchestration/execute` (development opt-in only)
+- `GET /v1/orchestration/executions`
+
+Every completed execution records requested role, assigned and actual model, provider/account, binding, routing reason, latency, retries, fallback trigger, and errors. Non-streaming executions additionally record provider-reported token usage, cache observation, and estimated cost; streaming usage is not claimed unless the provider stream supplies a final usage record. The dashboard Orchestrator page exposes provider setup, discovery, role assignment, policy controls, route previews, and recent execution history.
+
+Credentials are encrypted with Fernet. Set `CUTCTX_ORCHESTRATION_MASTER_KEY` to an externally managed Fernet key, or Cutctx lazily creates a mode-0600 local key on the first credential write. Put sensitive headers such as `Authorization` and `X-API-Key` in the credential payload's `headers` object; configuration rejects them in plaintext `custom_headers`. Secrets and custom-header values are never returned by management APIs. Provider accounts do not inherit process-global API keys unless `metadata.allow_environment_credentials` is explicitly set to `true`.
+
+Configuration replacement validates the fully merged global-to-project candidate before persistence, prunes models removed from configuration, and swaps routing state under a process lock. This prevents a partial update from exposing mixed policy and registry state inside one proxy process.

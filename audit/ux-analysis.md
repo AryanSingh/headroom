@@ -1,98 +1,349 @@
-# Cutctx UX Analysis
+# UX Analysis — Cutctx Project
 
-*Audit date: July 2026*
-*Scope: CLI, SDK, configuration, error handling, onboarding, documentation*
-
----
-
-## Executive Summary
-
-Cutctx is a context compression layer for AI agents with a broad feature surface: proxy mode, SDK, MCP integration, memory, CCR (reversible compression), profiles, and enterprise features. The UX is competent and well-structured in places, but suffers from **configuration overload**, **fragmented onboarding**, and **error messages that explain what went wrong without guiding users toward what to do next**. The CLI is powerful; the first-time experience is not.
+**Date:** 2026-07-10
+**Auditor:** @designer
+**Codebase:** `/Users/aryansingh/Documents/Claude/Projects/headroom`
 
 ---
 
-## 1. CLI Intuitiveness
+## Overall UX Rating: 🟡 (Yellow — Functional, Not Delightful)
 
-**Strengths.** The `cutctx setup` command is well-designed: it detects installed agents, registers MCP, starts the proxy, and verifies health in a single 5-step flow. The `cutctx wrap` command is similarly strong — `cutctx wrap claude` is a clean one-liner that sets up everything. Lazy command loading means startup is fast even with 40+ subcommands.
-
-**Friction points.** The command surface is large (40+ subcommands across `proxy`, `memory`, `perf`, `report`, `bench`, `audit`, `rbac`, `orgs`, `sso-test`, `config-check`, `install`, `setup`, `wrap`, `learn`, `tools`, `policies`, `capture`, `intercept`, `mcp`, `billing`, `license`, `integrations`, `stack-graph`, `agent-savings`, `evals`, `savings`, `profile`). New users face a wall of options without a clear path from "just get it running" to "explore advanced features." There is no `cutctx` (no subcommand) that shows a welcome screen, current status, or suggested next steps. The `--help` output lists every command equally, burying the essentials.
-
-**Recommendation.** Add a top-level `cutctx` (no subcommand) experience that shows status: whether a proxy is running, which agents are detected, current savings, and a "next steps" suggestion. Group commands in help output by phase: Core (`setup`, `proxy`, `wrap`), Observe (`perf`, `savings`, `report`), Advanced (`memory`, `learn`, `policies`), Enterprise (`orgs`, `rbac`, `sso-test`, `billing`).
+The project has strong technical capabilities but suffers from **command bloat, inconsistent entry points, and a learning cliff** that undermines the "60-second" onboarding promise. The good news: every issue has a clear path to resolution.
 
 ---
 
-## 2. Configuration Complexity
+## Key Strengths
 
-**Strengths.** `cutctx/config.py` uses well-typed dataclasses with sensible defaults. The `CacheAlignerConfig` docstring is thorough, documenting detection capabilities and gotchas inline. Environment variable overrides follow a clear precedence chain (`explicit arg > env var > canonical root > default`), documented in `paths.py`.
-
-**Friction points.** The configuration surface is deep. `CutctxConfig` spans 700+ lines with nested models (`CacheAlignerConfig`, `Block`, `WasteSignals`, `RequestMetrics`, `SimulationResult`). A new user looking at this has no idea what to change versus what to leave alone. The `CacheAlignerConfig` alone has `use_dynamic_detector`, `detection_tiers`, `extra_dynamic_labels`, `entropy_threshold`, `date_patterns`, `normalize_whitespace`, `collapse_blank_lines`, and `dynamic_tail_separator`. Most users will never touch these, but their presence creates cognitive overhead. The `paths.py` module exposes 25+ path helpers in `__all__`, each with its own env var — impressive for power users, overwhelming for everyone else.
-
-**Recommendation.** Surface a curated `cutctx config show` or `cutctx config --explain` that shows only the settings most users should care about, with explanations. Hide advanced settings behind `--advanced` flag. Provide a `cutctx config doctor` that validates configuration and suggests improvements.
-
----
-
-## 3. Error Message Quality
-
-**Strengths.** The exception hierarchy is clean: `CutctxError` base with `ConfigurationError`, `AuthenticationError`, `AuthorizationError`, `EntitlementError`, `CacheError`, `ValidationError`, `TransformError`. Each has detailed docstrings with usage examples. The `details` dict pattern on exceptions is a good practice — it provides structured context for programmatic handling.
-
-**Weakiction points.** Error messages in the CLI use `click.style(" FAILED", fg="red")` or `print_error(msg)` from `formatting.py`, which prints `[bold red]Error:[/bold red] msg`. The messages themselves are terse. When proxy startup fails, the user sees `"FAILED"` with no hint about why (port conflict? missing dependency? network issue?). The `setup.py` flow shows `"Start proxy manually: cutctx proxy"` but doesn't capture the error. The exception module's `__str__` method renders details as `(key=value, ...)` which is readable but doesn't suggest fixes.
-
-**Recommendation.** Every error message should answer three questions: What happened? Why? What should the user do? The setup flow should capture and display the actual failure reason. Exception messages should include actionable hints (e.g., "Port 8787 in use. Try: cutctx proxy --port 8800").
+1. **`cutctx setup` is genuinely good** — 5-step wizard with `[1/5]...[5/5]` progress, agent detection, MCP registration, and health check. This is the right onboarding pattern.
+2. **`cutctx wrap <agent>` is magic** — one command does everything. The proxy + context-tool + launch flow is a real differentiator.
+3. **`config-check` command exists** — validates ports, env vars, provider keys, SSO, CORS, security settings before proxy starts. This is a model diagnostic command.
+4. **Lazy CLI loading** — `LazyCLIGroup` in `cutctx/cli/main.py:123` loads command modules only when invoked. Fast startup even with 38+ commands.
+5. **Dashboard has solid empty states** — Memory page shows "No memories recorded yet" + loading states. Savings page has skeleton cards during load.
+6. **Exception hierarchy is clean** — `CutctxError` → `ConfigurationError`, `ValidationError`, `TransformError`, `CacheError` with structured `details` dicts.
+7. **Proxy startup banner** — comprehensive status output (mode, extensions, telemetry, Langfuse, code-aware status). Information-rich.
 
 ---
 
-## 4. SDK/API Ergonomics
+## Critical Issues
 
-**Strengths.** The `CutctxClient` follows the OpenAI SDK pattern closely (`client.chat.completions.create()`), making it immediately familiar to anyone who has used the OpenAI Python library. Cutctx-specific parameters (`cutctx_mode`, `cutctx_cache_prefix_tokens`, etc.) are cleanly prefixed with `cutctx_` and passed as kwargs, avoiding namespace pollution. The `ChatCompletions` wrapper is a thin layer that keeps the API surface stable.
+### 🔴 Issue 1: First-Run Experience is a Wall of Commands
 
-**Friction points.** The SDK has a lot of imports required to get started (`from cutctx import CutctxClient`, then `CutctxConfig`, `CutctxMode`, etc.). There is no `cutctx.from_env()` or `CutctxClient.from_defaults()` that loads configuration from environment variables and standard paths. The `validate_setup()` method is a separate call that users must remember to invoke. The `CutctxConfig` dataclass has dozens of fields with no builder pattern or fluent API.
+**File:** `cutctx/cli/main.py:141-159`
 
-**Recommendation.** Add a `CutctxClient.from_env()` factory that loads from `CUTCTX_*` env vars and standard config paths. Provide a `CutctxConfig.simple()` or `CutctxConfig.for_tier(tier)` that gives reasonable defaults per use case (developer, team, enterprise).
+Running `cutctx` with no args outputs the help text, which lists **38+ commands** organized alphabetically, not by user phase:
+
+```
+Usage: cutctx [OPTIONS] COMMAND [ARGS]...
+
+  Cutctx - Context optimization layer for LLM applications.
+  Manage memories, run the optimization proxy, and analyze metrics.
+
+Examples:
+  cutctx setup            Unified setup with agent detection
+  cutctx proxy            Start the optimization proxy
+  cutctx memory list      List stored memories
+  cutctx orgs list        List organizations
+  cutctx audit list       List audit events
+  cutctx rbac list        List role assignments
+  cutctx config-check     Validate configuration
+  cutctx sso-test         Test SSO configuration
+```
+
+**Problem:** A new user sees enterprise commands (orgs, rbac, sso-test) before they've even installed. The help text assumes you already know what "MCP" and "proxy" mean.
+
+**Fix:** Group commands by phase in help output:
+```
+🚀 Quick Start
+  cutctx setup              Set up everything (recommended first step)
+  cutctx wrap <agent>       One-command agent integration
+  cutctx proxy              Start the optimization proxy
+
+📊 Monitor & Analyze
+  cutctx perf               Show token savings
+  cutctx savings            Detailed savings breakdown
+  cutctx capabilities       List compression algorithms
+
+🔧 Configuration
+  cutctx config-check       Validate your setup
+  cutctx memory             Manage cross-agent memory
+  cutctx policies           Compression policies
+
+🏢 Enterprise
+  cutctx orgs               Organization management
+  cutctx rbac               Role-based access control
+  cutctx sso-test           Test SSO configuration
+  cutctx billing            Billing & usage
+```
 
 ---
 
-## 5. Documentation Clarity
+### 🔴 Issue 2: `CutctxClient` Has No Factory Method
 
-**Strengths.** The README is well-structured with a clear 60-second quickstart, proof section with benchmarks, agent compatibility matrix, and installation for both Python and npm. The PRODUCT_GUIDE.md is thorough — 20 sections covering architecture, pricing, competitive landscape, FAQ. The `llms.txt` and `llms-full.txt` files show awareness of AI-native consumption patterns.
+**File:** `cutctx/client.py:1-1048`
 
-**Friction points.** The quickstart in README requires 4 steps (install, configure API key, run proxy, configure agent) — reasonable but could be one command. The documentation is split across README.md, PRODUCT_GUIDE.md, docs/ directory (60+ files), and cutctx.com/docs — it's unclear which source is authoritative. There is no local `quickstart.md` in the docs/ directory. The QA-PLAYBOOK.md is 1400+ lines of internal process documentation that lives alongside user-facing docs. The LEAD_GEN_PLAYBOOK.md contains internal sales strategy mixed with product information.
+The client class is 1048 lines. Looking at the constructor pattern, users must manually:
 
-**Recommendation.** Consolidate the quickstart into a single `cutctx setup` that does everything (it already exists — promote it harder). Move internal docs (QA, LEAD_GEN) to a separate `internal/` or `.internal/` directory. Add a clear README section that links "new user" docs vs. "contributor" vs. "internal."
+1. Create a `CutctxConfig` object (707 lines of config model)
+2. Instantiate a provider
+3. Optionally set up cache optimizer, semantic cache layer, storage
+4. Pass all of this to `CutctxClient(...)`
 
----
+There is **no `CutctxClient.from_env()`** or `CutctxClient.easy()` factory. The README says `from cutctx import compress` but the actual SDK entry point requires deep configuration knowledge.
 
-## 6. Onboarding Friction
+**Fix:** Add a `from_env()` class method:
 
-**Strengths.** The `cutctx setup` command with agent detection and MCP registration is a genuinely good onboarding experience. The `cutctx wrap` command is excellent for the "just get it working" moment.
+```python
+@classmethod
+def from_env(cls, mode: CutctxMode = CutctxMode.OPTIMIZE, **overrides) -> CutctxClient:
+    """Create a client from environment variables with sensible defaults.
 
-**Friction points.** The first `cutctx` invocation after install shows nothing — no welcome, no guidance, no "here's what to do next." Users must know to run `cutctx setup` or `cutctx wrap claude`. There is no `cutctx init` that walks through configuration interactively (the `init.py` exists but appears to be a different flow). The trial/checkout flow is behind the commercial package (`cutctx_ee`), which means the free tier experience has no guided path to "see savings" or "try premium features." The `cutctx perf` command exists but users won't know to run it until after they've been using the proxy for a while.
+    Reads CUTCTX_* env vars and creates a working client with zero config.
+    """
+    config = CutctxConfig(mode=mode, **overrides)
+    return cls(config=config)
+```
 
-**Recommendation.** Make the first-run experience explicit. Either: (a) `cutctx` with no arguments shows a welcome screen with detected agents, proxy status, and suggested next step; or (b) the first `cutctx setup` includes a "what's happening" narrative rather than just `[1/5] Checking installation...`. Add a `cutctx tour` or `cutctx welcome` command that walks through the product's capabilities.
-
----
-
-## 7. Profile/Multi-Config UX
-
-**Strengths.** The `CompressionProfile` system is clever — it learns from past sessions to improve future compression. The workspace-hash-based profile lookup is automatic and transparent. The `ProfileManager` singleton with caching is efficient.
-
-**Friction points.** There is no way for users to see or manage their profiles. No `cutctx profile list`, `cutctx profile show`, or `cutctx profile reset`. The profile data (compression ratios, retrieval counts, effectiveness scores) is stored in a JSON file but never surfaced to the user. Users don't know the system is learning, and they can't see what it's learned. The profile is silently loaded via `CompressionProfile.load()` in the pipeline — it's invisible.
-
-**Recommendation.** Add `cutctx profile show` that displays current compression profile per workspace. Show a summary: "This workspace has been compressed 47 times. Average ratio: 0.42. Most compressible content: tool outputs. Most retrieved: code snippets." Let users reset or lock profiles.
-
----
-
-## Summary of Priority Fixes
-
-| Priority | Issue | Impact |
-|----------|-------|--------|
-| **P0** | No first-run experience (silent `cutctx` invocation) | Users install and see nothing — no guidance, no status |
-| **P0** | Error messages lack actionable guidance | Users hit failures and don't know how to recover |
-| **P1** | Configuration surface is overwhelming | New users freeze when looking at 700-line config model |
-| **P1** | No `CutctxClient.from_env()` | SDK requires manual config wiring every time |
-| **P2** | Internal docs mixed with user docs | QA-PLAYBOOK and LEAD_GEN clutter the docs/ directory |
-| **P2** | Profile learning is invisible | Users don't know the system adapts or how to see it |
-| **P3** | CLI help doesn't group by phase | 40+ commands listed flat in `--help` output |
+This is the single biggest DX improvement possible.
 
 ---
 
-*Analysis conducted by UX audit — read from: cli.py (shim), cli/main.py, cli/setup.py, cli/wrap.py, cli/_utils/formatting.py, config.py, parser.py, exceptions.py, client.py, trial.py, checkout.py, paths.py, profiles.py, README.md, PRODUCT_GUIDE.md, docs/LEAD_GEN_PLAYBOOK.md, docs/QA-PLAYBOOK.md.*
+### 🔴 Issue 3: 707-Line Config Model is Intimidating
+
+**File:** `cutctx/config.py:1-707`
+
+The config model contains:
+- `CacheAlignerConfig` (20+ fields)
+- `SmartCrusherConfig`
+- `CodeCompressorConfig`
+- `ContentRouterConfig`
+- `CutctxConfig` (the main config — 40+ fields)
+- `RequestMetrics` (40+ fields for observability)
+- Various enums and dataclasses
+
+A new user looking at this file sees an ocean of options. Most fields have good defaults, but the file doesn't communicate "you only need to set 2-3 things."
+
+**Fix:** Add a "Quick Start" section at the top of the file:
+
+```python
+"""Configuration models for Cutctx SDK.
+
+QUICK START — Most users only need:
+    from cutctx.config import CutctxConfig, CutctxMode
+    config = CutctxConfig(mode=CutctxMode.OPTIMIZE)
+
+    That's it. All 40+ settings have sensible defaults.
+    Override only what you need: config.smart_crusher.enabled = False
+"""
+```
+
+Also, consider a `CutctxConfig.easy()` or `CutctxConfig.for_agent(agent_name)` factory that pre-configures for common use cases.
+
+---
+
+## Detailed Analysis
+
+### 1. CLI Experience
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| First-run (no args) | 🔴 | Shows firehose of 38+ commands, no guidance |
+| Help organization | 🔴 | Alphabetical, not by user phase |
+| Progress indicators | 🟢 | `setup` shows `[1/5]...[5/5]` |
+| Error messages | 🟡 | Some actionable, some just tracebacks |
+| Welcome screen | 🔴 | No welcome/branding on first run |
+| `--version` | 🟢 | Works (`-v` flag) |
+| Lazy loading | 🟢 | Fast startup despite 38+ commands |
+
+**File references:**
+- `cutctx/cli/main.py:141-159` — main help output
+- `cutctx/cli/main.py:123-138` — `LazyCLIGroup` (good)
+- `cutctx/cli/setup.py:108-190` — `setup` command (excellent UX pattern)
+- `cutctx/cli/wrap.py:1-1343` — wrap command (complex but functional)
+- `cutctx/cli/__init__.py:12-38` — lazy submodule loading
+
+**Quick Win:** Add a `cutctx welcome` or show a branded first-run message when `cutctx` is invoked with no args and no prior setup detected:
+
+```
+✂️  Cutctx — Context compression for AI agents
+
+It looks like this is your first time! Let's get you set up:
+
+  cutctx setup              # 60-second guided setup
+  cutctx wrap claude        # Or jump straight to wrapping an agent
+
+Learn more: https://cutctx.com/docs
+```
+
+---
+
+### 2. SDK / DX Experience
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| `from_env()` factory | 🔴 | Missing — manual config required |
+| First compression steps | 🟡 | 3-4 steps minimum |
+| API intuitiveness | 🟡 | OpenAI-compatible wrapper is good, but init is heavy |
+| Error messages | 🟡 | `details` dict is helpful, but not always surfaced |
+| Backward compat | 🟢 | Alias at `cutctx/client.py:1048` — `CutctxClient = CutctxClient` |
+
+**File references:**
+- `cutctx/client.py:38-45` — `ChatCompletions` wrapper (OpenAI-style)
+- `cutctx/client.py:1047-1048` — backward-compat alias
+- `cutctx/exceptions.py:1-196` — clean exception hierarchy
+
+**Ideal first-compression flow (current):**
+```python
+from cutctx.config import CutctxConfig, CutctxMode
+from cutctx.client import CutctxClient
+
+config = CutctxConfig(mode=CutctxMode.OPTIMIZE)
+client = CutctxClient(config=config)
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet",
+    messages=[...]
+)
+# 4 lines, but requires knowing CutctxConfig exists
+```
+
+**Ideal first-compression flow (with `from_env()`):**
+```python
+from cutctx import CutctxClient
+
+client = CutctxClient.from_env()
+response = client.chat.completions.create(...)
+# 2 lines, matches OpenAI SDK familiarity
+```
+
+---
+
+### 3. Configuration Experience
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| Config model size | 🔴 | 707 lines, 40+ fields in main config |
+| Sensible defaults | 🟢 | Yes — most fields have working defaults |
+| `config doctor` | 🟢 | `cutctx config-check` exists and is thorough |
+| Env var support | 🟢 | Good — `CUTCTX_*` prefix convention |
+| Config file support | 🟡 | `.env` supported, but unclear if YAML/TOML config exists |
+| Validation | 🟡 | `config-check` validates env vars but not config object fields |
+
+**File references:**
+- `cutctx/config.py:26-210` — `CacheAlignerConfig` (20+ fields)
+- `cutctx/config.py:210-500` — `CutctxConfig` (main config, 40+ fields)
+- `cutctx/config.py:500-707` — `RequestMetrics` and backward-compat aliases
+- `cutctx/cli/config_check.py:1-131` — config-check command (good)
+
+**The paradox:** The config model is *technically* well-designed (sensible defaults, good typing), but its *file length* is psychologically intimidating. A user opening `config.py` to understand what's possible sees 707 lines and assumes complexity that doesn't actually exist.
+
+---
+
+### 4. Onboarding Flow
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| README first 20 lines | 🟢 | ASCII art + clear value prop + badges |
+| "60 seconds" section | 🟢 | Shows install + 3 commands |
+| Interactive setup | 🟢 | `cutctx setup` is a guided wizard |
+| `cutctx init` | 🟡 | Durable installation (1158 lines) — more than first-run |
+| Getting-started docs | 🟡 | `docs/content/docs/` exists but unclear structure |
+| Error recovery | 🔴 | If `setup` fails mid-way, no clear recovery path |
+
+**File references:**
+- `README.md:1-50` — branding + value prop (good)
+- `README.md:92-109` — "Get started (60 seconds)" section (good)
+- `cutctx/cli/setup.py:108-190` — `setup` command output (excellent)
+- `cutctx/cli/init.py:1-1158` — durable installation (complex)
+
+**The gap:** `cutctx setup` is great for first-run, but `cutctx init` (1158 lines) is a different, more complex system for durable installation. Users may confuse these. The README doesn't clarify when to use `setup` vs `init`.
+
+---
+
+### 5. Dashboard UX
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| First-load state | 🟢 | Skeleton cards, "Loading..." messages |
+| Empty state | 🟢 | "No memories recorded yet" with clear messaging |
+| Error state | 🟡 | Generic error messages, no retry button |
+| Information hierarchy | 🟡 | Good panel structure, but dense |
+| Enterprise gating | 🟢 | Clear "Enterprise feature" gate with feature list |
+
+**File references:**
+- `dashboard/src/pages/Memory.jsx:1-204` — memory page with empty state
+- `dashboard/src/pages/Savings.jsx:1-580` — savings with skeleton cards
+- `dashboard/src/pages/Overview.jsx` — overview (compressed, ~1500 lines)
+
+**Dashboard strengths:**
+- `Memory.jsx:143-148` — clean empty state: `{loading ? 'Loading memories…' : 'No memories recorded yet.'}`
+- `Memory.jsx:104-120` — enterprise gate shows feature list before blocking
+- `Savings.jsx:42-60` — `SkeletonCard` component for loading states
+
+**Dashboard issues:**
+- No retry button on error states
+- No "Connect your proxy" call-to-action when dashboard can't reach the proxy
+- Overview page is ~1500 lines — could benefit from component extraction
+
+---
+
+### 6. Error Handling UX
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| Exception hierarchy | 🟢 | Clean: `CutctxError` → specific subclasses |
+| Error messages | 🟡 | Some actionable, some just "X failed" |
+| Traceback suppression | 🟡 | CLI catches some, but proxy can still show raw tracebacks |
+| Telemetry | 🟡 | `is_telemetry_enabled()` exists but unclear if errors are reported |
+| Recovery guidance | 🔴 | Most errors don't tell users what to do next |
+
+**File references:**
+- `cutctx/exceptions.py:24-196` — exception classes with `details` dicts
+- `cutctx/exceptions.py:37-45` — base `CutctxError` with structured details
+- `cutctx/cli/proxy.py:1325-1371` — startup banner (information-rich)
+
+**Example of a good error message** (from `exceptions.py`):
+```python
+ConfigurationError(
+    "API key not found",
+    details={"provider": "anthropic", "env_var": "ANTHROPIC_API_KEY"}
+)
+```
+
+**Example of a bad error message** (hypothetical from proxy):
+```
+ERROR: Failed to start proxy
+```
+→ Doesn't say *why* or *what to do*.
+
+**Quick Win:** Add a "What to do" section to common errors:
+```
+ERROR: Port 8787 is already in use
+
+What happened: Another process is using port 8787
+Why: The proxy needs this port to accept LLM requests
+What to do:
+  1. Find the process: lsof -i :8787
+  2. Kill it, or use a different port: cutctx proxy --port 8788
+```
+
+---
+
+## Quick Wins (Prioritized)
+
+| # | Fix | Effort | Impact | Files |
+|---|-----|--------|--------|-------|
+| 1 | Add `CutctxClient.from_env()` factory | Low | 🔴 High | `cutctx/client.py` |
+| 2 | Add "Quick Start" comment at top of `config.py` | Low | 🟡 Medium | `cutctx/config.py` |
+| 3 | Group CLI help by user phase | Medium | 🔴 High | `cutctx/cli/main.py` |
+| 4 | Add first-run welcome message | Low | 🟡 Medium | `cutctx/cli/main.py` |
+| 5 | Add "What to do" to common errors | Medium | 🔴 High | `cutctx/cli/proxy.py`, `cutctx/exceptions.py` |
+| 6 | Add retry button to dashboard error states | Low | 🟡 Medium | `dashboard/src/pages/*.jsx` |
+| 7 | Clarify `setup` vs `init` in README | Low | 🟡 Medium | `README.md` |
+| 8 | Add `CutctxConfig.for_agent(agent_name)` factory | Medium | 🟡 Medium | `cutctx/config.py` |
+
+---
+
+## Verdict
+
+The project has **solid foundations** — the `setup` wizard, `wrap` command, lazy CLI loading, and exception hierarchy are all well-designed. The issues are primarily about **discoverability and first impressions**: too many commands visible at once, no `from_env()` factory, and error messages that explain *what* but not *what to do*.
+
+With the 8 quick wins above, the UX would move from 🟡 to 🟢. The hardest fix (grouping CLI help) is also the highest-impact — it's the first thing a new user sees.

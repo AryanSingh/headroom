@@ -28,8 +28,8 @@ def test_compression_decline_telemetry() -> None:
         messages=[{"role": "user", "content": "hi"}],
     )
     assert not decision1.should_compress
-    assert decision1.passthrough_reason == "bypass_header"
-    metrics.record_compression_declined(decision1.passthrough_reason or "unknown")
+    assert decision1.decline_reason == "bypass_header"
+    metrics.record_compression_declined(decision1.decline_reason or "unknown")
 
     # Reason 2: compression_disabled
     decision2 = CompressionDecision.decide(
@@ -39,8 +39,8 @@ def test_compression_decline_telemetry() -> None:
         messages=[{"role": "user", "content": "hi"}],
     )
     assert not decision2.should_compress
-    assert decision2.passthrough_reason == "compression_disabled"
-    metrics.record_compression_declined(decision2.passthrough_reason or "unknown")
+    assert decision2.decline_reason == "compression_disabled"
+    metrics.record_compression_declined(decision2.decline_reason or "unknown")
 
     # Reason 3: no_messages
     decision3 = CompressionDecision.decide(
@@ -50,8 +50,8 @@ def test_compression_decline_telemetry() -> None:
         messages=[],
     )
     assert not decision3.should_compress
-    assert decision3.passthrough_reason == "no_messages"
-    metrics.record_compression_declined(decision3.passthrough_reason or "unknown")
+    assert decision3.decline_reason == "no_messages"
+    metrics.record_compression_declined(decision3.decline_reason or "unknown")
 
     # Reason 4: license_denied
     decision4 = CompressionDecision.decide(
@@ -61,8 +61,8 @@ def test_compression_decline_telemetry() -> None:
         messages=[{"role": "user", "content": "hi"}],
     )
     assert not decision4.should_compress
-    assert decision4.passthrough_reason == "license_denied"
-    metrics.record_compression_declined(decision4.passthrough_reason or "unknown")
+    assert decision4.decline_reason == "license_denied"
+    metrics.record_compression_declined(decision4.decline_reason or "unknown")
 
     # Verify metrics state
     assert metrics.compression_declined_total["bypass_header"] == 1
@@ -97,10 +97,10 @@ def test_gemini_handle_google_cloudcode_stream_compression_decline_telemetry() -
     )
 
     assert not _decision.should_compress
-    assert _decision.passthrough_reason == "bypass_header"
+    assert _decision.decline_reason == "bypass_header"
 
     # Record the decline (this is what the handler code should do)
-    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+    metrics.record_compression_declined(_decision.decline_reason or "unknown")
 
     # Verify the metric was recorded
     assert metrics.compression_declined_total["bypass_header"] == 1
@@ -124,10 +124,10 @@ def test_gemini_handle_gemini_count_tokens_compression_decline_telemetry() -> No
     )
 
     assert not _decision.should_compress
-    assert _decision.passthrough_reason == "compression_disabled"
+    assert _decision.decline_reason == "compression_disabled"
 
     # Record the decline (this is what the handler code should do)
-    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+    metrics.record_compression_declined(_decision.decline_reason or "unknown")
 
     # Verify the metric was recorded
     assert metrics.compression_declined_total["compression_disabled"] == 1
@@ -151,10 +151,10 @@ def test_openai_handle_openai_chat_compression_decline_telemetry() -> None:
     )
 
     assert not _decision.should_compress
-    assert _decision.passthrough_reason == "compression_disabled"
+    assert _decision.decline_reason == "compression_disabled"
 
     # Record the decline (this is what the handler code should do)
-    metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+    metrics.record_compression_declined(_decision.decline_reason or "unknown")
 
     # Verify the metric was recorded
     assert metrics.compression_declined_total["compression_disabled"] == 1

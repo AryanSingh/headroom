@@ -5,6 +5,7 @@ Used for:
 - CCR lossless round-trip verification
 - Information retention (probe facts survive compression)
 - Needle retention (specific values preserved in compressed output)
+- Verbatim compaction fidelity (exact anchors survive deterministic deletion)
 - Tool schema compaction integrity (property names survive annotation stripping)
 """
 
@@ -32,6 +33,9 @@ class CompressionOnlyResult:
     total_original_tokens: int
     total_compressed_tokens: int
     total_tokens_saved: int
+    tokens_per_second: float | None = None
+    critical_item_recall: float | None = None
+    verbatim_fidelity: float | None = None
     duration_seconds: float = 0.0
     details: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -47,6 +51,15 @@ class CompressionOnlyResult:
             "total_original_tokens": self.total_original_tokens,
             "total_compressed_tokens": self.total_compressed_tokens,
             "total_tokens_saved": self.total_tokens_saved,
+            "tokens_per_second": round(self.tokens_per_second, 2)
+            if self.tokens_per_second is not None
+            else None,
+            "critical_item_recall": round(self.critical_item_recall, 4)
+            if self.critical_item_recall is not None
+            else None,
+            "verbatim_fidelity": round(self.verbatim_fidelity, 4)
+            if self.verbatim_fidelity is not None
+            else None,
             "duration_seconds": round(self.duration_seconds, 2),
             "errors": self.errors,
         }
@@ -63,6 +76,7 @@ class CompressionOnlyRunner:
     1. CCR lossless round-trip: compress → decompress → verify byte-exact match
     2. Information retention: compress and check if probe facts survive
     3. Needle retention: compress JSON array, verify anomalies/needles preserved
+    4. Verbatim compaction: preserve exact file paths, line numbers, and error strings
     """
 
     def _estimate_tokens(self, text: str) -> int:
@@ -147,6 +161,9 @@ class CompressionOnlyRunner:
         total_cases = passed + failed
         ratios = [d.get("compression_ratio", 0) for d in details if "compression_ratio" in d]
 
+        duration_seconds = time.time() - start_time
+        tokens_per_second = total_original / duration_seconds if duration_seconds > 0 else None
+
         return CompressionOnlyResult(
             benchmark="ccr_roundtrip",
             total_cases=total_cases,
@@ -157,7 +174,8 @@ class CompressionOnlyRunner:
             total_original_tokens=total_original,
             total_compressed_tokens=total_compressed,
             total_tokens_saved=total_original - total_compressed,
-            duration_seconds=time.time() - start_time,
+            tokens_per_second=tokens_per_second,
+            duration_seconds=duration_seconds,
             details=details,
             errors=errors,
         )
@@ -227,6 +245,9 @@ class CompressionOnlyRunner:
         total_cases = passed + failed
         ratios = [d.get("compression_ratio", 0) for d in details if "compression_ratio" in d]
 
+        duration_seconds = time.time() - start_time
+        tokens_per_second = total_original / duration_seconds if duration_seconds > 0 else None
+
         return CompressionOnlyResult(
             benchmark="information_retention",
             total_cases=total_cases,
@@ -237,7 +258,8 @@ class CompressionOnlyRunner:
             total_original_tokens=total_original,
             total_compressed_tokens=total_compressed,
             total_tokens_saved=total_original - total_compressed,
-            duration_seconds=time.time() - start_time,
+            tokens_per_second=tokens_per_second,
+            duration_seconds=duration_seconds,
             details=details,
             errors=errors,
         )
@@ -471,6 +493,114 @@ class CompressionOnlyRunner:
             },
         ]
 
+    def generate_verbatim_compaction_cases(self) -> list[dict[str, Any]]:
+        """Load fixed local fixtures for exact-preservation compaction checks."""
+        from cutctx.evals.datasets import load_verbatim_compaction_samples
+
+        suite = load_verbatim_compaction_samples()
+        return [
+            {
+                "id": case.id,
+                "content": case.context,
+                "query": case.query,
+                "critical_items": list(case.metadata.get("critical_items", [])),
+            }
+            for case in suite.cases
+        ]
+
+    def evaluate_verbatim_compaction(
+        self,
+        cases: list[dict[str, Any]] | None = None,
+        *,
+        fidelity_threshold: float = 0.90,
+    ) -> CompressionOnlyResult:
+        """Verify deterministic compaction preserves exact critical anchors."""
+        from cutctx.transforms.verbatim_compactor import VerbatimCompactor
+
+        if cases is None:
+            cases = self.generate_verbatim_compaction_cases()
+
+        start_time = time.time()
+        compactor = VerbatimCompactor()
+        passed = 0
+        failed = 0
+        total_original = 0
+        total_compressed = 0
+        details: list[dict[str, Any]] = []
+        errors: list[str] = []
+        fidelity_scores: list[float] = []
+        ratios: list[float] = []
+
+        for case in cases:
+            case_id = case.get("id", "unknown")
+            content = case["content"]
+            query = case.get("query", "")
+            critical_items = [item for item in case.get("critical_items", []) if str(item).strip()]
+            original_tokens = self._estimate_tokens(content)
+            total_original += original_tokens
+
+            try:
+                result = compactor.compress(content, context=query, critical_items=critical_items)
+                compressed = result.compressed
+                compressed_tokens = self._estimate_tokens(compressed)
+                total_compressed += compressed_tokens
+
+                preserved = [item for item in critical_items if item in compressed]
+                lost = [item for item in critical_items if item not in compressed]
+                fidelity = len(preserved) / len(critical_items) if critical_items else 1.0
+                fidelity_scores.append(fidelity)
+
+                ratio = 1 - (compressed_tokens / original_tokens) if original_tokens > 0 else 0.0
+                ratios.append(ratio)
+                is_pass = fidelity >= fidelity_threshold
+
+                if is_pass:
+                    passed += 1
+                else:
+                    failed += 1
+                    errors.append(f"Verbatim anchors lost in {case_id}: {lost}")
+
+                details.append(
+                    {
+                        "id": case_id,
+                        "passed": is_pass,
+                        "verbatim_fidelity": fidelity,
+                        "anchors_preserved": len(preserved),
+                        "anchors_lost": lost,
+                        "compression_ratio": ratio,
+                    }
+                )
+            except Exception as exc:
+                failed += 1
+                total_compressed += original_tokens
+                errors.append(f"Verbatim compaction error for {case_id}: {exc}")
+                details.append({"id": case_id, "passed": False, "error": str(exc)})
+
+        total_cases = passed + failed
+        avg_fidelity = sum(fidelity_scores) / len(fidelity_scores) if fidelity_scores else 0.0
+        avg_ratio = sum(ratios) / len(ratios) if ratios else 0.0
+
+        duration_seconds = time.time() - start_time
+        tokens_per_second = total_original / duration_seconds if duration_seconds > 0 else None
+
+        return CompressionOnlyResult(
+            benchmark="verbatim_compaction",
+            total_cases=total_cases,
+            passed_cases=passed,
+            failed_cases=failed,
+            accuracy_rate=avg_fidelity,
+            avg_compression_ratio=avg_ratio,
+            total_original_tokens=total_original,
+            total_compressed_tokens=total_compressed,
+            total_tokens_saved=total_original - total_compressed,
+            tokens_per_second=tokens_per_second,
+            critical_item_recall=avg_fidelity,
+            verbatim_fidelity=avg_fidelity,
+            duration_seconds=duration_seconds,
+            details=details,
+            errors=errors,
+        )
+
     def evaluate_tool_schema_compaction(
         self,
         cases: list[dict[str, Any]] | None = None,
@@ -567,6 +697,9 @@ class CompressionOnlyRunner:
         total_cases = passed + failed
         ratios = [d.get("compression_ratio", 0) for d in details if "compression_ratio" in d]
 
+        duration_seconds = time.time() - start_time
+        tokens_per_second = (total_original // 4) / duration_seconds if duration_seconds > 0 else None
+
         return CompressionOnlyResult(
             benchmark="tool_schema_compaction",
             total_cases=total_cases,
@@ -577,7 +710,8 @@ class CompressionOnlyRunner:
             total_original_tokens=total_original // 4,
             total_compressed_tokens=total_compressed // 4,
             total_tokens_saved=(total_original - total_compressed) // 4,
-            duration_seconds=time.time() - start_time,
+            tokens_per_second=tokens_per_second,
+            duration_seconds=duration_seconds,
             details=details,
             errors=errors,
         )

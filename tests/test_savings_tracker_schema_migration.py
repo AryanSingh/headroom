@@ -70,14 +70,16 @@ def test_savings_tracker_schema_migration():
         snapshot = storage.snapshot()
         
         # Check migration note
-        assert snapshot["schema_version"] == 4
+        assert snapshot["schema_version"] == 6
         assert "attribution_note" in snapshot
-        assert "created_usd/observed_usd split introduced in schema v4" in snapshot["attribution_note"]
-        
-        # Check that observed USD tracks were backfilled gracefully
+        assert "explicit created/observed token attribution introduced in schema v6" in snapshot["attribution_note"]
+        assert snapshot["lifetime"]["attribution_coverage"]["complete"] is False
+
+        # Check that created/observed USD tracks were backfilled gracefully.
         assert snapshot["lifetime"]["compression_savings_usd"] == 0.05
-        # Since v3 had no observed, it falls back to empty default 0.0 in _sanitize_state, BUT wait!
-        # `lifetime_savings_observed_usd` gets populated from `compression_savings_observed_usd` inside history rows, which doesn't exist, so it should be 0.0
+        assert snapshot["lifetime"]["cache_savings_usd"] == 0.02
+        assert snapshot["lifetime"]["created_savings_usd"] == 0.05
+        assert snapshot["lifetime"]["observed_provider_savings_usd"] == 0.02
         assert snapshot["lifetime"]["compression_savings_observed_usd"] == 0.0
 
 def test_savings_tracker_observed_usd_split():
@@ -105,11 +107,15 @@ def test_savings_tracker_observed_usd_split():
         # Cache savings
         assert "cache_savings_usd" in lifetime
         assert "cache_savings_observed_usd" in lifetime
-        
+        assert lifetime["created_savings_usd"] == 0.0
+        assert lifetime["observed_provider_savings_usd"] == 0.00125
+
         # 1000 tokens of gpt-4o input @ $2.50/1M = $0.0025 list price
         assert lifetime["cache_savings_usd"] == 0.0025
         assert lifetime["cache_savings_observed_usd"] == 0.00125
-        
+
         history_row = snapshot["history"][-1]
+        assert history_row["created_savings_usd"] == 0.0
+        assert history_row["observed_provider_savings_usd"] == 0.00125
         assert history_row["cache_savings_usd"] == 0.0025
         assert history_row["cache_savings_observed_usd"] == 0.00125

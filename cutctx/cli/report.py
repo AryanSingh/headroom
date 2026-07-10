@@ -6,6 +6,7 @@ import csv
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 from typing import Any
 
 import click
@@ -151,9 +152,159 @@ def _parse_iso(value: str):
             value = value[:-1] + "+00:00"
         from datetime import datetime as _dt
 
-        return _dt.fromisoformat(value)
+        parsed = _dt.fromisoformat(value)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed
     except (ValueError, TypeError):
         return None
+
+
+def _quantile(sorted_values: list[float], q: float) -> float:
+    if not sorted_values:
+        return 0.0
+    if len(sorted_values) == 1:
+        return float(sorted_values[0])
+    q = min(max(q, 0.0), 1.0)
+    idx = int(round((len(sorted_values) - 1) * q))
+    return float(sorted_values[idx])
+
+
+def _collect_request_telemetry(days: int) -> dict[str, Any]:
+    """Collect a compact telemetry snapshot from durable request logs."""
+
+    from cutctx.paths import request_history_path
+
+    path = request_history_path()
+    if not path.exists():
+        return {
+            "status": "no_data",
+            "requests_observed": 0,
+            "providers": {},
+            "clients": {},
+            "fallback": {"count": 0, "providers": {}, "reasons": {}},
+            "decline_reasons": {},
+            "routing": {"routed_requests": 0, "model_switches": 0},
+            "latency_ms": {"avg": 0.0, "p50": 0.0, "p95": 0.0},
+            "optimization_latency_ms": {"avg": 0.0, "p50": 0.0, "p95": 0.0},
+            "request_cost_usd": 0.0,
+            "note": f"No request history found at {path}",
+        }
+
+    now = datetime.now(timezone.utc)
+    start = None if days <= 0 else now - __import__("datetime").timedelta(days=days)
+    providers: dict[str, int] = {}
+    clients: dict[str, int] = {}
+    fallback_providers: dict[str, int] = {}
+    fallback_reasons: dict[str, int] = {}
+    decline_reasons: dict[str, int] = {}
+    latency_values: list[float] = []
+    optimization_values: list[float] = []
+    routed_requests = 0
+    model_switches = 0
+    request_cost_usd = 0.0
+    requests_observed = 0
+
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        lines = []
+
+    for raw_line in lines:
+        if not raw_line.strip():
+            continue
+        try:
+            row = json.loads(raw_line)
+        except ValueError:
+            continue
+        if not isinstance(row, dict):
+            continue
+        ts_str = row.get("timestamp")
+        ts = _parse_iso(ts_str) if isinstance(ts_str, str) else None
+        if start is not None and ts is not None and ts < start:
+            continue
+
+        requests_observed += 1
+
+        provider = str(row.get("provider") or "unknown")
+        providers[provider] = providers.get(provider, 0) + 1
+
+        tags = row.get("tags")
+        if isinstance(tags, dict):
+            client = str(tags.get("client") or "").strip()
+            if client:
+                clients[client] = clients.get(client, 0) + 1
+
+        fallback = row.get("fallback")
+        if isinstance(fallback, dict):
+            fallback_provider = str(fallback.get("provider") or "unknown")
+            fallback_providers[fallback_provider] = (
+                fallback_providers.get(fallback_provider, 0) + 1
+            )
+            fallback_reason = str(fallback.get("reason") or "unknown")
+            fallback_reasons[fallback_reason] = fallback_reasons.get(fallback_reason, 0) + 1
+
+        decline_reason = row.get("decline_reason")
+        if isinstance(decline_reason, str) and decline_reason.strip():
+            decline_reasons[decline_reason] = decline_reasons.get(decline_reason, 0) + 1
+
+        total_latency = row.get("total_latency_ms")
+        if isinstance(total_latency, (int, float)):
+            latency_values.append(float(total_latency))
+
+        optimization_latency = row.get("optimization_latency_ms")
+        if isinstance(optimization_latency, (int, float)):
+            optimization_values.append(float(optimization_latency))
+
+        routing = row.get("routing_metadata")
+        if isinstance(routing, dict):
+            if bool(routing.get("routed")):
+                routed_requests += 1
+            requested_model = str(routing.get("requested_model") or "").strip()
+            actual_model = str(routing.get("actual_model") or row.get("model") or "").strip()
+            if requested_model and actual_model and requested_model != actual_model:
+                model_switches += 1
+
+        request_cost = row.get("request_cost_usd")
+        if isinstance(request_cost, (int, float)):
+            request_cost_usd += float(request_cost)
+
+    latency_values.sort()
+    optimization_values.sort()
+
+    def _summary(values: list[float]) -> dict[str, float]:
+        if not values:
+            return {"avg": 0.0, "p50": 0.0, "p95": 0.0}
+        return {
+            "avg": round(mean(values), 2),
+            "p50": round(_quantile(values, 0.50), 2),
+            "p95": round(_quantile(values, 0.95), 2),
+        }
+
+    return {
+        "status": "observed" if requests_observed else "no_data",
+        "requests_observed": requests_observed,
+        "providers": dict(sorted(providers.items())),
+        "clients": dict(sorted(clients.items())),
+        "fallback": {
+            "count": sum(fallback_providers.values()),
+            "providers": dict(sorted(fallback_providers.items())),
+            "reasons": dict(sorted(fallback_reasons.items())),
+        },
+        "decline_reasons": dict(sorted(decline_reasons.items())),
+        "routing": {
+            "routed_requests": routed_requests,
+            "model_switches": model_switches,
+        },
+        "latency_ms": _summary(latency_values),
+        "optimization_latency_ms": _summary(optimization_values),
+        "request_cost_usd": round(request_cost_usd, 4),
+        "note": (
+            "Telemetry snapshot derived from durable request history."
+            if requests_observed
+            else f"No parseable request rows found at {path}"
+        ),
+    }
 
 
 @main.group("report")
@@ -526,6 +677,7 @@ def _build_agent_context_report(days: int) -> dict[str, Any]:
     """Build a CFO/CISO-forwardable context control-plane report."""
 
     rows = _collect_savings_history(days)
+    telemetry = _collect_request_telemetry(days)
     total_tokens = sum(int(row.get("tokens_saved") or 0) for row in rows)
     total_usd = sum(float(row.get("cost_savings_usd") or 0.0) for row in rows)
     source_tokens: dict[str, int] = {}
@@ -545,9 +697,14 @@ def _build_agent_context_report(days: int) -> dict[str, Any]:
             "usd_saved": round(total_usd, 4),
         },
         "savings_by_source_tokens": dict(sorted(source_tokens.items())),
+        "telemetry": telemetry,
         "quality_guard": {
-            "status": "no_data" if not rows else "observed",
-            "note": "Quality-guard stats are included when persisted outcome rows expose them.",
+            "status": "observed" if telemetry.get("requests_observed") else "no_data",
+            "note": (
+                "Telemetry snapshot includes request-level fallback, routing, decline, and latency observations."
+                if telemetry.get("requests_observed")
+                else "Quality-guard stats will be included once persisted request history exposes them."
+            ),
         },
         "policy": {
             "context_policy_env": bool(__import__("os").environ.get("CUTCTX_CONTEXT_POLICY")),
@@ -566,6 +723,11 @@ def _render_agent_context_report(payload: dict[str, Any], fmt: str) -> str:
 
     summary = payload["summary"]
     source_tokens = payload["savings_by_source_tokens"]
+    telemetry = payload.get("telemetry") or {}
+    latency = telemetry.get("latency_ms") or {}
+    optimization_latency = telemetry.get("optimization_latency_ms") or {}
+    fallback = telemetry.get("fallback") or {}
+    routing = telemetry.get("routing") or {}
     lines = [
         f"# Agent Context Report — last {payload['period_days']} days",
         "",
@@ -584,6 +746,36 @@ def _render_agent_context_report(payload: dict[str, Any], fmt: str) -> str:
             lines.append(f"| {source} | {tokens:,} |")
     else:
         lines.append("No savings-source rows found for this period.")
+
+    lines.extend(
+        [
+            "",
+            "## Telemetry Snapshot",
+            "",
+            f"- Telemetry status: {telemetry.get('status', 'no_data')}",
+            f"- Request log rows observed: {int(telemetry.get('requests_observed') or 0):,}",
+            f"- Fallback events: {int(fallback.get('count') or 0):,}",
+            f"- Routed requests: {int(routing.get('routed_requests') or 0):,}",
+            f"- Model switches: {int(routing.get('model_switches') or 0):,}",
+            f"- Latency p50/p95: {float(latency.get('p50') or 0.0):,.2f} ms / {float(latency.get('p95') or 0.0):,.2f} ms",
+            f"- Optimization latency p50/p95: {float(optimization_latency.get('p50') or 0.0):,.2f} ms / {float(optimization_latency.get('p95') or 0.0):,.2f} ms",
+            f"- Estimated request cost observed: ${float(telemetry.get('request_cost_usd') or 0.0):,.2f}",
+        ]
+    )
+    providers = telemetry.get("providers") or {}
+    if providers:
+        lines.append(f"- Providers: {', '.join(f'{k}={v}' for k, v in providers.items())}")
+    fallback_providers = fallback.get("providers") or {}
+    if fallback_providers:
+        lines.append(
+            f"- Fallback providers: {', '.join(f'{k}={v}' for k, v in fallback_providers.items())}"
+        )
+    decline_reasons = telemetry.get("decline_reasons") or {}
+    if decline_reasons:
+        lines.append(
+            f"- Decline reasons: {', '.join(f'{k}={v}' for k, v in decline_reasons.items())}"
+        )
+    lines.extend(["", f"- Telemetry note: {telemetry.get('note', 'No telemetry note available.')}"])
     lines.extend(
         [
             "",

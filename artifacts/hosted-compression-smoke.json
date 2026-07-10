@@ -1,0 +1,15 @@
+{
+  "base_url": "http://127.0.0.1:52120",
+  "model": "gpt-4o",
+  "input_kind": "text",
+  "compatibility_mode": "tool_output",
+  "tokens_before": 4942,
+  "tokens_after": 1943,
+  "tokens_saved": 2999,
+  "compression_ratio": 0.6068393363010927,
+  "transforms_applied": [
+    "router:protected:user_message",
+    "router:smart_crusher:0.29"
+  ],
+  "message_count": 2
+}

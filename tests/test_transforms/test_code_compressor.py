@@ -171,6 +171,33 @@ def generate_javascript_code(n_functions: int = 5) -> str:
     return "\n".join(lines)
 
 
+def generate_typescript_export_code() -> str:
+    """Generate exported TypeScript functions with multiline signatures."""
+    return """type SessionState = {
+  sessionId: string;
+  activeTool?: string;
+  pendingRequests: number;
+  lastLatencyMs?: number;
+};
+
+export function applyRequestFinished(
+  state: SessionState,
+  latencyMs: number,
+): SessionState {
+  return {
+    ...state,
+    pendingRequests: Math.max(0, state.pendingRequests - 1),
+    lastLatencyMs: latencyMs,
+    activeTool: state.pendingRequests <= 1 ? undefined : state.activeTool,
+  };
+}
+
+export function requestLabel(state: SessionState): string {
+  return `${state.sessionId}:${state.pendingRequests}:${state.activeTool ?? "idle"}`;
+}
+"""
+
+
 def generate_go_code(n_functions: int = 3) -> str:
     """Generate Go code for testing."""
     lines = [
@@ -507,7 +534,8 @@ class TestFallbackCompression:
         """Fallback compression preserves basic structure when no compressor available.
 
         When both tree-sitter and Kompress are unavailable, the fallback
-        returns the original code unchanged - preserving all structure.
+        should still preserve all structure while recovering whitespace-only
+        savings where possible.
         """
         with (
             patch(
@@ -524,12 +552,65 @@ class TestFallbackCompression:
 
             result = compressor.compress(code)
 
-            # With no compressor available, original code is returned unchanged
-            # This preserves all imports and class/function signatures
+            # With no AST/ML compressor available, we still preserve imports and
+            # signatures and can recover safe whitespace-only savings.
             assert "import os" in result.compressed
             assert "def function_" in result.compressed
-            # Compression ratio should be 1.0 (no compression)
-            assert result.compression_ratio == 1.0
+            assert result.syntax_valid is True
+            assert result.compression_ratio <= 1.0
+
+    def test_whitespace_only_fallback_collapses_redundant_blank_lines(self, default_config):
+        with (
+            patch(
+                "cutctx.transforms.code_compressor._check_tree_sitter_available",
+                return_value=False,
+            ),
+            patch(
+                "cutctx.transforms.kompress_compressor.is_kompress_available",
+                return_value=False,
+            ),
+        ):
+            compressor = CodeAwareCompressor(default_config)
+            code = (
+                "import os\n\n\n"
+                "def important(value):\n"
+                "    result = value + 1\n\n\n"
+                "    return result\n"
+            )
+
+            result = compressor.compress(code)
+
+            assert result.tokens_saved > 0
+            assert "\n\n\n" not in result.compressed
+            assert "def important(value):" in result.compressed
+            assert "return result" in result.compressed
+            assert result.syntax_valid is True
+
+    def test_whitespace_only_fallback_removes_standalone_comment_lines(self, default_config):
+        with (
+            patch(
+                "cutctx.transforms.code_compressor._check_tree_sitter_available",
+                return_value=False,
+            ),
+            patch(
+                "cutctx.transforms.kompress_compressor.is_kompress_available",
+                return_value=False,
+            ),
+        ):
+            compressor = CodeAwareCompressor(default_config)
+            code = (
+                "import os\n"
+                "# explain retry settings\n"
+                "def important(value):\n"
+                "    return value + 1\n"
+            )
+
+            result = compressor.compress(code)
+
+            assert result.tokens_saved > 0
+            assert "# explain retry settings" not in result.compressed
+            assert "def important(value):" in result.compressed
+            assert result.syntax_valid is True
 
 
 # =============================================================================
@@ -768,6 +849,38 @@ class TestTreeSitterIntegration:
         assert result.syntax_valid is True
         assert result.language == CodeLanguage.GO
         assert result.compressed  # Some output is produced
+
+    def test_typescript_exported_functions_keep_valid_signatures(self):
+        """Exported TS functions should not duplicate `export` or drop brace lines."""
+        config = CodeCompressorConfig(
+            min_tokens_for_compression=10,
+            enable_ccr=False,
+        )
+        compressor = CodeAwareCompressor(config)
+        code = generate_typescript_export_code()
+
+        result = compressor.compress(code, language="typescript")
+
+        assert result.syntax_valid is True
+        assert result.language == CodeLanguage.TYPESCRIPT
+        assert "export export function" not in result.compressed
+        assert "): SessionState {" in result.compressed
+        assert "export function requestLabel" in result.compressed
+
+    def test_typescript_exported_functions_preserve_output_when_no_savings_exist(self):
+        """The TS export regression should still return valid output when it abstains."""
+        config = CodeCompressorConfig(
+            min_tokens_for_compression=10,
+            enable_ccr=False,
+        )
+        compressor = CodeAwareCompressor(config)
+        code = generate_typescript_export_code()
+
+        result = compressor.compress(code, language="typescript")
+
+        assert result.syntax_valid is True
+        assert "export export function" not in result.compressed
+        assert "export function applyRequestFinished" in result.compressed
 
     def test_imports_preserved(self):
         """Imports are preserved in compressed output."""

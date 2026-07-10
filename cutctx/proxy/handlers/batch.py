@@ -271,7 +271,9 @@ class BatchHandlerMixin:
             url = f"{url}?key={api_key}"
 
         try:
-            response = await self._retry_request("POST", url, headers, body)
+            response = await self._retry_request(
+                "POST", url, headers, body, telemetry_tags=tags
+            )
 
             # Google batch create — funnel records via the canonical
             # path; cache fields stay 0 (Google batches don't expose

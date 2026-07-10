@@ -24,13 +24,20 @@ export const PERIOD_SERIES_KEY = {
 // each bucket (see savings_tracker.py `_build_rollup`). Without summing
 // these too, a period tab's "money saved" would only reflect compression
 // and silently drop cache/routing/schema savings for the window.
-const EXTRA_SAVINGS_SOURCE_DELTA_KEYS = [
+const OBSERVED_PROVIDER_SAVINGS_DELTA_KEYS = [
   'cache_savings_usd_delta',
+];
+
+const CREATED_SAVINGS_DELTA_KEYS = [
   'semantic_cache_savings_usd_delta',
   'self_hosted_prefix_cache_savings_usd_delta',
   'model_routing_savings_usd_delta',
   'tool_schema_compaction_savings_usd_delta',
   'api_surface_slimming_savings_usd_delta',
+  'normalization_savings_usd_delta',
+  'memoization_savings_usd_delta',
+  'output_optimization_savings_usd_delta',
+  'batch_routing_savings_usd_delta',
 ];
 
 export function aggregatePeriodBuckets(buckets, windowMs) {
@@ -42,6 +49,19 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     tokens_saved: 0,
     compression_savings_usd: 0,
     other_savings_usd: 0,
+    created_savings_usd: 0,
+    observed_provider_savings_usd: 0,
+    created_savings_tokens: 0,
+    observed_provider_savings_tokens: 0,
+    attributed_requests: 0,
+    legacy_unattributed_requests: 0,
+    opportunity_funnel: {
+      eligible_input_tokens: 0,
+      cache_protected_tokens: 0,
+      compressed_tokens: 0,
+      declined_tokens: 0,
+      decline_reasons: {},
+    },
     total_savings_usd: 0,
     total_input_tokens: 0,
     total_input_cost_usd: 0,
@@ -54,9 +74,28 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     summary.compression_savings_usd += bucket.compression_savings_usd_delta || 0;
     summary.total_input_tokens += bucket.total_input_tokens_delta || 0;
     summary.total_input_cost_usd += bucket.total_input_cost_usd_delta || 0;
+    summary.created_savings_tokens += bucket.created_savings_tokens || 0;
+    summary.observed_provider_savings_tokens += bucket.observed_provider_savings_tokens || 0;
+    summary.attributed_requests += bucket.attributed_requests || 0;
+    summary.legacy_unattributed_requests += bucket.legacy_unattributed_requests || 0;
+    for (const key of ['eligible_input_tokens', 'cache_protected_tokens', 'compressed_tokens', 'declined_tokens']) {
+      summary.opportunity_funnel[key] += bucket.opportunity_funnel?.[key] || 0;
+    }
+    for (const [reason, count] of Object.entries(bucket.opportunity_funnel?.decline_reasons || {})) {
+      summary.opportunity_funnel.decline_reasons[reason] =
+        (summary.opportunity_funnel.decline_reasons[reason] || 0) + Number(count || 0);
+    }
 
-    for (const key of EXTRA_SAVINGS_SOURCE_DELTA_KEYS) {
-      summary.other_savings_usd += bucket[key] || 0;
+    for (const key of OBSERVED_PROVIDER_SAVINGS_DELTA_KEYS) {
+      const delta = bucket[key] || 0;
+      summary.other_savings_usd += delta;
+      summary.observed_provider_savings_usd += delta;
+    }
+
+    for (const key of CREATED_SAVINGS_DELTA_KEYS) {
+      const delta = bucket[key] || 0;
+      summary.other_savings_usd += delta;
+      summary.created_savings_usd += delta;
     }
 
     for (const [model, data] of Object.entries(bucket.by_model || {})) {
@@ -67,10 +106,20 @@ export function aggregatePeriodBuckets(buckets, windowMs) {
     }
   }
 
+  summary.created_savings_usd += summary.compression_savings_usd;
   summary.total_savings_usd = summary.compression_savings_usd + summary.other_savings_usd;
   summary.savings_percent = summary.total_input_tokens > 0
     ? (summary.tokens_saved / summary.total_input_tokens) * 100
     : 0;
+  const coverageRequests = summary.attributed_requests + summary.legacy_unattributed_requests;
+  summary.attribution_coverage = {
+    attributed_requests: summary.attributed_requests,
+    legacy_unattributed_requests: summary.legacy_unattributed_requests,
+    coverage_percent: coverageRequests > 0
+      ? (summary.attributed_requests / coverageRequests) * 100
+      : 100,
+    complete: summary.legacy_unattributed_requests === 0,
+  };
 
   return summary;
 }

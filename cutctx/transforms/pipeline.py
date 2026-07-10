@@ -23,7 +23,7 @@ from ..tokenizer import Tokenizer
 from ..utils import deep_copy_messages
 from .base import Transform
 from .cache_aligner import CacheAligner
-from .content_router import ContentRouter
+from .content_router import CompressionStrategy, ContentRouter, ContentRouterConfig
 
 if TYPE_CHECKING:
     from ..providers.base import Provider
@@ -47,6 +47,13 @@ def _breaker_env(name: str, default: _N, cast: Callable[[str], _N]) -> _N:
     except ValueError:
         logger.warning("Invalid %s=%r; using default %s", name, raw, default)
         return default
+
+
+def _truthy_env(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class TransformPipeline:
@@ -129,7 +136,19 @@ class TransformPipeline:
         # - Logs -> LogCompressor
         # - Search results -> SearchCompressor
         # - HTML -> HTMLExtractor
-        transforms.append(ContentRouter())
+        enable_kompress = _truthy_env("CUTCTX_ENABLE_KOMPRESS", default=False)
+        transforms.append(
+            ContentRouter(
+                ContentRouterConfig(
+                    enable_kompress=enable_kompress,
+                    fallback_strategy=(
+                        CompressionStrategy.KOMPRESS
+                        if enable_kompress
+                        else CompressionStrategy.PASSTHROUGH
+                    ),
+                )
+            )
+        )
         logger.info("Pipeline using ContentRouter for intelligent content-aware compression")
 
         return transforms

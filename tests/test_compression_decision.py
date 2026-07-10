@@ -95,6 +95,7 @@ def test_compresses_when_every_gate_open() -> None:
     )
     assert d.should_compress is True
     assert d.passthrough_reason is None
+    assert d.decline_reason is None
 
 
 def test_bypass_header_wins_over_every_other_gate() -> None:
@@ -111,6 +112,7 @@ def test_bypass_header_wins_over_every_other_gate() -> None:
     )
     assert d.should_compress is False
     assert d.passthrough_reason == "bypass_header"
+    assert d.decline_reason == "bypass_header"
 
 
 def test_passthrough_mode_header_also_triggers_bypass() -> None:
@@ -179,6 +181,7 @@ def test_config_optimize_disabled_is_passthrough() -> None:
     )
     assert d.should_compress is False
     assert d.passthrough_reason == "compression_disabled"
+    assert d.decline_reason == "compression_disabled"
 
 
 def test_no_messages_is_passthrough() -> None:
@@ -407,7 +410,10 @@ def test_apply_to_tags_stamps_reason_when_passthrough() -> None:
     )
     tags: dict[str, str] = {}
     d.apply_to_tags(tags)
-    assert tags == {"passthrough_reason": "bypass_header"}
+    assert tags == {
+        "decline_reason": "bypass_header",
+        "passthrough_reason": "bypass_header",
+    }
 
 
 def test_apply_to_tags_is_a_noop_when_compressing() -> None:
@@ -422,6 +428,7 @@ def test_apply_to_tags_is_a_noop_when_compressing() -> None:
     tags: dict[str, str] = {"client": "codex"}
     d.apply_to_tags(tags)
     assert tags == {"client": "codex"}  # untouched
+    assert "decline_reason" not in tags
     assert "passthrough_reason" not in tags
 
 
@@ -437,6 +444,7 @@ def test_apply_to_tags_preserves_pre_existing_entries() -> None:
     assert tags == {
         "client": "aider",
         "route": "alpha",
+        "decline_reason": "compression_disabled",
         "passthrough_reason": "compression_disabled",
     }
 
@@ -475,6 +483,7 @@ def test_apply_to_tags_for_every_passthrough_reason() -> None:
         d = CompressionDecision.decide(**decide_kwargs)
         tags: dict[str, str] = {}
         d.apply_to_tags(tags)
+        assert tags.get("decline_reason") == expected_reason, expected_reason
         assert tags.get("passthrough_reason") == expected_reason, expected_reason
 
 
@@ -486,6 +495,10 @@ def test_apply_to_tags_overwrites_a_pre_existing_passthrough_reason() -> None:
     d = CompressionDecision.decide(
         headers={}, config=_config(optimize=False), usage_reporter=None, messages=_msgs()
     )
-    tags: dict[str, str] = {"passthrough_reason": "stale_value"}
+    tags: dict[str, str] = {
+        "decline_reason": "stale_value",
+        "passthrough_reason": "stale_value",
+    }
     d.apply_to_tags(tags)
+    assert tags["decline_reason"] == "compression_disabled"
     assert tags["passthrough_reason"] == "compression_disabled"

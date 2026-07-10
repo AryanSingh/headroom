@@ -180,9 +180,6 @@ def _sanitize_chatgpt_subscription_responses_body(
         if key in sanitized:
             sanitized.pop(key, None)
             stripped.append(key)
-    # chatgpt.com/backend-api/codex/responses requires store=false and stream=true explicitly.
-    sanitized["store"] = False
-    sanitized["stream"] = True
     # Translate deprecated model names the chatgpt.com endpoint no longer accepts.
     current_model = sanitized.get("model", "")
     migrated = _CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS.get(current_model)
@@ -280,6 +277,181 @@ def _responses_payload_to_routing_messages(payload: dict[str, Any]) -> list[dict
             messages.extend(input_messages)
 
     return messages
+
+
+def _responses_payload_to_chat_completions_body(payload: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort adapter from Responses HTTP payload to Chat Completions body."""
+
+    messages: list[dict[str, Any]] = []
+
+    instructions = payload.get("instructions")
+    if isinstance(instructions, str) and instructions.strip():
+        messages.append({"role": "system", "content": instructions})
+
+    input_data = payload.get("input")
+    if isinstance(input_data, str):
+        messages.append({"role": "user", "content": input_data})
+    elif isinstance(input_data, list):
+        for item in input_data:
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("type") or "")
+            role = str(item.get("role") or "user")
+
+            if item_type in {"message", "input_message", "input_text", ""}:
+                if item_type == "input_text":
+                    text = item.get("text")
+                    if isinstance(text, str) and text.strip():
+                        messages.append({"role": role, "content": text})
+                    continue
+
+                content = item.get("content")
+                if isinstance(content, str):
+                    messages.append({"role": role, "content": content})
+                elif isinstance(content, list):
+                    text_parts: list[str] = []
+                    for part in content:
+                        if not isinstance(part, dict):
+                            continue
+                        text = part.get("text")
+                        if isinstance(text, str) and text.strip():
+                            text_parts.append(text)
+                    if text_parts:
+                        messages.append({"role": role, "content": "\n".join(text_parts)})
+                continue
+
+            if item_type == "function_call_output":
+                output = item.get("output")
+                tool_text = output if isinstance(output, str) else json.dumps(output, default=str)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": item.get("call_id") or item.get("id") or "tool_call",
+                        "content": tool_text,
+                    }
+                )
+
+    chat_body: dict[str, Any] = {
+        "model": payload.get("model"),
+        "messages": messages,
+    }
+
+    parameter_map = {
+        "max_output_tokens": "max_tokens",
+        "temperature": "temperature",
+        "top_p": "top_p",
+        "tool_choice": "tool_choice",
+    }
+    for responses_key, chat_key in parameter_map.items():
+        if responses_key in payload:
+            chat_body[chat_key] = payload[responses_key]
+
+    tools = payload.get("tools")
+    if isinstance(tools, list):
+        converted_tools: list[dict[str, Any]] = []
+        for tool in tools:
+            if not isinstance(tool, dict):
+                continue
+            if tool.get("type") == "function":
+                converted_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.get("name"),
+                            "description": tool.get("description", ""),
+                            "parameters": tool.get("parameters", {}),
+                        },
+                    }
+                )
+            else:
+                converted_tools.append(tool)
+        if converted_tools:
+            chat_body["tools"] = converted_tools
+
+    return chat_body
+
+
+def _chat_completions_response_to_responses_payload(
+    response_body: dict[str, Any],
+    *,
+    model: str,
+) -> dict[str, Any]:
+    """Best-effort adapter from Chat Completions response to Responses payload."""
+
+    def _int(value: Any) -> int:
+        try:
+            return max(int(value), 0)
+        except (TypeError, ValueError):
+            return 0
+
+    choice0 = {}
+    choices = response_body.get("choices")
+    if isinstance(choices, list) and choices:
+        if isinstance(choices[0], dict):
+            choice0 = choices[0]
+
+    message = choice0.get("message") if isinstance(choice0, dict) else {}
+    if not isinstance(message, dict):
+        message = {}
+
+    output: list[dict[str, Any]] = []
+
+    content = message.get("content")
+    if isinstance(content, str) and content:
+        output.append(
+            {
+                "type": "message",
+                "id": f"msg_{uuid.uuid4().hex[:24]}",
+                "status": "completed",
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": content,
+                        "annotations": [],
+                    }
+                ],
+            }
+        )
+
+    tool_calls = message.get("tool_calls")
+    if isinstance(tool_calls, list):
+        for tool_call in tool_calls:
+            if not isinstance(tool_call, dict):
+                continue
+            function = tool_call.get("function") or {}
+            if not isinstance(function, dict):
+                function = {}
+            output.append(
+                {
+                    "type": "function_call",
+                    "id": tool_call.get("id") or f"fc_{uuid.uuid4().hex[:24]}",
+                    "call_id": tool_call.get("id") or f"call_{uuid.uuid4().hex[:24]}",
+                    "name": function.get("name", "function"),
+                    "arguments": function.get("arguments", "{}"),
+                    "status": "completed",
+                }
+            )
+
+    usage = response_body.get("usage") if isinstance(response_body, dict) else {}
+    if not isinstance(usage, dict):
+        usage = {}
+    prompt_details = usage.get("prompt_tokens_details") or {}
+    cached_tokens = prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+
+    return {
+        "id": response_body.get("id") or f"resp_{uuid.uuid4().hex[:24]}",
+        "object": "response",
+        "model": response_body.get("model") or model,
+        "status": "completed",
+        "output": output,
+        "usage": {
+            "input_tokens": _int(usage.get("prompt_tokens")),
+            "output_tokens": _int(usage.get("completion_tokens")),
+            "total_tokens": _int(usage.get("total_tokens")),
+            "input_tokens_details": {"cached_tokens": _int(cached_tokens)},
+        },
+    }
 
 
 def _truncate_body_for_chatgpt(
@@ -399,9 +571,41 @@ def _normalize_ws_http_fallback_body(
     stripped: list[str] = []
     if strip_chatgpt_subscription_fields:
         http_body, stripped = _sanitize_chatgpt_subscription_responses_body(http_body)
-
-    http_body["stream"] = True
+    else:
+        http_body["stream"] = True
     return http_body, stripped
+
+
+def _usage_int(value: Any, default: int = 0) -> int:
+    try:
+        return max(int(value), 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _openai_chat_usage_to_responses_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(usage, dict):
+        return {
+            "input_tokens": 0,
+            "input_tokens_details": {"cached_tokens": 0},
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+
+    prompt_tokens = _usage_int(usage.get("prompt_tokens"))
+    completion_tokens = _usage_int(usage.get("completion_tokens"))
+    total_tokens = _usage_int(usage.get("total_tokens"), prompt_tokens + completion_tokens)
+    prompt_details = usage.get("prompt_tokens_details")
+    cached_tokens = 0
+    if isinstance(prompt_details, dict):
+        cached_tokens = _usage_int(prompt_details.get("cached_tokens"))
+
+    return {
+        "input_tokens": prompt_tokens,
+        "input_tokens_details": {"cached_tokens": cached_tokens},
+        "output_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
 
 
 _CLIENT_PROVIDER_MAP: dict[str, str] = {
@@ -1030,6 +1234,9 @@ class OpenAIResponsesMixin:
                 payload=payload,
             )
         working = payload
+        canary_arm = str(
+            getattr(self, "_savings_canary_assignments", {}).get(request_id, "control")
+        )
         modified = False
         tokens_saved = 0
         transforms: list[str] = []
@@ -1043,7 +1250,13 @@ class OpenAIResponsesMixin:
             _tools_list = working.get("tools")
             if isinstance(_tools_list, list) and _tools_list:
                 compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
-                    compress_tool_schemas(_tools_list)
+                    compress_tool_schemas(
+                        _tools_list,
+                        max_description_length=120
+                        if canary_arm == "tool_api_slimming"
+                        else 200,
+                        aggressive=canary_arm == "tool_api_slimming",
+                    )
                 )
                 if tools_modified:
                     compacted_payload = {**working, "tools": compacted_tools}
@@ -1092,7 +1305,18 @@ class OpenAIResponsesMixin:
             from cutctx.proxy.schema_compress import compress_tool_results
 
             if working.get("input") and isinstance(working["input"], list):
-                working = {**working, "input": compress_tool_results(working["input"])}
+                working = {
+                    **working,
+                    "input": compress_tool_results(
+                        working["input"],
+                        max_array_items_for_positional=25
+                        if canary_arm == "mutable_tail"
+                        else 10,
+                        min_fields_for_positional=2
+                        if canary_arm == "mutable_tail"
+                        else 3,
+                    ),
+                }
         except Exception:
             pass
 
@@ -1282,7 +1506,7 @@ class OpenAIResponsesMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = await self._next_request_id()
+        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
 
         # Phase F PR-F1: classify auth mode at request entry. The result
         # is stored on `request.state` so downstream handlers (cache
@@ -1366,7 +1590,17 @@ class OpenAIResponsesMixin:
         if isinstance(input_data, str):
             messages.append({"role": "user", "content": input_data})
         routing_messages = _responses_payload_to_routing_messages(body)
+        from cutctx.proxy.canary_identity import resolve_canary_identity
         from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        _canary_coordinator = get_savings_canary_coordinator()
+        _canary_identity = resolve_canary_identity(
+            headers=dict(request.headers.items()),
+            body=body,
+            request_id=request_id,
+            salt=_canary_coordinator.salt,
+        )
 
         model, request_savings_metadata = prepare_model_routing(
             self,
@@ -1375,7 +1609,21 @@ class OpenAIResponsesMixin:
             tool_calls=len(body.get("tools") or []),
             num_messages=len(routing_messages),
             messages=routing_messages,
+            request_id=_canary_identity.value,
+            client=classify_client(dict(request.headers.items())),
+            assignment_identity_source=_canary_identity.source,
+            assignment_sticky=_canary_identity.sticky,
+            transport_provider="openai",
         )
+        _canary_assignments = getattr(self, "_savings_canary_assignments", None)
+        if _canary_assignments is None:
+            _canary_assignments = {}
+            self._savings_canary_assignments = _canary_assignments
+        _canary_assignments[request_id] = str(
+            ((request_savings_metadata or {}).get("savings_canary") or {}).get("arm", "control")
+        )
+        while len(_canary_assignments) > 2048:
+            _canary_assignments.pop(next(iter(_canary_assignments)))
         body["model"] = model
         _apply_model_routing_request_overrides(body, request_savings_metadata)
 
@@ -1471,9 +1719,16 @@ class OpenAIResponsesMixin:
             allowed, wait_seconds = await self.rate_limiter.check_request(rate_key)
             if not allowed:
                 await self.metrics.record_rate_limited(provider="openai")
+                self.record_rate_limit_denial(
+                    request_id=request_id,
+                    provider="openai",
+                    model=model,
+                    wait_seconds=wait_seconds,
+                )
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
+                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
                 )
 
         # Token counting on converted messages
@@ -2146,6 +2401,150 @@ class OpenAIResponsesMixin:
                     headers=response_headers,
                 )
         except Exception as e:
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                not stream
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting OpenAI responses fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+
+                def _fallback_reason(exc: Exception) -> str:
+                    if isinstance(exc, httpx.ConnectError):
+                        return "connect_error"
+                    if isinstance(exc, httpx.TimeoutException):
+                        return "timeout"
+                    if isinstance(exc, httpx.HTTPStatusError):
+                        return "upstream_5xx"
+                    return type(exc).__name__.lower()
+
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = _fallback_reason(e)
+                tags["fallback_source_provider"] = "openai"
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+
+                try:
+                    fallback_request_body = _responses_payload_to_chat_completions_body(body)
+                    backend_response = await fallback_backend.send_openai_message(
+                        fallback_request_body,
+                        dict(headers),
+                    )
+                except Exception as fallback_exc:
+                    logger.error(
+                        "[%s] OpenAI responses fallback to %s failed: %s: %s",
+                        request_id,
+                        fallback_provider,
+                        type(fallback_exc).__name__,
+                        fallback_exc,
+                    )
+                else:
+                    if not backend_response.error and backend_response.status_code < 500:
+                        response_payload = _chat_completions_response_to_responses_payload(
+                            backend_response.body,
+                            model=model,
+                        )
+                        total_latency = (time.time() - start_time) * 1000
+                        usage = response_payload.get("usage", {})
+
+                        def _fallback_usage_int(value: Any, default: int = 0) -> int:
+                            try:
+                                return max(int(value), 0)
+                            except (TypeError, ValueError):
+                                return default
+
+                        total_input_tokens = _fallback_usage_int(
+                            usage.get("input_tokens") or optimized_tokens
+                        )
+                        output_tokens = _fallback_usage_int(usage.get("output_tokens"))
+                        details = usage.get("input_tokens_details")
+                        cache_read_tokens = 0
+                        if isinstance(details, dict):
+                            cache_read_tokens = _fallback_usage_int(details.get("cached_tokens"))
+                        cache_write_tokens = _infer_openai_cache_write_tokens(
+                            total_input_tokens,
+                            cache_read_tokens,
+                        )
+                        uncached_input_tokens = max(0, total_input_tokens - cache_read_tokens)
+                        effective_optimized_tokens = (
+                            total_input_tokens if total_input_tokens > 0 else optimized_tokens
+                        )
+                        effective_original_tokens = max(
+                            original_tokens,
+                            effective_optimized_tokens + tokens_saved,
+                        )
+
+                        _resp_log_tags = {
+                            **(tags or {}),
+                            "auth_mode": auth_mode.value if auth_mode else "payg",
+                            "endpoint": "responses_http",
+                        }
+
+                        from cutctx.proxy.helpers import compute_turn_id
+
+                        await self._record_request_outcome(
+                            RequestOutcome(
+                                request_id=request_id,
+                                provider=fallback_provider,
+                                model=model,
+                                original_tokens=effective_original_tokens,
+                                optimized_tokens=effective_optimized_tokens,
+                                output_tokens=output_tokens,
+                                tokens_saved=tokens_saved,
+                                attempted_input_tokens=attempted_input_tokens,
+                                cache_read_tokens=cache_read_tokens,
+                                cache_write_tokens=cache_write_tokens,
+                                uncached_input_tokens=uncached_input_tokens,
+                                total_latency_ms=total_latency,
+                                overhead_ms=optimization_latency,
+                                transforms_applied=tuple(transforms_applied),
+                                num_messages=len(messages) if isinstance(messages, list) else 0,
+                                tags=_resp_log_tags,
+                                turn_id=compute_turn_id(model, body.get("instructions"), messages),
+                                request_messages=messages
+                                if getattr(self.config, "log_full_messages", False)
+                                else None,
+                                client=client,
+                                savings_metadata=merge_savings_metadata(
+                                    request_savings_metadata,
+                                    extract_savings_metadata(
+                                        request_headers=request.headers,
+                                        response_headers=backend_response.headers,
+                                        body=body,
+                                    ),
+                                    schema_savings_metadata,
+                                ),
+                            )
+                        )
+
+                        response_headers = dict(backend_response.headers)
+                        response_headers.pop("content-encoding", None)
+                        response_headers.pop("content-length", None)
+                        return Response(
+                            content=json.dumps(response_payload).encode("utf-8"),
+                            status_code=backend_response.status_code,
+                            headers=response_headers,
+                            media_type="application/json",
+                        )
+
             await self.metrics.record_failed(provider="openai")
             logger.error(f"[{request_id}] OpenAI responses request failed: {type(e).__name__}: {e}")
             return JSONResponse(
@@ -2517,8 +2916,122 @@ class OpenAIResponsesMixin:
                     with contextlib.suppress(Exception):
                         get_codex_rate_limit_state().update_from_headers(dict(_codex_handshake))
             else:
-                # Upstream connect failed after all retries — close client cleanly.
                 err_msg = str(ws_last_err) if ws_last_err else "upstream connect failed"
+                fallback_provider = getattr(self.config, "fallback_provider", None)
+                fallback_enabled = bool(getattr(self.config, "fallback_enabled", False))
+                fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                    self, "openai_fallback_backend", None
+                )
+                if fallback_enabled and (
+                    fallback_provider == "openai" or fallback_backend is not None
+                ):
+                    logger.warning(
+                        "[%s] WS upstream connect failed after all retries: %s; "
+                        "reading first frame and falling back",
+                        request_id,
+                        err_msg,
+                    )
+                    try:
+                        async with stage_timer.measure("first_client_frame"):
+                            first_msg_raw = await asyncio.wait_for(
+                                websocket.receive_text(),
+                                timeout=WS_FIRST_FRAME_TIMEOUT_SECONDS,
+                            )
+                    except asyncio.TimeoutError:
+                        termination_cause = "client_timeout"
+                        with contextlib.suppress(Exception):
+                            await websocket.close(code=1001, reason="first-frame timeout")
+                        return
+
+                    try:
+                        body = json.loads(first_msg_raw)
+                    except (json.JSONDecodeError, TypeError):
+                        body = {}
+                    if not isinstance(body, dict):
+                        body = {}
+
+                    fallback_summary = await self._ws_http_fallback(
+                        websocket,
+                        body,
+                        first_msg_raw,
+                        upstream_headers,
+                        request_id,
+                        ws_tags=ws_tags,
+                    )
+                    response_completed_seen = bool(fallback_summary.get("response_completed"))
+                    termination_cause = (
+                        "response_completed" if response_completed_seen else "upstream_disconnect"
+                    )
+                    ws_inner_for_telemetry = body.get("response", body)
+                    if not isinstance(ws_inner_for_telemetry, dict):
+                        ws_inner_for_telemetry = {}
+                    model_name = str(ws_inner_for_telemetry.get("model") or "unknown")
+                    outcome_provider = str(
+                        ws_tags.get("fallback_provider") or _provider_for_client(client)
+                    )
+                    ws_session_tags = {
+                        **(ws_tags or {}),
+                        "auth_mode": classify_auth_mode(ws_headers).value,
+                        "endpoint": "responses_ws",
+                        "compression_scope": "live_zone",
+                        "cache_policy": "prefix_safe",
+                        "transport": "websocket",
+                        "route": "chatgpt_subscription" if is_chatgpt_auth else "openai_api",
+                        "ws_response_create_frames": "1",
+                        "ws_frames_compressed": "0",
+                        "ws_client_frames_total": "1",
+                        "ws_upstream_frames_total": "1",
+                        "ws_cancel_frames": "0",
+                        "ws_last_client_frame_type": str(body.get("type") or "unknown"),
+                        "ws_last_upstream_frame_type": str(
+                            fallback_summary.get("last_event_type") or "unknown"
+                        ),
+                        "ws_client_disconnect_seen": "False",
+                        "ws_termination_cause": termination_cause,
+                        "cache_read_tokens": str(
+                            int(fallback_summary.get("cache_read_tokens", 0) or 0)
+                        ),
+                        "cache_write_tokens": str(
+                            int(fallback_summary.get("cache_write_tokens", 0) or 0)
+                        ),
+                        "uncached_input_tokens": str(
+                            int(fallback_summary.get("uncached_input_tokens", 0) or 0)
+                        ),
+                    }
+                    await self._record_request_outcome(
+                        RequestOutcome(
+                            request_id=request_id,
+                            provider=outcome_provider,
+                            model=model_name,
+                            original_tokens=int(fallback_summary.get("input_tokens", 0) or 0),
+                            optimized_tokens=int(fallback_summary.get("input_tokens", 0) or 0),
+                            output_tokens=int(fallback_summary.get("output_tokens", 0) or 0),
+                            tokens_saved=0,
+                            attempted_input_tokens=0,
+                            cache_read_tokens=int(
+                                fallback_summary.get("cache_read_tokens", 0) or 0
+                            ),
+                            cache_write_tokens=int(
+                                fallback_summary.get("cache_write_tokens", 0) or 0
+                            ),
+                            uncached_input_tokens=int(
+                                fallback_summary.get("uncached_input_tokens", 0) or 0
+                            ),
+                            total_latency_ms=(time.perf_counter() - session_started_at) * 1000.0,
+                            overhead_ms=0.0,
+                            transforms_applied=(),
+                            tags=ws_session_tags,
+                            client=client,
+                            savings_metadata=extract_savings_metadata(
+                                request_headers=ws_headers,
+                                response_headers={},
+                                body=ws_inner_for_telemetry,
+                            ),
+                        )
+                    )
+                    return
+
+                # Upstream connect failed after all retries — close client cleanly.
                 logger.error(
                     f"[{request_id}] WS upstream connect failed after all retries: {err_msg}"
                 )
@@ -2629,7 +3142,9 @@ class OpenAIResponsesMixin:
                 request_headers=ws_headers,
                 body=body,
             )
+            from cutctx.proxy.canary_identity import resolve_canary_identity
             from cutctx.proxy.model_router import prepare_model_routing
+            from cutctx.proxy.savings_canary import get_savings_canary_coordinator
 
             ws_routing_body = body.get("response", body) if isinstance(body, dict) else {}
             if not isinstance(ws_routing_body, dict):
@@ -2640,6 +3155,14 @@ class OpenAIResponsesMixin:
                 or "unknown"
             )
             ws_messages = _responses_payload_to_routing_messages(ws_routing_body)
+            _ws_canary_coordinator = get_savings_canary_coordinator()
+            _ws_canary_identity = resolve_canary_identity(
+                headers=ws_headers,
+                body=body,
+                request_id=session_id,
+                salt=_ws_canary_coordinator.salt,
+                existing_session_id=conversation_session_id,
+            )
             ws_num_messages = len(ws_messages)
             if isinstance(ws_routing_body, dict):
                 if isinstance(ws_routing_body.get("messages"), list):
@@ -2651,6 +3174,10 @@ class OpenAIResponsesMixin:
                 request_savings_metadata=ws_savings_metadata,
                 num_messages=ws_num_messages,
                 messages=ws_messages,
+                request_id=_ws_canary_identity.value,
+                client=classify_client(ws_headers),
+                assignment_identity_source=_ws_canary_identity.source,
+                assignment_sticky=_ws_canary_identity.sticky,
             )
             if isinstance(body, dict):
                 body["model"] = ws_model
@@ -3385,6 +3912,10 @@ class OpenAIResponsesMixin:
                             request_savings_metadata=ws_savings_metadata,
                             num_messages=len(frame_messages),
                             messages=frame_messages,
+                            request_id=_ws_canary_identity.value,
+                            client=classify_client(ws_headers),
+                            assignment_identity_source=_ws_canary_identity.source,
+                            assignment_sticky=_ws_canary_identity.sticky,
                         )
                         if routed_frame_model != original_frame_model:
                             inner_payload = {**inner_payload, "model": routed_frame_model}
@@ -4303,9 +4834,28 @@ class OpenAIResponsesMixin:
                     f"[{request_id}] WS upstream failed ({_ws_detail}), "
                     f"falling back to HTTP POST streaming"
                 )
-                await self._ws_http_fallback(
-                    websocket, body, first_msg_raw, upstream_headers, request_id
+                fallback_summary = await self._ws_http_fallback(
+                    websocket,
+                    body,
+                    first_msg_raw,
+                    upstream_headers,
+                    request_id,
+                    ws_tags=ws_tags,
                 )
+                ws_input_tokens_total += int(fallback_summary.get("input_tokens", 0) or 0)
+                ws_output_tokens_total += int(fallback_summary.get("output_tokens", 0) or 0)
+                ws_cache_read_tokens_total += int(
+                    fallback_summary.get("cache_read_tokens", 0) or 0
+                )
+                ws_cache_write_tokens_total += int(
+                    fallback_summary.get("cache_write_tokens", 0) or 0
+                )
+                ws_uncached_input_tokens_total += int(
+                    fallback_summary.get("uncached_input_tokens", 0) or 0
+                )
+                response_completed_seen = bool(fallback_summary.get("response_completed"))
+                if fallback_summary.get("last_event_type"):
+                    ws_last_upstream_frame_type = str(fallback_summary["last_event_type"])
 
             # ── WS session-end metric + RequestLog ──────────────────
             #
@@ -4568,7 +5118,9 @@ class OpenAIResponsesMixin:
         first_msg_raw: str,
         upstream_headers: dict[str, str],
         request_id: str,
-    ) -> None:
+        *,
+        ws_tags: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Fall back to HTTP POST streaming when upstream WS fails.
 
         Converts the WS ``response.create`` message to an HTTP POST to
@@ -4576,38 +5128,256 @@ class OpenAIResponsesMixin:
         ``data:`` line as a WS text message to the client.  This makes
         Codex work immediately instead of exhausting its WS retry budget.
         """
+        fallback_summary: dict[str, Any] = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "uncached_input_tokens": 0,
+            "response_completed": False,
+            "last_event_type": "",
+        }
+
+        try:
+            parsed = json.loads(first_msg_raw) if isinstance(first_msg_raw, str) else body
+        except (json.JSONDecodeError, TypeError):
+            parsed = body
+
+        fallback_provider = getattr(self.config, "fallback_provider", None)
+        fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+            self, "openai_fallback_backend", None
+        )
+        use_configured_backend = bool(
+            getattr(self.config, "fallback_enabled", False)
+            and fallback_provider
+            and fallback_provider != "openai"
+            and fallback_backend is not None
+        )
+
+        if ws_tags is not None and use_configured_backend:
+            ws_tags["fallback_provider"] = str(fallback_provider)
+            ws_tags["fallback_attempted"] = "true"
+            ws_tags["fallback_reason"] = "connect_error"
+            ws_tags["fallback_source_provider"] = "openai"
+            ws_tags["upstream_provider"] = str(fallback_provider)
+
+        # Normalize WebSocket response.create payload into the HTTP request body.
+        http_body, _ = _normalize_ws_http_fallback_body(parsed, body)
+
+        if use_configured_backend:
+            response_id = f"resp_{uuid.uuid4().hex[:24]}"
+            item_id = f"msg_{uuid.uuid4().hex[:24]}"
+            output_index = 0
+            content_index = 0
+            accumulated_text: list[str] = []
+            created_sent = False
+            item_added_sent = False
+
+            async def _send_event(event: dict[str, Any]) -> bool:
+                fallback_summary["last_event_type"] = str(event.get("type") or "")
+                try:
+                    await websocket.send_text(json.dumps(event))
+                    return True
+                except Exception:
+                    return False
+
+            async def _ensure_response_created() -> bool:
+                nonlocal created_sent
+                if created_sent:
+                    return True
+                created_sent = await _send_event(
+                    {
+                        "type": "response.created",
+                        "response": {
+                            "id": response_id,
+                            "object": "response",
+                            "model": http_body.get("model"),
+                            "status": "in_progress",
+                        },
+                    }
+                )
+                return created_sent
+
+            async def _ensure_output_item_added() -> bool:
+                nonlocal item_added_sent
+                if item_added_sent:
+                    return True
+                if not await _ensure_response_created():
+                    return False
+                item_added_sent = await _send_event(
+                    {
+                        "type": "response.output_item.added",
+                        "output_index": output_index,
+                        "item": {
+                            "id": item_id,
+                            "type": "message",
+                            "status": "in_progress",
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "output_text",
+                                    "text": "",
+                                    "annotations": [],
+                                }
+                            ],
+                        },
+                    }
+                )
+                return item_added_sent
+
+            chat_body = _responses_payload_to_chat_completions_body(http_body)
+            chat_body["stream"] = True
+            stream_options = chat_body.get("stream_options")
+            if not isinstance(stream_options, dict):
+                stream_options = {}
+            stream_options["include_usage"] = True
+            chat_body["stream_options"] = stream_options
+
+            logger.info(
+                "[%s] WS fallback routing Responses transport through %s backend",
+                request_id,
+                fallback_provider,
+            )
+
+            try:
+                async for sse_chunk in fallback_backend.stream_openai_message(
+                    chat_body,
+                    dict(upstream_headers),
+                ):
+                    if not isinstance(sse_chunk, str):
+                        continue
+                    for line in sse_chunk.splitlines():
+                        line = line.strip()
+                        if not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            continue
+                        try:
+                            chunk_event = json.loads(data)
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            continue
+                        if not isinstance(chunk_event, dict):
+                            continue
+
+                        usage_payload = chunk_event.get("usage")
+                        if isinstance(usage_payload, dict):
+                            usage = _openai_chat_usage_to_responses_usage(usage_payload)
+                            fallback_summary["input_tokens"] = _usage_int(
+                                usage.get("input_tokens")
+                            )
+                            fallback_summary["output_tokens"] = _usage_int(
+                                usage.get("output_tokens")
+                            )
+                            details = usage.get("input_tokens_details")
+                            if isinstance(details, dict):
+                                fallback_summary["cache_read_tokens"] = _usage_int(
+                                    details.get("cached_tokens")
+                                )
+                            fallback_summary["cache_write_tokens"] = _infer_openai_cache_write_tokens(
+                                fallback_summary["input_tokens"],
+                                fallback_summary["cache_read_tokens"],
+                            )
+                            fallback_summary["uncached_input_tokens"] = max(
+                                0,
+                                fallback_summary["input_tokens"]
+                                - fallback_summary["cache_read_tokens"],
+                            )
+
+                        choices = chunk_event.get("choices")
+                        if not isinstance(choices, list) or not choices:
+                            continue
+                        choice0 = choices[0]
+                        if not isinstance(choice0, dict):
+                            continue
+                        delta = choice0.get("delta")
+                        if isinstance(delta, dict):
+                            content = delta.get("content")
+                            if isinstance(content, str) and content:
+                                accumulated_text.append(content)
+                                if not await _ensure_output_item_added():
+                                    return fallback_summary
+                                if not await _send_event(
+                                    {
+                                        "type": "response.output_text.delta",
+                                        "item_id": item_id,
+                                        "output_index": output_index,
+                                        "content_index": content_index,
+                                        "delta": content,
+                                    }
+                                ):
+                                    return fallback_summary
+
+                        finish_reason = choice0.get("finish_reason")
+                        if finish_reason and finish_reason != "null":
+                            if not await _ensure_response_created():
+                                return fallback_summary
+                            response_payload = {
+                                "id": response_id,
+                                "object": "response",
+                                "model": http_body.get("model"),
+                                "status": "completed",
+                                "output": [
+                                    {
+                                        "type": "message",
+                                        "id": item_id,
+                                        "status": "completed",
+                                        "role": "assistant",
+                                        "content": [
+                                            {
+                                                "type": "output_text",
+                                                "text": "".join(accumulated_text),
+                                                "annotations": [],
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                            response_payload["usage"] = {
+                                "input_tokens": fallback_summary["input_tokens"],
+                                "input_tokens_details": {
+                                    "cached_tokens": fallback_summary["cache_read_tokens"]
+                                },
+                                "output_tokens": fallback_summary["output_tokens"],
+                                "total_tokens": (
+                                    fallback_summary["input_tokens"]
+                                    + fallback_summary["output_tokens"]
+                                ),
+                            }
+                            fallback_summary["response_completed"] = True
+                            await _send_event(
+                                {"type": "response.completed", "response": response_payload}
+                            )
+                            return fallback_summary
+            except Exception as backend_err:
+                logger.error(
+                    "[%s] WS fallback via %s backend failed: %s",
+                    request_id,
+                    fallback_provider,
+                    backend_err,
+                )
+                error_event = {
+                    "type": "error",
+                    "error": {
+                        "type": "server_error",
+                        "message": f"Fallback backend failed: {backend_err!s}"[:200],
+                    },
+                }
+                with contextlib.suppress(Exception):
+                    await websocket.send_text(json.dumps(error_event))
+                return fallback_summary
+            finally:
+                with contextlib.suppress(Exception):
+                    await websocket.close()
+
+            return fallback_summary
+
         # Route to correct endpoint based on auth mode
         _lower = {k.lower() for k in upstream_headers}
         if "chatgpt-account-id" in _lower:
             http_url = "https://chatgpt.com/backend-api/codex/responses"
         else:
             http_url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/responses")
-
-        # Build HTTP body from the WS response.create payload.
-        # WS messages use {"type": "response.create", "response": {...}} wrapper.
-        # The HTTP POST endpoint expects the inner response object directly.
-        http_body: dict[str, Any]
-        try:
-            parsed = json.loads(first_msg_raw) if isinstance(first_msg_raw, str) else body
-        except (json.JSONDecodeError, TypeError):
-            parsed = body
-
-        # Normalize WebSocket response.create payload into the HTTP request body.
-        # Codex may send either:
-        # 1. {"type":"response.create","response":{...}}
-        # 2. {"type":"response.create", ...response fields...}
-        if isinstance(parsed, dict) and isinstance(parsed.get("response"), dict):
-            http_body = dict(parsed["response"])
-        elif isinstance(parsed, dict):
-            http_body = dict(parsed)
-            if http_body.get("type") == "response.create":
-                http_body.pop("type", None)
-        else:
-            http_body = body if isinstance(body, dict) else {}
-
-        # Some clients include response-ish metadata that the HTTP endpoint rejects.
-        if http_body.get("type") in {"response.create", "response"}:
-            http_body.pop("type", None)
 
         # For chatgpt.com, strip unsupported fields (stream, client_metadata, etc.)
         # and apply emergency truncation if the body exceeds the size limit.
@@ -4728,7 +5498,24 @@ class OpenAIResponsesMixin:
                                     try:
                                         await websocket.send_text(data)
                                     except Exception:
-                                        return
+                                        return fallback_summary
+                                    try:
+                                        parsed_event = json.loads(data)
+                                    except (json.JSONDecodeError, TypeError, ValueError):
+                                        parsed_event = None
+                                    if isinstance(parsed_event, dict):
+                                        fallback_summary["last_event_type"] = str(
+                                            parsed_event.get("type") or ""
+                                        )
+                                        if parsed_event.get("type") == "response.completed":
+                                            fallback_summary["response_completed"] = True
+                                        (
+                                            fallback_summary["input_tokens"],
+                                            fallback_summary["output_tokens"],
+                                            fallback_summary["cache_read_tokens"],
+                                            fallback_summary["cache_write_tokens"],
+                                            fallback_summary["uncached_input_tokens"],
+                                        ) = _extract_responses_usage(parsed_event)
                                 elif line.startswith("event: "):
                                     # SSE event type — skip, the data line contains the type
                                     continue
@@ -4739,7 +5526,24 @@ class OpenAIResponsesMixin:
                             if line.startswith("data: ") and line[6:] != "[DONE]":
                                 with contextlib.suppress(Exception):
                                     await websocket.send_text(line[6:])
-                        return
+                                try:
+                                    parsed_event = json.loads(line[6:])
+                                except (json.JSONDecodeError, TypeError, ValueError):
+                                    parsed_event = None
+                                if isinstance(parsed_event, dict):
+                                    fallback_summary["last_event_type"] = str(
+                                        parsed_event.get("type") or ""
+                                    )
+                                    if parsed_event.get("type") == "response.completed":
+                                        fallback_summary["response_completed"] = True
+                                    (
+                                        fallback_summary["input_tokens"],
+                                        fallback_summary["output_tokens"],
+                                        fallback_summary["cache_read_tokens"],
+                                        fallback_summary["cache_write_tokens"],
+                                        fallback_summary["uncached_input_tokens"],
+                                    ) = _extract_responses_usage(parsed_event)
+                        return fallback_summary
                 except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as http_err:
                     if http_attempt >= retry_attempts - 1:
                         raise
@@ -4770,3 +5574,4 @@ class OpenAIResponsesMixin:
         finally:
             with contextlib.suppress(Exception):
                 await websocket.close()
+        return fallback_summary

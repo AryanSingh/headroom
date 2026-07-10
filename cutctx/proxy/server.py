@@ -28,14 +28,17 @@ import asyncio
 import concurrent.futures
 import contextlib
 import importlib.util
+import inspect
 import json
 import logging
 import os
 import sys
 import threading
 import time
+import traceback
+import uuid
 from dataclasses import fields, is_dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -112,6 +115,7 @@ from cutctx.providers.registry import (
     format_backend_status,
     resolve_api_targets,
 )
+from cutctx.proxy.routing import failover_router_from_env
 
 # =============================================================================
 # Extracted modules (re-exported for backward compatibility)
@@ -213,10 +217,79 @@ _build_session_summary = build_session_summary
 _merge_cost_stats = merge_cost_stats
 
 
+_CUTCTX_LOG_FORMAT = os.environ.get("CUTCTX_LOG_FORMAT", "text").strip().lower()
+
+
+def _safe_json_log_serializer(obj: object) -> str:
+    """Serialize common non-JSON types for structured logging."""
+    if isinstance(obj, BaseException):
+        return f"{type(obj).__name__}: {obj}"
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, Path):
+        return str(obj)
+    if hasattr(obj, "__dict__"):
+        return str(obj)
+    return repr(obj)
+
+
+class _JsonFormatter(logging.Formatter):
+    """JSON log formatter that produces one JSON object per line.
+
+    Compatible with fluentbit, logstash, and JSON log aggregators.
+    Each record includes: timestamp, logger, level, message, and
+    any extra fields passed via the ``extra`` keyword.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        base = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "logger": record.name,
+            "level": record.levelname,
+            "message": record.getMessage() if record.msg else "",
+        }
+        if record.exc_info and record.exc_info[1]:
+            base["exception"] = _safe_json_log_serializer(record.exc_info[1])
+            base["traceback"] = "".join(traceback.format_exception(*record.exc_info))
+        if record.stack_info:
+            base["stack"] = record.stack_info
+        # Include extra contextual fields set via logger.info("msg", extra={...})
+        extras = {
+            k: v for k, v in record.__dict__.items()
+            if k not in ("args", "asctime", "created", "exc_info", "exc_text",
+                         "filename", "funcName", "id", "levelname", "levelno",
+                         "lineno", "message", "module", "msecs", "msg", "name",
+                         "pathname", "process", "processName", "relativeCreated",
+                         "stack_info", "taskName", "thread", "threadName")
+        }
+        if extras:
+            base["extra"] = extras
+        try:
+            return json.dumps(base, default=_safe_json_log_serializer)
+        except (TypeError, ValueError):
+            base["message"] = str(record.getMessage())
+            return json.dumps(base, default=str)
+
+
 if not logging.root.handlers:
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    if _CUTCTX_LOG_FORMAT == "json":
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(_JsonFormatter())
+        logging.root.addHandler(_handler)
+        logging.root.setLevel(logging.INFO)
+    else:
+        logging.basicConfig(
+            level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+elif _CUTCTX_LOG_FORMAT == "json" and not any(
+    isinstance(h.formatter, _JsonFormatter) for h in logging.root.handlers if h.formatter
+):
+    # Uvicorn or another library already configured handlers. Override to
+    # JSON format regardless, since the env var was explicitly set.
+    for handler in logging.root.handlers:
+        if hasattr(handler, "setFormatter"):
+            handler.setFormatter(_JsonFormatter())
+    logging.root.setLevel(logging.INFO)
 logger = logging.getLogger("cutctx.proxy")
 
 _MULTI_WORKER_CONFIG_ENV = "CUTCTX_PROXY_CONFIG_JSON"
@@ -388,6 +461,7 @@ class CutctxProxy(
     def __init__(self, config: ProxyConfig):
         self.config = config
         self.config.mode = normalize_proxy_mode(self.config.mode)
+        self.failover_router = failover_router_from_env()
         pipeline_extensions = list(config.pipeline_extensions or [])
         probe_recorder = probe_recorder_from_env()
         if probe_recorder is not None:
@@ -695,6 +769,27 @@ class CutctxProxy(
             anyllm_backend_cls=AnyLLMBackend,
             litellm_backend_cls=LiteLLMBackend,
         )
+        self.fallback_backend: Backend | None = None
+        self.openai_fallback_backend: Backend | None = None
+        if config.fallback_enabled and config.fallback_provider:
+            fallback_provider = config.fallback_provider
+            self.fallback_backend = create_proxy_backend(
+                backend=f"litellm-{fallback_provider}",
+                anyllm_provider=fallback_provider,
+                bedrock_region=config.bedrock_region,
+                logger=logger,
+                anyllm_backend_cls=AnyLLMBackend,
+                litellm_backend_cls=LiteLLMBackend,
+            ) or create_proxy_backend(
+                backend="anyllm",
+                anyllm_provider=fallback_provider,
+                bedrock_region=config.bedrock_region,
+                logger=logger,
+                anyllm_backend_cls=AnyLLMBackend,
+                litellm_backend_cls=LiteLLMBackend,
+            )
+            if fallback_provider == "openai":
+                self.openai_fallback_backend = self.fallback_backend
 
         # Request counter for IDs
         self._request_counter = 0
@@ -1276,6 +1371,42 @@ class CutctxProxy(
                 return "available"  # Available but not enabled
             return "disabled"
 
+    def record_rate_limit_denial(
+        self,
+        *,
+        request_id: str,
+        provider: str,
+        model: str,
+        wait_seconds: float,
+        key_type: str = "credential",
+    ) -> None:
+        """Write a body-free request trace for a provider-side 429 decision."""
+        if not self.logger:
+            return
+        self.logger.log(
+            RequestLog(
+                request_id=request_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                provider=provider,
+                model=model,
+                input_tokens_original=0,
+                input_tokens_optimized=0,
+                output_tokens=None,
+                tokens_saved=0,
+                savings_percent=0.0,
+                optimization_latency_ms=0.0,
+                total_latency_ms=0.0,
+                tags={
+                    "rate_limit_denied": "true",
+                    "rate_limit_key_type": key_type,
+                    "rate_limit_wait_seconds": f"{wait_seconds:.3f}",
+                },
+                cache_hit=False,
+                transforms_applied=[],
+                decline_reason="rate_limit_exceeded",
+            )
+        )
+
     async def startup(self):
         """Initialize async resources."""
         _patch_getaddrinfo_for_intercept()
@@ -1541,9 +1672,24 @@ class CutctxProxy(
 
     async def shutdown(self):
         """Cleanup async resources."""
+
+        async def _close_maybe_async(resource) -> None:
+            close_fn = getattr(resource, "close", None)
+            if close_fn is None:
+                return
+            result = close_fn()
+            if inspect.isawaitable(result):
+                await result
+
         if self.http_client:
             await self.http_client.aclose()
             self.http_client = None
+
+        if self.anthropic_backend and hasattr(self.anthropic_backend, "close"):
+            await _close_maybe_async(self.anthropic_backend)
+
+        if self.fallback_backend and hasattr(self.fallback_backend, "close"):
+            await _close_maybe_async(self.fallback_backend)
 
         if self.memory_handler and hasattr(self.memory_handler, "close"):
             await self.memory_handler.close()
@@ -1650,6 +1796,7 @@ class CutctxProxy(
         request_id: str | None = None,
         forwarder_name: str = "server",
         path_for_log: str | None = None,
+        telemetry_tags: dict[str, str] | None = None,
     ) -> httpx.Response:
         """Make request with retry and exponential backoff.
 
@@ -1712,7 +1859,85 @@ class CutctxProxy(
 
         circuit_provider = infer_provider_from_url(url)
         circuit_breaker = get_circuit_breaker(circuit_provider)
+        failover_router = getattr(self, "failover_router", None)
+
+        def _set_telemetry_tag(key: str, value: Any) -> None:
+            if telemetry_tags is None or value is None:
+                return
+            if isinstance(value, bool):
+                telemetry_tags[key] = "true" if value else "false"
+            elif isinstance(value, float):
+                telemetry_tags[key] = f"{value:.1f}"
+            else:
+                telemetry_tags[key] = str(value)
+
+        def _record_circuit_snapshot() -> None:
+            if telemetry_tags is None:
+                return
+            snapshot = circuit_breaker.snapshot()
+            _set_telemetry_tag("upstream_provider", circuit_provider)
+            _set_telemetry_tag("circuit_breaker_state", snapshot.get("state"))
+            _set_telemetry_tag(
+                "circuit_breaker_consecutive_failures",
+                snapshot.get("consecutive_failures"),
+            )
+            _set_telemetry_tag(
+                "circuit_breaker_failure_threshold",
+                snapshot.get("failure_threshold"),
+            )
+            _set_telemetry_tag("circuit_breaker_retry_after_s", snapshot.get("retry_after_s"))
+
+        def _record_active_failover_provider() -> None:
+            if telemetry_tags is None or failover_router is None or circuit_provider == "unknown":
+                return
+            try:
+                active_endpoint = failover_router.get_active()
+            except Exception:
+                logger.debug(
+                    "Failed to inspect active failover provider for provider=%s",
+                    circuit_provider,
+                    exc_info=True,
+                )
+                return
+            if active_endpoint is None:
+                _set_telemetry_tag("failover_active_provider", "none")
+                return
+            _set_telemetry_tag("failover_active_provider", active_endpoint.name)
+            _set_telemetry_tag("failover_active_base_url", active_endpoint.base_url)
+            _set_telemetry_tag("failover_active_healthy", active_endpoint.healthy)
+
+        def _classify_retry_error(exc: Exception) -> str:
+            if isinstance(exc, httpx.ConnectError):
+                return "connect_error"
+            if isinstance(exc, httpx.TimeoutException):
+                return "timeout"
+            if isinstance(exc, httpx.HTTPStatusError):
+                return "upstream_5xx"
+            return type(exc).__name__.lower()
+
+        def _record_failover_result(success: bool) -> None:
+            if failover_router is None or circuit_provider == "unknown":
+                return
+            try:
+                if success:
+                    failover_router.record_success(circuit_provider)
+                else:
+                    failover_router.record_failure(circuit_provider)
+            except Exception:
+                logger.debug(
+                    "Failed to update failover router state for provider=%s",
+                    circuit_provider,
+                    exc_info=True,
+                )
+
+        _record_circuit_snapshot()
+        _record_active_failover_provider()
+
         if not circuit_breaker.allow_request():
+            _set_telemetry_tag("fallback_provider", circuit_provider)
+            _set_telemetry_tag("fallback_reason", "circuit_breaker_open")
+            _set_telemetry_tag("fallback_attempted", False)
+            _record_circuit_snapshot()
             from fastapi import HTTPException
 
             raise HTTPException(
@@ -1731,6 +1956,8 @@ class CutctxProxy(
                         url, content=outbound_bytes, headers=outbound_headers
                     )
                     circuit_breaker.record_success()
+                    _record_failover_result(success=True)
+                    _record_circuit_snapshot()
                     return stream_response
                 else:
                     response = await self.http_client.post(  # type: ignore[union-attr]
@@ -1741,6 +1968,8 @@ class CutctxProxy(
                     # so it's reachable; this is a caller error, not an outage.
                     if 400 <= response.status_code < 500:
                         circuit_breaker.record_success()
+                        _record_failover_result(success=True)
+                        _record_circuit_snapshot()
                         return response
 
                     # Retry server errors (5xx)
@@ -1752,11 +1981,18 @@ class CutctxProxy(
                         )
 
                     circuit_breaker.record_success()
+                    _record_failover_result(success=True)
+                    _record_circuit_snapshot()
                     return response
 
             except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
                 last_error = e
                 circuit_breaker.record_failure()
+                _record_failover_result(success=False)
+                _set_telemetry_tag("fallback_provider", circuit_provider)
+                _set_telemetry_tag("fallback_reason", _classify_retry_error(e))
+                _set_telemetry_tag("fallback_attempted", False)
+                _record_circuit_snapshot()
 
                 if not self.config.retry_enabled or attempt >= self.config.retry_max_attempts - 1:
                     raise
@@ -2814,6 +3050,17 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
             if not allowed:
                 from fastapi.responses import JSONResponse as _JSONResp
                 retry_after = max(1, int(wait_seconds))
+                request_id = request.headers.get("x-request-id") or f"rate-limit-{uuid.uuid4()}"
+                # Denials never reach a provider handler, but they are still
+                # control-plane outcomes. Record a body-free trace so the
+                # dashboard can reconcile a 429 with the policy that caused it.
+                proxy.record_rate_limit_denial(
+                    request_id=request_id,
+                    provider="rate_limiter",
+                    model="unknown",
+                    wait_seconds=wait_seconds,
+                    key_type=identity_key.split(":", 1)[0],
+                )
                 return _JSONResp(
                     status_code=429,
                     content={
@@ -2823,7 +3070,7 @@ def _create_app_legacy(config: ProxyConfig | None = None) -> FastAPI:
                             "retry_after_seconds": retry_after,
                         }
                     },
-                    headers={"Retry-After": str(retry_after)},
+                    headers={"Retry-After": str(retry_after), "X-Request-ID": request_id},
                 )
         except Exception as exc:
             logger.debug("Rate limiter check failed (pass-through): %s", exc)
@@ -4085,6 +4332,10 @@ def _require_rbac_permission(permission: str):
 
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
+        lifetime_attribution = persistent_savings.get("lifetime", {})
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        savings_canary_report = get_savings_canary_coordinator().report()
 
         _kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
         _kg_idx = None
@@ -4116,6 +4367,12 @@ def _require_rbac_permission(permission: str):
 
         return {
             "summary": summary,
+            "attribution": lifetime_attribution.get("attribution_coverage", {}),
+            "opportunity_funnel": lifetime_attribution.get("opportunity_funnel", {}),
+            "compression_declined_total": lifetime_attribution.get(
+                "opportunity_funnel", {}
+            ).get("decline_reasons", {}),
+            "savings_canary": savings_canary_report,
             # Phase 1.4: per-source attribution for the dashboard's
             # "Savings by Source" panel. The dashboard reads this object at
             # ``stats.savings_by_source.{tokens,usd,total_tokens}``
@@ -4634,6 +4891,107 @@ def _require_rbac_permission(permission: str):
 
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
+    def _build_request_trace(log: dict[str, Any]) -> dict[str, Any]:
+        routing = log.get("routing_metadata") or {}
+        actual_model = log.get("model")
+        requested_model = routing.get("requested_model") or actual_model
+        return {
+            "request_id": log.get("request_id"),
+            "timestamp": log.get("timestamp"),
+            "turn_id": log.get("turn_id"),
+            "provider": {
+                "name": log.get("provider"),
+                "requested_model": requested_model,
+                "actual_model": actual_model,
+            },
+            "routing": {
+                "requested_model": requested_model,
+                "actual_model": actual_model,
+                "routed": bool(routing.get("routed")),
+                "source_model": routing.get("source_model") or requested_model,
+                "target_model": routing.get("target_model") or actual_model,
+                "reason": routing.get("reason"),
+                "request_overrides": routing.get("request_overrides"),
+                "saved_tokens": routing.get("saved_tokens", log.get("model_routing_saved_tokens", 0)),
+                "saved_usd": routing.get("saved_usd", 0.0),
+            },
+            "compression": {
+                "input_tokens_original": log.get("input_tokens_original"),
+                "input_tokens_optimized": log.get("input_tokens_optimized"),
+                "tokens_saved": log.get("tokens_saved"),
+                "savings_percent": log.get("savings_percent"),
+                "total_saved_tokens": log.get("total_saved_tokens"),
+                "total_savings_percent": log.get("total_savings_percent"),
+                "transforms_applied": log.get("transforms_applied", []),
+                "decline_reason": log.get("decline_reason"),
+                "waste_signals": log.get("waste_signals"),
+                "savings_by_source_tokens": log.get("savings_by_source_tokens") or {},
+                "savings_by_source_usd": log.get("savings_by_source_usd") or {},
+                "opportunity_funnel": log.get("opportunity_funnel") or {},
+            },
+            "attribution": {
+                "created_savings_tokens": log.get("created_savings_tokens", 0),
+                "observed_provider_savings_tokens": log.get(
+                    "observed_provider_savings_tokens", 0
+                ),
+                "created_savings_usd": log.get("created_savings_usd", 0.0),
+                "observed_provider_savings_usd": log.get(
+                    "observed_provider_savings_usd", 0.0
+                ),
+                "savings_basis": log.get("savings_basis", "estimated"),
+                "pricing_basis": log.get("pricing_basis", "model_input_list_price"),
+            },
+            "canary": log.get("canary") or {"arm": "control", "eligible": False},
+            "latency": {
+                "optimization_ms": log.get("optimization_latency_ms"),
+                "total_ms": log.get("total_latency_ms"),
+                "pipeline_timing": log.get("pipeline_timing") or {},
+            },
+            "cache": {
+                "hit": bool(log.get("cache_hit")),
+                "provider_prompt_cache_saved_tokens": log.get("cache_saved_tokens", 0),
+                "semantic_cache_saved_tokens": log.get("semantic_cache_saved_tokens", 0),
+                "self_hosted_prefix_cache_saved_tokens": log.get(
+                    "self_hosted_prefix_cache_saved_tokens",
+                    0,
+                ),
+            },
+            "cost": {"request_cost_usd": log.get("request_cost_usd")},
+            "fallback": log.get("fallback") or None,
+            "tags": log.get("tags") or {},
+            "messages": {
+                "request_messages": log.get("request_messages"),
+                "compressed_messages": log.get("compressed_messages"),
+                "response_content": log.get("response_content"),
+            },
+        }
+
+    @app.get("/transformations/traces", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("transformations.read"))])
+    async def request_traces(limit: int = 20):
+        """List recent request traces for dashboard inspector surfaces."""
+        if limit > 100:
+            limit = 100
+
+        traces = []
+        log_full_messages = proxy.config.log_full_messages if proxy else False
+        if proxy and proxy.logger:
+            for log in proxy.logger.get_recent_with_messages(limit):
+                traces.append(_build_request_trace(log))
+        return {"traces": traces, "log_full_messages": log_full_messages}
+
+    @app.get("/transformations/traces/{request_id}", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("transformations.read"))])
+    async def request_trace(request_id: str):
+        """Return one structured request trace for the inspector."""
+        if not proxy or not proxy.logger:
+            raise HTTPException(status_code=404, detail="request trace not found")
+        log = proxy.logger.get_request_with_messages(request_id)
+        if not log:
+            raise HTTPException(status_code=404, detail="request trace not found")
+        return {
+            "trace": _build_request_trace(log),
+            "log_full_messages": proxy.config.log_full_messages,
+        }
+
     @app.get("/transformations/feed", dependencies=[Depends(_require_admin_auth), Depends(_require_rbac_permission("transformations.read"))])
     async def transformations_feed(limit: int = 20):
         """Get recent message transformations for the live feed.
@@ -4664,6 +5022,16 @@ def _require_rbac_permission(permission: str):
                         "compressed_messages": log.get("compressed_messages"),
                         "response_content": log.get("response_content"),
                         "turn_id": log.get("turn_id"),
+                        "decline_reason": log.get("decline_reason"),
+                        "optimization_latency_ms": log.get("optimization_latency_ms"),
+                        "total_latency_ms": log.get("total_latency_ms"),
+                        "pipeline_timing": log.get("pipeline_timing") or {},
+                        "savings_by_source_tokens": log.get("savings_by_source_tokens") or {},
+                        "savings_by_source_usd": log.get("savings_by_source_usd") or {},
+                        "routing": log.get("routing_metadata") or {},
+                        "fallback": log.get("fallback") or None,
+                        "tags": log.get("tags") or {},
+                        "request_cost_usd": log.get("request_cost_usd"),
                     }
                 )
 
@@ -5076,6 +5444,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "error": response_error,
                 "detail": detail,
             },
+            headers=exc.headers,
         )
 
     _firewall_scanner = None
@@ -5132,6 +5501,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     except Exception:
         logger.debug("ModelRouter not bound in runtime app", exc_info=True)
         proxy._model_router = None
+
+    try:
+        from cutctx.orchestration import build_orchestration_service
+
+        proxy._orchestration_service = build_orchestration_service()
+    except Exception:
+        logger.exception("Orchestration service failed to initialize")
+        proxy._orchestration_service = None
 
     stats_cache_ttl_seconds = 5.0
     stats_snapshot: dict[str, Any] = {"value": None, "expires_at": 0.0}
@@ -5220,6 +5597,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         allow_methods=_cors_methods,
         allow_headers=_cors_headers,
     )
+
+    @app.middleware("http")
+    async def _runtime_request_id_middleware(request: Request, call_next):
+        """Give every runtime request one ID shared by the response and trace."""
+        request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        request.state.cutctx_request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
     async def _build_stats_payload() -> dict[str, Any]:
         m = proxy.metrics
@@ -5312,6 +5698,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         persistent_savings = m.savings_tracker.stats_preview()
         display_session = persistent_savings.get("display_session", {})
+        lifetime_attribution = persistent_savings.get("lifetime", {})
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        savings_canary_report = get_savings_canary_coordinator().report()
         savings_sources = tuple(src.value for src in SavingsSource)
         rtk_source = SavingsSource.RTK_CLI_FILTERING.value
         cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
@@ -5375,6 +5765,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return {
             "summary": summary,
+            "attribution": lifetime_attribution.get("attribution_coverage", {}),
+            "opportunity_funnel": lifetime_attribution.get("opportunity_funnel", {}),
+            "compression_declined_total": lifetime_attribution.get(
+                "opportunity_funnel", {}
+            ).get("decline_reasons", {}),
+            "savings_canary": savings_canary_report,
             "savings_by_source": {
                 "total_tokens": sum(
                     int(
@@ -5880,6 +6276,33 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             }
         )
 
+    async def _require_hosted_compression_auth(request: Request) -> None:
+        expected_key = getattr(config, "hosted_compression_api_key", None) or os.environ.get(
+            "CUTCTX_HOSTED_COMPRESSION_API_KEY"
+        )
+        if not expected_key:
+            return
+
+        auth_header = request.headers.get("authorization", "")
+        bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        api_key = request.headers.get("x-cutctx-api-key", "") or request.query_params.get("key", "")
+
+        import hmac as _hmac
+
+        if _hmac.compare_digest(bearer_token, expected_key) or _hmac.compare_digest(
+            api_key,
+            expected_key,
+        ):
+            return
+
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "message": "Invalid or missing hosted compression credentials.",
+                "remediation": "Pass Authorization: Bearer <token> or X-Cutctx-Api-Key.",
+            },
+        )
+
     def _runtime_require_rbac_permission(permission: str):
         async def _check(request: Request) -> None:
             await _require_local_admin_auth(request)
@@ -6036,6 +6459,104 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
+    def _build_request_trace(log: dict[str, Any]) -> dict[str, Any]:
+        routing = log.get("routing_metadata") or {}
+        actual_model = log.get("model")
+        requested_model = routing.get("requested_model") or actual_model
+        return {
+            "request_id": log.get("request_id"),
+            "timestamp": log.get("timestamp"),
+            "turn_id": log.get("turn_id"),
+            "provider": {
+                "name": log.get("provider"),
+                "requested_model": requested_model,
+                "actual_model": actual_model,
+            },
+            "routing": {
+                "requested_model": requested_model,
+                "actual_model": actual_model,
+                "routed": bool(routing.get("routed")),
+                "source_model": routing.get("source_model") or requested_model,
+                "target_model": routing.get("target_model") or actual_model,
+                "reason": routing.get("reason"),
+                "request_overrides": routing.get("request_overrides"),
+                "saved_tokens": routing.get("saved_tokens", log.get("model_routing_saved_tokens", 0)),
+                "saved_usd": routing.get("saved_usd", 0.0),
+            },
+            "compression": {
+                "input_tokens_original": log.get("input_tokens_original"),
+                "input_tokens_optimized": log.get("input_tokens_optimized"),
+                "tokens_saved": log.get("tokens_saved"),
+                "savings_percent": log.get("savings_percent"),
+                "total_saved_tokens": log.get("total_saved_tokens"),
+                "total_savings_percent": log.get("total_savings_percent"),
+                "transforms_applied": log.get("transforms_applied", []),
+                "decline_reason": log.get("decline_reason"),
+                "waste_signals": log.get("waste_signals"),
+                "savings_by_source_tokens": log.get("savings_by_source_tokens") or {},
+                "savings_by_source_usd": log.get("savings_by_source_usd") or {},
+                "opportunity_funnel": log.get("opportunity_funnel") or {},
+            },
+            "attribution": {
+                "created_savings_tokens": log.get("created_savings_tokens", 0),
+                "observed_provider_savings_tokens": log.get(
+                    "observed_provider_savings_tokens", 0
+                ),
+                "created_savings_usd": log.get("created_savings_usd", 0.0),
+                "observed_provider_savings_usd": log.get(
+                    "observed_provider_savings_usd", 0.0
+                ),
+                "savings_basis": log.get("savings_basis", "estimated"),
+                "pricing_basis": log.get("pricing_basis", "model_input_list_price"),
+            },
+            "canary": log.get("canary") or {"arm": "control", "eligible": False},
+            "latency": {
+                "optimization_ms": log.get("optimization_latency_ms"),
+                "total_ms": log.get("total_latency_ms"),
+                "pipeline_timing": log.get("pipeline_timing") or {},
+            },
+            "cache": {
+                "hit": bool(log.get("cache_hit")),
+                "provider_prompt_cache_saved_tokens": log.get("cache_saved_tokens", 0),
+                "semantic_cache_saved_tokens": log.get("semantic_cache_saved_tokens", 0),
+                "self_hosted_prefix_cache_saved_tokens": log.get(
+                    "self_hosted_prefix_cache_saved_tokens",
+                    0,
+                ),
+            },
+            "cost": {"request_cost_usd": log.get("request_cost_usd")},
+            "fallback": log.get("fallback") or None,
+            "tags": log.get("tags") or {},
+            "messages": {
+                "request_messages": log.get("request_messages"),
+                "compressed_messages": log.get("compressed_messages"),
+                "response_content": log.get("response_content"),
+            },
+        }
+
+    @app.get("/transformations/traces", dependencies=[Depends(_require_local_admin_auth)])
+    async def request_traces(limit: int = 20):
+        if limit > 100:
+            limit = 100
+        traces = []
+        log_full_messages = proxy.config.log_full_messages if proxy else False
+        if proxy and proxy.logger:
+            for log in proxy.logger.get_recent_with_messages(limit):
+                traces.append(_build_request_trace(log))
+        return {"traces": traces, "log_full_messages": log_full_messages}
+
+    @app.get("/transformations/traces/{request_id}", dependencies=[Depends(_require_local_admin_auth)])
+    async def request_trace(request_id: str):
+        if not proxy or not proxy.logger:
+            raise HTTPException(status_code=404, detail="request trace not found")
+        log = proxy.logger.get_request_with_messages(request_id)
+        if not log:
+            raise HTTPException(status_code=404, detail="request trace not found")
+        return {
+            "trace": _build_request_trace(log),
+            "log_full_messages": proxy.config.log_full_messages,
+        }
+
     @app.get("/transformations/feed", dependencies=[Depends(_require_local_admin_auth)])
     async def transformations_feed(limit: int = 50):
         transformations = []
@@ -6059,6 +6580,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "compressed_messages": log.get("compressed_messages"),
                         "response_content": log.get("response_content"),
                         "turn_id": log.get("turn_id"),
+                        "decline_reason": log.get("decline_reason"),
+                        "optimization_latency_ms": log.get("optimization_latency_ms"),
+                        "total_latency_ms": log.get("total_latency_ms"),
+                        "pipeline_timing": log.get("pipeline_timing") or {},
+                        "savings_by_source_tokens": log.get("savings_by_source_tokens") or {},
+                        "savings_by_source_usd": log.get("savings_by_source_usd") or {},
+                        "routing": log.get("routing_metadata") or {},
+                        "fallback": log.get("fallback") or None,
+                        "tags": log.get("tags") or {},
+                        "request_cost_usd": log.get("request_cost_usd"),
                     }
                 )
 
@@ -6067,6 +6598,180 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.post("/v1/compress", dependencies=[Depends(_require_local_admin_auth)])
     async def compress_endpoint(request: Request):
         return await proxy.handle_compress(request)
+
+    hosted_compression_enabled = bool(getattr(config, "hosted_compression_enabled", False)) or (
+        os.environ.get("CUTCTX_HOSTED_COMPRESSION_ENABLED", "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
+
+    if hosted_compression_enabled:
+
+        _HOSTED_COMPATIBILITY_MODES = {"tool_output", "rag_text", "agentic_text"}
+
+        def _hosted_messages_for_text(
+            text: str,
+            compatibility_mode: str,
+        ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+            if compatibility_mode == "rag_text":
+                return (
+                    [{"role": "user", "content": text}],
+                    {
+                        "compress_user_messages": True,
+                        "protect_recent": 0,
+                    },
+                )
+            if compatibility_mode == "agentic_text":
+                return (
+                    [
+                        {"role": "user", "content": "Continue the task using the latest tool result."},
+                        {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "hosted_compression_input",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "agent_context",
+                                        "arguments": "{}",
+                                    },
+                                }
+                            ],
+                        },
+                        {
+                            "role": "tool",
+                            "tool_call_id": "hosted_compression_input",
+                            "content": text,
+                        },
+                    ],
+                    {},
+                )
+            return (
+                [
+                    {"role": "user", "content": "Compress this payload."},
+                    {
+                        "role": "tool",
+                        "tool_call_id": "hosted_compression_input",
+                        "content": text,
+                    },
+                ],
+                {},
+            )
+
+        def _extract_hosted_text(result_messages: list[dict[str, Any]]) -> str | None:
+            for message in result_messages:
+                if message.get("role") != "tool":
+                    continue
+                if message.get("tool_call_id") != "hosted_compression_input":
+                    continue
+                content = message.get("content")
+                if isinstance(content, str):
+                    return content
+            return None
+
+        @app.post(
+            "/v1/hosted/compress",
+            dependencies=[Depends(_require_hosted_compression_auth)],
+        )
+        async def hosted_compress_endpoint(request: Request):
+            from cutctx.compress import compress
+            from cutctx.proxy.helpers import _read_request_json
+
+            try:
+                body = await _read_request_json(request)
+            except Exception:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": {
+                            "type": "invalid_request",
+                            "message": "Invalid JSON in request body.",
+                        }
+                    },
+                )
+
+            model = str(body.get("model") or "gpt-4o")
+            optimize = bool(body.get("optimize", True))
+            text = body.get("text")
+            messages = body.get("messages")
+            input_kind = "messages"
+            compatibility_mode = "messages"
+            mode_defaults: dict[str, Any] = {}
+            compatibility_mode_value = body.get("compatibility_mode")
+
+            if compatibility_mode_value is not None:
+                compatibility_mode = str(compatibility_mode_value).strip().lower()
+                if compatibility_mode not in _HOSTED_COMPATIBILITY_MODES:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "error": {
+                                "type": "invalid_request",
+                                "message": (
+                                    "compatibility_mode must be one of "
+                                    "agentic_text, rag_text, or tool_output."
+                                ),
+                            }
+                        },
+                    )
+
+            if isinstance(text, str):
+                input_kind = "text"
+                if compatibility_mode == "messages":
+                    compatibility_mode = "tool_output"
+                messages, mode_defaults = _hosted_messages_for_text(text, compatibility_mode)
+            elif not isinstance(messages, list):
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": {
+                            "type": "invalid_request",
+                            "message": "Provide either string field 'text' or array field 'messages'.",
+                        }
+                    },
+                )
+            else:
+                compatibility_mode = "messages"
+
+            config_kwargs: dict[str, Any] = dict(mode_defaults)
+            for key in (
+                "compress_user_messages",
+                "compress_system_messages",
+                "target_ratio",
+                "protect_recent",
+                "protect_analysis_context",
+                "min_tokens_to_compress",
+                "kompress_model",
+            ):
+                if key in body:
+                    config_kwargs[key] = body[key]
+
+            result = compress(
+                messages=messages,
+                model=model,
+                model_limit=int(body.get("model_limit") or 200000),
+                optimize=optimize,
+                **config_kwargs,
+            )
+
+            compressed_text = _extract_hosted_text(result.messages) if input_kind == "text" else None
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "object": "cutctx.compression",
+                    "input_kind": input_kind,
+                    "compatibility_mode": compatibility_mode,
+                    "model": model,
+                    "text": compressed_text,
+                    "messages": result.messages,
+                    "tokens_before": result.tokens_before,
+                    "tokens_after": result.tokens_after,
+                    "tokens_saved": result.tokens_saved,
+                    "compression_ratio": result.compression_ratio,
+                    "transforms_applied": result.transforms_applied,
+                },
+            )
 
     @app.get("/v1/retrieve/stats", dependencies=[Depends(_require_local_admin_auth)])
     async def retrieve_stats_endpoint():
@@ -6290,8 +6995,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.proxy.routes.airgap import create_airgap_router
         from cutctx.proxy.routes.audit import create_audit_router
         from cutctx.proxy.routes.dsr import create_dsr_router
+        from cutctx.proxy.routes.failover import create_failover_router
         from cutctx.proxy.routes.license_validation import create_license_validation_router
         from cutctx.proxy.routes.memory import create_memory_router
+        from cutctx.proxy.routes.orchestration import create_orchestration_router
         from cutctx.proxy.routes.policy import create_policy_router
         from cutctx.proxy.routes.rate_limit import create_rate_limit_router
         from cutctx.proxy.routes.rbac import create_rbac_router
@@ -6319,10 +7026,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         app.include_router(create_rbac_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
         app.include_router(create_secrets_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
         app.include_router(create_sso_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(
+            create_failover_router(
+                failover_router=proxy.failover_router,
+                require_admin_auth=admin_dep,
+                require_rbac_permission=rbac_dep,
+            )
+        )
         app.include_router(create_audit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
         app.include_router(create_spend_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
         app.include_router(create_policy_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
         app.include_router(create_memory_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        if proxy._orchestration_service is not None:
+            app.include_router(
+                create_orchestration_router(
+                    service=proxy._orchestration_service,
+                    require_admin_auth=admin_dep,
+                    require_rbac_permission=rbac_dep,
+                )
+            )
         app.include_router(
             create_dsr_router(
                 proxy=proxy,

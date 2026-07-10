@@ -32,12 +32,17 @@ class LLMLinguaResult:
         original: Original prompt text.
         original_tokens: Estimated token count of original.
         compressed_tokens: Estimated token count of compressed output.
+        used_fallback: Whether passthrough output was returned instead of a
+            successful LLMLingua compression.
+        fallback_reason: Machine-readable reason for fallback, when used.
     """
 
     compressed: str
     original: str
     original_tokens: int
     compressed_tokens: int
+    used_fallback: bool = False
+    fallback_reason: str | None = None
 
     @property
     def compression_ratio(self) -> float:
@@ -140,6 +145,8 @@ class LLMLinguaCompressor:
                 original=content,
                 original_tokens=tok,
                 compressed_tokens=tok,
+                used_fallback=True,
+                fallback_reason="unavailable",
             )
 
         rate = target_ratio if target_ratio is not None else self.config.rate
@@ -164,6 +171,14 @@ class LLMLinguaCompressor:
             logger.exception("LLMLingua compression failed; returning original")
             compressed_text = content
             compressed_tokens = original_tokens
+            return LLMLinguaResult(
+                compressed=compressed_text,
+                original=content,
+                original_tokens=original_tokens,
+                compressed_tokens=compressed_tokens,
+                used_fallback=True,
+                fallback_reason="runtime_error",
+            )
 
         return LLMLinguaResult(
             compressed=compressed_text,

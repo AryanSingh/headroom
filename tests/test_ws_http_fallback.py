@@ -65,6 +65,21 @@ class FakeHttpClient:
         return self._response
 
 
+class FakeFallbackBackend:
+    def __init__(self, provider: str = "gemini") -> None:
+        self.provider = provider
+        self.name = f"litellm-{provider}"
+
+    async def stream_openai_message(self, body, headers):
+        yield 'data: {"choices":[{"delta":{"content":"fallback "},"finish_reason":null}]}\n\n'
+        yield (
+            'data: {"choices":[{"delta":{"content":"stream ok"},"finish_reason":"stop"}],'
+            '"usage":{"prompt_tokens":11,"completion_tokens":5,"total_tokens":16,'
+            '"prompt_tokens_details":{"cached_tokens":3}}}\n\n'
+        )
+        yield "data: [DONE]\n\n"
+
+
 def _make_handler():
     """Create a minimal OpenAIHandlerMixin-like object."""
     from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
@@ -72,10 +87,14 @@ def _make_handler():
     obj = object.__new__(OpenAIHandlerMixin)
     obj.OPENAI_API_URL = "https://api.openai.com"
     obj.http_client = None
+    obj.fallback_backend = None
+    obj.openai_fallback_backend = None
     obj.config = SimpleNamespace(
         retry_max_attempts=3,
         retry_base_delay_ms=0,
         retry_max_delay_ms=0,
+        fallback_enabled=False,
+        fallback_provider=None,
     )
     return obj
 
@@ -319,3 +338,53 @@ class TestWsHttpFallback:
         asyncio.run(handler._ws_http_fallback(ws, body, json.dumps(body), {}, "req_capture"))
 
         assert captured["headers"]["x-codex-primary-used-percent"] == "42"
+
+    def test_fallback_uses_configured_backend_for_non_openai_provider(self):
+        handler = _make_handler()
+        ws = FakeWebSocket()
+        handler.config.fallback_enabled = True
+        handler.config.fallback_provider = "gemini"
+        handler.fallback_backend = FakeFallbackBackend("gemini")
+
+        class ShouldNotBeUsedClient:
+            def stream(self, method, url, **kwargs):
+                raise AssertionError("legacy OpenAI HTTP fallback should not run")
+
+        handler.http_client = ShouldNotBeUsedClient()
+        ws_tags = {}
+
+        summary = asyncio.run(
+            handler._ws_http_fallback(
+                ws,
+                {"model": "gpt-5.4", "input": "hello"},
+                json.dumps(
+                    {
+                        "type": "response.create",
+                        "response": {"model": "gpt-5.4", "input": "hello"},
+                    }
+                ),
+                {"authorization": "Bearer sk-test"},
+                "req_backend_fb",
+                ws_tags=ws_tags,
+            )
+        )
+
+        event_types = [json.loads(event)["type"] for event in ws.sent_texts]
+        assert event_types == [
+            "response.created",
+            "response.output_item.added",
+            "response.output_text.delta",
+            "response.output_text.delta",
+            "response.completed",
+        ]
+        completed = json.loads(ws.sent_texts[-1])
+        assert completed["response"]["output"][0]["content"][0]["text"] == "fallback stream ok"
+        assert completed["response"]["usage"]["input_tokens"] == 11
+        assert completed["response"]["usage"]["input_tokens_details"]["cached_tokens"] == 3
+        assert completed["response"]["usage"]["output_tokens"] == 5
+        assert summary["response_completed"] is True
+        assert summary["cache_write_tokens"] == 8
+        assert summary["uncached_input_tokens"] == 8
+        assert ws_tags["fallback_provider"] == "gemini"
+        assert ws_tags["fallback_attempted"] == "true"
+        assert ws.closed is True

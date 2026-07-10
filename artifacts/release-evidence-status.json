@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "local_evidence_ready": true,
+  "external_evidence_ready": false,
+  "market_claim_eligible": false,
+  "valid_partner_snapshots": 0,
+  "missing_external_evidence": [
+    "remote_hosted_python",
+    "remote_hosted_typescript",
+    "staged_gateway",
+    "staging_dashboard",
+    "two_valid_partner_snapshots"
+  ]
+}

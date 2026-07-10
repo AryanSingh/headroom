@@ -343,7 +343,10 @@ class RequestLogger:
         """
         if not self.log_file:
             return None
-        raw_lines = _tail_lines(self.log_file, n)
+        try:
+            raw_lines = _tail_lines(self.log_file, n)
+        except OSError:
+            return None
         if not raw_lines:
             return None
         entries: list[dict] = []
@@ -355,9 +358,29 @@ class RequestLogger:
         return entries or None
 
     def get_recent_with_messages(self, n: int = 20) -> list[dict]:
-        """Get recent log entries including full request/response messages."""
-        entries = list(self._logs)[-n:]
-        return [asdict(e) for e in entries]
+        """Get recent log entries including full request/response messages.
+
+        Mirrors ``get_recent()`` by preferring the shared JSONL file when
+        configured so inspector-style views can follow requests handled by any
+        sibling proxy process.
+        """
+        entries = self._read_recent_from_file(n)
+        if entries is not None:
+            return entries
+        return [asdict(e) for e in list(self._logs)[-n:]]
+
+    def get_request_with_messages(self, request_id: str) -> dict | None:
+        """Return one request log entry, preferring the shared JSONL file."""
+        entries = self._read_recent_from_file(self.MAX_LOG_ENTRIES)
+        if entries is not None:
+            for entry in reversed(entries):
+                if entry.get("request_id") == request_id:
+                    return entry
+
+        for entry in reversed(self._logs):
+            if entry.request_id == request_id:
+                return asdict(entry)
+        return None
 
     def stats(self) -> dict:
         """Get logging statistics."""

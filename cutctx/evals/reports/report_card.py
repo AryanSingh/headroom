@@ -13,6 +13,21 @@ from pathlib import Path
 from typing import Any
 
 
+_METRIC_DISPLAY_NAMES = {
+    "accuracy_preservation_rate": "Accuracy Preservation Rate",
+    "information_recall": "Information Recall",
+    "verbatim_fidelity": "Verbatim Fidelity",
+    "tool_schema_integrity": "Tool Schema Integrity",
+    "byte_exact_match": "Byte Exact Match",
+    "ground_truth_match": "Ground Truth Match",
+    "exact_match_flexible-extract": "Exact Match",
+    "accuracy": "Accuracy",
+    "accuracy_normalized": "Accuracy Normalized",
+    "pass@1": "Pass@1",
+    "bleu_acc": "BLEU Accuracy",
+}
+
+
 @dataclass
 class BenchmarkRunResult:
     """Result from a single benchmark run (unified across all runner types)."""
@@ -32,6 +47,9 @@ class BenchmarkRunResult:
     # Compression metrics (always present)
     avg_compression_ratio: float = 0.0
     tokens_saved: int = 0
+    tokens_per_second: float | None = None
+    critical_item_recall: float | None = None
+    verbatim_fidelity: float | None = None
 
     # Meta
     n_samples: int = 0
@@ -41,6 +59,21 @@ class BenchmarkRunResult:
     passed: bool = True
     error: str | None = None
 
+    @property
+    def metric_value(self) -> float | None:
+        """Primary metric value for before-after and compression benchmarks."""
+        return self.accuracy_rate
+
+    @property
+    def metric_label(self) -> str:
+        """Human-readable primary metric label."""
+        if not self.metric_name:
+            return "Metric"
+        return _METRIC_DISPLAY_NAMES.get(
+            self.metric_name,
+            self.metric_name.replace("_", " ").title(),
+        )
+
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             "name": self.name,
@@ -49,6 +82,7 @@ class BenchmarkRunResult:
             "n_samples": self.n_samples,
             "model": self.model,
             "metric": self.metric_name,
+            "metric_label": self.metric_label,
             "passed": self.passed,
             "avg_compression_ratio": round(self.avg_compression_ratio, 4),
             "tokens_saved": self.tokens_saved,
@@ -62,6 +96,13 @@ class BenchmarkRunResult:
             d["delta"] = round(self.delta, 4)
         if self.accuracy_rate is not None:
             d["accuracy_rate"] = round(self.accuracy_rate, 4)
+            d["metric_value"] = round(self.accuracy_rate, 4)
+        if self.tokens_per_second is not None:
+            d["tokens_per_second"] = round(self.tokens_per_second, 2)
+        if self.critical_item_recall is not None:
+            d["critical_item_recall"] = round(self.critical_item_recall, 4)
+        if self.verbatim_fidelity is not None:
+            d["verbatim_fidelity"] = round(self.verbatim_fidelity, 4)
         if self.error:
             d["error"] = self.error
         return d
@@ -151,8 +192,8 @@ def generate_markdown(result: SuiteResult) -> str:
             [
                 '### Standard Benchmarks -- "No Accuracy Loss"',
                 "",
-                "| Benchmark | Category | N | Baseline | Cutctx | Delta | Tokens Saved | Status |",
-                "|-----------|----------|---|----------|----------|-------|--------------|--------|",
+                "| Benchmark | Category | N | Baseline | Cutctx | Delta | Compression | Status |",
+                "|-----------|----------|---|----------|----------|-------|-------------|--------|",
             ]
         )
         for b in standard:
@@ -162,7 +203,7 @@ def generate_markdown(result: SuiteResult) -> str:
             comp_str = f"{b.avg_compression_ratio:.0%}" if b.avg_compression_ratio > 0 else "--"
             status = "PASS" if b.passed else "FAIL"
             lines.append(
-                f"| {b.name} | {b.category} | {b.n_samples} | {baseline_str} | "
+                f"| {_escape_markdown_table_cell(b.name)} | {_escape_markdown_table_cell(b.category)} | {b.n_samples} | {baseline_str} | "
                 f"{cutctx_str} | {delta_str} | {comp_str} | {status} |"
             )
         lines.append("")
@@ -174,16 +215,17 @@ def generate_markdown(result: SuiteResult) -> str:
             [
                 '### Compression Benchmarks -- "Big Savings, Accuracy Preserved"',
                 "",
-                "| Benchmark | Category | N | Accuracy | Tokens Saved | Status |",
-                "|-----------|----------|---|----------|--------------|--------|",
+                "| Benchmark | Category | N | Metric | Value | Secondary Metrics | Compression | Tokens Saved | Status |",
+                "|-----------|----------|---|--------|-------|-------------------|-------------|--------------|--------|",
             ]
         )
         for b in compression:
-            acc_str = f"{b.accuracy_rate:.1%}" if b.accuracy_rate is not None else "N/A"
+            acc_str = _format_metric_value(b)
+            secondary_metrics = _escape_markdown_table_cell(_format_secondary_metrics(b))
             comp_str = f"{b.avg_compression_ratio:.0%}" if b.avg_compression_ratio > 0 else "--"
             status = "PASS" if b.passed else "FAIL"
             lines.append(
-                f"| {b.name} | {b.category} | {b.n_samples} | {acc_str} | {comp_str} | {status} |"
+                f"| {_escape_markdown_table_cell(b.name)} | {_escape_markdown_table_cell(b.category)} | {b.n_samples} | {_escape_markdown_table_cell(b.metric_label)} | {acc_str} | {secondary_metrics} | {comp_str} | {b.tokens_saved:,} | {status} |"
             )
         lines.append("")
 
@@ -232,13 +274,14 @@ def generate_html(result: SuiteResult) -> str:
 
     compression_rows = ""
     for b in compression:
-        acc_str = f"{b.accuracy_rate:.1%}" if b.accuracy_rate is not None else "N/A"
+        acc_str = _format_metric_value(b)
+        secondary_metrics = _format_secondary_metrics(b)
         comp_str = f"{b.avg_compression_ratio:.0%}" if b.avg_compression_ratio > 0 else "--"
         status = "PASS" if b.passed else "FAIL"
         status_class = "pass" if b.passed else "fail"
         compression_rows += f"""        <tr>
             <td>{b.name}</td><td>{b.category}</td><td>{b.n_samples}</td>
-            <td>{acc_str}</td><td>{comp_str}</td>
+            <td>{b.metric_label}</td><td>{acc_str}</td><td>{secondary_metrics}</td><td>{comp_str}</td><td>{b.tokens_saved:,}</td>
             <td><span class="badge {status_class}">{status}</span></td>
         </tr>\n"""
 
@@ -312,12 +355,12 @@ def generate_html(result: SuiteResult) -> str:
     </div>
 
     {"<h2>Standard Benchmarks</h2>" if standard else ""}
-    {"<table><tr><th>Benchmark</th><th>Category</th><th>N</th><th>Baseline</th><th>Cutctx</th><th>Delta</th><th>Saved</th><th>Status</th></tr>" if standard else ""}
+    {"<table><tr><th>Benchmark</th><th>Category</th><th>N</th><th>Baseline</th><th>Cutctx</th><th>Delta</th><th>Compression</th><th>Status</th></tr>" if standard else ""}
     {standard_rows}
     {"</table>" if standard else ""}
 
     {"<h2>Compression Benchmarks</h2>" if compression else ""}
-    {"<table><tr><th>Benchmark</th><th>Category</th><th>N</th><th>Accuracy</th><th>Saved</th><th>Status</th></tr>" if compression else ""}
+    {"<table><tr><th>Benchmark</th><th>Category</th><th>N</th><th>Metric</th><th>Value</th><th>Secondary Metrics</th><th>Compression</th><th>Tokens Saved</th><th>Status</th></tr>" if compression else ""}
     {compression_rows}
     {"</table>" if compression else ""}
 
@@ -349,3 +392,27 @@ def save_reports(result: SuiteResult, output_dir: str | Path) -> dict[str, Path]
     paths["html"] = html_path
 
     return paths
+
+
+def _format_metric_value(benchmark: BenchmarkRunResult) -> str:
+    """Format a benchmark's primary metric value for report tables."""
+    if benchmark.metric_value is None:
+        return "N/A"
+    return f"{benchmark.metric_value:.1%}"
+
+
+def _format_secondary_metrics(benchmark: BenchmarkRunResult) -> str:
+    """Format additional compression metrics for report tables."""
+    metrics: list[str] = []
+    if benchmark.critical_item_recall is not None:
+        metrics.append(f"Critical Item Recall {benchmark.critical_item_recall:.1%}")
+    if benchmark.verbatim_fidelity is not None:
+        metrics.append(f"Verbatim Fidelity {benchmark.verbatim_fidelity:.1%}")
+    if benchmark.tokens_per_second is not None:
+        metrics.append(f"Tokens/s {benchmark.tokens_per_second:,.1f}")
+    return " | ".join(metrics) if metrics else "—"
+
+
+def _escape_markdown_table_cell(value: str) -> str:
+    """Escape characters that break GitHub-flavored markdown tables."""
+    return value.replace("|", "\\|").replace("\n", "<br>")

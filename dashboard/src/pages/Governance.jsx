@@ -7,6 +7,7 @@ import {
   patchDashboardConfig,
   useDashboardData,
 } from "../lib/use-dashboard-data";
+import { formatCurrency } from "../lib/format";
 
 const GOVERNANCE_PATHS = {
   audit: "/audit/events",
@@ -186,6 +187,13 @@ function titleCase(value) {
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatBudgetPeriodLabel(period) {
+  if (!period) {
+    return "Current window";
+  }
+  return `${titleCase(period)} window`;
 }
 
 function getEntitlementEntry(feature, sections) {
@@ -470,6 +478,7 @@ export default function Governance({ searchQuery = "" }) {
 
   const rateLimiter = stats?.rate_limiter || null;
   const rateLimiterHealth = health?.checks?.rate_limiter || null;
+  const budget = stats?.cost?.budget || null;
   const rateLimitEnabled =
     stats?.config?.rate_limiter ??
     configFlags?.restart_required?.rate_limit_enabled?.enabled ??
@@ -484,6 +493,17 @@ export default function Governance({ searchQuery = "" }) {
       ? "Token-bucket throttling is active and reporting live metrics."
       : "Rate limiting is enabled, but this proxy is not exposing live limiter metrics on /stats."
     : "Rate limiting is not enabled yet.";
+  const budgetEnabled = Boolean(budget?.enabled);
+  const budgetStatusLabel = budgetEnabled
+    ? budget?.exceeded
+      ? "Exceeded"
+      : "Tracking"
+    : "Unlimited";
+  const budgetSummary = budgetEnabled
+    ? budget?.exceeded
+      ? "Spend has crossed the configured proxy budget for this period."
+      : "Cost tracking is publishing live budget usage for the active window."
+    : "No proxy budget is configured; spend is being tracked without a hard cap.";
   const query = searchQuery.trim().toLowerCase();
   const filteredFeatures = FEATURE_CONFIG.filter((feature) => {
     if (!query) {
@@ -551,6 +571,58 @@ export default function Governance({ searchQuery = "" }) {
               {rateLimiter ? formatInteger(rateLimiter.requests_per_minute || 0) : "-"}
             </div>
             <div className="metric-footnote">Requests per minute per key</div>
+          </article>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">Budget guardrail</div>
+            <h2>Cost budget</h2>
+          </div>
+          <p>{budgetSummary}</p>
+        </div>
+
+        <div className="metric-grid metric-grid-four" aria-busy={statsLoading}>
+          <article className="metric-card metric-card-compact">
+            <div className="metric-label">Status</div>
+            <div className="metric-value">{budgetStatusLabel}</div>
+            <div className="metric-footnote">
+              {budgetEnabled
+                ? `${formatBudgetPeriodLabel(budget?.period)} budget is enforced before upstream calls.`
+                : "Configure --budget or CUTCTX_BUDGET_LIMIT_USD to enforce spend caps."}
+            </div>
+          </article>
+
+          <article className="metric-card metric-card-compact">
+            <div className="metric-label">Budget limit</div>
+            <div className="metric-value">
+              {budgetEnabled ? formatCurrency(budget?.limit_usd || 0) : "-"}
+            </div>
+            <div className="metric-footnote">{formatBudgetPeriodLabel(budget?.period)}</div>
+          </article>
+
+          <article className="metric-card metric-card-compact">
+            <div className="metric-label">Spend used</div>
+            <div className="metric-value">{formatCurrency(budget?.spent_usd || 0)}</div>
+            <div className="metric-footnote">
+              {budgetEnabled ? `${budget?.percent_used || 0}% of limit used` : "Tracked in the current proxy window"}
+            </div>
+          </article>
+
+          <article className="metric-card metric-card-compact">
+            <div className="metric-label">Remaining</div>
+            <div className="metric-value">
+              {budgetEnabled ? formatCurrency(budget?.remaining_usd || 0) : "Unlimited"}
+            </div>
+            <div className="metric-footnote">
+              {budgetEnabled
+                ? budget?.exceeded
+                  ? "New requests will be rejected until the window resets."
+                  : "Budget remaining before proxy rejects new spend."
+                : "No budget cutoff is active."}
+            </div>
           </article>
         </div>
       </div>

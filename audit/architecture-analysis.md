@@ -1,114 +1,281 @@
-# CutCtx Architecture Analysis
+# Architecture Analysis — Cutctx Project
 
-## System Overview
+**Date:** 2026-07-10
+**Scope:** Full codebase — Python (207K lines, 533 files) + Rust (74K lines, 195 files) + React dashboard
+**Previous audit:** July 8, 2026 (10-domain analysis)
 
-CutCtx is a local-first context compression plane for AI agents. It intercepts LLM API traffic, compresses expensive context (tool outputs, logs, diffs, JSON arrays), stores originals in a local CCR (Compress-Cache-Retrieve) store for reversibility, and tracks savings attribution. The system has three major runtime layers: a Rust binary proxy, a Python SDK/proxy, and a React dashboard.
+---
 
-## Component Inventory
+## Architecture Rating: 🟢
 
-| Component | Language | Location | Role |
-|-----------|----------|----------|------|
-| `cutctx-core` | Rust | `crates/cutctx-core/` | Compression algorithms, CCR store, tokenizer, auth-mode classification, transforms (SmartCrusher, LogCompressor, DiffCompressor, SearchCompressor, TagProtector) |
-| `cutctx-proxy` | Rust | `crates/cutctx-proxy/` | Standalone reverse proxy binary (axum). SSE streaming, live-zone compression dispatch, Bedrock/Vertex native routes, license enforcement, observability |
-| `cutctx-py` | Rust→Python | `crates/cutctx-py/` | PyO3 bridge exposing `cutctx-core` as `cutctx._core` for in-process Python calls |
-| `cutctx-parity` | Rust | `crates/cutctx-parity/` | Python/Rust transform parity checker using JSON fixtures |
-| Python SDK | Python | `cutctx/` | `CutctxClient`, config, pipeline, transforms, providers, pricing, telemetry, billing, security |
-| Python proxy | Python | `cutctx/proxy/` | FastAPI server with per-provider handlers (Anthropic, OpenAI, Gemini, Bedrock) |
-| Dashboard | React/Vite | `dashboard/` | Operator UI for savings, capabilities, governance, memory |
+The dual-runtime architecture is **intentional and well-executed**. Python handles the high-surface proxy logic (7,903-line `server.py` notwithstanding), Rust owns the hot compression path via PyO3, and the boundary is clean. The system is production-ready with genuine compression working across three providers (Anthropic, OpenAI Chat, OpenAI Responses). The main risk is not structural drift but **concentration risk in `server.py`**.
 
-## Architecture: Dual-Path Design
+---
 
-The system operates in two distinct runtime modes that share no process boundary:
+## Key Strengths
 
-### Path 1: Python proxy (legacy, current production)
+- **Live-zone compression is genuinely working.** The Rust dispatcher in `cutctx-core/src/transforms/live_zone.rs` (3,289 lines) walks Anthropic/OpenAI request shapes, identifies compressible blocks, dispatches to content-specific compressors, and rewrites via byte-range surgery. Three provider dispatchers are implemented and wired. This is not stub code — it's the real product.
 
+- **The compression pipeline has clean extensibility.** The `ReformatTransform` / `OffloadTransform` trait pair in `cutctx-core/src/transforms/pipeline/traits.rs` is well-designed. Adding a new compressor means implementing one trait, registering it with the `CompressionPipelineBuilder`, and the orchestrator handles gating, parallel bloat estimation, and CCR offload automatically. No existing code changes needed.
+
+- **The PyO3 bridge is thorough and well-scoped.** `cutctx-py/src/lib.rs` (1,846 lines) wraps SmartCrusher, LogCompressor, DiffCompressor, SearchCompressor, content detection, tag protection, and the live-zone compression function. It calls `py.allow_threads()` for CPU-bound work and creates per-call `InMemoryCcrStore` instances to avoid cross-thread store contention.
+
+- **The auth-mode → compression-policy → pipeline-gate chain is architecturally sound.** `auth_mode.rs` classifies headers into Payg/OAuth/Subscription. `compression_policy.rs` maps that to a `CompressionPolicy` struct with `live_zone_only`, `cache_aligner_enabled`, `volatile_token_threshold`, `max_lossy_ratio`, and `toin_read_only`. The pipeline stages read these fields rather than re-classifying. Clean separation of concerns.
+
+- **CCR (Compress-Cache-Retrieve) has a trait-based storage backend.** `ccr/mod.rs` defines `CcrStore` with `put`/`get`/`len`. Three backends (InMemory, SQLite, Redis) implement it. The `compute_key` function (BLAKE3 → 16 hex chars) is centralized so every call site hashes identically.
+
+---
+
+## Critical Issues
+
+### CRITICAL: `server.py` is a 7,903-line god object
+**File:** `cutctx/proxy/server.py`
+**Lines:** 1–7,903
+
+This single file contains:
+- The `CutctxProxy` class (lines 446–845+) with 40+ instance attributes
+- 5 handler mixins (`StreamingMixin`, `AnthropicHandlerMixin`, `OpenAIHandlerMixin`, `GeminiHandlerMixin`, `BatchHandlerMixin`)
+- All FastAPI route definitions
+- Admin auth middleware (SSO, API key, MFA enforcement)
+- Stats endpoint (lines 4493–4535)
+- Compression cache management
+- Model router binding (lines 2322–2340)
+- Retention manager startup (lines 2270–2299)
+- Webhook dispatcher startup (lines 2301–2319)
+- Stack-graph resolver initialization (lines 1134–1163)
+- `/compress` SDK endpoint (lines 6700–6766)
+- Policy learning summary (lines 7868–7903)
+
+This file is the single point of failure for the entire Python proxy. Any import error, any async initialization race, any attribute typo — the whole proxy is down. The file has grown organically from what was likely a focused proxy server into a monolith that manages every cross-cutting concern.
+
+**Impact:** Onboarding difficulty, merge conflicts, debugging complexity, and a single-file blast radius for any regression.
+
+### HIGH: Python/Rust compression pipeline duplication
+**Files:** `cutctx/transforms/content_router.py` (Python) vs `cutctx-core/src/transforms/` (Rust)
+
+Both runtimes implement content-type detection, SmartCrusher, LogCompressor, DiffCompressor, SearchCompressor, and tag protection. The PyO3 bridge wraps the Rust implementations so Python can call them, but the Python implementations still exist for:
+1. Fallback when `_core.so` is not loaded
+2. The Python proxy's hot path (which uses Python transforms unless explicitly swapped)
+3. Parity testing
+
+The `cutctx-parity` crate exists specifically to detect drift between these implementations. This is honest engineering, but the duplication surface is large (SmartCrusher alone is ~2,000 lines in each language).
+
+**Risk:** A bug fix in one language doesn't automatically propagate to the other. The parity tests catch this, but they run in CI, not at dev time.
+
+### HIGH: `deny.toml` is intentionally permissive
+**File:** `deny.toml` (32 lines)
+
+```toml
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
 ```
-Agent → FastAPI proxy (cutctx/proxy/) → Python compression pipeline → LLM provider
-                                    ↕
-                            cutctx._core (PyO3)
-                            cutctx-core (Rust)
-```
 
-The Python proxy is the primary production path. It runs FastAPI/Uvicorn, uses the Python `CutctxClient` for compression orchestration, and calls into Rust via `cutctx._core` for hot-path transforms (SmartCrusher, DiffCompressor, LogCompressor, SearchCompressor, TagProtector). The PyO3 bridge is in-process — no IPC overhead — which is critical since compression runs on every request.
+The comment says "Intentionally permissive during Phase 0 — tighten before Phase 2 goes to production." The project is at v0.30.0 — well past Phase 0. Multiple version duplication and wildcard dependencies are allowed, which means:
+- Security vulnerabilities in old versions won't be flagged
+- Build times are longer due to duplicate compilation
+- Binary size includes redundant crate versions
 
-### Path 2: Rust standalone proxy (new, incremental rollout)
+### MEDIUM: Auth/RBAC boundary is opaque
+**Files:** `crates/cutctx-core/src/auth_mode.rs` vs `cutctx/rbac.py`
 
-```
-Agent → axum proxy (cutctx-proxy) → Rust live-zone compression → LLM provider
-                                  ↕
-                          cutctx-core (direct dep)
-                          CCR store (in-memory / SQLite / Redis)
-```
+`auth_mode.rs` is a clean, well-tested, pure classifier (252 lines). But `rbac.py` is a 30-line shim that re-exports from `cutctx_ee.rbac` (commercial package). The actual RBAC implementation is invisible in the open-source codebase. This means:
+- Community contributors cannot reason about the full auth flow
+- The Python proxy's admin auth (lines 3400–3493 of `server.py`) calls into code that may not exist in the OSS build
+- The Rust proxy has no RBAC equivalent — it only has `auth_mode` classification
 
-The Rust proxy (`cutctx-proxy`) is a standalone binary that sits in front of either the Python proxy or directly in front of the LLM provider. It handles: live-zone compression dispatch (Anthropic, OpenAI chat, OpenAI responses), SSE streaming with state machines, Bedrock SigV4 signing, Vertex ADC auth, license enforcement with CRL/heartbeat, and cache-stabilization drift detection.
+### MEDIUM: Model router is Python-only
+**File:** `cutctx/proxy/model_router.py` (705 lines)
 
-**Key architectural note:** The Rust proxy currently operates in a "Phase A lockdown" state — compression is passthrough (`CompressionMode::Off`) by default, with `CompressionMode::LiveZone` available but not yet fully wired. Phase B PR-B2 is planned to activate real compression.
+The model routing logic (deciding when to downgrade opus→sonnet, gpt-4o→gpt-4o-mini) lives exclusively in Python. The Rust proxy has no equivalent. If the project moves toward a Rust-primary proxy, model routing will need to be ported or the Python proxy will remain the canonical request path.
 
-## How Rust Connects to Python
+---
 
-The connection is **not** via network/RPC. Instead:
+## Quick Wins (fixable in <1 week)
 
-1. **PyO3 in-process bridge** (`cutctx-py`): The Python SDK imports `cutctx._core` (a cdylib built by maturin). This calls Rust functions directly in the Python process. The bridge exposes SmartCrusher, DiffCompressor, LogCompressor, SearchCompressor, TagProtector, and content detection.
+1. **Split `server.py` into focused modules.** Extract:
+   - `server.py` → FastAPI app creation + startup/shutdown lifecycle only (~500 lines)
+   - `proxy/routes.py` → Route registration
+   - `proxy/middleware.py` → Admin auth, SSO, MFA
+   - `proxy/stats.py` → Stats endpoint logic
+   - `proxy/startup.py` → Retention, webhooks, model router binding, stack-graph init
+   - `proxy/compression_cache.py` → Compression cache management
 
-2. **Standalone Rust proxy** (`cutctx-proxy`): This is a separate binary that can sit in front of the Python proxy (as a transparent reverse proxy) or directly in front of LLM providers. When deployed with `--upstream http://localhost:8787`, it proxies through the Python proxy. When `compression_mode=live_zone` is enabled, it does its own Rust-native compression.
+2. **Tighten `deny.toml`.** Set `multiple-versions = "warn"` and `wildcards = "deny"`. Run `cargo deny` and fix the output. This catches stale deps before they become security issues.
 
-3. **Parity crate** (`cutctx-parity`): A test harness that loads JSON fixtures from Python, runs the Rust port, and compares outputs. This ensures the two implementations agree.
+3. **Add a Rust-side model router stub.** Even a `match` that returns `None` (no routing) establishes the pattern so the Rust proxy can route requests to cheaper models when Phase B compression is live-zone-only.
 
-## Auth/Config Flow
+4. **Document the Python↔Rust feature matrix.** A table showing which compressors are available in Python, Rust, and via PyO3 would make the parity surface explicit.
 
-### Auth Mode Classification
+---
 
-A pure function (`classify` in `auth_mode.rs` / `classify_auth_mode` in `auth_mode.py`) inspects request headers to determine one of three modes:
+## Detailed Analysis
 
-- **Payg**: API key auth (Anthropic `x-api-key`, OpenAI `sk-*`, Gemini). Aggressive compression allowed.
-- **OAuth**: Bearer token / IAM auth (Bedrock, Vertex, Claude Pro). Cache-safety paramount, lossless-only.
-- **Subscription**: CLI/IDE with rate limits (Claude Code, Cursor). Stealth mode — preserve User-Agent, never inject `X-Cutctx-*`.
+### 1. System Design & Component Coupling
 
-The Rust and Python implementations are kept in sync via parity tests. In the Rust proxy, the classified `AuthMode` is inserted into `req.extensions()` and read by downstream compression handlers.
+The architecture has three layers:
 
-### Configuration
+| Layer | Runtime | Responsibility | Entry Point |
+|-------|---------|---------------|-------------|
+| Proxy surface | Python (FastAPI) | Request routing, auth, admin, stats, dashboard | `cutctx/proxy/server.py` |
+| Compression core | Rust (via PyO3) | Live-zone compression, CCR, tokenization | `cutctx-core/src/transforms/live_zone.rs` |
+| Rust proxy | Rust (axum) | Transparent reverse proxy, compression gate, SSE | `crates/cutctx-proxy/src/proxy.rs` |
 
-- **Rust proxy**: CLI args via `clap` (`CliArgs`), parsed into `Config`. Key settings: `listen`, `upstream`, `compression_mode`, `cache_control_auto_frozen`, `enable_bedrock_native`, `ccr_backend`, `license_key`.
-- **Python SDK**: `CutctxConfig` dataclass with `CacheAlignerConfig`, `SmartCrusherConfig`, `CompressionConfig`, `CacheConfig`, `ProviderConfig`, `PricingConfig`, `TelemetryConfig`, `SecurityConfig`, `MemoryConfig`, `BillingConfig`.
-- **Environment variables**: Extensive env var support (`CUTCTX_*`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AWS_*`, `GCP_*`).
+**How they connect:**
 
-## Deployment Architecture
+- **Python → Rust (in-process):** The Python proxy imports `cutctx._core` (built by maturin from `cutctx-py/src/lib.rs`). The `ContentRouter` in Python calls `cutctx._core.detect_content_type()`, `cutctx._core.SmartCrusher`, etc. This is the primary compression path today.
 
-| Mode | What Runs | Storage |
-|------|-----------|---------|
-| Local pip | Python proxy + Rust via PyO3 | SQLite (CCR, memory) |
-| Docker | Single container (~50MB) | SQLite, optional Qdrant + Neo4j |
-| docker-compose | cutctx-proxy + qdrant + neo4j | Volumes for each |
-| Kubernetes | Multiple proxy instances behind LB | Redis for shared CCR |
+- **Rust → Rust (crates):** `cutctx-proxy` depends on `cutctx-core` via path dependency (`crates/cutctx-proxy/Cargo.toml:43`). The proxy calls `cutctx_core::auth_mode::classify()`, `cutctx_core::compression_policy::CompressionPolicy::for_mode()`, and the live-zone compression functions. The Rust proxy is a transparent reverse proxy that buffers requests, runs compression, and forwards to upstream.
 
-The `docker-compose.yml` includes Qdrant (vector DB for semantic search) and Neo4j (graph DB for relationships/multi-hop reasoning) — these are for the intelligence/memory layer, not core compression.
+- **Python ↔ Rust (proxy relationship):** The Python proxy and Rust proxy are **separate processes**. The Rust proxy (`cutctx-proxy/src/main.rs`) sits in front of the Python proxy as a transparent reverse proxy. It adds compression, header stripping, and SSE telemetry. The Python proxy handles the business logic (provider routing, CCR, admin, stats).
 
-## Architectural Gaps and Observations
+**Coupling assessment:** The coupling is clean. The PyO3 bridge has a well-defined API surface. The Rust proxy doesn't depend on Python at all. The main coupling risk is the Python proxy's dependency on `cutctx._core` — if the extension module fails to load, the proxy falls back to pure-Python transforms (which exist as fallbacks).
 
-### 1. Dual Implementation Drift Risk
+### 2. Dependency Graph
 
-The auth-mode classifier exists in both Rust and Python with the same logic. The parity crate helps, but `SUBSCRIPTION_UA_PREFIXES` and `CLIENT_UA_MAP` must be kept synchronized manually. Any drift means different compression behavior between the two proxy paths.
+**Python (`pyproject.toml`):**
+- Build system: maturin (≥1.5, <2.0) — appropriate for PyO3 extension modules
+- Runtime deps are not listed in `pyproject.toml` (they're in the package's `__init__.py` or implicit)
+- Dev deps: pytest ≥9.0.3, pytest-timeout ≥2.4.0, drain3 ≥0.9.11 — minimal and current
+- Python ≥3.10 — reasonable floor
 
-### 2. Rust Proxy Compression Not Yet Active
+**Rust (`Cargo.toml` workspace):**
+- `pyo3 = "0.21"` with `abi3-py310` — stable ABI for Python 3.10+, appropriate
+- `serde_json` with `preserve_order` + `arbitrary_precision` + `raw_value` — all three features are load-bearing (documented in Cargo.toml comments)
+- `tokio` with full async runtime features — appropriate
+- `reqwest` with rustls-tls — no OpenSSL dependency, good for static linking
+- AWS deps (`aws-sigv4`, `aws-config`, `gcp_auth`) — Phase D provider support
+- `prometheus = "=0.13.4"` — pinned exactly for scrape contract stability
 
-The Rust proxy's `CompressionMode::LiveZone` is documented as "NOT YET IMPLEMENTED" — it falls through to passthrough with a warning. The actual live-zone dispatchers exist in `compression/live_zone_*.rs` but the `CompressionMode` enum gates them off. This means the Rust proxy currently adds latency (extra hop) without compression benefit when deployed in front of the Python proxy.
+**Rust (`cutctx-core/Cargo.toml`):**
+- `tiktoken-rs = "0.11"`, `tokenizers = "0.22"` — tokenization backends
+- `dashmap = "6"` — concurrent CCR store
+- `blake3` — CCR key computation
+- `rayon` — parallel bloat estimation in pipeline orchestrator
+- `fastembed = "5"` — ML-based content detection (platform-conditional)
 
-### 3. No Shared State Between Proxy Instances
+**Rust (`cutctx-proxy/Cargo.toml`):**
+- `axum = "0.7"` — HTTP framework
+- `tower-http = "0.6"` — middleware
+- `reqwest = "0.12"` — upstream HTTP client
+- `tokio-tungstenite = "0.24"` — WebSocket support
+- `opentelemetry = "0.27"` — enterprise observability
 
-The deployment docs explicitly state: "Each instance has its own CCR and memory store (isolated). No shared state between instances." The Redis CCR backend exists but is cfg-gated behind `feature = "redis"`. For horizontal scaling with shared CCR, operators must opt into Redis explicitly.
+**Dependency health assessment:** Dependencies are generally current and well-chosen. The pinned `prometheus` version is a deliberate choice for contract stability. The `deny.toml` permissiveness is the main concern (see Critical Issues).
 
-### 4. License Enforcement Complexity
+### 3. Phase B Readiness
 
-The Rust proxy has a multi-layered license system: fingerprint binding, CRL refresh, heartbeat seat leases, clock rollback detection. This is orchestrated across `license/client.rs`, `license/fingerprint.rs`, and periodic tokio tasks in `main.rs`. The Python side has a separate `trial.py`, `seats.py`, `billing/` module. The two systems must agree on license state but communicate through the license API, not in-process.
+Phase B = live-zone compression in the Rust proxy. Status:
 
-### 5. Pipeline Extension System (Python Only)
+**What works:**
+- `cutctx-core/src/transforms/live_zone.rs` — the core live-zone dispatcher (3,289 lines). Walks Anthropic request shapes, identifies compressible blocks within the live zone, dispatches to content-specific compressors, rewrites via byte-range surgery.
+- `crates/cutctx-proxy/src/compression/live_zone_anthropic.rs` — Anthropic `/v1/messages` dispatcher entry point (1,340 lines). Resolves frozen message count, calls `compress_anthropic_live_zone`, translates `LiveZoneOutcome` → `Outcome`.
+- `crates/cutctx-proxy/src/compression/live_zone_openai.rs` — OpenAI Chat Completions `/v1/chat/completions` dispatcher (660 lines).
+- `crates/cutctx-proxy/src/compression/live_zone_responses.rs` — OpenAI Responses `/v1/responses` dispatcher (678 lines).
+- `crates/cutctx-proxy/src/compression/mod.rs` — path classification (`is_compressible_path`, `classify_compressible_path`) and `CompressibleEndpoint` enum.
 
-The Python `PipelineExtensionManager` supports entry-point-based extensions (`cutctx.pipeline_extension` group) with lifecycle hooks (SETUP through RESPONSE_RECEIVED). The Rust proxy has no equivalent extension mechanism — compression logic is hardcoded per provider. If extensibility is needed in the Rust path, a plugin system would need to be designed.
+**What's missing:**
+- Google Gemini compression dispatcher — listed in the provider matrix as "follow-up"
+- Bedrock native payload compression — the Bedrock handler (`crates/cutctx-proxy/src/bedrock/`) forwards but doesn't compress
+- Vertex compression — similar to Bedrock
 
-### 6. Missing Auth-Mode Documentation File
+**What needs unblocking:**
+- The `forward_http` function in `proxy.rs` (line 419) already dispatches to the correct live-zone compressor based on `classify_compressible_path`. The gate is wired. Adding a new provider means:
+  1. Adding a new variant to `CompressibleEndpoint`
+  2. Adding a path match in `classify_compressible_path`
+  3. Implementing the walker in a new `live_zone_<provider>.rs` module
+  4. Calling it from the dispatch block in `forward_http`
 
-The task referenced `docs/auth-modes.md` but this file does not exist. Auth-mode information is scattered across `auth_mode.rs`, `auth_mode.py`, `bedrock.md`, `enterprise-install.md`, and `REALIGNMENT/08-phase-F-auth-mode.md`. A consolidated doc would reduce onboarding friction.
+The Phase B compression infrastructure is **complete and operational** for Anthropic and OpenAI. The remaining work is provider-specific walker implementations, which are mechanical given the established pattern.
+
+### 4. Cross-Cutting Concerns
+
+**Auth flow:**
+- **Rust proxy:** `auth_mode.rs` classifies requests into Payg/OAuth/Subscription based on headers. This is a pure function, no I/O. The `CompressionPolicy::for_mode()` maps the classification to compression decisions.
+- **Python proxy:** Admin auth uses API key + SSO + MFA (lines 3400–3493 of `server.py`). RBAC is in `cutctx_ee` (commercial). The Python proxy also has provider-specific auth (Anthropic API key, OpenAI Bearer token, Gemini x-goog-api-key).
+- **Gap:** The Rust proxy has no RBAC. If enterprise deployments need RBAC on the proxy layer, it would need to be added to `cutctx-proxy`.
+
+**Audit logging:**
+- **Python proxy:** `cutctx.audit.AuditEvent` is logged at system start (line 2352), auth events (lines 3406–3492), and presumably on request completion. The audit logger is `proxy.audit_logger`.
+- **Rust proxy:** Observability is via Prometheus metrics (`observability/prometheus.rs`) and tracing spans. No structured audit log equivalent.
+- **Gap:** Enterprise audit requirements may need a Rust-side structured audit emitter.
+
+**Telemetry:**
+- **Python proxy:** Savings tracking via `SavingsTracker`, stats endpoint, dashboard data.
+- **Rust proxy:** Prometheus metrics (`observability/prometheus.rs`), OpenTelemetry integration (`observability/otel.rs`), compression ratio tracking (`observability/compression_ratio.rs`).
+- **Assessment:** Telemetry is well-instrumented on both sides. The Rust proxy's Prometheus metrics are production-ready with cardinality discipline.
+
+### 5. Extensibility
+
+**Adding a new provider:**
+- **Python proxy:** Add a handler mixin to `CutctxProxy`, register routes in `proxy_routes.py`. The `Provider` ABC in `providers/base.py` defines the contract. The `registry.py` maps providers to transport functions.
+- **Rust proxy:** Add a variant to `CompressibleEndpoint`, implement `live_zone_<provider>.rs`, wire into `forward_http`. The `compression/mod.rs` module provides the extension point.
+- **Assessment:** Both sides have clear extension points. The Python side is more flexible (route registration is dynamic); the Rust side requires code changes but the pattern is established.
+
+**Adding a new compression algorithm:**
+- **Rust:** Implement `ReformatTransform` or `OffloadTransform` from `pipeline/traits.rs`. Register with `CompressionPipelineBuilder`. The orchestrator handles gating and parallel execution.
+- **Python:** Add a transform to `cutctx/transforms/`. The `ContentRouter` dispatches by content type.
+- **Assessment:** The Rust pipeline is well-architected for extension. The Python side is more ad-hoc but functional.
+
+**Adding a new storage backend:**
+- Implement `CcrStore` trait from `ccr/mod.rs`. Three backends exist as templates (InMemory, SQLite, Redis).
+- **Assessment:** Clean and well-documented.
+
+### 6. Risk Spots
+
+**Single Points of Failure:**
+- `server.py` (7,903 lines) — any crash takes down the entire Python proxy
+- `proxy.rs::forward_http` (line 419) — single function handles all request forwarding in the Rust proxy. A panic here would drop the connection (but tokio catches panics per-task).
+
+**Untestable Coupling:**
+- `CutctxProxy.__init__` (lines 461–845) creates 40+ instance attributes with complex initialization logic. Testing individual features requires constructing the entire proxy object.
+- The `intelligence_pipeline` (line 479) is created during init and lives for the proxy's lifetime — hard to mock in isolation.
+
+**Shared Mutable State:**
+- `_compression_caches` (line 5668) is a dict guarded by `_compression_caches_lock` — thread-safe but a contention point under high concurrency.
+- `_compression_executor` (line 740) is a `ThreadPoolExecutor` with configurable max workers — bounded, which is good, but the leaked-threads counter (line 759) indicates this has been a problem.
+
+**Drift Risk:**
+- The Python `CutctxProxy` class attributes (`ANTHROPIC_API_URL`, `OPENAI_API_URL`, etc.) are set as class-level constants (lines 455–459) but then overwritten in `__init__` (lines 485–489). This is a code smell — class attributes shouldn't be mutated per-instance.
+
+---
+
+## Phase B Status
+
+### What works
+- Live-zone block dispatcher for Anthropic (`live_zone_anthropic.rs`)
+- Live-zone block dispatcher for OpenAI Chat (`live_zone_openai.rs`)
+- Live-zone block dispatcher for OpenAI Responses (`live_zone_responses.rs`)
+- Byte-range surgery for cache-safe compression
+- Per-content-type compressor dispatch (SmartCrusher, LogCompressor, SearchCompressor, DiffCompressor)
+- Tool array deterministic sorting (cache stabilization)
+- Cache-control auto-frozen count resolution
+- Compression policy per auth mode
+- SSE state machine for streaming responses
+
+### What's missing
+- Google Gemini compression dispatcher
+- Bedrock native payload compression
+- Vertex compression
+- Model routing in the Rust proxy (currently Python-only)
+- Structured audit logging in the Rust proxy
+
+### What needs unblocking
+- Nothing structural. The Phase B infrastructure is complete. Remaining work is provider-specific walker implementations, which follow an established pattern.
+
+---
 
 ## Summary
 
-CutCtx is a well-structured dual-runtime system where Rust provides the performance-critical compression core and Python provides the orchestration, provider handling, and SDK surface. The PyO3 bridge is the key integration point — it's in-process, low-latency, and keeps the two worlds tightly coupled. The main architectural tension is the ongoing migration from the Python proxy to the Rust proxy, with the Rust path currently in a "lockdown" passthrough state awaiting Phase B activation. The parity crate and shared `auth_mode` logic are the primary mechanisms preventing implementation drift.
+| Area | Status | Notes |
+|------|--------|-------|
+| Dual-runtime architecture | 🟢 Clean | PyO3 bridge is well-scoped, no IPC overhead |
+| Live-zone compression | 🟢 Working | 3 providers wired, pattern established for more |
+| Compression pipeline | 🟢 Extensible | Trait-based, parallel bloat estimation, CCR offload |
+| Auth mode classification | 🟢 Sound | Pure function, per-mode policy, tested |
+| CCR storage | 🟢 Pluggable | 3 backends, trait-based, BLAKE3 keys |
+| `server.py` size | 🔴 7,903 lines | God object, needs decomposition |
+| `deny.toml` permissiveness | 🟡 Phase 0 | Should be tightened for production |
+| Python/Rust duplication | 🟡 Managed | Parity tests exist, but dual maintenance cost |
+| RBAC boundary | 🟡 Opaque | Commercial-only, invisible in OSS |
+| Model routing | 🟡 Python-only | Needs Rust port if proxy migrates |

@@ -1679,6 +1679,59 @@ text-align: right;
   text-align: right;
 }
 
+.decline-reason-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.decline-reason-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.decline-reason-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.decline-reason-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.decline-reason-chip strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.decline-reason-chip span {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    BADGES
    ═══════════════════════════════════════════════════════════════ */
@@ -1934,6 +1987,92 @@ text-align: right;
   font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
+}
+
+.request-row-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+}
+
+.request-row-button svg {
+  color: var(--text-tertiary);
+}
+
+.request-row-button.active {
+  color: var(--accent);
+}
+
+.request-trace-panel {
+  display: grid;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.request-trace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.request-trace-subtitle {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  margin-top: var(--space-xs);
+}
+
+.request-trace-grid {
+  align-items: start;
+}
+
+.request-trace-source-stack {
+  gap: var(--space-md);
+}
+
+.request-trace-payload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.request-trace-payload-card {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.request-trace-payload-title {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.request-trace-payload-block {
+  margin: 0;
+  min-height: 220px;
+  max-height: 360px;
+  overflow: auto;
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diagnostic-row-wrap {
+  align-items: flex-start;
 }
 
 .request-table-note {
@@ -2271,6 +2410,15 @@ OVERVIEW: TREND CHART
     gap: var(--space-sm);
   }
 
+  .request-trace-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .request-trace-payload-grid {
+    grid-template-columns: 1fr;
+  }
+
   .source-percent {
     text-align: left;
   }
@@ -2374,6 +2522,31 @@ grid-template-columns: 1fr;
   .feature-config-controls {
     width: 100%;
     justify-content: space-between;
+    min-width: 0;
+  }
+
+  .feature-config-env {
+    min-width: 0;
+  }
+
+  .feature-config-env code {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .docs-shell {
+    flex-direction: column;
+  }
+
+  .docs-shell > aside {
+    position: static !important;
+    width: 100% !important;
+  }
+
+  .docs-shell > aside nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hero-sidecard-value {
@@ -2833,3 +3006,88 @@ grid-template-columns: 1fr;
   font-size: var(--text-sm);
 }
 
+/* Keep long operator configuration and documentation content inside a phone viewport. */
+@media (max-width: 640px) {
+  .feature-config-controls,
+  .feature-config-env {
+    min-width: 0;
+  }
+
+  .feature-config-env {
+    flex: 1 1 auto;
+    max-width: calc(100% - 44px);
+  }
+
+  .feature-config-env code {
+    min-width: 0;
+    max-width: calc(100% - 31px);
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .docs-shell > div {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+  }
+
+  .docs-shell .panel,
+  .docs-shell .table-shell,
+  .docs-shell .code-panel {
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+.orchestration-studio {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  background:
+    radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 34%),
+    var(--surface-1);
+}
+
+.orchestration-heading { align-items: flex-start; }
+.orchestration-heading .primary-button { white-space: nowrap; }
+.orchestration-notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--green) 12%, var(--surface-2)); color: var(--text-primary); font-size: 13px; }
+.orchestration-tabs { display: flex; gap: 6px; padding: 5px; margin: 18px 0; overflow-x: auto; border-radius: 10px; background: var(--surface-2); }
+.orchestration-tabs button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; }
+.orchestration-tabs button.active { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 1px 5px rgb(0 0 0 / 10%); }
+.orchestration-pane { min-height: 240px; }
+.orchestration-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.orchestration-card { position: relative; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.orchestration-card h3 { margin: 8px 0 4px; font-size: 15px; }
+.orchestration-card p { margin: 3px 0; font-size: 12px; }
+.status-pill { display: inline-flex; padding: 3px 7px; border-radius: 99px; background: color-mix(in srgb, var(--green) 14%, var(--surface-3)); color: var(--green); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.orchestration-card > .status-pill + .status-pill { margin-left: 6px; }
+.status-pill.warning { background: color-mix(in srgb, var(--amber) 14%, var(--surface-3)); color: var(--amber); }
+.orchestration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.orchestration-form { display: grid; grid-template-columns: 1fr 1fr 1.4fr 1.4fr auto; gap: 9px; align-items: end; padding: 14px; border: 1px dashed var(--border); border-radius: 10px; }
+.orchestration-form h3 { grid-column: 1 / -1; margin: 0; font-size: 14px; }
+.orchestration-form input, .orchestration-form select, .orchestration-search, .orchestration-role-list select, .routing-settings-grid input, .routing-settings-grid select, .orchestration-inline-form input, .orchestration-inline-form select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-1); color: var(--text-primary); }
+.orchestration-search { margin-bottom: 12px; }
+.orchestration-model-list, .orchestration-role-list { display: grid; gap: 7px; max-height: 520px; overflow: auto; }
+.orchestration-model-list article, .orchestration-role-list article { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) auto; gap: 12px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.orchestration-model-list article > div:first-child, .orchestration-role-list article > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.orchestration-model-list article > div:first-child span, .orchestration-role-list article > div:first-child span { color: var(--text-secondary); font-size: 11px; }
+.capability-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.capability-list span { padding: 3px 6px; border-radius: 5px; background: var(--surface-3); color: var(--text-secondary); font-size: 10px; }
+.availability, .role-state { padding: 4px 7px; border-radius: 6px; color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, transparent); font-size: 11px; white-space: nowrap; }
+.availability.ok, .role-state.assigned { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.availability.bad { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.orchestration-inline-form { display: flex; gap: 8px; margin-top: 12px; }
+.routing-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 14px; }
+.routing-settings-grid > label { display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.route-preview { grid-column: 1 / -1; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.route-preview h3 { margin: 0; font-size: 14px; }
+.route-preview-result { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 12px; color: var(--text-secondary); font-size: 12px; }
+.route-preview-result strong { color: var(--text-primary); }
+.orchestration-table-wrap { overflow-x: auto; }
+.orchestration-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.orchestration-table th, .orchestration-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.orchestration-table th { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; }
+
+@media (max-width: 900px) {
+  .orchestration-form { grid-template-columns: 1fr; }
+  .orchestration-model-list article, .orchestration-role-list article { grid-template-columns: 1fr; }
+  .routing-settings-grid { grid-template-columns: 1fr; }
+}

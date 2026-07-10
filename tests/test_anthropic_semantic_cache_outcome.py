@@ -72,3 +72,94 @@ async def test_semantic_cache_stats_track_hits_misses_and_tokens() -> None:
     assert stats["total_misses"] == 1
     assert stats["total_stores"] == 1
     assert stats["tokens_avoided"] == 123
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("name", "stored_messages", "request_messages", "stored_model", "request_model", "hit"),
+    [
+        (
+            "cache_control_only",
+            [
+                {
+                    "role": "user",
+                    "content": "repeat this",
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            [{"role": "user", "content": "repeat this"}],
+            "claude-test",
+            "claude-test",
+            True,
+        ),
+        (
+            "timestamp_block_only",
+            [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "repeat this"},
+                        {"type": "timestamp", "timestamp": "2026-07-08T00:00:00Z"},
+                    ],
+                }
+            ],
+            [{"role": "user", "content": [{"type": "text", "text": "repeat this"}]}],
+            "claude-test",
+            "claude-test",
+            True,
+        ),
+        (
+            "system_reminder_only",
+            [{"role": "user", "content": "repeat this"}],
+            [
+                {
+                    "role": "user",
+                    "content": "repeat this <system-reminder>ignore me</system-reminder>   ",
+                }
+            ],
+            "claude-test",
+            "claude-test",
+            True,
+        ),
+        (
+            "different_user_content",
+            [{"role": "user", "content": "repeat this"}],
+            [{"role": "user", "content": "something else"}],
+            "claude-test",
+            "claude-test",
+            False,
+        ),
+        (
+            "different_model",
+            [{"role": "user", "content": "repeat this"}],
+            [{"role": "user", "content": "repeat this"}],
+            "claude-test",
+            "claude-other",
+            False,
+        ),
+    ],
+)
+async def test_semantic_cache_normalized_keys_table(
+    name: str,
+    stored_messages: list[dict],
+    request_messages: list[dict],
+    stored_model: str,
+    request_model: str,
+    hit: bool,
+) -> None:
+    cache = SemanticCache(max_entries=2, ttl_seconds=60)
+
+    await cache.set(
+        stored_messages,
+        stored_model,
+        b'{"message":"cached"}',
+        {"content-type": "application/json"},
+        tokens_saved=17,
+    )
+
+    cached = await cache.get(request_messages, request_model)
+
+    assert (cached is not None) is hit, name
+    if hit:
+        assert cached is not None
+        assert cached.tokens_saved_per_hit == 17

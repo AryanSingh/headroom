@@ -621,6 +621,26 @@ All exceptions include a `details` dict with additional context.
 
 ---
 
+## Orchestration management API
+
+The `/v1/orchestration/*` control-plane routes require the same admin authentication and RBAC checks as other protected management APIs. Send `X-Cutctx-Admin-Key` when API-key administration is enabled.
+
+```bash
+curl -H "X-Cutctx-Admin-Key: $CUTCTX_ADMIN_API_KEY" \
+  http://127.0.0.1:8000/v1/orchestration/config
+
+curl -X POST -H "X-Cutctx-Admin-Key: $CUTCTX_ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"role":"worker","required_capabilities":["tool_calling"]}' \
+  http://127.0.0.1:8000/v1/orchestration/route
+```
+
+`GET|PUT /config` reads or replaces layered configuration; `GET /providers` lists adapter specifications and configured accounts; credential `PUT|DELETE` routes store encrypted secret objects; provider `test` and model `refresh` perform authenticated discovery; `POST /route` previews a deterministic decision; and `GET /executions` returns redacted telemetry. Configuration responses mask custom-header values with `********`; sending that sentinel back preserves the stored value. Authentication headers and API keys must instead be supplied through the encrypted credential route, normally as `{"api_key":"...","headers":{"Authorization":"Bearer ..."}}`.
+
+Invalid payload shapes return `422`, invalid or unresolved policy returns `400`/`409`, and missing admin authorization returns `401`/`403`. `/v1/orchestration/execute` is absent unless `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION=true`; it is a development diagnostic and not the production data plane. See [Orchestration platform](/docs/orchestration-platform) for schemas, layering, transport-account constraints, and deployment guidance.
+
+---
+
 ## Utilities
 
 ### Tokenizer

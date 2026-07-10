@@ -1,0 +1,119 @@
+{
+  "period_days": 3650,
+  "total_tokens_saved": 4150,
+  "total_usd_saved": 0.48,
+  "compression_savings_usd": 0.18,
+  "cache_savings_usd": 0.09,
+  "savings_by_source": {
+    "provider_prompt_cache": 1200,
+    "cutctx_compression": 1000,
+    "tool_schema_compaction": 300,
+    "api_surface_slimming": 150,
+    "semantic_cache": 600,
+    "prefix_cache_self_hosted": 0,
+    "model_routing": 900,
+    "rtk_cli_filtering": 0,
+    "normalization": 0,
+    "output_optimization": 0,
+    "memoization": 0,
+    "batch_routing": 0
+  },
+  "savings_by_source_total": 4150,
+  "savings_by_source_usd": {
+    "provider_prompt_cache": 0.09,
+    "cutctx_compression": 0.18,
+    "tool_schema_compaction": 0.03,
+    "api_surface_slimming": 0.02,
+    "semantic_cache": 0.05,
+    "prefix_cache_self_hosted": 0.0,
+    "model_routing": 0.11,
+    "rtk_cli_filtering": 0.0,
+    "normalization": 0.0,
+    "output_optimization": 0.0,
+    "memoization": 0.0,
+    "batch_routing": 0.0
+  },
+  "savings_sources": [
+    {
+      "id": "provider_prompt_cache",
+      "label": "Provider Prompt Cache",
+      "tokens": 1200,
+      "usd": 0.09
+    },
+    {
+      "id": "cutctx_compression",
+      "label": "Cutctx Compression",
+      "tokens": 1000,
+      "usd": 0.18
+    },
+    {
+      "id": "tool_schema_compaction",
+      "label": "Tool Schema Compaction",
+      "tokens": 300,
+      "usd": 0.03
+    },
+    {
+      "id": "api_surface_slimming",
+      "label": "API Surface Slimming",
+      "tokens": 150,
+      "usd": 0.02
+    },
+    {
+      "id": "semantic_cache",
+      "label": "Semantic Cache",
+      "tokens": 600,
+      "usd": 0.05
+    },
+    {
+      "id": "prefix_cache_self_hosted",
+      "label": "Self-Hosted Prefix Cache",
+      "tokens": 0,
+      "usd": 0.0
+    },
+    {
+      "id": "model_routing",
+      "label": "Model Routing",
+      "tokens": 900,
+      "usd": 0.11
+    },
+    {
+      "id": "rtk_cli_filtering",
+      "label": "RTK CLI Filtering",
+      "tokens": 0,
+      "usd": 0.0
+    },
+    {
+      "id": "normalization",
+      "label": "Tokenizer Normalization",
+      "tokens": 0,
+      "usd": 0.0
+    },
+    {
+      "id": "output_optimization",
+      "label": "Output Optimization",
+      "tokens": 0,
+      "usd": 0.0
+    },
+    {
+      "id": "memoization",
+      "label": "Memoization",
+      "tokens": 0,
+      "usd": 0.0
+    },
+    {
+      "id": "batch_routing",
+      "label": "Batch Routing",
+      "tokens": 0,
+      "usd": 0.0
+    }
+  ],
+  "attribution_note": "All tracked savings sources are tracked independently. The total is the sum of per-source values, not a difference, so there is no double counting. Provider cache and semantic cache discounts are observed on the upstream side; Cutctx compression, self-hosted prefix cache, and model routing are observed on the proxy side.",
+  "validation": {
+    "tokens_match": true,
+    "usd_match": true,
+    "token_total": 4150,
+    "token_sum": 4150,
+    "usd_total": 0.48,
+    "usd_sum": 0.48
+  }
+}

@@ -65,7 +65,9 @@ AI Agent -> Cutctx Proxy -> Upstream LLM Provider
 
 ## Compliance Status
 
-The repo now includes the technical controls needed for enterprise review. Formal certifications and legal/compliance paperwork remain separate business workstreams.
+The repo now includes the technical controls needed for enterprise review.
+Formal certifications and legal/compliance paperwork remain separate business
+workstreams.
 
 | Workstream | Status |
 |------------|--------|
@@ -73,6 +75,28 @@ The repo now includes the technical controls needed for enterprise review. Forma
 | DPA and procurement docs | External legal work required |
 | SOC 2 program | Not represented as completed in code |
 | HIPAA or BAA process | External legal and compliance work required |
+
+## Procurement Review Split
+
+### Available now in product
+
+- Local-first deployment posture
+- Admin authentication and protected admin routes
+- SSO / JWT / OIDC admin auth path
+- RBAC
+- Audit-log query and export path for enterprise deployments
+- Retention controls
+- Air-gap deployment guidance
+
+### External or planned workstreams
+
+- Final DPA / MSA legal approval
+- SOC 2 certification or audit completion
+- HIPAA / BAA process completion
+- Third-party penetration-test evidence
+
+For a reviewer-ready summary with evidence links, use
+`artifacts/enterprise-procurement-packet.md`.
 
 ## Buyer FAQ
 
@@ -87,3 +111,9 @@ Yes. Enterprise deployments can query and export audit logs.
 
 **Can identity be centralized?**
 Yes. Enterprise deployments can use SSO-aware admin auth, RBAC, and SCIM-style provisioning APIs.
+
+## Orchestration state and key custody
+
+`CUTCTX_ORCHESTRATION_DIR` contains `credentials.enc`, the discovered-model cache, and execution telemetry. Back up the directory with the same access controls as other proxy state, but manage `CUTCTX_ORCHESTRATION_MASTER_KEY` separately in a secret manager. The value must be a valid Fernet key. If no external key is set, Cutctx creates `credentials.key` with mode `0600`; that file must be backed up separately from `credentials.enc`. Losing the key makes stored credentials intentionally unrecoverable.
+
+Restore the key before restoring `credentials.enc`, restrict the state directory to the proxy identity, and restart the proxy after restoration. For key rotation, decrypt credentials with the old key, write them through the credential API under the new key, verify provider authentication, and only then retire the old key. Sensitive request headers belong in the encrypted credential payload under `headers`; plaintext orchestration configuration rejects common authentication header names.

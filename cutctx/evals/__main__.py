@@ -190,6 +190,10 @@ def cmd_suite(args: argparse.Namespace) -> None:
     print(f"Tiers: {tiers}")
     print(f"Budget: ${args.budget:.2f}")
     print(f"Port: {args.port}")
+    if args.compression_only:
+        print("Selection: compression-only benchmarks")
+    if args.benchmark_name:
+        print(f"Benchmarks: {', '.join(args.benchmark_name)}")
     print("=" * 60)
 
     runner = SuiteRunner(
@@ -198,6 +202,8 @@ def cmd_suite(args: argparse.Namespace) -> None:
         budget_usd=args.budget,
         cutctx_port=args.port,
         auto_start_proxy=not args.no_proxy,
+        benchmark_names=list(args.benchmark_name) if args.benchmark_name else None,
+        runner_types=["compression_only"] if args.compression_only else None,
     )
 
     result = runner.run()
@@ -450,6 +456,17 @@ Install dependencies:
     suite_parser.add_argument("--port", type=int, default=8787, help="Cutctx proxy port")
     suite_parser.add_argument("--ci", action="store_true", help="CI mode: exit 1 on any failure")
     suite_parser.add_argument("--no-proxy", action="store_true", help="Don't auto-start proxy")
+    suite_parser.add_argument(
+        "--compression-only",
+        action="store_true",
+        help="Run only zero-cost compression-only benchmarks within the selected tiers.",
+    )
+    suite_parser.add_argument(
+        "--benchmark-name",
+        action="append",
+        default=None,
+        help="Run only the named benchmark(s). Repeat for multiple names.",
+    )
     suite_parser.add_argument("-o", "--output", help="Output directory for reports")
     suite_parser.set_defaults(func=cmd_suite)
 

@@ -1,0 +1,77 @@
+{
+  "seed": 42,
+  "compressors": [
+    "raw_passthrough"
+  ],
+  "datasets": [
+    "CodeSamples",
+    "RAGSamples",
+    "MixedAgentTraces"
+  ],
+  "totals": {
+    "datasets": 3,
+    "compressors": 1,
+    "cells": 3,
+    "skipped_cells": 0,
+    "errors": 0,
+    "duration_seconds": 0.007063627243041992
+  },
+  "metadata": {},
+  "results": [
+    {
+      "dataset": "CodeSamples",
+      "compressor": "raw_passthrough",
+      "n": 2,
+      "ratio": 1.0,
+      "tokens_saved": 0,
+      "tokens_per_second": null,
+      "avg_ms": 0.0,
+      "p50_ms": 0.0,
+      "errors": 0,
+      "skipped": false,
+      "f1": 1.0,
+      "rouge_l": 1.0,
+      "information_recall": 1.0,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 1.0
+    },
+    {
+      "dataset": "RAGSamples",
+      "compressor": "raw_passthrough",
+      "n": 2,
+      "ratio": 1.0,
+      "tokens_saved": 0,
+      "tokens_per_second": null,
+      "avg_ms": 0.0,
+      "p50_ms": 0.0,
+      "errors": 0,
+      "skipped": false,
+      "f1": 1.0,
+      "rouge_l": 1.0,
+      "information_recall": 1.0,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 1.0
+    },
+    {
+      "dataset": "MixedAgentTraces",
+      "compressor": "raw_passthrough",
+      "n": 2,
+      "ratio": 1.0,
+      "tokens_saved": 0,
+      "tokens_per_second": null,
+      "avg_ms": 0.0,
+      "p50_ms": 0.0,
+      "errors": 0,
+      "skipped": false,
+      "f1": 1.0,
+      "rouge_l": 1.0,
+      "information_recall": 1.0,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 1.0
+    }
+  ],
+  "timestamp": "2026-07-10T10:08:57.450740"
+}

@@ -1,0 +1,37 @@
+{
+  "scenarios": [
+    {
+      "name": "cache-hit",
+      "request": {
+        "method": "POST",
+        "path": "/v1/compress",
+        "json": {"messages": [{"role": "user", "content": "repeatable staging cache payload"}], "model": "gpt-4o"}
+      },
+      "expected_status": 200,
+      "trace": {"cache.hit": true}
+    },
+    {
+      "name": "rate-limit-denial",
+      "request": {
+        "method": "POST",
+        "path": "/v1/compress",
+        "json": {"messages": [{"role": "user", "content": "configured rate-limit exercise"}], "model": "gpt-4o"}
+      },
+      "expected_status": 429,
+      "trace": {
+        "compression.decline_reason": "rate_limit_exceeded",
+        "tags.rate_limit_denied": "true"
+      }
+    },
+    {
+      "name": "provider-fallback",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "json": {"messages": [{"role": "user", "content": "configured provider-fallback exercise"}], "model": "gpt-4o"}
+      },
+      "expected_status": 200,
+      "trace": {"fallback.attempted": true}
+    }
+  ]
+}

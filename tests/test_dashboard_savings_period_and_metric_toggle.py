@@ -132,15 +132,20 @@ def test_last_24_hours_tab_shows_real_data_not_zero() -> None:
 
             # 19 buckets * 50,000 tokens_saved = 950,000 -> "950.0k"
             expect(page.get_by_text("950.0k")).to_be_visible(timeout=5000)
-            expect(page.locator(".metric-value", has_text="$9.500")).to_be_visible()
-            expect(page.get_by_text("190")).to_be_visible()
+            expect(page.locator(".metric-value", has_text="$9.500").first).to_be_visible()
+            coverage_card = page.locator(".metric-card").filter(
+                has=page.get_by_text("Attribution coverage", exact=True)
+            )
+            expect(coverage_card).to_contain_text("100%")
 
             # Bonus behavior enabled by the same fix: per-model attribution
             # now populates for non-lifetime periods (bucket series carries
             # by_model), while per-client stays lifetime-only (no by_client
             # in the bucket series).
-            expect(page.locator(".source-name:has-text('claude-sonnet-5')")).to_be_visible()
-            expect(page.get_by_text("No client data yet")).to_be_visible()
+            model_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by model", exact=True))
+            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+            expect(model_panel.get_by_text("claude-sonnet-5", exact=True)).to_be_visible()
+            expect(client_panel.get_by_text("No client data yet", exact=True)).to_be_visible()
         finally:
             browser.close()
 
@@ -172,7 +177,10 @@ def test_last_7_days_tab_shows_real_data_not_zero() -> None:
 
             # 4 buckets * 100,000 tokens_saved = 400,000 -> "400.0k"
             expect(page.get_by_text("400.0k")).to_be_visible(timeout=5000)
-            expect(page.get_by_text("$4.000")).to_be_visible()
+            created_card = page.locator(".metric-card").filter(
+                has=page.get_by_text("Cutctx-created savings", exact=True)
+            )
+            expect(created_card).to_contain_text("$4.000")
         finally:
             browser.close()
 
@@ -194,16 +202,84 @@ def test_attribution_metric_toggle_switches_between_tokens_and_cost() -> None:
             expect(toggle).to_be_visible(timeout=5000)
 
             # Default view is tokens-first labeling.
-            expect(page.locator(".source-meta").first).to_contain_text("tokens")
-            first_row_tokens_mode = page.locator(".source-row").first.inner_text()
+            model_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by model", exact=True))
+            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+
+            expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
+            first_row_tokens_mode = client_panel.locator(".source-row").first.inner_text()
             assert "4,528,851 tokens" in first_row_tokens_mode
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first and re-sorts by usd descending.
-            expect(page.locator(".source-meta").first).to_contain_text("$")
-            first_row_cost_mode = page.locator(".source-row").first.inner_text()
+            expect(client_panel.locator(".source-meta").first).to_contain_text("$")
+            first_row_cost_mode = client_panel.locator(".source-row").first.inner_text()
             assert "$9.058" in first_row_cost_mode
+        finally:
+            browser.close()
+
+
+def test_session_view_prefers_explicit_created_observed_fields_and_shows_declines() -> None:
+    """Session savings should honor explicit created/observed totals and surface decline reasons compactly."""
+    mock_history = _base_mock_history()
+    mock_history["display_session"].update(
+        {
+            "created_savings_usd": 6.25,
+            "observed_provider_savings_usd": 3.5,
+            "savings_by_source_tokens": {
+                "cutctx_compression": 1200,
+                "provider_prompt_cache": 800,
+            },
+            "savings_by_source_usd": {
+                "cutctx_compression": 1.25,
+                "provider_prompt_cache": 0.75,
+            },
+        }
+    )
+    mock_stats = {
+        "compression_declined_total": {
+            "bypass_header": 4,
+            "compression_disabled": 2,
+        },
+        "cost": {
+            "savings_by_source": {
+                "tokens": {
+                    "cutctx_compression": 1200,
+                    "provider_prompt_cache": 800,
+                },
+                "usd": {
+                    "cutctx_compression": 9999.0,
+                    "provider_prompt_cache": 8888.0,
+                },
+            },
+        },
+    }
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1400, "height": 1000}, color_scheme="dark")
+            _install_dashboard_routes(page, mock_history, mock_stats)
+
+            page.goto("http://cutctx.local/dashboard/savings", wait_until="load")
+            page.get_by_role("button", name="Current Session").click(force=True)
+
+            created_card = page.locator(".metric-card").filter(
+                has=page.get_by_text("Cutctx-created savings", exact=True)
+            )
+            observed_card = page.locator(".metric-card").filter(
+                has=page.get_by_text("Provider savings preserved", exact=True)
+            )
+
+            expect(created_card).to_contain_text("$6.250", timeout=5000)
+            expect(observed_card).to_contain_text("$3.500")
+            source_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by source", exact=True)
+            )
+            expect(source_panel).to_contain_text("1,200 tokens")
+            expect(source_panel).not_to_contain_text("9,999")
+            expect(page.locator(".decline-reason-strip")).to_be_visible()
+            expect(page.locator(".decline-reason-chip").first).to_contain_text("Bypass header")
         finally:
             browser.close()
 
@@ -239,15 +315,16 @@ def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> 
             expect(toggle).to_be_visible(timeout=5000)
 
             # Default view is tokens-first labeling, sorted by tokens desc.
-            expect(page.locator(".source-meta").first).to_contain_text("tokens")
-            first_row_tokens_mode = page.locator(".source-row").first.inner_text()
+            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+            expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
+            first_row_tokens_mode = client_panel.locator(".source-row").first.inner_text()
             assert "7,457,726 tokens" in first_row_tokens_mode
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first; requests count is preserved.
-            expect(page.locator(".source-meta").first).to_contain_text("$")
-            first_row_cost_mode = page.locator(".source-row").first.inner_text()
+            expect(client_panel.locator(".source-meta").first).to_contain_text("$")
+            first_row_cost_mode = client_panel.locator(".source-row").first.inner_text()
             assert "$14.92" in first_row_cost_mode
             assert "403 requests" in first_row_cost_mode
         finally:

@@ -1,4 +1,6 @@
 import {
+  AlertTriangle,
+  ArrowUpRight,
   ArrowRight,
   BarChart3,
   Coins,
@@ -26,8 +28,14 @@ import {
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 import { fetchPeriodStats } from '../lib/period-stats';
 import {
+  getAttributionCoverage,
+  getCreatedObservedSavingsTokens,
+  getCreatedObservedSavingsUsd,
   getDurationSavingsUsd,
   LIFETIME_SAVINGS_SOURCES,
+  isVisibleSavingsRow,
+  sumCreatedSavingsObservedUsd,
+  sumObservedProviderSavingsObservedUsd,
   sumSavingsUsd,
   sumSavingsObservedUsd,
 } from '../lib/savings-sources';
@@ -169,18 +177,6 @@ function getSessionSavingsUsd(stats) {
   );
 }
 
-function getSessionSavingsObservedUsd(stats) {
-  const cost = stats?.cost || {};
-  
-  // Just use the sum of observed_usd fields from cost
-  let observedSum = 0;
-  for (const [key] of LIFETIME_SAVINGS_SOURCES) {
-    const observedKey = key.replace('_usd', '_observed_usd');
-    observedSum += Number(cost?.[observedKey] || 0);
-  }
-  return observedSum;
-}
-
 function getSessionAttributionTotals(stats) {
   const cost = stats?.cost || stats?.summary?.cost || {};
   const source = cost?.savings_by_source || stats?.savings_by_source || {};
@@ -211,34 +207,30 @@ function getLifetimeTotalSavingsUsd(stats) {
   }, 0);
 }
 
-function getLifetimeTotalSavingsObservedUsd(stats) {
-  const lifetime = stats?.persistent_savings?.lifetime || {};
-  return LIFETIME_SAVINGS_SOURCES.reduce((sum, [lifetimeKey]) => {
-    return sum + Number(lifetime[lifetimeKey.replace('_usd', '_observed_usd')] || 0);
-  }, 0);
-}
-
-function buildSourceRows(stats) {
-const cost = stats?.cost || stats?.summary?.cost || {};
+function buildSourceRows(stats, periodRecord = null, duration = 'lifetime') {
+const scoped = duration !== 'lifetime';
+const cost = scoped ? (periodRecord || {}) : (stats?.cost || stats?.summary?.cost || {});
 const costSavingsBySource = cost?.savings_by_source || {};
 const sourceTokens = {
-  ...(costSavingsBySource?.tokens || {}),
-  ...(stats?.savings_by_source?.tokens || {}),
+  ...(scoped ? periodRecord?.savings_by_source_tokens : costSavingsBySource?.tokens || {}),
+  ...(scoped ? {} : stats?.savings_by_source?.tokens || {}),
 };
 const sourceUsd = {
-  ...(costSavingsBySource?.usd || {}),
-  ...(stats?.savings_by_source?.usd || {}),
+  ...(scoped ? periodRecord?.savings_by_source_usd : costSavingsBySource?.usd || {}),
+  ...(scoped ? {} : stats?.savings_by_source?.usd || {}),
 };
 const costBreakdown = cost?.breakdown || {};
-const sessionTokens = stats?.tokens || {};
-const prefixTotals = stats?.prefix_cache?.totals || {};
+const sessionTokens = scoped ? {} : stats?.tokens || {};
+const prefixTotals = scoped ? {} : stats?.prefix_cache?.totals || {};
 const cliFilteringLabel =
   stats?.savings?.by_layer?.cli_filtering?.label
   || stats?.context_tool?.label
   || stats?.context_tool?.configured
   || 'RTK / CLI filtering';
 
-  const sessionCompression = Number(sessionTokens.proxy_compression_saved || 0);
+  const sessionCompression = scoped
+    ? Number(periodRecord?.tokens_saved || 0)
+    : Number(sessionTokens.proxy_compression_saved || 0);
   const sessionSchemaCompaction = Number(sessionTokens.schema_compaction_saved || 0);
   const sessionCacheRead = Number(prefixTotals.cache_read_tokens || 0);
   const sessionCliFiltering = Number(sessionTokens.cli_filtering_saved || 0);
@@ -296,7 +288,7 @@ usd: Math.max(
     },
     {
       key: 'semantic_cache',
-      label: 'Semantic cache',
+      label: 'Response cache',
       tokens: Number(sourceTokens.semantic_cache || 0),
 usd: Math.max(
   Number(cost.semantic_cache_savings_usd || 0),
@@ -1124,6 +1116,142 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emp
   );
 }
 
+function SavingsSplitPanel({ metric, created, observed, coverage }) {
+  const byUsd = metric === 'usd';
+  const createdValue = byUsd ? created.usd : created.tokens;
+  const observedValue = byUsd ? observed.usd : observed.tokens;
+  const total = createdValue + observedValue;
+  const createdPercent = total > 0 ? (createdValue / total) * 100 : 0;
+  const observedPercent = total > 0 ? (observedValue / total) * 100 : 0;
+  const valueLabel = (value, usd) =>
+    byUsd ? `${formatCurrency(usd)} · ${formatInteger(value)} tokens` : `${formatInteger(value)} tokens · ${formatCurrency(usd)}`;
+
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow">Savings mix</div>
+          <h2>Cutctx share of attributed savings</h2>
+          <p>Created savings come from Cutctx features. Observed savings come from upstream provider prompt-cache hits.</p>
+          {!coverage.complete ? (
+            <p className="metric-footnote">
+              Partial historical coverage · {formatPercent(coverage.percent)} of requests attributed
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="source-stack">
+        {[
+          {
+            key: 'created',
+            label: 'Created by Cutctx',
+            percent: createdPercent,
+            tokens: created.tokens,
+            usd: created.usd,
+          },
+          {
+            key: 'observed',
+            label: 'Observed at provider',
+            percent: observedPercent,
+            tokens: observed.tokens,
+            usd: observed.usd,
+          },
+        ].map((row) => (
+          <div key={row.key} className="source-row">
+            <div className="source-labels">
+              <div className="source-name">{row.label}</div>
+              <div className="source-meta">{valueLabel(row.tokens, row.usd)}</div>
+            </div>
+
+            <div className="source-bar-track">
+              <div className="source-bar-fill" style={{ width: `${Math.min(100, row.percent)}%` }} />
+            </div>
+            <div className="source-percent">{formatPercent(row.percent)}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+const DECLINE_REASON_LABELS = {
+  bypass_header: 'Bypass header',
+  compression_disabled: 'Compression disabled',
+  no_messages: 'No messages',
+  license_denied: 'License denied',
+  unknown: 'Unknown',
+};
+
+function extractDeclineReasons(stats) {
+  const candidates = [
+    stats?.compression_declined_total,
+    stats?.summary?.compression_declined_total,
+    stats?.compression?.declined_total,
+    stats?.compression?.decline_reasons,
+    stats?.savings?.decline_reasons,
+    stats?.tokens?.compression_declined_total,
+    stats?.summary?.compression_decline_reasons,
+  ];
+
+  const counts = new Map();
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+
+    for (const [reason, value] of Object.entries(candidate)) {
+      const count = Number(
+        value && typeof value === 'object'
+          ? value.count ?? value.total ?? value.value ?? value.tokens ?? 0
+          : value,
+      );
+
+      if (Number.isFinite(count) && count > 0) {
+        counts.set(reason, (counts.get(reason) || 0) + count);
+      }
+    }
+
+    if (counts.size > 0) {
+      break;
+    }
+  }
+
+  return Array.from(counts.entries())
+    .map(([reason, count]) => ({
+      key: reason,
+      reason,
+      label: DECLINE_REASON_LABELS[reason] || reason.replace(/_/g, ' '),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function CompressionDeclineStrip({ stats }) {
+  const reasons = extractDeclineReasons(stats);
+  if (reasons.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="decline-reason-strip" aria-label="Compression decline reasons">
+      <div className="decline-reason-heading">
+        <AlertTriangle size={14} />
+        <span>Declines</span>
+      </div>
+      <div className="decline-reason-list">
+        {reasons.map((reason) => (
+          <span key={reason.key} className="decline-reason-chip" title={reason.reason}>
+            <strong>{reason.label}</strong>
+            <span>{formatInteger(reason.count)}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function RouterDiagnosticsPanel({ routeCounts }) {
   if (!routeCounts || Object.keys(routeCounts).length === 0) {
@@ -1741,6 +1869,284 @@ function formatMaybePercent(value) {
   return value == null ? '—' : formatPercent(Math.min(100, Math.max(0, Number(value || 0))));
 }
 
+const TRACE_SOURCE_LABELS = {
+  cutctx_compression: 'Direct compression',
+  provider_prompt_cache: 'Provider prompt cache',
+  semantic_cache: 'Response cache',
+  prefix_cache_self_hosted: 'Self-hosted prefix cache',
+  model_routing: 'Model routing',
+  tool_schema_compaction: 'Tool schema compaction',
+  api_surface_slimming: 'API surface slimming',
+  normalization: 'Tokenizer normalization',
+  memoization: 'Tool memoization',
+  output_optimization: 'Output optimization',
+  batch_routing: 'Batch routing',
+};
+
+function formatTraceTimestamp(timestamp) {
+  if (!timestamp) {
+    return 'Unknown time';
+  }
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return String(timestamp);
+  }
+  return date.toLocaleString();
+}
+
+function formatTracePayload(payload) {
+  if (payload == null) {
+    return 'No payload captured.';
+  }
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+}
+
+function RequestTraceInspector({ request, trace, loading, error, onClose }) {
+  if (!request && !trace && !loading && !error) {
+    return null;
+  }
+
+  const detail = trace?.trace || null;
+  const sourceRows = Object.entries(detail?.compression?.savings_by_source_tokens || {})
+    .map(([key, tokens]) => ({
+      key,
+      label: TRACE_SOURCE_LABELS[key] || key.replace(/_/g, ' '),
+      tokens: Number(tokens || 0),
+      usd: Number(detail?.compression?.savings_by_source_usd?.[key] || 0),
+    }))
+    .filter((row) => row.tokens > 0 || row.usd > 0)
+    .sort((a, b) => b.tokens - a.tokens || b.usd - a.usd);
+
+  return (
+    <section className="panel request-trace-panel">
+      <div className="request-trace-header">
+        <div>
+          <div className="eyebrow">Inspector</div>
+          <h2>Request trace</h2>
+          <p className="request-trace-subtitle">
+            {request?.request_id || detail?.request_id || 'No request selected'}
+            {request?.timestamp ? ` · ${formatTraceTimestamp(request.timestamp)}` : ''}
+          </p>
+        </div>
+        <button className="ghost-button" onClick={onClose} type="button">
+          Hide inspector
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="skeleton" style={{ height: '320px', borderRadius: 'var(--radius-lg)' }} />
+      ) : error ? (
+        <div className="alert-card" role="alert">
+          <span>Failed to load trace: {error}</span>
+        </div>
+      ) : detail ? (
+        <>
+          <div className="metric-grid metric-grid-four request-trace-metrics">
+            <MetricCard
+              icon={Layers}
+              iconColor="blue"
+              label="Requested model"
+              value={detail.provider?.requested_model || '—'}
+              footnote={
+                detail.routing?.routed
+                  ? `Actual: ${detail.provider?.actual_model || '—'}`
+                  : 'No routing override'
+              }
+            />
+            <MetricCard
+              icon={PiggyBank}
+              iconColor="green"
+              label="Total saved"
+              value={formatInteger(
+                detail.compression?.total_saved_tokens || detail.compression?.tokens_saved || 0,
+              )}
+              footnote={`${formatMaybePercent(detail.compression?.total_savings_percent || detail.compression?.savings_percent)} reduction`}
+            />
+            <MetricCard
+              icon={Coins}
+              iconColor="amber"
+              label="Request cost"
+              value={formatCurrency(detail.cost?.request_cost_usd || 0)}
+              footnote={`${formatCurrency(detail.routing?.saved_usd || 0)} routing savings observed`}
+            />
+            <MetricCard
+              icon={Clock}
+              iconColor="purple"
+              label="Latency"
+              value={`${Number(detail.latency?.total_ms || 0).toFixed(1)} ms`}
+              footnote={`Compression ${Number(detail.latency?.optimization_ms || 0).toFixed(1)} ms`}
+            />
+          </div>
+
+          <div className="overview-bottom-grid request-trace-grid">
+            <div className="overview-side-stack">
+              <section className="panel panel-compact">
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow">Routing</div>
+                    <h2>Path taken</h2>
+                    <p>
+                      {detail.routing?.routed
+                        ? `${detail.routing?.source_model || '—'} to ${detail.routing?.target_model || '—'}`
+                        : 'The request stayed on its requested model.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="diagnostic-stack">
+                  <div className="diagnostic-row">
+                    <span>Reason</span>
+                    <strong>{detail.routing?.reason || '—'}</strong>
+                  </div>
+                  <div className="diagnostic-row">
+                    <span>Decline reason</span>
+                    <strong>{detail.compression?.decline_reason || '—'}</strong>
+                  </div>
+                  <div className="diagnostic-row">
+                    <span>Fallback</span>
+                    <strong>
+                      {detail.fallback
+                        ? detail.fallback?.attempted
+                          ? `${detail.fallback?.provider || 'provider'} · ${detail.fallback?.reason || 'attempted'}`
+                          : [
+                              detail.fallback?.active_provider || detail.fallback?.provider,
+                              detail.fallback?.circuit_breaker_state
+                                ? `circuit ${detail.fallback.circuit_breaker_state}`
+                                : null,
+                              detail.fallback?.reason,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || 'Tracked only'
+                        : 'Not used'}
+                    </strong>
+                  </div>
+                  {detail.fallback?.circuit_breaker_retry_after_s != null ? (
+                    <div className="diagnostic-row">
+                      <span>Retry after</span>
+                      <strong>{Number(detail.fallback.circuit_breaker_retry_after_s).toFixed(1)} s</strong>
+                    </div>
+                  ) : null}
+                  {detail.fallback?.active_base_url ? (
+                    <div className="diagnostic-row diagnostic-row-wrap">
+                      <span>Active upstream</span>
+                      <strong>{detail.fallback.active_base_url}</strong>
+                    </div>
+                  ) : null}
+                  <div className="diagnostic-row diagnostic-row-wrap">
+                    <span>Transforms</span>
+                    <strong>
+                      {(detail.compression?.transforms_applied || []).join(', ') || '—'}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel panel-compact">
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow">Savings</div>
+                    <h2>Source breakdown</h2>
+                  </div>
+                </div>
+                {sourceRows.length === 0 ? (
+                  <EmptyState
+                    icon={Sparkles}
+                    title="No trace attribution"
+                    description="This request did not persist a source-level savings breakdown."
+                  />
+                ) : (
+                  <div className="source-stack request-trace-source-stack">
+                    {sourceRows.map((row) => (
+                      <div key={row.key} className="source-row">
+                        <div className="source-labels">
+                          <div className="source-name">{row.label}</div>
+                          <div className="source-meta">
+                            {`${formatInteger(row.tokens)} tokens · ${formatCurrency(row.usd)}`}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <div className="overview-side-stack">
+              <section className="panel panel-compact">
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow">Payloads</div>
+                    <h2>Before and after compression</h2>
+                    <p>Compare the original request payload with the compressed upstream payload.</p>
+                  </div>
+                </div>
+                <div className="request-trace-payload-grid">
+                  <div className="request-trace-payload-card">
+                    <div className="request-trace-payload-title">Original request</div>
+                    <pre className="request-trace-payload-block">
+                      {formatTracePayload(detail.messages?.request_messages)}
+                    </pre>
+                  </div>
+                  <div className="request-trace-payload-card">
+                    <div className="request-trace-payload-title">Compressed upstream payload</div>
+                    <pre className="request-trace-payload-block">
+                      {formatTracePayload(detail.messages?.compressed_messages)}
+                    </pre>
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel panel-compact">
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow">Metadata</div>
+                    <h2>Headers and timings</h2>
+                  </div>
+                </div>
+                <div className="diagnostic-stack">
+                  <div className="diagnostic-row diagnostic-row-wrap">
+                    <span>Turn ID</span>
+                    <strong>{detail.turn_id || '—'}</strong>
+                  </div>
+                  <div className="diagnostic-row diagnostic-row-wrap">
+                    <span>Tags</span>
+                    <strong>
+                      {Object.keys(detail.tags || {}).length > 0
+                        ? Object.entries(detail.tags)
+                            .map(([key, value]) => `${key}:${value}`)
+                            .join(', ')
+                        : '—'}
+                    </strong>
+                  </div>
+                  <div className="diagnostic-row diagnostic-row-wrap">
+                    <span>Pipeline timings</span>
+                    <strong>
+                      {Object.keys(detail.latency?.pipeline_timing || {}).length > 0
+                        ? Object.entries(detail.latency.pipeline_timing)
+                            .map(([key, value]) => `${key} ${Number(value || 0).toFixed(1)}ms`)
+                            .join(', ')
+                        : '—'}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </>
+      ) : (
+        <EmptyState
+          icon={Activity}
+          title="Select a request"
+          description="Choose a recent request to inspect routing, compression, and savings details."
+        />
+      )}
+    </section>
+  );
+}
+
 export default function Overview() {
   const {
     stats,
@@ -1756,6 +2162,10 @@ export default function Overview() {
   const [durationLoading, setDurationLoading] = useState(true);
   const [durationError, setDurationError] = useState(null);
   const [attributionMetric, setAttributionMetric] = useState('tokens'); // 'tokens' | 'usd'
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [requestTrace, setRequestTrace] = useState(null);
+  const [requestTraceLoading, setRequestTraceLoading] = useState(false);
+  const [requestTraceError, setRequestTraceError] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -1765,16 +2175,21 @@ export default function Overview() {
       setDurationError(null);
       
       if (duration === 'session') {
-        if (historyData?.display_session) {
-          setDurationData(historyData.display_session);
+        if (active) {
+          setDurationData(
+            historyData?.display_session
+            || stats?.display_session
+            || stats?.persistent_savings?.display_session
+            || {},
+          );
         }
         setDurationLoading(false);
         return;
       }
       
       if (duration === 'lifetime') {
-        if (historyData?.lifetime) {
-          setDurationData(historyData.lifetime);
+        if (active) {
+          setDurationData(historyData?.lifetime || stats?.persistent_savings?.lifetime || {});
         }
         setDurationLoading(false);
         return;
@@ -1801,7 +2216,7 @@ export default function Overview() {
     return () => {
       active = false;
     };
-  }, [duration, historyData]);
+  }, [duration, historyData, stats]);
 
   const loading = contextLoading || (durationLoading && !durationData);
   const error = contextError || durationError;
@@ -1812,7 +2227,6 @@ export default function Overview() {
   const tokens = stats?.tokens || {};
   const persistent = stats?.persistent_savings || {};
   const displaySession = persistent.display_session || {};
-  const lifetime = persistent.lifetime || {};
   const prefixCache = stats?.prefix_cache || {};
   const knowledgeGraph = stats?.knowledge_graph || {};
   const featureAvailability = stats?.feature_availability || {};
@@ -1821,78 +2235,42 @@ export default function Overview() {
   const historyFreshnessLabel = historyData?.generated_at
     ? `History synced ${formatRelativeTime(historyData.generated_at)} from proxy`
     : 'Waiting for proxy history';
-  const sessionTokensSaved = Number(tokens.saved || 0);
-  const sessionRequests = Number(requests.total || 0);
-  const sessionSavingsUsd = getSessionSavingsUsd(stats);
-  const sessionSavingsObservedUsd = getSessionSavingsObservedUsd(stats);
-  const displaySessionTokensSaved = Number(displaySession.tokens_saved || 0);
-  const displaySessionRequests = Number(displaySession.requests || 0);
-  const displaySessionSavingsUsd = sumSavingsUsd(displaySession);
-  const displaySessionSavingsObservedUsd = sumSavingsObservedUsd(displaySession);
-  const lifetimeTokensSaved = Number(lifetime.tokens_saved || 0);
-  const sessionInputTokens = Math.max(
-    Number(tokens.total_before_compression || 0),
-    Number(tokens.input || 0),
-  );
-  const displaySessionInputTokens = Number(displaySession.total_input_tokens || 0);
-  const lifetimeInputTokens = Number(lifetime.total_input_tokens || 0);
   const lifetimeSavingsUsd = getLifetimeTotalSavingsUsd(stats);
-  const lifetimeSavingsObservedUsd = getLifetimeTotalSavingsObservedUsd(stats);
-  const headlineSources = [
-    {
-      key: 'session',
-      tokens: sessionTokensSaved,
-      requests: sessionRequests,
-      input: sessionInputTokens,
-      savingsUsd: sessionSavingsUsd,
-      savingsObservedUsd: sessionSavingsObservedUsd,
-    },
-    {
-      key: 'display_session',
-      tokens: displaySessionTokensSaved,
-      requests: displaySessionRequests,
-      input: displaySessionInputTokens,
-      savingsUsd: displaySessionSavingsUsd,
-      savingsObservedUsd: displaySessionSavingsObservedUsd,
-    },
-    {
-      key: 'lifetime',
-      tokens: lifetimeTokensSaved,
-      requests: Number(lifetime.requests || 0),
-      input: lifetimeInputTokens,
-      savingsUsd: lifetimeSavingsUsd,
-      savingsObservedUsd: lifetimeSavingsObservedUsd,
-    },
-  ];
-  const pickHeadlineSource = (field) =>
-    headlineSources.reduce((best, candidate) =>
-      Number(candidate[field] || 0) >= Number(best[field] || 0) ? candidate : best,
-    );
-
   const isLifetimeMode = duration === 'lifetime';
-
-  const tokensHeadline = isLifetimeMode ? pickHeadlineSource('tokens') : { tokens: durationData?.tokens_saved || 0 };
-  const requestsHeadline = isLifetimeMode ? pickHeadlineSource('requests') : { requests: durationData?.requests || 0 };
-  const inputHeadline = isLifetimeMode ? pickHeadlineSource('input') : { input: durationData?.total_input_tokens || 0 };
-  const savingsHeadline = isLifetimeMode
-    ? pickHeadlineSource('savingsUsd')
-    : {
-        savingsUsd: getDurationSavingsUsd(durationData),
-        savingsObservedUsd:
-          sumSavingsObservedUsd(durationData)
-          || Number(durationData?.compression_savings_observed_usd || 0),
-      };
+  const selectedRecord = duration === 'session'
+    ? (historyData?.display_session || stats?.display_session || stats?.persistent_savings?.display_session || {})
+    : duration === 'lifetime'
+      ? (historyData?.lifetime || stats?.persistent_savings?.lifetime || {})
+      : durationData || {};
+  const tokensHeadline = { tokens: selectedRecord.tokens_saved || 0 };
+  const requestsHeadline = { requests: selectedRecord.requests || 0 };
+  const inputHeadline = { input: selectedRecord.total_input_tokens || 0 };
+  const savingsHeadline = {
+    key: duration,
+    savingsUsd: getDurationSavingsUsd(selectedRecord),
+    savingsObservedUsd:
+      sumSavingsObservedUsd(selectedRecord)
+      || Number(selectedRecord.compression_savings_observed_usd || 0),
+    createdSavingsUsd: getCreatedObservedSavingsUsd(selectedRecord).createdUsd,
+    createdSavingsObservedUsd:
+      sumCreatedSavingsObservedUsd(selectedRecord)
+      || Number(selectedRecord.compression_savings_observed_usd || 0),
+    observedProviderSavingsUsd: getCreatedObservedSavingsUsd(selectedRecord).observedUsd,
+    observedProviderSavingsObservedUsd: sumObservedProviderSavingsObservedUsd(selectedRecord),
+  };
 
   const effectiveTokensSaved = Number(tokensHeadline.tokens || 0);
   const effectiveRequests = Number(requestsHeadline.requests || 0);
   const effectiveInputTokens = Number(inputHeadline.input || 0);
-  const effectiveSavingsPercent = durationData?.savings_percent != null && !isLifetimeMode
-    ? durationData.savings_percent 
+  const effectiveSavingsPercent = selectedRecord.savings_percent != null && !isLifetimeMode
+    ? selectedRecord.savings_percent
     : (effectiveInputTokens > 0 || effectiveTokensSaved > 0 ? (effectiveTokensSaved / Math.max(effectiveInputTokens, effectiveTokensSaved)) * 100 : Number(tokens.savings_percent || displaySession.savings_percent || 0));
 
   const sessionCostWithoutCutctx = Number(summary?.cost?.without_cutctx_usd || 0);
   const sessionCostWithCutctx = Number(summary?.cost?.with_cutctx_usd || 0);
   const effectiveSavingsUsd = Number(savingsHeadline.savingsUsd || 0);
+  const effectiveCreatedSavingsUsd = Number(savingsHeadline.createdSavingsUsd || 0);
+  const effectiveObservedProviderSavingsUsd = Number(savingsHeadline.observedProviderSavingsUsd || 0);
   
   const moneySavedFootnote = isLifetimeMode ? (
     savingsHeadline.key === 'session'
@@ -1902,9 +2280,9 @@ export default function Overview() {
           ? 'Includes provider-cache savings in current session'
           : 'Current proxy-session savings'
       : savingsHeadline.key === 'display_session'
-        ? 'Rolling session savings across compression, cache, routing, and optimization'
+        ? 'Rolling session savings across created Cutctx savings plus observed provider cache'
         : lifetimeSavingsUsd > 0
-          ? 'Lifetime savings across compression, cache, routing, and optimization'
+          ? 'Lifetime savings split between created Cutctx savings and observed provider cache'
           : 'No cost data yet'
   ) : (
     duration === 'session' ? 'Current proxy-session savings' : `Estimated savings for the ${duration} period`
@@ -1940,12 +2318,59 @@ export default function Overview() {
     Array.isArray(stats?.recent_requests) && stats.recent_requests.length > 0
       ? stats.recent_requests
       : persistentHistory;
+  const traceableRequests = recentRequests.filter(
+    (request) => request?.request_id && !request?.synthetic,
+  );
+  // A request summary can outlive the detailed trace (for example after a proxy
+  // restart or log retention cleanup).  Do not automatically fetch the first
+  // summary row: it creates a misleading 404 inspector before the user has
+  // selected anything, and makes the inspector impossible to dismiss.
+  const activeRequestId = selectedRequestId;
+  const selectedRequest =
+    traceableRequests.find((request) => request.request_id === activeRequestId) || null;
 
-  const sourceRows = buildSourceRows(stats);
-  const activeSourceRows = sourceRows.filter((row) => row.tokens > 0);
-  const clientRows = buildClientRows(stats);
+  useEffect(() => {
+    if (!activeRequestId) {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function fetchTrace() {
+      setRequestTraceLoading(true);
+      setRequestTraceError(null);
+
+      try {
+        const detail = await fetchDashboardJson(
+          `/transformations/traces/${encodeURIComponent(activeRequestId)}`,
+        );
+        if (active) {
+          setRequestTrace(detail);
+        }
+      } catch (err) {
+        if (active) {
+          setRequestTrace(null);
+          setRequestTraceError(err.message || String(err));
+        }
+      } finally {
+        if (active) {
+          setRequestTraceLoading(false);
+        }
+      }
+    }
+
+    fetchTrace();
+
+    return () => {
+      active = false;
+    };
+  }, [activeRequestId]);
+
+  const sourceRows = buildSourceRows(stats, selectedRecord, duration);
+  const activeSourceRows = sourceRows.filter(isVisibleSavingsRow);
+  const clientRows = duration === 'lifetime' ? buildClientRows(stats) : [];
   const activeClientRows = clientRows;
-  const modelRows = buildModelRows(stats);
+  const modelRows = duration === 'lifetime' ? buildModelRows(stats) : [];
   const activeModelRows = modelRows;
   const totalSourceTokens =
     activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
@@ -1973,6 +2398,18 @@ export default function Overview() {
   const directCompressionRow = sourceRows.find((row) => row.key === 'cutctx_compression');
   const toolSchemaRow = sourceRows.find((row) => row.key === 'tool_schema_compaction');
   const providerCacheRow = sourceRows.find((row) => row.key === 'provider_prompt_cache');
+  const splitTokens = getCreatedObservedSavingsTokens(selectedRecord, activeSourceRows);
+  const attributionCoverage = getAttributionCoverage(selectedRecord);
+  const savingsSplit = {
+    created: {
+      tokens: splitTokens.createdTokens,
+      usd: effectiveCreatedSavingsUsd,
+    },
+    observed: {
+      tokens: splitTokens.observedTokens,
+      usd: effectiveObservedProviderSavingsUsd,
+    },
+  };
 
   return (
     <section className="page-stack">
@@ -2066,7 +2503,7 @@ export default function Overview() {
             iconColor="amber"
             label="Money saved"
             value={formatCurrency(effectiveSavingsUsd)}
-            footnote={moneySavedFootnote}
+            footnote={`${moneySavedFootnote} · ${formatCurrency(effectiveCreatedSavingsUsd)} created by Cutctx, ${formatCurrency(effectiveObservedProviderSavingsUsd)} observed at provider`}
           />
         </div>
       )}
@@ -2093,14 +2530,23 @@ export default function Overview() {
         )}
       </div>
 
-      <div className="overview-bottom-grid">
+        <div className="overview-bottom-grid">
         <div className="overview-side-stack">
+          <SavingsSplitPanel
+            metric={attributionMetric}
+            created={savingsSplit.created}
+            observed={savingsSplit.observed}
+            coverage={attributionCoverage}
+          />
+
+          <CompressionDeclineStrip stats={stats} />
+
           <section className="panel panel-compact">
             <div className="section-heading">
               <div>
                 <div className="eyebrow">Attribution</div>
                 <h2>Where savings come from</h2>
-                <p>Compression, cache, routing, and CLI filtering are split out so total savings stays legible.</p>
+                <p>Created savings are broken out from provider-cache savings so the product contribution stays legible.</p>
               </div>
             </div>
 
@@ -2119,11 +2565,12 @@ export default function Overview() {
                 <div className="attribution-note">
                   <span>Direct compression: {formatInteger(directCompressionRow?.tokens || 0)} tokens</span>
                   <span>Tool schema: {formatInteger(toolSchemaRow?.tokens || 0)} tokens</span>
-                  <span>Provider cache: {formatInteger(providerCacheRow?.tokens || 0)} tokens</span>
+                  <span>Provider cache: {formatInteger(providerCacheRow?.tokens || 0)} observed tokens</span>
                 </div>
 
                 <div className="attribution-note">
                   <span>CLI filtering stays separate from proxy compression so RTK savings do not inflate Cutctx compression totals.</span>
+                  <span>Response cache reflects exact-match reused responses, not semantic retrieval yet.</span>
                 </div>
 
                 <div className="source-stack">
@@ -2231,7 +2678,18 @@ export default function Overview() {
                         key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
                       >
                         <td className="model-name" title={request.model || '—'}>
-                          {request.model || '—'}
+                          {request.request_id && !request.synthetic ? (
+                            <button
+                              className={`request-row-button ${activeRequestId === request.request_id ? 'active' : ''}`}
+                              onClick={() => setSelectedRequestId(request.request_id)}
+                              type="button"
+                            >
+                              <span>{request.model || '—'}</span>
+                              <ArrowUpRight size={14} />
+                            </button>
+                          ) : (
+                            request.model || '—'
+                          )}
                         </td>
                         <td>{formatMaybeInteger(inputTokens)}</td>
                         <td className="savings-value">
@@ -2260,12 +2718,20 @@ export default function Overview() {
                 </tbody>
                 </table>
                 <div className="request-table-note">
-                  Saved = direct compression plus tracked cache, routing, and optimization savings.
-                  Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or semantic-cache savings.
+                  Saved = direct compression plus tracked created savings and observed provider-cache savings.
+                  Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or Cutctx response-cache savings.
                   Model = the routed model CutCtx observed on the request.
                 </div>
               </div>
           )}
+
+          <RequestTraceInspector
+            request={selectedRequest}
+            trace={activeRequestId ? requestTrace : null}
+            loading={activeRequestId ? requestTraceLoading : false}
+            error={activeRequestId ? requestTraceError : null}
+            onClose={() => setSelectedRequestId(null)}
+          />
 
           <div className="metric-grid metric-grid-three" style={{ marginTop: 'var(--space-xl)' }}>
             <QuickAction

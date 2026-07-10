@@ -56,8 +56,39 @@ def _parse_completion_tokens_from_sse_chunk(chunk_bytes: bytes) -> int | None:
     return None
 
 
+def _iter_openai_sse_json_events(chunk_bytes: bytes) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    try:
+        decoded = chunk_bytes.decode("utf-8", errors="replace")
+    except (UnicodeDecodeError, AttributeError):
+        return events
+    for line in decoded.split("\n"):
+        line = line.strip()
+        if not line.startswith("data: ") or line == "data: [DONE]":
+            continue
+        try:
+            parsed = json.loads(line[6:])
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            events.append(parsed)
+    return events
+
+
 class StreamingMixin:
     """Mixin providing streaming response methods for CutctxProxy."""
+
+    @staticmethod
+    def _classify_streaming_fallback_reason(exc: Exception | None) -> str:
+        if isinstance(exc, httpx.ConnectError):
+            return "connect_error"
+        if isinstance(exc, httpx.TimeoutException):
+            return "timeout"
+        if isinstance(exc, httpx.HTTPStatusError):
+            return "upstream_5xx"
+        if exc is None:
+            return "unknown"
+        return type(exc).__name__.lower()
 
     @staticmethod
     def _extract_anthropic_cache_ttl_metrics(usage: dict[str, Any] | None) -> tuple[int, int]:
@@ -1064,6 +1095,154 @@ class StreamingMixin:
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
             logger.error(f"[{request_id}] Connection error to upstream API: {e}")
 
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                provider == "gemini"
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting Gemini streaming fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = self._classify_streaming_fallback_reason(e)
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                return await self._stream_gemini_via_backend(
+                    body=body,
+                    headers=dict(headers),
+                    model=model,
+                    request_id=request_id,
+                    start_time=start_time,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    savings_metadata=savings_metadata,
+                    backend=fallback_backend,
+                    outcome_provider=fallback_provider,
+                )
+
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                provider == "openai"
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting OpenAI streaming fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = self._classify_streaming_fallback_reason(e)
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                return await self._stream_openai_via_backend(
+                    body=body,
+                    headers=dict(headers),
+                    model=model,
+                    request_id=request_id,
+                    start_time=start_time,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    waste_signals=None,
+                    prefix_tracker=prefix_tracker,
+                    optimized_messages=body.get("messages", []),
+                    savings_metadata=savings_metadata,
+                    backend=fallback_backend,
+                    outcome_provider=fallback_provider,
+                )
+
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                provider == "anthropic"
+                and self.config.fallback_enabled
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting streaming fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = self._classify_streaming_fallback_reason(e)
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                return await self._stream_response_backend(
+                    backend=fallback_backend,
+                    body=body,
+                    headers=dict(headers),
+                    provider=provider,
+                    model=model,
+                    request_id=request_id,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    original_messages=original_messages,
+                    savings_metadata=savings_metadata,
+                    outcome_provider=fallback_provider,
+                )
+
             async def _error_gen():
                 error_event = {
                     "type": "error",
@@ -1093,6 +1272,163 @@ class StreamingMixin:
         get_codex_rate_limit_state().update_from_headers(dict(upstream_response.headers))
 
         if upstream_response.status_code >= 400:
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                upstream_response.status_code >= 500
+                and provider == "gemini"
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting Gemini streaming fallback to %s after upstream status=%s",
+                    request_id,
+                    fallback_provider,
+                    upstream_response.status_code,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = "upstream_5xx"
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                await upstream_response.aclose()
+                return await self._stream_gemini_via_backend(
+                    body=body,
+                    headers=dict(headers),
+                    model=model,
+                    request_id=request_id,
+                    start_time=start_time,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    savings_metadata=savings_metadata,
+                    backend=fallback_backend,
+                    outcome_provider=fallback_provider,
+                )
+
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                upstream_response.status_code >= 500
+                and provider == "openai"
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting OpenAI streaming fallback to %s after upstream status=%s",
+                    request_id,
+                    fallback_provider,
+                    upstream_response.status_code,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = "upstream_5xx"
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                await upstream_response.aclose()
+                return await self._stream_openai_via_backend(
+                    body=body,
+                    headers=dict(headers),
+                    model=model,
+                    request_id=request_id,
+                    start_time=start_time,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    waste_signals=None,
+                    prefix_tracker=prefix_tracker,
+                    optimized_messages=body.get("messages", []),
+                    savings_metadata=savings_metadata,
+                    backend=fallback_backend,
+                    outcome_provider=fallback_provider,
+                )
+
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                upstream_response.status_code >= 500
+                and provider == "anthropic"
+                and self.config.fallback_enabled
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting streaming fallback to %s after upstream status=%s",
+                    request_id,
+                    fallback_provider,
+                    upstream_response.status_code,
+                )
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = "upstream_5xx"
+                tags["fallback_source_provider"] = provider
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+                await upstream_response.aclose()
+                return await self._stream_response_backend(
+                    backend=fallback_backend,
+                    body=body,
+                    headers=dict(headers),
+                    provider=provider,
+                    model=model,
+                    request_id=request_id,
+                    original_tokens=original_tokens,
+                    optimized_tokens=optimized_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    tags=tags,
+                    optimization_latency=optimization_latency,
+                    pipeline_timing=pipeline_timing,
+                    original_messages=original_messages,
+                    savings_metadata=savings_metadata,
+                    outcome_provider=fallback_provider,
+                )
+
             logger.warning(
                 "[%s] Forwarding upstream streaming error status=%s url=%s",
                 request_id,
@@ -1587,8 +1923,9 @@ class StreamingMixin:
             headers=forwarded_headers,
         )
 
-    async def _stream_response_bedrock(
+    async def _stream_response_backend(
         self,
+        backend: Any,
         body: dict,
         headers: dict,
         provider: str,
@@ -1603,11 +1940,10 @@ class StreamingMixin:
         pipeline_timing: dict[str, float] | None = None,
         original_messages: list[dict] | None = None,
         savings_metadata: dict[str, dict[str, Any]] | None = None,
+        response_headers: dict[str, str] | None = None,
+        outcome_provider: str | None = None,
     ) -> StreamingResponse:
-        """Stream response from Bedrock backend with metrics tracking.
-
-        Translates Bedrock streaming events to Anthropic SSE format.
-        """
+        """Stream response from a backend that yields Anthropic-format SSE events."""
         from fastapi.responses import StreamingResponse
 
         from cutctx.proxy.outcome import RequestOutcome
@@ -1615,10 +1951,6 @@ class StreamingMixin:
         client = classify_client(headers)
 
         start_time = time.time()
-
-        # Mutable state for the generator. Cache fields mirror the
-        # native ``_finalize_stream_response`` shape so the PERF log
-        # values match between paths (issue #327).
         stream_state: dict[str, Any] = {
             "input_tokens": 0,
             "output_tokens": 0,
@@ -1631,21 +1963,16 @@ class StreamingMixin:
 
         async def generate():
             try:
-                assert self.anthropic_backend is not None
-
-                async for event in self.anthropic_backend.stream_message(body, headers):
-                    # Record TTFB on first event
+                async for event in backend.stream_message(body, headers):
                     if stream_state["ttfb_ms"] is None:
                         stream_state["ttfb_ms"] = (time.time() - start_time) * 1000
 
-                    # Format as SSE
                     if event.raw_sse:
                         yield event.raw_sse.encode()
                     else:
                         sse_line = f"event: {event.event_type}\ndata: {json.dumps(event.data)}\n\n"
                         yield sse_line.encode()
 
-                    # Track usage from message_start event
                     if event.event_type == "message_start":
                         msg = event.data.get("message", {})
                         usage = msg.get("usage", {})
@@ -1661,18 +1988,16 @@ class StreamingMixin:
                         stream_state["cache_creation_ephemeral_5m_input_tokens"] = cw_5m
                         stream_state["cache_creation_ephemeral_1h_input_tokens"] = cw_1h
 
-                    # Track output tokens from message_delta
                     if event.event_type == "message_delta":
                         usage = event.data.get("usage", {})
                         if "output_tokens" in usage:
                             stream_state["output_tokens"] = usage["output_tokens"]
 
-                    # Handle errors
                     if event.event_type == "error":
-                        logger.error(f"[{request_id}] Bedrock stream error: {event.data}")
+                        logger.error(f"[{request_id}] Backend stream error: {event.data}")
 
             except Exception as e:
-                logger.error(f"[{request_id}] Bedrock streaming error: {e}")
+                logger.error(f"[{request_id}] Backend streaming error: {e}")
                 error_event = {
                     "type": "error",
                     "error": {"type": "api_error", "message": "Internal streaming error"},
@@ -1681,16 +2006,7 @@ class StreamingMixin:
 
             finally:
                 total_latency = (time.time() - start_time) * 1000
-                _backend_name = (
-                    self.anthropic_backend.name if self.anthropic_backend else "anthropic"
-                )
-                # Active-compression denominator derived inside
-                # ``from_stream`` as ``optimized + saved``. Bedrock
-                # doesn't propagate frozen_message_count either — same
-                # fallback as the SSE finalizer (#455).
-                # Audit-Deep-2026-06-21: extract per-source
-                # fields from savings_metadata so the typed
-                # RequestOutcome fields are populated, not 0.
+                _backend_name = outcome_provider or getattr(backend, "name", provider)
                 _sc_avoided = 0
                 _self_hosted_hits = 0
                 _routing_tokens = 0
@@ -1730,7 +2046,6 @@ class StreamingMixin:
                     pipeline_timing=pipeline_timing,
                     original_messages=original_messages,
                     savings_metadata=savings_metadata,
-                    # Audit-Deep-2026-06-21: per-source fields.
                     semantic_cache_avoided_tokens=_sc_avoided,
                     self_hosted_prefix_cache_hits=_self_hosted_hits,
                     model_routing_tokens_saved=_routing_tokens,
@@ -1741,6 +2056,48 @@ class StreamingMixin:
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",
+            headers=response_headers or {},
+        )
+
+    async def _stream_response_bedrock(
+        self,
+        body: dict,
+        headers: dict,
+        provider: str,
+        model: str,
+        request_id: str,
+        original_tokens: int,
+        optimized_tokens: int,
+        tokens_saved: int,
+        transforms_applied: list[str],
+        tags: dict[str, str],
+        optimization_latency: float,
+        pipeline_timing: dict[str, float] | None = None,
+        original_messages: list[dict] | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
+    ) -> StreamingResponse:
+        """Stream response from Bedrock backend with metrics tracking.
+
+        Translates Bedrock streaming events to Anthropic SSE format.
+        """
+        assert self.anthropic_backend is not None
+        return await self._stream_response_backend(
+            backend=self.anthropic_backend,
+            body=body,
+            headers=headers,
+            provider=provider,
+            model=model,
+            request_id=request_id,
+            original_tokens=original_tokens,
+            optimized_tokens=optimized_tokens,
+            tokens_saved=tokens_saved,
+            transforms_applied=transforms_applied,
+            tags=tags,
+            optimization_latency=optimization_latency,
+            pipeline_timing=pipeline_timing,
+            original_messages=original_messages,
+            savings_metadata=savings_metadata,
+            outcome_provider=self.anthropic_backend.name,
         )
 
     async def _stream_openai_via_backend(
@@ -1761,6 +2118,8 @@ class StreamingMixin:
         prefix_tracker: Any | None = None,
         optimized_messages: list[dict] | None = None,
         savings_metadata: dict[str, dict[str, Any]] | None = None,
+        backend: Any | None = None,
+        outcome_provider: str | None = None,
     ) -> StreamingResponse:
         """Stream OpenAI chat completion response from backend.
 
@@ -1795,7 +2154,8 @@ class StreamingMixin:
         from cutctx.proxy.handlers.openai import _infer_openai_cache_write_tokens
         from cutctx.proxy.outcome import RequestOutcome
 
-        assert self.anthropic_backend is not None
+        backend = backend or self.anthropic_backend
+        assert backend is not None
         client = classify_client(headers)
 
         async def generate():
@@ -1825,7 +2185,7 @@ class StreamingMixin:
                         stream_state[key] = usage[key]
 
             try:
-                async for sse_chunk in self.anthropic_backend.stream_openai_message(body, headers):
+                async for sse_chunk in backend.stream_openai_message(body, headers):
                     chunk_bytes = sse_chunk.encode() if isinstance(sse_chunk, str) else sse_chunk
                     stream_state["sse_buffer"].extend(chunk_bytes)
                     full_sse_bytes.extend(chunk_bytes)
@@ -1946,7 +2306,7 @@ class StreamingMixin:
 
                 outcome = RequestOutcome.from_stream(
                     body=body,
-                    provider=self.anthropic_backend.name,
+                    provider=outcome_provider or backend.name,
                     model=model,
                     request_id=request_id,
                     original_tokens=original_tokens,
@@ -1984,3 +2344,193 @@ class StreamingMixin:
             generate(),
             media_type="text/event-stream",
         )
+
+    async def _stream_gemini_via_backend(
+        self,
+        body: dict,
+        headers: dict,
+        model: str,
+        request_id: str,
+        start_time: float,
+        original_tokens: int,
+        optimized_tokens: int,
+        tokens_saved: int,
+        transforms_applied: list[str],
+        tags: dict[str, str],
+        optimization_latency: float,
+        pipeline_timing: dict[str, float] | None = None,
+        savings_metadata: dict[str, dict[str, Any]] | None = None,
+        backend: Any | None = None,
+        outcome_provider: str | None = None,
+    ) -> StreamingResponse:
+        from fastapi.responses import StreamingResponse
+
+        from cutctx.proxy.outcome import RequestOutcome
+
+        backend = backend or self.anthropic_backend
+        assert backend is not None
+        client = classify_client(headers)
+
+        async def generate():
+            stream_state: dict[str, Any] = {
+                "input_tokens": None,
+                "output_tokens": None,
+                "cache_read_input_tokens": None,
+                "cache_creation_input_tokens": 0,
+            }
+
+            def _absorb_usage(parsed: dict[str, Any]) -> None:
+                usage = parsed.get("usage")
+                if not isinstance(usage, dict):
+                    return
+                if stream_state["input_tokens"] is None:
+                    stream_state["input_tokens"] = int(usage.get("prompt_tokens", 0) or 0)
+                if stream_state["output_tokens"] is None:
+                    stream_state["output_tokens"] = int(
+                        usage.get("completion_tokens", 0) or 0
+                    )
+                prompt_details = usage.get("prompt_tokens_details") or {}
+                if isinstance(prompt_details, dict) and stream_state["cache_read_input_tokens"] is None:
+                    stream_state["cache_read_input_tokens"] = int(
+                        prompt_details.get("cached_tokens", 0) or 0
+                    )
+
+            try:
+                async for sse_chunk in backend.stream_openai_message(body, headers):
+                    chunk_bytes = sse_chunk.encode() if isinstance(sse_chunk, str) else sse_chunk
+                    parsed_events = _iter_openai_sse_json_events(chunk_bytes)
+                    emitted = False
+                    for parsed in parsed_events:
+                        _absorb_usage(parsed)
+                        choices = parsed.get("choices")
+                        if isinstance(choices, list):
+                            text_parts: list[str] = []
+                            function_calls: list[dict[str, Any]] = []
+                            for choice in choices:
+                                if not isinstance(choice, dict):
+                                    continue
+                                delta = choice.get("delta") or {}
+                                if not isinstance(delta, dict):
+                                    continue
+                                content = delta.get("content")
+                                if isinstance(content, str) and content:
+                                    text_parts.append(content)
+                                tool_calls = delta.get("tool_calls")
+                                if isinstance(tool_calls, list):
+                                    function_calls.extend(tc for tc in tool_calls if isinstance(tc, dict))
+                            parts: list[dict[str, Any]] = []
+                            if text_parts:
+                                parts.append({"text": "".join(text_parts)})
+                            for tool_call in function_calls:
+                                function = tool_call.get("function") or {}
+                                if not isinstance(function, dict):
+                                    function = {}
+                                arguments = function.get("arguments", {})
+                                if isinstance(arguments, str):
+                                    try:
+                                        arguments = json.loads(arguments)
+                                    except Exception:
+                                        arguments = {"raw": arguments}
+                                parts.append(
+                                    {
+                                        "functionCall": {
+                                            "name": function.get("name", "function"),
+                                            "args": arguments
+                                            if isinstance(arguments, dict)
+                                            else {"value": arguments},
+                                        }
+                                    }
+                                )
+                            if parts:
+                                emitted = True
+                                yield (
+                                    "data: "
+                                    + json.dumps(
+                                        {
+                                            "candidates": [
+                                                {
+                                                    "content": {
+                                                        "role": "model",
+                                                        "parts": parts,
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    )
+                                    + "\n\n"
+                                ).encode()
+                    if stream_state["input_tokens"] is not None or stream_state["output_tokens"] is not None:
+                        usage_payload = {
+                            "usageMetadata": {
+                                "promptTokenCount": int(stream_state["input_tokens"] or 0),
+                                "candidatesTokenCount": int(stream_state["output_tokens"] or 0),
+                                "cachedContentTokenCount": int(
+                                    stream_state["cache_read_input_tokens"] or 0
+                                ),
+                            }
+                        }
+                        yield ("data: " + json.dumps(usage_payload) + "\n\n").encode()
+                        stream_state["input_tokens"] = None
+                        stream_state["output_tokens"] = None
+                        stream_state["cache_read_input_tokens"] = None
+                    if not emitted and chunk_bytes.strip() == b"data: [DONE]":
+                        continue
+            except Exception as e:
+                logger.error(f"[{request_id}] Gemini backend streaming error: {e}")
+                error_payload = {
+                    "error": {
+                        "message": "Internal server error",
+                        "code": 500,
+                    }
+                }
+                yield ("data: " + json.dumps(error_payload) + "\n\n").encode()
+            finally:
+                total_latency = (time.time() - start_time) * 1000
+                input_tokens = int(stream_state.get("input_tokens") or optimized_tokens)
+                output_tokens = int(stream_state.get("output_tokens") or 0)
+                cache_read_tokens = int(stream_state.get("cache_read_input_tokens") or 0)
+                uncached_input_tokens = max(0, input_tokens - cache_read_tokens)
+                _sc_avoided = 0
+                _self_hosted_hits = 0
+                _routing_tokens = 0
+                _routing_usd = 0.0
+                if savings_metadata:
+                    _sc_avoided = int(
+                        (savings_metadata.get("semantic_cache") or {}).get("tokens", 0) or 0
+                    )
+                    _self_hosted_hits = int(
+                        (savings_metadata.get("prefix_cache_self_hosted") or {}).get("tokens", 0)
+                        or 0
+                    )
+                    _routing_meta = savings_metadata.get("model_routing") or {}
+                    _routing_tokens = int(_routing_meta.get("tokens_saved", 0) or 0)
+                    _routing_usd = float(_routing_meta.get("usd_saved", 0.0) or 0.0)
+
+                outcome = RequestOutcome.from_stream(
+                    body=body,
+                    provider=outcome_provider or backend.name,
+                    model=model,
+                    request_id=request_id,
+                    original_tokens=original_tokens,
+                    optimized_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    tokens_saved=tokens_saved,
+                    transforms_applied=transforms_applied,
+                    total_latency_ms=total_latency,
+                    overhead_ms=optimization_latency,
+                    tags=tags,
+                    client=client,
+                    log_full_messages=getattr(self.config, "log_full_messages", False),
+                    cache_read_tokens=cache_read_tokens,
+                    uncached_input_tokens=uncached_input_tokens,
+                    ttfb_ms=0,
+                    pipeline_timing=pipeline_timing,
+                    savings_metadata=savings_metadata,
+                    semantic_cache_avoided_tokens=_sc_avoided,
+                    self_hosted_prefix_cache_hits=_self_hosted_hits,
+                    model_routing_tokens_saved=_routing_tokens,
+                    model_routing_usd_saved=_routing_usd,
+                )
+                await self._record_request_outcome(outcome)
+
+        return StreamingResponse(generate(), media_type="text/event-stream")

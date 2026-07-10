@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-09T15:41:43.461000",
+  "model": "gpt-4o-mini",
+  "tiers_run": [
+    1,
+    2
+  ],
+  "total_cost_usd": 0,
+  "total_duration_seconds": 0.78,
+  "summary": {
+    "total_benchmarks": 4,
+    "passed": 4,
+    "failed": 0,
+    "all_passed": true,
+    "avg_delta": 0.0,
+    "avg_compression_ratio": 0.4163,
+    "total_tokens_saved": 23860
+  },
+  "benchmarks": [
+    {
+      "name": "CCR Round-trip",
+      "category": "lossless",
+      "tier": 1,
+      "n_samples": 50,
+      "model": "gpt-4o-mini",
+      "metric": "byte_exact_match",
+      "metric_label": "Byte Exact Match",
+      "passed": true,
+      "avg_compression_ratio": 0.5284,
+      "tokens_saved": 12100,
+      "duration_seconds": 0.14,
+      "accuracy_rate": 1.0,
+      "metric_value": 1.0,
+      "tokens_per_second": 161293.65
+    },
+    {
+      "name": "Info Retention",
+      "category": "compression",
+      "tier": 2,
+      "n_samples": 30,
+      "model": "gpt-4o-mini",
+      "metric": "information_recall",
+      "metric_label": "Information Recall",
+      "passed": true,
+      "avg_compression_ratio": 0.6573,
+      "tokens_saved": 11490,
+      "duration_seconds": 0.23,
+      "accuracy_rate": 1.0,
+      "metric_value": 1.0,
+      "tokens_per_second": 76545.35
+    },
+    {
+      "name": "Verbatim Compaction",
+      "category": "compression",
+      "tier": 2,
+      "n_samples": 3,
+      "model": "gpt-4o-mini",
+      "metric": "verbatim_fidelity",
+      "metric_label": "Verbatim Fidelity",
+      "passed": true,
+      "avg_compression_ratio": 0.2861,
+      "tokens_saved": 151,
+      "duration_seconds": 0.0,
+      "accuracy_rate": 1.0,
+      "metric_value": 1.0,
+      "tokens_per_second": 4107062.48,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0
+    },
+    {
+      "name": "Tool Schema Compaction",
+      "category": "compression",
+      "tier": 2,
+      "n_samples": 4,
+      "model": "gpt-4o-mini",
+      "metric": "tool_schema_integrity",
+      "metric_label": "Tool Schema Integrity",
+      "passed": true,
+      "avg_compression_ratio": 0.1932,
+      "tokens_saved": 119,
+      "duration_seconds": 0.0,
+      "accuracy_rate": 1.0,
+      "metric_value": 1.0,
+      "tokens_per_second": 2885628.8
+    }
+  ]
+}

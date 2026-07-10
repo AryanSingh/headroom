@@ -98,6 +98,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     ]
 
     high_complexity_patterns = [
+        r"\bbuild\b",
         r"\bimplement\b",
         r"\bdebug\b",
         r"\brefactor\b",
@@ -195,6 +196,7 @@ class ModelRouterConfig:
             payload = _json.loads(raw)
         except _json.JSONDecodeError as exc:
             import logging
+
             logging.getLogger(__name__).warning("CUTCTX_MODEL_ROUTING is not valid JSON: %s", exc)
             return cls()
         routes = [
@@ -640,18 +642,114 @@ def prepare_model_routing(
     tool_calls: int = 0,
     num_messages: int = 0,
     messages: list[dict[str, Any]] | None = None,
+    request_id: str = "",
+    client: str | None = None,
+    assignment_identity_source: str = "caller",
+    assignment_sticky: bool = True,
+    transport_provider: str | None = None,
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
+    updated_metadata = dict(request_savings_metadata or {})
+    routing_context = updated_metadata.pop("__orchestration__", {})
+    role_alias = ""
+    if requested_model.lower().startswith("role:"):
+        role_alias = requested_model.split(":", 1)[1].strip()
+    role = str(routing_context.get("role") or role_alias).strip()
+    orchestration = getattr(handler, "_orchestration_service", None)
+    if orchestration is not None and role:
+        from cutctx.orchestration import RoutingRequest, RoutingUnavailableError
+
+        orchestration_decision = orchestration.route(
+            RoutingRequest(
+                role=role,
+                required_capabilities=set(routing_context.get("required_capabilities", [])),
+                selectors={
+                    str(key): str(value)
+                    for key, value in routing_context.get("selectors", {}).items()
+                },
+                mode=routing_context.get("mode"),
+                policy=routing_context.get("policy"),
+                request_id=request_id,
+            )
+        )
+        if transport_provider and orchestration_decision.provider != transport_provider:
+            raise RoutingUnavailableError(
+                "The assigned provider cannot be executed through this compatibility endpoint; "
+                "use a canonical executor configured for the assigned provider",
+                assigned_model=orchestration_decision.assigned_model,
+                reason="transport_mismatch",
+            )
+        transport_account_id = getattr(handler, "_orchestration_account_id", None)
+        if (
+            orchestration_decision.account_id
+            and orchestration_decision.account_id != transport_account_id
+        ):
+            raise RoutingUnavailableError(
+                "The assigned provider account cannot be proven through this compatibility "
+                "endpoint; configure the endpoint for the exact account",
+                assigned_model=orchestration_decision.assigned_model,
+                reason="account_transport_mismatch",
+            )
+        target_model = orchestration_decision.actual_model
+        updated_metadata["model_routing"] = {
+            "source_model": requested_model,
+            "target_model": target_model,
+            "assigned_model": orchestration_decision.assigned_model,
+            "provider": orchestration_decision.provider,
+            "role": orchestration_decision.role,
+            "binding_id": orchestration_decision.binding_id,
+            "reason": orchestration_decision.reason,
+            "fallback_used": orchestration_decision.fallback_used,
+            "fallback_trigger": orchestration_decision.fallback_trigger,
+            "tokens_saved": 0,
+            "usd_saved": 0.0,
+        }
+        if target_model == "gpt-5.4-mini":
+            updated_metadata["model_routing"]["request_overrides"] = {
+                "reasoning": {"effort": "high"}
+            }
+        return target_model, updated_metadata
+    canary_model_routing = False
+    try:
+        from cutctx.proxy.savings_canary import (
+            CanaryStateError,
+            get_savings_canary_coordinator,
+        )
+
+        assignment = get_savings_canary_coordinator().assign(
+            request_id,
+            client=client,
+            model=requested_model,
+            identity_source=assignment_identity_source,
+            sticky=assignment_sticky,
+        )
+        if assignment.enabled:
+            updated_metadata["savings_canary"] = assignment.to_dict()
+            if assignment.eligible and assignment.arm != "model_routing":
+                return requested_model, updated_metadata
+            canary_model_routing = assignment.eligible and assignment.arm == "model_routing"
+    except CanaryStateError:
+        raise
+    except Exception:  # noqa: BLE001
+        pass
+
     router = getattr(handler, "_model_router", None)
+    if canary_model_routing and (
+        router is None or not getattr(getattr(router, "config", None), "enabled", False)
+    ):
+        # A model-routing canary must exercise the named treatment even when
+        # broad model routing is disabled. The preset still keeps complex work
+        # on the requested model and routes only low-complexity GPT tasks.
+        router = ModelRouter(config=ModelRouterConfig.codex_gpt54mini_high_preset())
     if router is None:
-        return requested_model, request_savings_metadata
+        return requested_model, updated_metadata or request_savings_metadata
 
     try:
         # If text downgrade check fails, abort routing
         if messages and hasattr(router, "is_text_downgradeable"):
             if not router.is_text_downgradeable(messages):
-                return requested_model, request_savings_metadata
+                return requested_model, updated_metadata or request_savings_metadata
 
         decision = router.maybe_route(
             requested_model,
@@ -661,12 +759,11 @@ def prepare_model_routing(
             num_messages=num_messages,
         )
     except Exception:  # noqa: BLE001
-        return requested_model, request_savings_metadata
+        return requested_model, updated_metadata or request_savings_metadata
 
     if not decision.routing_applied or not decision.target_model:
-        return requested_model, request_savings_metadata
+        return requested_model, updated_metadata or request_savings_metadata
 
-    updated_metadata = dict(request_savings_metadata or {})
     updated_metadata["model_routing"] = {
         "source_model": decision.source_model or requested_model,
         "target_model": decision.target_model,

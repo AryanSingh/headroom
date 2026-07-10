@@ -59,9 +59,23 @@ class RequestLog:
     total_saved_tokens: int = 0
     total_savings_percent: float = 0.0
     request_cost_usd: float | None = None
+    savings_by_source_tokens: dict[str, int] | None = None
+    savings_by_source_usd: dict[str, float] | None = None
+    created_savings_tokens: int = 0
+    observed_provider_savings_tokens: int = 0
+    created_savings_usd: float = 0.0
+    observed_provider_savings_usd: float = 0.0
+    savings_basis: str = "estimated"
+    pricing_basis: str = "model_input_list_price"
+    opportunity_funnel: dict[str, int] | None = None
+    canary: dict[str, Any] | None = None
 
     # Waste signals detected in original messages
     waste_signals: dict[str, int] | None = None
+    pipeline_timing: dict[str, float] | None = None
+    decline_reason: str | None = None
+    routing_metadata: dict[str, Any] | None = None
+    fallback: dict[str, Any] | None = None
 
     # Request/Response (optional, for debugging)
     request_messages: list[dict] | None = None
@@ -416,6 +430,13 @@ class ProxyConfig:
     # `X-Cutctx-Admin-Key: <admin_api_key>` header. When None, these endpoints
     # are open (backward-compatible default). Env: CUTCTX_ADMIN_API_KEY.
     admin_api_key: str | None = None
+
+    # Hosted compression surface — feature-flagged simple API for buyers who
+    # want "send text/messages, get compressed output" without proxying an LLM
+    # request. Disabled by default so local-first proxy behavior is unchanged.
+    # Env: CUTCTX_HOSTED_COMPRESSION_ENABLED=1, CUTCTX_HOSTED_COMPRESSION_API_KEY.
+    hosted_compression_enabled: bool = False
+    hosted_compression_api_key: str | None = None
 
     # CORS — comma-separated list of allowed origins. Defaults to empty list
     # (closed — no cross-origin requests allowed). Set to "*" to allow all

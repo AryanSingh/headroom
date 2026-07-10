@@ -203,6 +203,26 @@ BENCHMARK_SUITE: list[BenchmarkSpec] = [
         pass_threshold=0.90,
         estimated_cost_usd=0.0,
     ),
+    BenchmarkSpec(
+        name="Verbatim Compaction",
+        category="compression",
+        tier=2,
+        runner_type="compression_only",
+        sample_size=3,
+        primary_metric="verbatim_fidelity",
+        pass_threshold=0.90,
+        estimated_cost_usd=0.0,
+    ),
+    BenchmarkSpec(
+        name="Tool Schema Compaction",
+        category="compression",
+        tier=2,
+        runner_type="compression_only",
+        sample_size=4,
+        primary_metric="tool_schema_integrity",
+        pass_threshold=1.0,
+        estimated_cost_usd=0.0,
+    ),
     # -----------------------------------------------------------------------
     # TIER 3: Deep Dive (~$9, ~45 min)
     # -----------------------------------------------------------------------
@@ -310,12 +330,16 @@ class SuiteRunner:
         budget_usd: float = 20.0,
         cutctx_port: int = 8787,
         auto_start_proxy: bool = True,
+        benchmark_names: list[str] | None = None,
+        runner_types: list[Literal["lm_eval", "before_after", "compression_only"]] | None = None,
     ):
         self.model = model
         self.tiers = tiers or [1]
         self.budget_usd = budget_usd
         self.cutctx_port = cutctx_port
         self.auto_start_proxy = auto_start_proxy
+        self.benchmark_names = benchmark_names
+        self.runner_types = runner_types
         self._proxy_proc: subprocess.Popen | None = None
 
         # Load .env for API keys
@@ -323,7 +347,19 @@ class SuiteRunner:
 
     def _get_specs(self) -> list[BenchmarkSpec]:
         """Get benchmark specs for the requested tiers."""
-        return [s for s in BENCHMARK_SUITE if s.tier in self.tiers]
+        specs = [s for s in BENCHMARK_SUITE if s.tier in self.tiers]
+        if self.runner_types:
+            allowed_runner_types = set(self.runner_types)
+            specs = [s for s in specs if s.runner_type in allowed_runner_types]
+        if self.benchmark_names:
+            allowed_benchmark_names = set(self.benchmark_names)
+            specs = [s for s in specs if s.name in allowed_benchmark_names]
+        return specs
+
+    @staticmethod
+    def _passes_threshold(metric_value: float | None, threshold: float) -> bool:
+        """Return whether an aggregate metric satisfies its configured threshold."""
+        return metric_value is not None and metric_value >= threshold
 
     def _ensure_proxy(self) -> bool:
         """Ensure the Cutctx proxy is running (needed for lm-eval benchmarks)."""
@@ -452,7 +488,13 @@ class SuiteRunner:
             "accuracy_rate": suite_result.accuracy_preservation_rate,
             "avg_compression_ratio": suite_result.avg_compression_ratio,
             "tokens_saved": suite_result.total_tokens_saved,
-            "passed": suite_result.accuracy_preservation_rate >= 0.90,
+            "tokens_per_second": None,
+            "critical_item_recall": None,
+            "verbatim_fidelity": None,
+            "passed": self._passes_threshold(
+                suite_result.accuracy_preservation_rate,
+                spec.pass_threshold,
+            ),
             "n_samples": suite_result.total_cases,
             "duration_seconds": suite_result.duration_seconds,
         }
@@ -472,6 +514,10 @@ class SuiteRunner:
         elif spec.name == "Info Retention":
             cases = runner.generate_info_retention_cases(n=spec.sample_size)
             result = runner.evaluate_information_retention(cases)
+        elif spec.name == "Verbatim Compaction":
+            result = runner.evaluate_verbatim_compaction(fidelity_threshold=spec.pass_threshold)
+        elif spec.name == "Tool Schema Compaction":
+            result = runner.evaluate_tool_schema_compaction()
         else:
             raise ValueError(f"Unknown compression-only benchmark: {spec.name}")
 
@@ -479,7 +525,10 @@ class SuiteRunner:
             "accuracy_rate": result.accuracy_rate,
             "avg_compression_ratio": result.avg_compression_ratio,
             "tokens_saved": result.total_tokens_saved,
-            "passed": result.passed,
+            "tokens_per_second": result.tokens_per_second,
+            "critical_item_recall": result.critical_item_recall,
+            "verbatim_fidelity": result.verbatim_fidelity,
+            "passed": self._passes_threshold(result.accuracy_rate, spec.pass_threshold),
             "n_samples": result.total_cases,
             "duration_seconds": result.duration_seconds,
         }
@@ -575,6 +624,9 @@ class SuiteRunner:
                                 accuracy_rate=raw.get("accuracy_rate"),
                                 avg_compression_ratio=raw.get("avg_compression_ratio", 0),
                                 tokens_saved=raw.get("tokens_saved", 0),
+                                tokens_per_second=raw.get("tokens_per_second"),
+                                critical_item_recall=raw.get("critical_item_recall"),
+                                verbatim_fidelity=raw.get("verbatim_fidelity"),
                                 passed=raw.get("passed", False),
                                 n_samples=raw.get("n_samples", 0),
                                 model=spec.model or self.model,
@@ -593,6 +645,9 @@ class SuiteRunner:
                                 accuracy_rate=raw.get("accuracy_rate"),
                                 avg_compression_ratio=raw.get("avg_compression_ratio", 0),
                                 tokens_saved=raw.get("tokens_saved", 0),
+                                tokens_per_second=raw.get("tokens_per_second"),
+                                critical_item_recall=raw.get("critical_item_recall"),
+                                verbatim_fidelity=raw.get("verbatim_fidelity"),
                                 passed=raw.get("passed", False),
                                 n_samples=raw.get("n_samples", 0),
                                 model=spec.model or self.model,

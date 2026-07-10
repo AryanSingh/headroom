@@ -191,6 +191,56 @@ def test_force_kompress_routes_anthropic_tool_result_to_targeted_kompress(
     assert captured["target_ratio"] == 0.10
 
 
+def test_force_kompress_overrides_disabled_default(tokenizer, monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeKompress:
+        def compress(self, content, **kwargs):
+            captured.update(kwargs)
+            compressed = " ".join(content.split()[:12])
+            return SimpleNamespace(
+                compressed=compressed,
+                compressed_tokens=len(compressed.split()),
+            )
+
+    router = ContentRouter(
+        ContentRouterConfig(
+            enable_kompress=False,
+            fallback_strategy=CompressionStrategy.PASSTHROUGH,
+            min_chars_for_block_compression=10,
+        )
+    )
+    monkeypatch.setattr(router, "_get_kompress", lambda: FakeKompress())
+
+    tool_content = " ".join(f"repeated payload {i}" for i in range(120))
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "toolu_search_1",
+                    "content": tool_content,
+                }
+            ],
+        }
+    ]
+
+    result = router.apply(
+        messages,
+        tokenizer,
+        force_kompress=True,
+        target_ratio=0.25,
+        compress_user_messages=True,
+        min_tokens_to_compress=10,
+        read_protection_window=0,
+    )
+
+    assert result.messages[0]["content"][0]["content"] != tool_content
+    assert result.transforms_applied == ["router:tool_result:kompress"]
+    assert captured["target_ratio"] == 0.25
+
+
 # =============================================================================
 # TestContentRouterConfig
 # =============================================================================

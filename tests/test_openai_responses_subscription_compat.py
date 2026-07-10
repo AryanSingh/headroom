@@ -47,8 +47,6 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
     assert sanitized == {
         "model": "gpt-5.5",
         "input": "hi",
-        "store": False,
-        "stream": True,
     }
     assert stripped == [
         "client_metadata",
@@ -77,12 +75,34 @@ def test_ws_http_fallback_normalization_unwraps_and_sanitizes_subscription_body(
         strip_chatgpt_subscription_fields=True,
     )
 
-    assert normalized == {"model": "gpt-5.5", "input": "hi", "store": False, "stream": True}
+    assert normalized == {"model": "gpt-5.5", "input": "hi"}
     assert stripped == [
         "client_metadata",
         "generate",
         "model:gpt-5.4->gpt-5.5",
     ]
+
+
+def test_chatgpt_subscription_sanitizer_preserves_supported_request_fields():
+    body = {
+        "model": "gpt-5.4",
+        "input": "hi",
+        "tools": [{"type": "function", "name": "lookup", "parameters": {}}],
+        "tool_choice": "auto",
+        "instructions": "be concise",
+        "store": False,
+        "stream": True,
+    }
+
+    sanitized, _ = _sanitize_chatgpt_subscription_responses_body(body)
+
+    assert sanitized == {
+        "model": "gpt-5.5",
+        "input": "hi",
+        "tools": [{"type": "function", "name": "lookup", "parameters": {}}],
+        "tool_choice": "auto",
+        "instructions": "be concise",
+    }
 
 
 def test_apply_model_routing_request_overrides_sets_high_reasoning():

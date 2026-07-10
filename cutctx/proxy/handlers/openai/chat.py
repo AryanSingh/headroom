@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from fastapi.responses import Response, StreamingResponse
 
 
+import httpx
+
 from cutctx.ccr.response_handler import CCRException
 from cutctx.copilot_auth import apply_copilot_api_auth, build_copilot_upstream_url
 from cutctx.pipeline import PipelineStage, summarize_routing_markers
@@ -87,7 +89,7 @@ class OpenAIChatMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = await self._next_request_id()
+        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
 
         # Phase F PR-F1: classify auth mode at request entry. The result
         # is stored on `request.state` so downstream handlers (cache
@@ -150,7 +152,17 @@ class OpenAIChatMixin:
             body=body,
         )
         schema_savings_metadata = None
+        from cutctx.proxy.canary_identity import resolve_canary_identity
         from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.savings_canary import get_savings_canary_coordinator
+
+        _canary_coordinator = get_savings_canary_coordinator()
+        _canary_identity = resolve_canary_identity(
+            headers=dict(request.headers.items()),
+            body=body,
+            request_id=request_id,
+            salt=_canary_coordinator.salt,
+        )
 
         model, request_savings_metadata = prepare_model_routing(
             self,
@@ -159,6 +171,11 @@ class OpenAIChatMixin:
             tool_calls=len(body.get("tools") or []),
             num_messages=len(messages),
             messages=messages,
+            request_id=_canary_identity.value,
+            client=classify_client(dict(request.headers.items())),
+            assignment_identity_source=_canary_identity.source,
+            assignment_sticky=_canary_identity.sticky,
+            transport_provider="openai",
         )
         body["model"] = model
         reasoning_override = (
@@ -333,9 +350,16 @@ class OpenAIChatMixin:
             allowed, wait_seconds = await self.rate_limiter.check_request(rate_key)
             if not allowed:
                 await self.metrics.record_rate_limited(provider="openai")
+                self.record_rate_limit_denial(
+                    request_id=request_id,
+                    provider="openai",
+                    model=model,
+                    wait_seconds=wait_seconds,
+                )
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
+                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
                 )
 
         # Check cache
@@ -508,7 +532,7 @@ class OpenAIChatMixin:
             memoization_hits, memoization_tokens_saved = record_tool_results_from_messages(
                 self.memoizer, messages, openai_session_id
             )
-        
+
         openai_prefix_tracker = self.session_tracker_store.get_or_create(
             openai_session_id, "openai"
         )
@@ -572,9 +596,9 @@ class OpenAIChatMixin:
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
             logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
+                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
             )
-            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+            self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
@@ -910,6 +934,12 @@ class OpenAIChatMixin:
                 slim_tool_surface,
             )
 
+            _canary_arm = str(
+                ((request_savings_metadata or {}).get("savings_canary") or {}).get(
+                    "arm", "control"
+                )
+            )
+
             tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
                 body.get("tools"),
                 tokenizer,
@@ -941,7 +971,9 @@ class OpenAIChatMixin:
             if body.get("tools"):
                 original_tools_payload = body["tools"]
                 compacted_tools, tools_were_modified, tb, ta = compress_tool_schemas(
-                    original_tools_payload
+                    original_tools_payload,
+                    max_description_length=120 if _canary_arm == "tool_api_slimming" else 200,
+                    aggressive=_canary_arm == "tool_api_slimming",
                 )
                 if tools_were_modified:
                     body["tools"] = compacted_tools
@@ -960,7 +992,15 @@ class OpenAIChatMixin:
                     except Exception:
                         schema_tokens_saved = max(0, (tb - ta) // 4)
             if body.get("messages"):
-                body["messages"] = compress_tool_results(body["messages"])
+                body["messages"] = compress_tool_results(
+                    body["messages"],
+                    max_array_items_for_positional=25
+                    if _canary_arm == "mutable_tail"
+                    else 10,
+                    min_fields_for_positional=2
+                    if _canary_arm == "mutable_tail"
+                    else 3,
+                )
                 optimized_messages = body["messages"]
             if schema_tokens_saved > 0:
                 tokens_saved += schema_tokens_saved
@@ -1353,7 +1393,9 @@ class OpenAIChatMixin:
                 )
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
-                response = await self._retry_request("POST", url, headers, body)
+                response = await self._retry_request(
+                    "POST", url, headers, body, telemetry_tags=tags
+                )
                 self.pipeline_extensions.emit(
                     PipelineStage.POST_SEND,
                     operation="proxy.request",
@@ -1534,7 +1576,11 @@ class OpenAIChatMixin:
                             }
 
                             cont_response = await self._retry_request(
-                                "POST", url, headers, continuation_body
+                                "POST",
+                                url,
+                                headers,
+                                continuation_body,
+                                telemetry_tags=tags,
                             )
                             if cont_response.status_code == 200:
                                 resp_json = cont_response.json()
@@ -1664,6 +1710,182 @@ class OpenAIChatMixin:
         except Exception as e:
             import traceback
             traceback.print_exc()
+
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                not stream
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting OpenAI chat fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+
+                def _fallback_reason(exc: Exception) -> str:
+                    if isinstance(exc, httpx.ConnectError):
+                        return "connect_error"
+                    if isinstance(exc, httpx.TimeoutException):
+                        return "timeout"
+                    if isinstance(exc, httpx.HTTPStatusError):
+                        return "upstream_5xx"
+                    return type(exc).__name__.lower()
+
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = _fallback_reason(e)
+                tags["fallback_source_provider"] = "openai"
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+
+                try:
+                    backend_response = await fallback_backend.send_openai_message(
+                        body,
+                        dict(headers),
+                    )
+                except Exception as fallback_exc:
+                    logger.error(
+                        "[%s] OpenAI chat fallback to %s failed: %s: %s",
+                        request_id,
+                        fallback_provider,
+                        type(fallback_exc).__name__,
+                        fallback_exc,
+                    )
+                else:
+                    if not backend_response.error and backend_response.status_code < 500:
+                        total_latency = (time.time() - start_time) * 1000
+                        usage = backend_response.body.get("usage", {})
+                        total_input_tokens = usage.get("prompt_tokens", optimized_tokens)
+                        output_tokens = usage.get("completion_tokens", 0)
+                        cache_read_tokens = usage.get("cache_read_input_tokens", 0) or 0
+                        cache_creation_input_tokens = (
+                            usage.get("cache_creation_input_tokens", 0) or 0
+                        )
+                        if cache_read_tokens == 0:
+                            prompt_details = usage.get("prompt_tokens_details") or {}
+                            cache_read_tokens = prompt_details.get("cached_tokens", 0) or 0
+
+                        if cache_creation_input_tokens > 0:
+                            cache_write_tokens = cache_creation_input_tokens
+                        else:
+                            cache_write_tokens = _infer_openai_cache_write_tokens(
+                                total_input_tokens,
+                                cache_read_tokens,
+                            )
+
+                        openai_prefix_tracker.update_from_response(
+                            cache_read_tokens=cache_read_tokens,
+                            cache_write_tokens=cache_write_tokens,
+                            messages=optimized_messages,
+                        )
+
+                        uncached_input_tokens = max(0, total_input_tokens - cache_read_tokens)
+                        if self.cost_tracker:
+                            self.cost_tracker.record_tokens(
+                                model,
+                                tokens_saved,
+                                optimized_tokens,
+                                cache_read_tokens=cache_read_tokens,
+                                cache_write_tokens=cache_write_tokens,
+                                uncached_tokens=uncached_input_tokens,
+                            )
+
+                        outcome_savings_metadata = extract_savings_metadata(
+                            request_headers=request.headers,
+                            response_headers=backend_response.headers,
+                            body=body,
+                        )
+                        await self._record_request_outcome(
+                            RequestOutcome(
+                                request_id=request_id,
+                                provider=fallback_provider,
+                                model=model,
+                                original_tokens=original_tokens,
+                                optimized_tokens=total_input_tokens,
+                                output_tokens=output_tokens,
+                                tokens_saved=tokens_saved,
+                                attempted_input_tokens=total_input_tokens + tokens_saved,
+                                cache_read_tokens=cache_read_tokens,
+                                uncached_input_tokens=uncached_input_tokens,
+                                self_hosted_prefix_cache_hits=int(
+                                    (outcome_savings_metadata or {})
+                                    .get("prefix_cache_self_hosted", {})
+                                    .get("tokens", 0)
+                                    or (outcome_savings_metadata or {})
+                                    .get("vllm_apc", {})
+                                    .get("tokens", 0)
+                                    or 0
+                                ),
+                                model_routing_tokens_saved=int(
+                                    (outcome_savings_metadata or {})
+                                    .get("model_routing", {})
+                                    .get("tokens", 0)
+                                    or 0
+                                ),
+                                model_routing_usd_saved=float(
+                                    (outcome_savings_metadata or {})
+                                    .get("model_routing", {})
+                                    .get("usd", 0.0)
+                                    or 0.0
+                                ),
+                                memoization_hits=memoization_hits,
+                                memoization_tokens_saved=memoization_tokens_saved,
+                                output_optimization_tokens_saved=output_optimization_tokens_saved,
+                                total_latency_ms=total_latency,
+                                overhead_ms=optimization_latency,
+                                pipeline_timing=pipeline_timing,
+                                waste_signals=waste_signals_dict,
+                                transforms_applied=tuple(transforms_applied),
+                                num_messages=len(body.get("messages", [])),
+                                tags=tags,
+                                client=client,
+                                savings_metadata=outcome_savings_metadata,
+                                request_messages=original_messages
+                                if self.config.log_full_messages
+                                else None,
+                                compressed_messages=optimized_messages
+                                if self.config.log_full_messages
+                                else None,
+                            )
+                        )
+
+                        response_headers = dict(backend_response.headers)
+                        response_headers.pop("content-encoding", None)
+                        response_headers.pop("content-length", None)
+                        response_headers["x-cutctx-tokens-before"] = str(original_tokens)
+                        response_headers["x-cutctx-tokens-after"] = str(total_input_tokens)
+                        response_headers["x-cutctx-tokens-saved"] = str(tokens_saved)
+                        response_headers["x-cutctx-model"] = model
+                        if transforms_applied:
+                            response_headers["x-cutctx-transforms"] = ",".join(
+                                header_safe_transforms(transforms_applied)
+                            )
+                        if cache_read_tokens > 0:
+                            response_headers["x-cutctx-cached"] = "true"
+                        if _compression_failed:
+                            response_headers["x-cutctx-compression-failed"] = "true"
+
+                        return Response(
+                            content=json.dumps(backend_response.body).encode("utf-8"),
+                            status_code=backend_response.status_code,
+                            headers=response_headers,
+                            media_type="application/json",
+                        )
+
             await self.metrics.record_failed(provider="openai")
             # Log full error details internally for debugging
             logger.error(f"[{request_id}] OpenAI request failed: {type(e).__name__}: {e}")

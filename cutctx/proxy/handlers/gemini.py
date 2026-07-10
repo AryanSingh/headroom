@@ -6,6 +6,7 @@ Contains all Google Gemini API handlers including format conversion utilities.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -15,6 +16,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from fastapi import Request
     from fastapi.responses import JSONResponse, Response, StreamingResponse
+
+import httpx
 
 from cutctx.copilot_auth import build_copilot_upstream_url
 from cutctx.proxy.auth_mode import classify_client
@@ -37,6 +40,103 @@ ANTIGRAVITY_DAILY_API_URL = os.environ.get(
 
 class GeminiHandlerMixin:
     """Mixin providing Gemini API handler methods for CutctxProxy."""
+
+    @staticmethod
+    def _gemini_tools_to_openai_tools(tools: list[dict[str, Any]] | Any) -> list[dict[str, Any]]:
+        if not isinstance(tools, list):
+            return []
+        converted: list[dict[str, Any]] = []
+        for tool in tools:
+            if not isinstance(tool, dict):
+                continue
+            declarations = tool.get("functionDeclarations") or tool.get("function_declarations")
+            if not isinstance(declarations, list):
+                continue
+            for decl in declarations:
+                if not isinstance(decl, dict):
+                    continue
+                converted.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": decl.get("name"),
+                            "description": decl.get("description", ""),
+                            "parameters": decl.get("parameters", {}),
+                        },
+                    }
+                )
+        return converted
+
+    @staticmethod
+    def _chat_completions_response_to_gemini_response(
+        response_body: dict[str, Any],
+    ) -> dict[str, Any]:
+        def _int(value: Any) -> int:
+            try:
+                return max(int(value), 0)
+            except (TypeError, ValueError):
+                return 0
+
+        choice0: dict[str, Any] = {}
+        choices = response_body.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+            choice0 = choices[0]
+        message = choice0.get("message") if isinstance(choice0, dict) else {}
+        if not isinstance(message, dict):
+            message = {}
+
+        parts: list[dict[str, Any]] = []
+        content = message.get("content")
+        if isinstance(content, str) and content:
+            parts.append({"text": content})
+
+        tool_calls = message.get("tool_calls")
+        if isinstance(tool_calls, list):
+            for tool_call in tool_calls:
+                if not isinstance(tool_call, dict):
+                    continue
+                function = tool_call.get("function") or {}
+                if not isinstance(function, dict):
+                    function = {}
+                arguments = function.get("arguments", {})
+                if isinstance(arguments, str):
+                    try:
+                        arguments = json.loads(arguments)
+                    except Exception:
+                        arguments = {"raw": arguments}
+                parts.append(
+                    {
+                        "functionCall": {
+                            "name": function.get("name", "function"),
+                            "args": arguments if isinstance(arguments, dict) else {"value": arguments},
+                        }
+                    }
+                )
+
+        usage = response_body.get("usage") if isinstance(response_body, dict) else {}
+        if not isinstance(usage, dict):
+            usage = {}
+        prompt_details = usage.get("prompt_tokens_details") or {}
+        cached_tokens = prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "role": "model",
+                        "parts": parts or [{"text": ""}],
+                    },
+                    "finishReason": str(choice0.get("finish_reason") or "STOP").upper(),
+                    "safetyRatings": [],
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": _int(usage.get("prompt_tokens")),
+                "candidatesTokenCount": _int(usage.get("completion_tokens")),
+                "totalTokenCount": _int(usage.get("total_tokens")),
+                "cachedContentTokenCount": _int(cached_tokens),
+            },
+        }
 
     def _is_cloudcode_antigravity_request(
         self, body: dict[str, Any], headers: dict[str, str]
@@ -206,7 +306,7 @@ class GeminiHandlerMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = await self._next_request_id()
+        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
 
         # Check request body size
         content_length = request.headers.get("content-length")
@@ -247,6 +347,7 @@ class GeminiHandlerMixin:
             model,
             request_savings_metadata=request_savings_metadata,
             num_messages=len(contents),
+            transport_provider="google",
         )
 
         headers = dict(request.headers.items())
@@ -332,9 +433,16 @@ class GeminiHandlerMixin:
             allowed, wait_seconds = await self.rate_limiter.check_request(rate_key)
             if not allowed:
                 await self.metrics.record_rate_limited(provider=provider_name)
+                self.record_rate_limit_denial(
+                    request_id=request_id,
+                    provider=provider_name,
+                    model=model,
+                    wait_seconds=wait_seconds,
+                )
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
+                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
                 )
 
         # Convert Gemini format to messages for optimization
@@ -394,7 +502,9 @@ class GeminiHandlerMixin:
                     savings_metadata=request_savings_metadata,
                 )
             else:
-                response = await self._retry_request("POST", url, headers, body)
+                response = await self._retry_request(
+                    "POST", url, headers, body, telemetry_tags=tags
+                )
                 total_latency = (time.time() - start_time) * 1000
                 total_input_tokens = 0
                 output_tokens = 0
@@ -465,9 +575,9 @@ class GeminiHandlerMixin:
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
             logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
+                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
             )
-            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+            self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
                 # Use OpenAI pipeline (similar message format)
@@ -624,7 +734,9 @@ class GeminiHandlerMixin:
                     savings_metadata=request_savings_metadata,
                 )
             else:
-                response = await self._retry_request("POST", url, headers, body)
+                response = await self._retry_request(
+                    "POST", url, headers, body, telemetry_tags=tags
+                )
                 total_latency = (time.time() - start_time) * 1000
 
                 total_input_tokens = optimized_tokens  # fallback
@@ -723,6 +835,130 @@ class GeminiHandlerMixin:
                     headers=response_headers,
                 )
         except Exception as e:
+            fallback_provider = getattr(self.config, "fallback_provider", None)
+            fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                self, "openai_fallback_backend", None
+            )
+            if (
+                not is_streaming
+                and getattr(self.config, "fallback_enabled", False)
+                and fallback_provider
+                and fallback_backend is not None
+            ):
+                logger.info(
+                    "[%s] Attempting Gemini fallback to %s",
+                    request_id,
+                    fallback_provider,
+                )
+
+                def _fallback_reason(exc: Exception) -> str:
+                    if isinstance(exc, httpx.ConnectError):
+                        return "connect_error"
+                    if isinstance(exc, httpx.TimeoutException):
+                        return "timeout"
+                    if isinstance(exc, httpx.HTTPStatusError):
+                        return "upstream_5xx"
+                    return type(exc).__name__.lower()
+
+                tags["fallback_provider"] = fallback_provider
+                tags["fallback_attempted"] = "true"
+                tags["fallback_reason"] = _fallback_reason(e)
+                tags["fallback_source_provider"] = provider_name
+                tags["upstream_provider"] = fallback_provider
+                for key in (
+                    "failover_active_provider",
+                    "failover_active_base_url",
+                    "failover_active_healthy",
+                    "circuit_breaker_state",
+                    "circuit_breaker_retry_after_s",
+                    "circuit_breaker_consecutive_failures",
+                    "circuit_breaker_failure_threshold",
+                ):
+                    tags.pop(key, None)
+
+                try:
+                    fallback_body = {
+                        "model": model,
+                        "messages": copy.deepcopy(optimized_messages),
+                    }
+                    converted_tools = self._gemini_tools_to_openai_tools(body.get("tools"))
+                    if converted_tools:
+                        fallback_body["tools"] = converted_tools
+                    backend_response = await fallback_backend.send_openai_message(
+                        fallback_body,
+                        dict(headers),
+                    )
+                except Exception as fallback_exc:
+                    logger.error(
+                        "[%s] Gemini fallback to %s failed: %s: %s",
+                        request_id,
+                        fallback_provider,
+                        type(fallback_exc).__name__,
+                        fallback_exc,
+                    )
+                else:
+                    if not backend_response.error and backend_response.status_code < 500:
+                        response_payload = self._chat_completions_response_to_gemini_response(
+                            backend_response.body
+                        )
+                        total_latency = (time.time() - start_time) * 1000
+                        usage = response_payload.get("usageMetadata", {})
+                        total_input_tokens = usage.get("promptTokenCount", optimized_tokens)
+                        output_tokens = usage.get("candidatesTokenCount", 0)
+                        cache_read_tokens = usage.get("cachedContentTokenCount", 0)
+                        uncached_input_tokens = max(0, total_input_tokens - cache_read_tokens)
+
+                        outcome = RequestOutcome(
+                            request_id=request_id,
+                            provider=fallback_provider,
+                            model=model,
+                            original_tokens=original_tokens,
+                            optimized_tokens=total_input_tokens,
+                            output_tokens=output_tokens,
+                            tokens_saved=tokens_saved,
+                            attempted_input_tokens=total_input_tokens + tokens_saved,
+                            cache_read_tokens=cache_read_tokens,
+                            uncached_input_tokens=uncached_input_tokens,
+                            total_latency_ms=total_latency,
+                            overhead_ms=optimization_latency,
+                            waste_signals=waste_signals_dict,
+                            transforms_applied=tuple(transforms_applied),
+                            num_messages=len(body.get("contents", [])),
+                            tags=tags or {},
+                            client=client,
+                            savings_metadata=extract_savings_metadata(
+                                request_headers=request.headers,
+                                response_headers=backend_response.headers,
+                                body=body,
+                            ),
+                        )
+                        await self._record_request_outcome(outcome)
+
+                        response_headers = dict(backend_response.headers)
+                        response_headers.pop("content-encoding", None)
+                        response_headers.pop("content-length", None)
+                        response_headers["x-cutctx-tokens-before"] = str(original_tokens)
+                        response_headers["x-cutctx-tokens-after"] = str(total_input_tokens)
+                        response_headers["x-cutctx-tokens-saved"] = str(tokens_saved)
+                        response_headers["x-cutctx-model"] = model
+                        if transforms_applied:
+                            from cutctx.proxy.cost import header_safe_transforms
+
+                            response_headers["x-cutctx-transforms"] = ",".join(
+                                header_safe_transforms(transforms_applied)
+                            )
+                        if cache_read_tokens > 0:
+                            response_headers["x-cutctx-cached"] = "true"
+                        if _compression_failed:
+                            response_headers["x-cutctx-compression-failed"] = "true"
+
+                        return Response(
+                            content=json.dumps(response_payload).encode("utf-8"),
+                            status_code=backend_response.status_code,
+                            headers=response_headers,
+                            media_type="application/json",
+                        )
+
             await self.metrics.record_failed(provider=provider_name)
             logger.error(f"[{request_id}] Gemini request failed: {type(e).__name__}: {e}")
             return JSONResponse(
@@ -834,9 +1070,9 @@ class GeminiHandlerMixin:
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
             logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
+                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
             )
-            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+            self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
@@ -1086,7 +1322,9 @@ class GeminiHandlerMixin:
             if "key" in query_params and not upstream_base_url:
                 url += f"?key={query_params['key']}"
 
-            response = await self._retry_request("POST", url, headers, body)
+            response = await self._retry_request(
+                "POST", url, headers, body, telemetry_tags=tags
+            )
             response_headers = dict(response.headers)
             response_headers.pop("content-encoding", None)
             response_headers.pop("content-length", None)
@@ -1118,9 +1356,9 @@ class GeminiHandlerMixin:
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
             logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
+                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
             )
-            self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+            self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
@@ -1164,7 +1402,9 @@ class GeminiHandlerMixin:
             url += f"?key={query_params['key']}"
 
         try:
-            response = await self._retry_request("POST", url, headers, body)
+            response = await self._retry_request(
+                "POST", url, headers, body, telemetry_tags=tags
+            )
             total_latency = (time.time() - start_time) * 1000
 
             # Parse response to get token count

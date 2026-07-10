@@ -1,0 +1,118 @@
+name: Product Release Evidence
+
+on:
+  pull_request:
+    paths:
+      - "dashboard/**"
+      - "cutctx/**"
+      - "sdk/**"
+      - "plugins/**"
+      - "docs/**"
+      - "scripts/run_*smoke.py"
+      - "tests/test_dashboard_*.py"
+      - "tests/test_product_contracts.py"
+      - "tests/test_staging_dashboard_smoke.py"
+      - ".github/workflows/product-release-evidence.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      require_staging:
+        description: Run the authenticated staging release blocker
+        required: true
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      require_staging:
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-evidence:
+    name: Fixture-backed product evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: uv sync --extra dev
+      - run: npm ci
+        working-directory: dashboard
+      - run: npm run lint
+        working-directory: dashboard
+      - run: npm run build
+        working-directory: dashboard
+      - run: uv run pytest tests/test_dashboard_embedded_build.py tests/test_dashboard_audit.py tests/test_product_contracts.py tests/test_product_operator_contracts.py tests/test_run_remote_hosted_smoke.py tests/test_run_staged_gateway_smoke.py tests/test_staging_dashboard_smoke.py -q
+      - run: npx playwright install --with-deps chromium
+        working-directory: dashboard
+      - run: npx playwright test dashboard-audit.spec.js --project=dashboard-audit-desktop --project=dashboard-audit-mobile
+        working-directory: dashboard
+      - run: npm ci
+        working-directory: sdk/typescript
+      - run: npm run typecheck
+        working-directory: sdk/typescript
+      - run: npm test -- --run
+        working-directory: sdk/typescript
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-fixture-evidence
+          path: |
+            dashboard/screenshots/dashboard-audit/
+            dashboard/test-results/
+          if-no-files-found: warn
+
+  staging-release-blocker:
+    name: Authenticated staging release blocker
+    needs: fixture-evidence
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.require_staging }}
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CUTCTX_HOSTED_BASE_URL: ${{ secrets.CUTCTX_HOSTED_BASE_URL }}
+      CUTCTX_HOSTED_API_KEY: ${{ secrets.CUTCTX_HOSTED_API_KEY }}
+      CUTCTX_STAGED_PROXY_BASE_URL: ${{ secrets.CUTCTX_STAGED_PROXY_BASE_URL }}
+      CUTCTX_STAGED_PROXY_ADMIN_API_KEY: ${{ secrets.CUTCTX_STAGED_PROXY_ADMIN_API_KEY }}
+      CUTCTX_STAGED_DASHBOARD_URL: ${{ secrets.CUTCTX_STAGED_DASHBOARD_URL }}
+      CUTCTX_STAGED_SCENARIO_FILE: artifacts/staged-gateway-scenario.example.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: uv sync --extra dev
+      - run: npm ci
+        working-directory: sdk/typescript
+      - run: npm run build
+        working-directory: sdk/typescript
+      - run: npx playwright install --with-deps chromium
+        working-directory: dashboard
+      - run: uv run python scripts/run_remote_hosted_smoke.py
+      - run: node scripts/run-remote-hosted-smoke.mjs
+        working-directory: sdk/typescript
+      - run: uv run python scripts/run_staged_gateway_smoke.py
+      - run: uv run python scripts/run_staging_dashboard_smoke.py
+      - run: test -s artifacts/remote-hosted-compression-smoke.json
+      - run: test -s artifacts/remote-hosted-compression-smoke-typescript.json
+      - run: test -s artifacts/staged-gateway-smoke.json
+      - run: test -s artifacts/staging-dashboard-smoke/staging-dashboard-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-staging-evidence
+          path: |
+            artifacts/remote-hosted-compression-smoke.json
+            artifacts/remote-hosted-compression-smoke.md
+            artifacts/remote-hosted-compression-smoke-typescript.json
+            artifacts/remote-hosted-compression-smoke-typescript.md
+            artifacts/staged-gateway-smoke.json
+            artifacts/staged-gateway-smoke.md
+            artifacts/staging-dashboard-smoke/
+          if-no-files-found: warn

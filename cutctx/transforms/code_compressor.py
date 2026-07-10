@@ -1052,6 +1052,11 @@ class CodeAwareCompressor(Transform):
         effective_protected = protected_symbols
         if effective_protected is None and self._protected_symbols is not None:
             effective_protected = self._protected_symbols
+        query_anchor_symbols = _infer_query_anchor_symbols_from_context(context, code)
+        inferred_protected = _filter_high_signal_anchor_symbols(query_anchor_symbols)
+        if inferred_protected:
+            effective_protected = set(effective_protected or set())
+            effective_protected.update(inferred_protected)
 
         # Parse and compress
         try:
@@ -1061,6 +1066,7 @@ class CodeAwareCompressor(Transform):
                 context,
                 tokenizer,
                 protected_symbols=effective_protected,
+                query_anchor_symbols=query_anchor_symbols,
             )
             compressed_tokens = self._estimate_tokens(compressed, tokenizer)
 
@@ -1165,6 +1171,7 @@ class CodeAwareCompressor(Transform):
         context: str,
         tokenizer: Tokenizer | None = None,
         protected_symbols: set[str] | None = None,
+        query_anchor_symbols: set[str] | None = None,
     ) -> tuple[str, CodeStructure, dict[str, float]]:
         """Compress code using AST parsing with symbol importance analysis.
 
@@ -1201,6 +1208,7 @@ class CodeAwareCompressor(Transform):
                 body_limits,
                 analysis,
                 protected_symbols=protected_symbols,
+                query_anchor_symbols=query_anchor_symbols,
             )
         else:
             structure = self._extract_generic_structure(root, code)
@@ -1231,6 +1239,7 @@ class CodeAwareCompressor(Transform):
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
         protected_symbols: set[str] | None = None,
+        query_anchor_symbols: set[str] | None = None,
     ) -> CodeStructure:
         """Extract structure from AST using data-driven language config.
 
@@ -1274,9 +1283,14 @@ class CodeAwareCompressor(Transform):
                             body_limits,
                             analysis,
                             protected_symbols=protected_symbols,
+                            query_anchor_symbols=query_anchor_symbols,
                         )
                         # Reconstruct export with compressed inner definition
                         export_prefix = code[node.start_byte : child.start_byte]
+                        if export_prefix.strip() and compressed.lstrip().startswith(
+                            export_prefix.strip()
+                        ):
+                            export_prefix = ""
                         export_suffix = code[child.end_byte : node.end_byte]
                         structure.function_signatures.append(
                             export_prefix + compressed + export_suffix
@@ -1303,6 +1317,7 @@ class CodeAwareCompressor(Transform):
                             body_limits,
                             analysis,
                             protected_symbols=protected_symbols,
+                            query_anchor_symbols=query_anchor_symbols,
                         )
                     elif child.type in lang_config.class_nodes:
                         definition_compressed = self._compress_class_ast(
@@ -1313,6 +1328,7 @@ class CodeAwareCompressor(Transform):
                             body_limits,
                             analysis,
                             protected_symbols=protected_symbols,
+                            query_anchor_symbols=query_anchor_symbols,
                         )
                 if decorator_text and definition_compressed:
                     full_def = "\n".join(decorator_text) + "\n" + definition_compressed
@@ -1338,6 +1354,7 @@ class CodeAwareCompressor(Transform):
                     body_limits,
                     analysis,
                     protected_symbols=protected_symbols,
+                    query_anchor_symbols=query_anchor_symbols,
                 )
                 structure.function_signatures.append(compressed)
                 captured_byte_ranges.append((node.start_byte, node.end_byte))
@@ -1353,6 +1370,7 @@ class CodeAwareCompressor(Transform):
                     body_limits,
                     analysis,
                     protected_symbols=protected_symbols,
+                    query_anchor_symbols=query_anchor_symbols,
                 )
                 structure.class_definitions.append(compressed)
                 captured_byte_ranges.append((node.start_byte, node.end_byte))
@@ -1395,6 +1413,7 @@ class CodeAwareCompressor(Transform):
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
         protected_symbols: set[str] | None = None,
+        query_anchor_symbols: set[str] | None = None,
     ) -> str:
         """Compress a function/class/impl block using AST body detection.
 
@@ -1470,6 +1489,9 @@ class CodeAwareCompressor(Transform):
             if _brace_in_signature:
                 # Opening brace already in signature line — just find closing
                 pass
+            elif body_lines and "{" in body_lines[0] and body_lines[0].strip().endswith("{"):
+                signature_lines.append(body_lines[0])
+                body_lines = body_lines[1:]
             elif body_lines and body_lines[0].strip().startswith("{"):
                 opening_brace_line = body_lines[0]
                 body_lines = body_lines[1:]
@@ -1591,6 +1613,7 @@ class CodeAwareCompressor(Transform):
         kept_line_count = 0
         stmts_kept = 0
         total_body_lines_count = sum(end - start + 1 for start, end in body_stmts)
+        omitted_statements: list[str] = []
 
         for start_row, end_row in body_stmts:
             stmt_lines = code_lines[start_row : end_row + 1]
@@ -1599,13 +1622,23 @@ class CodeAwareCompressor(Transform):
             # If adding this statement would exceed budget and we already have
             # at least one statement, stop here
             if kept_line_count + stmt_line_count > body_limit and stmts_kept > 0:
+                omitted_statements.append("\n".join(stmt_lines))
                 break
 
             kept_lines.extend(stmt_lines)
             kept_line_count += stmt_line_count
             stmts_kept += 1
 
+        if stmts_kept < len(body_stmts):
+            for start_row, end_row in body_stmts[stmts_kept:]:
+                omitted_statements.append("\n".join(code_lines[start_row : end_row + 1]))
+
         omitted_lines = total_body_lines_count - kept_line_count
+        preserved_anchors = _extract_preserved_anchors_from_omitted(
+            omitted_statements,
+            protected_symbols,
+            query_anchor_symbols=query_anchor_symbols,
+        )
 
         # Build compressed output preserving original indentation
         result_parts: list[str] = []
@@ -1632,7 +1665,12 @@ class CodeAwareCompressor(Transform):
         if omitted_lines > 0:
             result_parts.append(
                 _make_omitted_comment(
-                    func_name, omitted_lines, indent, lang_config.comment_prefix, analysis
+                    func_name,
+                    omitted_lines,
+                    indent,
+                    lang_config.comment_prefix,
+                    analysis,
+                    preserved_anchors=preserved_anchors,
                 )
             )
             if lang_config.uses_colon_after_signature:
@@ -1654,6 +1692,7 @@ class CodeAwareCompressor(Transform):
         body_limits: dict[str, int],
         analysis: _SymbolAnalysis,
         protected_symbols: set[str] | None = None,
+        query_anchor_symbols: set[str] | None = None,
     ) -> str:
         """Compress a class by individually compressing each method.
 
@@ -1704,6 +1743,7 @@ class CodeAwareCompressor(Transform):
                     body_limits,
                     analysis,
                     protected_symbols=protected_symbols,
+                    query_anchor_symbols=query_anchor_symbols,
                 )
                 body_parts.append(compressed)
                 processed_ranges.append((child.start_byte, child.end_byte))
@@ -1723,6 +1763,7 @@ class CodeAwareCompressor(Transform):
                             body_limits,
                             analysis,
                             protected_symbols=protected_symbols,
+                            query_anchor_symbols=query_anchor_symbols,
                         )
                 if decorator_lines and method_compressed:
                     body_parts.append("\n".join(decorator_lines) + "\n" + method_compressed)
@@ -1741,6 +1782,7 @@ class CodeAwareCompressor(Transform):
                     body_limits,
                     analysis,
                     protected_symbols=protected_symbols,
+                    query_anchor_symbols=query_anchor_symbols,
                 )
                 body_parts.append(compressed)
                 processed_ranges.append((child.start_byte, child.end_byte))
@@ -1836,8 +1878,76 @@ class CodeAwareCompressor(Transform):
         except Exception:
             return False
 
+    def _whitespace_only_fallback(
+        self,
+        code: str,
+        original_tokens: int,
+    ) -> CodeCompressionResult | None:
+        """Safe textual fallback that only removes redundant whitespace.
+
+        This path intentionally avoids semantic rewrites. It collapses
+        repeated blank lines and trims trailing spaces so syntax stays
+        unchanged while still recovering some savings from copy-pasted or
+        human-formatted snippets when AST compression is unavailable.
+        """
+        normalized_lines: list[str] = []
+        previous_blank = False
+        changed = False
+
+        for index, raw_line in enumerate(code.splitlines()):
+            line = raw_line.rstrip()
+            if line != raw_line:
+                changed = True
+
+            stripped = line.lstrip()
+            is_python_comment = stripped.startswith("#") and not (
+                index == 0 and stripped.startswith("#!")
+            )
+            is_slash_comment = stripped.startswith("//")
+            if is_python_comment or is_slash_comment:
+                changed = True
+                continue
+
+            is_blank = line == ""
+            if is_blank:
+                if previous_blank:
+                    changed = True
+                    continue
+                previous_blank = True
+                normalized_lines.append("")
+                continue
+
+            previous_blank = False
+            normalized_lines.append(line)
+
+        compressed = "\n".join(normalized_lines).strip("\n")
+        if code.endswith("\n"):
+            compressed += "\n"
+
+        if not changed or compressed == code:
+            return None
+
+        compressed_tokens = self._estimate_tokens(compressed)
+        if compressed_tokens >= original_tokens:
+            return None
+
+        return CodeCompressionResult(
+            compressed=compressed,
+            original=code,
+            original_tokens=original_tokens,
+            compressed_tokens=compressed_tokens,
+            compression_ratio=compressed_tokens / max(original_tokens, 1),
+            language=CodeLanguage.UNKNOWN,
+            language_confidence=0.0,
+            syntax_valid=True,
+        )
+
     def _fallback_compress(self, code: str, original_tokens: int) -> CodeCompressionResult:
         """Fall back to Kompress compression."""
+        whitespace_result = self._whitespace_only_fallback(code, original_tokens)
+        if whitespace_result is not None:
+            return whitespace_result
+
         try:
             from .kompress_compressor import KompressCompressor, is_kompress_available
 
@@ -2090,6 +2200,7 @@ def _make_omitted_comment(
     indent: str,
     comment_prefix: str,
     analysis: _SymbolAnalysis | None,
+    preserved_anchors: list[str] | None = None,
 ) -> str:
     """Build omitted comment with call information from analysis."""
     calls_info = ""
@@ -2106,7 +2217,12 @@ def _make_omitted_comment(
                     if len(called) > 5:
                         calls_info += f" +{len(called) - 5} more"
                 break
-    return f"{indent}{comment_prefix} [{omitted_count} lines omitted{calls_info}]"
+    anchor_info = ""
+    if preserved_anchors:
+        anchor_info = "; anchors: " + ", ".join(preserved_anchors[:5])
+        if len(preserved_anchors) > 5:
+            anchor_info += f" +{len(preserved_anchors) - 5} more"
+    return f"{indent}{comment_prefix} [{omitted_count} lines omitted{calls_info}{anchor_info}]"
 
 
 def _detect_indent(lines: list[str]) -> str:
@@ -2117,6 +2233,43 @@ def _detect_indent(lines: list[str]) -> str:
     return "    "
 
 
+def _extract_preserved_anchors_from_omitted(
+    omitted_statements: list[str],
+    protected_symbols: set[str] | None,
+    query_anchor_symbols: set[str] | None = None,
+) -> list[str]:
+    """Return protected query anchors that only survive inside omitted statements."""
+    if not omitted_statements:
+        return []
+
+    omitted_text = "\n".join(omitted_statements)
+    anchors: list[str] = []
+    if protected_symbols:
+        anchors.extend(symbol for symbol in protected_symbols if symbol and symbol in omitted_text)
+    if query_anchor_symbols:
+        anchors.extend(symbol for symbol in query_anchor_symbols if symbol and symbol in omitted_text)
+
+    anchors.extend(match for match in _DOTTED_IDENTIFIER_PATTERN.findall(omitted_text))
+    anchors.extend(match for match in re.findall(r"\b[A-Z][A-Za-z0-9]+(?:Error|Exception)\b", omitted_text))
+
+    # Keep exact-string order stable while avoiding noisy duplicates.
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for anchor in anchors:
+        if not anchor or anchor in seen:
+            continue
+        seen.add(anchor)
+        deduped.append(anchor)
+    anchors = deduped
+    return sorted(anchors, key=len, reverse=True)
+
+
+_IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
+_DOTTED_IDENTIFIER_PATTERN = re.compile(
+    r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b"
+)
+
+
 def _has_syntax_issues(node: Any) -> bool:
     """Check if AST contains ERROR or MISSING nodes."""
     if node.type == "ERROR" or node.is_missing:
@@ -2125,6 +2278,43 @@ def _has_syntax_issues(node: Any) -> bool:
         if _has_syntax_issues(child):
             return True
     return False
+
+
+def _infer_protected_symbols_from_context(context: str, code: str) -> set[str]:
+    """Infer high-signal code anchors that should preserve more context."""
+    return _filter_high_signal_anchor_symbols(
+        _infer_query_anchor_symbols_from_context(context, code)
+    )
+
+
+def _infer_query_anchor_symbols_from_context(context: str, code: str) -> set[str]:
+    """Infer code symbols that the query text explicitly names."""
+    if not context.strip() or not code.strip():
+        return set()
+
+    code_identifiers = set(_IDENTIFIER_PATTERN.findall(code))
+    code_dotted = set(_DOTTED_IDENTIFIER_PATTERN.findall(code))
+
+    anchors: set[str] = set()
+    anchors.update(match for match in _DOTTED_IDENTIFIER_PATTERN.findall(context) if match in code_dotted)
+    anchors.update(match for match in _IDENTIFIER_PATTERN.findall(context) if match in code_identifiers)
+    return anchors
+
+
+def _filter_high_signal_anchor_symbols(symbols: set[str]) -> set[str]:
+    """Keep only anchors that should influence body preservation budgets."""
+    return {symbol for symbol in symbols if "." in symbol or _is_high_signal_protected_identifier(symbol)}
+
+
+def _is_high_signal_protected_identifier(identifier: str) -> bool:
+    """Return whether a bare identifier should be preserved as a high-signal query anchor."""
+    if not identifier:
+        return False
+    if identifier.endswith(("Error", "Exception")):
+        return True
+    if identifier.isupper():
+        return True
+    return any(ch.isupper() for ch in identifier[1:])
 
 
 def compress_code(

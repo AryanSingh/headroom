@@ -40,7 +40,10 @@ def _install_dashboard_routes(page: Page) -> None:
             return
 
         if "/assets/" in url:
-            asset_path = root_dir / "dashboard/dist" / url.split("cutctx.local/")[1]
+            asset_rel = url.split("cutctx.local/")[1]
+            if asset_rel.startswith("dashboard/"):
+                asset_rel = asset_rel[len("dashboard/") :]
+            asset_path = root_dir / "cutctx/dashboard" / asset_rel
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(
@@ -54,6 +57,14 @@ def _install_dashboard_routes(page: Page) -> None:
         # mock all API requests
         if "/stats" in url:
             route.fulfill(status=200, content_type="application/json", body="{}")
+            return
+
+        if "/health" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body='{"status":"ok","ready":true}',
+            )
             return
 
         # fallback for everything else to avoid hanging on fake domain

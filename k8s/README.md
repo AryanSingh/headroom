@@ -70,7 +70,7 @@ CUTCTX_PROXY_UPSTREAM_URL: "https://your-proxy.example.com"
 
 | Endpoint | Purpose | Probe Type |
 |----------|---------|------------|
-| `/healthz` | Liveness + startup | HTTP GET |
+| `/livez` | Liveness + startup | HTTP GET |
 | `/readyz` | Readiness | HTTP GET |
 | `/livez` | Liveness | HTTP GET |
 
@@ -136,3 +136,7 @@ kubectl exec -it deployment/cutctx-proxy -n cutctx -- env | grep COMPRESSION
 curl -H "X-Cutctx-Admin-Key: YOUR_KEY" http://localhost:8080/stats
 # Consider reducing max_body_bytes or adding Redis CCR backend
 ```
+
+## Orchestration state backup
+
+Mount `CUTCTX_ORCHESTRATION_DIR` on persistent storage when provider accounts or execution history must survive pod replacement. Back up its encrypted credential database, model cache, and execution JSONL. Store `CUTCTX_ORCHESTRATION_MASTER_KEY` in a Kubernetes Secret or external secret manager and back it up independently; never place the key in the same archive as `credentials.enc`. Restore the Secret first, then the state volume, and run each configured provider's authenticated health test before admitting traffic.

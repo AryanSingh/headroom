@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import inspect
 import json
 import logging
 import os
@@ -713,7 +714,7 @@ class AnthropicHandlerMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = await self._next_request_id()
+        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
         trace_session_id = uuid.uuid4().hex
 
         # Phase F PR-F1: classify auth mode at request entry. The result
@@ -875,7 +876,7 @@ class AnthropicHandlerMixin:
                     },
                 )
             model = body.get("model") or model_override or "unknown"
-            
+
             # WS13 Batch Routing
             batch_router = getattr(self, "batch_router", None)
             if batch_router:
@@ -957,6 +958,8 @@ class AnthropicHandlerMixin:
             if getattr(self, "_model_router", None) is not None:
                 try:
                     from dataclasses import replace as _dc_replace
+
+                    from cutctx.orchestration import RoutingUnavailableError
                     from cutctx.proxy.model_router import prepare_model_routing
 
                     routed_model, request_savings_metadata = prepare_model_routing(
@@ -973,6 +976,7 @@ class AnthropicHandlerMixin:
                         ),
                         num_messages=len(messages),
                         messages=self._anthropic_messages_to_routing_messages(messages),
+                        transport_provider=provider_name,
                     )
                     if routed_model != model:
                         # Override the model in the request body so the
@@ -981,6 +985,8 @@ class AnthropicHandlerMixin:
                         # by emit_request_outcome based on actual tokens.
                         model = routed_model
                         body = _dc_replace(body, model=routed_model)
+                except RoutingUnavailableError:
+                    raise
                 except Exception:
                     # Routing is best-effort; never let a router error
                     # poison the request path.
@@ -1098,6 +1104,17 @@ class AnthropicHandlerMixin:
                 allowed, wait_seconds = await self.rate_limiter.check_request(rate_key)
                 if not allowed:
                     await self.metrics.record_rate_limited(provider=provider_name)
+                    record_rate_limit_denial = getattr(
+                        self, "record_rate_limit_denial", None
+                    )
+                    if callable(record_rate_limit_denial):
+                        record_rate_limit_denial(
+                            request_id=request_id,
+                            provider=provider_name,
+                            model=model,
+                            wait_seconds=wait_seconds,
+                            key_type="api_key_or_ip",
+                        )
                     # Unit 4: release the pre-upstream semaphore before we
                     # bail out of the handler via HTTPException — FastAPI's
                     # exception handler will NOT run our ``finally``.
@@ -1105,7 +1122,10 @@ class AnthropicHandlerMixin:
                     raise HTTPException(
                         status_code=429,
                         detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
-                        headers={"Retry-After": str(int(wait_seconds) + 1)},
+                        headers={
+                            "Retry-After": str(int(wait_seconds) + 1),
+                            "X-Request-ID": request_id,
+                        },
                     )
 
             # Budget check
@@ -1517,9 +1537,9 @@ class AnthropicHandlerMixin:
             _decision.apply_to_tags(tags)
             if not _decision.should_compress:
                 logger.info(
-                    f"[{request_id}] Compression skipped: reason={_decision.passthrough_reason}"
+                    f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
                 )
-                self.metrics.record_compression_declined(_decision.passthrough_reason or "unknown")
+                self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
             if _decision.should_compress:
                 try:
                     from cutctx.proxy.helpers import COMPRESSION_TIMEOUT_SECONDS
@@ -2643,6 +2663,13 @@ class AnthropicHandlerMixin:
                         ),
                     )
                 else:
+                    retry_kwargs: dict[str, Any] = {}
+                    retry_parameters = inspect.signature(self._retry_request).parameters
+                    if "telemetry_tags" in retry_parameters or any(
+                        parameter.kind is inspect.Parameter.VAR_KEYWORD
+                        for parameter in retry_parameters.values()
+                    ):
+                        retry_kwargs["telemetry_tags"] = tags
                     async with stage_timer.measure("upstream_connect"):
                         response = await self._retry_request(
                             "POST",
@@ -2655,6 +2682,7 @@ class AnthropicHandlerMixin:
                             request_id=request_id,
                             forwarder_name="anthropic_messages",
                             path_for_log="/v1/messages",
+                            **retry_kwargs,
                         )
                     self.pipeline_extensions.emit(
                         PipelineStage.POST_SEND,
@@ -2971,7 +2999,11 @@ class AnthropicHandlerMixin:
                                     continuation_body["tools"] = tools
 
                                 cont_response = await self._retry_request(
-                                    "POST", url, headers, continuation_body
+                                    "POST",
+                                    url,
+                                    headers,
+                                    continuation_body,
+                                    telemetry_tags=tags,
                                 )
 
                                 # Update response with continuation
@@ -3280,15 +3312,150 @@ class AnthropicHandlerMixin:
                 # Retry-After header. The outer finally still runs.
                 raise
             except Exception as e:
-                await self.metrics.record_failed(provider=provider_name)
                 # Log full error details internally for debugging
                 logger.error(f"[{request_id}] Request failed: {type(e).__name__}: {e}")
 
                 # Try fallback if enabled
-                if self.config.fallback_enabled and self.config.fallback_provider == "openai":
-                    logger.info(f"[{request_id}] Attempting fallback to OpenAI")
-                    # Convert to OpenAI format and retry
-                    # (simplified - would need message format conversion)
+                fallback_provider = self.config.fallback_provider
+                fallback_backend = getattr(self, "fallback_backend", None) or getattr(
+                    self, "openai_fallback_backend", None
+                )
+                if (
+                    not stream
+                    and self.config.fallback_enabled
+                    and fallback_provider
+                    and fallback_backend is not None
+                ):
+                    logger.info(
+                        "[%s] Attempting fallback to %s",
+                        request_id,
+                        fallback_provider,
+                    )
+
+                    def _fallback_reason(exc: Exception) -> str:
+                        if isinstance(exc, httpx.ConnectError):
+                            return "connect_error"
+                        if isinstance(exc, httpx.TimeoutException):
+                            return "timeout"
+                        if isinstance(exc, httpx.HTTPStatusError):
+                            return "upstream_5xx"
+                        return type(exc).__name__.lower()
+
+                    fallback_reason = _fallback_reason(e)
+                    tags["fallback_provider"] = fallback_provider
+                    tags["fallback_attempted"] = "true"
+                    tags["fallback_reason"] = fallback_reason
+                    tags["fallback_source_provider"] = provider_name
+                    tags["upstream_provider"] = fallback_provider
+                    for key in (
+                        "failover_active_provider",
+                        "failover_active_base_url",
+                        "failover_active_healthy",
+                        "circuit_breaker_state",
+                        "circuit_breaker_retry_after_s",
+                        "circuit_breaker_consecutive_failures",
+                        "circuit_breaker_failure_threshold",
+                    ):
+                        tags.pop(key, None)
+
+                    try:
+                        backend_response = await fallback_backend.send_message(
+                            body,
+                            dict(headers),
+                        )
+                    except Exception as fallback_exc:
+                        logger.error(
+                            "[%s] %s fallback failed: %s: %s",
+                            request_id,
+                            fallback_provider,
+                            type(fallback_exc).__name__,
+                            fallback_exc,
+                        )
+                    else:
+                        if not backend_response.error and backend_response.status_code < 500:
+                            total_latency = (time.time() - start_time) * 1000
+                            usage = backend_response.body.get("usage", {})
+                            output_tokens = usage.get("output_tokens", 0)
+                            try:
+                                attempted_input_tokens = tokenizer.count_messages(
+                                    original_client_messages[frozen_message_count:]
+                                )
+                            except Exception:
+                                attempted_input_tokens = original_tokens
+
+                            outcome_savings_metadata = merge_savings_metadata(
+                                request_savings_metadata,
+                                schema_savings_metadata,
+                                extract_savings_metadata(
+                                    request_headers=request.headers,
+                                    response_headers=backend_response.headers,
+                                    body=body,
+                                ),
+                            )
+                            await self._record_request_outcome(
+                                RequestOutcome(
+                                    request_id=request_id,
+                                    provider=fallback_provider,
+                                    model=model,
+                                    original_tokens=original_tokens,
+                                    optimized_tokens=optimized_tokens,
+                                    output_tokens=output_tokens,
+                                    tokens_saved=tokens_saved,
+                                    attempted_input_tokens=attempted_input_tokens,
+                                    self_hosted_prefix_cache_hits=int(
+                                        (outcome_savings_metadata or {})
+                                        .get("prefix_cache_self_hosted", {})
+                                        .get("tokens", 0)
+                                        or (outcome_savings_metadata or {})
+                                        .get("vllm_apc", {})
+                                        .get("tokens", 0)
+                                        or 0
+                                    ),
+                                    model_routing_tokens_saved=int(
+                                        (outcome_savings_metadata or {})
+                                        .get("model_routing", {})
+                                        .get("tokens", 0)
+                                        or 0
+                                    ),
+                                    model_routing_usd_saved=float(
+                                        (outcome_savings_metadata or {})
+                                        .get("model_routing", {})
+                                        .get("usd", 0.0)
+                                        or 0.0
+                                    ),
+                                    memoization_hits=memoization_hits,
+                                    memoization_tokens_saved=memoization_tokens_saved,
+                                    output_optimization_tokens_saved=output_optimization_tokens_saved,
+                                    total_latency_ms=total_latency,
+                                    overhead_ms=optimization_latency,
+                                    pipeline_timing=pipeline_timing,
+                                    transforms_applied=tuple(transforms_applied),
+                                    num_messages=len(body.get("messages", [])),
+                                    tags=tags,
+                                    client=client,
+                                    savings_metadata=outcome_savings_metadata,
+                                    turn_id=compute_turn_id(
+                                        model, body.get("system"), body.get("messages")
+                                    ),
+                                    request_messages=original_client_messages
+                                    if self.config.log_full_messages
+                                    else None,
+                                    compressed_messages=body.get("messages")
+                                    if self.config.log_full_messages
+                                    else None,
+                                )
+                            )
+                            return JSONResponse(
+                                status_code=backend_response.status_code,
+                                content=backend_response.body,
+                            )
+                        await self.metrics.record_failed(provider=fallback_provider)
+                        return JSONResponse(
+                            status_code=backend_response.status_code,
+                            content=backend_response.body,
+                        )
+
+                await self.metrics.record_failed(provider=provider_name)
 
                 # Return sanitized error message to client (don't expose internal details)
                 return JSONResponse(
@@ -3542,6 +3709,13 @@ class AnthropicHandlerMixin:
 
         try:
             # Body is always mutated for batch (compressed requests).
+            retry_kwargs: dict[str, Any] = {}
+            retry_parameters = inspect.signature(self._retry_request).parameters
+            if "telemetry_tags" in retry_parameters or any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in retry_parameters.values()
+            ):
+                retry_kwargs["telemetry_tags"] = tags
             response = await self._retry_request(
                 "POST",
                 url,
@@ -3552,6 +3726,7 @@ class AnthropicHandlerMixin:
                 request_id=request_id,
                 forwarder_name="anthropic_batch",
                 path_for_log="/v1/messages/batches",
+                **retry_kwargs,
             )
 
             # Batch create: tokens accumulated across all requests in

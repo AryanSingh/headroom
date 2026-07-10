@@ -75,11 +75,15 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
             retry_base_delay_ms=1,
             retry_max_delay_ms=1,
             connect_timeout_seconds=10,
+            fallback_enabled=False,
+            fallback_provider=None,
         )
         self.usage_reporter = None
         self.openai_provider = SimpleNamespace(get_context_limit=lambda model: 128_000)
         self.openai_pipeline = SimpleNamespace(apply=MagicMock())
         self.anthropic_backend = None
+        self.fallback_backend = None
+        self.openai_fallback_backend = None
         self.cost_tracker = None
         self.memory_handler = None
         self.session_tracker_store = SessionTrackerStore()
@@ -115,6 +119,20 @@ class _FakeWebSocketDisconnect(Exception):
 
 # Force the type-name substring match in the handler.
 _FakeWebSocketDisconnect.__name__ = "WebSocketDisconnect_Fake"
+
+
+class _FallbackResponsesBackend:
+    def __init__(self, provider: str = "gemini") -> None:
+        self.name = f"litellm-{provider}"
+
+    async def stream_openai_message(self, body, headers):
+        yield 'data: {"choices":[{"delta":{"content":"fallback "},"finish_reason":null}]}\n\n'
+        yield (
+            'data: {"choices":[{"delta":{"content":"session ok"},"finish_reason":"stop"}],'
+            '"usage":{"prompt_tokens":14,"completion_tokens":6,"total_tokens":20,'
+            '"prompt_tokens_details":{"cached_tokens":4}}}\n\n'
+        )
+        yield "data: [DONE]\n\n"
 
 
 class _FakeWebSocket:
@@ -721,6 +739,35 @@ async def test_ws_connect_failure_falls_back_to_http():
     assert client_ws.closed is True
     assert client_ws.close_code == 1014
     # Clean teardown.
+    assert handler.ws_sessions.active_count() == 0
+
+
+@pytest.mark.asyncio
+async def test_ws_connect_failure_uses_configured_backend_fallback():
+    fake_ws_mod = _make_fake_websockets_module(
+        None, connect_error=RuntimeError("HTTP 500 from upstream")
+    )
+
+    client_ws = _FakeWebSocket(frames=[_first_frame()])
+    handler = _DummyOpenAIHandler()
+    handler.config.fallback_enabled = True
+    handler.config.fallback_provider = "gemini"
+    handler.fallback_backend = _FallbackResponsesBackend("gemini")
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    assert client_ws.sent_text
+    assert json.loads(client_ws.sent_text[0])["type"] == "response.created"
+    assert json.loads(client_ws.sent_text[-1])["type"] == "response.completed"
+    assert handler.metrics.recorded_requests
+    recorded = handler.metrics.recorded_requests[-1]
+    assert recorded["input_tokens"] == 14
+    assert recorded["output_tokens"] == 6
+    assert recorded["cache_read_tokens"] == 4
+    assert recorded["cache_write_tokens"] == 10
+    assert recorded["uncached_input_tokens"] == 10
+    assert recorded["provider"] == "gemini"
     assert handler.ws_sessions.active_count() == 0
 
 

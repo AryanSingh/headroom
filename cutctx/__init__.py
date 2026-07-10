@@ -181,6 +181,10 @@ __all__ = [
     "compress",
     "CompressConfig",
     "CompressResult",
+    # Hosted compression API
+    "HostedCompressionClient",
+    "HostedCompressionError",
+    "HostedCompressionResult",
     # Hooks
     "CompressionHooks",
     "CompressContext",
@@ -277,6 +281,10 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "compress": ("cutctx.compress", "compress"),
     "CompressConfig": ("cutctx.compress", "CompressConfig"),
     "CompressResult": ("cutctx.compress", "CompressResult"),
+    # Hosted compression API
+    "HostedCompressionClient": ("cutctx.hosted", "HostedCompressionClient"),
+    "HostedCompressionError": ("cutctx.hosted", "HostedCompressionError"),
+    "HostedCompressionResult": ("cutctx.hosted", "HostedCompressionResult"),
     # Hooks
     "CompressionHooks": ("cutctx.hooks", "CompressionHooks"),
     "CompressContext": ("cutctx.hooks", "CompressContext"),

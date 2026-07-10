@@ -18,6 +18,37 @@ def test_docker_workflow_normalizes_repository_name_for_signing() -> None:
     assert "steps.image-name.outputs.image_name" in content
 
 
+def test_benchmark_evidence_workflow_publishes_manifest_and_named_arm_bundle() -> None:
+    content = (ROOT / ".github" / "workflows" / "release-benchmark-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "scripts/generate_benchmark_release_bundle.py" in content
+    assert "tests/test_release_bundle.py" in content
+    assert "artifacts/benchmark-release-bundle.json" in content
+    assert "artifacts/raw-passthrough-benchmark.json" in content
+    assert "scripts/evaluate_release_evidence.py" in content
+    assert "artifacts/release-evidence-status.json" in content
+
+
+def test_product_release_evidence_workflow_runs_fixture_and_authenticated_staging_gates() -> None:
+    content = (ROOT / ".github" / "workflows" / "product-release-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Fixture-backed product evidence" in content
+    assert "test_dashboard_audit.py" in content
+    assert "test_product_contracts.py" in content
+    assert "dashboard-audit-desktop" in content
+    assert "dashboard-audit-mobile" in content
+    assert "Authenticated staging release blocker" in content
+    assert "environment: staging" in content
+    assert "scripts/run_remote_hosted_smoke.py" in content
+    assert "scripts/run_staged_gateway_smoke.py" in content
+    assert "scripts/run_staging_dashboard_smoke.py" in content
+    assert "product-staging-evidence" in content
+
+
 def test_release_workflow_publishes_both_node_packages_to_github_packages() -> None:
     content = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
@@ -55,11 +86,12 @@ def test_create_release_requires_successful_build_and_pypi_publish() -> None:
     # success in the `if:` block (otherwise `always()` would let the
     # release proceed even when the smoke gate failed).
     assert (
-        "needs: [detect-version, build, build-wheels, collect-dist, smoke-import-wheels, publish-pypi, publish-npm, publish-github-packages, publish-docker]"
+        "needs: [detect-version, product-release-evidence, build, build-wheels, collect-dist, smoke-import-wheels, publish-pypi, publish-npm, publish-github-packages, publish-docker]"
         in content
     )
     assert "always()" in content
     assert "needs.build.result == 'success'" in content
+    assert "needs.product-release-evidence.result == 'success'" in content
     assert "needs.build-wheels.result == 'success'" in content
     assert "needs.collect-dist.result == 'success'" in content
     assert "needs.smoke-import-wheels.result == 'success'" in content

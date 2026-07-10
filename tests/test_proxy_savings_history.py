@@ -68,9 +68,19 @@ def test_savings_tracker_helpers_normalize_inputs_and_paths(tmp_path, monkeypatc
         "provider": "unknown",
         "model": "unknown",
         "savings_basis": "estimated",
+        "pricing_basis": "model_input_list_price",
+        "created_savings_tokens": 0,
+        "observed_provider_savings_tokens": 0,
+        "delta_created_savings_tokens": 0,
+        "delta_observed_provider_savings_tokens": 0,
+        "attribution_covered": False,
+        "opportunity_funnel": {},
+        "decline_reason": None,
         "total_tokens_saved": 12,
         "compression_savings_usd": 0.5,
         "compression_savings_observed_usd": 0.0,
+        "created_savings_usd": 0.5,
+        "observed_provider_savings_usd": 0.0,
         "cache_savings_usd": 0.0,
         "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
@@ -136,15 +146,28 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
     )
     snapshot = tracker.snapshot()
 
-    assert snapshot["schema_version"] == 4
+    assert snapshot["schema_version"] == 6
     assert "attribution_note" in snapshot
     assert snapshot["lifetime"] == {
         "requests": 0,
         "tokens_saved": 30,
         "compression_savings_usd": pytest.approx(0.03),
         "compression_savings_observed_usd": 0.0,
+        "created_savings_usd": pytest.approx(0.03),
+        "observed_provider_savings_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
+        "created_savings_tokens": 0,
+        "observed_provider_savings_tokens": 0,
+        "attributed_requests": 0,
+        "legacy_unattributed_requests": 0,
+        "attribution_coverage": {
+            "attributed_requests": 0,
+            "legacy_unattributed_requests": 0,
+            "coverage_percent": 100.0,
+            "complete": True,
+        },
+        "opportunity_funnel": savings_tracker_module._empty_opportunity_funnel(),
     }
     assert snapshot["display_session"] == savings_tracker_module._empty_display_session()
     assert snapshot["history"] == [
@@ -153,9 +176,19 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "provider": "unknown",
             "model": "unknown",
             "savings_basis": "estimated",
+            "pricing_basis": "model_input_list_price",
+            "created_savings_tokens": 0,
+            "observed_provider_savings_tokens": 0,
+            "delta_created_savings_tokens": 0,
+            "delta_observed_provider_savings_tokens": 0,
+            "attribution_covered": False,
+            "opportunity_funnel": {},
+            "decline_reason": None,
             "total_tokens_saved": 30,
             "compression_savings_usd": 0.03,
             "compression_savings_observed_usd": 0.0,
+            "created_savings_usd": 0.03,
+            "observed_provider_savings_usd": 0.0,
             "cache_savings_usd": 0.0,
             "cache_savings_observed_usd": 0.0,
             "semantic_cache_savings_usd": 0.0,
@@ -201,8 +234,21 @@ def test_non_dict_savings_state_resets_to_default(tmp_path):
         "tokens_saved": 0,
         "compression_savings_usd": 0.0,
         "compression_savings_observed_usd": 0.0,
+        "created_savings_usd": 0.0,
+        "observed_provider_savings_usd": 0.0,
         "total_input_tokens": 0,
         "total_input_cost_usd": 0.0,
+        "created_savings_tokens": 0,
+        "observed_provider_savings_tokens": 0,
+        "attributed_requests": 0,
+        "legacy_unattributed_requests": 0,
+        "attribution_coverage": {
+            "attributed_requests": 0,
+            "legacy_unattributed_requests": 0,
+            "coverage_percent": 100.0,
+            "complete": True,
+        },
+        "opportunity_funnel": savings_tracker_module._empty_opportunity_funnel(),
     }
     assert snapshot["display_session"] == savings_tracker_module._empty_display_session()
     assert snapshot["history"] == []
@@ -250,6 +296,8 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "savings_basis": "estimated",
             "total_tokens_saved": 10,
             "compression_savings_usd": 0.01,
+            "created_savings_usd": 0.01,
+            "observed_provider_savings_usd": 0.0,
             "total_input_tokens": 120,
             "total_input_cost_usd": 0.24,
         },
@@ -260,6 +308,8 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "savings_basis": "estimated",
             "total_tokens_saved": 15,
             "compression_savings_usd": 0.015,
+            "created_savings_usd": 0.015,
+            "observed_provider_savings_usd": 0.0,
             "total_input_tokens": 180,
             "total_input_cost_usd": 0.36,
         },
@@ -408,6 +458,17 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "tokens_saved": 20,
         "compression_savings_usd": pytest.approx(0.02),
         "compression_savings_observed_usd": pytest.approx(0.02),
+        "created_savings_usd": pytest.approx(0.02),
+        "observed_provider_savings_usd": 0.0,
+        "created_savings_tokens": 20,
+        "observed_provider_savings_tokens": 0,
+        "attribution_coverage": {
+            "attributed_requests": 2,
+            "legacy_unattributed_requests": 0,
+            "coverage_percent": 100.0,
+            "complete": True,
+        },
+        "opportunity_funnel": savings_tracker_module._empty_opportunity_funnel(),
         "cache_savings_usd": 0.0,
         "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
@@ -423,6 +484,8 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "total_input_tokens": 200,
         "total_input_cost_usd": pytest.approx(0.2),
         "total_savings_usd": pytest.approx(0.02),
+        "savings_by_source_tokens": {"cutctx_compression": 20},
+        "savings_by_source_usd": {"cutctx_compression": pytest.approx(0.02)},
         "scaffolding_tokens": 0,
         "ghost_tokens": 0,
         "savings_percent": pytest.approx(10.0),
@@ -456,6 +519,17 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "tokens_saved": 5,
         "compression_savings_usd": pytest.approx(0.005),
         "compression_savings_observed_usd": pytest.approx(0.005),
+        "created_savings_usd": pytest.approx(0.005),
+        "observed_provider_savings_usd": 0.0,
+        "created_savings_tokens": 5,
+        "observed_provider_savings_tokens": 0,
+        "attribution_coverage": {
+            "attributed_requests": 1,
+            "legacy_unattributed_requests": 0,
+            "coverage_percent": 100.0,
+            "complete": True,
+        },
+        "opportunity_funnel": savings_tracker_module._empty_opportunity_funnel(),
         "cache_savings_usd": 0.0,
         "cache_savings_observed_usd": 0.0,
         "semantic_cache_savings_usd": 0.0,
@@ -471,6 +545,8 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
         "total_input_tokens": 50,
         "total_input_cost_usd": pytest.approx(0.05),
         "total_savings_usd": pytest.approx(0.005),
+        "savings_by_source_tokens": {"cutctx_compression": 5},
+        "savings_by_source_usd": {"cutctx_compression": pytest.approx(0.005)},
         "scaffolding_tokens": 0,
         "ghost_tokens": 0,
         "savings_percent": pytest.approx(10.0),
@@ -1124,3 +1200,34 @@ def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):
             assert "historyModelSourceSeriesLabel + ' buckets'" in html
             # Non-top-5 breakdown rows swap into the last chart slot when selected.
             assert "topModels[topModels.length - 1] = selected;" in html
+
+
+def test_semantic_cache_usd_counts_as_cutctx_created_savings(tmp_path):
+    path = tmp_path / "proxy_savings.json"
+    tracker = SavingsTracker(path=str(path))
+
+    tracker.record_request(
+        model="gpt-4o",
+        provider="openai",
+        input_tokens=1000,
+        tokens_saved=600,
+        savings_by_source_tokens={
+            "cutctx_compression": 300,
+            "semantic_cache": 300,
+        },
+        savings_by_source_usd={
+            "cutctx_compression": 0.12,
+            "semantic_cache": 0.05,
+        },
+        compression_savings_usd_delta=0.12,
+        semantic_cache_usd_delta=0.05,
+    )
+
+    snapshot = tracker.snapshot()
+    lifetime = snapshot["lifetime"]
+    history_row = snapshot["history"][-1]
+
+    assert lifetime["created_savings_usd"] == pytest.approx(0.17)
+    assert lifetime["observed_provider_savings_usd"] == pytest.approx(0.0)
+    assert history_row["created_savings_usd"] == pytest.approx(0.17)
+    assert history_row["observed_provider_savings_usd"] == pytest.approx(0.0)

@@ -180,18 +180,20 @@ def test_overview_uses_lifetime_money_saved_across_all_sources() -> None:
             expect(page.get_by_text("47.9% total reduction", exact=True)).to_be_visible()
             expect(page.get_by_text("15,799", exact=True)).to_be_visible()
             expect(page.get_by_text("$626.58", exact=True)).to_be_visible()
+            money_card = page.locator("article").filter(has_text="Money saved")
             expect(
-                page.get_by_text(
-                    "Lifetime savings across compression, cache, routing, and optimization",
-                    exact=True,
+                money_card.get_by_text(
+                    "Lifetime savings split between created Cutctx savings and observed provider cache"
                 )
             ).to_be_visible()
+            expect(money_card.get_by_text("$487.24 created by Cutctx")).to_be_visible()
+            expect(money_card.get_by_text("$139.34 observed at provider")).to_be_visible()
             expect(page.get_by_text("Lifetime requests tracked", exact=True)).to_be_visible()
         finally:
             browser.close()
 
 
-def test_overview_prefers_session_money_saved_when_session_exceeds_lifetime() -> None:
+def test_overview_lifetime_never_uses_larger_session_money_saved() -> None:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         try:
@@ -244,9 +246,10 @@ def test_overview_prefers_session_money_saved_when_session_exceeds_lifetime() ->
             money_card = page.locator("article").filter(
                 has=page.get_by_text("Money saved", exact=True)
             )
-            expect(money_card).to_contain_text("$6.750")
-            expect(money_card).to_contain_text("$8.000")
-            expect(money_card).to_contain_text("$1.250")
+            # The lifetime tab must use the durable lifetime record ($1.50),
+            # not the current process's $6.75 session counter.
+            expect(money_card).to_contain_text("$1.500")
+            expect(money_card).not_to_contain_text("$6.750")
         finally:
             browser.close()
 
@@ -264,6 +267,17 @@ def test_overview_current_session_sums_display_session_money_saved() -> None:
                         "total_before_compression": 54_266_211,
                         "active_savings_percent": 29.3,
                         "proxy_savings_percent": 10.0,
+                    },
+                    "cost": {
+                        "savings_by_source": {
+                            "tokens": {
+                                "cutctx_compression": 15_900_000,
+                            },
+                            "usd": {
+                                "cutctx_compression": 12.34,
+                                "model_routing": 0.5,
+                            },
+                        },
                     },
                     "requests": {"total": 1_732},
                 },
@@ -288,5 +302,10 @@ def test_overview_current_session_sums_display_session_money_saved() -> None:
             )
             expect(money_card).to_contain_text("$19.26")
             expect(money_card).to_contain_text("Current proxy-session savings")
+
+            source_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Where savings come from", exact=True)
+            )
+            expect(source_panel.get_by_text("Model routing", exact=True)).to_be_visible()
         finally:
             browser.close()

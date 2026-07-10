@@ -64,6 +64,11 @@ async def test_semantic_cache_streaming(app):
             print(f"CACHE STATS: {stats}")
             assert stats["entries"] == 1, "Streaming response was not cached"
 
+            cached_entry = await proxy_cache.get(request_body["messages"], request_body["model"])
+            assert cached_entry is not None
+            assert cached_entry.is_streaming is True
+            assert cached_entry.response_body == response1.content
+
             request_body["metadata"]["user_id"] = "user_456"
             response2 = client.post("/v1/messages", json=request_body, headers=headers)
             assert response2.status_code == 200

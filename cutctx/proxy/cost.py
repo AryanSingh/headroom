@@ -1053,6 +1053,16 @@ class CostTracker:
                 if model in per_model:
                     per_model[model]["savings_usd"] = round(model_savings, 4)
 
+        budget_enabled = self.budget_limit_usd is not None
+        budget_allowed, budget_remaining = self.check_budget()
+        budget_spent = self.get_period_cost()
+        budget_limit = float(self.budget_limit_usd or 0.0)
+        budget_percent_used = (
+            round((budget_spent / budget_limit) * 100, 1)
+            if budget_enabled and budget_limit > 0
+            else 0.0
+        )
+
         return {
             "total_tokens_saved": total_saved,
             "total_input_tokens": total_input_tokens,
@@ -1068,5 +1078,15 @@ class CostTracker:
             },
             "savings_by_client": {
                 k: v.to_dict() for k, v in self._savings_orchestrator.aggregate.by_client.items()
+            },
+            "budget": {
+                "enabled": budget_enabled,
+                "period": self.budget_period,
+                "limit_usd": round(budget_limit, 4) if budget_enabled else None,
+                "spent_usd": round(budget_spent, 4),
+                "remaining_usd": round(budget_remaining, 4) if budget_enabled else None,
+                "allowed": budget_allowed,
+                "exceeded": budget_enabled and not budget_allowed,
+                "percent_used": budget_percent_used,
             },
         }

@@ -24,6 +24,7 @@ from cutctx.proxy.model_router import (
     classify_task_complexity,
     prepare_model_routing,
 )
+from cutctx.proxy.savings_canary import CanaryAssignment
 
 # ─- Config loading ───────────────────────────────────────────────
 
@@ -44,6 +45,41 @@ def test_config_from_env_disabled_by_default() -> None:
     with patch.dict(os.environ, {"CUTCTX_MODEL_ROUTING": "{}"}):
         cfg = ModelRouterConfig.from_env()
     assert cfg.enabled is False
+
+
+def test_model_routing_canary_uses_gpt54mini_for_low_complexity_without_global_router(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Canary:
+        def assign(self, *args, **kwargs):
+            return CanaryAssignment(
+                arm="model_routing",
+                eligible=True,
+                enabled=True,
+                reason="assigned",
+                bucket=25,
+                assignment_identity_source="codex_session",
+                assignment_sticky=True,
+            )
+
+    class _Handler:
+        _model_router = None
+
+    monkeypatch.setattr(
+        "cutctx.proxy.savings_canary.get_savings_canary_coordinator",
+        lambda: _Canary(),
+    )
+    target, metadata = prepare_model_routing(
+        _Handler(),
+        "gpt-5.4",
+        messages=[{"role": "user", "content": "Rename this variable."}],
+        request_id="stable-session",
+        client="codex",
+    )
+    assert target == "gpt-5.4-mini"
+    assert metadata["model_routing"]["request_overrides"]["reasoning"] == {
+        "effort": "high"
+    }
 
 
 def test_config_from_env_parses_routes() -> None:

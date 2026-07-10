@@ -212,6 +212,8 @@ class TestLLMLinguaCompressorCompress:
         assert result.compressed == content
         assert result.original == content
         assert result.compression_ratio == 1.0
+        assert result.used_fallback is True
+        assert result.fallback_reason == "unavailable"
 
     def test_compress_with_context(self):
         """compress() accepts context parameter."""
@@ -279,6 +281,8 @@ class TestLLMLinguaCompressorCompress:
 
         assert result.compressed == "Original text"
         assert result.compression_ratio == 1.0
+        assert result.used_fallback is True
+        assert result.fallback_reason == "runtime_error"
 
     def test_compress_with_force_tokens(self):
         """compress() passes force_tokens to compressor."""

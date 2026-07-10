@@ -9,6 +9,7 @@ import asyncio
 import logging
 import time
 from collections import defaultdict
+from datetime import UTC, datetime
 
 from cutctx.proxy.models import RateLimitState
 
@@ -40,7 +41,28 @@ class TokenBucketRateLimiter:
                 last_update=time.time(),
             )
         )
+        self._request_checks_total = 0
+        self._token_checks_total = 0
+        self._request_denied_total = 0
+        self._token_denied_total = 0
+        self._bucket_limit_denied_total = 0
+        self._last_rate_limited: dict[str, float | str] | None = None
         self._lock = asyncio.Lock()
+
+    def _record_denial(self, *, key: str, scope: str, wait_seconds: float, reason: str) -> None:
+        if scope == "request":
+            self._request_denied_total += 1
+        elif scope == "token":
+            self._token_denied_total += 1
+        if reason == "bucket_limit":
+            self._bucket_limit_denied_total += 1
+        self._last_rate_limited = {
+            "key": key,
+            "scope": scope,
+            "reason": reason,
+            "wait_seconds": round(float(wait_seconds), 3),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
 
     async def _cleanup_stale_buckets(self) -> None:
         """Remove request and token buckets idle for more than 10 minutes."""
@@ -78,6 +100,7 @@ class TokenBucketRateLimiter:
         Returns `(allowed, wait_seconds)`.
         """
         async with self._lock:
+            self._request_checks_total += 1
             await self._cleanup_stale_buckets()
             if len(self._request_buckets) >= MAX_RATE_LIMITER_BUCKETS:
                 await self._cleanup_stale_buckets()
@@ -86,6 +109,12 @@ class TokenBucketRateLimiter:
                     and key not in self._request_buckets
                 ):
                     logger.warning("Rate limiter bucket limit reached")
+                    self._record_denial(
+                        key=key,
+                        scope="request",
+                        wait_seconds=60.0,
+                        reason="bucket_limit",
+                    )
                     return False, 60.0
 
             state = self._request_buckets[key]
@@ -96,11 +125,18 @@ class TokenBucketRateLimiter:
                 return True, 0.0
 
             wait_seconds = (1 - available) * (60.0 / self.requests_per_minute)
+            self._record_denial(
+                key=key,
+                scope="request",
+                wait_seconds=wait_seconds,
+                reason="request_budget",
+            )
             return False, wait_seconds
 
     async def check_tokens(self, key: str, token_count: int) -> tuple[bool, float]:
         """Check whether a token budget draw is allowed."""
         async with self._lock:
+            self._token_checks_total += 1
             await self._cleanup_stale_buckets()
             if len(self._token_buckets) >= MAX_RATE_LIMITER_BUCKETS:
                 await self._cleanup_stale_buckets()
@@ -109,6 +145,12 @@ class TokenBucketRateLimiter:
                     and key not in self._token_buckets
                 ):
                     logger.warning("Rate limiter token bucket limit reached")
+                    self._record_denial(
+                        key=key,
+                        scope="token",
+                        wait_seconds=60.0,
+                        reason="bucket_limit",
+                    )
                     return False, 60.0
 
             state = self._token_buckets[key]
@@ -119,6 +161,12 @@ class TokenBucketRateLimiter:
                 return True, 0.0
 
             wait_seconds = (token_count - available) * (60.0 / self.tokens_per_minute)
+            self._record_denial(
+                key=key,
+                scope="token",
+                wait_seconds=wait_seconds,
+                reason="token_budget",
+            )
             return False, wait_seconds
 
     async def stats(self) -> dict[str, float | int]:
@@ -132,4 +180,10 @@ class TokenBucketRateLimiter:
                 "active_keys": active_keys,
                 "active_request_keys": len(self._request_buckets),
                 "active_token_keys": len(self._token_buckets),
+                "request_checks_total": self._request_checks_total,
+                "token_checks_total": self._token_checks_total,
+                "request_denied_total": self._request_denied_total,
+                "token_denied_total": self._token_denied_total,
+                "bucket_limit_denied_total": self._bucket_limit_denied_total,
+                "last_rate_limited": dict(self._last_rate_limited) if self._last_rate_limited else None,
             }

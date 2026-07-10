@@ -70,7 +70,8 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:hosted": "npm run build && node scripts/run-remote-hosted-smoke.mjs"
   },
   "peerDependencies": {
     "@ai-sdk/provider": ">=1.0.0",

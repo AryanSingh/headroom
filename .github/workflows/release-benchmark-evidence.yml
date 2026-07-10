@@ -1,0 +1,45 @@
+name: Release Benchmark Evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "cutctx/evals/**"
+      - "cutctx/transforms/**"
+      - "scripts/generate_benchmark_release_manifest.py"
+      - "scripts/generate_benchmark_release_bundle.py"
+      - "tests/test_release_manifest.py"
+      - "tests/test_release_bundle.py"
+      - "tests/test_typescript_hosted_smoke_runner.py"
+      - ".github/workflows/release-benchmark-evidence.yml"
+  workflow_dispatch:
+
+jobs:
+  deterministic-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --extra dev
+      - run: uv run pytest tests/test_release_manifest.py tests/test_release_bundle.py tests/test_typescript_hosted_smoke_runner.py tests/test_evals_benchmark.py tests/test_benchmark_docs.py -q
+      - run: >-
+          uv run python -m cutctx.cli.main evals benchmark
+          -d code_samples -d rag_samples -d mixed_agent_traces
+          -c raw_passthrough --parallel 1 --seed 42 --markdown
+          --output artifacts/raw-passthrough-benchmark.json
+      - run: uv run python scripts/generate_benchmark_release_manifest.py
+      - run: uv run python scripts/generate_benchmark_release_bundle.py
+      - run: uv run python scripts/evaluate_release_evidence.py
+      - run: uv run python -m cutctx.cli.main verify --ci --format json -o artifacts/verify-report-release.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-benchmark-evidence
+          path: |
+            artifacts/benchmark-release-manifest.json
+            artifacts/benchmark-release-bundle.json
+            artifacts/raw-passthrough-benchmark.json
+            artifacts/release-evidence-status.json
+            artifacts/verify-report-release.json

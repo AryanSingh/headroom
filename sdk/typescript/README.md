@@ -138,6 +138,39 @@ const response = await client.messages.create({
 const result = await client.compress(messages, { model: 'gpt-4o', tokenBudget: 4000 });
 ```
 
+## Hosted Compression
+
+Use the thin hosted surface when you want one request in and one compressed response out, without the full proxy client.
+
+```typescript
+import { HostedCompressionClient } from 'cutctx-ai';
+
+const client = new HostedCompressionClient({
+  baseUrl: 'http://localhost:8787', // swap to https://api.cutctx.ai for hosted
+  apiKey: process.env.CUTCTX_API_KEY,
+});
+
+const result = await client.compressText(largePrompt, {
+  model: 'gpt-4o',
+  compatibility_mode: 'tool_output',
+  min_tokens_to_compress: 10,
+});
+
+console.log(result.tokensSaved, result.transformsApplied);
+```
+
+The same client also accepts chat payloads:
+
+```typescript
+const result = await client.compressMessages(messages, { model: 'gpt-4o' });
+```
+
+For raw text payloads, `compatibility_mode` makes the wrapping explicit:
+
+- `tool_output`: treat the text like a single tool result.
+- `rag_text`: treat the text like user-supplied RAG context.
+- `agentic_text`: treat the text like agent-loop tool context.
+
 ## Simulation (Dry Run)
 
 See what compression would do without calling the LLM.

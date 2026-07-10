@@ -856,7 +856,11 @@ def load_tool_output_samples() -> EvalSuite:
             ),
             query="Which repository has the most stars?",
             ground_truth="prompt-optimizer",
-            metadata={"source": "tool_output", "tool": "github_search"},
+            metadata={
+                "source": "tool_output",
+                "tool": "github_search",
+                "critical_items": ["prompt-optimizer", "google/prompt-optimizer", "2100"],
+            },
         ),
         # Kubernetes events
         EvalCase(
@@ -868,7 +872,11 @@ kube-system   1h          Warning   NodeNotReady        node/node-3             
 default       30s         Normal    Pulled              pod/api-server-7f8d9c8b5-m4n2p         Container image "api-server:v2.1.0" already present""",
             query="What is the error with the nginx deployment?",
             ground_truth="Insufficient memory",
-            metadata={"source": "tool_output", "tool": "kubectl_events"},
+            metadata={
+                "source": "tool_output",
+                "tool": "kubectl_events",
+                "critical_items": ["FailedScheduling", "Insufficient memory"],
+            },
         ),
         # Python traceback
         EvalCase(
@@ -884,7 +892,15 @@ Error Code: card_declined
 Decline Code: authentication_required""",
             query="What is the error code?",
             ground_truth="card_declined",
-            metadata={"source": "tool_output", "tool": "error_logs"},
+            metadata={
+                "source": "tool_output",
+                "tool": "error_logs",
+                "critical_items": [
+                    "/app/services/payment.py",
+                    "card_declined",
+                    "authentication_required",
+                ],
+            },
         ),
         # Database query result
         EvalCase(
@@ -931,7 +947,11 @@ Decline Code: authentication_required""",
             ),
             query="Who is the admin user?",
             ground_truth="Alice",
-            metadata={"source": "tool_output", "tool": "database_query"},
+            metadata={
+                "source": "tool_output",
+                "tool": "database_query",
+                "critical_items": ["Alice", "admin", "alice@example.com"],
+            },
         ),
         # Metrics data
         EvalCase(
@@ -955,7 +975,11 @@ Decline Code: authentication_required""",
             ),
             query="What is the p99 latency?",
             ground_truth="230",
-            metadata={"source": "tool_output", "tool": "metrics_api"},
+            metadata={
+                "source": "tool_output",
+                "tool": "metrics_api",
+                "critical_items": ["latency_p99_ms", "230"],
+            },
         ),
         # Git log output
         EvalCase(
@@ -987,7 +1011,11 @@ Date:   Sat Jan 13 09:00:00 2024 -0800
     Refactor database connection pooling""",
             query="Who fixed the security vulnerability?",
             ground_truth="Alice Developer",
-            metadata={"source": "tool_output", "tool": "git_log"},
+            metadata={
+                "source": "tool_output",
+                "tool": "git_log",
+                "critical_items": ["Fix critical security vulnerability", "Alice Developer"],
+            },
         ),
         # AWS CLI output
         EvalCase(
@@ -1026,7 +1054,11 @@ Date:   Sat Jan 13 09:00:00 2024 -0800
             ),
             query="Which instance is stopped?",
             ground_truth="web-server-2",
-            metadata={"source": "tool_output", "tool": "aws_ec2_describe"},
+            metadata={
+                "source": "tool_output",
+                "tool": "aws_ec2_describe",
+                "critical_items": ["web-server-2", "stopped", "i-0def456ghi789012b"],
+            },
         ),
         # Large JSON API response with nested data
         EvalCase(
@@ -1071,11 +1103,375 @@ Date:   Sat Jan 13 09:00:00 2024 -0800
             ),
             query="Which project has the highest budget remaining?",
             ground_truth="Mobile App",
-            metadata={"source": "tool_output", "tool": "project_api"},
+            metadata={
+                "source": "tool_output",
+                "tool": "project_api",
+                "critical_items": ["Mobile App", "budget_remaining", "28500"],
+            },
         ),
     ]
 
     return EvalSuite(name="ToolOutputSamples", cases=cases)
+
+
+def load_code_samples() -> EvalSuite:
+    """Load built-in code understanding samples for local benchmark breadth."""
+
+    cases = [
+        EvalCase(
+            id="code_python_retry_001",
+            context="""from __future__ import annotations
+
+import asyncio
+import httpx
+
+
+
+
+
+# Retry settings are intentionally verbose because production incidents
+# often start with engineers pasting the full helper into chat.
+
+
+async def fetch_with_retry(client: httpx.AsyncClient, url: str, retries: int = 3) -> dict:
+    last_error = None
+    for attempt in range(retries):
+        try:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as exc:
+            last_error = exc
+            if attempt == retries - 1:
+                break
+            await asyncio.sleep(0.25 * (attempt + 1))
+    raise RuntimeError(f"request failed after {retries} attempts: {last_error}")
+
+
+
+
+
+# User summaries are emitted into request traces for dashboard previews.
+
+
+def summarize_user(payload: dict) -> str:
+    user = payload.get("user") or {}
+    return f"{user.get('name', 'unknown')}<{user.get('email', 'n/a')}>"
+""",
+            query="Which exception type is retried in fetch_with_retry?",
+            ground_truth="httpx.HTTPError",
+            metadata={
+                "source": "built_in",
+                "category": "code",
+                "language": "python",
+                "critical_items": ["httpx.HTTPError", "RuntimeError", "retries"],
+            },
+        ),
+        EvalCase(
+            id="code_typescript_state_001",
+            context="""type SessionState = {
+  sessionId: string;
+  activeTool?: string;
+  pendingRequests: number;
+  lastLatencyMs?: number;
+};
+
+
+
+
+
+// Finish handlers update the state after each upstream request settles.
+// Extra spacing here mirrors real snippets pasted from review diffs.
+
+
+export function applyRequestFinished(
+  state: SessionState,
+  latencyMs: number,
+): SessionState {
+  return {
+    ...state,
+    pendingRequests: Math.max(0, state.pendingRequests - 1),
+    lastLatencyMs: latencyMs,
+    activeTool: state.pendingRequests <= 1 ? undefined : state.activeTool,
+  };
+}
+
+
+
+
+
+// Labels feed observability cards and request inspector breadcrumbs.
+
+
+export function requestLabel(state: SessionState): string {
+  return `${state.sessionId}:${state.pendingRequests}:${state.activeTool ?? "idle"}`;
+}
+""",
+            query="Which field stores the latest latency measurement?",
+            ground_truth="lastLatencyMs",
+            metadata={
+                "source": "built_in",
+                "category": "code",
+                "language": "typescript",
+                "critical_items": ["lastLatencyMs", "pendingRequests", "requestLabel"],
+            },
+        ),
+    ]
+    return EvalSuite(name="CodeSamples", cases=cases)
+
+
+def load_rag_samples() -> EvalSuite:
+    """Load built-in prose/RAG samples for local benchmark breadth."""
+
+    cases = [
+        EvalCase(
+            id="rag_architecture_001",
+            context="""# Deployment Runbook
+
+The ingestion worker receives audit events from the proxy, batches them every
+30 seconds, and writes them into the analytics warehouse. The worker runs in
+the `control-plane` namespace and publishes queue depth, retry count, and
+flush latency metrics. If the retry count exceeds 5 for a single batch, the
+worker moves the batch to the `analytics-dead-letter` queue and emits a page.
+
+Dashboard readers should expect a 2 to 4 minute lag because the warehouse
+materialized view refreshes on a 120 second interval. For incident response,
+the on-call engineer should inspect `request_history.jsonl` first, then the
+dead-letter queue, and finally the warehouse sync logs.
+""",
+            query="Which queue receives batches after more than 5 retries?",
+            ground_truth="analytics-dead-letter",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "runbook",
+                "critical_items": ["analytics-dead-letter", "request_history.jsonl", "120 second interval"],
+            },
+        ),
+        EvalCase(
+            id="rag_policy_001",
+            context="""# Security Policy Excerpt
+
+Customer content is retained locally by default. The proxy writes reversible
+compression artifacts into the CCR store for 30 minutes unless the operator
+changes `CUTCTX_CCR_TTL_SECONDS`. Admin APIs require the bearer admin token
+when `CUTCTX_ADMIN_API_KEY` is configured. Audit evidence is exported weekly
+and the evidence bundle includes a hash chain, request counts, and control
+surface availability.
+
+For external sharing, the buyer report separates provider prompt cache
+savings from Cutctx-created compression savings. The procurement packet must
+list shipped controls separately from planned controls.
+""",
+            query="Which environment variable changes CCR retention time?",
+            ground_truth="CUTCTX_CCR_TTL_SECONDS",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "policy",
+                "critical_items": ["CUTCTX_CCR_TTL_SECONDS", "CUTCTX_ADMIN_API_KEY", "30 minutes"],
+            },
+        ),
+    ]
+    return EvalSuite(name="RAGSamples", cases=cases)
+
+
+def load_mixed_agent_traces() -> EvalSuite:
+    """Load built-in mixed agent-trace samples for local benchmark breadth."""
+
+    cases = [
+        EvalCase(
+            id="mixed_agent_trace_001",
+            context=json.dumps(
+                {
+                    "session_id": "sess_mix_001",
+                    "messages": [
+                        {"role": "system", "content": "You are the deployment triage assistant."},
+                        {"role": "user", "content": "Why did the deploy fail for release 2026.07.09-rc1?"},
+                        {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {"name": "read_ci_logs", "arguments": {"build_id": "build_441"}},
+                                {"name": "search_code", "arguments": {"query": "FeatureFlagMismatchError"}},
+                            ],
+                        },
+                        {
+                            "role": "tool",
+                            "tool_name": "read_ci_logs",
+                            "content": "Step 14/29 failed: FeatureFlagMismatchError: expected billing.v2=true but config rendered false. Build artifact: dist/config/release-rc1.json. Retry count: 2. Owner: payments-platform.",
+                        },
+                        {
+                            "role": "tool",
+                            "tool_name": "search_code",
+                            "content": "config/render_flags.py:88 raises FeatureFlagMismatchError when release manifest and env override disagree. Related tests: tests/test_flag_rendering.py::test_billing_v2_release_guard.",
+                        },
+                    ],
+                    "final_answer": "Deploy failed because billing.v2 rendered false in dist/config/release-rc1.json, which triggered FeatureFlagMismatchError in config/render_flags.py. Owner is payments-platform.",
+                },
+                indent=2,
+            ),
+            query="Which owner is responsible for the failed release?",
+            ground_truth="payments-platform",
+            metadata={
+                "source": "built_in",
+                "category": "mixed",
+                "shape": "agent_trace",
+                "critical_items": [
+                    "FeatureFlagMismatchError",
+                    "dist/config/release-rc1.json",
+                    "payments-platform",
+                ],
+            },
+        ),
+        EvalCase(
+            id="mixed_agent_trace_002",
+            context=json.dumps(
+                {
+                    "incident": "INC-4421",
+                    "timeline": [
+                        "09:14 UTC: alert fired for elevated 500s on /v1/responses",
+                        "09:17 UTC: circuit breaker opened for openai-primary",
+                        "09:18 UTC: fallback to gemini succeeded for 37 requests",
+                        "09:22 UTC: on-call disabled provider openai-primary via /v1/providers",
+                    ],
+                    "stats": {
+                        "failed_requests": 12,
+                        "fallback_requests": 37,
+                        "p95_latency_ms": 1840,
+                    },
+                    "notes": "Root cause was exhausted upstream quota window. Mitigation preserved service through provider fallback.",
+                },
+                indent=2,
+            ),
+            query="How many requests were served by fallback during the incident?",
+            ground_truth="37",
+            metadata={
+                "source": "built_in",
+                "category": "mixed",
+                "shape": "incident_trace",
+                "critical_items": ["INC-4421", "37", "openai-primary"],
+            },
+        ),
+    ]
+    return EvalSuite(name="MixedAgentTraces", cases=cases)
+
+
+def load_verbatim_compaction_samples() -> EvalSuite:
+    """Load fixed fixtures for deletion-style verbatim compaction proofs."""
+
+    cases = [
+        EvalCase(
+            id="verbatim_log_trace_001",
+            context="""2026-07-09T09:14:01Z INFO request_id=req_9f2c starting deploy validation
+2026-07-09T09:14:02Z DEBUG cache warmup bucket=artifacts count=14
+2026-07-09T09:14:03Z DEBUG cache warmup bucket=config count=9
+2026-07-09T09:14:04Z DEBUG cache warmup bucket=templates count=22
+2026-07-09T09:14:05Z DEBUG retrying vault lookup attempt=1
+2026-07-09T09:14:06Z DEBUG retrying vault lookup attempt=2
+Traceback (most recent call last):
+  File \"services/payments/reconcile.py\", line 184, in run_reconcile
+    token = vault_client.issue_token("payments-prod")
+  File \"services/payments/vault.py\", line 77, in issue_token
+    raise PermissionDeniedError("vault token expired")
+PermissionDeniedError: vault token expired
+2026-07-09T09:14:07Z INFO request_id=req_9f2c rollback started
+2026-07-09T09:14:08Z INFO request_id=req_9f2c rollback finished
+""",
+            query="Which file and line raised `PermissionDeniedError`, and what request id was affected?",
+            ground_truth="services/payments/vault.py:77",
+            metadata={
+                "source": "built_in",
+                "category": "verbatim_compaction",
+                "shape": "stacktrace",
+                "critical_items": [
+                    "services/payments/vault.py",
+                    "line 77",
+                    "PermissionDeniedError: vault token expired",
+                    "request_id=req_9f2c",
+                ],
+            },
+        ),
+        EvalCase(
+            id="verbatim_diff_001",
+            context="""diff --git a/config/render_flags.py b/config/render_flags.py
+index 0d12ab3..7f90de1 100644
+--- a/config/render_flags.py
++++ b/config/render_flags.py
+@@ -84,16 +84,17 @@ def render_release_flags(manifest, env_overrides):
+     resolved = dict(manifest.defaults)
+     resolved.update(env_overrides)
+     billing_v2 = resolved.get("billing.v2", False)
+-    if manifest.release_channel == "rc" and not billing_v2:
+-        raise FeatureFlagMismatchError("billing.v2 disabled for release candidate")
++    if manifest.release_channel == "rc" and not billing_v2:
++        raise FeatureFlagMismatchError(
++            "billing.v2 disabled for release candidate"
++        )
+     return resolved
+
+@@ -118,7 +119,9 @@ def validate_release_guard(rendered_flags):
+     if rendered_flags.get("billing.v2") is not True:
+-        raise RuntimeError("release guard failed")
++        raise RuntimeError(
++            "release guard failed for BILLING_V2_ENABLED"
++        )
+     return True
+""",
+            query="Which exact error string protects `billing.v2`, and which config key appears in the runtime guard?",
+            ground_truth="FeatureFlagMismatchError",
+            metadata={
+                "source": "built_in",
+                "category": "verbatim_compaction",
+                "shape": "diff",
+                "critical_items": [
+                    "config/render_flags.py",
+                    "FeatureFlagMismatchError",
+                    "billing.v2 disabled for release candidate",
+                    "BILLING_V2_ENABLED",
+                    "@@ -118,7 +119,9 @@",
+                ],
+            },
+        ),
+        EvalCase(
+            id="verbatim_json_001",
+            context=json.dumps(
+                {
+                    "session_id": "sess_vrb_4421",
+                    "events": [
+                        {"ts": "09:14:01Z", "level": "info", "message": "starting replay"},
+                        {"ts": "09:14:03Z", "level": "debug", "message": "loading 42 cached fragments"},
+                        {"ts": "09:14:05Z", "level": "debug", "message": "re-ranking fragment window"},
+                    ],
+                    "failure": {
+                        "error": "FeatureFlagMismatchError",
+                        "path": "dist/config/release-rc1.json",
+                        "line": 12,
+                        "owner": "payments-platform",
+                    },
+                    "notes": {
+                        "attempted_provider": "openai-primary",
+                        "fallback_provider": "gemini-backup",
+                        "ticket": "INC-4421",
+                    },
+                },
+                indent=2,
+            ),
+            query="Preserve the failing path, line number, owner, and incident id exactly.",
+            ground_truth="payments-platform",
+            metadata={
+                "source": "built_in",
+                "category": "verbatim_compaction",
+                "shape": "json",
+                "critical_items": [
+                    "dist/config/release-rc1.json",
+                    '"line": 12',
+                    '"owner": "payments-platform"',
+                    '"ticket": "INC-4421"',
+                ],
+            },
+        ),
+    ]
+    return EvalSuite(name="VerbatimCompactionSamples", cases=cases)
 
 
 # =============================================================================
@@ -1221,6 +1617,30 @@ DATASET_REGISTRY: dict[str, dict[str, Any]] = {
         "description": "Built-in realistic tool outputs (JSON, logs, etc.)",
         "category": "tool_use",
         "default_n": None,  # Fixed size
+    },
+    "code_samples": {
+        "loader": load_code_samples,
+        "description": "Built-in local code understanding snippets for benchmark breadth",
+        "category": "code",
+        "default_n": None,
+    },
+    "rag_samples": {
+        "loader": load_rag_samples,
+        "description": "Built-in local prose and runbook excerpts for benchmark breadth",
+        "category": "rag",
+        "default_n": None,
+    },
+    "mixed_agent_traces": {
+        "loader": load_mixed_agent_traces,
+        "description": "Built-in local mixed agent traces and incident transcripts",
+        "category": "mixed",
+        "default_n": None,
+    },
+    "verbatim_compaction": {
+        "loader": load_verbatim_compaction_samples,
+        "description": "Built-in fixed fixtures for line/block verbatim compaction proof",
+        "category": "verbatim_compaction",
+        "default_n": None,
     },
 }
 

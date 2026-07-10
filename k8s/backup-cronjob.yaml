@@ -4,7 +4,7 @@ metadata:
   name: cutctx-backup
   namespace: cutctx
 spec:
-  # Daily at 00:00 UTC. Override with --schedule if needed.
+  # Daily at 00:00 UTC. Override --schedule if needed.
   schedule: "0 0 * * *"
   # Keep the last 7 successful + 3 failed jobs for audit.
   successfulJobsHistoryLimit: 7
@@ -13,60 +13,74 @@ spec:
     spec:
       template:
         spec:
-          # High-16 (production-audit-progress-2026-06-20.md):
-          # Backup both the memory database AND the spend ledger
-          # SQLite. The previous version covered only memory, so a
-          # disk failure would lose the customer's spend history.
+          # Backup the durable SQLite stores in the workspace root.
+          # This expands the original three-db backup to cover the
+          # persistent stores that back RBAC, org/fleet/scim, CCR,
+          # prefix tracking, policy learning, episodes, and secrets.
           containers:
-          - name: backup
-            image: alpine:3.20
-            command:
-            - /bin/sh
-            - -c
-            - |
-              set -e
-              apk add --no-cache sqlite aws-cli
-              TS=$(date +%s)
-              # Memory database.
-              if [ -f /data/cutctx_memory.db ]; then
-                sqlite3 /data/cutctx_memory.db ".backup /tmp/memory-$$TS.db"
-                aws s3 cp /tmp/memory-$$TS.db s3://cutctx-backups/memory-$$TS.db
-                echo "memory backup ok: memory-$$TS.db"
-              else
-                echo "memory db not found, skipping"
-              fi
-              # Spend ledger. Filename varies by install; the
-              # wildcard catches all *.db files in /data that are
-              # not the memory db.
-              for db in /data/spend_ledger.db /data/audit.db; do
-                if [ -f "$$db" ]; then
-                  base=$$(basename $$db .db)
-                  sqlite3 $$db ".backup /tmp/$$base-$$TS.db"
-                  aws s3 cp /tmp/$$base-$$TS.db s3://cutctx-backups/$$base-$$TS.db
-                  echo "$$base backup ok: $$base-$$TS.db"
-                fi
-              done
-              # Retention: prune backups older than 30 days to
-              # bound S3 storage costs. Runs in the same job so
-              # there's no second CronJob to manage.
-              CUTOFF=$(date -d "30 days ago" +%s)
-              aws s3api list-objects-v2 --bucket cutctx-backups \
-                --query "Contents[?LastModified<='$$CUTOFF'].Key" \
-                --output text | while read key; do
-                  [ -n "$$key" ] && aws s3 rm "s3://cutctx-backups/$$key"
-                done
-            resources:
-              requests:
-                cpu: 100m
-                memory: 128Mi
-              limits:
-                cpu: 250m
-                memory: 256Mi
-            volumeMounts:
-            - name: data-volume
-              mountPath: /data
+            - name: backup
+              image: alpine:3.20
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  apk add --no-cache sqlite aws-cli
+                  TS=$(date +%s)
+
+                  # Backup durable SQLite stores in the workspace root.
+                  # Names are kept in sync with scripts/verify-backup.sh.
+                  for db_name in \
+                    cutctx.db \
+                    cutctx_memory.db \
+                    cutctx_memory_graph.db \
+                    cutctx_memory_vectors.db \
+                    spend_ledger.db \
+                    audit.db \
+                    rbac.db \
+                    org.db \
+                    fleet.db \
+                    scim.db \
+                    ccr.db \
+                    prefix_tracker.db \
+                    assurance.ledger.db \
+                    episodes.db \
+                    policies.db \
+                    secrets.db \
+                    webhooks.db \
+                    webhook_dlq.db; do
+                    db="/data/${db_name}"
+                    if [ -f "$db" ]; then
+                      base=$(basename "$db" .db)
+                      sqlite3 "$db" ".backup /tmp/${base}-${TS}.db"
+                      aws s3 cp "/tmp/${base}-${TS}.db" "s3://cutctx-backups/${base}-${TS}.db"
+                      echo "${base} backup ok: ${base}-${TS}.db"
+                    else
+                      echo "${db_name} not found, skipping"
+                    fi
+                  done
+
+                  # Retention: prune backups older than 30 days to bound
+                  # S3 storage costs. Runs in the same job so there is no
+                  # second CronJob to manage.
+                  CUTOFF=$(date -d "30 days ago" +%s)
+                  aws s3api list-objects-v2 --bucket cutctx-backups \
+                    --query "Contents[?LastModified<='${CUTOFF}'].Key" \
+                    --output text | while read -r key; do
+                      [ -n "$key" ] && aws s3 rm "s3://cutctx-backups/$key"
+                    done
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /data
           restartPolicy: OnFailure
           volumes:
-          - name: data-volume
-            persistentVolumeClaim:
-              claimName: cutctx-pvc
+            - name: data-volume
+              persistentVolumeClaim:
+                claimName: cutctx-pvc

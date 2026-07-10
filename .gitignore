@@ -17,6 +17,10 @@ scripts/*
 !scripts/sync-plugin-versions.py
 !scripts/changelog-gen.py
 !scripts/verify-versions.py
+!scripts/run_remote_hosted_smoke.py
+!scripts/run_staged_gateway_smoke.py
+!scripts/run_staging_dashboard_smoke.py
+!scripts/evaluate_release_evidence.py
 !scripts/tests/
 !scripts/README.md
 !scripts/repro_codex_replay.py
@@ -33,6 +37,7 @@ scripts/*
 !scripts/audit_wheel_glibc_symbols.py
 !scripts/replay_codex_ws_load.py
 !scripts/export_kompress_v2_onnx.py
+!scripts/verify-backup.sh
 !scripts/assert_oss_wheel_clean.py
 !scripts/build_ee_manifest.py
 !scripts/sign_artifacts.py
@@ -289,3 +294,5 @@ fix_summary.md
 patch_*.py
 .playwright-mcp/
 .slim/deepwork/
+*.db-shm
+*.db-wal

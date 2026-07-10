@@ -4,6 +4,14 @@ export { CutctxClient } from "./client.js";
 export type { ExtendedClientOptions, CutctxParams } from "./client.js";
 export { simulate } from "./simulate.js";
 export type { SimulateOptions } from "./simulate.js";
+export {
+  HostedCompressionClient,
+  HostedCompressionError,
+} from "./hosted.js";
+export type {
+  HostedCompressionClientOptions,
+  HostedCompressionResult,
+} from "./hosted.js";
 
 // --- Format utilities ---
 export { detectFormat, toOpenAI, fromOpenAI } from "./utils/format.js";

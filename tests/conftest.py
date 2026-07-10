@@ -6,6 +6,7 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["CUTCTX_CCR_BACKEND"] = "memory"
+os.environ.setdefault("CUTCTX_WEBHOOKS_IN_MEMORY", "1")
 # Secure-by-default: tests need a known admin key for admin endpoints.
 # The test mode bypass (CUTCTX_TEST_MODE) has been REMOVED as a security
 # hardening measure. Tests authenticate via this key instead.
@@ -51,6 +52,43 @@ from unittest.mock import Mock
 
 
 @pytest.fixture(autouse=True)
+def _restore_runtime_state():
+    """Keep per-test process state from leaking into later tests.
+
+    The remaining QA-report failures are all cross-test contamination
+    issues, so we restore the process cwd and reset the small set of
+    module-level singletons that can survive past a test boundary.
+    """
+
+    cwd = Path.cwd()
+    yield
+
+    if Path.cwd() != cwd:
+        os.chdir(cwd)
+
+    try:
+        from cutctx_ee.rbac import reset_rbac_checker
+
+        reset_rbac_checker()
+    except Exception:
+        pass
+
+    try:
+        import cutctx.proxy.webhooks as webhooks_module
+
+        webhooks_module._dispatcher = None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    try:
+        import cutctx.subscription.tracker as tracker_module
+
+        tracker_module._tracker_instance = None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
 def _cleanup_cutctx_logger():
     """Restore cutctx logger propagation and remove file handlers after
     every test.
@@ -68,4 +106,3 @@ def _cleanup_cutctx_logger():
         if "RotatingFile" in type(handler).__name__:
             cutctx_logger.removeHandler(handler)
             handler.close()
-

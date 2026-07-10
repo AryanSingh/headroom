@@ -382,6 +382,7 @@ Running with compression disabled (pure gateway) requires neither asset.
 | [Configuration](https://cutctx.com/docs/configuration)          | [Limitations](https://cutctx.com/docs/limitations)                  |
 
 | [Model routing presets](docs/content/docs/model-routing-presets.mdx) | [Agent compatibility guide](PRODUCT_GUIDE.md#7-agent-compatibility) |
+| [Deterministic orchestration](docs/content/docs/orchestration-platform.mdx) | [API reference](docs/content/docs/api-reference.mdx#orchestration-management-api) |
 ## Compared to
 
 Cutctx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.

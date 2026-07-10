@@ -1,0 +1,76 @@
+{
+  "seed": 42,
+  "compressors": [
+    "verbatim_compactor",
+    "content_router",
+    "smart_crusher"
+  ],
+  "datasets": [
+    "VerbatimCompactionSamples"
+  ],
+  "totals": {
+    "datasets": 1,
+    "compressors": 3,
+    "cells": 3,
+    "skipped_cells": 0,
+    "errors": 0,
+    "duration_seconds": 0.378190279006958
+  },
+  "results": [
+    {
+      "dataset": "VerbatimCompactionSamples",
+      "compressor": "verbatim_compactor",
+      "n": 3,
+      "ratio": 0.7139,
+      "tokens_saved": 151,
+      "tokens_per_second": 3969719.49,
+      "avg_ms": 0.05,
+      "p50_ms": 0.05,
+      "errors": 0,
+      "skipped": false,
+      "f1": 0.7411,
+      "rouge_l": 0.7411,
+      "information_recall": 0.75,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 0.3333
+    },
+    {
+      "dataset": "VerbatimCompactionSamples",
+      "compressor": "content_router",
+      "n": 3,
+      "ratio": 0.6952,
+      "tokens_saved": 180,
+      "tokens_per_second": 1688.2,
+      "avg_ms": 120.84,
+      "p50_ms": 34.4,
+      "errors": 0,
+      "skipped": false,
+      "f1": 0.8387,
+      "rouge_l": 0.7745,
+      "information_recall": 0.8667,
+      "critical_item_recall": 0.5385,
+      "verbatim_fidelity": 0.5385,
+      "exact_match": 0.0
+    },
+    {
+      "dataset": "VerbatimCompactionSamples",
+      "compressor": "smart_crusher",
+      "n": 3,
+      "ratio": 0.9115,
+      "tokens_saved": 43,
+      "tokens_per_second": 13575260.45,
+      "avg_ms": 0.02,
+      "p50_ms": 0.02,
+      "errors": 0,
+      "skipped": false,
+      "f1": 1.0,
+      "rouge_l": 1.0,
+      "information_recall": 1.0,
+      "critical_item_recall": 0.7692,
+      "verbatim_fidelity": 0.7692,
+      "exact_match": 0.6667
+    }
+  ],
+  "timestamp": "2026-07-09T19:43:39.684341"
+}

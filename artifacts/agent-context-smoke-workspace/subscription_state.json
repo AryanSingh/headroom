@@ -1,0 +1,30 @@
+{
+  "latest": null,
+  "window_tokens": null,
+  "contribution": {
+    "tokens_submitted": 0,
+    "tokens_saved": {
+      "compression": 0,
+      "proxy_compression": 0,
+      "cli_filtering": 0,
+      "rtk": 0,
+      "cli_filtering_raw": 0,
+      "rtk_raw": 0,
+      "cache_reads": 0,
+      "total": 0
+    },
+    "raw_without_cutctx": 0,
+    "efficiency_pct": 0.0,
+    "savings_usd": {
+      "compression": 0.0,
+      "cache": 0.0,
+      "total": 0.0
+    }
+  },
+  "discrepancies": [],
+  "poll_count": 0,
+  "poll_errors": 0,
+  "last_error": null,
+  "last_active_at": null,
+  "history": []
+}

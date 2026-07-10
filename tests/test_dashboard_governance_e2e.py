@@ -148,6 +148,18 @@ def test_governance_ui_e2e() -> None:
             "rate_limiter": True,
         },
         "rate_limiter": None,
+        "cost": {
+            "budget": {
+                "enabled": True,
+                "period": "daily",
+                "limit_usd": 25.0,
+                "spent_usd": 8.75,
+                "remaining_usd": 16.25,
+                "allowed": True,
+                "exceeded": False,
+                "percent_used": 35.0,
+            }
+        },
     }
     sections = {"audit": None, "rbac": None}
 
@@ -161,11 +173,24 @@ def test_governance_ui_e2e() -> None:
         expect(page.get_by_text("Rate limiting").first).to_be_visible(timeout=5000)
         expect(page.get_by_text("Some governance surfaces could not be reached")).not_to_be_visible()
 
-        expect(page.locator(".metric-card").filter(has_text="Status")).to_contain_text(
+        rate_limit_panel = page.locator(".panel").filter(has_text="Rate limiting")
+        budget_panel = page.locator(".panel").filter(has_text="Cost budget")
+
+        expect(rate_limit_panel.locator(".metric-card").filter(has_text="Status")).to_contain_text(
             "Configured"
         )
-        expect(page.locator(".metric-card").filter(has_text="Token limit")).to_contain_text(
+        expect(rate_limit_panel.locator(".metric-card").filter(has_text="Token limit")).to_contain_text(
             "-"
+        )
+        expect(page.get_by_text("Cost budget").first).to_be_visible()
+        expect(budget_panel.locator(".metric-card").filter(has_text="Budget limit")).to_contain_text(
+            "$25.00"
+        )
+        expect(budget_panel.locator(".metric-card").filter(has_text="Spend used")).to_contain_text(
+            "$8.750"
+        )
+        expect(budget_panel.locator(".metric-card").filter(has_text="Remaining")).to_contain_text(
+            "$16.25"
         )
 
         orchestrator_row = page.locator(".feature-config-row").filter(has_text="Easy-task routing")

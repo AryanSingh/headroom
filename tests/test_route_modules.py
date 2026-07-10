@@ -95,6 +95,44 @@ def test_rate_limit_stats_authenticated_no_limiter(client: TestClient) -> None:
     assert "stats" in body
 
 
+def test_rate_limit_stats_expose_recorded_denials() -> None:
+    import asyncio
+
+    from cutctx.proxy.rate_limiter import TokenBucketRateLimiter
+
+    config = ProxyConfig(
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        log_requests=False,
+    )
+    app = create_app(config)
+    app.state.proxy.rate_limiter = TokenBucketRateLimiter(
+        requests_per_minute=1,
+        tokens_per_minute=5,
+    )
+
+    async def _prime_rate_limiter() -> None:
+        allowed, _ = await app.state.proxy.rate_limiter.check_request("admin-test")
+        assert allowed is True
+        allowed, _ = await app.state.proxy.rate_limiter.check_request("admin-test")
+        assert allowed is False
+
+    asyncio.run(_prime_rate_limiter())
+
+    with TestClient(app) as test_client:
+        r = test_client.get("/v1/rate_limit/stats", headers=_auth())
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["enabled"] is True
+    assert body["stats"]["request_checks_total"] == 2
+    assert body["stats"]["request_denied_total"] == 1
+    assert body["stats"]["bucket_limit_denied_total"] == 0
+    assert body["stats"]["last_rate_limited"]["key"] == "admin-test"
+    assert body["stats"]["last_rate_limited"]["scope"] == "request"
+    assert body["stats"]["last_rate_limited"]["reason"] == "request_budget"
+
+
 def test_create_rate_limit_router_no_auth() -> None:
     router = rate_limit_module.create_rate_limit_router()
     paths = [r.path for r in router.routes]

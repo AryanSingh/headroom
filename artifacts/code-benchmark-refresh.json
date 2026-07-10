@@ -1,0 +1,57 @@
+{
+  "seed": 42,
+  "compressors": [
+    "content_router",
+    "smart_crusher"
+  ],
+  "datasets": [
+    "CodeSamples"
+  ],
+  "totals": {
+    "datasets": 1,
+    "compressors": 2,
+    "cells": 2,
+    "skipped_cells": 0,
+    "errors": 0,
+    "duration_seconds": 0.1533491611480713
+  },
+  "results": [
+    {
+      "dataset": "CodeSamples",
+      "compressor": "content_router",
+      "n": 2,
+      "ratio": 0.7481,
+      "tokens_saved": 111,
+      "tokens_per_second": 3000.4,
+      "avg_ms": 74.49,
+      "p50_ms": 74.49,
+      "errors": 0,
+      "skipped": false,
+      "f1": 0.8233,
+      "rouge_l": 0.8233,
+      "information_recall": 1.0,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 0.0
+    },
+    {
+      "dataset": "CodeSamples",
+      "compressor": "smart_crusher",
+      "n": 2,
+      "ratio": 1.0,
+      "tokens_saved": 0,
+      "tokens_per_second": 8447192.16,
+      "avg_ms": 0.03,
+      "p50_ms": 0.03,
+      "errors": 0,
+      "skipped": false,
+      "f1": 1.0,
+      "rouge_l": 1.0,
+      "information_recall": 1.0,
+      "critical_item_recall": 1.0,
+      "verbatim_fidelity": 1.0,
+      "exact_match": 1.0
+    }
+  ],
+  "timestamp": "2026-07-10T00:26:09.447792"
+}

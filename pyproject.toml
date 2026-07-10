@@ -560,4 +560,6 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "drain3>=0.9.11",
+    "pytest>=9.0.3",
+    "pytest-timeout>=2.4.0",
 ]

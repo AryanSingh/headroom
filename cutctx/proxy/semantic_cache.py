@@ -19,6 +19,102 @@ from cutctx.proxy.helpers import _strip_per_call_annotations
 from cutctx.proxy.models import CacheEntry
 from cutctx.memory.tracker import ComponentStats
 
+_SYSTEM_REMINDER_BLOCK_RE = re.compile(
+    r"<system-reminder\b[^>]*>.*?</system-reminder>",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+_VOLATILE_METADATA_KEYS = frozenset(
+    {
+        "client_request_id",
+        "conversation_id",
+        "created_at",
+        "date",
+        "message_id",
+        "nonce",
+        "request_id",
+        "session_id",
+        "timestamp",
+        "time",
+        "trace_id",
+        "turn_id",
+        "ts",
+        "updated_at",
+        "user_id",
+    }
+)
+_VOLATILE_BLOCK_TYPES = frozenset(
+    {
+        "system-reminder",
+        "system_reminder",
+        "timestamp",
+        "timestamp-block",
+        "timestamp_block",
+    }
+)
+_SKIP_VALUE = object()
+
+
+def _normalize_semantic_cache_text(text: str) -> str:
+    cleaned = _SYSTEM_REMINDER_BLOCK_RE.sub("", text)
+    return cleaned.rstrip()
+
+
+def _normalize_semantic_cache_value(value: object, *, in_metadata: bool = False) -> object:
+    if isinstance(value, str):
+        return _normalize_semantic_cache_text(value)
+
+    if isinstance(value, list):
+        normalized_list: list[object] = []
+        for item in value:
+            normalized_item = _normalize_semantic_cache_value(item, in_metadata=in_metadata)
+            if normalized_item is not _SKIP_VALUE:
+                normalized_list.append(normalized_item)
+        return normalized_list
+
+    if isinstance(value, dict):
+        block_type = value.get("type")
+        if isinstance(block_type, str):
+            normalized_block_type = block_type.strip().lower().replace("_", "-")
+            if normalized_block_type in _VOLATILE_BLOCK_TYPES:
+                return _SKIP_VALUE
+
+        normalized_dict: dict[object, object] = {}
+        for key, item in value.items():
+            key_str = str(key)
+            key_lower = key_str.lower()
+
+            if key_lower == "cache_control":
+                continue
+            if in_metadata and key_lower in _VOLATILE_METADATA_KEYS:
+                continue
+
+            normalized_item = _normalize_semantic_cache_value(
+                item,
+                in_metadata=in_metadata or key_lower == "metadata",
+            )
+            if normalized_item is _SKIP_VALUE:
+                continue
+
+            normalized_dict[key] = normalized_item
+
+        return normalized_dict
+
+    return value
+
+
+def normalize_semantic_cache_messages(messages: list[dict]) -> list[dict]:
+    """Return a deterministic cache-key view of request messages.
+
+    The normalizer removes request-variant annotations that do not change the
+    semantic prompt content: per-call cache breakpoints, volatile reminder and
+    timestamp blocks, trailing whitespace, and obvious metadata churn.
+    """
+
+    normalized = _normalize_semantic_cache_value(messages)
+    if isinstance(normalized, list):
+        return normalized  # best-effort normalized copy for hashing
+    return messages
+
 
 class SemanticCache:
     """Exact-match response cache with LRU eviction."""
@@ -37,29 +133,16 @@ class SemanticCache:
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
         """Compute a normalized cache key for a request."""
-        cleaned_messages = _strip_per_call_annotations(messages)
-
-        for msg in cleaned_messages:
-            if not isinstance(msg, dict):
-                continue
-
-            metadata = msg.get("metadata")
-            if isinstance(metadata, dict):
-                metadata.pop("user_id", None)
-
-            content = msg.get("content")
-            if isinstance(content, str):
-                content = re.sub(
-                    r"<system-reminder>.*?</system-reminder>",
-                    "",
-                    content,
-                    flags=re.DOTALL,
-                )
-                msg["content"] = content.strip()
+        cleaned_messages = normalize_semantic_cache_messages(
+            _strip_per_call_annotations(messages)
+        )
 
         normalized = json.dumps(
             {"model": model, "messages": cleaned_messages},
             sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str,
         )
         return hashlib.sha256(normalized.encode()).hexdigest()[:32]
 

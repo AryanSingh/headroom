@@ -15,6 +15,7 @@ from cutctx.savings.integrations import (
 )
 
 SAVINGS_METADATA_HEADER = "x-cutctx-savings-metadata"
+ORCHESTRATION_CONTEXT_KEY = "__orchestration__"
 
 
 def _coerce_int(value: Any) -> int:
@@ -61,7 +62,13 @@ def _merge(
 _MODEL_ROUTING_DECISION_KEYS = (
     "source_model",
     "target_model",
+    "assigned_model",
+    "provider",
+    "role",
+    "binding_id",
     "reason",
+    "fallback_used",
+    "fallback_trigger",
     "tokens_saved",
     "usd_saved",
     "request_overrides",
@@ -213,6 +220,42 @@ def extract_savings_metadata(
     if isinstance(body, Mapping):
         _merge_payload(result, body.get("cutctx_savings_metadata"))
         _merge_payload(result, body.get("savings_metadata"))
+    routing_context: dict[str, Any] = {}
+    if isinstance(body, Mapping):
+        embedded = body.get("cutctx_routing") or body.get("orchestration")
+        if isinstance(embedded, Mapping):
+            routing_context.update(embedded)
+    for field, header_name in {
+        "role": "x-cutctx-role",
+        "mode": "x-cutctx-routing-mode",
+        "policy": "x-cutctx-routing-policy",
+    }.items():
+        value = _header(request_headers, header_name)
+        if value is not None:
+            routing_context[field] = str(value)
+    selectors = dict(routing_context.get("selectors", {}))
+    for selector in (
+        "agent",
+        "workflow",
+        "command",
+        "skill",
+        "task-type",
+        "repository",
+        "workspace",
+        "organization",
+    ):
+        value = _header(request_headers, f"x-cutctx-{selector}")
+        if value is not None:
+            selectors[selector.replace("-", "_")] = str(value)
+    if selectors:
+        routing_context["selectors"] = selectors
+    capabilities = _header(request_headers, "x-cutctx-required-capabilities")
+    if capabilities:
+        routing_context["required_capabilities"] = [
+            item.strip() for item in str(capabilities).split(",") if item.strip()
+        ]
+    if routing_context:
+        result[ORCHESTRATION_CONTEXT_KEY] = routing_context
     return result or None
 
 

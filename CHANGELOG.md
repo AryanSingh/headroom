@@ -33,6 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a provider-neutral orchestration control plane with encrypted provider accounts, dynamic capability-aware model discovery, custom role and selector bindings, deterministic strict/relaxed routing, bounded fallback chains, execution telemetry, and dashboard configuration surfaces.
+- Integrated LiteLLM's open-source core as the default orchestration execution substrate while retaining Cutctx-owned routing and account policy. OpenAI-compatible sidecars such as Bifrost, Portkey, and Envoy can be registered without replacing Cutctx's control plane.
+- Hardened orchestration configuration updates with merged-candidate validation, atomic in-process routing swaps, removal of stale configured models, and rejection of plaintext authentication headers outside the encrypted credential store.
+- Added exact deployment keys (`provider:account:model`) for multi-account assignments and an explicit, default-off `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION` development switch.
+
+### Security
+
+- Orchestration callers can no longer relax configured strict mode, override account credentials/cloud deployment fields, inject LiteLLM retry or fallback controls, or silently inherit process-global provider keys without account-level opt-in.
+- Management APIs redact custom-header values while preserving them across configuration round trips, and compatibility routes fail closed when they cannot prove the exact assigned provider account.
+
 ### Strategy
 
 - Public-facing copy now starts the context-control-plane repositioning from `artifacts/product-strategy-moat-analysis.md`: `README.md`, `PRODUCT_GUIDE.md`, `llms.txt`, and docs landing pages now lead with govern / attribute / remember, while token savings remain proof instead of the opening headline.

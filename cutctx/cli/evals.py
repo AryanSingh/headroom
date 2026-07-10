@@ -2,15 +2,42 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import time as time_module
+from datetime import datetime, timezone
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import click
 
 from cutctx.evals.benchmark_report import BenchmarkSuiteResult
 
 from .main import main
+
+
+BENCHMARK_PRESETS: dict[str, dict[str, list[str]]] = {
+    "llmlingua_research": {
+        "datasets": [
+            "code_samples",
+            "rag_samples",
+            "mixed_agent_traces",
+            "verbatim_compaction",
+        ],
+        "compressors": ["content_router", "llmlingua"],
+        "metrics": [
+            "ratio",
+            "tokens_saved",
+            "tokens_per_second",
+            "f1",
+            "information_recall",
+            "critical_item_recall",
+            "verbatim_fidelity",
+        ],
+    }
+}
 
 
 @main.group()
@@ -726,6 +753,12 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
     help="Dataset name(s). Available: tool_outputs, longbench, squad, hotpotqa, ...",
 )
 @click.option(
+    "--preset",
+    type=click.Choice(sorted(BENCHMARK_PRESETS.keys())),
+    default=None,
+    help="Named benchmark preset. Overrides dataset, compressor, and metric selection.",
+)
+@click.option(
     "--longbench-task",
     default="qasper",
     help="LongBench subtask (qasper, multifieldqa_en, narrativeqa)",
@@ -743,6 +776,7 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
     multiple=True,
     type=click.Choice(
         [
+            "raw_passthrough",
             "smart_crusher",
             "log",
             "search",
@@ -751,6 +785,7 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
             "kompress",
             "llmlingua",
             "drain3",
+            "verbatim_compactor",
             "content_router",
             "all",
         ]
@@ -765,13 +800,23 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
         [
             "ratio",
             "tokens_saved",
+            "tokens_per_second",
             "f1",
             "rouge_l",
             "information_recall",
+            "critical_item_recall",
+            "verbatim_fidelity",
             "exact_match",
         ]
     ),
-    default=["ratio", "f1", "information_recall"],
+    default=[
+        "ratio",
+        "f1",
+        "information_recall",
+        "critical_item_recall",
+        "tokens_per_second",
+        "verbatim_fidelity",
+    ],
     help="Metrics to compute",
 )
 @click.option("--parallel", type=int, default=4)
@@ -782,7 +827,31 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
     default=False,
     help="Also save markdown table",
 )
+@click.option(
+    "--html",
+    "html_output",
+    is_flag=True,
+    default=False,
+    help="Also save an HTML report",
+)
 @click.option("--seed", type=int, default=42)
+@click.option(
+    "--disable-hf-xet",
+    is_flag=True,
+    default=False,
+    help="Use standard Hugging Face HTTP downloads instead of the optional Xet transport.",
+)
+@click.option(
+    "--hf-download-timeout",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Override Hugging Face model-download timeout in seconds for live baselines.",
+)
+@click.option(
+    "--llmlingua-model",
+    default=None,
+    help="Override the LLMLingua model ID for a reproducible comparison run.",
+)
 @click.option(
     "--publish",
     is_flag=True,
@@ -791,6 +860,7 @@ def run_probes(recordings_dir: Path, eval_dataset: Path | None, json_output: Pat
 )
 def benchmark(
     dataset: tuple[str, ...],
+    preset: str | None,
     longbench_task: str,
     n_samples: int,
     compressors: tuple[str, ...],
@@ -798,7 +868,11 @@ def benchmark(
     parallel: int,
     output: str | None,
     markdown: bool,
+    html_output: bool,
     seed: int,
+    disable_hf_xet: bool,
+    hf_download_timeout: int | None,
+    llmlingua_model: str | None,
     publish: bool,
 ) -> None:
     """Run a reproducible compressor benchmark on standard datasets.
@@ -814,8 +888,15 @@ def benchmark(
         cutctx evals benchmark -d tool_outputs -d squad --output results.json
         cutctx evals benchmark --compressors smart_crusher content_router log
     """
+    if disable_hf_xet:
+        # Hugging Face reads this before the optional model is first constructed.
+        os.environ["HF_HUB_DISABLE_XET"] = "1"
+    if hf_download_timeout is not None:
+        os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = str(hf_download_timeout)
+
     _run_benchmark(
         datasets=list(dataset),
+        preset=preset,
         longbench_task=longbench_task,
         n_samples=n_samples,
         compressors=list(compressors),
@@ -823,7 +904,9 @@ def benchmark(
         parallel=parallel,
         output=output,
         markdown=markdown,
+        html_output=html_output,
         seed=seed,
+        llmlingua_model=llmlingua_model,
         publish=publish,
     )
 
@@ -831,14 +914,188 @@ def benchmark(
 main.add_command(benchmark, name="benchmark")
 
 
+@evals.command("verify")
+@click.option(
+    "--dataset",
+    "-d",
+    multiple=True,
+    default=["tool_outputs"],
+    help="Dataset name(s). Available: tool_outputs, longbench, squad, hotpotqa, ...",
+)
+@click.option(
+    "--longbench-task",
+    default="qasper",
+    help="LongBench subtask (qasper, multifieldqa_en, narrativeqa)",
+)
+@click.option(
+    "--n",
+    "n_samples",
+    type=int,
+    default=8,
+    help="Samples per dataset",
+)
+@click.option(
+    "--compressors",
+    "-c",
+    multiple=True,
+    type=click.Choice(
+        [
+            "raw_passthrough",
+            "smart_crusher",
+            "log",
+            "search",
+            "diff",
+            "code",
+            "kompress",
+            "llmlingua",
+            "drain3",
+            "verbatim_compactor",
+            "content_router",
+            "all",
+        ]
+    ),
+    default=["content_router", "smart_crusher"],
+    help="Compressors to verify",
+)
+@click.option("--parallel", type=int, default=4)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json", "markdown"]),
+    default="text",
+    help="Output format.",
+)
+@click.option("--output", "-o", type=str, default=None, help="Write the report to PATH")
+@click.option("--ci", is_flag=True, help="Exit non-zero when thresholds are not met.")
+@click.option(
+    "--min-f1",
+    type=float,
+    default=0.9,
+    show_default=True,
+    help="Minimum F1 score required for PASS.",
+)
+@click.option(
+    "--min-information-recall",
+    type=float,
+    default=0.9,
+    show_default=True,
+    help="Minimum information recall required for PASS.",
+)
+@click.option(
+    "--max-compression-ratio",
+    type=float,
+    default=0.95,
+    show_default=True,
+    help="Maximum average compression ratio allowed for PASS.",
+)
+@click.option(
+    "--max-latency-ms",
+    type=float,
+    default=250.0,
+    show_default=True,
+    help="Maximum average latency per compressor in milliseconds.",
+)
+@click.option(
+    "--min-critical-item-recall",
+    type=float,
+    default=0.9,
+    show_default=True,
+    help="Minimum critical-item recall required for PASS when available.",
+)
+@click.option(
+    "--min-verbatim-fidelity",
+    type=float,
+    default=0.9,
+    show_default=True,
+    help="Minimum verbatim fidelity required for PASS when available.",
+)
+@click.option(
+    "--min-tokens-per-second",
+    type=float,
+    default=0.0,
+    show_default=True,
+    help="Minimum throughput required for PASS when non-zero.",
+)
+def verify(
+    dataset: tuple[str, ...],
+    longbench_task: str,
+    n_samples: int,
+    compressors: tuple[str, ...],
+    parallel: int,
+    fmt: str,
+    output: str | None,
+    ci: bool,
+    min_f1: float,
+    min_information_recall: float,
+    max_compression_ratio: float,
+    max_latency_ms: float,
+    min_critical_item_recall: float,
+    min_verbatim_fidelity: float,
+    min_tokens_per_second: float,
+) -> None:
+    """Run a CI-friendly compressor verification benchmark.
+
+    
+    The verify command is a compact benchmark surface for CI. It records
+    git SHA, dataset names, compressor names, token savings, compression
+    ratio, F1, information recall, latency, and a pass/fail verdict.
+
+    
+    Examples:
+        cutctx verify --ci
+        cutctx verify --format json -o verify.json
+        cutctx verify -d tool_outputs -c content_router -c smart_crusher
+    """
+    report = _run_verify(
+        datasets=list(dataset),
+        longbench_task=longbench_task,
+        n_samples=n_samples,
+        compressors=list(compressors),
+        parallel=parallel,
+        thresholds={
+            "min_f1": min_f1,
+            "min_information_recall": min_information_recall,
+            "max_compression_ratio": max_compression_ratio,
+            "max_latency_ms": max_latency_ms,
+            "min_critical_item_recall": min_critical_item_recall,
+            "min_verbatim_fidelity": min_verbatim_fidelity,
+            "min_tokens_per_second": min_tokens_per_second,
+        },
+    )
+
+    content = _render_verify_report(report, fmt=fmt)
+    if output:
+        Path(output).write_text(content, encoding="utf-8")
+        click.echo(f"Verify report written to: {output}")
+    else:
+        click.echo(content)
+
+    if ci and not report["pass"]:
+        raise SystemExit(1)
+
+
+main.add_command(verify, name="verify")
+
+
 # -----------------------------------------------------------------------------
 # Benchmark implementation
 # -----------------------------------------------------------------------------
 
 
+def _resolve_benchmark_preset(preset: str) -> tuple[list[str], list[str], list[str]]:
+    """Return dataset, compressor, and metric selections for *preset*."""
+    config = BENCHMARK_PRESETS[preset]
+    return (
+        list(config["datasets"]),
+        list(config["compressors"]),
+        list(config["metrics"]),
+    )
+
+
 def _run_benchmark(
     *,
     datasets: list[str],
+    preset: str | None,
     longbench_task: str,
     n_samples: int,
     compressors: list[str],
@@ -846,7 +1103,9 @@ def _run_benchmark(
     parallel: int,
     output: str | None,
     markdown: bool,
+    html_output: bool,
     seed: int,
+    llmlingua_model: str | None,
     publish: bool,
 ) -> None:
     """Core benchmark logic."""
@@ -858,6 +1117,13 @@ def _run_benchmark(
     from cutctx.evals.benchmark_runner import BenchmarkRunner
     from cutctx.evals.datasets import load_dataset_by_name
 
+    selected_datasets = list(datasets)
+    selected_compressors = list(compressors)
+    selected_metrics = list(metrics)
+
+    if preset is not None:
+        selected_datasets, selected_compressors, selected_metrics = _resolve_benchmark_preset(preset)
+
     # Print banner
     click.echo(
         f"""
@@ -867,16 +1133,18 @@ def _run_benchmark(
 ╚═══════════════════════════════════════════════════════════════════════╝
 
 Configuration:
-  Datasets:         {", ".join(datasets)}
+  Datasets:         {", ".join(selected_datasets)}
   Samples/dataset:  {n_samples}
-  Compressors:      {", ".join(compressors) if "all" not in compressors else "all available"}
-  Metrics:          {", ".join(metrics)}
+  Compressors:      {", ".join(selected_compressors) if "all" not in selected_compressors else "all available"}
+  Metrics:          {", ".join(selected_metrics)}
+  Preset:           {preset or "custom"}
   Parallelism:      {parallel} workers
   Seed:             {seed}
+  LLMLingua model:  {llmlingua_model or "default"}
 """
     )
 
-    runner = BenchmarkRunner()
+    runner = BenchmarkRunner(llmlingua_model=llmlingua_model)
 
     # Resolve compressor selection
     all_comp_keys = (
@@ -884,10 +1152,8 @@ Configuration:
         if hasattr(runner, "_adapters")
         else [a.name for a in runner.list_compressors()]
     )
-    if "all" in compressors:
+    if "all" in selected_compressors:
         selected_compressors = all_comp_keys
-    else:
-        selected_compressors = compressors
 
     # Warn about missing optional compressors
     adapters = {a.name: a for a in runner.list_compressors()}
@@ -898,18 +1164,18 @@ Configuration:
     click.echo("")
 
     # Expand "all" datasets if needed
-    if "all" in datasets:
+    if "all" in selected_datasets:
         from cutctx.evals.datasets import list_available_datasets
 
         by_cat = list_available_datasets()
-        datasets = [ds for cat_list in by_cat.values() for ds in cat_list]
+        selected_datasets = [ds for cat_list in by_cat.values() for ds in cat_list]
 
     # Accumulate results across datasets
     all_results = []
     all_datasets = []
     total_start = time_module.time()
 
-    for ds_name in datasets:
+    for ds_name in selected_datasets:
         click.echo(f"Loading dataset: {ds_name} ... ", nl=False)
 
         kwargs = {}
@@ -942,7 +1208,7 @@ Configuration:
         suite_result = runner.run(
             dataset=suite,
             compressors=selected_compressors,
-            metrics=metrics,
+            metrics=selected_metrics,
             n=n_actual,
             parallel=parallel,
             seed=seed,
@@ -956,11 +1222,19 @@ Configuration:
     # Build final result
     from cutctx.evals.benchmark_report import BenchmarkSuiteResult
 
+    benchmark_metadata = {}
+    if "llmlingua" in selected_compressors:
+        benchmark_metadata["llmlingua_model"] = (
+            llmlingua_model
+            or "microsoft/llmlingua-2-xlm-roberta-large-meetingbank"
+        )
+
     final = BenchmarkSuiteResult(
         seed=seed,
         compressors=selected_compressors,
         datasets=all_datasets,
         results=all_results,
+        metadata=benchmark_metadata,
     )
     final.totals["duration_seconds"] = total_duration
     final._compute_totals()
@@ -977,13 +1251,20 @@ Configuration:
     if markdown or output:
         md_path = str(Path(output).with_suffix(".md")) if output else "benchmark_results.md"
         if markdown:
-            md_content = _build_markdown_report(final, metrics)
+            md_content = _build_markdown_report(final, selected_metrics)
             Path(md_path).write_text(md_content, encoding="utf-8")
             click.echo(f"Markdown saved to: {md_path}")
 
+    if html_output or output:
+        html_path = str(Path(output).with_suffix(".html")) if output else "benchmark_results.html"
+        if html_output:
+            html_content = _build_html_report(final, selected_metrics)
+            Path(html_path).write_text(html_content, encoding="utf-8")
+            click.echo(f"HTML saved to: {html_path}")
+
     # Publish: append a dated section to docs/benchmarks.md
     if publish:
-        publish_content = md_content if markdown else _build_markdown_report(final, metrics)
+        publish_content = md_content if markdown else _build_markdown_report(final, selected_metrics)
         _publish_benchmark_results(
             publish_content,
             seed=seed,
@@ -1019,17 +1300,30 @@ def _print_benchmark_summary(result: BenchmarkSuiteResult) -> None:
         )
 
     # Print metric tables for F1 / IR
-    for metric in ("f1", "information_recall"):
+    for metric in (
+        "tokens_per_second",
+        "f1",
+        "information_recall",
+        "critical_item_recall",
+        "verbatim_fidelity",
+    ):
         vals = [
             (r.compressor, getattr(r, metric)) for r in active if getattr(r, metric) is not None
         ]
         if vals:
-            label = {"f1": "F1 Score", "information_recall": "Information Recall"}.get(
-                metric, metric
-            )
+            label = {
+                "tokens_per_second": "Tokens / Second",
+                "f1": "F1 Score",
+                "information_recall": "Information Recall",
+                "critical_item_recall": "Critical Item Recall",
+                "verbatim_fidelity": "Verbatim Fidelity",
+            }.get(metric, metric)
             click.echo(f"\n  {label}:")
             for comp_name, val in vals:
-                click.echo(f"    {comp_name:20s}  {val:.3f}")
+                if metric == "tokens_per_second":
+                    click.echo(f"    {comp_name:20s}  {val:,.1f}")
+                else:
+                    click.echo(f"    {comp_name:20s}  {val:.3f}")
 
 
 def _build_markdown_report(result: BenchmarkSuiteResult, metrics: list[str]) -> str:
@@ -1044,9 +1338,44 @@ def _build_markdown_report(result: BenchmarkSuiteResult, metrics: list[str]) -> 
     ]
     for metric in metrics:
         lines.append(result.to_markdown(metric))
+        if len(result.compressors) > 1:
+            lines.append(result.to_relative_markdown(metric, baseline=result.compressors[0]))
         lines.append("")
     lines.append("_Generated by `cutctx evals benchmark`_")
     return "\n".join(lines)
+
+
+def _build_html_report(result: BenchmarkSuiteResult, metrics: list[str]) -> str:
+    """Build a full HTML benchmark report with one table per metric."""
+    sections: list[str] = []
+    for metric in metrics:
+        sections.append(result.to_html(metric))
+        if len(result.compressors) > 1:
+            sections.append(result.to_relative_html(metric, baseline=result.compressors[0]))
+    sections_html = "\n".join(sections)
+    return f"""<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <title>Cutctx Compressor Benchmark Report</title>
+    <style>
+      body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 32px; color: #111827; }}
+      table {{ border-collapse: collapse; width: 100%; margin: 16px 0 32px; }}
+      th, td {{ border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; vertical-align: top; }}
+      th {{ background: #f3f4f6; }}
+      h1, h2 {{ margin: 0 0 12px; }}
+      p {{ margin: 0 0 24px; color: #4b5563; }}
+      code {{ background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }}
+    </style>
+  </head>
+  <body>
+    <h1>Cutctx Compressor Benchmark Report</h1>
+    <p>Seed: <code>{result.seed}</code> | Duration: {result.totals.get('duration_seconds', 0):.1f}s | Datasets: {', '.join(result.datasets)}</p>
+    {sections_html}
+    <p><em>Generated by <code>cutctx evals benchmark</code></em></p>
+  </body>
+</html>
+"""
 
 
 def _publish_benchmark_results(
@@ -1084,3 +1413,357 @@ def _publish_benchmark_results(
         existing = existing.rstrip("\n") + "\n\n" + section
     docs_path.write_text(existing, encoding="utf-8")
     click.echo(f"Published results to: {docs_path}")
+
+
+def _get_git_sha() -> str:
+    """Return the current repository SHA, or ``unknown`` if unavailable."""
+    repo_root = Path(__file__).resolve().parents[2]
+
+    for args in (("git", "rev-parse", "--short", "HEAD"), ("git", "rev-parse", "HEAD")):
+        try:
+            proc = subprocess.run(
+                args,
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return "unknown"
+        if proc.returncode == 0:
+            sha = proc.stdout.strip()
+            if sha:
+                return sha
+    return "unknown"
+
+
+def _run_verify(
+    *,
+    datasets: list[str],
+    longbench_task: str,
+    n_samples: int,
+    compressors: list[str],
+    parallel: int,
+    thresholds: dict[str, float],
+) -> dict[str, Any]:
+    """Run the benchmark runner and normalize the results for CI reporting."""
+    import warnings
+
+    warnings.filterwarnings("ignore", category=UserWarning)
+
+    from cutctx.evals.benchmark_runner import BenchmarkRunner
+    from cutctx.evals.datasets import DATASET_REGISTRY, load_dataset_by_name
+
+    runner = BenchmarkRunner()
+
+    all_comp_keys = (
+        sorted(runner._adapters.keys()) if hasattr(runner, "_adapters") else [a.name for a in runner.list_compressors()]
+    )
+    if "all" in compressors:
+        selected_compressors = all_comp_keys
+    else:
+        selected_compressors = compressors
+
+    if "all" in datasets:
+        from cutctx.evals.datasets import list_available_datasets
+
+        by_cat = list_available_datasets()
+        datasets = [ds for cat_list in by_cat.values() for ds in cat_list]
+
+    selected_datasets = list(datasets)
+    loaded_datasets: list[str] = []
+    all_results = []
+    skipped_compressors: list[str] = []
+    total_start = time_module.time()
+
+    adapters = {a.name: a for a in runner.list_compressors()}
+    for comp_key in selected_compressors:
+        adapter = adapters.get(comp_key)
+        if adapter is None or not adapter.available:
+            skipped_compressors.append(comp_key)
+
+    for ds_name in selected_datasets:
+        kwargs: dict[str, Any] = {}
+        if ds_name == "longbench":
+            kwargs["task"] = longbench_task
+
+        ds_info = DATASET_REGISTRY.get(ds_name, {})
+        if ds_info.get("default_n") is not None:
+            kwargs.setdefault("n", n_samples)
+
+        try:
+            suite = load_dataset_by_name(ds_name, **kwargs)
+        except ImportError:
+            continue
+        except Exception:
+            continue
+
+        loaded_datasets.append(suite.name)
+        suite_result = runner.run(
+            dataset=suite,
+            compressors=selected_compressors,
+            metrics=[
+                "ratio",
+                "tokens_saved",
+                "tokens_per_second",
+                "f1",
+                "information_recall",
+                "critical_item_recall",
+                "verbatim_fidelity",
+            ],
+            n=min(n_samples, len(suite.cases)),
+            parallel=parallel,
+            seed=42,
+            warmup_cases=1,
+        )
+        all_results.extend(suite_result.results)
+
+    total_duration = time_module.time() - total_start
+
+    final = BenchmarkSuiteResult(
+        seed=42,
+        compressors=selected_compressors,
+        datasets=loaded_datasets,
+        results=all_results,
+    )
+    final.totals["duration_seconds"] = total_duration
+    final._compute_totals()
+
+    return _build_verify_report(
+        final,
+        git_sha=_get_git_sha(),
+        selected_datasets=selected_datasets,
+        selected_compressors=selected_compressors,
+        thresholds=thresholds,
+        skipped_compressors=skipped_compressors,
+    )
+
+
+def _build_verify_report(
+    result: BenchmarkSuiteResult,
+    *,
+    git_sha: str,
+    selected_datasets: list[str],
+    selected_compressors: list[str],
+    thresholds: dict[str, float],
+    skipped_compressors: list[str],
+) -> dict[str, Any]:
+    """Build a machine-readable verification report."""
+    active = [r for r in result.results if not r.skipped]
+    skipped = [r for r in result.results if r.skipped]
+    rows: list[dict[str, Any]] = []
+
+    for row in result.results:
+        row_thresholds: list[str] = []
+        status = "PASS"
+        critical_item_recall = None
+        critical_item_recall_source = None
+        verbatim_fidelity = row.verbatim_fidelity
+
+        if row.skipped:
+            status = "SKIP"
+            row_thresholds.append("compressor unavailable")
+        else:
+            if row.tokens_saved <= 0:
+                row_thresholds.append("tokens_saved <= 0")
+            if row.ratio > thresholds["max_compression_ratio"]:
+                row_thresholds.append(
+                    f"compression_ratio {row.ratio:.3f} > {thresholds['max_compression_ratio']:.3f}"
+                )
+            if row.f1 is None or row.f1 < thresholds["min_f1"]:
+                row_thresholds.append(
+                    f"f1 {0.0 if row.f1 is None else row.f1:.3f} < {thresholds['min_f1']:.3f}"
+                )
+            if row.information_recall is None or row.information_recall < thresholds["min_information_recall"]:
+                row_thresholds.append(
+                    "information_recall "
+                    f"{0.0 if row.information_recall is None else row.information_recall:.3f} "
+                    f"< {thresholds['min_information_recall']:.3f}"
+                )
+            if row.avg_ms > thresholds["max_latency_ms"]:
+                row_thresholds.append(
+                    f"latency_ms {row.avg_ms:.2f} > {thresholds['max_latency_ms']:.2f}"
+                )
+            if thresholds["min_tokens_per_second"] > 0 and (
+                row.tokens_per_second is None
+                or row.tokens_per_second < thresholds["min_tokens_per_second"]
+            ):
+                row_thresholds.append(
+                    "tokens_per_second "
+                    f"{0.0 if row.tokens_per_second is None else row.tokens_per_second:.1f} "
+                    f"< {thresholds['min_tokens_per_second']:.1f}"
+                )
+            if row.critical_item_recall is not None:
+                critical_item_recall = row.critical_item_recall
+                critical_item_recall_source = "benchmark_metric"
+                if critical_item_recall < thresholds["min_critical_item_recall"]:
+                    row_thresholds.append(
+                        "critical_item_recall "
+                        f"{critical_item_recall:.3f} < {thresholds['min_critical_item_recall']:.3f}"
+                    )
+            elif row.dataset == "ToolOutputSamples" and row.information_recall is not None:
+                critical_item_recall = row.information_recall
+                critical_item_recall_source = "information_recall_proxy"
+            if verbatim_fidelity is not None and verbatim_fidelity < thresholds["min_verbatim_fidelity"]:
+                row_thresholds.append(
+                    "verbatim_fidelity "
+                    f"{verbatim_fidelity:.3f} < {thresholds['min_verbatim_fidelity']:.3f}"
+                )
+
+            if row_thresholds:
+                status = "FAIL"
+
+        rows.append(
+            {
+                "dataset": row.dataset,
+                "compressor": row.compressor,
+                "tokens_saved": row.tokens_saved,
+                "compression_ratio": round(row.ratio, 4),
+                "f1": round(row.f1, 4) if row.f1 is not None else None,
+                "information_recall": round(row.information_recall, 4)
+                if row.information_recall is not None
+                else None,
+                "critical_item_recall": round(critical_item_recall, 4)
+                if critical_item_recall is not None
+                else None,
+                "critical_item_recall_source": critical_item_recall_source,
+                "tokens_per_second": round(row.tokens_per_second, 2)
+                if row.tokens_per_second is not None
+                else None,
+                "verbatim_fidelity": round(verbatim_fidelity, 4)
+                if verbatim_fidelity is not None
+                else None,
+                "latency_ms": round(row.avg_ms, 2),
+                "p50_latency_ms": round(row.p50_ms, 2),
+                "status": status,
+                "pass": status == "PASS",
+                "reasons": row_thresholds,
+                "skipped": row.skipped,
+            }
+        )
+
+    overall_pass = bool(active) and not skipped and all(row["pass"] for row in rows)
+
+    return {
+        "git_sha": git_sha,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "dataset": selected_datasets[0] if len(selected_datasets) == 1 else selected_datasets,
+        "datasets": selected_datasets,
+        "compressors": selected_compressors,
+        "thresholds": {
+            "min_f1": thresholds["min_f1"],
+            "min_information_recall": thresholds["min_information_recall"],
+            "max_compression_ratio": thresholds["max_compression_ratio"],
+            "max_latency_ms": thresholds["max_latency_ms"],
+            "min_critical_item_recall": thresholds["min_critical_item_recall"],
+            "min_verbatim_fidelity": thresholds["min_verbatim_fidelity"],
+            "min_tokens_per_second": thresholds["min_tokens_per_second"],
+        },
+        "summary": {
+            "datasets": len(result.datasets),
+            "compressors": len(selected_compressors),
+            "rows": len(rows),
+            "passed": sum(1 for row in rows if row["status"] == "PASS"),
+            "failed": sum(1 for row in rows if row["status"] == "FAIL"),
+            "skipped": sum(1 for row in rows if row["status"] == "SKIP"),
+            "duration_ms": round(result.totals.get("duration_seconds", 0.0) * 1000, 2),
+            "tokens_saved": sum(row["tokens_saved"] for row in rows if not row["skipped"]),
+        },
+        "results": rows,
+        "skipped_compressors": skipped_compressors,
+        "pass": overall_pass,
+    }
+
+
+def _render_verify_report(report: dict[str, Any], *, fmt: str) -> str:
+    """Render a verification report in text, JSON, or Markdown."""
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True)
+    if fmt == "markdown":
+        return _render_verify_markdown(report)
+    return _render_verify_text(report)
+
+
+def _render_verify_text(report: dict[str, Any]) -> str:
+    """Render a compact terminal summary."""
+    status = "PASS" if report["pass"] else "FAIL"
+    lines = [
+        "CUTCTX VERIFY",
+        f"Git SHA: {report['git_sha']}",
+        f"Datasets: {', '.join(report['datasets'])}",
+        f"Compressors: {', '.join(report['compressors'])}",
+        f"Status: {status}",
+        "",
+        f"Passed: {report['summary']['passed']}  Failed: {report['summary']['failed']}  Skipped: {report['summary']['skipped']}",
+        f"Tokens saved: {report['summary']['tokens_saved']:,}",
+        f"Duration: {report['summary']['duration_ms']:.2f} ms",
+        "",
+    ]
+    for row in report["results"]:
+        lines.append(
+            f"{row['status']:4s} {row['dataset']:<20s} {row['compressor']:<16s} "
+            f"ratio={row['compression_ratio']:.3f} f1={row['f1'] if row['f1'] is not None else '—'} "
+            f"irecall={row['information_recall'] if row['information_recall'] is not None else '—'} "
+            f"vfidelity={row['verbatim_fidelity'] if row['verbatim_fidelity'] is not None else '—'} "
+            f"tps={row['tokens_per_second'] if row['tokens_per_second'] is not None else '—'} "
+            f"latency={row['latency_ms']:.2f}ms"
+        )
+        if row["reasons"]:
+            lines.append(f"    reasons: {', '.join(row['reasons'])}")
+    return "\n".join(lines)
+
+
+def _render_verify_markdown(report: dict[str, Any]) -> str:
+    """Render a Markdown verification report."""
+    lines = [
+        "# Cutctx Verify Report",
+        "",
+        f"Git SHA: `{report['git_sha']}`",
+        f"Status: **{'PASS' if report['pass'] else 'FAIL'}**",
+        f"Datasets: {', '.join(report['datasets'])}",
+        f"Compressors: {', '.join(report['compressors'])}",
+        "",
+        "## Thresholds",
+        "",
+        f"- F1 >= {report['thresholds']['min_f1']:.2f}",
+        f"- Information recall >= {report['thresholds']['min_information_recall']:.2f}",
+        f"- Critical item recall >= {report['thresholds']['min_critical_item_recall']:.2f}",
+        f"- Verbatim fidelity >= {report['thresholds']['min_verbatim_fidelity']:.2f}",
+        f"- Tokens / second >= {report['thresholds']['min_tokens_per_second']:.1f}",
+        f"- Compression ratio <= {report['thresholds']['max_compression_ratio']:.2f}",
+        f"- Latency <= {report['thresholds']['max_latency_ms']:.0f} ms",
+        "",
+        "## Results",
+        "",
+        "| Dataset | Compressor | Tokens Saved | Compression Ratio | F1 | Information Recall | Critical Item Recall | Verbatim Fidelity | Tokens / Second | Latency ms | Status |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    for row in report["results"]:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    row["dataset"],
+                    row["compressor"],
+                    f"{row['tokens_saved']:,}",
+                    f"{row['compression_ratio']:.3f}",
+                    f"{row['f1']:.3f}" if row["f1"] is not None else "—",
+                    f"{row['information_recall']:.3f}" if row["information_recall"] is not None else "—",
+                    f"{row['critical_item_recall']:.3f}" if row["critical_item_recall"] is not None else "—",
+                    f"{row['verbatim_fidelity']:.3f}" if row["verbatim_fidelity"] is not None else "—",
+                    f"{row['tokens_per_second']:.1f}" if row["tokens_per_second"] is not None else "—",
+                    f"{row['latency_ms']:.2f}",
+                    row["status"],
+                ]
+            )
+            + " |"
+        )
+    lines.extend(
+        [
+            "",
+            f"Summary: {report['summary']['passed']} passed, {report['summary']['failed']} failed, {report['summary']['skipped']} skipped.",
+        ]
+    )
+    if report["skipped_compressors"]:
+        lines.append(f"Skipped compressors: {', '.join(report['skipped_compressors'])}")
+    return "\n".join(lines)

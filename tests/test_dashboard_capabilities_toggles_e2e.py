@@ -37,7 +37,10 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, flags_callback) -
             from pathlib import Path
 
             root_dir = Path(__file__).parent.parent
-            asset_path = root_dir / "dashboard/dist" / url.split("cutctx.local/")[1]
+            asset_rel = url.split("cutctx.local/")[1]
+            if asset_rel.startswith("dashboard/"):
+                asset_rel = asset_rel[len("dashboard/") :]
+            asset_path = root_dir / "cutctx/dashboard" / asset_rel
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(
@@ -97,10 +100,7 @@ def test_capabilities_toggles_e2e() -> None:
 
         _install_dashboard_routes(page, stats, on_flags)
 
-        page.goto("http://cutctx.local/dashboard", wait_until="commit")
-
-        # Click on the capabilities tab
-        page.locator("a[href='/dashboard/capabilities']").first.click()
+        page.goto("http://cutctx.local/dashboard/capabilities", wait_until="commit")
 
         # Verify the modules are shown
         expect(page.get_by_text("Episodic memory").first).to_be_visible(timeout=5000)

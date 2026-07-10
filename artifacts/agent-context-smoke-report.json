@@ -1,0 +1,58 @@
+{
+  "assurance": {
+    "note": "No local evidence ledger found.",
+    "status": "no_data"
+  },
+  "generated_at": "2026-07-09T18:10:06.153368+00:00",
+  "period_days": 0,
+  "policy": {
+    "context_policy_env": false
+  },
+  "quality_guard": {
+    "note": "Telemetry snapshot includes request-level fallback, routing, decline, and latency observations.",
+    "status": "observed"
+  },
+  "savings_by_source_tokens": {
+    "cutctx_compression": 57456
+  },
+  "schema_version": "agent_context_report_v1",
+  "session_replay": {
+    "enabled": false,
+    "status": "disabled"
+  },
+  "summary": {
+    "requests": 24,
+    "tokens_saved": 57456,
+    "usd_saved": 0.2873
+  },
+  "telemetry": {
+    "clients": {},
+    "decline_reasons": {},
+    "fallback": {
+      "count": 0,
+      "providers": {},
+      "reasons": {}
+    },
+    "latency_ms": {
+      "avg": 0.0,
+      "p50": 0.0,
+      "p95": 0.0
+    },
+    "note": "Telemetry snapshot derived from durable request history.",
+    "optimization_latency_ms": {
+      "avg": 0.0,
+      "p50": 0.0,
+      "p95": 0.0
+    },
+    "providers": {
+      "compress": 24
+    },
+    "request_cost_usd": 0.0935,
+    "requests_observed": 24,
+    "routing": {
+      "model_switches": 0,
+      "routed_requests": 0
+    },
+    "status": "observed"
+  }
+}

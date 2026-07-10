@@ -587,6 +587,14 @@ class PrometheusMetrics:
         tool_schema_compaction_usd_delta: float | None = None,
         api_surface_slimming_usd_delta: float | None = None,
         savings_by_source_usd: dict[str, float] | None = None,
+        created_savings_tokens: int = 0,
+        observed_provider_savings_tokens: int = 0,
+        eligible_input_tokens: int = 0,
+        cache_protected_tokens: int = 0,
+        compressed_tokens: int = 0,
+        decline_reason: str | None = None,
+        savings_basis: str = "estimated",
+        pricing_basis: str = "model_input_list_price",
     ):
         """Record metrics for a request."""
         async with self._lock:
@@ -695,6 +703,16 @@ class PrometheusMetrics:
                 semantic_cache_usd_delta=semantic_cache_usd_delta,
                 self_hosted_prefix_cache_usd_delta=(self_hosted_prefix_cache_usd_delta),
                 model_routing_usd_delta=model_routing_usd_delta,
+                tool_schema_compaction_usd_delta=tool_schema_compaction_usd_delta,
+                api_surface_slimming_usd_delta=api_surface_slimming_usd_delta,
+                created_savings_tokens=created_savings_tokens,
+                observed_provider_savings_tokens=observed_provider_savings_tokens,
+                eligible_input_tokens=eligible_input_tokens,
+                cache_protected_tokens=cache_protected_tokens,
+                compressed_tokens=compressed_tokens,
+                decline_reason=decline_reason,
+                savings_basis=savings_basis,
+                pricing_basis=pricing_basis,
             )
 
         self._get_otel_metrics().record_proxy_request(

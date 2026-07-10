@@ -157,6 +157,26 @@ def test_default_transform_pipeline_always_uses_content_router() -> None:
     assert not any(type(transform).__name__ == "SmartCrusher" for transform in pipeline.transforms)
 
 
+def test_default_transform_pipeline_disables_unrequested_kompress(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ENABLE_KOMPRESS", raising=False)
+
+    pipeline = TransformPipeline(CutctxConfig())
+    router = next(transform for transform in pipeline.transforms if isinstance(transform, ContentRouter))
+
+    assert router.config.enable_kompress is False
+    assert router.config.fallback_strategy is CompressionStrategy.PASSTHROUGH
+
+
+def test_transform_pipeline_can_opt_into_kompress_with_env(monkeypatch) -> None:
+    monkeypatch.setenv("CUTCTX_ENABLE_KOMPRESS", "1")
+
+    pipeline = TransformPipeline(CutctxConfig())
+    router = next(transform for transform in pipeline.transforms if isinstance(transform, ContentRouter))
+
+    assert router.config.enable_kompress is True
+    assert router.config.fallback_strategy is CompressionStrategy.KOMPRESS
+
+
 def test_content_router_protects_instruction_roles_but_compresses_tool_outputs() -> None:
     class Tokenizer:
         def count_text(self, text: str) -> int:
@@ -174,6 +194,7 @@ def test_content_router_protects_instruction_roles_but_compresses_tool_outputs()
             compressed="COMPRESSED",
             compression_ratio=0.1,
             strategy_used=CompressionStrategy.KOMPRESS,
+            diagnostics={"selected_strategy": CompressionStrategy.KOMPRESS.value},
         )
 
     router.compress = fake_compress  # type: ignore[method-assign]
