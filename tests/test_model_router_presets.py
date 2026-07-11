@@ -131,6 +131,11 @@ class TestCodexGpt54MiniHighPreset:
         pairs = {(r.source, r.target) for r in cfg.routes}
         assert ("gpt-5.5", "gpt-5.4-mini") in pairs
 
+    def test_codex_gpt54mini_high_routes_terra_to_gpt54_mini(self) -> None:
+        cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+        pairs = {(r.source, r.target) for r in cfg.routes}
+        assert ("gpt-5.6-terra", "gpt-5.4-mini") in pairs
+
     def test_codex_gpt54mini_high_routes_claude_opus_to_sonnet(self) -> None:
         cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
         pairs = {(r.source, r.target) for r in cfg.routes}

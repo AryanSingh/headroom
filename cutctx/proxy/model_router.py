@@ -322,6 +322,12 @@ class ModelRouterConfig:
                     target_cost_per_mtok=1.0,
                 ),
                 ModelRoute(
+                    source="gpt-5.6-terra",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
                     source="gpt-5.4",
                     target="gpt-5.4-mini",
                     source_cost_per_mtok=5.0,
