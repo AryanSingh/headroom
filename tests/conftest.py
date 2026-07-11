@@ -44,11 +44,11 @@ import json
 import logging
 import shutil
 import tempfile
-
-import pytest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -84,6 +84,13 @@ def _restore_runtime_state():
         import cutctx.subscription.tracker as tracker_module
 
         tracker_module._tracker_instance = None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    try:
+        from cutctx.proxy.circuit_breaker import reset_all_circuit_breakers
+
+        reset_all_circuit_breakers()
     except Exception:
         pass
 

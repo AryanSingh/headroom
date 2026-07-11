@@ -403,7 +403,7 @@ def test_vertex_gemini_non_text_generate_records_dashboard_outcome() -> None:
     async def record(outcome):  # noqa: ANN001, ANN202
         outcomes.append(outcome)
 
-    async def retry_request(method, url, headers, body):  # noqa: ANN001, ANN202
+    async def retry_request(method, url, headers, body, **kwargs):  # noqa: ANN001, ANN202
         upstream_urls.append(url)
         request = httpx.Request(method, url, headers=headers)
         return httpx.Response(

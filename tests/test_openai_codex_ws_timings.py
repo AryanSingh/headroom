@@ -12,6 +12,7 @@ import anyio
 import pytest
 
 import cutctx.proxy.handlers.openai as openai_handler
+from cutctx.cache.prefix_tracker import SessionTrackerStore
 from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
 
 
@@ -45,6 +46,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         self.anthropic_backend = None
         self.cost_tracker = None
         self.memory_handler = None
+        self.session_tracker_store = SessionTrackerStore()
 
     async def _next_request_id(self) -> str:
         return "req-ws-test"
