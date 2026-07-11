@@ -256,6 +256,7 @@ def bridge_config(tmp_dir):
 @pytest.fixture
 async def backend(tmp_dir):
     """Create a LocalBackend with temp database."""
+    pytest.importorskip("sentence_transformers", reason="requires the optional memory extra")
     from cutctx.memory.backends.local import LocalBackend, LocalBackendConfig
 
     config = LocalBackendConfig(db_path=str(tmp_dir / "test_memory.db"))

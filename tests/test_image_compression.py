@@ -248,6 +248,7 @@ class TestOnnxRouter:
         assert tech in (Technique.PRESERVE, Technique.FULL_LOW)
 
     def test_full_classify_with_image(self):
+        pytest.importorskip("PIL", reason="requires the optional image extra")
         """Full classification with query + image analysis."""
         from cutctx.image.onnx_router import OnnxTechniqueRouter
 

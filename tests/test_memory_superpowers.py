@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 
 import pytest
 
+pytest.importorskip("sentence_transformers", reason="requires the optional memory extra")
+
 from cutctx.memory.config import MemoryConfig
 from cutctx.memory.core import HierarchicalMemory
 from cutctx.memory.models import DecisionTrace

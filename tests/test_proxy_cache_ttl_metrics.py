@@ -183,6 +183,7 @@ def test_stats_endpoint_reports_observed_ttl_buckets() -> None:
 
 
 def test_stats_endpoint_reports_otel_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("opentelemetry.sdk.metrics", reason="requires the optional otel extra")
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
@@ -217,6 +218,7 @@ def test_stats_endpoint_reports_otel_configuration(monkeypatch: pytest.MonkeyPat
 
 
 def test_stats_endpoint_reports_langfuse_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("opentelemetry.sdk.metrics", reason="requires the optional otel extra")
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 

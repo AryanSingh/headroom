@@ -22,6 +22,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+pytest.importorskip("sentence_transformers", reason="requires the optional memory extra")
+
 
 @pytest.fixture
 def tmp_db(tmp_path: Path) -> str:
