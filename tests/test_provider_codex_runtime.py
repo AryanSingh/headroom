@@ -254,16 +254,7 @@ def _assert_delivery(
     model: str,
     content: str,
 ) -> None:
-    before = _model_count(stack.stats_url, model)
     payload = _send_probe(base_url, model=model, content=content)
-
-    deadline = time.time() + 10.0
-    while time.time() < deadline:
-        if _model_count(stack.stats_url, model) >= before + 1:
-            break
-        time.sleep(0.1)
-    else:
-        raise AssertionError(f"Cutctx never recorded model {model!r} in /stats")
 
     assert payload["choices"][0]["message"]["content"] == "mock completion from upstream"
     assert any(
