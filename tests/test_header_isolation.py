@@ -506,7 +506,7 @@ def test_disabled_mode_passes_through_e2e(
 
 
 def test_openai_chat_x_cutctx_bypass_not_forwarded() -> None:
-    """OpenAI handler also strips x-cutctx-* before upstream call."""
+    """OpenAI handler also strips x-cutctx-* and internal OpenAI hints."""
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -556,6 +556,7 @@ def test_openai_chat_x_cutctx_bypass_not_forwarded() -> None:
             "authorization": "Bearer sk-test",
             "x-cutctx-bypass": "true",
             "x-cutctx-user-id": "u1",
+            "X-OpenAI-Internal-Codex-Responses-Lite": "1",
         },
         json={
             "model": "gpt-4o",
@@ -568,4 +569,5 @@ def test_openai_chat_x_cutctx_bypass_not_forwarded() -> None:
     sent_headers = {k.lower(): v for k, v in sent_headers_raw.items()}
     assert "x-cutctx-bypass" not in sent_headers
     assert "x-cutctx-user-id" not in sent_headers
+    assert "x-openai-internal-codex-responses-lite" not in sent_headers
     assert sent_headers.get("authorization") == "Bearer sk-test"

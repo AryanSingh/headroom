@@ -57,7 +57,12 @@ class TaskComplexity(IntEnum):
 
 
 def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
-    """Classify the complexity of a task based on the last user message."""
+    """Classify a turn conservatively before selecting a cheaper model.
+
+    This is an eligibility gate, not an intent model: uncertainty must retain
+    the requested model.  In particular, code, tool context, multi-turn work,
+    and reference-dependent requests are never classified as low complexity.
+    """
     if not messages:
         return TaskComplexity.HIGH
 
@@ -65,8 +70,27 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     if not last_user_message:
         return TaskComplexity.HIGH
 
-    content = str(last_user_message.get("content", ""))
+    raw_content = last_user_message.get("content", "")
+    if not isinstance(raw_content, str):
+        # Multimodal content and structured content need the requested model's
+        # capability contract; do not turn their representation into a string.
+        return TaskComplexity.HIGH
+    content = raw_content
     normalized_content = content.strip().lower()
+
+    if not normalized_content:
+        return TaskComplexity.HIGH
+
+    prior_turns = [
+        message
+        for message in messages
+        if message is not last_user_message and message.get("role") in {"assistant", "tool", "user"}
+    ]
+    if prior_turns:
+        return TaskComplexity.MEDIUM
+
+    if any(marker in content for marker in ("```", "<tool", "function ", "Traceback", "stack trace")):
+        return TaskComplexity.MEDIUM
 
     if normalized_content in {
         "hi",
@@ -108,6 +132,9 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"\bfix\s+(?:bug|issue|failure|error|crash|broken|routing)\b",
         r"\bcomplete\s+work\b",
         r"\btest\s+.*\bend\s*to\s*end\b",
+        r"\b(?:review|audit|investigate|analy[sz]e|design|plan|compare|optimi[sz]e|security)\b",
+        r"\b(?:continue|complete|finish)\b",
+        r"\bfix\s+(?:this|that|it)\b",
     ]
 
     # If the text is short AND matches a low complexity pattern
@@ -116,12 +143,17 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.MEDIUM
         for pattern in low_complexity_patterns:
-            if re.search(pattern, content, re.IGNORECASE):
+            if re.search(pattern, content, re.IGNORECASE) and len(normalized_content.split()) <= 16:
                 return TaskComplexity.LOW
 
         # Short, single-turn informational prompts are good candidates for
         # mini routing; multi-sentence or code/task-heavy asks stay medium.
-        if len(content) < 160 and "\n" not in content and normalized_content.count(".") <= 1:
+        if (
+            len(content) < 100
+            and len(normalized_content.split()) <= 16
+            and "\n" not in content
+            and normalized_content.count(".") <= 1
+        ):
             return TaskComplexity.LOW
 
     if len(content) > 5000:
@@ -653,6 +685,7 @@ def prepare_model_routing(
     assignment_identity_source: str = "caller",
     assignment_sticky: bool = True,
     transport_provider: str | None = None,
+    implicit_downgrade_allowed: bool = True,
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
@@ -711,11 +744,26 @@ def prepare_model_routing(
             "tokens_saved": 0,
             "usd_saved": 0.0,
         }
+        # Role bindings prove provider/account transport compatibility above,
+        # but not wire-mode compatibility (e.g. Codex Responses Lite). When
+        # the caller can't prove the assigned model supports this transport,
+        # keep the requested model and only surface the would-be assignment
+        # for observability.
+        if not implicit_downgrade_allowed and target_model != requested_model:
+            updated_metadata["model_routing"]["target_model"] = requested_model
+            updated_metadata["model_routing"]["reason"] = "downgrade_blocked_unproven_transport"
+            return requested_model, updated_metadata
         if target_model == "gpt-5.4-mini":
             updated_metadata["model_routing"]["request_overrides"] = {
                 "reasoning": {"effort": "high"}
             }
         return target_model, updated_metadata
+    # Subscription transports expose an account-specific model set. Generic
+    # cost routing cannot prove that a target is available there, so keep the
+    # requested model. Explicit role bindings above remain valid because they
+    # verify the provider and account transport before returning a target.
+    if not implicit_downgrade_allowed:
+        return requested_model, updated_metadata or request_savings_metadata
     canary_model_routing = False
     try:
         from cutctx.proxy.savings_canary import (

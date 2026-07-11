@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 _TEST_ROOT = Path(__file__).resolve().parent
 _PROJECT_ROOT = _TEST_ROOT.parent
 

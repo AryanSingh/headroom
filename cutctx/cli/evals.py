@@ -6,8 +6,8 @@ import json
 import os
 import subprocess
 import time as time_module
-from datetime import datetime, timezone
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,6 @@ import click
 from cutctx.evals.benchmark_report import BenchmarkSuiteResult
 
 from .main import main
-
 
 BENCHMARK_PRESETS: dict[str, dict[str, list[str]]] = {
     "llmlingua_research": {

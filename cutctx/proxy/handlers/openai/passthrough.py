@@ -87,10 +87,12 @@ class OpenAIPassthroughMixin:
         tags = extract_tags(headers)
         request_savings_metadata = extract_savings_metadata(request_headers=headers)
         # PR-A5 (P5-49): strip internal x-cutctx-* before forwarding upstream.
+        from cutctx.proxy.handlers.openai.utils import _strip_openai_internal_headers
         from cutctx.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
         _pre_strip_count_pt = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
         headers = _strip_internal_headers(headers)
+        headers = _strip_openai_internal_headers(headers)
         log_outbound_headers(
             forwarder="openai_passthrough",
             stripped_count=_pre_strip_count_pt,

@@ -2715,7 +2715,7 @@ class SavingsTracker:
             "tool_schema_compaction_savings_usd",
             "api_surface_slimming_savings_usd",
         )
-        prev_extra = {key: 0.0 for key in extra_sources}
+        prev_extra = dict.fromkeys(extra_sources, 0.0)
 
         for point in history:
             timestamp = _parse_timestamp(point["timestamp"])

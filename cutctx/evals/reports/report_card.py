@@ -12,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
 _METRIC_DISPLAY_NAMES = {
     "accuracy_preservation_rate": "Accuracy Preservation Rate",
     "information_recall": "Information Recall",

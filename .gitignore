@@ -114,6 +114,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 pytest_cache/
+verify-report.*
 
 # Translations
 *.mo
@@ -198,6 +199,7 @@ log/
 tmp/
 temp/
 *.tmp
+/tmp*.txt
 *.bak
 *.swp
 
@@ -218,6 +220,7 @@ cutctx_*.db
 docker/differential-network-capture/captures/
 
 # Extension build artifacts
+node_modules/
 extensions/vscode/node_modules/
 extensions/vscode/out/
 extensions/vscode/dist/

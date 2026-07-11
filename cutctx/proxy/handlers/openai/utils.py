@@ -252,7 +252,17 @@ def _compact_openai_responses_tools(
     if not isinstance(tools, list) or not tools:
         return payload, False, 0, 0
 
-    compacted_tools = _compact_openai_tool_schema_value(tools)
+    # Built-in/reserved tools (namespace wrappers, bare server-side tools
+    # like web_search/image_generation) have a provider-pinned schema
+    # validated byte-for-byte — compacting them corrupts that schema and
+    # gets the whole request rejected regardless of model. Only
+    # client-defined "function" tools are safe to compact.
+    compacted_tools = [
+        tool
+        if isinstance(tool, dict) and tool.get("type") not in (None, "function")
+        else _compact_openai_tool_schema_value(tool)
+        for tool in tools
+    ]
     before = _json_byte_len(tools)
     after = _json_byte_len(compacted_tools)
     if after >= before:
@@ -448,6 +458,34 @@ def _resolve_codex_routing_headers(headers: dict[str, str]) -> tuple[dict[str, s
         return resolved, True
 
     return resolved, False
+
+
+def _has_codex_responses_lite_hint(headers: dict[str, str]) -> bool:
+    """Return whether the request is using Codex Responses Lite mode."""
+    for key, value in headers.items():
+        if key.lower() != "x-openai-internal-codex-responses-lite":
+            continue
+        if isinstance(value, str) and value.strip().lower() in {"", "0", "false", "no", "off"}:
+            return False
+        return True
+    return False
+
+
+def _strip_openai_internal_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Remove OpenAI-internal request headers before forwarding upstream.
+
+    The client may send ``X-OpenAI-Internal-*`` hints for its own local
+    orchestration path selection. Those headers are not part of the public
+    OpenAI API contract and can cause upstream rejection when forwarded
+    verbatim. We therefore strip them at the proxy boundary, just like the
+    proxy already strips its own ``x-cutctx-*`` control headers.
+    """
+
+    return {
+        key: value
+        for key, value in headers.items()
+        if not key.lower().startswith("x-openai-internal-")
+    }
 
 
 _CODEX_COMPRESSION_DEBUG_NOOP = _log_codex_compression_debug

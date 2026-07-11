@@ -2202,6 +2202,7 @@ OVERVIEW: TREND CHART
 .trend-bar {
   position: relative;
   flex: 1;
+  min-width: 0;
   background: linear-gradient(180deg, rgba(45, 212, 191, 0.72), rgba(20, 184, 166, 0.84));
   border: none;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
@@ -2485,6 +2486,13 @@ grid-template-columns: 1fr;
 
   .trend-chart-container {
     height: 220px;
+  }
+
+  /* The selected-period summary above the chart is the mobile tooltip.
+     Keeping a tooltip under every narrow bar makes their absolute boxes
+     participate in scroll width and produces horizontal page overflow. */
+  .trend-bar-tooltip {
+    display: none;
   }
 
   .trend-hover-summary {

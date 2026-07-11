@@ -140,7 +140,7 @@ def dashboard_server():
         process.wait(timeout=10)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def audit_browser():
     with sync_playwright() as playwright_instance:
         browser = playwright_instance.chromium.launch()

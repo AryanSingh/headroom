@@ -528,6 +528,66 @@ def test_start_proxy_uses_separate_session_for_signal_isolation(
     assert popen_kwargs["env"]["CUTCTX_LOG_FILE"] == str(tmp_path / "request_history.jsonl")
 
 
+def test_start_proxy_injects_admin_key_from_env(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    popen_kwargs: dict[str, object] = {}
+
+    class FakeProc:
+        returncode = None
+
+        def poll(self) -> None:
+            return None
+
+    def fake_popen(*args: object, **kwargs: object) -> FakeProc:
+        popen_kwargs.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "env-admin-key")
+    monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
+    monkeypatch.setattr(
+        "cutctx.paths.request_history_path",
+        lambda: tmp_path / "request_history.jsonl",
+    )
+    monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda port: True)
+    monkeypatch.setattr(wrap_mod.subprocess, "Popen", fake_popen)
+
+    wrap_mod._start_proxy(8787, agent_type="codex")
+
+    assert popen_kwargs["env"]["CUTCTX_ADMIN_API_KEY"] == "env-admin-key"
+
+
+def test_start_proxy_injects_admin_key_from_workspace_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    popen_kwargs: dict[str, object] = {}
+
+    class FakeProc:
+        returncode = None
+
+        def poll(self) -> None:
+            return None
+
+    def fake_popen(*args: object, **kwargs: object) -> FakeProc:
+        popen_kwargs.update(kwargs)
+        return FakeProc()
+
+    (tmp_path / "admin_key.txt").write_text("file-admin-key\n", encoding="utf-8")
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setattr(wrap_mod, "_get_log_path", lambda: tmp_path / "proxy.log")
+    monkeypatch.setattr(
+        "cutctx.paths.request_history_path",
+        lambda: tmp_path / "request_history.jsonl",
+    )
+    monkeypatch.setattr(wrap_mod, "_check_proxy_ready", lambda port: True)
+    monkeypatch.setattr(wrap_mod.subprocess, "Popen", fake_popen)
+
+    wrap_mod._start_proxy(8787, agent_type="codex")
+
+    assert popen_kwargs["env"]["CUTCTX_ADMIN_API_KEY"] == "file-admin-key"
+
+
 def test_launch_tool_ignores_sigint_in_wrapper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

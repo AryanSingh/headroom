@@ -15,9 +15,9 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 
+from cutctx.memory.tracker import ComponentStats
 from cutctx.proxy.helpers import _strip_per_call_annotations
 from cutctx.proxy.models import CacheEntry
-from cutctx.memory.tracker import ComponentStats
 
 _SYSTEM_REMINDER_BLOCK_RE = re.compile(
     r"<system-reminder\b[^>]*>.*?</system-reminder>",

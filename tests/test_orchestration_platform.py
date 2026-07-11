@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 from collections.abc import AsyncIterator
@@ -33,8 +34,9 @@ from cutctx.orchestration.providers import (
     builtin_provider_registry,
 )
 from cutctx.orchestration.registry import DynamicModelRegistry
-from cutctx.orchestration.service import OrchestrationService
+from cutctx.orchestration.service import OrchestrationService, build_orchestration_service
 from cutctx.orchestration.telemetry import ExecutionTelemetryStore
+from cutctx.orchestration.workflow import TaskSpec, WorkflowSpec, WorkflowStateStore
 from cutctx.proxy.model_router import prepare_model_routing
 from cutctx.proxy.routes.orchestration import create_orchestration_router
 from cutctx.proxy.savings_metadata import extract_savings_metadata
@@ -228,6 +230,8 @@ def test_same_model_on_multiple_accounts_requires_an_exact_deployment() -> None:
     decision = DeterministicRoutingEngine(config, registry).route(RoutingRequest(role="worker"))
     assert decision.account_id == "account-a"
     assert decision.actual_model == "shared-model"
+    assert decision.fallback_used is False
+    assert decision.fallback_trigger is None
 
 
 def test_agent_binding_deterministically_overrides_role_binding() -> None:
@@ -438,7 +442,9 @@ def test_credential_write_preserves_layered_config_boundaries(tmp_path: Path) ->
         telemetry=ExecutionTelemetryStore(),
     )
 
-    assert service.put_credential("shared-openai", {"api_key": "test-secret"}) == (
+    assert service.put_credential(
+        "shared-openai", {"api_key": "test-secret"}, layer="project"
+    ) == (
         "provider:shared-openai"
     )
 
@@ -449,6 +455,55 @@ def test_credential_write_preserves_layered_config_boundaries(tmp_path: Path) ->
     assert service.config.providers[0].provider == "openai"
     assert service.config.providers[0].credential_ref == "provider:shared-openai"
     assert service.config.settings.mode == "strict"
+
+
+def test_provider_accounts_and_credentials_persist_across_restarts(tmp_path: Path, monkeypatch) -> None:
+    state_dir = tmp_path / "state"
+    workspace_a = tmp_path / "workspace-a"
+    workspace_b = tmp_path / "workspace-b"
+    workspace_a.mkdir()
+    workspace_b.mkdir()
+
+    monkeypatch.chdir(workspace_a)
+    service = build_orchestration_service(data_dir=state_dir)
+    account_id = "openai-main"
+
+    stored_account = service.put_account(
+        account_id,
+        {
+            "provider": "openai",
+            "display_name": "Primary OpenAI",
+            "base_url": "https://api.openai.com/v1",
+        },
+    )
+    reference = service.put_credential(account_id, {"api_key": "persist-me"})
+
+    assert stored_account["id"] == account_id
+    assert reference == "provider:openai-main"
+    assert json.loads((state_dir / "user.json").read_text(encoding="utf-8"))["providers"][0][
+        "credential_ref"
+    ] == reference
+    assert not (workspace_a / ".cutctx" / "orchestration.json").exists()
+
+    monkeypatch.chdir(workspace_b)
+    restarted = build_orchestration_service(data_dir=state_dir)
+
+    assert restarted.accounts() == [
+        {
+            "id": account_id,
+            "provider": "openai",
+            "display_name": "Primary OpenAI",
+            "auth_method": "api_key",
+            "credential_ref": reference,
+            "base_url": "https://api.openai.com/v1",
+            "organization_id": None,
+            "workspace_id": None,
+            "custom_headers": {},
+            "enabled": True,
+            "metadata": {},
+            "credential_configured": True,
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -806,6 +861,20 @@ def test_builtin_provider_registry_uses_litellm_runtime() -> None:
     assert adapter._runtime_model("gemini-2.5-pro") == "gemini/gemini-2.5-pro"
 
 
+def test_builtin_provider_registry_exposes_opencode_go_gateway() -> None:
+    registry = builtin_provider_registry()
+    spec = next(item for item in registry.specs() if item.id == "opencode-go")
+    adapter = registry.create(
+        ProviderAccount(id="opencode-go-main", provider="opencode-go"),
+        {"api_key": "key"},
+    )
+
+    assert spec.display_name == "OpenCode Go"
+    assert spec.default_base_url == "https://opencode.ai/zen/go/v1"
+    assert isinstance(adapter, LiteLLMProviderAdapter)
+    assert adapter._runtime_model("deepseek-v4-flash") == "openai/deepseek-v4-flash"
+
+
 def test_litellm_status_codes_map_to_configured_fallback_triggers() -> None:
     class LiteLLMRateLimitError(Exception):
         status_code = 429
@@ -827,6 +896,31 @@ def test_direct_execution_route_is_explicitly_opt_in(tmp_path: Path) -> None:
 
     assert "/v1/orchestration/execute" not in default_paths
     assert "/v1/orchestration/execute" in enabled_paths
+    assert "/v1/orchestration/workflows/{workflow_id}/run" not in default_paths
+    assert "/v1/orchestration/workflows/{workflow_id}/run" in enabled_paths
+
+
+@pytest.mark.asyncio
+async def test_workflow_execution_uses_role_bound_service_and_persists_output(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {"answer": "implemented"}, "anthropic": {}})
+    store = WorkflowStateStore(tmp_path / "workflows.json")
+    spec = WorkflowSpec(
+        id="implementation",
+        tasks=[
+            TaskSpec(
+                id="implement",
+                role="worker",
+                payload={"messages": [{"role": "user", "content": "implement it"}]},
+            )
+        ],
+    )
+    workflow = store.submit(spec)
+
+    state = await service.run_workflow(store, workflow.id, spec)
+
+    assert state.status == "completed"
+    assert state.tasks["implement"].result["routing"]["actual_model"] == "gpt-5.4-mini"
+    assert state.tasks["implement"].result["response"] == {"answer": "implemented"}
 
 
 class _FakeAdapter:
@@ -1090,6 +1184,85 @@ async def test_streaming_falls_back_only_before_the_first_byte(tmp_path: Path) -
     assert execution["fallback_trigger"] == "provider_outage"
 
 
+@pytest.mark.asyncio
+async def test_streaming_falls_back_when_account_setup_fails_before_first_byte(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    resolve_account = service._execution_account
+
+    def fail_openai_setup(decision):
+        if decision.provider == "openai":
+            raise httpx.ReadTimeout("setup timeout")
+        return resolve_account(decision)
+
+    monkeypatch.setattr(service, "_execution_account", fail_openai_setup)
+    chunks = [
+        chunk
+        async for _, chunk in service.stream(
+            RoutingRequest(role="worker"), messages=[{"role": "user", "content": "hello"}]
+        )
+    ]
+
+    assert b"".join(chunks) == b"anthropic:one:two"
+    execution = service.telemetry.list()[0]
+    assert execution["provider"] == "anthropic"
+    assert execution["fallback_trigger"] == "provider_outage"
+
+
+@pytest.mark.asyncio
+async def test_streaming_uses_a_total_attempt_deadline_not_per_chunk_timeout(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    service.config.settings.timeout_seconds = 0.025
+
+    class SlowAdapter:
+        async def stream(self, _request):
+            while True:
+                await asyncio.sleep(0.01)
+                yield b"chunk"
+
+    service.adapter = lambda _account_id: SlowAdapter()  # type: ignore[method-assign]
+    received = []
+    with pytest.raises(RuntimeError, match="deadline exceeded"):
+        async for _, chunk in service.stream(
+            RoutingRequest(role="worker"), messages=[{"role": "user", "content": "hello"}]
+        ):
+            received.append(chunk)
+
+    assert received
+    assert "deadline exceeded" in service.telemetry.list()[0]["error"]
+
+
+@pytest.mark.asyncio
+async def test_streaming_cancellation_closes_iterator_and_records_execution(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    started = asyncio.Event()
+    closed = asyncio.Event()
+
+    class BlockingAdapter:
+        async def stream(self, _request):
+            started.set()
+            try:
+                await asyncio.Event().wait()
+                yield b"unreachable"
+            finally:
+                closed.set()
+
+    service.adapter = lambda _account_id: BlockingAdapter()  # type: ignore[method-assign]
+    iterator = service.stream(
+        RoutingRequest(role="worker"), messages=[{"role": "user", "content": "hello"}]
+    )
+    task = asyncio.create_task(anext(iterator))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert closed.is_set()
+    execution = service.telemetry.list()[0]
+    assert execution["error"] == "Streaming execution was cancelled"
+
+
 def test_legacy_proxy_role_header_uses_orchestration_assignment(tmp_path: Path) -> None:
     service = _service(tmp_path, {"openai": {}, "anthropic": {}})
     handler = type(
@@ -1113,6 +1286,42 @@ def test_legacy_proxy_role_header_uses_orchestration_assignment(tmp_path: Path) 
     assert model == "gpt-5.4-mini"
     assert routed["model_routing"]["role"] == "worker"
     assert routed["model_routing"]["request_overrides"] == {"reasoning": {"effort": "high"}}
+
+
+def test_legacy_proxy_role_binding_does_not_downgrade_on_unproven_transport(
+    tmp_path: Path,
+) -> None:
+    """A role binding must not swap in a model the wire mode can't prove supports.
+
+    Codex Responses Lite / ChatGPT subscription transports set
+    ``implicit_downgrade_allowed=False`` precisely because they can't prove an
+    arbitrary target model is valid in that mode. Role bindings verify
+    provider/account transport but say nothing about wire-mode compatibility,
+    so they must respect the same guard instead of bypassing it.
+    """
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    handler = type(
+        "Handler",
+        (),
+        {
+            "_orchestration_service": service,
+            "_orchestration_account_id": "openai-main",
+            "_model_router": None,
+        },
+    )()
+    metadata = extract_savings_metadata(request_headers={"x-cutctx-role": "worker"})
+
+    model, routed = prepare_model_routing(
+        handler,
+        "gpt-5.5",
+        request_savings_metadata=metadata,
+        transport_provider="openai",
+        implicit_downgrade_allowed=False,
+    )
+
+    assert model == "gpt-5.5"
+    assert routed["model_routing"]["target_model"] == "gpt-5.5"
+    assert routed["model_routing"]["reason"] == "downgrade_blocked_unproven_transport"
 
 
 def test_legacy_proxy_refuses_unproven_provider_account(tmp_path: Path) -> None:

@@ -157,6 +157,32 @@
 
 ---
 
+## ADR-009: Managed Global Routing Uses macOS Session Environment, Not Bundle Patches or Default MITM
+
+**Context:** A local Cutctx deployment needs to route multiple AI harnesses, including GUI applications such as Codex Desktop, without requiring each user to maintain shell aliases or mutate third-party application bundles.
+
+**Decision:** On macOS, `cutctx global install` manages `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` through the user's `launchctl` session plus a Cutctx-owned login LaunchAgent. It snapshots existing values and restores them on uninstall. The proxy must pass its loopback readiness check before the install changes the active session.
+
+**Rationale:**
+- OpenAI-compatible gateway products conventionally use an explicit base URL, which preserves the provider protocol instead of requiring traffic decryption.
+- `launchctl` reaches GUI processes that shell-profile edits cannot reach, including Codex Desktop.
+- Editing an app bundle's `Info.plist` is update-fragile and can conflict with code-signing expectations.
+- A shared Codex `config.toml` would couple Desktop and CLI configuration, while session routing deliberately applies to every compatible harness.
+- HTTPS interception changes trust and network state. It remains an opt-in compatibility layer for hard-coded clients rather than the default global installation.
+
+**Invariants and failure handling:**
+- The proxy binds to loopback and must be healthy before new routing is installed.
+- Managed state stores the exact prior values. Uninstall restores those values rather than assuming they were unset.
+- Updating an existing installation preserves the old LaunchAgent and live values until the replacement succeeds; failure rolls both back independently.
+- `chatgpt.com` is not part of transparent interception because that would capture normal ChatGPT browser traffic. Codex Desktop's ChatGPT-authenticated route uses the managed OpenAI base URL.
+
+**Consequences:**
+- Only tools that honor standard base URL variables are covered directly; `cutctx global doctor` must state this boundary.
+- Running apps need a restart after installation because process environments are fixed at launch.
+- macOS is the initial supported platform; other operating systems require equivalent session-level, reversible environment management before this command is extended.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |

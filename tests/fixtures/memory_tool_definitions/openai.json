@@ -225,7 +225,7 @@
       "type": "function",
       "function": {
         "name": "memory_save_decision_trace",
-        "description": "Save a Decision Trace (Situation, Rationale, Action, Outcome) to memory.\n        \nUse this to document reasoning paths so future agents understand WHY a decision was made.\n",
+        "description": "Save a Decision Trace (Situation, Rationale, Action, Outcome) to memory.\n\nUse this to document reasoning paths so future agents understand WHY a decision was made.\n",
         "parameters": {
           "type": "object",
           "properties": {

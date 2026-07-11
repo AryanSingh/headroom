@@ -61,10 +61,16 @@ def _restore_runtime_state():
     """
 
     cwd = Path.cwd()
+    environ = os.environ.copy()
     yield
 
     if Path.cwd() != cwd:
         os.chdir(cwd)
+    # A number of legacy tests assign directly to os.environ instead of using
+    # monkeypatch. Restore the exact per-test environment so configuration,
+    # database-path, and feature-flag state cannot leak into later tests.
+    os.environ.clear()
+    os.environ.update(environ)
 
     try:
         from cutctx_ee.rbac import reset_rbac_checker
@@ -84,6 +90,17 @@ def _restore_runtime_state():
         import cutctx.subscription.tracker as tracker_module
 
         tracker_module._tracker_instance = None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    try:
+        from cutctx.proxy.intelligence_pipeline import (
+            clear_runtime_flag,
+            get_all_runtime_flags,
+        )
+
+        for key in get_all_runtime_flags():
+            clear_runtime_flag(key)
     except Exception:
         pass
 

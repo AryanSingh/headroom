@@ -5,7 +5,7 @@ from cutctx.savings import SavingsSource
 
 
 def test_build_savings_breakdown_usd_parity():
-    # Construct a RequestOutcome that exercises compression, semantic cache, 
+    # Construct a RequestOutcome that exercises compression, semantic cache,
     # self-hosted prefix cache, and model routing simultaneously.
     outcome = RequestOutcome(
         request_id="req-123",
@@ -35,7 +35,7 @@ def test_build_savings_breakdown_usd_parity():
     assert tokens_by_source.get(SavingsSource.MODEL_ROUTING.value) == 500
     assert tokens_by_source.get(SavingsSource.CUTCTX_COMPRESSION.value) == 4500
     
-    # Acceptance: every key present in the by-source *tokens* dict 
+    # Acceptance: every key present in the by-source *tokens* dict
     # has a corresponding key in the by-source *USD* dict after this function returns.
     for key, tokens in tokens_by_source.items():
         assert key in usd_by_source

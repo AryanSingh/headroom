@@ -26,8 +26,8 @@ from cutctx.cache.anthropic import AnthropicCacheOptimizer
 from cutctx.cache.base import CacheConfig
 from cutctx.proxy.handlers.anthropic import AnthropicHandlerMixin
 from tests.test_anthropic_pre_upstream_backpressure import (
-    _DummyAnthropicHandler,
     _build_request,
+    _DummyAnthropicHandler,
     _tokenizer_patch,
 )
 

@@ -4,8 +4,8 @@ Per commercial-readiness-remediation-runbook.md Task 3:
 Error responses should include actionable remediation hints.
 """
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.server import create_app

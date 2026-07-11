@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2025-2026 Cutctx Labs
-"""WS13 Batch-API arbitrage.
+"""Batch-routing eligibility gate.
 
 Per artifacts/savings-moat-expansion-specs.md WS13:
 - Flag: CUTCTX_BATCH_ROUTING=1 (default off).
@@ -11,10 +11,10 @@ Per artifacts/savings-moat-expansion-specs.md WS13:
   pre-compaction).
 - No heuristic sniffing of "looks async" — mis-batching an
   interactive request is a catastrophic UX regression.
-- Mechanics: eligible requests are enqueued to the provider's batch
-  API (Anthropic Message Batches first; OpenAI second); the proxy
-  returns a 202-style poll handle or holds the connection per client
-  preference header. Queue state in the existing stats DB.
+- Safety: this module does not itself own a durable provider batch executor
+  or a result-polling endpoint.  An eligible request therefore remains a
+  synchronous passthrough until one is registered.  Returning a 202 from an
+  in-memory queue without an executor would silently strand user work.
 - Attribution: price delta recorded as `batch_routing` source.
 - Default-off (the spec's flag-off golden contract).
 """
@@ -22,7 +22,6 @@ Per artifacts/savings-moat-expansion-specs.md WS13:
 from __future__ import annotations
 
 import logging
-import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -181,9 +180,10 @@ class BatchRouter:
     Flag-off: every route() call returns a passthrough decision with
     the same body reference. No state is held.
 
-    Flag-on: a request is enqueued if and only if it has the explicit
-    allow header OR originates from a known internal job. The
-    internal queue tracks pending / completed / failed counts.
+    Flag-on currently records eligibility but remains fail-safe passthrough.
+    Provider batch submission is deliberately not simulated: a durable
+    executor and poll/result lifecycle must be installed before the router is
+    allowed to return an asynchronous acceptance response.
     """
 
     def __init__(self, config: BatchRouterConfig | None = None) -> None:
@@ -221,34 +221,24 @@ class BatchRouter:
                 request_body=request_body,
             )
 
-        # Enqueue. We assign a stable queue_id and a poll_url.
-        queue_id = f"batch-{uuid.uuid4().hex[:12]}"
-        poll_url = f"/v1/batch/{queue_id}"  # canonical, version-agnostic
-        job = InternalBatchJob(
-            queue_id=queue_id,
-            request_body=request_body,
-            origin=origin,
-            eligible_reason=reason,
-        )
-        self._jobs[queue_id] = job
-        self._state.pending += 1
-        self._state.total_enqueued += 1
-        logger.debug(
-            "WS13: enqueued batch job queue_id=%s origin=%s reason=%s",
-            queue_id,
+        # Never acknowledge an asynchronous request that no component will
+        # execute.  This was previously an in-memory-only queue with no
+        # worker, provider submission, polling endpoint, or restart recovery.
+        # Treat explicit opt-in as advisory until that complete lifecycle is
+        # available, preserving the user's request and normal response shape.
+        logger.info(
+            "batch routing eligible but unavailable; forwarding synchronously "
+            "origin=%s reason=%s",
             origin,
             reason,
         )
         return BatchRouterDecision(
-            action=BatchAction.ENQUEUED.value,
+            action=BatchAction.PASSTHROUGH.value,
             request_body=request_body,
-            queue_id=queue_id,
-            poll_url=poll_url,
-            estimated_discount=self.config.default_discount,
             metadata={
+                "reason": "batch_executor_unavailable",
+                "eligible_reason": reason,
                 "origin": origin,
-                "reason": reason,
-                "queue_id": queue_id,
             },
         )
 

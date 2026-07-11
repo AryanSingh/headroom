@@ -105,8 +105,20 @@ def compress_tool_schemas(
 
     before_bytes = _json_bytes(tools)
 
+    # Built-in/reserved tools (namespace wrappers like `image_gen`, and
+    # bare server-side tools like `web_search`/`image_generation`) are not
+    # "function" tools — their schema is pinned by the provider and
+    # validated byte-for-byte. Compressing them (stripping keys like
+    # additionalProperties, truncating descriptions) silently corrupts that
+    # pinned schema and the request is rejected with "Function '<name>' is
+    # reserved for use by this model and must match the configured schema."
+    # regardless of which model is targeted. Only client-defined "function"
+    # tools are safe to compress.
     compacted = [
-        _compress_tool(tool, max_description_length, aggressive, depth=0) for tool in tools
+        tool
+        if isinstance(tool, dict) and tool.get("type") not in (None, "function")
+        else _compress_tool(tool, max_description_length, aggressive, depth=0)
+        for tool in tools
     ]
 
     after_bytes = _json_bytes(compacted)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from pathlib import Path
 
 from cutctx.evals.release_evidence import evaluate_release_evidence

@@ -136,6 +136,7 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
             "authorization": "Bearer downstream",
             "host": "localhost",
             "accept-encoding": "gzip",
+            "X-OpenAI-Internal-Codex-Responses-Lite": "1",
         },
         method="GET",
         body=lambda: None,
@@ -157,6 +158,7 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
     )
 
     assert seen["url"] == "https://api.githubcopilot.com/models"
+    assert "X-OpenAI-Internal-Codex-Responses-Lite" not in seen["headers"]
     assert seen["request_kwargs"]["headers"] == {"Authorization": "Bearer upstream-token"}
     assert response.status_code == 200
 

@@ -1,7 +1,8 @@
 import pytest
 
-from cutctx.proxy.savings_pricing import value_tokens_usd
 from cutctx.proxy.cost import CostTracker
+from cutctx.proxy.savings_pricing import value_tokens_usd
+
 
 def test_value_tokens_usd_known_model():
     model = "gpt-4o"  # or similar known model

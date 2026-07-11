@@ -12,6 +12,7 @@ Both are real bugs that were fixed in anthropic.py and need to be ported to chat
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
@@ -20,12 +21,12 @@ httpx = pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 
 from cutctx.backends.base import BackendResponse
+from cutctx.proxy.memoizer import ToolMemoizer
 from cutctx.proxy.output_optimizer import (
     OutputOptimizeConfig,
-    OutputOptimizer,
     OutputOptimizeDecision,
+    OutputOptimizer,
 )
-from cutctx.proxy.memoizer import ToolMemoizer
 from cutctx.proxy.server import ProxyConfig, create_app
 
 

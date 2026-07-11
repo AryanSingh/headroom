@@ -313,6 +313,23 @@ def _get_log_path() -> Path:
     return log_dir / "proxy.log"
 
 
+def _resolve_admin_api_key_for_proxy_env() -> str | None:
+    """Return the admin key wrappers should inject into proxy subprocesses."""
+
+    key = os.environ.get("CUTCTX_ADMIN_API_KEY")
+    if key:
+        return key
+
+    from cutctx import paths as _paths
+
+    admin_key_path = _paths.workspace_dir() / "admin_key.txt"
+    try:
+        key = admin_key_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return key or None
+
+
 def _start_proxy(
     port: int,
     *,
@@ -381,6 +398,9 @@ def _start_proxy(
     from cutctx import paths as _paths
 
     proxy_env.setdefault("CUTCTX_LOG_FILE", str(_paths.request_history_path()))
+    admin_api_key = _resolve_admin_api_key_for_proxy_env()
+    if admin_api_key:
+        proxy_env["CUTCTX_ADMIN_API_KEY"] = admin_api_key
 
     # Tell the proxy which agent is being wrapped (for traffic learning output)
     if agent_type != "unknown":

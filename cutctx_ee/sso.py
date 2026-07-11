@@ -349,10 +349,6 @@ class SsoValidator:
                 # Signature verification failed — raise immediately
                 raise SsoTokenInvalidError(f"Signature verification failed: {e}") from e
 
-        # Validate claims
-        now = time.time()
-        skew = self.config.clock_skew_tolerance
-
         # Expiry check is handled by PyJWT during signature verification.
 
         # Issuer check (timing-safe to prevent timing side-channels)

@@ -1837,9 +1837,13 @@ def create_admin_router(
         try:
             from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
-            preset = getattr(_config, "model_routing_preset", None)
+            # Dashboard activation must be useful without a separate env-var
+            # deployment.  Previously this created the legacy router when no
+            # preset was configured, which has no GPT-5.6 -> Mini route.
+            preset = getattr(_config, "model_routing_preset", None) or "codex-gpt54mini-high"
             preset_config = ModelRouterConfig.from_preset_name(preset)
             if preset_config is not None:
+                _config.model_routing_preset = preset
                 preset_config.enabled = value
                 _proxy._model_router = ModelRouter(config=preset_config)
                 return

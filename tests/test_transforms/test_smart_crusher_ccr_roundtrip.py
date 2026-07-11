@@ -114,10 +114,12 @@ def test_native_passthrough_does_not_grow_store() -> None:
 # shim, not the raw `_core` class, so this needs to work too.
 
 
-def test_shim_exposes_ccr_get_and_ccr_len() -> None:
+def test_shim_exposes_ccr_get_and_ccr_len(monkeypatch) -> None:
     from cutctx.config import SmartCrusherConfig as PyConfig
     from cutctx.transforms.smart_crusher import SmartCrusher
 
+    # Isolate the smoke test from the persistent production CCR database.
+    monkeypatch.setenv("CUTCTX_STATELESS", "true")
     crusher = SmartCrusher(PyConfig(), with_compaction=False)
     assert crusher.ccr_len() == 0
     assert crusher.ccr_get("missing") is None

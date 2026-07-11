@@ -99,6 +99,42 @@ def test_openai_tool_schema_compaction_preserves_invocation_shape() -> None:
     assert tool["parameters"]["properties"]["path"]["description"] == " ".join(verbose.split())
 
 
+def test_openai_tool_schema_compaction_leaves_reserved_namespace_tool_untouched() -> None:
+    """Regression: OpenAI's `image_gen` namespace tool has a provider-pinned
+
+    schema validated byte-for-byte. Compacting it (stripping
+    additionalProperties, normalizing the description) corrupted that
+    pinned schema and the request was rejected with "Function
+    'image_gen.imagegen' is reserved for use by this model and must match
+    the configured schema." regardless of which model was targeted.
+    """
+    namespace_tool = {
+        "type": "namespace",
+        "name": "image_gen",
+        "description": "Tools in the image_gen namespace.",
+        "tools": [
+            {
+                "type": "function",
+                "name": "imagegen",
+                "description": "Generate images. " * 20,
+                "strict": False,
+                "parameters": {
+                    "type": "object",
+                    "properties": {"prompt": {"type": "string"}},
+                    "required": ["prompt"],
+                    "additionalProperties": False,
+                },
+            }
+        ],
+    }
+    payload = {"tools": [namespace_tool]}
+
+    compacted, modified, _, _ = _compact_openai_responses_tools(payload)
+
+    assert modified is False
+    assert compacted["tools"][0] == namespace_tool
+
+
 def test_openai_tool_schema_compaction_preserves_property_named_title() -> None:
     """Issue #759: drop-key list must not strip property *names* under `properties`.
 
@@ -272,6 +308,10 @@ class _StubProvider:
     def get_token_counter(self, model: str) -> _StubTokenizer:
         del model
         return _StubTokenizer()
+
+    def get_context_limit(self, model: str) -> int:
+        del model
+        return 128_000
 
 
 class _StubPipeline:
@@ -472,6 +512,51 @@ def test_codex_payload_without_either_field_is_skipped() -> None:
     assert attempted == 0
     assert saved == 0
     assert transforms == []
+
+
+def test_codex_responses_context_guard_uses_lite_limit_for_gpt55() -> None:
+    """Regression: gpt-5.5 is an internal Codex Lite model.
+
+    The generic OpenAI provider fallback reports unknown models as 128K, but
+    live Codex Lite sessions can grow well past that before failing near the
+    actual effective window. The WS guard must use the Codex Lite limit so it
+    does not force premature compaction around 128K.
+    """
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    payload: dict[str, Any] = {
+        "model": "gpt-5.5",
+        "input": [{"type": "message", "role": "user", "content": "x " * 260_000}],
+    }
+
+    refuse, estimated, threshold, limit = handler._openai_responses_context_guard(
+        payload,
+        model="gpt-5.5",
+    )
+
+    assert limit == 272_000
+    assert threshold == 256_000
+    assert estimated >= threshold
+    assert refuse is True
+
+
+def test_codex_responses_context_guard_allows_below_lite_threshold() -> None:
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    payload: dict[str, Any] = {
+        "model": "gpt-5.5",
+        "input": [{"type": "message", "role": "user", "content": "x " * 2_000}],
+    }
+
+    refuse, estimated, threshold, limit = handler._openai_responses_context_guard(
+        payload,
+        model="gpt-5.5",
+    )
+
+    assert limit == 272_000
+    assert estimated < threshold
+    assert refuse is False
 
 
 def test_content_router_retries_kompress_when_structured_strategy_noops(monkeypatch) -> None:

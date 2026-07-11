@@ -20,6 +20,16 @@ from .models import (
     RoutingRequest,
 )
 from .service import OrchestrationService, build_orchestration_service
+from .workflow import (
+    TaskSpec,
+    TaskState,
+    WorkflowConflictError,
+    WorkflowRunner,
+    WorkflowSpec,
+    WorkflowState,
+    WorkflowStateStore,
+    WorkflowValidationError,
+)
 
 __all__ = [
     "Capability",
@@ -37,4 +47,12 @@ __all__ = [
     "RoutingRequest",
     "RoutingUnavailableError",
     "build_orchestration_service",
+    "TaskSpec",
+    "TaskState",
+    "WorkflowRunner",
+    "WorkflowConflictError",
+    "WorkflowSpec",
+    "WorkflowState",
+    "WorkflowStateStore",
+    "WorkflowValidationError",
 ]

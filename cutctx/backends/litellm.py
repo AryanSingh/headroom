@@ -644,6 +644,9 @@ class LiteLLMBackend(Backend):
             kwargs: dict[str, Any] = {
                 "model": litellm_model,
                 "messages": messages,
+                # Constructor configuration is used for per-proxy provider
+                # settings such as an OpenAI-compatible ``api_base``.
+                **self.kwargs,
             }
 
             # Optional parameters

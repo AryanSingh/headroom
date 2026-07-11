@@ -101,3 +101,138 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
             json={"role": "worker", "messages": []},
         )
         assert direct_execution.status_code == 404
+
+        submitted = client.post(
+            "/v1/orchestration/workflows",
+            headers=headers,
+            json={
+                "id": "implement-feature",
+                "idempotency_key": "request-123",
+                "tasks": [
+                    {"id": "plan", "role": "worker", "messages": []},
+                    {
+                        "id": "review",
+                        "role": "worker",
+                        "depends_on": ["plan"],
+                        "messages": [],
+                    },
+                ],
+            },
+        )
+        assert submitted.status_code == 201
+        workflow = submitted.json()["workflow"]
+        assert workflow["tasks"]["plan"]["status"] == "pending"
+        assert workflow["task_specs"]["review"]["depends_on"] == ["plan"]
+
+        fetched = client.get(
+            f"/v1/orchestration/workflows/{workflow['id']}", headers=headers
+        )
+        assert fetched.status_code == 200
+        assert fetched.json()["workflow"]["id"] == workflow["id"]
+
+        duplicate = client.post(
+            "/v1/orchestration/workflows",
+            headers=headers,
+            json={
+                "id": "implement-feature",
+                "idempotency_key": "request-123",
+                "tasks": [
+                    {"id": "plan", "role": "worker", "messages": []},
+                    {
+                        "id": "review",
+                        "role": "worker",
+                        "depends_on": ["plan"],
+                        "messages": [],
+                    },
+                ],
+            },
+        )
+        assert duplicate.status_code == 201
+        assert duplicate.json()["workflow"]["id"] == workflow["id"]
+
+        conflict = client.post(
+            "/v1/orchestration/workflows",
+            headers=headers,
+            json={
+                "id": "different-request",
+                "idempotency_key": "request-123",
+                "tasks": [{"id": "plan", "role": "worker", "messages": []}],
+            },
+        )
+        assert conflict.status_code == 409
+
+        cancelled = client.post(
+            f"/v1/orchestration/workflows/{workflow['id']}/cancel", headers=headers
+        )
+        assert cancelled.status_code == 200
+        assert cancelled.json()["workflow"]["status"] == "cancelled"
+
+
+def test_orchestration_provider_credentials_persist_across_restarts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state_dir = tmp_path / "state"
+    workspace_a = tmp_path / "workspace-a"
+    workspace_b = tmp_path / "workspace-b"
+    workspace_a.mkdir()
+    workspace_b.mkdir()
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(state_dir))
+    headers = {"x-cutctx-admin-key": "admin_12345"}
+
+    monkeypatch.chdir(workspace_a)
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+    with TestClient(app) as client:
+        saved = client.put(
+            "/v1/orchestration/providers/openai-main",
+            headers=headers,
+            json={
+                "provider": "openai",
+                "display_name": "Primary OpenAI",
+                "base_url": "https://api.openai.com/v1",
+            },
+        )
+        assert saved.status_code == 200
+        stored = client.put(
+            "/v1/orchestration/providers/openai-main/credential",
+            headers=headers,
+            json={"api_key": "persist-me"},
+        )
+        assert stored.status_code == 200
+
+    assert not (workspace_a / ".cutctx" / "orchestration.json").exists()
+
+    monkeypatch.chdir(workspace_b)
+    restarted = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+    with TestClient(restarted) as client:
+        providers = client.get("/v1/orchestration/providers", headers=headers)
+        assert providers.status_code == 200
+        assert providers.json()["accounts"] == [
+            {
+                "id": "openai-main",
+                "provider": "openai",
+                "display_name": "Primary OpenAI",
+                "auth_method": "api_key",
+                "credential_ref": "provider:openai-main",
+                "base_url": "https://api.openai.com/v1",
+                "organization_id": None,
+                "workspace_id": None,
+                "custom_headers": {},
+                "enabled": True,
+                "metadata": {},
+                "credential_configured": True,
+            }
+        ]

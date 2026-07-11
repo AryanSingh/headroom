@@ -33,6 +33,15 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
         },
         "tokens": {"total_before_compression": 15000, "saved": 15000},
         "requests": {"total": 100},
+        "display_session": {
+            "total_input_tokens": 15000,
+            "tokens_saved": 15000,
+            "compression_savings_usd": 0.175,
+            "models": {
+                "gpt-4o": {"tokens_saved": 5000, "compression_savings_usd": 0.025},
+                "claude-3-opus": {"tokens_saved": 10000, "compression_savings_usd": 0.150},
+            },
+        },
     }
 
     def handler(route) -> None:
@@ -69,6 +78,10 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
 
         if "/stats-history" in url:
             mock_history = {
+                "models": {
+                    "gpt-4o": {"tokens_saved": 5000, "compression_savings_usd": 0.025},
+                    "claude-3-opus": {"tokens_saved": 10000, "compression_savings_usd": 0.150},
+                },
                 "lifetime": {
                     "savings_by_source_tokens.model.gpt-4o": 5000,
                     "savings_by_source_usd.model.gpt-4o": 0.025,
@@ -79,7 +92,15 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
                     "total_input_tokens": 15000,
                     "requests": 100,
                 },
-                "display_session": {}
+                "display_session": {
+                    "total_input_tokens": 15000,
+                    "tokens_saved": 15000,
+                    "compression_savings_usd": 0.175,
+                    "models": {
+                        "gpt-4o": {"tokens_saved": 5000, "compression_savings_usd": 0.025},
+                        "claude-3-opus": {"tokens_saved": 10000, "compression_savings_usd": 0.150},
+                    },
+                }
             }
             route.fulfill(status=200, content_type="application/json", body=json.dumps(mock_history))
             return
@@ -101,6 +122,7 @@ def test_dashboard_savings_by_model() -> None:
 
             page.goto("http://cutctx.local/dashboard/savings")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="Lifetime").click()
 
             # Check if "Savings by model" header exists
             header = page.locator("h2:has-text('Savings by model')")
@@ -130,7 +152,7 @@ def test_dashboard_savings_headline_shows_single_estimated_value() -> None:
             page.wait_for_load_state("networkidle")
 
             savings_card = page.locator(".metric-card").filter(
-                has=page.get_by_text("Estimated savings", exact=True)
+                has=page.get_by_text("Cutctx-created savings", exact=True)
             )
             expect(savings_card).to_contain_text("$0.175", timeout=5000)
             expect(savings_card).not_to_contain_text("(list)")

@@ -40,6 +40,7 @@ def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> No
     assert client.post("/v1/memory/sync", json={}).status_code != 404
     assert client.post("/v1/memory/review", json={}).status_code != 404
     assert client.get("/v1/memory/query").status_code != 404
+    assert client.get("/v1/memory/search").status_code != 404
 
     now = datetime.now(UTC).isoformat()
     sync_resp = client.post(
@@ -79,6 +80,10 @@ def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> No
     assert len(items) == 1
     assert items[0]["id"] == "mem-1"
     assert items[0]["content"] == "The first shared memory"
+
+    search_resp = client.get("/v1/memory/search?org_id=org-a&workspace_id=ws-a&limit=5")
+    assert search_resp.status_code == 200, search_resp.text
+    assert search_resp.json()["items"] == items
 
     with store.SessionLocal() as session:
         record = session.query(MemoryRecord).filter_by(id="mem-1", org_id="org-a").first()

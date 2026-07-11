@@ -26,10 +26,10 @@ test.describe('Orchestrator Toggles', () => {
   });
 
   test('toggling orchestrator fires POST to config flags', async ({ page }) => {
-    let postFired = false;
+    const postUrls = [];
     await page.route('**/config/flags*', async route => {
       if (route.request().method() === 'POST') {
-        postFired = true;
+        postUrls.push(new URL(route.request().url()).pathname);
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
         return;
       }
@@ -49,6 +49,7 @@ test.describe('Orchestrator Toggles', () => {
     // Click parent label to toggle
     await page.locator('.toggle-switch').click();
     
-    await expect.poll(() => postFired).toBe(true);
+    await expect.poll(() => postUrls.length).toBe(1);
+    await expect(postUrls).toEqual(['/config/flags']);
   });
 });

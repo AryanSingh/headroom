@@ -27,7 +27,7 @@ MEMORY_SAVE_DECISION_TRACE: dict[str, Any] = {
     "function": {
         "name": "memory_save_decision_trace",
         "description": """Save a Decision Trace (Situation, Rationale, Action, Outcome) to memory.
-        
+
 Use this to document reasoning paths so future agents understand WHY a decision was made.
 """,
         "parameters": {

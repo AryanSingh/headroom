@@ -120,6 +120,25 @@ def test_create_proxy_backend_uses_injected_backend_types() -> None:
     assert litellm == {"kind": "litellm", "provider": "bedrock", "region": "us-east-1"}
 
 
+def test_create_proxy_backend_forwards_openai_compatible_base_url() -> None:
+    logger = logging.getLogger("test")
+
+    backend = create_proxy_backend(
+        backend="openai",
+        anyllm_provider="ignored",
+        bedrock_region=None,
+        openai_api_url="https://api.moonshot.ai/v1/",
+        logger=logger,
+        litellm_backend_cls=lambda **kwargs: kwargs,
+    )
+
+    assert backend == {
+        "provider": "openai",
+        "region": None,
+        "api_base": "https://api.moonshot.ai/v1",
+    }
+
+
 def test_create_proxy_backend_handles_missing_or_direct_backends(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

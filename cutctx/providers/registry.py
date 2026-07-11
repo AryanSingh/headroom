@@ -148,6 +148,7 @@ def create_proxy_backend(
     backend: str,
     anyllm_provider: str,
     bedrock_region: str | None,
+    openai_api_url: str | None = None,
     logger: logging.Logger,
     anyllm_backend_cls: Any | None = None,
     litellm_backend_cls: Any | None = None,
@@ -174,7 +175,14 @@ def create_proxy_backend(
     provider = normalized_backend.replace("litellm-", "")
     try:
         backend_cls = litellm_backend_cls or _load_litellm_backend()
-        instance = cast("Backend", backend_cls(provider=provider, region=bedrock_region))
+        backend_kwargs: dict[str, Any] = {"provider": provider, "region": bedrock_region}
+        # LiteLLM expects an OpenAI-compatible URL including its API version
+        # (for example ``https://api.moonshot.ai/v1``), while passthrough
+        # routing deliberately normalizes that suffix away. Keep the original
+        # configured override for translated LiteLLM requests.
+        if provider == "openai" and openai_api_url:
+            backend_kwargs["api_base"] = openai_api_url.rstrip("/")
+        instance = cast("Backend", backend_cls(**backend_kwargs))
         logger.info("LiteLLM backend enabled (provider=%s, region=%s)", provider, bedrock_region)
         return instance
     except ImportError as exc:

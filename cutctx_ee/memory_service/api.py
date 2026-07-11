@@ -8,10 +8,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
-
 from cutctx_ee.memory_service.models import MemoryRecord
 from cutctx_ee.memory_service.store import MemoryStore
+
+logger = logging.getLogger(__name__)
 
 _store: MemoryStore | None = None
 
@@ -38,6 +38,7 @@ class SyncResponse(BaseModel):
 
 
 @router.get("/query")
+@router.get("/search")
 async def query_memory(
     limit: int = 20,
     org_id: str | None = None,
@@ -45,7 +46,11 @@ async def query_memory(
     include_deprecated: bool = False,
     store: MemoryStore = Depends(get_store),
 ):
-    """Return recent team memories for dashboard and operator verification."""
+    """Return recent team memories for dashboard and operator verification.
+
+    /search is a compatibility alias for older clients and audit checklists
+    that used search terminology before the public route settled on /query.
+    """
     try:
         bounded_limit = max(1, min(int(limit), 100))
         with store.SessionLocal() as session:

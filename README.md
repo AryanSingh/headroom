@@ -99,6 +99,8 @@ npm install cutctx-ai                 # Node / TypeScript
 # 2 — Pick your mode
 cutctx wrap claude                    # wrap a coding agent
 cutctx proxy --port 8787              # drop-in proxy, zero code changes
+# macOS: route compatible desktop and CLI harnesses through one local proxy
+cutctx global install                 # requires a healthy persistent proxy
 # or: from cutctx import compress      # inline library
 
 # 3 — See the savings
@@ -111,6 +113,7 @@ cutctx capabilities                   # show all algorithms, formats, and option
 **CLI commands** — Key commands to get started:
 - `cutctx wrap <agent>` — wrap Claude, Cursor, Codex, and other agents
 - `cutctx proxy` — drop-in proxy server for any LLM client
+- `cutctx global install` — managed macOS routing for compatible desktop and CLI harnesses; `status`, `doctor`, and `uninstall` are reversible
 - `cutctx perf` — show token savings metrics
 - `cutctx capabilities` — list compression algorithms, supported formats, and configuration options
 - `cutctx learn` — analyze failed sessions and auto-generate corrections
@@ -380,6 +383,7 @@ Running with compression disabled (pure gateway) requires neither asset.
 | [Memory](https://cutctx.com/docs/memory)                        | [Cache optimization](https://cutctx.com/docs/cache-optimization)     |
 | [Failure learning](https://cutctx.com/docs/failure-learning)    | [Benchmarks](https://cutctx.com/docs/benchmarks)                    |
 | [Configuration](https://cutctx.com/docs/configuration)          | [Limitations](https://cutctx.com/docs/limitations)                  |
+| [Global harness routing](docs/content/docs/global-routing.mdx)  | [Persistent installs](docs/content/docs/persistent-installs.mdx)   |
 
 | [Model routing presets](docs/content/docs/model-routing-presets.mdx) | [Agent compatibility guide](PRODUCT_GUIDE.md#7-agent-compatibility) |
 | [Deterministic orchestration](docs/content/docs/orchestration-platform.mdx) | [API reference](docs/content/docs/api-reference.mdx#orchestration-management-api) |

@@ -119,7 +119,11 @@ class DeterministicRoutingEngine:
                 )
             candidates.append(selected.key)
 
-        fallback_used = selected.key != primary
+        # ``primary`` may be an account-scoped deployment key
+        # (``provider:account:model``), while ``ModelRecord.key`` intentionally
+        # omits the account.  Compare deployment identities so a successful
+        # exact-account assignment is not incorrectly reported as a fallback.
+        fallback_used = selected.deployment_key != primary
         return RoutingDecision(
             request_id=request_id,
             role=role.id if role else request.role,

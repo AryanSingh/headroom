@@ -7,7 +7,6 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "verify-backup.sh"
 

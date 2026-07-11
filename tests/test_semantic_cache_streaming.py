@@ -1,7 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
-from cutctx.proxy.server import create_app, ProxyConfig
+from cutctx.proxy.server import ProxyConfig, create_app
+
 
 @pytest.fixture
 def app():
@@ -29,8 +30,9 @@ async def test_semantic_cache_streaming(app):
     
     import json
     from unittest.mock import patch
-    from httpx import Response
+
     from fastapi.testclient import TestClient
+    from httpx import Response
     
     def mock_stream():
         yield b'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_123","type":"message","role":"assistant","content":[],"model":"claude-3-5-sonnet-20241022","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":1}}}\n\n'

@@ -433,6 +433,75 @@ async def test_happy_path_registry_empty_after_response_completed():
 
 
 @pytest.mark.asyncio
+async def test_ws_chatgpt_subscription_preserves_requested_model_before_forwarding():
+    """The native WS relay must preserve the caller's model while still
+
+    applying request-shape sanitization. Proactively migrating gpt-5.4 to
+    gpt-5.5 prevented the upstream from trying models that may now be
+    supported for the account/transport.
+    """
+    upstream_events = [
+        json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+        json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+    ]
+    upstream = _FakeUpstream(upstream_events)
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+
+    client_ws = _FakeWebSocket(frames=[_first_frame()])
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    handler = _DummyOpenAIHandler()
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    assert upstream.sent, "handler never forwarded a frame upstream"
+    forwarded = json.loads(upstream.sent[0])
+    assert forwarded["response"]["model"] == "gpt-5.4"
+
+
+@pytest.mark.asyncio
+async def test_ws_second_turn_preserves_requested_model_under_chatgpt_auth():
+    """Turn 2+ of a persistent WS session goes through a separate
+
+    per-frame path (``_maybe_compress_response_create_frame``) with its own
+    ``prepare_model_routing`` + ``implicit_downgrade_allowed`` check and its
+    own (previously missing) ChatGPT-subscription sanitizer call. Turn 1
+    being fixed masked this: a session could open with fields stripped, then
+    fail on its second turn because the per-frame path never checked
+    ``is_chatgpt_auth`` and leaked subscription-incompatible request fields.
+    """
+    second_frame = json.dumps(
+        {
+            "type": "response.create",
+            "response": {"model": "gpt-5.6-terra", "input": "continue"},
+        }
+    )
+    upstream_events = [
+        json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+        json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+    ]
+    upstream = _FakeUpstream(upstream_events)
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+
+    client_ws = _FakeWebSocket(frames=[_first_frame(), second_frame])
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    handler = _DummyOpenAIHandler()
+    # The per-frame path (unlike turn 1) only runs when compression is
+    # enabled — matches production default (optimize=True).
+    handler.config.optimize = True
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await asyncio.wait_for(
+            handler.handle_openai_responses_ws(client_ws),
+            timeout=5.0,
+        )
+
+    assert len(upstream.sent) >= 2, "handler never forwarded the second frame upstream"
+    second_forwarded = json.loads(upstream.sent[1])
+    assert second_forwarded["response"]["model"] == "gpt-5.6-terra"
+
+
+@pytest.mark.asyncio
 async def test_ws_session_metrics_include_response_completed_usage():
     """Codex WS sessions should report real upstream usage, not zero-token sessions."""
 

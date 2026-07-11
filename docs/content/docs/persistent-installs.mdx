@@ -30,6 +30,16 @@ cutctx install status
 
 This installs a background service on the current machine, applies persistent tool wiring, and keeps the proxy healthy on port `8787`.
 
+### Route compatible harnesses globally on macOS
+
+```bash
+cutctx install apply --preset persistent-service --providers auto
+cutctx global install
+cutctx global doctor
+```
+
+This adds a managed macOS user-session route for compatible AI CLI and desktop tools. It is intentionally separate from per-provider configuration and transparent interception. See [Global Harness Routing](/docs/global-routing) for scope, safety boundaries, and rollback.
+
 ### Persistent watchdog task
 
 ```bash

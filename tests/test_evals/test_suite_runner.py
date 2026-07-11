@@ -125,10 +125,10 @@ def test_suite_runner_compression_only_uses_spec_threshold(monkeypatch) -> None:
 
 
 def test_suite_runner_before_after_uses_spec_threshold(monkeypatch) -> None:
+    import cutctx.evals.suite_runner as suite_runner_mod
     from cutctx.evals import datasets as dataset_mod
     from cutctx.evals.runners import before_after as before_after_mod
     from cutctx.evals.suite_runner import BenchmarkSpec, SuiteRunner
-    import cutctx.evals.suite_runner as suite_runner_mod
 
     monkeypatch.setattr(
         dataset_mod,

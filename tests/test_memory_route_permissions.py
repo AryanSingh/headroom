@@ -43,6 +43,35 @@ def test_memory_query_uses_read_permission(tmp_path, monkeypatch) -> None:
     assert seen == ["memory.read"]
 
 
+def test_memory_search_alias_uses_read_permission(tmp_path, monkeypatch) -> None:
+    store = MemoryStore(f"sqlite:///{tmp_path / 'memory.db'}")
+    monkeypatch.setattr(memory_api, "_store", store, raising=False)
+
+    seen: list[str] = []
+
+    def _rbac(permission: str):
+        async def _dependency(_request: Request) -> None:
+            seen.append(permission)
+            if permission != "memory.read":
+                raise HTTPException(status_code=403, detail="wrong permission")
+
+        return _dependency
+
+    app = FastAPI()
+    app.include_router(
+        create_memory_router(
+            require_admin_auth=_allow_admin_auth,
+            require_rbac_permission=_rbac,
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/v1/memory/search")
+
+    assert response.status_code == 200, response.text
+    assert seen == ["memory.read"]
+
+
 def test_memory_sync_uses_write_permission(tmp_path, monkeypatch) -> None:
     store = MemoryStore(f"sqlite:///{tmp_path / 'memory.db'}")
     monkeypatch.setattr(memory_api, "_store", store, raising=False)

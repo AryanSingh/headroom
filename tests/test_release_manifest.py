@@ -28,10 +28,7 @@ def test_release_manifest_records_reproducibility_inputs(tmp_path: Path) -> None
 
 
 def test_release_manifest_rejects_unknown_provider_status() -> None:
-    payload = {field: "value" for field in (
-        "schema_version", "git_sha", "python_version", "platform", "architecture",
-        "packages", "checkpoint_id", "seed", "fixture_hashes", "timestamp", "provider_arms",
-    )}
+    payload = dict.fromkeys(("schema_version", "git_sha", "python_version", "platform", "architecture", "packages", "checkpoint_id", "seed", "fixture_hashes", "timestamp", "provider_arms"), "value")
     payload["fixture_hashes"] = {"fixture": "hash"}
     payload["provider_arms"] = {"native": "simulated"}
 

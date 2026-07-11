@@ -102,6 +102,13 @@ function chooseConfigEndpoints(updates) {
   if (keys.length === 0) {
     return ['/config/flags', '/admin/config/flags'];
   }
+  // The Orchestrator page owns a live model-router control.  Prefer the
+  // canonical feature-flags endpoint: it installs the active routing preset
+  // and reports the runtime state.  The admin endpoint remains a fallback for
+  // older proxies, but must not be the first response that wins.
+  if (keys.includes('orchestrator')) {
+    return ['/config/flags', '/admin/config/flags'];
+  }
   if (keys.every((key) => STANDARD_FLAG_KEYS.has(key))) {
     return ['/config/flags', '/admin/config/flags'];
   }

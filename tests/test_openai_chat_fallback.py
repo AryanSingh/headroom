@@ -9,8 +9,8 @@ import httpx
 from fastapi import Request
 
 from cutctx.backends.base import BackendResponse
-from cutctx.proxy.handlers.streaming import StreamingMixin
 from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
+from cutctx.proxy.handlers.streaming import StreamingMixin
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.outcome import RequestOutcome
 

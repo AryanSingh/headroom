@@ -194,7 +194,7 @@ class Memory:
 @dataclass
 class DecisionTrace(Memory):
     """A reasoning trace storing Situation, Rationale, Action, and Outcome.
-    
+
     This provides agents with "reasoning memory" to understand why past
     decisions were made, avoiding repeated mistakes.
     """

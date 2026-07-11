@@ -414,6 +414,39 @@ def test_openai_response_subpath_passthrough_uses_openai_target() -> None:
     assert headers["authorization"] == "Bearer sk-proj-test"
 
 
+def test_openai_response_subpath_passthrough_strips_internal_headers() -> None:
+    class FakeAsyncClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, dict[str, str]]] = []
+
+        async def request(self, method, url, **kwargs):  # type: ignore[no-untyped-def]
+            self.calls.append((method, url, dict(kwargs.get("headers", {}))))
+            return httpx.Response(200, json={"url": url})
+
+        async def aclose(self) -> None:
+            return None
+
+    with TestClient(_app()) as client:
+        fake = FakeAsyncClient()
+        client.app.state.proxy.http_client = fake
+        response = client.post(
+            "/v1/responses/items/session_123",
+            headers={
+                "Authorization": "Bearer sk-proj-test",
+                "x-cutctx-bypass": "true",
+                "X-OpenAI-Internal-Codex-Responses-Lite": "1",
+            },
+        )
+
+    assert response.status_code == 200
+    assert len(fake.calls) == 1
+    _method, _url, headers = fake.calls[0]
+    lowered = {key.lower(): value for key, value in headers.items()}
+    assert "x-cutctx-bypass" not in lowered
+    assert "x-openai-internal-codex-responses-lite" not in lowered
+    assert lowered["authorization"] == "Bearer sk-proj-test"
+
+
 def test_openai_response_subpath_aliases_and_chatgpt_auth_use_expected_targets(monkeypatch) -> None:
     monkeypatch.setattr(
         "cutctx.providers.proxy_routes._resolve_codex_routing_headers",
@@ -573,8 +606,12 @@ def test_v1_models_falls_back_to_synthetic_list_under_chatgpt_auth(monkeypatch) 
     assert isinstance(payload["data"], list)
     assert len(payload["data"]) > 0
     model_ids = {entry["id"] for entry in payload["data"]}
-    # Spot-check: the model from issue #478's repro log must be present.
+    # Spot-check: the current Codex fallback set must be exposed.
     assert "gpt-5.5" in model_ids
+    assert "gpt-5.6-terra" in model_ids
+    assert "gpt-5.4" in model_ids
+    assert "gpt-5.4-mini" in model_ids
+    assert "gpt-5.3-codex-spark" in model_ids
     for entry in payload["data"]:
         assert entry["object"] == "model"
         assert "slug" in entry

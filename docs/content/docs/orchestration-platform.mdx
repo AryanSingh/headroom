@@ -1,3 +1,8 @@
+---
+title: Orchestration Platform
+description: Configure provider-neutral model orchestration, deterministic role bindings, fallbacks, telemetry, and external gateway composition in Cutctx.
+---
+
 # Orchestration platform
 
 Cutctx includes a provider-neutral orchestration control plane for deterministic model assignment. It is separate from the optional cost-routing presets: presets may opportunistically optimize unassigned traffic, while orchestration roles are explicit assignments that are always enforced.
@@ -14,7 +19,7 @@ Provider adapter → encrypted account credentials → dynamic model registry
 
 Provider-specific URL, authentication, discovery, invocation, and streaming behavior stays inside an adapter. The routing engine only sees provider-neutral model records and capabilities. Execution is backed by the MIT-licensed core of [LiteLLM](https://github.com/BerriAI/litellm), which normalizes provider request formats, tools, reasoning controls, streaming, errors, and pricing. Cutctx retains ownership of role enforcement, account isolation, fallback policy, credentials, observability, and configuration.
 
-Built-in declarative adapters cover OpenAI, Anthropic, Google, OpenRouter, DeepSeek, Kimi, MiniMax, Qwen, GLM, Groq, Ollama, LM Studio, Azure OpenAI, OpenAI-compatible APIs, and custom endpoints. A new provider is added by registering one `ProviderSpec` (including its LiteLLM provider name) or adapter factory; routing and configuration code do not change.
+Built-in declarative adapters cover OpenAI, OpenCode Go, Anthropic, Google, OpenRouter, DeepSeek, Kimi, MiniMax, Qwen, GLM, Groq, Ollama, LM Studio, Azure OpenAI, OpenAI-compatible APIs, and custom endpoints. OpenCode Go uses its OpenAI-compatible gateway at `https://opencode.ai/zen/go/v1`; select **OpenCode Go** in the dashboard and store its key through the encrypted credential field. A new provider is added by registering one `ProviderSpec` (including its LiteLLM provider name) or adapter factory; routing and configuration code do not change.
 
 ### Why this substrate
 
@@ -107,6 +112,19 @@ OpenAI, Anthropic, and Gemini compatibility endpoints accept `X-Cutctx-Role`, st
 
 The raw provider-neutral `/v1/orchestration/execute` endpoint is disabled by default because it does not yet traverse that canonical pipeline. It may be enabled for isolated development diagnostics with `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION=true`; do not enable it for production traffic. Its parameter allowlist prevents callers from overriding routing, credentials, cloud deployment fields, or LiteLLM retry/fallback controls.
 
+## Durable workflows
+
+Use the authenticated workflow API for multi-step, dependency-ordered work. A submission stores the immutable task definition, messages, parameters, dependency graph, retry policy, and optional task timeout in `workflows.json`. Each task is role-routed through the same deterministic executor used by direct orchestration execution.
+
+- `POST /v1/orchestration/workflows` creates (or idempotently returns) a workflow.
+- `GET /v1/orchestration/workflows/{id}` returns durable progress and task results.
+- `POST /v1/orchestration/workflows/{id}/cancel` cancels pending and in-flight local work.
+- `POST /v1/orchestration/workflows/{id}/run` executes or resumes it, but is available only when `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION=true`.
+
+Tasks form an acyclic graph and run with bounded concurrency. Each claim has a renewable local-worker lease; file-locked state transitions prevent a second local process from claiming the same unexpired task. Expired leases recover at-least-once after a worker crash, so task side effects must use an idempotency key at the downstream boundary. Per-task retries use bounded backoff, and a timeout cancels the in-flight operation before the task is retried or fails.
+
+The built-in store is for one host or a correctly shared POSIX volume. Multi-host worker fleets require a shared transactional workflow backend; do not represent the local JSON store as a distributed scheduler.
+
 Fine-grained selectors use headers such as `X-Cutctx-Agent`, `X-Cutctx-Workflow`, `X-Cutctx-Skill`, and `X-Cutctx-Repository`. Required capabilities can be passed as a comma-separated `X-Cutctx-Required-Capabilities` value.
 
 ## Management and observability APIs
@@ -121,9 +139,15 @@ All endpoints require admin authentication and RBAC permissions.
 - `POST /v1/orchestration/models/refresh/{account}`
 - `POST /v1/orchestration/route`
 - `POST /v1/orchestration/execute` (development opt-in only)
+- `POST /v1/orchestration/workflows`
+- `GET /v1/orchestration/workflows/{id}`
+- `POST /v1/orchestration/workflows/{id}/cancel`
+- `POST /v1/orchestration/workflows/{id}/run` (development opt-in only)
 - `GET /v1/orchestration/executions`
 
 Every completed execution records requested role, assigned and actual model, provider/account, binding, routing reason, latency, retries, fallback trigger, and errors. Non-streaming executions additionally record provider-reported token usage, cache observation, and estimated cost; streaming usage is not claimed unless the provider stream supplies a final usage record. The dashboard Orchestrator page exposes provider setup, discovery, role assignment, policy controls, route previews, and recent execution history.
+
+Streaming retries and falls back only before the first response byte. Account setup, iterator construction, first-byte failures, and total attempt deadlines follow the configured retry/fallback policy. Once a byte has been sent, Cutctx terminates on failure rather than joining output from a different provider; cancellation closes the iterator and is recorded in execution telemetry.
 
 Credentials are encrypted with Fernet. Set `CUTCTX_ORCHESTRATION_MASTER_KEY` to an externally managed Fernet key, or Cutctx lazily creates a mode-0600 local key on the first credential write. Put sensitive headers such as `Authorization` and `X-API-Key` in the credential payload's `headers` object; configuration rejects them in plaintext `custom_headers`. Secrets and custom-header values are never returned by management APIs. Provider accounts do not inherit process-global API keys unless `metadata.allow_environment_credentials` is explicitly set to `true`.
 

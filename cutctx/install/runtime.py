@@ -66,10 +66,29 @@ def resolve_cutctx_command() -> list[str]:
     return [sys.executable, "-m", "cutctx.cli"]
 
 
+def _resolve_admin_api_key() -> str | None:
+    """Resolve the admin key for persistent proxy processes."""
+
+    key = os.environ.get("CUTCTX_ADMIN_API_KEY")
+    if key:
+        return key
+
+    from cutctx import paths as _paths
+
+    try:
+        key = (_paths.workspace_dir() / "admin_key.txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return key or None
+
+
 def _runtime_env(manifest: DeploymentManifest) -> dict[str, str]:
     env = os.environ.copy()
     env.update(manifest.base_env)
     env.update(_deployment_env(manifest))
+    admin_api_key = _resolve_admin_api_key()
+    if admin_api_key:
+        env["CUTCTX_ADMIN_API_KEY"] = admin_api_key
     return env
 
 
@@ -127,6 +146,9 @@ def build_runtime_command(manifest: DeploymentManifest) -> list[str]:
         if callable(getuid) and callable(getgid):
             command.extend(["--user", f"{getuid()}:{getgid()}"])
     runtime_env = {**manifest.base_env, **_deployment_env(manifest)}
+    admin_api_key = _resolve_admin_api_key()
+    if admin_api_key:
+        runtime_env["CUTCTX_ADMIN_API_KEY"] = admin_api_key
     for name, value in runtime_env.items():
         command.extend(["--env", f"{name}={value}"])
     for name in sorted(os.environ):

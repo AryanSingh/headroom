@@ -190,20 +190,18 @@ def test_arbitrary_internal_origin_not_eligible() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_routing_decision_includes_queue_id_and_poll_url() -> None:
-    """When eligible, the decision includes a queue_id (a stable
-    handle for polling) and a poll_url (where the client can poll
-    for the result)."""
+def test_eligible_request_fails_safe_without_durable_executor() -> None:
+    """Never acknowledge background work when no worker can execute it."""
     cfg = BatchRouterConfig(enabled=True)
     router = BatchRouter(cfg)
     decision = router.route(
         request_body={"model": "claude-3-opus", "messages": []},
         headers={BATCH_HEADER_NAME: BATCH_HEADER_VALUE_ALLOW},
     )
-    assert decision.action == "enqueued"
-    assert decision.queue_id  # not empty
-    assert decision.poll_url  # not empty
-    assert decision.estimated_discount == DEFAULT_BATCH_DISCOUNT
+    assert decision.action == "passthrough"
+    assert decision.request_body["model"] == "claude-3-opus"
+    assert decision.metadata["reason"] == "batch_executor_unavailable"
+    assert decision.metadata["eligible_reason"] == "header"
 
 
 def test_routing_decision_records_internal_job_metadata() -> None:
@@ -216,9 +214,9 @@ def test_routing_decision_records_internal_job_metadata() -> None:
         headers={},
         origin="cutctx learn",
     )
-    assert decision.action == "enqueued"
+    assert decision.action == "passthrough"
     assert decision.metadata.get("origin") == "cutctx learn"
-    assert decision.metadata.get("reason") == "internal_job"
+    assert decision.metadata.get("eligible_reason") == "internal_job"
 
 
 # ---------------------------------------------------------------------------
@@ -240,15 +238,16 @@ def test_flag_on_without_header_and_no_internal_origin_is_passthrough() -> None:
     assert decision.action == "passthrough"
 
 
-def test_flag_on_with_header_enqueues() -> None:
-    """With flag on + the allow header, the request is enqueued."""
+def test_flag_on_with_header_still_preserves_request_until_executor_exists() -> None:
+    """Explicit opt-in cannot create an unobservable in-memory job."""
     cfg = BatchRouterConfig(enabled=True)
     router = BatchRouter(cfg)
     decision = router.route(
         request_body={"model": "claude-3-opus", "messages": []},
         headers={BATCH_HEADER_NAME: BATCH_HEADER_VALUE_ALLOW},
     )
-    assert decision.action == "enqueued"
+    assert decision.action == "passthrough"
+    assert decision.metadata["reason"] == "batch_executor_unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -256,9 +255,8 @@ def test_flag_on_with_header_enqueues() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_internal_queue_state_tracks_enqueued_jobs() -> None:
-    """The router maintains an internal queue of enqueued jobs (so
-    the operator can see the queue size, throughput, etc.)."""
+def test_internal_queue_does_not_accumulate_unexecutable_jobs() -> None:
+    """A restart must never orphan jobs that only existed in process memory."""
     cfg = BatchRouterConfig(enabled=True)
     router = BatchRouter(cfg)
     for _ in range(3):
@@ -267,13 +265,12 @@ def test_internal_queue_state_tracks_enqueued_jobs() -> None:
             headers={BATCH_HEADER_NAME: BATCH_HEADER_VALUE_ALLOW},
         )
     state = router.queue_state()
-    assert state.pending == 3
-    assert state.total_enqueued == 3
+    assert state.pending == 0
+    assert state.total_enqueued == 0
 
 
-def test_internal_queue_state_completed_count_increments() -> None:
-    """When a job is marked completed (the async poll returns), the
-    pending count decreases and the completed count increases."""
+def test_internal_queue_completion_is_a_noop_without_submitted_jobs() -> None:
+    """No completion lifecycle exists until provider batch submission exists."""
     cfg = BatchRouterConfig(enabled=True)
     router = BatchRouter(cfg)
     decisions = [
@@ -283,11 +280,11 @@ def test_internal_queue_state_completed_count_increments() -> None:
         )
         for _ in range(3)
     ]
-    # Mark the first one completed
+    # There is no submitted job to complete.
     router.mark_completed(decisions[0].queue_id, success=True)
     state = router.queue_state()
-    assert state.pending == 2
-    assert state.completed == 1
+    assert state.pending == 0
+    assert state.completed == 0
 
 
 # ---------------------------------------------------------------------------
@@ -325,11 +322,11 @@ def test_non_internal_origins_are_not_batch_eligible(origin: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bdd_scenario_user_opt_in_to_batch() -> None:
+def test_bdd_scenario_user_opt_in_to_batch_fails_safe() -> None:
     """BDD: the spec's user-opt-in flow. A user explicitly opts in
     to batch processing by setting the x-cutctx-batch header (e.g.
-    via `cutctx wrap --batch-ok`). The request is enqueued, the
-    response is a 202-style poll handle, the user polls the queue.
+    via `cutctx wrap --batch-ok`). Until a durable executor is installed,
+    the request is forwarded synchronously rather than silently stranded.
     """
     cfg = BatchRouterConfig(enabled=True)
     router = BatchRouter(cfg)
@@ -337,11 +334,10 @@ def test_bdd_scenario_user_opt_in_to_batch() -> None:
         request_body={"model": "claude-3-opus", "messages": []},
         headers={BATCH_HEADER_NAME: BATCH_HEADER_VALUE_ALLOW},
     )
-    assert decision.action == "enqueued"
-    assert decision.estimated_discount == pytest.approx(0.5)
-    # The operator can see the queue
+    assert decision.action == "passthrough"
+    assert decision.metadata["reason"] == "batch_executor_unavailable"
     state = router.queue_state()
-    assert state.pending == 1
+    assert state.pending == 0
 
 
 def test_bdd_scenario_internal_background_job() -> None:
@@ -354,8 +350,8 @@ def test_bdd_scenario_internal_background_job() -> None:
         headers={},  # no header
         origin="cutctx learn",
     )
-    assert decision.action == "enqueued"
-    assert decision.metadata.get("reason") == "internal_job"
+    assert decision.action == "passthrough"
+    assert decision.metadata.get("eligible_reason") == "internal_job"
 
 
 def test_bdd_scenario_interactive_request_not_batched() -> None:

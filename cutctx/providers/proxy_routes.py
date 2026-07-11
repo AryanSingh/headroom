@@ -255,17 +255,23 @@ def _select_passthrough_base_url(proxy: Any, headers: dict[str, str]) -> str:
 # OpenAI-compatible response from its slugs. If that registry is
 # unavailable, fall back to the known-supported static set.
 #
-# The list mirrors what Codex itself ships in its built-in model
-# registry (the same models its provider config exposes); it's the
-# safe-by-construction set since these are what `/v1/responses` actually
-# accepts under ChatGPT auth.
+# This fallback must stay conservative, but it should not hide current Codex
+# models merely because the dynamic registry is temporarily unavailable.
+# The proxy request path preserves the caller's model and strips internal
+# Lite headers before upstream, so exposing these slugs lets clients retry
+# against the real account/server-side model availability instead of being
+# forced onto an older fallback.
 _CHATGPT_AUTH_CODEX_MODELS: tuple[str, ...] = (
     "gpt-5.5",
+    "gpt-5.6-terra",
     "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.3-codex-spark",
     "gpt-5.3",
     "gpt-5.2",
     "gpt-5.1",
     "gpt-5",
+    "codex-mini-latest",
 )
 
 
@@ -332,8 +338,11 @@ def _synthetic_model_get_response(model_id: str) -> Response:
 
 def _normalize_codex_registry_headers(headers: dict[str, str]) -> dict[str, str]:
     """Prepare inbound ChatGPT auth headers for the Codex model registry."""
+    from cutctx.proxy.handlers.openai.utils import _strip_openai_internal_headers
+
     upstream_headers = dict(headers)
     upstream_headers.pop("host", None)
+    upstream_headers = _strip_openai_internal_headers(upstream_headers)
     account_id = (
         upstream_headers.get("chatgpt-account-id")
         or upstream_headers.get("ChatGPT-Account-ID")
@@ -590,6 +599,11 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     async def openai_responses_sub(request: Request, sub_path: str):
         headers = dict(request.headers.items())
         headers.pop("host", None)
+        from cutctx.proxy.handlers.openai.utils import _strip_openai_internal_headers
+        from cutctx.proxy.helpers import _strip_internal_headers
+
+        headers = _strip_internal_headers(headers)
+        headers = _strip_openai_internal_headers(headers)
         headers, is_chatgpt_auth = _resolve_codex_routing_headers(headers)
 
         if is_chatgpt_auth:

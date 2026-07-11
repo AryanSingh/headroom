@@ -361,9 +361,9 @@ def test_content_router_diagnostics_record_strategy_chain_and_tokens(
     for content, detection, getter_name, fake_result, expected_strategy in cases:
         monkeypatch.setattr(content_router_module, "_detect_content", lambda _content, det=detection: det)
         if getter_name == "_try_ml_compressor":
-            monkeypatch.setattr(router, getter_name, lambda *args, **kwargs: fake_result)
+            monkeypatch.setattr(router, getter_name, lambda *args, res=fake_result, **kwargs: res)
         else:
-            monkeypatch.setattr(router, getter_name, lambda *args, **kwargs: fake_result)
+            monkeypatch.setattr(router, getter_name, lambda *args, res=fake_result, **kwargs: res)
 
         result = router.compress(content)
 

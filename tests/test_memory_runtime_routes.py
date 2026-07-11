@@ -45,7 +45,14 @@ def test_runtime_memory_routes_sync_query_and_review(tmp_path) -> None:
         )
         assert query.status_code == 200, query.text
 
+        search = client.get(
+            "/v1/memory/search?org_id=org-a&workspace_id=ws-a&limit=5",
+            headers={"X-Cutctx-Admin-Key": "test_admin"},
+        )
+        assert search.status_code == 200, search.text
+
         items = query.json()["items"]
+        assert search.json()["items"] == items
         assert len(items) == 1
         assert items[0]["id"] == "mem-1"
         assert items[0]["content"] == "Cross-agent fact runtime app"

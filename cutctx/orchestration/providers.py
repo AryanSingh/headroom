@@ -25,6 +25,7 @@ class ProviderSpec:
     api_key_prefix: str = "Bearer "
     api_key_env: str = ""
     local: bool = False
+    force_base_url: bool = False
     auth_methods: tuple[str, ...] = ("api_key",)
     litellm_provider: str | None = None
 
@@ -400,7 +401,7 @@ class LiteLLMProviderAdapter(HTTPProviderAdapter):
                 "set allow_environment_credentials=true to opt into process credentials"
             )
 
-        if self.account.base_url or self.spec.local:
+        if self.account.base_url or self.spec.local or self.spec.force_base_url:
             payload["base_url"] = self.base_url
         if self.account.organization_id:
             payload["organization"] = self.account.organization_id
@@ -589,6 +590,17 @@ def builtin_provider_registry() -> ProviderAdapterRegistry:
             default_base_url="https://api.openai.com",
             api_key_env="OPENAI_API_KEY",
             litellm_provider="openai",
+        ),
+        # OpenCode Go exposes an OpenAI-compatible gateway.  It needs a
+        # dedicated catalog entry so operators can select it in the dashboard
+        # without reconstructing its gateway URL as a custom provider.
+        ProviderSpec(
+            "opencode-go",
+            "OpenCode Go",
+            default_base_url="https://opencode.ai/zen/go/v1",
+            api_key_env="OPENCODE_GO_API_KEY",
+            litellm_provider="openai",
+            force_base_url=True,
         ),
         ProviderSpec(
             "anthropic",

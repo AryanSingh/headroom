@@ -4,13 +4,13 @@ import os
 
 def test_dashboard_assets_path_regression():
     """
-    Test that the Makefile builds and copies the React dashboard assets to the correct 
-    directory (cutctx/dashboard/assets) instead of nesting them in 
+    Test that the Makefile builds and copies the React dashboard assets to the correct
+    directory (cutctx/dashboard/assets) instead of nesting them in
     cutctx/dashboard/assets/assets, which caused 404 errors on refresh.
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     assets_dir = os.path.join(base_dir, "cutctx", "dashboard", "assets")
-    
+
     # Assert that nested assets directory does NOT exist
     nested_assets = os.path.join(assets_dir, "assets")
     assert not os.path.exists(nested_assets), "Regression: Nested assets directory found!"

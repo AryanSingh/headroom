@@ -375,6 +375,26 @@ def test_codex_preset_routes_tiny_greeting_to_mini() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
+def test_implicit_downgrade_is_blocked_when_transport_cannot_prove_target() -> None:
+    """Subscription endpoints must never receive a guessed cheaper model."""
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-terra",
+        messages=[{"role": "user", "content": "hi"}],
+        request_savings_metadata={},
+        implicit_downgrade_allowed=False,
+    )
+
+    assert model == "gpt-5.6-terra"
+    assert metadata == {}
+
+
 @pytest.mark.parametrize(
     "content",
     [
@@ -429,6 +449,39 @@ def test_codex_preset_keeps_complex_work_on_requested_model(content: str) -> Non
     )
 
     assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.MEDIUM
+    assert model == "gpt-5.5"
+    assert metadata == {}
+
+
+@pytest.mark.parametrize(
+    "messages",
+    [
+        [{"role": "user", "content": "explain the orchestration architecture and compare options"}],
+        [{"role": "user", "content": "fix this"}],
+        [
+            {"role": "user", "content": "find the issue"},
+            {"role": "assistant", "content": "I found two candidates"},
+            {"role": "user", "content": "fix the first one"},
+        ],
+        [{"role": "user", "content": "rename this variable:\n```python\nlegacy_name = 1\n```"}],
+        [{"role": "user", "content": [{"type": "input_text", "text": "hello"}]}],
+    ],
+)
+def test_codex_preset_keeps_ambiguous_or_contextual_requests_on_requested_model(messages) -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.5",
+        messages=messages,
+        request_savings_metadata={},
+    )
+
+    assert classify_task_complexity(messages) != TaskComplexity.LOW
     assert model == "gpt-5.5"
     assert metadata == {}
 

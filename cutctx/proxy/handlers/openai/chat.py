@@ -61,7 +61,10 @@ _OPENAI_RESPONSES_UNIT_EXECUTOR_LOCK = threading.RLock()
 _OPENAI_RESPONSES_UNIT_EXECUTOR: ThreadPoolExecutor | None = None
 
 from cutctx.proxy.handlers.openai.utils import *  # noqa: E402, F403
-from cutctx.proxy.handlers.openai.utils import _infer_openai_cache_write_tokens  # noqa: E402
+from cutctx.proxy.handlers.openai.utils import (  # noqa: E402
+    _infer_openai_cache_write_tokens,
+    _resolve_codex_routing_headers,
+)
 
 
 class OpenAIChatMixin:
@@ -163,6 +166,12 @@ class OpenAIChatMixin:
             request_id=request_id,
             salt=_canary_coordinator.salt,
         )
+        raw_request_headers = dict(request.headers.items())
+        _, is_chatgpt_subscription = _resolve_codex_routing_headers(raw_request_headers)
+        from cutctx.proxy.handlers.openai.responses import _sanitize_codex_responses_lite_body
+        from cutctx.proxy.handlers.openai.utils import _has_codex_responses_lite_hint
+
+        codex_responses_lite = _has_codex_responses_lite_hint(raw_request_headers)
 
         model, request_savings_metadata = prepare_model_routing(
             self,
@@ -176,8 +185,17 @@ class OpenAIChatMixin:
             assignment_identity_source=_canary_identity.source,
             assignment_sticky=_canary_identity.sticky,
             transport_provider="openai",
+            implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
         )
         body["model"] = model
+        if codex_responses_lite:
+            body, lite_stripped_fields = _sanitize_codex_responses_lite_body(body)
+            if lite_stripped_fields:
+                logger.info(
+                    "[%s] /v1/chat/completions normalized Codex Responses Lite model: %s",
+                    request_id,
+                    ", ".join(lite_stripped_fields),
+                )
         reasoning_override = (
             (request_savings_metadata or {}).get("model_routing", {}).get("request_overrides", {}).get("reasoning")
         )
@@ -290,10 +308,12 @@ class OpenAIChatMixin:
         # uses `request.headers.get(...)` above; memory user-id reads
         # `request.headers` below. From this point on, `headers` is the
         # upstream-bound copy.
+        from cutctx.proxy.handlers.openai.utils import _strip_openai_internal_headers
         from cutctx.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
         _pre_strip_count_chat = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
         headers = _strip_internal_headers(headers)
+        headers = _strip_openai_internal_headers(headers)
         log_outbound_headers(
             forwarder="openai_chat_completions",
             stripped_count=_pre_strip_count_chat,

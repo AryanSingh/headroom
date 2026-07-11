@@ -213,9 +213,9 @@ class TestStatsEndpointTelemetryFlag:
             )
         )
 
-        from httpx import ASGITransport, AsyncClient
-
         import os
+
+        from httpx import ASGITransport, AsyncClient
         admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -238,9 +238,9 @@ class TestStatsEndpointTelemetryFlag:
             )
         )
 
-        from httpx import ASGITransport, AsyncClient
-
         import os
+
+        from httpx import ASGITransport, AsyncClient
         admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

@@ -1,0 +1,55 @@
+---
+title: Global Harness Routing
+description: Route compatible macOS AI harnesses through one supervised local Cutctx proxy with managed rollback.
+---
+
+Global harness routing is for machines where Cutctx should process compatible AI harnesses by default, including Codex Desktop, Codex CLI, Claude Code, and tools that honor OpenAI- or Anthropic-compatible base URL environment variables.
+
+It is a managed macOS user-session configuration. It records the previous `launchctl` values before changing them, creates a login-time LaunchAgent, checks the proxy before installation, and restores the saved values when removed.
+
+## Install
+
+Start the proxy as a persistent service first:
+
+```bash
+cutctx install apply --preset persistent-service --providers auto
+cutctx global install
+```
+
+The installer requires `http://127.0.0.1:8787/readyz` to be healthy. This avoids configuring every compatible client to use a proxy that is not running.
+
+Use a non-default port when the persistent deployment uses one:
+
+```bash
+cutctx global install --port 9999
+```
+
+Restart already-running AI desktop applications after installation. New processes inherit:
+
+```text
+OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+ANTHROPIC_BASE_URL=http://127.0.0.1:8787
+```
+
+## Verify
+
+```bash
+cutctx global status
+cutctx global doctor
+```
+
+`doctor` verifies the managed LaunchAgent, effective `launchctl` values, and proxy readiness. It also reports the compatibility boundary: tools that honor a base URL are covered directly; transparent interception is a separate, opt-in fallback for hard-coded clients.
+
+## Compatibility Boundary
+
+Global routing does not edit a shared Codex `config.toml`. The session environment keeps Codex Desktop and CLI traffic on the proxy without making an irreversible application-bundle change.
+
+The optional `cutctx intercept` mode is not part of global routing. It is experimental, requires a local CA plus system network changes, and only targets explicit API domains. In particular, `chatgpt.com` is intentionally excluded: intercepting it would also capture normal ChatGPT web traffic. Codex Desktop's ChatGPT-authenticated requests are covered through `OPENAI_BASE_URL` instead.
+
+## Remove
+
+```bash
+cutctx global uninstall
+```
+
+This unloads and removes the Cutctx LaunchAgent, restores the exact saved `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` values, and deletes the managed state file.

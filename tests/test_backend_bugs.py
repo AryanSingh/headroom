@@ -166,6 +166,23 @@ class TestLiteLLMToolsForwarding:
             assert call_kwargs["tool_choice"] == "auto"
 
     @pytest.mark.asyncio
+    async def test_constructor_options_are_forwarded_to_litellm(self):
+        """An OpenAI-compatible api_base must reach LiteLLM unchanged."""
+        mock_response = MagicMock()
+        mock_response.choices = [
+            MagicMock(message=MagicMock(content="ok", tool_calls=None), finish_reason="stop")
+        ]
+        mock_response.usage = MagicMock(prompt_tokens=1, completion_tokens=1)
+
+        with patch("cutctx.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+            mock_acomp.return_value = mock_response
+            backend = LiteLLMBackend(provider="openai", api_base="https://api.moonshot.ai/v1")
+
+            await backend.send_message({"model": "moonshot-v1-8k", "messages": []}, {})
+
+        assert mock_acomp.call_args.kwargs["api_base"] == "https://api.moonshot.ai/v1"
+
+    @pytest.mark.asyncio
     async def test_tool_arguments_parsed_in_response(self):
         """Tool call arguments should be parsed from JSON string to dict."""
         mock_tc = MagicMock()

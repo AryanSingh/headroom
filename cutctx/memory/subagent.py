@@ -30,14 +30,14 @@ class SubAgentBridge:
 
     async def provision_subagent(self, task: str, limit: int = 20) -> dict[str, Any]:
         """Generate a payload that the orchestrator can pass to the sub-agent.
-        
+
         This fetches the most recent/important context from the parent session
         and packages it along with the CCR access scope.
-        
+
         Args:
             task: The instruction for the sub-agent.
             limit: Maximum number of memories to include in the summary.
-            
+
         Returns:
             A dictionary containing the task, context_summary, and ccr_scope.
         """
@@ -79,7 +79,7 @@ class SubAgentBridge:
 
     async def merge_result(self, subagent_id: str, distilled_result: str, importance: float = 0.8) -> None:
         """Merge the distilled sub-agent result back into the parent's memory.
-        
+
         Args:
             subagent_id: Identifier for the sub-agent.
             distilled_result: The summarized result returned by the sub-agent.

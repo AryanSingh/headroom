@@ -233,9 +233,13 @@ export default function OrchestrationStudio() {
       enabled: true,
       metadata: {},
     };
-    const nextConfig = { ...config, providers: [...config.providers, account] };
-    const stored = await save(nextConfig, null);
-    if (!stored) {
+    try {
+      await orchestrationApi(`/providers/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(account),
+      });
+    } catch (err) {
+      setError(err?.message || "Unable to save provider account");
       return;
     }
     if (newProvider.api_key) {

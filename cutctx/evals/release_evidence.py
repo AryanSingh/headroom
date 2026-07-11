@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
+from cutctx.evals.partner_telemetry import validate_partner_snapshot
 from cutctx.evals.release_bundle import validate_release_bundle
 from cutctx.evals.release_manifest import validate_release_manifest
-from cutctx.evals.partner_telemetry import validate_partner_snapshot
 
 
 def _load_json(path: Path) -> dict[str, Any]:

@@ -1,11 +1,13 @@
 import json
 import os
 import tempfile
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
+
 import pytest
 
-from cutctx.proxy.savings_tracker import SavingsTracker, SCHEMA_VERSION
+from cutctx.proxy.savings_tracker import SCHEMA_VERSION, SavingsTracker
+
 
 def test_savings_tracker_schema_migration():
     with tempfile.TemporaryDirectory() as tempdir:

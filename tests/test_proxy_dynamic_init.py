@@ -96,3 +96,31 @@ def test_business_tier_can_enable_episodic_memory_live_without_mocks(
     assert proxy.episodic_tracker is not None
     assert proxy.episodic_tracker.enabled is True
     assert proxy.episodic_tracker._sweep_task is not None
+
+
+def test_dashboard_orchestrator_toggle_loads_codex_mini_preset() -> None:
+    """The dashboard toggle must install usable GPT-5.6 Mini routes live."""
+    config = ProxyConfig(
+        admin_api_key="test_admin",
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+    )
+    assert config.model_routing_preset is None
+
+    app = create_app(config)
+    proxy = app.state.proxy
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/flags",
+            json={"orchestrator": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    assert response.status_code == 200
+    assert config.model_routing_preset == "codex-gpt54mini-high"
+    assert proxy._model_router.config.enabled is True
+    assert any(
+        route.source == "gpt-5.6-terra" and route.target == "gpt-5.4-mini"
+        for route in proxy._model_router.config.routes
+    )

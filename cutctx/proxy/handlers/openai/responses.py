@@ -68,6 +68,7 @@ _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     #   include            — encrypted reasoning retrieval (["reasoning.encrypted_content"])
     #   text               — response verbosity control ({"verbosity": "low"})
     #   store              — request storage flag (false)
+    #   stream_options     — streaming-only delivery controls
     #   parallel_tool_calls — tool parallelism flag
     #   client_metadata, generate, prompt_cache_key — internal/legacy fields
     {
@@ -79,17 +80,59 @@ _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
         "reasoning",
         "store",
         "stream",
+        "stream_options",
         "text",
     }
 )
 
-# Models that the chatgpt.com Codex backend no longer accepts — map to their
-# current replacements. Updated when OpenAI deprecates a model on the
-# subscription endpoint (the API endpoint accepts both for longer).
-_CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS: dict[str, str] = {
-    "gpt-5.4": "gpt-5.5",
-    "codex-mini-latest": "gpt-5.5",  # safety alias
+# Codex Responses Lite is a client hint, not proof that the model itself
+# must be rewritten. The proxy strips the internal Lite header before
+# forwarding api.openai.com requests, and chatgpt.com model availability is
+# account/server controlled. Proactively rewriting every non-allowlisted
+# model to gpt-5.5 caused newer/cheaper supported models (for example
+# gpt-5.6-terra and gpt-5.4) to be discarded before the upstream could try
+# them. Keep model names intact; request-shape sanitizers below still strip
+# fields the target backend rejects.
+_CODEX_RESPONSES_LITE_CONTEXT_LIMITS: dict[str, int] = {
+    # The generic OpenAI provider fallback is 128K for unknown model names,
+    # but Codex Responses Lite accepts much larger gpt-5.5 sessions before
+    # failing near the effective model window. Keep this path-specific limit
+    # local to the Codex Lite sanitizer/WS guard instead of teaching the
+    # global OpenAI registry about an internal subscription-only model.
+    "gpt-5.5": 272_000,
 }
+_CODEX_RESPONSES_CONTEXT_RESERVE_TOKENS = 16_000
+_CODEX_RESPONSES_CONTEXT_RESERVE_RATIO = 0.05
+
+
+def _resolve_codex_responses_lite_model(current_model: str) -> str | None:
+    """Return a Lite-safe replacement for ``current_model`` if one is known.
+
+    Deliberately returns ``None`` for all models today. Older code used a
+    hard allow-list and migrated every unknown model to gpt-5.5 before
+    forwarding. That turned a transient/transport compatibility problem into
+    a permanent model-selection bug: any newly supported model could never be
+    attempted. Until this path has a real retry-after-upstream-failure
+    mechanism, preserving the caller's model is the only safe behavior.
+    """
+    return None
+
+
+def _codex_responses_context_limit(provider: Any, model: str) -> int:
+    """Resolve the effective context limit for Codex Responses WS preflight."""
+
+    if model in _CODEX_RESPONSES_LITE_CONTEXT_LIMITS:
+        return _CODEX_RESPONSES_LITE_CONTEXT_LIMITS[model]
+
+    get_context_limit = getattr(provider, "get_context_limit", None)
+    if callable(get_context_limit):
+        try:
+            limit = int(get_context_limit(model))
+            if limit > 0:
+                return limit
+        except Exception:
+            pass
+    return 0
 
 
 def _ws_connect_header_kwargs(
@@ -170,6 +213,94 @@ def _compute_responses_ws_conversation_session_id(
         return fallback_session_id
 
 
+def _has_model_reserved_tool(tools: Any) -> bool:
+    """Detect tool declarations reserved for a specific model (e.g. built-in
+    ``image_gen.imagegen``). Their schema is pinned to whichever model the
+    client originally requested; forwarding them unchanged after silently
+    migrating the model to a different one causes upstream to reject with
+    "Function '<name>' is reserved for use by this model and must match the
+    configured schema." Ordinary function-tool names never contain a literal
+    dot, so a dotted name is the signal that this is one of these reserved,
+    model-pinned built-ins rather than a client-defined function.
+    """
+    if not isinstance(tools, list):
+        return False
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        name = tool.get("name")
+        if isinstance(name, str) and "." in name:
+            return True
+    return False
+
+
+def _strip_namespace_from_custom_tool_call_input_items(
+    input_items: Any,
+) -> tuple[Any, bool]:
+    """Drop the ``namespace`` field from ``custom_tool_call`` conversation
+
+    history items. Codex natively tags custom tool calls that originate
+    from a namespaced plugin/skill tool (e.g. the desktop app's built-in
+    Node REPL) with ``"namespace": "<name>"``. Confirmed live: the
+    chatgpt.com Codex backend rejects this field on replayed history with
+    ``[ObjectParam] [input[N].namespace] [unknown_parameter] Unknown
+    parameter: 'input[N].namespace'.`` — the field is only needed for
+    Codex's own local bookkeeping, not for the model to understand what
+    happened, so dropping it on replay is safe.
+    """
+    if not isinstance(input_items, list):
+        return input_items, False
+    changed = False
+    cleaned: list[Any] = []
+    for item in input_items:
+        if (
+            isinstance(item, dict)
+            and item.get("type") == "custom_tool_call"
+            and "namespace" in item
+        ):
+            item = {k: v for k, v in item.items() if k != "namespace"}
+            changed = True
+        cleaned.append(item)
+    return (cleaned if changed else input_items), changed
+
+
+_NAMESPACED_OUTPUT_ITEM_TYPES = frozenset({"custom_tool_call", "function_call"})
+
+
+def _strip_namespace_from_upstream_event_text(raw: str) -> str:
+    """Strip the client-breaking ``namespace`` field from tool-call items in
+
+    upstream streaming events before relaying to the client.
+
+    Codex Desktop's tool dispatcher (confirmed on cli_version
+    0.144.0-alpha.4) concatenates ``name`` + ``namespace`` without a
+    separator when routing a tool call locally, so a call like
+    ``{"name": "exec", "namespace": "exec"}`` gets misrouted to a tool
+    literally named "execexec" and fails with "unsupported custom tool
+    call: execexec" (or "waitwait" for the `wait` tool) — entirely inside
+    the client, after the request already succeeded upstream. ``name`` +
+    ``call_id`` fully identify the call without ``namespace``, so dropping
+    it before it reaches the buggy dispatcher is a safe, response-shape-
+    preserving workaround. Parse failures or non-matching shapes return
+    ``raw`` unchanged — this must never be what breaks a working relay.
+    """
+    try:
+        event = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return raw
+    if not isinstance(event, dict):
+        return raw
+    item = event.get("item")
+    if (
+        not isinstance(item, dict)
+        or item.get("type") not in _NAMESPACED_OUTPUT_ITEM_TYPES
+        or "namespace" not in item
+    ):
+        return raw
+    new_item = {k: v for k, v in item.items() if k != "namespace"}
+    return json.dumps({**event, "item": new_item})
+
+
 def _sanitize_chatgpt_subscription_responses_body(
     body: dict[str, Any],
 ) -> tuple[dict[str, Any], list[str]]:
@@ -180,13 +311,47 @@ def _sanitize_chatgpt_subscription_responses_body(
         if key in sanitized:
             sanitized.pop(key, None)
             stripped.append(key)
-    # Translate deprecated model names the chatgpt.com endpoint no longer accepts.
+    cleaned_input, input_changed = _strip_namespace_from_custom_tool_call_input_items(
+        sanitized.get("input")
+    )
+    if input_changed:
+        sanitized["input"] = cleaned_input
+        stripped.append("input[*].namespace")
+    # Preserve the caller's model. Earlier versions translated model names
+    # here, but that prevented the upstream from accepting newer models as
+    # account/server support changed.
     current_model = sanitized.get("model", "")
-    migrated = _CHATGPT_SUBSCRIPTION_MODEL_MIGRATIONS.get(current_model)
-    if migrated:
+    migrated = _resolve_codex_responses_lite_model(current_model)
+    if migrated and not _has_model_reserved_tool(sanitized.get("tools")):
         sanitized["model"] = migrated
         stripped.append(f"model:{current_model}->{migrated}")
     return sanitized, stripped
+
+
+def _sanitize_codex_responses_lite_model(
+    body: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    """Apply model-level Lite normalization without guessing fallbacks.
+
+    Currently this preserves every requested model. The helper remains as
+    the single model-normalization hook for HTTP, chat, WS, and fallback
+    paths if a future verified alias requires deterministic translation.
+    """
+    sanitized = dict(body)
+    current_model = sanitized.get("model", "")
+    migrated = _resolve_codex_responses_lite_model(current_model)
+    if migrated and not _has_model_reserved_tool(sanitized.get("tools")):
+        sanitized["model"] = migrated
+        return sanitized, [f"model:{current_model}->{migrated}"]
+    return sanitized, []
+
+
+def _sanitize_codex_responses_lite_body(
+    body: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    """Apply Lite-safe request normalization without chatgpt.com field stripping."""
+    sanitized, migrated_fields = _sanitize_codex_responses_lite_model(body)
+    return sanitized, migrated_fields
 
 
 def _apply_model_routing_request_overrides(
@@ -698,6 +863,34 @@ class OpenAIResponsesMixin:
             cache.move_to_end(key)
             while len(cache) > _OPENAI_RESPONSES_UNIT_CACHE_MAX_ENTRIES:
                 cache.popitem(last=False)
+
+    def _openai_responses_context_guard(
+        self,
+        payload: dict[str, Any],
+        *,
+        model: str,
+    ) -> tuple[bool, int, int, int]:
+        """Return whether a Responses payload is too close to the model limit."""
+
+        context_limit = _codex_responses_context_limit(self.openai_provider, model)
+        if context_limit <= 0:
+            return False, 0, 0, 0
+
+        try:
+            tokenizer = self.openai_provider.get_token_counter(model)
+            estimated_tokens = int(tokenizer.count_text(_json_debug_dumps(payload)))
+        except Exception:
+            estimated_tokens = max(
+                0,
+                len(json.dumps(payload, ensure_ascii=False).encode("utf-8")) // 4,
+            )
+
+        reserve = max(
+            _CODEX_RESPONSES_CONTEXT_RESERVE_TOKENS,
+            int(context_limit * _CODEX_RESPONSES_CONTEXT_RESERVE_RATIO),
+        )
+        threshold = max(1, context_limit - reserve)
+        return estimated_tokens >= threshold, estimated_tokens, threshold, context_limit
 
     def _compress_openai_responses_live_text_units_with_router(
         self,
@@ -1601,6 +1794,11 @@ class OpenAIResponsesMixin:
             request_id=request_id,
             salt=_canary_coordinator.salt,
         )
+        raw_request_headers = dict(request.headers.items())
+        _, is_chatgpt_subscription = _resolve_codex_routing_headers(raw_request_headers)
+        from cutctx.proxy.handlers.openai.utils import _has_codex_responses_lite_hint
+
+        codex_responses_lite = _has_codex_responses_lite_hint(raw_request_headers)
 
         model, request_savings_metadata = prepare_model_routing(
             self,
@@ -1614,6 +1812,7 @@ class OpenAIResponsesMixin:
             assignment_identity_source=_canary_identity.source,
             assignment_sticky=_canary_identity.sticky,
             transport_provider="openai",
+            implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
         )
         _canary_assignments = getattr(self, "_savings_canary_assignments", None)
         if _canary_assignments is None:
@@ -1639,10 +1838,12 @@ class OpenAIResponsesMixin:
         # PR-A5 (P5-49): strip internal x-cutctx-* from upstream-bound
         # headers AFTER `_extract_tags` reads them. Memory user-id reads
         # `request.headers` below.
+        from cutctx.proxy.handlers.openai.utils import _strip_openai_internal_headers
         from cutctx.proxy.helpers import _strip_internal_headers, log_outbound_headers
 
         _pre_strip_count_resp = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
         headers = _strip_internal_headers(headers)
+        headers = _strip_openai_internal_headers(headers)
         log_outbound_headers(
             forwarder="openai_responses",
             stripped_count=_pre_strip_count_resp,
@@ -1932,6 +2133,14 @@ class OpenAIResponsesMixin:
                 )
         else:
             url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/responses")
+            if codex_responses_lite:
+                body, migrated_fields = _sanitize_codex_responses_lite_model(body)
+                if migrated_fields:
+                    logger.info(
+                        "[%s] /v1/responses normalized Codex Responses Lite model: %s",
+                        request_id,
+                        ", ".join(migrated_fields),
+                    )
 
         # The standalone Rust proxy has native /v1/responses item handling,
         # but the default CLI runtime is this Python proxy. Compress the
@@ -2106,6 +2315,28 @@ class OpenAIResponsesMixin:
                         },
                     ) from _e
 
+        # Request transforms can add API fields after the initial routing
+        # sanitizer runs. Keep the ChatGPT subscription boundary strict so a
+        # reconnect after a proxy restart cannot forward a stale streaming
+        # field and receive an opaque upstream 400.
+        if is_chatgpt_auth:
+            body, final_stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
+            if final_stripped_fields:
+                logger.info(
+                    "[%s] /v1/responses final subscription sanitization stripped: %s",
+                    request_id,
+                    ", ".join(final_stripped_fields),
+                )
+            stream = False
+        elif codex_responses_lite:
+            body, final_migrated_fields = _sanitize_codex_responses_lite_model(body)
+            if final_migrated_fields:
+                logger.info(
+                    "[%s] /v1/responses final Codex Responses Lite model normalization: %s",
+                    request_id,
+                    ", ".join(final_migrated_fields),
+                )
+
         capture_codex_wire_debug(
             "http_upstream_request",
             request_id=request_id,
@@ -2124,13 +2355,6 @@ class OpenAIResponsesMixin:
                 "transforms_applied": transforms_applied,
             },
         )
-
-        # chatgpt.com/backend-api/codex/responses has historically rejected
-        # HTTP ``stream: true`` bodies with a bare 400. Keep the safer
-        # non-streaming POST path here; the WS handler still handles
-        # WS-native Codex sessions separately.
-        if is_chatgpt_auth:
-            stream = False
 
         try:
             if stream:
@@ -2679,6 +2903,9 @@ class OpenAIResponsesMixin:
         # WebSocket handshake. Inbound reads on `ws_headers` (memory user-id
         # below) keep working because we filter only when building
         # `upstream_headers`, not when reading from `ws_headers`.
+        from cutctx.proxy.handlers.openai.utils import (
+            _strip_openai_internal_headers as _strip_openai_internal,
+        )
         from cutctx.proxy.helpers import (
             _strip_internal_headers as _strip_internal,
         )
@@ -2694,6 +2921,7 @@ class OpenAIResponsesMixin:
             1 for k in _ws_pre_strip_filtered if k.lower().startswith("x-cutctx-")
         )
         upstream_headers = _strip_internal(_ws_pre_strip_filtered)
+        upstream_headers = _strip_openai_internal(upstream_headers)
         _log_outbound_headers(
             forwarder="openai_responses_ws",
             stripped_count=_ws_pre_strip_count,
@@ -3168,6 +3396,8 @@ class OpenAIResponsesMixin:
                 if isinstance(ws_routing_body.get("messages"), list):
                     ws_messages = ws_routing_body.get("messages")
                     ws_num_messages = len(ws_messages or [])
+            from cutctx.proxy.handlers.openai.utils import _has_codex_responses_lite_hint
+
             ws_model, ws_savings_metadata = prepare_model_routing(
                 self,
                 ws_model,
@@ -3178,12 +3408,42 @@ class OpenAIResponsesMixin:
                 client=classify_client(ws_headers),
                 assignment_identity_source=_ws_canary_identity.source,
                 assignment_sticky=_ws_canary_identity.sticky,
+                implicit_downgrade_allowed=not (
+                    is_chatgpt_auth or _has_codex_responses_lite_hint(ws_headers)
+                ),
             )
             if isinstance(body, dict):
                 body["model"] = ws_model
                 if isinstance(body.get("response"), dict):
                     body["response"]["model"] = ws_model
                 _apply_model_routing_request_overrides(body, ws_savings_metadata)
+                # The native WS relay must run the same ChatGPT-subscription
+                # request-shape sanitizer as HTTP so rejected fields do not
+                # leak upstream. The sanitizer deliberately preserves the
+                # requested model.
+                if is_chatgpt_auth:
+                    body, _ws_stripped_fields = _sanitize_chatgpt_subscription_responses_body(
+                        body
+                    )
+                    if isinstance(body.get("response"), dict):
+                        body["response"]["model"] = body.get("model", ws_model)
+                    if _ws_stripped_fields:
+                        logger.info(
+                            "[%s] WS /v1/responses stripped unsupported subscription "
+                            "fields: %s",
+                            request_id,
+                            ", ".join(_ws_stripped_fields),
+                        )
+                # `first_msg_raw` (the string), not `body` (the parsed dict),
+                # is what memory-injection/compression re-derive their working
+                # copy from below, and what gets sent upstream verbatim when
+                # neither of those run (memory disabled, compression disabled,
+                # or the request too small to compress). Without this
+                # resync, every mutation above — model routing, the ChatGPT
+                # subscription sanitizer, request overrides — is
+                # silently discarded and the client's original bytes go
+                # upstream unchanged.
+                first_msg_raw = json.dumps(body)
             ws_input_tokens_total = 0
             ws_output_tokens_total = 0
             ws_cache_read_tokens_total = 0
@@ -3797,6 +4057,47 @@ class OpenAIResponsesMixin:
                 _first_upstream_body = json.loads(first_msg_raw)
             except json.JSONDecodeError:
                 _first_upstream_body = None
+            if (
+                self.config.optimize
+                and not _ws_bypass
+                and isinstance(_first_upstream_body, dict)
+            ):
+                _guard_inner = (
+                    _first_upstream_body["response"]
+                    if isinstance(_first_upstream_body.get("response"), dict)
+                    else _first_upstream_body
+                )
+                if isinstance(_guard_inner, dict):
+                    _guard_model = str(_guard_inner.get("model") or "unknown")
+                    (
+                        _guard_refuse,
+                        _guard_estimated,
+                        _guard_threshold,
+                        _guard_limit,
+                    ) = self._openai_responses_context_guard(
+                        _guard_inner,
+                        model=_guard_model,
+                    )
+                    if _guard_refuse:
+                        logger.error(
+                            "[%s] WS /v1/responses refusing oversized first frame "
+                            "after compression (estimated_tokens=%d threshold=%d "
+                            "context_limit=%d model=%s tokens_saved=%d transforms=%s)",
+                            request_id,
+                            _guard_estimated,
+                            _guard_threshold,
+                            _guard_limit,
+                            _guard_model,
+                            tokens_saved,
+                            transforms_applied,
+                        )
+                        termination_cause = "context_refused"
+                        with contextlib.suppress(Exception):
+                            await websocket.close(
+                                code=1009,
+                                reason="cutctx: context too large — compact context and retry",
+                            )
+                        return
             capture_codex_wire_debug(
                 "ws_upstream_first_frame",
                 request_id=request_id,
@@ -3852,6 +4153,7 @@ class OpenAIResponsesMixin:
                         """
                         nonlocal tokens_saved, transforms_applied, attempted_input_tokens_total
                         nonlocal ws_frames_compressed, ws_savings_metadata
+                        nonlocal termination_cause
                         if _ws_bypass:
                             _log_ws_passthrough(
                                 "bypass_header",
@@ -3906,6 +4208,10 @@ class OpenAIResponsesMixin:
 
                         original_frame_model = str(inner_payload.get("model") or "unknown")
                         frame_messages = _responses_payload_to_routing_messages(inner_payload)
+                        from cutctx.proxy.handlers.openai.utils import (
+                            _has_codex_responses_lite_hint,
+                        )
+
                         routed_frame_model, ws_savings_metadata = prepare_model_routing(
                             self,
                             original_frame_model,
@@ -3916,9 +4222,24 @@ class OpenAIResponsesMixin:
                             client=classify_client(ws_headers),
                             assignment_identity_source=_ws_canary_identity.source,
                             assignment_sticky=_ws_canary_identity.sticky,
+                            implicit_downgrade_allowed=not (
+                                is_chatgpt_auth or _has_codex_responses_lite_hint(ws_headers)
+                            ),
                         )
                         if routed_frame_model != original_frame_model:
                             inner_payload = {**inner_payload, "model": routed_frame_model}
+                            frame_routed = True
+                        # Turn 1 of a WS session runs the
+                        # ChatGPT-subscription request-shape sanitizer; this
+                        # per-frame path for turn 2+ must do the same while
+                        # preserving the requested model.
+                        if is_chatgpt_auth:
+                            inner_payload, _frame_stripped_fields = (
+                                _sanitize_chatgpt_subscription_responses_body(inner_payload)
+                            )
+                            if _frame_stripped_fields:
+                                frame_routed = True
+                        if frame_routed:
                             if wrapped_frame:
                                 parsed_frame["response"] = inner_payload
                             else:
@@ -3927,7 +4248,6 @@ class OpenAIResponsesMixin:
                                 inner_payload,
                                 ws_savings_metadata,
                             )
-                            frame_routed = True
                         frame_compression_elapsed_ms = 0.0
                         try:
                             model_for_frame = inner_payload.get("model") or ""
@@ -4073,6 +4393,41 @@ class OpenAIResponsesMixin:
                                 return raw_msg, False, "compression_exception"
                         if not modified:
                             reason = frame_reason or "no_compression"
+                            (
+                                guard_refuse,
+                                guard_estimated,
+                                guard_threshold,
+                                guard_limit,
+                            ) = self._openai_responses_context_guard(
+                                inner_payload,
+                                model=str(inner_payload.get("model") or "unknown"),
+                            )
+                            if guard_refuse:
+                                logger.error(
+                                    "[%s] WS /v1/responses refusing oversized frame "
+                                    "after no-op compression (estimated_tokens=%d "
+                                    "threshold=%d context_limit=%d model=%s "
+                                    "frame=%d reason=%s)",
+                                    request_id,
+                                    guard_estimated,
+                                    guard_threshold,
+                                    guard_limit,
+                                    str(inner_payload.get("model") or "unknown"),
+                                    frame_index,
+                                    reason,
+                                )
+                                termination_cause = "context_refused"
+                                with contextlib.suppress(Exception):
+                                    await websocket.close(
+                                        code=1009,
+                                        reason=(
+                                            "cutctx: context too large — "
+                                            "compact context and retry"
+                                        ),
+                                    )
+                                with contextlib.suppress(Exception):
+                                    await upstream.close()
+                                return raw_msg, False, "context_refused"
                             if frame_routed:
                                 _rewrite_started = time.perf_counter()
                                 rewritten = json.dumps(parsed_frame)
@@ -4123,6 +4478,40 @@ class OpenAIResponsesMixin:
                         for t in frame_transforms:
                             if t not in transforms_applied:
                                 transforms_applied.append(t)
+                        (
+                            guard_refuse,
+                            guard_estimated,
+                            guard_threshold,
+                            guard_limit,
+                        ) = self._openai_responses_context_guard(
+                            new_inner,
+                            model=str(new_inner.get("model") or "unknown"),
+                        )
+                        if guard_refuse:
+                            logger.error(
+                                "[%s] WS /v1/responses refusing oversized frame "
+                                "after compression (estimated_tokens=%d threshold=%d "
+                                "context_limit=%d model=%s frame=%d tokens_saved=%d)",
+                                request_id,
+                                guard_estimated,
+                                guard_threshold,
+                                guard_limit,
+                                str(new_inner.get("model") or "unknown"),
+                                frame_index,
+                                int(frame_saved),
+                            )
+                            termination_cause = "context_refused"
+                            with contextlib.suppress(Exception):
+                                await websocket.close(
+                                    code=1009,
+                                    reason=(
+                                        "cutctx: context too large — "
+                                        "compact context and retry"
+                                    ),
+                                )
+                            with contextlib.suppress(Exception):
+                                await upstream.close()
+                            return raw_msg, False, "context_refused"
                         ws_frames_compressed += 1
                         logger.info(
                             "[%s] WS /v1/responses frame compressed "
@@ -4201,6 +4590,8 @@ class OpenAIResponsesMixin:
                                     msg,
                                     frame_index=client_frame_index,
                                 )
+                                if _frame_reason == "context_refused":
+                                    return
                                 _outbound_frame_body: Any = None
                                 try:
                                     _outbound_frame_body = json.loads(msg)
@@ -4545,7 +4936,9 @@ class OpenAIResponsesMixin:
                                     if event_type == "response.completed":
                                         response_completed_seen = True
                                         await _record_ws_response_metrics()
-                                    await websocket.send_text(msg_str)
+                                    await websocket.send_text(
+                                        _strip_namespace_from_upstream_event_text(msg_str)
+                                    )
                                     continue
 
                                 # --- Phase 1: Buffer until first output item ---
@@ -4570,14 +4963,18 @@ class OpenAIResponsesMixin:
                                             # Non-memory first → flush buffer, pass through
                                             decided = True
                                             for buf in event_buffer:
-                                                await websocket.send_text(buf)
+                                                await websocket.send_text(
+                                                    _strip_namespace_from_upstream_event_text(buf)
+                                                )
                                             event_buffer.clear()
 
                                     elif event_type == "response.completed":
                                         # No output items at all — flush
                                         decided = True
                                 for buf in event_buffer:
-                                    await websocket.send_text(buf)
+                                    await websocket.send_text(
+                                        _strip_namespace_from_upstream_event_text(buf)
+                                    )
                                 event_buffer.clear()
                                 await _record_ws_response_metrics()
                                 _reset()
@@ -4661,7 +5058,9 @@ class OpenAIResponsesMixin:
                                     continue
 
                                 # --- Phase 2b: Pass-through mode ---
-                                await websocket.send_text(msg_str)
+                                await websocket.send_text(
+                                    _strip_namespace_from_upstream_event_text(msg_str)
+                                )
 
                         except asyncio.CancelledError:
                             raise

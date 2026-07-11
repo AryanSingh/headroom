@@ -42,8 +42,8 @@ from cutctx.proxy.memoizer import MemoizeConfig, ToolMemoizer, record_tool_resul
 from cutctx.proxy.outcome import _build_savings_breakdown
 from cutctx.proxy.output_optimizer import OutputOptimizeConfig, OutputOptimizer
 from tests.test_anthropic_pre_upstream_backpressure import (
-    _DummyAnthropicHandler,
     _build_request,
+    _DummyAnthropicHandler,
     _tokenizer_patch,
 )
 
@@ -258,12 +258,8 @@ def test_memoization_and_output_optimization_threaded_into_request_outcome() -> 
 # --------------------------------------------------------------------------- #
 
 
-def test_batch_routing_enqueue_records_outcome_with_tokens_and_usd() -> None:
-    """When the batch router enqueues a request (202 short-circuit),
-    the handler must still record a RequestOutcome carrying the
-    tokens/USD that batching is expected to save — today it returns
-    the 202 with no outcome at all.
-    """
+def test_batch_routing_without_executor_forwards_without_claiming_savings() -> None:
+    """Eligible batch traffic must complete synchronously until executable."""
     handler = _CapturingAnthropicHandler()
     handler.batch_router = BatchRouter(BatchRouterConfig(enabled=True))
 
@@ -283,18 +279,14 @@ def test_batch_routing_enqueue_records_outcome_with_tokens_and_usd() -> None:
     with _tokenizer_patch():
         response = anyio.run(handler.handle_anthropic_messages, request)
 
-    assert response.status_code == 202
-
-    assert handler.recorded_outcomes, (
-        "an enqueued batch-routing decision must still record a "
-        "RequestOutcome so the savings tracker / dashboard see it"
-    )
+    assert response.status_code == 200
+    assert handler.recorded_outcomes
     outcome = handler.recorded_outcomes[-1]
-    assert outcome.batch_routing_tokens_saved > 0
-    assert outcome.batch_routing_usd_saved > 0
+    assert outcome.batch_routing_tokens_saved == 0
+    assert outcome.batch_routing_usd_saved == 0
 
     tokens, usd, _breakdown = _build_savings_breakdown(outcome)
     from cutctx.savings import SavingsSource
 
-    assert SavingsSource.BATCH_ROUTING.value in tokens
-    assert SavingsSource.BATCH_ROUTING.value in usd
+    assert SavingsSource.BATCH_ROUTING.value not in tokens
+    assert SavingsSource.BATCH_ROUTING.value not in usd

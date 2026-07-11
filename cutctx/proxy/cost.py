@@ -960,7 +960,7 @@ class CostTracker:
     def _get_list_price(self, model: str) -> float | None:
         """Get list input price per 1M tokens for a model."""
         from cutctx.proxy.savings_pricing import value_tokens_usd
-        
+
         cost_for_1m = value_tokens_usd(model, 1_000_000)
         return cost_for_1m if cost_for_1m > 0 else None
 

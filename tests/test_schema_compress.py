@@ -502,3 +502,84 @@ class TestSchemaKeySets:
     def test_keep_keys_has_functional(self):
         for key in ["type", "description", "required", "properties", "enum"]:
             assert key in _SCHEMA_KEEP_KEYS
+
+
+# ───────────────── Reserved/built-in tool passthrough ─────────────────
+#
+# Regression: OpenAI's `image_gen` namespace tool (and bare server-side
+# tools like `web_search`/`image_generation`) carry a provider-pinned
+# schema validated byte-for-byte. Compressing them — stripping
+# additionalProperties, truncating the description — corrupted that
+# pinned schema and every request carrying the tool was rejected with
+# "Function 'image_gen.imagegen' is reserved for use by this model and
+# must match the configured schema.", regardless of which model was
+# targeted. Confirmed live via wire-debug diff of inbound vs.
+# upstream-forwarded bytes.
+
+
+def _image_gen_namespace_tool():
+    return {
+        "type": "namespace",
+        "name": "image_gen",
+        "description": "Tools in the image_gen namespace.",
+        "tools": [
+            {
+                "type": "function",
+                "name": "imagegen",
+                "description": "Generate images. " * 20,
+                "strict": False,
+                "parameters": {
+                    "type": "object",
+                    "properties": {"prompt": {"type": "string"}},
+                    "required": ["prompt"],
+                    "additionalProperties": False,
+                },
+            }
+        ],
+    }
+
+
+class TestReservedToolPassthrough:
+    def test_namespace_tool_untouched(self):
+        tool = _image_gen_namespace_tool()
+        compacted, modified, _, _ = compress_tool_schemas([tool])
+
+        assert compacted == [tool]
+        assert modified is False
+
+    def test_namespace_tool_preserves_additional_properties_and_description(self):
+        tool = _image_gen_namespace_tool()
+        compacted, _, _, _ = compress_tool_schemas([tool])
+
+        inner = compacted[0]["tools"][0]
+        assert inner["parameters"]["additionalProperties"] is False
+        assert inner["description"] == "Generate images. " * 20
+
+    def test_bare_builtin_tool_untouched(self):
+        tool = {"type": "web_search", "external_web_access": False}
+        compacted, modified, _, _ = compress_tool_schemas([tool])
+
+        assert compacted == [tool]
+        assert modified is False
+
+    def test_function_tool_alongside_namespace_tool_still_compressed(self):
+        namespace_tool = _image_gen_namespace_tool()
+        function_tool = {
+            "type": "function",
+            "name": "lookup",
+            "description": "Look things up. " * 20,
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "title": "Query"}},
+                "additionalProperties": False,
+            },
+        }
+
+        compacted, modified, before, after = compress_tool_schemas(
+            [namespace_tool, function_tool]
+        )
+
+        assert modified is True
+        assert after < before
+        assert compacted[0] == namespace_tool
+        assert "additionalProperties" not in compacted[1]["parameters"]

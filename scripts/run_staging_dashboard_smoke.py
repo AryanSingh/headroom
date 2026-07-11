@@ -66,8 +66,18 @@ def run_staging_dashboard_smoke(
                 page = context.new_page()
                 console_errors: list[str] = []
                 page_errors: list[str] = []
-                page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
-                page.on("pageerror", lambda error: page_errors.append(str(error)))
+                page.on(
+                    "console",
+                    lambda message, console_errors=console_errors: (
+                        console_errors.append(message.text)
+                        if message.type == "error"
+                        else None
+                    ),
+                )
+                page.on(
+                    "pageerror",
+                    lambda error, page_errors=page_errors: page_errors.append(str(error)),
+                )
                 try:
                     page.goto(f"{base_url}{route}", wait_until="networkidle", timeout=60_000)
                     if page.locator(".topbar-title-row h2").inner_text(timeout=10_000) != heading:
@@ -78,12 +88,38 @@ def run_staging_dashboard_smoke(
                     )
                     if width_metrics["document"] > width_metrics["viewport"] + 1:
                         raise RuntimeError("horizontal overflow")
-                    if console_errors or page_errors:
+                    # OSS/local deployments legitimately return 403 for
+                    # optional enterprise surfaces (for example audit/RBAC
+                    # panels). The dashboard handles those denials in-place;
+                    # they are not JavaScript or route failures. Keep them in
+                    # the artifact, but fail only unexpected console errors.
+                    expected_auth_denials = [
+                        message
+                        for message in console_errors
+                        if "403 (Forbidden)" in message
+                    ]
+                    unexpected_console_errors = [
+                        message
+                        for message in console_errors
+                        if message not in expected_auth_denials
+                    ]
+                    if unexpected_console_errors or page_errors:
                         raise RuntimeError("browser errors")
                     page.screenshot(path=str(artifact_dir / f"{viewport}-{route.rsplit('/', 1)[-1] or 'dashboard'}.png"), full_page=True)
                     checked += 1
                 except Exception as exc:
-                    failures.append({"viewport": viewport, "route": route, "reason": str(exc)})
+                    # Keep enough browser diagnostics to make a failed
+                    # release smoke actionable, without retaining request
+                    # headers, local storage, or page content.
+                    failures.append(
+                        {
+                            "viewport": viewport,
+                            "route": route,
+                            "reason": str(exc),
+                            "console_errors": console_errors[:5],
+                            "page_errors": page_errors[:5],
+                        }
+                    )
                 finally:
                     page.close()
             context.close()

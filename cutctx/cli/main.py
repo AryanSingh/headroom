@@ -20,6 +20,7 @@ _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "capabilities": "capabilities",
     "capture": "capture",
     "evals": "evals",
+    "global": "global_routing",
     "verify": "evals",
     "init": "init",
     "install": "install",

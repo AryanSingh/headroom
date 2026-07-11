@@ -12,6 +12,11 @@ from cutctx.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _resolve_codex_routing_headers,
 )
+from cutctx.proxy.handlers.openai.utils import (
+    _has_codex_responses_lite_hint,
+    _strip_openai_internal_headers,
+)
+from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
 
 def _jwt(payload: dict) -> str:
@@ -100,6 +105,34 @@ def test_resolve_codex_routing_ignores_invalid_jwt_payloads():
     assert headers["authorization"] == f"Bearer {token}"
 
 
+def test_strip_openai_internal_headers_removes_codex_lite_hints():
+    headers = {
+        "Authorization": "Bearer sk-test",
+        "X-OpenAI-Internal-Codex-Responses-Lite": "1",
+        "x-openai-internal-another-flag": "enabled",
+        "x-cutctx-bypass": "true",
+    }
+
+    stripped = _strip_openai_internal_headers(headers)
+
+    assert "X-OpenAI-Internal-Codex-Responses-Lite" not in stripped
+    assert "x-openai-internal-another-flag" not in stripped
+    assert stripped["Authorization"] == "Bearer sk-test"
+    assert stripped["x-cutctx-bypass"] == "true"
+
+
+def test_has_codex_responses_lite_hint_detects_enabled_header():
+    assert _has_codex_responses_lite_hint(
+        {"X-OpenAI-Internal-Codex-Responses-Lite": "1"}
+    )
+    assert _has_codex_responses_lite_hint(
+        {"x-openai-internal-codex-responses-lite": "true"}
+    )
+    assert not _has_codex_responses_lite_hint(
+        {"X-OpenAI-Internal-Codex-Responses-Lite": "0"}
+    )
+
+
 class _DummyMetrics:
     async def record_request(self, **kwargs):  # noqa: ANN003
         return None
@@ -127,9 +160,13 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
 
     def __init__(self) -> None:
         self.rate_limiter = None
+        self.cache = None
         self.metrics = _DummyMetrics()
         self.config = SimpleNamespace(
             optimize=False,
+            audio_optimize=False,
+            hooks=None,
+            mode="off",
             retry_max_attempts=3,
             retry_base_delay_ms=10,
             retry_max_delay_ms=50,
@@ -141,12 +178,17 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         self.anthropic_backend = None
         self.cost_tracker = None
         self.memory_handler = None
+        self._model_router = None
         # PR-A6 wires session-sticky `OpenAI-Beta` merging into the
         # responses HTTP handler — it reads `compute_session_id` to key
         # the SessionBetaTracker. The routing tests don't exercise the
         # tracker semantics themselves, so a fixed-id stub is enough.
         self.session_tracker_store = SimpleNamespace(
             compute_session_id=lambda *a, **k: "sess-openai-1",
+            get_or_create=lambda *a, **k: SimpleNamespace(
+                get_frozen_message_count=lambda: 0,
+                update_from_response=lambda *args, **kwargs: None,
+            ),
         )
         self.captured_request: tuple[str, str, dict, dict] | None = None
         self.captured_stream_request: tuple[str, dict, dict] | None = None
@@ -202,7 +244,12 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         )
 
 
-def _build_request(body: dict, headers: dict[str, str]) -> Request:
+def _build_request(
+    body: dict,
+    headers: dict[str, str],
+    *,
+    path: str = "/v1/responses",
+) -> Request:
     payload = json.dumps(body).encode("utf-8")
 
     async def receive():
@@ -214,8 +261,8 @@ def _build_request(body: dict, headers: dict[str, str]) -> Request:
         "http_version": "1.1",
         "method": "POST",
         "scheme": "https",
-        "path": "/v1/responses",
-        "raw_path": b"/v1/responses",
+        "path": path,
+        "raw_path": path.encode("utf-8"),
         "query_string": b"",
         "headers": [
             (key.lower().encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()
@@ -256,7 +303,10 @@ def test_handle_openai_responses_routes_chatgpt_auth_to_backend_api(monkeypatch)
 def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatch):
     request = _build_request(
         {"model": "gpt-4o-mini", "input": "hello"},
-        {"Authorization": "Bearer sk-test"},
+        {
+            "Authorization": "Bearer sk-test",
+            "X-OpenAI-Internal-Codex-Responses-Lite": "1",
+        },
     )
     handler = _DummyOpenAIHandler()
 
@@ -269,7 +319,31 @@ def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatc
     assert method == "POST"
     assert url == "https://api.openai.com/v1/responses"
     assert headers.get("ChatGPT-Account-ID") is None
+    assert "X-OpenAI-Internal-Codex-Responses-Lite" not in headers
     assert body["input"] == "hello"
+    assert response.status_code == 200
+
+
+def test_handle_openai_responses_lite_preserves_requested_model(monkeypatch):
+    request = _build_request(
+        {"model": "gpt-5.6-terra", "input": "what is the restart command?"},
+        {
+            "Authorization": "Bearer sk-test",
+            "X-OpenAI-Internal-Codex-Responses-Lite": "1",
+            "User-Agent": "Codex Desktop/1.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler._model_router = ModelRouter(ModelRouterConfig.codex_gpt54mini_high_preset())
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert handler.captured_request is not None
+    _, _, headers, body = handler.captured_request
+    assert body["model"] == "gpt-5.6-terra"
+    assert "X-OpenAI-Internal-Codex-Responses-Lite" not in headers
     assert response.status_code == 200
 
 

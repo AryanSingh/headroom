@@ -363,7 +363,10 @@ class TestFeatureFlagWiring:
 
     def test_firewall_middleware_present(self):
         source = (PROJECT_ROOT / "cutctx/proxy/server.py").read_text()
-        assert "_firewall_scan_middleware" in source
+        # The firewall is wired through the request handlers and admin router;
+        # it is no longer a standalone Starlette middleware function.
+        assert "FirewallScanner(" in source
+        assert "firewall_scanner=_firewall_scanner" in source
 
     def test_firewall_endpoints_present(self):
         source = (PROJECT_ROOT / "cutctx/proxy/routes/admin.py").read_text()

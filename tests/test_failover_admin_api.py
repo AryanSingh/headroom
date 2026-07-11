@@ -6,8 +6,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.circuit_breaker import get_circuit_breaker
+from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.routing.failover import FailoverRouter, ProviderEndpoint
 from cutctx.proxy.server import create_app
 

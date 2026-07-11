@@ -154,7 +154,7 @@ def test_orchestrator_renders_provider_policy_status() -> None:
 
             expect(page.get_by_text("Orchestrator Insights", exact=True)).to_be_visible()
             expect(page.get_by_text("Fallback and selection posture", exact=True)).to_be_visible()
-            expect(page.get_by_text("Provider health and manual overrides", exact=True)).to_be_visible()
+            expect(page.get_by_text("Compatibility-provider health and overrides", exact=True)).to_be_visible()
             expect(page.get_by_text("coding_agent", exact=True).first).to_be_visible()
             expect(page.get_by_text("Prefix cache: preserve").first).to_be_visible()
             expect(page.get_by_text("Semantic cache: on").first).to_be_visible()
