@@ -600,7 +600,7 @@ Monthly billing available at 20% premium over annual.
 
 **Enterprise ($60k–$150k+/year)**
 - Everything in Business, plus:
-- SSO/OIDC/SAML admin authentication
+- OIDC/JWT SSO admin authentication
 - RBAC (Viewer / Operator / Admin roles)
 - Audit logging with export
 - Retention controls
@@ -838,7 +838,7 @@ This writes `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` to `~/.claude/settings.js
 
 ### "We have security/compliance requirements"
 
-> "Cutctx was designed for this. Self-hosted, local-first, no data leaves your infrastructure. Enterprise tier includes SSO/SAML, RBAC, audit logs, retention controls, SCIM provisioning, and air-gap deployment support. We can provide a security review packet for your procurement team. We don't have SOC 2 today — that's something we can pursue together for a lighthouse enterprise customer."
+> "Cutctx was designed for this. Self-hosted, local-first, no data leaves your infrastructure. Enterprise tier includes OIDC/JWT SSO, RBAC, audit logs, retention controls, SCIM provisioning, and air-gap deployment support. We can provide a security review packet for your procurement team. We don't have SOC 2 today — that's something we can pursue together for a lighthouse enterprise customer."
 
 ### "Why not just use the native /v1/messages compression endpoint?"
 
@@ -866,7 +866,7 @@ This writes `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` to `~/.claude/settings.js
 
 ### Enterprise Security / Procurement
 
-> "Cutctx is a self-hosted proxy. Your prompts never leave your network. Enterprise tier includes SSO/SAML, RBAC, audit logs with export, retention controls, SCIM provisioning, and air-gap deployment support. We can provide a security review packet for your team. Pricing starts at $60k/year, tailored to your deployment size."
+> "Cutctx is a self-hosted proxy. Your prompts never leave your network. Enterprise tier includes OIDC/JWT SSO, RBAC, audit logs with export, retention controls, SCIM provisioning, and air-gap deployment support. We can provide a security review packet for your team. Pricing starts at $60k/year, tailored to your deployment size."
 
 ### CFO / Finance
 

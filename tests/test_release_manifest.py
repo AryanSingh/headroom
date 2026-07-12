@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from cutctx.evals.release_manifest import (
     build_release_manifest,
+    require_clean_checkout,
     validate_release_manifest,
     write_release_manifest,
 )
@@ -38,3 +42,17 @@ def test_release_manifest_rejects_unknown_provider_status() -> None:
         assert "invalid status" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected validation failure")
+
+
+def test_release_manifest_requires_clean_git_checkout(tmp_path: Path) -> None:
+    with patch("cutctx.evals.release_manifest.subprocess.check_output", return_value=" M proxy.py\n"):
+        with pytest.raises(ValueError, match="clean checkout"):
+            require_clean_checkout(tmp_path)
+
+
+def test_release_manifest_reports_clean_git_revision(tmp_path: Path) -> None:
+    with patch(
+        "cutctx.evals.release_manifest.subprocess.check_output",
+        side_effect=["", "abc123\n"],
+    ):
+        assert require_clean_checkout(tmp_path) == "abc123"

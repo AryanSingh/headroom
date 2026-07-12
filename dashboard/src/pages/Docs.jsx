@@ -320,7 +320,7 @@ cutctx savings --by-source --format json`}
           <Table
             headers={['Variable', 'Description']}
             rows={[
-              ['`CUTCTX_SSO_PROVIDER_TYPE`', 'SSO provider: oidc, saml, oauth2'],
+              ['`CUTCTX_SSO_PROVIDER_TYPE`', 'SSO provider: oidc, jwt, introspect'],
               ['`CUTCTX_SSO_DISCOVERY_URL`', 'OIDC discovery endpoint (.well-known/openid-configuration)'],
               ['`CUTCTX_SSO_JWKS_URI`', 'JWKS endpoint for JWT public key verification'],
               ['`CUTCTX_SSO_ISSUER`', 'Expected JWT issuer claim'],

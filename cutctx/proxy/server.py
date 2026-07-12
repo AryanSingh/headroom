@@ -2158,6 +2158,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     check_offline_compat()
     config = config or ProxyConfig()
+    from cutctx.proxy.deployment_security import require_secure_deployment
+
+    require_secure_deployment(config)
     proxy = CutctxProxy(config)
     from cutctx.telemetry.beacon import TelemetryBeacon
 
@@ -3049,10 +3052,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return payload
 
     async def _require_local_admin_auth(request: Request) -> None:
-        expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
+        from cutctx.proxy.deployment_security import effective_admin_key, has_configured_sso
+
+        expected_admin_key = effective_admin_key(config)
         auth_header = request.headers.get("authorization", "")
         bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-        admin_header = request.headers.get("x-cutctx-admin-key", "") or request.query_params.get("key", "")
+        admin_header = request.headers.get("x-cutctx-admin-key", "")
         legacy_header = request.headers.get("x-headroom-admin-key", "")
         import hmac as _hmac
 
@@ -3063,12 +3068,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         ):
             return
 
-        sso_configured = bool(
-            getattr(config, "sso_provider_type", None)
-            and getattr(config, "sso_jwks_uri", None)
-            and getattr(config, "sso_issuer", None)
-            and getattr(config, "sso_audience", None)
-        )
+        sso_configured = has_configured_sso(config)
         if sso_configured:
             if not bearer_token:
                 raise HTTPException(
@@ -3994,6 +3994,9 @@ def run_server(
         sys.exit(1)
 
     config = config or ProxyConfig()
+    from cutctx.proxy.deployment_security import require_secure_deployment
+
+    require_secure_deployment(config)
     code_aware_status = _get_code_aware_banner_status(config)
 
     # Format connection pool info

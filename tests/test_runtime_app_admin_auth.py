@@ -45,3 +45,9 @@ def test_sensitive_surfaces_accept_admin_auth_when_key_configured(
 ) -> None:
     response = client.get(path, headers={"X-Cutctx-Admin-Key": "test-admin-key"})
     assert response.status_code == 200
+
+
+def test_sensitive_surfaces_do_not_accept_query_parameter_credentials(client: TestClient) -> None:
+    response = client.get("/stats?key=test-admin-key")
+
+    assert response.status_code == 401

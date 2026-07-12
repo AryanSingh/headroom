@@ -35,6 +35,28 @@ def _git_sha(root: Path) -> str:
         return "unavailable"
 
 
+def require_clean_checkout(root: Path) -> str:
+    """Return the checked-out revision, rejecting uncommitted release inputs.
+
+    Release evidence is only attributable when the manifest is generated from
+    an exact committed tree, including the absence of untracked artifacts.
+    """
+    try:
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=root, text=True, stderr=subprocess.DEVNULL
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError("release manifest generation requires a Git checkout") from exc
+    if status.strip():
+        raise ValueError(
+            "release manifest generation requires a clean checkout; commit or remove local changes first"
+        )
+    revision = _git_sha(root)
+    if revision == "unavailable":
+        raise ValueError("release manifest generation could not determine the Git revision")
+    return revision
+
+
 def _package_version(name: str) -> str:
     try:
         return importlib.metadata.version(name)

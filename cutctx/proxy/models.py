@@ -433,7 +433,9 @@ class ProxyConfig:
     # Admin API key — gates /dashboard, /stats, /stats-reset, /transformations/feed.
     # When set, requests must include `Authorization: Bearer <admin_api_key>` or
     # `X-Cutctx-Admin-Key: <admin_api_key>` header. When None, these endpoints
-    # are open (backward-compatible default). Env: CUTCTX_ADMIN_API_KEY.
+    # are open only when bound to a loopback host. Network-facing deployments
+    # must configure this key or a complete OIDC/JWT SSO configuration.
+    # Env: CUTCTX_ADMIN_API_KEY.
     admin_api_key: str | None = None
 
     # Hosted compression surface — feature-flagged simple API for buyers who

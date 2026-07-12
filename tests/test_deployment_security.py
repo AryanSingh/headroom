@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import pytest
+
+from cutctx.proxy.deployment_security import (
+    DeploymentSecurityError,
+    deployment_security_issues,
+    is_loopback_host,
+    require_secure_deployment,
+)
+from cutctx.proxy.models import ProxyConfig
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1", "[::1]", "localhost"])
+def test_loopback_hosts_remain_compatible_without_admin_auth(host: str) -> None:
+    config = ProxyConfig(host=host)
+
+    assert is_loopback_host(host) is True
+    assert deployment_security_issues(config) == []
+    require_secure_deployment(config)
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "10.0.0.8", "proxy.internal"])
+def test_non_loopback_requires_admin_key_or_complete_sso(host: str, monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    with pytest.raises(DeploymentSecurityError, match="admin authentication"):
+        require_secure_deployment(ProxyConfig(host=host))
+
+
+def test_non_loopback_accepts_admin_key(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    require_secure_deployment(ProxyConfig(host="0.0.0.0", admin_api_key="test-key"))
+
+
+def test_non_loopback_accepts_complete_sso(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    require_secure_deployment(
+        ProxyConfig(
+            host="0.0.0.0",
+            sso_enabled=True,
+            sso_jwks_uri="https://idp.example.test/jwks",
+            sso_issuer="https://idp.example.test/",
+            sso_audience="cutctx",
+        )
+    )
+
+
+def test_non_loopback_rejects_wildcard_cors_even_with_auth(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    with pytest.raises(DeploymentSecurityError, match="Wildcard CORS"):
+        require_secure_deployment(
+            ProxyConfig(host="0.0.0.0", admin_api_key="test-key", cors_origins=["*"])
+        )
