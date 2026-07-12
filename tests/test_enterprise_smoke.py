@@ -278,7 +278,12 @@ class TestRetentionAuditFlow:
 
     def test_retention_disabled_when_flags_off(self):
         """Retention manager should be disabled when all enabled flags are False."""
-        config = RetentionConfig(ccr_enabled=False, audit_enabled=False, episodic_enabled=False)
+        config = RetentionConfig(
+            ccr_enabled=False,
+            audit_enabled=False,
+            spend_enabled=False,
+            episodic_enabled=False,
+        )
         manager = RetentionManager(config=config)
         assert not manager.enabled
 
