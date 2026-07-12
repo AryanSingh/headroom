@@ -45,6 +45,7 @@ _MANUAL_COMMAND_MODULES: dict[str, tuple[str, str]] = {
     "audit": ("audit", "audit"),
     "bench": ("bench", "bench"),
     "config-check": ("config_check", "config_check"),
+    "config": ("config", "config"),
     "orgs": ("orgs", "orgs"),
     "rbac": ("rbac", "rbac"),
     "setup": ("setup", "setup"),
@@ -155,7 +156,7 @@ def main(ctx: click.Context) -> None:
       cutctx orgs list        List organizations
       cutctx audit list       List audit events
       cutctx rbac list        List role assignments
-      cutctx config-check     Validate configuration
+      cutctx config doctor    Validate configuration and deployment policy
       cutctx sso-test         Test SSO configuration
     """
 
