@@ -22,6 +22,7 @@ scripts/*
 !scripts/run_staging_dashboard_smoke.py
 !scripts/evaluate_release_evidence.py
 !scripts/generate_benchmark_release_manifest.py
+!scripts/check_secret_patterns.py
 !scripts/tests/
 !scripts/README.md
 !scripts/repro_codex_replay.py
