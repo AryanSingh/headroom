@@ -6,8 +6,17 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_all_github_workflows_are_valid_yaml() -> None:
+    workflow_dir = ROOT / ".github" / "workflows"
+    for path in sorted((*workflow_dir.glob("*.yml"), *workflow_dir.glob("*.yaml"))):
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert isinstance(parsed, dict), f"{path.name} must contain a YAML mapping"
+        assert "jobs" in parsed, f"{path.name} must declare jobs"
 
 
 def test_docker_workflow_normalizes_repository_name_for_signing() -> None:

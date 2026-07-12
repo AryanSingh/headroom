@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2025-2026 Cutctx Labs.
 
-name: SP-7: Supply Chain Signing
+name: "SP-7: Supply Chain Signing"
 
 # SP-7: Signs release artifacts and generates manifests.
 # Runs after the main release workflow to produce signed artifacts.
