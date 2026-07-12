@@ -74,7 +74,9 @@ def _should_redact_key(key: str) -> bool:
     if normalized in {marker.replace("-", "_") for marker in _CODEX_WIRE_SECRET_KEYS}:
         return True
     return (
-        normalized.endswith("_api_key")
+        normalized.endswith("_key")
+        or normalized.endswith("_token")
+        or normalized.endswith("_api_key")
         or normalized.endswith("_secret")
         or normalized.endswith("_password")
         or normalized.endswith("_access_token")
@@ -305,12 +307,13 @@ def extract_tags(headers: Any) -> dict[str, str]:
     implementation.
 
     Header name match is case-insensitive; the returned key has the
-    ``x-cutctx-`` prefix stripped.
+    ``x-cutctx-`` prefix stripped. Sensitive control/auth headers are
+    excluded so they cannot leak into RequestOutcome tags or stats.
     """
     return {
         k.lower().replace("x-cutctx-", ""): v
         for k, v in headers.items()
-        if k.lower().startswith("x-cutctx-")
+        if k.lower().startswith("x-cutctx-") and not _should_redact_key(str(k))
     }
 
 
@@ -2088,6 +2091,7 @@ _TOOL_INJECTION_STICKY_DEFAULT: ToolInjectionStickyMode = "enabled"
 
 _TOOL_TRACKER_MAX_SESSIONS_ENV = "CUTCTX_TOOL_TRACKER_MAX_SESSIONS"
 _TOOL_TRACKER_MAX_SESSIONS_DEFAULT = 1000
+_TOOL_TRACKER_PATH_ENV = "CUTCTX_TOOL_TRACKER_PATH"
 
 
 def get_tool_injection_sticky_mode() -> ToolInjectionStickyMode:
@@ -2121,6 +2125,17 @@ def get_tool_tracker_max_sessions() -> int:
     if value <= 0:
         raise ValueError(f"Invalid {_TOOL_TRACKER_MAX_SESSIONS_ENV}={raw!r}; expected positive int")
     return value
+
+
+def _tool_tracker_persist_path(explicit: str | os.PathLike[str] | None = None) -> Path:
+    """Return the JSON persistence path for session-sticky memory tools."""
+
+    if explicit is not None and str(explicit).strip():
+        return Path(explicit).expanduser()
+    env_value = os.environ.get(_TOOL_TRACKER_PATH_ENV, "").strip()
+    if env_value:
+        return Path(env_value).expanduser()
+    return _paths.workspace_dir() / "session_tool_tracker.json"
 
 
 def serialize_tool_definition_canonical(tool_definition: dict[str, Any]) -> bytes:
@@ -2163,7 +2178,12 @@ class SessionToolTracker:
     format).
     """
 
-    def __init__(self, max_sessions: int | None = None) -> None:
+    def __init__(
+        self,
+        max_sessions: int | None = None,
+        *,
+        persist_path: str | os.PathLike[str] | None = None,
+    ) -> None:
         if max_sessions is None:
             max_sessions = get_tool_tracker_max_sessions()
         if max_sessions <= 0:
@@ -2175,6 +2195,10 @@ class SessionToolTracker:
         # tracker resilient to non-memory tool list changes by the client
         # (which are the client's responsibility, not ours to gate).
         self._sessions: OrderedDict[tuple[str, str], OrderedDict[str, bytes]] = OrderedDict()
+        self._persist_path = (
+            _tool_tracker_persist_path(persist_path) if persist_path is not None else None
+        )
+        self._load_persisted_sessions()
 
     @property
     def active_sessions(self) -> int:
@@ -2183,6 +2207,99 @@ class SessionToolTracker:
 
     def _key(self, provider: str, session_id: str) -> tuple[str, str]:
         return (provider, session_id)
+
+    def _load_persisted_sessions(self) -> None:
+        if self._persist_path is None or not self._persist_path.exists():
+            return
+        try:
+            payload = json.loads(self._persist_path.read_text(encoding="utf-8"))
+        except Exception:
+            logger.debug(
+                "Failed to load persisted memory tool tracker state from %s",
+                self._persist_path,
+                exc_info=True,
+            )
+            return
+
+        if not isinstance(payload, dict):
+            return
+        entries = payload.get("entries")
+        if not isinstance(entries, list):
+            return
+
+        loaded: OrderedDict[tuple[str, str], OrderedDict[str, bytes]] = OrderedDict()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            provider = entry.get("provider")
+            session_id = entry.get("session_id")
+            tools = entry.get("tools")
+            if not isinstance(provider, str) or not provider:
+                continue
+            if not isinstance(session_id, str) or not session_id:
+                continue
+            if not isinstance(tools, list):
+                continue
+
+            golden_tools: OrderedDict[str, bytes] = OrderedDict()
+            for tool_entry in tools:
+                if not isinstance(tool_entry, dict):
+                    continue
+                tool_name = tool_entry.get("tool_name")
+                tool_bytes_hex = tool_entry.get("tool_bytes")
+                if not isinstance(tool_name, str) or not tool_name:
+                    continue
+                if not isinstance(tool_bytes_hex, str) or not tool_bytes_hex:
+                    continue
+                try:
+                    tool_bytes = bytes.fromhex(tool_bytes_hex)
+                except ValueError:
+                    logger.debug(
+                        "Skipping corrupt persisted memory tool bytes for %s/%s/%s",
+                        provider,
+                        session_id,
+                        tool_name,
+                        exc_info=True,
+                    )
+                    continue
+                golden_tools[tool_name] = tool_bytes
+            if golden_tools:
+                loaded[(provider, session_id)] = golden_tools
+
+        while len(loaded) > self._max_sessions:
+            loaded.popitem(last=False)
+        self._sessions = loaded
+
+    def _persist_sessions(self) -> None:
+        if self._persist_path is None:
+            return
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "entries": [
+                    {
+                        "provider": provider,
+                        "session_id": session_id,
+                        "tools": [
+                            {"tool_name": tool_name, "tool_bytes": tool_bytes.hex()}
+                            for tool_name, tool_bytes in tools.items()
+                        ],
+                    }
+                    for (provider, session_id), tools in self._sessions.items()
+                ]
+            }
+            tmp_path = self._persist_path.with_name(self._persist_path.name + ".tmp")
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            tmp_path.replace(self._persist_path)
+        except Exception:
+            logger.debug(
+                "Failed to persist memory tool tracker state to %s",
+                self._persist_path,
+                exc_info=True,
+            )
 
     def should_inject(self, provider: str, session_id: str) -> bool:
         """Return True iff this session has previously injected memory tools.
@@ -2262,11 +2379,17 @@ class SessionToolTracker:
             self._sessions.move_to_end(key)
             while len(self._sessions) > self._max_sessions:
                 self._sessions.popitem(last=False)
+            self._persist_sessions()
 
     def reset(self) -> None:
         """Clear all session state (test helper)."""
         with self._lock:
             self._sessions.clear()
+            if self._persist_path is not None:
+                try:
+                    self._persist_path.unlink()
+                except FileNotFoundError:
+                    pass
 
 
 # Process-wide singleton. Lazily replaced by tests via
@@ -2285,7 +2408,9 @@ def get_session_tool_tracker() -> SessionToolTracker:
     global _session_tool_tracker
     with _session_tool_tracker_lock:
         if _session_tool_tracker is None:
-            _session_tool_tracker = SessionToolTracker()
+            _session_tool_tracker = SessionToolTracker(
+                persist_path=_tool_tracker_persist_path(),
+            )
         return _session_tool_tracker
 
 
