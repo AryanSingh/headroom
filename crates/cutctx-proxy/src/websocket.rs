@@ -5,6 +5,8 @@
 //! pumps messages until either side closes.
 
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use axum::body::Body;
 use axum::extract::ws::{CloseFrame, Message as AxMsg, WebSocket, WebSocketUpgrade};
@@ -68,6 +70,7 @@ pub async fn ws_handler(
         .map(|s| s.to_string());
 
     let path = req.uri().path().to_string();
+    let websocket_idle_timeout = state.config.websocket_idle_timeout;
     ws.on_upgrade(move |client_ws| async move {
         if let Err(e) = run_ws_pump(
             client_ws,
@@ -76,6 +79,7 @@ pub async fn ws_handler(
             subprotocols,
             request_id,
             path,
+            websocket_idle_timeout,
         )
         .await
         {
@@ -117,6 +121,7 @@ async fn run_ws_pump(
     subprotocols: Option<String>,
     request_id: String,
     path: String,
+    idle_timeout: std::time::Duration,
 ) -> Result<(), String> {
     // Build the upstream handshake request manually so we can inject headers.
     let mut req = upstream_url
@@ -172,15 +177,48 @@ async fn run_ws_pump(
     let cancel = tokio_util::sync::CancellationToken::new();
     let cancel_c2u = cancel.clone();
     let cancel_u2c = cancel.clone();
+    let c2u_request_id = request_id.clone();
+    let c2u_path = path.clone();
+    let u2c_request_id = request_id.clone();
+    let u2c_path = path.clone();
+    // A session is idle only when *neither* direction has seen traffic. A
+    // timeout on one receive future alone would incorrectly close a client
+    // that is still sending keepalives while its upstream is quiet.
+    let last_activity = Arc::new(Mutex::new(Instant::now()));
+    let c2u_activity = Arc::clone(&last_activity);
+    let u2c_activity = Arc::clone(&last_activity);
 
     // Pump client -> upstream.
     let c2u = tokio::spawn(async move {
         loop {
             tokio::select! {
                 _ = cancel_c2u.cancelled() => break,
-                msg = client_stream.next() => {
-                    let Some(msg) = msg else { break };
+                next = tokio::time::timeout(idle_timeout, client_stream.next()) => {
+                    let msg = match next {
+                        Ok(Some(msg)) => msg,
+                        Ok(None) => break,
+                        Err(_) => {
+                            if c2u_activity
+                                .lock()
+                                .expect("ws activity timestamp mutex poisoned")
+                                .elapsed()
+                                < idle_timeout
+                            {
+                                continue;
+                            }
+                            tracing::info!(
+                                request_id = %c2u_request_id,
+                                path = %c2u_path,
+                                timeout_s = idle_timeout.as_secs(),
+                                "ws client side idle timeout"
+                            );
+                            break;
+                        }
+                    };
                     let m = match msg { Ok(m) => m, Err(_) => break };
+                    *c2u_activity
+                        .lock()
+                        .expect("ws activity timestamp mutex poisoned") = Instant::now();
                     let tg = match ax_to_tg(m) { Some(tg) => tg, None => continue };
                     let close = matches!(tg, TgMsg::Close(_));
                     if upstream_sink.send(tg).await.is_err() { break; }
@@ -197,9 +235,32 @@ async fn run_ws_pump(
         loop {
             tokio::select! {
                 _ = cancel_u2c.cancelled() => break,
-                msg = upstream_stream.next() => {
-                    let Some(msg) = msg else { break };
+                next = tokio::time::timeout(idle_timeout, upstream_stream.next()) => {
+                    let msg = match next {
+                        Ok(Some(msg)) => msg,
+                        Ok(None) => break,
+                        Err(_) => {
+                            if u2c_activity
+                                .lock()
+                                .expect("ws activity timestamp mutex poisoned")
+                                .elapsed()
+                                < idle_timeout
+                            {
+                                continue;
+                            }
+                            tracing::info!(
+                                request_id = %u2c_request_id,
+                                path = %u2c_path,
+                                timeout_s = idle_timeout.as_secs(),
+                                "ws upstream side idle timeout"
+                            );
+                            break;
+                        }
+                    };
                     let m = match msg { Ok(m) => m, Err(_) => break };
+                    *u2c_activity
+                        .lock()
+                        .expect("ws activity timestamp mutex poisoned") = Instant::now();
                     let ax = match tg_to_ax(m) { Some(ax) => ax, None => continue };
                     let close = matches!(ax, AxMsg::Close(_));
                     if client_sink.send(ax).await.is_err() { break; }

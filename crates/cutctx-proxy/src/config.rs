@@ -208,6 +208,16 @@ pub struct CliArgs {
     #[arg(long, default_value = "10s", value_parser = parse_duration)]
     pub upstream_connect_timeout: Duration,
 
+    /// Maximum period with no traffic in either direction for a proxied
+    /// WebSocket. Idle connections are closed to avoid retaining zombies.
+    #[arg(
+        long,
+        env = "CUTCTX_PROXY_WS_IDLE_TIMEOUT",
+        default_value = "300s",
+        value_parser = parse_duration
+    )]
+    pub websocket_idle_timeout: Duration,
+
     /// Max body size for buffered cases (does NOT bound streaming bodies).
     /// Reduced from 100MB to 50MB to limit memory pressure from
     /// image-heavy or adversarial requests.
@@ -717,6 +727,7 @@ pub struct Config {
     pub upstream: Url,
     pub upstream_timeout: Duration,
     pub upstream_connect_timeout: Duration,
+    pub websocket_idle_timeout: Duration,
     pub max_body_bytes: u64,
     pub log_level: String,
     pub rewrite_host: bool,
@@ -820,6 +831,7 @@ impl Config {
             upstream: args.upstream,
             upstream_timeout: args.upstream_timeout,
             upstream_connect_timeout: args.upstream_connect_timeout,
+            websocket_idle_timeout: args.websocket_idle_timeout,
             max_body_bytes: args.max_body_bytes,
             log_level: args.log_level,
             rewrite_host,
@@ -864,6 +876,7 @@ impl Config {
             upstream,
             upstream_timeout: Duration::from_secs(60),
             upstream_connect_timeout: Duration::from_secs(5),
+            websocket_idle_timeout: Duration::from_secs(300),
             max_body_bytes: 100 * 1024 * 1024,
             log_level: "warn".into(),
             rewrite_host: true,
