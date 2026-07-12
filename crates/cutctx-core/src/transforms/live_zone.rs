@@ -102,6 +102,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 use super::audio_compressor::{compress_audio, looks_like_audio_base64};
+use super::code_compactor::compact_source_code;
 use super::content_detector::{detect_content_type, ContentType};
 use super::diff_compressor::{DiffCompressor, DiffCompressorConfig};
 use super::image_compressor::{compress_image, looks_like_image_base64};
@@ -121,6 +122,9 @@ const STRATEGY_LOG_COMPRESSOR: &str = "log_compressor";
 const STRATEGY_SEARCH_COMPRESSOR: &str = "search_compressor";
 /// Strategy tag emitted when DiffCompressor rewrote a unified-diff block.
 const STRATEGY_DIFF_COMPRESSOR: &str = "diff_compressor";
+/// Strategy tag emitted when conservative source-code compaction removes
+/// standalone comments and redundant blank lines.
+const STRATEGY_CODE_COMPACTOR: &str = "code_compactor";
 
 /// Empty query context passed to compressors that take a relevance
 /// query string. PR-B3 dispatcher does not yet plumb the user's last
@@ -160,10 +164,7 @@ const THRESHOLD_BUILD_OUTPUT: usize = 512;
 const THRESHOLD_SEARCH_RESULTS: usize = 512;
 /// Git-diff blocks below this size route to no-op.
 const THRESHOLD_GIT_DIFF: usize = 512;
-/// Source-code blocks below this size route to no-op. Pinned
-/// for the future Rust code-compressor port — currently unused
-/// because `ContentType::SourceCode` short-circuits to no-op above
-/// the dispatch (see `dispatch_compressor`).
+/// Source-code blocks below this size route to no-op.
 const THRESHOLD_SOURCE_CODE: usize = 512;
 /// Plain-text blocks below this size route to no-op. Pinned
 /// for the future Kompress wiring (PR-B7 follow-up); currently unused.
@@ -1539,7 +1540,7 @@ enum DispatchResult {
 /// - `BuildOutput` → LogCompressor
 /// - `SearchResults` → SearchCompressor
 /// - `GitDiff` → DiffCompressor
-/// - `SourceCode` → no-op (Rust port pending; see TODO below)
+/// - `SourceCode` → conservative comment/whitespace compaction
 /// - `PlainText` → no-op (PR-B4 wires Kompress)
 /// - `Html` → no-op (no compressor)
 fn dispatch_compressor(text: &str, content_type: ContentType) -> DispatchResult {
@@ -1602,13 +1603,18 @@ fn dispatch_compressor(text: &str, content_type: ContentType) -> DispatchResult 
                 compressed: result.compressed,
             }
         }
-        // TODO(PR-B4 / Rust code-compressor port): Python has a
-        // CodeAwareCompressor; the Rust port is not yet shipped. Once
-        // that crate lands, `ContentType::SourceCode` routes here
-        // exactly as the others above.
-        ContentType::SourceCode => DispatchResult::NoOp {
-            content_type: content_type.as_str(),
-        },
+        ContentType::SourceCode => {
+            let compressed = compact_source_code(text);
+            if compressed == text {
+                return DispatchResult::NoOp {
+                    content_type: content_type.as_str(),
+                };
+            }
+            DispatchResult::Compressed {
+                strategy: STRATEGY_CODE_COMPACTOR,
+                compressed,
+            }
+        }
         // TODO(PR-B4): wire Kompress (lossless prose compressor) for
         // PlainText. For now, leave untouched.
         ContentType::PlainText => DispatchResult::NoOp {
@@ -1836,6 +1842,51 @@ mod tests {
         for o in [&payg, &oauth, &sub] {
             assert!(matches!(o, LiveZoneOutcome::NoChange { .. }));
         }
+    }
+
+    #[test]
+    fn source_code_dispatch_removes_standalone_comments_without_touching_code() {
+        let source = "# documentation\n\ndef render(value):\n    # implementation note\n    return value + 1\n";
+
+        match dispatch_compressor(source, ContentType::SourceCode) {
+            DispatchResult::Compressed {
+                strategy,
+                compressed,
+            } => {
+                assert_eq!(strategy, STRATEGY_CODE_COMPACTOR);
+                assert_eq!(compressed, "\ndef render(value):\n    return value + 1\n");
+            }
+            _ => panic!("expected source-code compaction"),
+        }
+    }
+
+    #[test]
+    fn live_zone_compacts_large_source_code_blocks() {
+        let comments = "    # explanatory implementation detail\n".repeat(32);
+        let source = format!(
+            "import os\nfrom typing import Any\n\nclass Renderer:\n    def render(self, value: Any):\n{comments}        return value + 1\n\n\ndef helper():\n    return Renderer().render(1)\n"
+        );
+        let b = body(json!({
+            "messages": [{
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": "t", "content": source}],
+            }]
+        }));
+
+        let out = compress_anthropic_live_zone(&b, 0, AuthMode::Payg, DEFAULT_MODEL).unwrap();
+        let manifest = match &out {
+            LiveZoneOutcome::Modified { manifest, .. } => manifest,
+            LiveZoneOutcome::NoChange { .. } => panic!("expected source-code live-zone rewrite"),
+        };
+        assert!(manifest.block_outcomes.iter().any(|outcome| {
+            matches!(
+                outcome.action,
+                BlockAction::Compressed {
+                    strategy: STRATEGY_CODE_COMPACTOR,
+                    ..
+                }
+            )
+        }));
     }
 
     #[test]
