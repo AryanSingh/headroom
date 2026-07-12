@@ -91,6 +91,15 @@ def test_volatile_uuid_detected_warned_not_rewritten(tokenizer: Tokenizer) -> No
     assert any("uuid" in rec.lower() for rec in records)
 
 
+def test_detector_only_apply_returns_original_messages_without_copy(tokenizer: Tokenizer) -> None:
+    messages = _system_user_messages("You are a helpful assistant.")
+
+    result = CacheAligner(CacheAlignerConfig(enabled=True)).apply(messages, tokenizer)
+
+    assert result.messages is messages
+    assert result.messages[0] is messages[0]
+
+
 def test_volatile_iso8601_detected_warned(tokenizer: Tokenizer) -> None:
     system_text = "You are a logging assistant.\nCurrent time: 2024-01-15T10:30:00\nHelp the user."
     messages = _system_user_messages(system_text)
