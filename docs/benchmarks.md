@@ -258,10 +258,10 @@ This gives us one deterministic, zero-API-cost proof artifact for the local guar
 Fresh local run on **2026-07-09**:
 
 ```bash
-rtk ./.venv/bin/python -m cutctx.cli verify --ci --format json -o verify-report.json
+rtk ./.venv/bin/python -m cutctx.cli verify --ci --format json -o artifacts/verify-report-release.json
 ```
 
-Observed from [`verify-report.json`](../verify-report.json):
+Observed from [`verify-report-release.json`](../artifacts/verify-report-release.json):
 
 - Dataset: `tool_outputs`
 - Compressors: `content_router`, `smart_crusher`

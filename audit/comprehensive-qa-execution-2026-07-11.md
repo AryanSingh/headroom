@@ -52,7 +52,7 @@ GPT-5.4 Mini utilization rate: not measurable from this Codex session. The test 
 | E-015 | PASS | rtk uv run ruff check cutctx tests --exclude cutctx/proxy/server.py | All non-server Python lint checks pass after remediation. |
 | E-016 | FAIL | rtk uv run ruff check cutctx tests --statistics | 197 findings remain: 191 F821, 3 F401, 2 F601, 1 I001, all attributable to cutctx/proxy/server.py. |
 | E-017 | PASS | Targeted pytest bundle after lint remediation | 177 passed, 2 warnings across content router, dashboard regression, routing, Codex subscription compatibility, orchestration, workflow, and global-routing CLI tests. |
-| E-018 | PASS | git check-ignore --no-index node_modules/.package-lock.json tmp2.txt verify-report.json | New ignore guardrails match root node_modules, tmp*.txt, and verify-report artifacts. |
+| E-018 | PASS | git check-ignore --no-index node_modules/.package-lock.json tmp2.txt artifacts/verify-report-release.json | New ignore guardrails match root node_modules, tmp*.txt, and archived verify-report artifacts. |
 | E-019 | FAIL | git ls-files node_modules \\| wc -l | 2,172 node_modules paths are still tracked and require a deliberate cleanup commit. |
 | E-020 | PASS | rtk uv run ruff check cutctx tests --statistics | Full Python lint gate passes after retiring the stale private legacy server builder. |
 | E-021 | PASS | py_compile + runtime create_app smoke | cutctx/proxy/server.py compiles; create_app(ProxyConfig()) returns FastAPI with 229 routes; _create_app_legacy now fails loudly with '_create_app_legacy is retired; use create_app instead'. |
@@ -295,7 +295,7 @@ Confirmed cleanup candidates requiring atomic follow-up:
 |---|---|---|---|---|---|---|
 | Tracked node_modules | dependency artifact | repository root | Package-manager output should not normally be versioned | E-027 | Resolved | Removed from git; lockfiles remain; .gitignore blocks recurrence |
 | Root temp files and helper scripts | temp outputs | tmp*.txt, fix_*.py, get_stats.py, patch_overview.js, print_dom.py, run_test.py, scratch.js, test_playwright.py, update_overview.py | Unreferenced scratch/one-off outputs | E-027 | Resolved | Removed after reference search; .gitignore blocks tmp*.txt recurrence |
-| Root verify reports | generated reports | verify-report.json, verify-report.md | Generated evidence likely stale | E-013 | Medium if docs/tests consume them | Reference search and regenerate from canonical script |
+| Archived verify reports | generated reports | artifacts/verify-report-release.json, artifacts/verify-report-release.md | Generated evidence retained in artifacts | E-013 | Low | Root copies removed; regenerate from canonical script if freshness is required |
 | Local DBs | local state | cutctx_audit.db, cutctx_memory.db, cutctx_memory_vectors.db, spend_ledger.db | Local runtime state in repo root | Directory listing | High if fixtures; critical if real data | Scan for sensitive data and fixture references before action |
 | Hashed dashboard assets | generated build artifact | cutctx/dashboard/assets/index-*.js | Hash churn; one old asset deleted and new untracked asset present | Git status/diff | Medium; embedded dashboard may rely on exact asset | Ensure build/copy script owns asset lifecycle |
 

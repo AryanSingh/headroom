@@ -196,17 +196,10 @@ class OpenAIChatMixin:
                     request_id,
                     ", ".join(lite_stripped_fields),
                 )
-        reasoning_override = (
-            (request_savings_metadata or {}).get("model_routing", {}).get("request_overrides", {}).get("reasoning")
-        )
-        if isinstance(reasoning_override, dict):
-            existing_reasoning = body.get("reasoning")
-            if isinstance(existing_reasoning, dict):
-                merged_reasoning = dict(existing_reasoning)
-                merged_reasoning.update(reasoning_override)
-                body["reasoning"] = merged_reasoning
-            else:
-                body["reasoning"] = dict(reasoning_override)
+        # Chat-completions upstreams reject the Responses-only reasoning
+        # request override, so we intentionally do not forward it here.
+        # The routing decision still applies; only the transport-incompatible
+        # hint is dropped.
         original_client_messages = copy.deepcopy(messages)
         input_event = self.pipeline_extensions.emit(
             PipelineStage.INPUT_RECEIVED,

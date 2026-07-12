@@ -8,9 +8,9 @@ This packet records current verified evidence for the best-in-class roadmap. It 
 
 ### Compression Verification
 
-Source artifacts: `verify-report.md` / `verify-report.json`
+Source artifacts: `artifacts/verify-report-release.md` / `artifacts/verify-report-release.json`
 
-- Command: `cutctx verify --ci --format json -o verify-report.json`
+- Command: `cutctx verify --ci --format json -o artifacts/verify-report-release.json`
 - Status: PASS
 - Dataset: `tool_outputs`
 - Compressors: `content_router`, `smart_crusher`

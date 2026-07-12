@@ -68,6 +68,33 @@ class _RecordingTracker:
         return list(self._last_forwarded)
 
 
+class _RecordingBackend:
+    def __init__(self, provider: str = "openai") -> None:
+        self.provider = provider
+        self.name = f"anyllm-{provider}"
+        self.last_body: dict | None = None
+
+    async def send_openai_message(self, body: dict, headers: dict[str, str]) -> BackendResponse:
+        self.last_body = dict(body)
+        return BackendResponse(
+            body={
+                "id": "chatcmpl-recording-1",
+                "object": "chat.completion",
+                "model": body.get("model"),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "ok"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+            status_code=200,
+            headers={"content-type": "application/json"},
+        )
+
+
 def _make_config() -> ProxyConfig:
     return ProxyConfig(
         optimize=False,
@@ -365,3 +392,27 @@ def test_backend_streaming_passes_prefix_tracker_through():
         "_stream_openai_via_backend must accept optimized_messages so the "
         "tracker can record the messages that were sent"
     )
+
+
+def test_chat_completion_routed_to_mini_drops_reasoning_override():
+    config = _make_config()
+    config.model_routing_preset = "codex-gpt54mini-high"
+
+    recording_backend = _RecordingBackend()
+    with patch("cutctx.proxy.server.AnyLLMBackend", return_value=recording_backend):
+        app = create_app(config)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "gpt-5.6-sol",
+                    "messages": [{"role": "user", "content": "What is 2+2?"}],
+                    "stream": False,
+                },
+                headers={"Authorization": "Bearer test-key"},
+            )
+
+    assert resp.status_code == 200, resp.text
+    assert recording_backend.last_body is not None
+    assert recording_backend.last_body["model"] == "gpt-5.4-mini"
+    assert "reasoning" not in recording_backend.last_body

@@ -89,6 +89,8 @@ jobs:
         run: ruff format --check .
       - name: mypy
         run: mypy cutctx --ignore-missing-imports
+      - name: repo hygiene
+        run: python scripts/check_repo_hygiene.py
 
   build-wheel:
     needs: changes
