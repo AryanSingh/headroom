@@ -645,11 +645,13 @@ pre {
   color: #fff;
   font-weight: 700;
   transform: translateY(-200%);
+  pointer-events: none;
   transition: transform 0.15s ease;
 }
 
 .skip-link:focus-visible {
   transform: translateY(0);
+  pointer-events: auto;
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -2384,12 +2386,14 @@ OVERVIEW: TREND CHART
     width: var(--sidebar-width);
     z-index: 100;
     transform: translateX(-100%);
+    pointer-events: none;
     transition: transform 0.3s ease, background-color 0.3s ease;
     box-shadow: var(--shadow-lg);
   }
 
   .sidebar-shell.open {
     transform: translateX(0);
+    pointer-events: auto;
   }
 
   .sidebar-overlay {
