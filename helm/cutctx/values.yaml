@@ -117,6 +117,13 @@ service:
   port: 80
   targetPort: 8787
 
+# ── Prometheus Operator ───────────────────────────────────────────────
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  additionalLabels: {}
+
 # ── Ingress ───────────────────────────────────────────────────────────
 ingress:
   enabled: false
