@@ -413,11 +413,17 @@ class TestStripeWebhook:
                         "customer": "cus_test",
                         "customer_email": "test@example.com",
                         "metadata": {"tier": "team", "seats": "5"},
+                        "line_items": {
+                            "data": [{"price": {"id": "price_team_test"}, "quantity": 5}]
+                        },
                     }
                 },
             }
-            result = handle_event(event)
-            assert result["ok"] is True
+            from cutctx_ee.billing.stripe_webhook import PRICE_TO_TIER
+
+            with patch.dict(PRICE_TO_TIER, {"price_team_test": "team"}, clear=True):
+                result = handle_event(event)
+                assert result["ok"] is True
 
     def test_handle_event_unknown(self):
         from cutctx_ee.billing.stripe_webhook import handle_event

@@ -105,18 +105,16 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
     PRICE_TO_TIER) — NOT from session.metadata.tier, which the client
     controls in the Stripe Checkout UI. Reading tier from metadata lets
     an attacker self-assign enterprise tier by manipulating the
-    Checkout form's hidden field. The metadata.tier field is kept only
-    for the *seats* count, which Stripe does not let a client spoof
-    (seats are determined by the line item quantity).
+    Checkout form's hidden field. Seat count is likewise derived from
+    the matched line-item quantity; checkout metadata is never an
+    authorization source.
     """
     session = event_data["object"]
     customer_id = session["customer"]
     subscription_id = session.get("subscription", "")
-    metadata = session.get("metadata", {})
     email = session.get("customer_details", {}).get("email", "")
 
-    tier = _resolve_tier_from_session(session)
-    seats = int(metadata.get("seats", 5))
+    tier, seats = _resolve_plan_from_session(session)
 
     key = generate_license_key(tier, customer_id)
     now = time.time()
@@ -137,13 +135,13 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
     return record
 
 
-def _resolve_tier_from_session(session: dict[str, Any]) -> str:
-    """Resolve tier from Stripe session via Price ID lookup.
+def _resolve_plan_from_session(session: dict[str, Any]) -> tuple[str, int]:
+    """Resolve tier and seats from a trusted Stripe line item.
 
-    Returns the first tier that matches a price ID on the session's
-    line_items. Falls back to "team" only when no price ID matches AND
-    no metadata is present (this is the test/dev path; production
-    deployments must configure STRIPE_PRICE_* env vars).
+    Returns the first tier that matches a configured price ID on the
+    session's line_items. Unknown or absent prices fail closed: issuing
+    even the cheapest paid license without a verified purchase would
+    still be an authorization bypass.
 
     NEVER trust session.metadata.tier — see handle_checkout_completed
     for the attack model.
@@ -161,10 +159,17 @@ def _resolve_tier_from_session(session: dict[str, Any]) -> str:
             continue
         tier = PRICE_TO_TIER.get(price_id)
         if tier:
-            return tier
-    # No matching price ID; default conservatively to "team" (cheapest tier)
-    # rather than honoring client-controlled metadata.
-    return "team"
+            try:
+                seats = int(item.get("quantity", 1))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Stripe line-item quantity must be an integer") from exc
+            if seats < 1:
+                raise ValueError("Stripe line-item quantity must be at least 1")
+            return tier, seats
+    raise ValueError(
+        "Checkout session has no recognized Stripe price ID; "
+        "configure STRIPE_PRICE_TEAM/BUSINESS/ENTERPRISE and expand line_items"
+    )
 
 
 def handle_subscription_deleted(event_data: dict[str, Any]) -> None:
@@ -181,8 +186,7 @@ def handle_subscription_updated(event_data: dict[str, Any]) -> None:
     Extracts the first matching price ID from the subscription items,
     resolves the tier from PRICE_TO_TIER, reads the seat count from
     the item quantity, and updates the corresponding license record.
-    Falls back to "team" with 5 seats if no price ID matches (the same
-    conservative default used by _resolve_tier_from_session).
+    Unknown prices fail closed and leave the existing license unchanged.
     """
     subscription = event_data["object"]
     sub_id = subscription["id"]
@@ -206,11 +210,9 @@ def handle_subscription_updated(event_data: dict[str, Any]) -> None:
             break
 
     if tier is None:
-        logger.warning(
-            "Subscription %s: no matching price ID in items, defaulting tier=team seats=5",
-            sub_id,
+        raise ValueError(
+            f"Subscription {sub_id} has no recognized Stripe price ID; refusing tier update"
         )
-        tier = "team"
 
     db = _get_db()
     record = db.get_by_subscription_id(sub_id)
