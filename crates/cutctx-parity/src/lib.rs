@@ -612,6 +612,47 @@ impl TransformComparator for AdaptiveSizerComparator {
     }
 }
 
+/// Real comparator for AnchorSelector's default configuration. Fixtures encode
+/// `{items, max_items, pattern, query}` and return the sorted selected indices,
+/// matching Python's recorder serialization of its `set[int]` result.
+pub struct AnchorSelectorComparator;
+
+impl TransformComparator for AnchorSelectorComparator {
+    fn name(&self) -> &str {
+        "anchor_selector"
+    }
+
+    fn run(
+        &self,
+        input: &serde_json::Value,
+        _config: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        use cutctx_core::transforms::anchor_selector::{AnchorConfig, AnchorSelector, DataPattern};
+
+        let object = input
+            .as_object()
+            .context("anchor_selector fixture input must be an object")?;
+        let items = object
+            .get("items")
+            .and_then(|value| value.as_array())
+            .context("anchor_selector fixture input.items must be an array")?;
+        let max_items = object
+            .get("max_items")
+            .and_then(|value| value.as_u64())
+            .context("anchor_selector fixture input.max_items must be an integer")?
+            as usize;
+        let pattern = object
+            .get("pattern")
+            .and_then(|value| value.as_str())
+            .map(DataPattern::from_string)
+            .unwrap_or(DataPattern::Generic);
+        let query = object.get("query").and_then(|value| value.as_str());
+        let selector = AnchorSelector::new(AnchorConfig::default());
+        let anchors = selector.select_anchors(items, max_items, pattern, query);
+        Ok(serde_json::json!(anchors.into_iter().collect::<Vec<_>>()))
+    }
+}
+
 /// Every built-in comparator, in a stable order.
 pub fn builtin_comparators() -> Vec<Box<dyn TransformComparator>> {
     vec![
@@ -623,6 +664,7 @@ pub fn builtin_comparators() -> Vec<Box<dyn TransformComparator>> {
         Box::new(SmartCrusherComparator),
         Box::new(ContentDetectorComparator),
         Box::new(AdaptiveSizerComparator),
+        Box::new(AnchorSelectorComparator),
     ]
 }
 
