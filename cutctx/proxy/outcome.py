@@ -86,6 +86,25 @@ def _models_equivalent(actual: Any, expected: Any) -> bool:
     )
 
 
+def _summarize_transforms(transforms: list[str]) -> str:
+    """Collapse repeated transform labels without importing cost tracking.
+
+    Outcome emission runs in streaming and WebSocket completion paths. The
+    cost module has optional provider-facing dependencies, so importing it in
+    this hot path can stall completion while those dependencies initialize.
+    """
+
+    if not transforms:
+        return "none"
+    counts: dict[str, int] = {}
+    for transform in transforms:
+        counts[transform] = counts.get(transform, 0) + 1
+    return " ".join(
+        f"{transform}*{count}" if count > 1 else transform
+        for transform, count in counts.items()
+    )
+
+
 @dataclass(frozen=True)
 class RequestOutcome:
     """Immutable, value-equal snapshot of a completed request.
@@ -466,6 +485,31 @@ def _build_savings_breakdown(
     ``semantic_cache_avoided_tokens``, etc.) and let the funnel do the
     merge.
     """
+    # A protocol-only response event can legitimately have no usage, savings,
+    # or request payload (for example a bare ``response.completed`` frame on
+    # a Codex WebSocket). Do not cold-import the savings package just to
+    # construct an all-zero breakdown; callers receive the same empty maps
+    # and no cost-ledger entry would be emitted for it.
+    if (
+        outcome.original_tokens == 0
+        and outcome.optimized_tokens == 0
+        and outcome.output_tokens == 0
+        and outcome.tokens_saved == 0
+        and outcome.cache_read_tokens == 0
+        and outcome.cache_write_tokens == 0
+        and outcome.semantic_cache_avoided_tokens == 0
+        and outcome.self_hosted_prefix_cache_hits == 0
+        and outcome.model_routing_tokens_saved == 0
+        and outcome.model_routing_usd_saved == 0
+        and outcome.memoization_tokens_saved == 0
+        and outcome.memoization_hits == 0
+        and outcome.output_optimization_tokens_saved == 0
+        and outcome.batch_routing_tokens_saved == 0
+        and outcome.batch_routing_usd_saved == 0
+        and not outcome.savings_metadata
+    ):
+        return {}, {}, None
+
     from cutctx.savings import (
         RequestSavingsBreakdown,
         SavingsSource,
@@ -718,10 +762,6 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     and is awaitable-compatible. We could lift this to a typing.Protocol
     if/when another contract surface emerges, but YAGNI.
     """
-    from cutctx.proxy.cost import _summarize_transforms
-    from cutctx.proxy.models import RequestLog
-    from cutctx.proxy.project_context import get_current_project
-
     # Audit-Deep-2026-06-21 Blocker 1: when the ModelRouter is enabled
     # and a routing decision was made (signaled by savings_metadata carrying
     # a "model_routing" entry with target_model), populate the typed
@@ -796,7 +836,13 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
 
     # Project attribution: explicit outcome field wins, else the value the
     # HTTP middleware / WS accept captured from ``X-Cutctx-Project``.
-    project = outcome.project or get_current_project()
+    project = outcome.project
+    if project is None:
+        # Defer request-attribution imports from the stream-completion hot
+        # path until middleware attribution is actually needed.
+        from cutctx.proxy.project_context import get_current_project
+
+        project = get_current_project()
 
     # Phase 1.3 + 1.4: build the unified savings breakdown once so
     # both step 1 (Prometheus / SavingsTracker persistence) and
@@ -1037,6 +1083,10 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             )
 
     if request_logger is not None:
+        # RequestLog imports optional provider-facing configuration. It is
+        # only needed when per-request persistence is enabled.
+        from cutctx.proxy.models import RequestLog
+
         routing_meta = None
         model_routing_meta = (outcome.savings_metadata or {}).get("model_routing") or {}
         if isinstance(model_routing_meta, dict) and model_routing_meta:
