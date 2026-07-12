@@ -2161,6 +2161,7 @@ class StreamingMixin:
         async def generate():
             stream_state: dict[str, Any] = {
                 "sse_buffer": bytearray(),
+                "ttfb_ms": None,
                 "input_tokens": None,
                 "output_tokens": None,
                 "cache_read_input_tokens": None,
@@ -2186,6 +2187,8 @@ class StreamingMixin:
 
             try:
                 async for sse_chunk in backend.stream_openai_message(body, headers):
+                    if stream_state["ttfb_ms"] is None:
+                        stream_state["ttfb_ms"] = (time.time() - start_time) * 1000
                     chunk_bytes = sse_chunk.encode() if isinstance(sse_chunk, str) else sse_chunk
                     stream_state["sse_buffer"].extend(chunk_bytes)
                     full_sse_bytes.extend(chunk_bytes)
@@ -2323,6 +2326,7 @@ class StreamingMixin:
                     cache_write_tokens=cache_write_tokens,
                     uncached_input_tokens=uncached_input_tokens,
                     cache_inferred=cache_inferred,
+                    ttfb_ms=stream_state["ttfb_ms"] or total_latency,
                     pipeline_timing=pipeline_timing,
                     waste_signals=waste_signals,
                     savings_metadata=savings_metadata,
