@@ -67,6 +67,12 @@ class TestExtractSymbolNames:
         names = extract_symbol_names("fix `process_payment` and `process_payment`")
         assert names == ["process_payment"]
 
+    def test_order_and_cap_are_deterministic(self) -> None:
+        """The twenty-symbol safety cap retains highest-confidence order."""
+        symbols = [f"symbol_{index}" for index in range(25)]
+        query = " ".join(f"`{symbol}`" for symbol in symbols)
+        assert extract_symbol_names(query) == symbols[:20]
+
     def test_mixed_patterns(self) -> None:
         """Mixed backtick, snake_case, and CamelCase are all extracted."""
         names = extract_symbol_names(
