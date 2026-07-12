@@ -229,6 +229,7 @@ cutctx proxy --learn --min-evidence 3
 |----------|-------------|---------|
 | `CUTCTX_HOST` | Proxy bind host | `127.0.0.1` |
 | `CUTCTX_PORT` | Proxy bind port | `8787` |
+| `CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE` | Failed admin/SSO authentication attempts permitted per client IP each minute. Set to `0` only to disable this brute-force guard. | `10` |
 | `CUTCTX_MODE` | Proxy optimization mode: `token` or `cache` | `token` |
 | `CUTCTX_DETERMINISTIC_MODE` | Alias for disabling the ML compressor (`--deterministic`) | `false` |
 | `CUTCTX_WORKERS` | Uvicorn worker count | `1` |
