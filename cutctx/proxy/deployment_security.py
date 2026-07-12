@@ -32,10 +32,14 @@ def is_loopback_host(host: str | None) -> bool:
 
 
 def has_configured_sso(config: Any) -> bool:
-    """Return whether the proxy has enough identity configuration for admin auth."""
+    """Return whether the proxy has enough identity configuration for admin auth.
+
+    ``SsoConfig.from_proxy_config`` enables JWT validation from its concrete
+    issuer/JWKS/audience fields. Treating a separate convenience boolean as a
+    mandatory gate would leave those deployments' admin routes unauthenticated.
+    """
     return bool(
-        getattr(config, "sso_enabled", False)
-        and getattr(config, "sso_jwks_uri", None)
+        getattr(config, "sso_jwks_uri", None)
         and getattr(config, "sso_issuer", None)
         and getattr(config, "sso_audience", None)
     )

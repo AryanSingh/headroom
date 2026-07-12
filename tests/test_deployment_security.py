@@ -45,6 +45,18 @@ def test_non_loopback_accepts_complete_sso(monkeypatch) -> None:
     )
 
 
+def test_non_loopback_accepts_complete_sso_without_redundant_enabled_flag(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    require_secure_deployment(
+        ProxyConfig(
+            host="0.0.0.0",
+            sso_jwks_uri="https://idp.example.test/jwks",
+            sso_issuer="https://idp.example.test/",
+            sso_audience="cutctx",
+        )
+    )
+
+
 def test_non_loopback_rejects_wildcard_cors_even_with_auth(monkeypatch) -> None:
     monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
     with pytest.raises(DeploymentSecurityError, match="Wildcard CORS"):
