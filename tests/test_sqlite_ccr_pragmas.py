@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 
 import pytest
 
@@ -38,6 +39,30 @@ def test_ccr_backend_stamps_schema_version(tmp_path) -> None:
     backend = SqliteBackend(str(tmp_path / "ccr-version.db"))
     with backend._get_conn() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+
+
+def test_ccr_backend_reuses_connection_per_thread_and_closes_explicitly(tmp_path) -> None:
+    backend = SqliteBackend(str(tmp_path / "ccr-reuse.db"))
+
+    first = backend._get_conn()
+    assert backend._get_conn() is first
+
+    worker_connection_ids: list[int] = []
+
+    def capture_connection() -> None:
+        worker_connection_ids.append(id(backend._get_conn()))
+        backend.close()
+
+    worker = threading.Thread(target=capture_connection)
+    worker.start()
+    worker.join()
+
+    assert len(worker_connection_ids) == 1
+    assert worker_connection_ids[0] != id(first)
+
+    backend.close()
+    replacement = backend._get_conn()
+    assert replacement is not first
 
 
 def test_schema_guard_rejects_database_from_newer_runtime() -> None:
