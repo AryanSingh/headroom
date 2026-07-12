@@ -768,6 +768,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#compatibility-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#all-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2377,6 +2388,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#compatibility-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#all-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2753,6 +2775,16 @@
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Kompress (ModernBERT). See `wiki/transforms.md` for the current</span>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># opt-in path via the `[ml]` extra.)</span>
 </span></code></pre></div>
+<h3 id="compatibility-aliases">Compatibility aliases<a class="headerlink" href="#compatibility-aliases" title="Permanent link">&para;</a></h3>
+<p>Cutctx still accepts a few legacy mode aliases for backward compatibility.
+They normalize to the canonical <code>token</code> / <code>cache</code> values:</p>
+<ul>
+<li><code>token_mode</code></li>
+<li><code>token_savings</code></li>
+<li><code>cost_savings</code></li>
+<li><code>cache_mode</code></li>
+<li><code>token_cutctx</code></li>
+</ul>
 <h3 id="all-options">All Options<a class="headerlink" href="#all-options" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cutctx<span class="w"> </span>proxy<span class="w"> </span>--help
 </span></code></pre></div>
@@ -2964,6 +2996,9 @@ backends are opt-in.</p>
 </tr>
 </tbody>
 </table>
+<p>| CUTCTX_TOOL_INJECTION_STICKY | Controls session-sticky memory tool replay. enabled keeps injected memory tool bytes stable for the rest of the session; disabled reverts to explicit per-turn injection for diagnostics or rollback. | enabled |
+| CUTCTX_TOOL_TRACKER_MAX_SESSIONS | Maximum number of sticky-memory sessions kept in the bounded LRU tracker before the oldest session is evicted. | 1000 |
+| CUTCTX_TOOL_TRACKER_PATH | Optional JSON persistence path for sticky-memory session state. Defaults under the workspace dir when unset. | derived from CUTCTX_WORKSPACE_DIR |</p>
 <h2 id="filesystem-contract">Filesystem Contract<a class="headerlink" href="#filesystem-contract" title="Permanent link">&para;</a></h2>
 <p>Cutctx resolves every on-disk resource through a two-root model:</p>
 <ul>

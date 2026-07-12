@@ -955,6 +955,23 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard surface">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
@@ -2403,6 +2420,23 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard surface">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
@@ -2820,6 +2854,14 @@ Set <code>CUTCTX_SAVINGS_PATH</code> to override the location directly, or set
 <a href="../filesystem-contract/">Filesystem Contract</a>.</p>
 <p><code>/dashboard</code> uses this endpoint directly for its historical view, including the
 daily/weekly/monthly rollups and built-in JSON / CSV export buttons.</p>
+<h2 id="dashboard-surface">Dashboard surface<a class="headerlink" href="#dashboard-surface" title="Permanent link">&para;</a></h2>
+<p>The production dashboard is mounted at <code>/dashboard</code>, and the React app also
+accepts the legacy <code>/admin</code> basename when it is embedded behind that path.
+The dashboard refreshes stats every 5 seconds, history every 60 seconds, and
+the request feed every 5 seconds while that panel is open.</p>
+<p>The dashboard bundle includes a commented-out production obfuscation hook in
+<code>dashboard/vite.config.js</code>. In the current build, source maps are disabled but
+the obfuscator plugin is not active.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>curl<span class="w"> </span><span class="s2">&quot;http://localhost:8787/stats-history?format=csv&amp;series=weekly&quot;</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>curl<span class="w"> </span><span class="s2">&quot;http://localhost:8787/stats-history?format=csv&amp;series=monthly&quot;</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>curl<span class="w"> </span><span class="s2">&quot;http://localhost:8787/stats-history?history_mode=full&quot;</span>
