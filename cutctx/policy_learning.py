@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Any
 
 from cutctx.hooks import CompressContext, CompressionHooks
+from cutctx.storage.sqlite_schema import stamp_schema_version
 
 DEFAULT_DB_PATH = Path("~/.cutctx/policies.db")
 _DB_ENV = "CUTCTX_POLICIES_DB"
 _MIN_POLICY_BIAS = 0.5
 _MAX_POLICY_BIAS = 1.5
+_SCHEMA_VERSION = 1
 _AGGRESSIVENESS_BIAS = {
     "aggressive": 0.75,
     "balanced": 1.0,
@@ -95,6 +97,8 @@ def init_db(path: Path | None = None) -> Path:
             )
             """
         )
+        stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="learned policy store")
+        conn.commit()
     return db_path
 
 

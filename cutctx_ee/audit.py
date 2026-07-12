@@ -36,6 +36,9 @@ from pathlib import Path
 from typing import Any
 
 from cutctx import paths as _paths
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
 
 logger = logging.getLogger("cutctx.audit")
 
@@ -261,6 +264,7 @@ class AuditLogger:
                 ON audit_events(success);
             """
         )
+        stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="audit logger")
         conn.commit()
 
     def log(self, event: AuditEvent) -> None:

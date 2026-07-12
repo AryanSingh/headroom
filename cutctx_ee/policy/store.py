@@ -7,7 +7,10 @@ from typing import Any
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from cutctx.storage.sqlite_schema import stamp_sqlalchemy_schema_version
 from cutctx_ee.policy.models import Base, Policy
+
+_SCHEMA_VERSION = 1
 
 
 class PolicyStore:
@@ -16,6 +19,9 @@ class PolicyStore:
     def __init__(self, db_url: str):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
+        stamp_sqlalchemy_schema_version(
+            self.engine, expected=_SCHEMA_VERSION, store_name="policy store"
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def get_policy(

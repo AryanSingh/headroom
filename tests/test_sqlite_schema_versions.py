@@ -4,9 +4,12 @@ import sqlite3
 
 from cryptography.fernet import Fernet
 
+from cutctx.assurance import EvidenceLedger
+from cutctx.audit import AuditLogger
 from cutctx.cache.prefix_tracker import SessionTrackerStore
 from cutctx.fleet import FleetStore
 from cutctx.org import OrgStore
+from cutctx.policy_learning import init_db as init_policy_learning_db
 from cutctx.proxy.webhook_stores import WebhookDeadLetterStore, WebhookSubscriptionStore
 from cutctx.rbac import RbacAssignmentStore
 from cutctx.scim import ScimStore
@@ -16,6 +19,7 @@ from cutctx.telemetry.episodes import EpisodeStore
 from cutctx_ee.audit.store import AuditStore
 from cutctx_ee.ledger.store import LedgerStore
 from cutctx_ee.memory_service.store import MemoryStore
+from cutctx_ee.policy.store import PolicyStore
 
 
 def _user_version(path) -> int:
@@ -39,6 +43,10 @@ def test_operational_sqlite_stores_stamp_schema_version(tmp_path, monkeypatch) -
         "mfa": tmp_path / "mfa.db",
         "secrets": tmp_path / "secrets.db",
         "episodes": tmp_path / "episodes.db",
+        "assurance": tmp_path / "assurance.db",
+        "learned_policy": tmp_path / "learned-policy.db",
+        "audit_logger": tmp_path / "audit-logger.db",
+        "policy": tmp_path / "policy.db",
     }
 
     FleetStore(paths["fleet"])
@@ -58,5 +66,9 @@ def test_operational_sqlite_stores_stamp_schema_version(tmp_path, monkeypatch) -
         encryption_key=Fernet.generate_key(),
     )
     EpisodeStore(db_path=str(paths["episodes"]))
+    EvidenceLedger(path=paths["assurance"], hmac_key=b"schema-version-test")
+    init_policy_learning_db(paths["learned_policy"])
+    AuditLogger(db_path=paths["audit_logger"])
+    PolicyStore(f"sqlite:///{paths['policy']}")
 
     assert {name: _user_version(path) for name, path in paths.items()} == dict.fromkeys(paths, 1)
