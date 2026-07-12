@@ -29,7 +29,10 @@ import threading
 import time
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
 logger = logging.getLogger("cutctx.rbac")
+_SCHEMA_VERSION = 1
 
 
 class AdminRole(str, enum.Enum):
@@ -104,9 +107,10 @@ class RbacChecker:
     """Checks roles and permissions for admin endpoints.
 
     Resolution order for role:
-    1. X-Cutctx-Role header (explicit override, for testing)
-    2. X-Cutctx-User-Id header → lookup in org DB
-    3. Default: admin (backward-compatible when no RBAC configured)
+    1. Authenticated role stored on request.state by the auth layer
+    2. X-Cutctx-Role header when explicitly enabled for trusted proxy chaining
+    3. X-Cutctx-User-Id header → lookup in org DB
+    4. Default: viewer (fail-closed, read-only)
     """
 
     def __init__(
@@ -116,12 +120,10 @@ class RbacChecker:
     ):
         self._org_store = org_store
         self._assignments = role_assignments or {}
-        # Default role when no RBAC is configured
-        # CUTCTX_STRICT_RBAC=1 fails closed to VIEWER (read-only) instead of ADMIN
-        self._default_role = (
-            AdminRole.VIEWER if os.environ.get("CUTCTX_STRICT_RBAC") == "1"
-            else AdminRole.ADMIN
-        )
+        # Unknown or unauthenticated callers are read-only. The admin auth
+        # layer places ``cutctx_role=admin`` on requests that present the
+        # configured root key, while SSO places the asserted IdP role there.
+        self._default_role = AdminRole.VIEWER
 
     def resolve_role(self, request: Any) -> AdminRole:
         """Resolve the caller's role from the request.
@@ -140,10 +142,18 @@ class RbacChecker:
             except ValueError:
                 logger.debug("Invalid state role value: %s", state_role)
 
-        # 1. Explicit role header (testing / proxy chaining)
+        # 1. Explicit role header is dangerous on a directly exposed proxy:
+        # only honor it when an operator explicitly trusts an upstream proxy
+        # to set the header.
         role_header = getattr(request, "headers", {})
         explicit_role = role_header.get("x-cutctx-role", "").strip().lower()
-        if explicit_role:
+        allow_role_header = os.environ.get("CUTCTX_ALLOW_ROLE_HEADER", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if explicit_role and allow_role_header:
             try:
                 return AdminRole(explicit_role)
             except ValueError:
@@ -298,6 +308,8 @@ class RbacAssignmentStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="RBAC store")
+            conn.commit()
 
     def get(self, user_id: str) -> AdminRole | None:
         with self._lock:

@@ -21,6 +21,10 @@ enum Cmd {
         /// Only run this comparator (by transform name).
         #[arg(long)]
         only: Option<String>,
+        /// Permit skipped fixtures for this transform. Repeat for every
+        /// intentionally unsupported transform; all other skips fail the run.
+        #[arg(long = "allow-skipped-transform")]
+        allow_skipped_transforms: Vec<String>,
     },
     /// List the transforms the harness knows about.
     List,
@@ -35,8 +39,13 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Run { fixtures, only } => {
+        Cmd::Run {
+            fixtures,
+            only,
+            allow_skipped_transforms,
+        } => {
             let mut any_diffs = false;
+            let mut any_unexpected_skips = false;
             for comparator in builtin_comparators() {
                 if let Some(ref filt) = only {
                     if filt != comparator.name() {
@@ -55,6 +64,19 @@ fn main() -> Result<()> {
                 for (path, reason) in &report.skipped {
                     println!("  skipped {}: {}", path.display(), reason);
                 }
+                if !report.skipped.is_empty()
+                    && !allow_skipped_transforms
+                        .iter()
+                        .any(|name| name == comparator.name())
+                {
+                    any_unexpected_skips = true;
+                    eprintln!(
+                        "  ERROR: skipped fixtures are not allowed for {}; \
+                         pass --allow-skipped-transform {} only for an intentional gap",
+                        comparator.name(),
+                        comparator.name()
+                    );
+                }
                 for (path, expected, actual) in &report.diffed {
                     any_diffs = true;
                     println!("  DIFF {}", path.display());
@@ -62,7 +84,7 @@ fn main() -> Result<()> {
                     println!("    actual  : {}", first_line(actual));
                 }
             }
-            if any_diffs {
+            if any_diffs || any_unexpected_skips {
                 std::process::exit(1);
             }
             Ok(())

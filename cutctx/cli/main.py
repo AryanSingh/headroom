@@ -45,6 +45,7 @@ _MANUAL_COMMAND_MODULES: dict[str, tuple[str, str]] = {
     "audit": ("audit", "audit"),
     "bench": ("bench", "bench"),
     "config-check": ("config_check", "config_check"),
+    "config": ("config", "config"),
     "orgs": ("orgs", "orgs"),
     "rbac": ("rbac", "rbac"),
     "setup": ("setup", "setup"),
@@ -53,6 +54,37 @@ _MANUAL_COMMAND_MODULES: dict[str, tuple[str, str]] = {
 
 _ALL_COMMANDS = tuple(sorted(set(_SIDE_EFFECT_COMMAND_MODULES) | set(_MANUAL_COMMAND_MODULES)))
 _LOAD_FAILURES: dict[str, str] = {}
+
+# Top-level help should lead with the journey a new operator is on, rather
+# than exposing the implementation's alphabetical module layout. Commands
+# remain addressable exactly as before; this only changes help presentation.
+_COMMAND_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Getting Started", ("setup", "init", "install", "integrations", "wrap")),
+    (
+        "Daily Use",
+        ("proxy", "compress", "memory", "capture", "learn", "report", "savings", "perf"),
+    ),
+    ("Optimize and Evaluate", ("benchmark", "bench", "evals", "verify", "tools", "stack-graph")),
+    (
+        "Administration",
+        (
+            "config",
+            "config-check",
+            "global",
+            "policies",
+            "profile",
+            "agent-savings",
+            "license",
+            "billing",
+            "orgs",
+            "rbac",
+            "audit",
+            "mcp",
+            "intercept",
+            "sso-test",
+        ),
+    ),
+)
 
 
 def get_version() -> str:
@@ -138,8 +170,42 @@ class LazyCLIGroup(click.Group):
             return _make_unavailable_command(cmd_name, reason)
         return None
 
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        """Render commands by operator phase instead of alphabetically."""
 
-@click.group(cls=LazyCLIGroup, context_settings=CLI_CONTEXT_SETTINGS)
+        available = set(self.list_commands(ctx))
+        displayed: set[str] = set()
+        for heading, names in _COMMAND_GROUPS:
+            rows: list[tuple[str, str]] = []
+            for name in names:
+                if name not in available:
+                    continue
+                command = self.get_command(ctx, name)
+                if command is None or command.hidden:
+                    continue
+                rows.append((name, command.get_short_help_str()))
+                displayed.add(name)
+            if rows:
+                with formatter.section(heading):
+                    formatter.write_dl(rows)
+
+        # Keep newly added commands visible even if they have not yet been
+        # assigned to a journey group.
+        other_rows: list[tuple[str, str]] = []
+        for name in sorted(available - displayed):
+            command = self.get_command(ctx, name)
+            if command is not None and not command.hidden:
+                other_rows.append((name, command.get_short_help_str()))
+        if other_rows:
+            with formatter.section("Other Commands"):
+                formatter.write_dl(other_rows)
+
+
+@click.group(
+    cls=LazyCLIGroup,
+    context_settings=CLI_CONTEXT_SETTINGS,
+    invoke_without_command=True,
+)
 @click.version_option(get_version(), "--version", "-v", prog_name="cutctx")
 @click.pass_context
 def main(ctx: click.Context) -> None:
@@ -155,11 +221,20 @@ def main(ctx: click.Context) -> None:
       cutctx orgs list        List organizations
       cutctx audit list       List audit events
       cutctx rbac list        List role assignments
-      cutctx config-check     Validate configuration
+      cutctx config doctor    Validate configuration and deployment policy
       cutctx sso-test         Test SSO configuration
     """
 
     ctx.ensure_object(dict)
+    if ctx.invoked_subcommand is None:
+        click.echo(click.style("Welcome to Cutctx", bold=True))
+        click.echo("Start with one of these commands:")
+        click.echo("  cutctx setup          Detect and configure your AI agent")
+        click.echo("  cutctx proxy          Start the local optimization proxy")
+        click.echo("  cutctx config doctor  Check configuration and deployment safety")
+        click.echo("  cutctx wrap claude    Launch Claude Code through Cutctx")
+        click.echo()
+        click.echo(ctx.get_help())
 
 
 _apply_help_aliases(main)

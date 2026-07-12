@@ -5,7 +5,7 @@ mod common;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use common::start_proxy;
+use common::{start_proxy, start_proxy_with};
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
@@ -92,5 +92,29 @@ async fn ws_client_close_propagates() {
     // Server-side echo will reflect the close; we should see a Close back.
     let got = tokio::time::timeout(Duration::from_secs(3), ws.next()).await;
     assert!(got.is_ok(), "expected close echo within 3s");
+    proxy.shutdown().await;
+}
+
+#[tokio::test]
+async fn ws_idle_connection_is_closed_after_configured_timeout() {
+    let (upstream_addr, _stop) = echo_upstream().await;
+    let proxy = start_proxy_with(&format!("http://{upstream_addr}"), |config| {
+        config.websocket_idle_timeout = Duration::from_millis(50);
+    })
+    .await;
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("{}/ws", proxy.ws_url()))
+        .await
+        .unwrap();
+
+    let result = tokio::time::timeout(Duration::from_secs(1), ws.next()).await;
+    assert!(
+        result.is_ok(),
+        "idle websocket should be closed within its timeout"
+    );
+    match result.unwrap() {
+        Some(Ok(Message::Close(_))) | Some(Err(_)) | None => {}
+        other => panic!("expected an idle close, got {other:?}"),
+    }
     proxy.shutdown().await;
 }

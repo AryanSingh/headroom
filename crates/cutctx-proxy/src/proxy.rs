@@ -1,7 +1,7 @@
 //! Core reverse-proxy router and HTTP forwarding handler.
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use axum::body::{to_bytes, Body};
@@ -1207,6 +1207,7 @@ pub(crate) async fn forward_http(
     // log + drop — the byte path is not affected. This is the
     // explicit "never block on parser readiness" contract.
     let rid = request_id.clone();
+    let first_byte_at = Arc::new(OnceLock::new());
     let parser_tx = if !matches!(sse_kind, SseStreamKind::None) {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         if is_sse {
@@ -1225,14 +1226,26 @@ pub(crate) async fn forward_http(
                 agent_id,
                 spend_auth_mode,
                 captured_tokens_saved,
+                start,
+                first_byte_at.clone(),
             ));
         }
         Some(tx)
     } else {
         None
     };
+    let first_byte_for_stream = first_byte_at.clone();
+    let stream_start = start;
     let resp_stream = upstream_resp.bytes_stream().map(move |r| match r {
         Ok(b) => {
+            if let Some(ttfb_ms) = record_first_stream_byte(stream_start, &first_byte_for_stream) {
+                tracing::info!(
+                    event = "stream_first_byte",
+                    request_id = %rid,
+                    ttfb_ms,
+                    "upstream stream first byte received"
+                );
+            }
             if let Some(tx) = &parser_tx {
                 // Best-effort tee. Bounded channel; the state
                 // machine never blocks the client byte path.
@@ -1321,6 +1334,25 @@ impl SseStreamKind {
             _ => Self::None,
         }
     }
+}
+
+/// Record the first byte timestamp exactly once and return the elapsed TTFB.
+///
+/// The response byte path invokes this before its best-effort parser tee, so
+/// the measurement covers upstream first-byte arrival rather than parser work.
+fn record_first_stream_byte(start: Instant, first_byte_at: &OnceLock<Instant>) -> Option<u64> {
+    let observed_at = Instant::now();
+    first_byte_at
+        .set(observed_at)
+        .ok()
+        .map(|()| observed_at.duration_since(start).as_millis() as u64)
+}
+
+fn stream_ttfb_ms(start: Instant, first_byte_at: &OnceLock<Instant>) -> u64 {
+    first_byte_at
+        .get()
+        .map(|at| at.duration_since(start).as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// True if the upstream response is an SSE stream. Compares
@@ -1465,6 +1497,8 @@ async fn run_sse_state_machine(
     agent_id: Option<String>,
     auth_mode: String,
     tokens_saved: u64,
+    stream_start: Instant,
+    first_byte_at: Arc<OnceLock<Instant>>,
 ) {
     use crate::sse::framing::SseFramer;
 
@@ -1527,6 +1561,7 @@ async fn run_sse_state_machine(
             tracing::info!(
                 request_id = %request_id,
                 provider = "anthropic",
+                ttfb_ms = stream_ttfb_ms(stream_start, &first_byte_at),
                 input_tokens = state.usage.input_tokens,
                 output_tokens = state.usage.output_tokens,
                 cache_creation_input_tokens = state.usage.cache_creation_input_tokens,
@@ -1657,6 +1692,7 @@ async fn run_sse_state_machine(
                 request_id = %request_id,
                 provider = "openai",
                 endpoint = "chat_completions",
+                ttfb_ms = stream_ttfb_ms(stream_start, &first_byte_at),
                 input_tokens = state.usage.as_ref().and_then(|u| u.get("prompt_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 output_tokens = state.usage.as_ref().and_then(|u| u.get("completion_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 "sse stream closed"
@@ -1820,6 +1856,7 @@ async fn run_sse_state_machine(
                 request_id = %request_id,
                 provider = "openai",
                 endpoint = "responses",
+                ttfb_ms = stream_ttfb_ms(stream_start, &first_byte_at),
                 input_tokens = state.usage.as_ref().and_then(|u| u.get("input_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 output_tokens = state.usage.as_ref().and_then(|u| u.get("output_tokens")).and_then(|v| v.as_u64()).unwrap_or(0),
                 "sse stream closed"
@@ -1882,6 +1919,17 @@ pub async fn body_to_bytes(body: Body) -> Result<Bytes, axum::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn first_byte_timestamp_is_recorded_only_once() {
+        let start = Instant::now() - Duration::from_millis(5);
+        let first_byte_at = OnceLock::new();
+
+        assert!(record_first_stream_byte(start, &first_byte_at).is_some());
+        assert!(record_first_stream_byte(start, &first_byte_at).is_none());
+        assert!(stream_ttfb_ms(start, &first_byte_at) >= 5);
+    }
 
     #[test]
     fn url_build_basic() {

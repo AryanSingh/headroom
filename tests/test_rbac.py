@@ -40,7 +40,8 @@ class TestAdminRole:
 
 
 class TestRbacChecker:
-    def test_resolve_role_explicit_header(self):
+    def test_resolve_role_explicit_header(self, monkeypatch):
+        monkeypatch.setenv("CUTCTX_ALLOW_ROLE_HEADER", "1")
         checker = RbacChecker()
         request = MagicMock()
         request.headers = {"x-cutctx-role": "operator"}
@@ -52,7 +53,7 @@ class TestRbacChecker:
         request = MagicMock()
         request.headers = {"x-cutctx-role": "invalid_role"}
         role = checker.resolve_role(request)
-        assert role == AdminRole.ADMIN  # default
+        assert role == AdminRole.VIEWER  # safe default
 
     def test_resolve_role_user_id_assignment(self):
         checker = RbacChecker()
@@ -62,12 +63,20 @@ class TestRbacChecker:
         role = checker.resolve_role(request)
         assert role == AdminRole.VIEWER
 
-    def test_resolve_role_default_admin(self):
+    def test_resolve_role_default_viewer(self):
         checker = RbacChecker()
         request = MagicMock()
         request.headers = {}
         role = checker.resolve_role(request)
-        assert role == AdminRole.ADMIN
+        assert role == AdminRole.VIEWER
+
+    def test_role_header_is_ignored_without_trusted_proxy_opt_in(self):
+        checker = RbacChecker()
+        request = MagicMock()
+        request.state = MagicMock(spec=[])
+        request.headers = {"x-cutctx-role": "admin"}
+
+        assert checker.resolve_role(request) == AdminRole.VIEWER
 
     def test_has_permission_viewer_stats(self):
         checker = RbacChecker()

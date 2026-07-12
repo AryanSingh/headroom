@@ -209,20 +209,21 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         expect(page.locator('input[aria-label="Search"]')).to_be_focused()
 
     if route == "/capabilities":
-        initial_cards = page.locator(".capability-card").count()
-        page.get_by_role("textbox", name="Search").fill("memory")
-        assert page.locator(".capability-card").count() <= initial_cards
+        # Capabilities does not expose a global filter. The shared topbar
+        # intentionally renders a disabled search affordance on this route;
+        # the audit must not attempt to type into it.
+        search = page.locator('input[placeholder="Search unavailable"]')
+        expect(search).to_be_disabled()
 
     if route == "/playground":
         page.get_by_role("button", name="Load sample multimodal image").click()
         expect(page.get_by_text("Image attached")).to_be_visible()
 
     if route == "/":
-        initial_rows = page.locator(".request-table tbody tr").count()
-        initial_source_rows = page.locator(".source-stack .source-row").count()
-        page.get_by_role("textbox", name="Search").fill("memory")
-        assert page.locator(".request-table tbody tr").count() <= initial_rows
-        assert page.locator(".source-stack .source-row").count() <= initial_source_rows
+        # Overview likewise has no global filter; its request and source cards
+        # are summaries rather than search results.
+        search = page.locator('input[placeholder="Search unavailable"]')
+        expect(search).to_be_disabled()
 
     if width <= 1024:
         toggle = page.get_by_role("button", name="Toggle sidebar")

@@ -25,6 +25,8 @@ class TestRetentionConfig:
         assert cfg.ccr_max_age_seconds == 86400 * 7
         assert cfg.audit_enabled is True
         assert cfg.audit_max_age_days == 90
+        assert cfg.spend_enabled is True
+        assert cfg.spend_max_age_days == 365
         assert cfg.episodic_enabled is True
         assert cfg.episodic_max_age_days == 30
         assert cfg.cleanup_interval_seconds == 3600
@@ -32,10 +34,12 @@ class TestRetentionConfig:
     def test_from_env(self, monkeypatch):
         monkeypatch.setenv("CUTCTX_RETENTION_CCR_MAX_AGE_SECONDS", "3600")
         monkeypatch.setenv("CUTCTX_RETENTION_AUDIT_MAX_AGE_DAYS", "30")
+        monkeypatch.setenv("CUTCTX_RETENTION_SPEND_MAX_AGE_DAYS", "180")
         monkeypatch.setenv("CUTCTX_RETENTION_EPISODIC_MAX_AGE_DAYS", "7")
         cfg = RetentionConfig.from_env()
         assert cfg.ccr_max_age_seconds == 3600
         assert cfg.audit_max_age_days == 30
+        assert cfg.spend_max_age_days == 180
         assert cfg.episodic_max_age_days == 7
 
     def test_from_env_invalid_falls_back(self, monkeypatch):
@@ -56,7 +60,12 @@ class TestRetentionManager:
         assert mgr._running is False
 
     def test_init_disabled(self):
-        cfg = RetentionConfig(ccr_enabled=False, audit_enabled=False, episodic_enabled=False)
+        cfg = RetentionConfig(
+            ccr_enabled=False,
+            audit_enabled=False,
+            spend_enabled=False,
+            episodic_enabled=False,
+        )
         mgr = RetentionManager(config=cfg)
         assert mgr.enabled is False
 
@@ -65,20 +74,36 @@ class TestRetentionManager:
         stats = mgr.get_stats()
         assert "ccr_deleted" in stats
         assert "audit_deleted" in stats
+        assert "spend_deleted" in stats
         assert "episodic_deleted" in stats
         assert "config" in stats
         assert stats["cleanup_count"] == 0
 
     @pytest.mark.asyncio
     async def test_run_cleanup_all_disabled(self):
-        cfg = RetentionConfig(ccr_enabled=False, audit_enabled=False, episodic_enabled=False)
+        cfg = RetentionConfig(
+            ccr_enabled=False,
+            audit_enabled=False,
+            spend_enabled=False,
+            episodic_enabled=False,
+        )
         mgr = RetentionManager(config=cfg)
         results = await mgr.run_cleanup()
-        assert results == {"ccr_deleted": 0, "audit_deleted": 0, "episodic_deleted": 0}
+        assert results == {
+            "ccr_deleted": 0,
+            "audit_deleted": 0,
+            "spend_deleted": 0,
+            "episodic_deleted": 0,
+        }
 
     @pytest.mark.asyncio
     async def test_run_cleanup_records_stats(self):
-        cfg = RetentionConfig(ccr_enabled=False, audit_enabled=False, episodic_enabled=False)
+        cfg = RetentionConfig(
+            ccr_enabled=False,
+            audit_enabled=False,
+            spend_enabled=False,
+            episodic_enabled=False,
+        )
         mgr = RetentionManager(config=cfg)
         await mgr.run_cleanup()
         stats = mgr.get_stats()
@@ -127,6 +152,73 @@ class TestRetentionManager:
             mgr = RetentionManager(config=cfg)
             deleted = mgr._cleanup_audit_log()
             assert deleted == 1
+
+    def test_cleanup_audit_bulk_delete_vacuums_after_commit(self, tmp_path, monkeypatch):
+        db_path = tmp_path / "audit-bulk.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "CREATE TABLE audit_events (id TEXT PRIMARY KEY, timestamp REAL)"
+        )
+        old_time = time.time() - (100 * 86400)
+        conn.executemany(
+            "INSERT INTO audit_events VALUES (?, ?)",
+            [(f"old-{index}", old_time) for index in range(101)],
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(db_path))
+        manager = RetentionManager(
+            RetentionConfig(
+                ccr_enabled=False,
+                audit_enabled=True,
+                audit_max_age_days=90,
+                spend_enabled=False,
+                episodic_enabled=False,
+            )
+        )
+
+        assert manager._cleanup_audit_log() == 101
+
+    def test_cleanup_spend_removes_old_entries(self, tmp_path, monkeypatch):
+        from cutctx_ee.ledger.store import LedgerStore
+
+        db_path = tmp_path / "spend.db"
+        db_url = f"sqlite:///{db_path}"
+        store = LedgerStore(db_url=db_url)
+        now = int(time.time())
+        store.insert_events(
+            [
+                {
+                    "ts": now - (400 * 86400),
+                    "auth_mode": "api_key",
+                    "request_id": "old-request",
+                },
+                {
+                    "ts": now - (10 * 86400),
+                    "auth_mode": "api_key",
+                    "request_id": "new-request",
+                },
+            ]
+        )
+        monkeypatch.setenv("CUTCTX_SPEND_DB_URL", db_url)
+        manager = RetentionManager(
+            RetentionConfig(
+                ccr_enabled=False,
+                audit_enabled=False,
+                spend_enabled=True,
+                spend_max_age_days=365,
+                episodic_enabled=False,
+            )
+        )
+
+        assert manager._cleanup_spend_ledger() == 1
+        with store.SessionLocal() as session:
+            from cutctx_ee.ledger.models import SpendEvent
+
+            assert [event.request_id for event in session.query(SpendEvent).all()] == [
+                "new-request"
+            ]
 
     def test_cleanup_episodic_removes_old_files(self):
         """Test episodic memory cleanup with real files."""

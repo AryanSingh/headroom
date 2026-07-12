@@ -19,6 +19,11 @@ repos:
         language: system
         pass_filenames: true
         types_or: [python, markdown, yaml, toml, json]
+      - id: forbid-openai-project-keys
+        name: Reject OpenAI project keys
+        entry: python3 scripts/check_secret_patterns.py
+        language: system
+        types_or: [python, markdown, yaml, toml, json]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.4
     hooks:

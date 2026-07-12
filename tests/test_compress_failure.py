@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 from types import SimpleNamespace
 
+import pytest
+
 from cutctx.compress import compress
 
 
@@ -37,3 +39,16 @@ def test_compress_returns_original_messages_when_pipeline_fails(monkeypatch) -> 
             "error_type": "RuntimeError",
         }
     ]
+
+
+def test_compress_strict_mode_reraises_pipeline_failure(monkeypatch) -> None:
+    compress_module = importlib.import_module("cutctx.compress")
+    monkeypatch.setattr(compress_module, "_get_pipeline", lambda: _FailingPipeline())
+    monkeypatch.setattr(
+        compress_module,
+        "get_otel_metrics",
+        lambda: SimpleNamespace(record_compression_failure=lambda **_kwargs: None),
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        compress([{"role": "user", "content": "hello"}], strict=True)

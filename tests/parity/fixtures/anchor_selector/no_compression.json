@@ -1,0 +1,13 @@
+{
+  "transform": "anchor_selector",
+  "input": {
+    "items": [{"id": 0}, {"id": 1}, {"id": 2}, {"id": 3}],
+    "max_items": 4,
+    "pattern": "generic",
+    "query": null
+  },
+  "config": {},
+  "output": [0, 1, 2, 3],
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "input_sha256": "anchor-selector-no-compression"
+}

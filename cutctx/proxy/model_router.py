@@ -128,6 +128,18 @@ class TaskComplexityAssessment:
     complexity: TaskComplexity
     confidence: float
     source: str = "heuristic"
+    signals: tuple[str, ...] = ()
+
+
+def _recent_context_window(messages: list[dict[str, Any]], *, size: int = 8) -> list[dict[str, Any]]:
+    """Return the context most likely to affect the current turn.
+
+    Old tool results should not permanently pin a long-running agent session to
+    the strongest model.  A bounded recent window keeps current tool loops safe
+    while allowing a later, self-contained question to use a smaller model.
+    """
+
+    return messages[-size:]
 
 
 class TaskComplexityScorer(Protocol):
@@ -152,6 +164,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     if not last_user_message:
         return TaskComplexity.HIGH
 
+    recent_messages = _recent_context_window(messages)
     if any(
         message.get("role") == "tool"
         or (
@@ -162,7 +175,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
                 for block in message.get("content", [])
             )
         )
-        for message in messages
+        for message in recent_messages
     ):
         return TaskComplexity.HIGH
 
@@ -239,6 +252,11 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"\b(?:run|execute)\s+(?:the\s+)?(?:tests?|suite|benchmark|migration|deploy)\b",
         r"\b(?:production|security|authentication|authorization|billing|payment)\b",
         r"\b(?:multiple|all)\s+(?:files?|modules?|services?|packages?)\b",
+        r"\b(?:race|deadlock|concurren(?:cy|t)|distributed|multi[- ]tenant|consistency)\b",
+        r"\b(?:database|schema|sql|transaction|rollback|data loss|destructive)\b",
+        r"\b(?:credential|secret|permission|privacy|pii|compliance|legal|medical)\b",
+        r"\b(?:performance|latency|throughput|memory leak|profil(?:e|ing)|benchmark)\b",
+        r"\b(?:delete|drop|remove|rotate|revoke)\b.*\b(?:production|database|table|bucket|account|key|secret)\b",
     ]
     reference_dependent_patterns = [
         r"\b(?:this|that|these|those|it)\b\s*[.?!]*$",
@@ -251,6 +269,15 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         for pattern in high_complexity_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.HIGH
+
+        # Multiple requested actions are a better difficulty signal than raw
+        # prompt length.  Keep compound execution work on the requested model.
+        action_verbs = re.findall(
+            r"\b(?:find|inspect|analy[sz]e|design|plan|implement|fix|test|verify|commit|push|deploy|publish|migrate|refactor|optimi[sz]e|review|audit)\b",
+            normalized_content,
+        )
+        if len(set(action_verbs)) >= 2:
+            return TaskComplexity.HIGH
         for pattern in reference_dependent_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.MEDIUM
@@ -306,19 +333,24 @@ def assess_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexityAsse
     """
 
     complexity = classify_task_complexity(messages)
+    recent_messages = _recent_context_window(messages)
+    has_recent_tool_context = any(message.get("role") == "tool" for message in recent_messages)
     if complexity == TaskComplexity.HIGH:
-        return TaskComplexityAssessment(complexity, 1.0)
+        signals = ("recent_tool_context",) if has_recent_tool_context else ("strong_model_gate",)
+        return TaskComplexityAssessment(complexity, 1.0, signals=signals)
 
     last_user = next((m for m in reversed(messages) if m.get("role") == "user"), {})
     content = last_user.get("content", "")
     if not isinstance(content, str):
-        return TaskComplexityAssessment(TaskComplexity.HIGH, 1.0)
+        return TaskComplexityAssessment(
+            TaskComplexity.HIGH, 1.0, signals=("structured_or_multimodal_content",)
+        )
     normalized = content.strip().lower()
 
     if complexity == TaskComplexity.MEDIUM:
-        return TaskComplexityAssessment(complexity, 0.85)
+        return TaskComplexityAssessment(complexity, 0.85, signals=("context_dependent",))
     if normalized in {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay"}:
-        return TaskComplexityAssessment(complexity, 1.0)
+        return TaskComplexityAssessment(complexity, 1.0, signals=("trivial_conversation",))
     explicit_low_signals = (
         "typo",
         "docstring",
@@ -336,7 +368,8 @@ def assess_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexityAsse
         "give me",
     )
     confidence = 0.9 if any(signal in normalized for signal in explicit_low_signals) else 0.75
-    return TaskComplexityAssessment(complexity, confidence)
+    signal = "explicit_low_complexity" if confidence >= 0.9 else "short_self_contained"
+    return TaskComplexityAssessment(complexity, confidence, signals=(signal,))
 
 
 class HeuristicTaskComplexityScorer:
@@ -764,6 +797,7 @@ class RoutingDecision:
     request_overrides: dict[str, Any] | None = None
     confidence: float | None = None
     scorer: str | None = None
+    signals: tuple[str, ...] = ()
 
 
 class ModelRouter:
@@ -853,6 +887,7 @@ class ModelRouter:
                 reason="workload_not_downgradeable",
                 confidence=assessment.confidence,
                 scorer=assessment.source,
+                signals=assessment.signals,
             )
         # Workload classifier.
         if not self._is_downgradeable(
@@ -869,6 +904,7 @@ class ModelRouter:
                     reason="workload_not_downgradeable",
                     confidence=assessment.confidence if assessment else None,
                     scorer=assessment.source if assessment else None,
+                    signals=assessment.signals if assessment else (),
                 )
         target_model = route.target
         target_cost_override = route.target_cost_per_mtok
@@ -879,6 +915,7 @@ class ModelRouter:
                     reason="workload_not_downgradeable",
                     confidence=assessment.confidence if assessment else None,
                     scorer=assessment.source if assessment else None,
+                    signals=assessment.signals if assessment else (),
                 )
             target_model = route.medium_target
             target_cost_override = route.medium_target_cost_per_mtok
@@ -893,6 +930,7 @@ class ModelRouter:
                 reason="confidence_below_threshold",
                 confidence=assessment.confidence,
                 scorer=assessment.source,
+                signals=assessment.signals,
             )
 
         # Compute the savings. Both costs are USD per million
@@ -908,6 +946,7 @@ class ModelRouter:
                 reason="cost_lookup_failed",
                 confidence=assessment.confidence if assessment else None,
                 scorer=assessment.source if assessment else None,
+                signals=assessment.signals if assessment else (),
             )
         # The caller computes the actual token savings in a follow-up
         # step once the request has completed.
@@ -921,6 +960,7 @@ class ModelRouter:
             request_overrides=self._request_overrides_for_target(target_model),
             confidence=assessment.confidence if assessment else None,
             scorer=assessment.source if assessment else None,
+            signals=assessment.signals if assessment else (),
         )
 
     def _request_overrides_for_target(self, target_model: str) -> dict[str, Any] | None:
@@ -1393,6 +1433,8 @@ def prepare_model_routing(
         updated_metadata["model_routing"]["confidence"] = decision.confidence
     if decision.scorer:
         updated_metadata["model_routing"]["scorer"] = decision.scorer
+    if decision.signals:
+        updated_metadata["model_routing"]["signals"] = list(decision.signals)
     if decision.request_overrides:
         updated_metadata["model_routing"]["request_overrides"] = decision.request_overrides
     attach_model_routing_trace(

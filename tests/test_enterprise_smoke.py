@@ -278,7 +278,12 @@ class TestRetentionAuditFlow:
 
     def test_retention_disabled_when_flags_off(self):
         """Retention manager should be disabled when all enabled flags are False."""
-        config = RetentionConfig(ccr_enabled=False, audit_enabled=False, episodic_enabled=False)
+        config = RetentionConfig(
+            ccr_enabled=False,
+            audit_enabled=False,
+            spend_enabled=False,
+            episodic_enabled=False,
+        )
         manager = RetentionManager(config=config)
         assert not manager.enabled
 
@@ -305,8 +310,9 @@ class TestFullEnterpriseWorkflow:
         # 2. RBAC: Resolve role from claims
         rbac = RbacChecker()
         request = MagicMock()
+        request.state.cutctx_role = claims.role
+        request.state.cutctx_user_id = claims.subject
         request.headers = {
-            "x-cutctx-role": claims.role,
             "x-cutctx-user-id": claims.subject,
         }
         role = rbac.resolve_role(request)

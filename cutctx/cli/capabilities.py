@@ -145,6 +145,32 @@ _FEATURES: list[dict[str, object]] = [
     },
 ]
 
+# Supported installation contracts.  These names intentionally map to pip
+# extras and observable capability keys rather than marketing tiers, so an
+# operator can validate a clean environment before enabling a workload.
+_INSTALL_PROFILES: dict[str, dict[str, object]] = {
+    "minimal": {
+        "extras": [],
+        "features": ["audio", "feedback_loop", "benchmark_cli"],
+    },
+    "proxy": {
+        "extras": ["proxy"],
+        "features": ["kompress", "audio", "feedback_loop"],
+    },
+    "full": {
+        "extras": ["proxy", "code", "html", "llmlingua", "relevance", "image", "log-ml"],
+        "features": ["code_ast", "html_extractor", "llmlingua", "relevance", "image", "log_ml"],
+    },
+    "enterprise": {
+        "extras": ["proxy", "ee", "memory", "memory-stack"],
+        "features": ["smart_crusher", "stack_graph"],
+    },
+    "native": {
+        "extras": ["code"],
+        "features": ["smart_crusher", "stack_graph", "code_ast"],
+    },
+}
+
 
 def _module_available(module_name: str | None) -> bool:
     if not module_name:
@@ -202,9 +228,28 @@ def _check_feature(feature: dict[str, object]) -> dict[str, object]:
     }
 
 
+def installation_profiles(rows: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    """Summarize whether each documented installation profile is usable."""
+    by_name = {str(row["name"]): row for row in rows}
+    profiles: dict[str, dict[str, object]] = {}
+    for name, definition in _INSTALL_PROFILES.items():
+        required = [str(feature) for feature in definition["features"]]
+        missing = [feature for feature in required if not bool(by_name.get(feature, {}).get("available"))]
+        extras = [str(extra) for extra in definition["extras"]]
+        install_spec = "" if not extras else f"[{','.join(extras)}]"
+        profiles[name] = {
+            "available": not missing,
+            "required_features": required,
+            "missing_features": missing,
+            "install_hint": f"pip install cutctx-ai{install_spec}",
+        }
+    return profiles
+
+
 @main.command("capabilities")
 @click.option("--json", "emit_json", is_flag=True, help="Emit JSON output.")
-def capabilities_cmd(emit_json: bool) -> None:
+@click.option("--profile", type=click.Choice(sorted(_INSTALL_PROFILES)), help="Validate one install profile.")
+def capabilities_cmd(emit_json: bool, profile: str | None) -> None:
     """Check optional Python/runtime capabilities.
 
     Covers: knowledge-graph, log-ml, image, html, relevance,
@@ -214,10 +259,19 @@ def capabilities_cmd(emit_json: bool) -> None:
     """
 
     rows = [_check_feature(feature) for feature in _FEATURES]
+    profiles = installation_profiles(rows)
 
     if emit_json:
-        click.echo(_json.dumps(rows, indent=2))
-        broken = any(bool(row["critical"]) and not bool(row["available"]) for row in rows)
+        # Keep the no-profile JSON contract as a list of feature records.
+        # Automation has consumed this shape since the command was introduced;
+        # profile validation is the opt-in object-shaped response.
+        payload: object = rows
+        if profile:
+            payload = {"profile": profile, **profiles[profile]}
+        click.echo(_json.dumps(payload, indent=2))
+        broken = not bool(profiles[profile]["available"]) if profile else any(
+            bool(row["critical"]) and not bool(row["available"]) for row in rows
+        )
         raise SystemExit(1 if broken else 0)
 
     from rich.console import Console
@@ -251,8 +305,18 @@ def capabilities_cmd(emit_json: bool) -> None:
 
     console.print(table)
 
+    if profile:
+        result = profiles[profile]
+        if result["available"]:
+            console.print(f"[green]{profile} install profile is ready[/green]")
+        else:
+            console.print(
+                f"[yellow]{profile} profile missing: {', '.join(result['missing_features'])}[/yellow]"
+            )
+            console.print(f"[dim]{result['install_hint']}[/dim]")
+
     for row in rows:
         if row["reason"]:
             console.print(f"[dim]{row['name']}:[/dim] {row['reason']}")
 
-    raise SystemExit(1 if broken else 0)
+    raise SystemExit(1 if (not bool(profiles[profile]["available"]) if profile else broken) else 0)

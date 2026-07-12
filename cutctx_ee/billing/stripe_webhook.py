@@ -105,18 +105,16 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
     PRICE_TO_TIER) — NOT from session.metadata.tier, which the client
     controls in the Stripe Checkout UI. Reading tier from metadata lets
     an attacker self-assign enterprise tier by manipulating the
-    Checkout form's hidden field. The metadata.tier field is kept only
-    for the *seats* count, which Stripe does not let a client spoof
-    (seats are determined by the line item quantity).
+    Checkout form's hidden field. Seat count is likewise derived from
+    the matched line-item quantity; checkout metadata is never an
+    authorization source.
     """
     session = event_data["object"]
     customer_id = session["customer"]
     subscription_id = session.get("subscription", "")
-    metadata = session.get("metadata", {})
     email = session.get("customer_details", {}).get("email", "")
 
-    tier = _resolve_tier_from_session(session)
-    seats = int(metadata.get("seats", 5))
+    tier, seats = _resolve_plan_from_session(session)
 
     key = generate_license_key(tier, customer_id)
     now = time.time()
@@ -137,13 +135,13 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
     return record
 
 
-def _resolve_tier_from_session(session: dict[str, Any]) -> str:
-    """Resolve tier from Stripe session via Price ID lookup.
+def _resolve_plan_from_session(session: dict[str, Any]) -> tuple[str, int]:
+    """Resolve tier and seats from a trusted Stripe line item.
 
-    Returns the first tier that matches a price ID on the session's
-    line_items. Falls back to "team" only when no price ID matches AND
-    no metadata is present (this is the test/dev path; production
-    deployments must configure STRIPE_PRICE_* env vars).
+    Returns the first tier that matches a configured price ID on the
+    session's line_items. Unknown or absent prices fail closed: issuing
+    even the cheapest paid license without a verified purchase would
+    still be an authorization bypass.
 
     NEVER trust session.metadata.tier — see handle_checkout_completed
     for the attack model.
@@ -161,18 +159,54 @@ def _resolve_tier_from_session(session: dict[str, Any]) -> str:
             continue
         tier = PRICE_TO_TIER.get(price_id)
         if tier:
-            return tier
-    # No matching price ID; default conservatively to "team" (cheapest tier)
-    # rather than honoring client-controlled metadata.
-    return "team"
+            try:
+                seats = int(item.get("quantity", 1))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Stripe line-item quantity must be an integer") from exc
+            if seats < 1:
+                raise ValueError("Stripe line-item quantity must be at least 1")
+            return tier, seats
+    raise ValueError(
+        "Checkout session has no recognized Stripe price ID; "
+        "configure STRIPE_PRICE_TEAM/BUSINESS/ENTERPRISE and expand line_items"
+    )
 
 
 def handle_subscription_deleted(event_data: dict[str, Any]) -> None:
     """Handle customer.subscription.deleted — deactivate license."""
     subscription = event_data["object"]
     sub_id = subscription["id"]
-    logger.info("Subscription deleted: %s", sub_id)
-    # License deactivation handled by license_db
+    if not _get_db().deactivate_subscription(sub_id):
+        logger.warning("Subscription %s: no license record found during cancellation", sub_id)
+        return
+    logger.info("Subscription deactivated: %s", sub_id)
+
+
+def handle_invoice_paid(event_data: dict[str, Any]) -> None:
+    """Extend the matching subscription to Stripe's paid-through timestamp."""
+    invoice = event_data["object"]
+    subscription_id = invoice.get("subscription")
+    if isinstance(subscription_id, dict):
+        subscription_id = subscription_id.get("id")
+    if not subscription_id:
+        raise ValueError("Paid invoice is missing a subscription ID")
+
+    period_end = invoice.get("period_end")
+    if period_end is None:
+        lines = invoice.get("lines", {}).get("data", [])
+        period_ends = [
+            item.get("period", {}).get("end")
+            for item in lines
+            if isinstance(item, dict) and isinstance(item.get("period"), dict)
+        ]
+        period_end = max((value for value in period_ends if value is not None), default=None)
+    if period_end is None:
+        raise ValueError("Paid invoice is missing a billing period end")
+
+    if not _get_db().extend_subscription(str(subscription_id), float(period_end)):
+        logger.warning("Subscription %s: no license record found during renewal", subscription_id)
+        return
+    logger.info("Subscription extended: %s through %s", subscription_id, period_end)
 
 
 def handle_subscription_updated(event_data: dict[str, Any]) -> None:
@@ -181,8 +215,7 @@ def handle_subscription_updated(event_data: dict[str, Any]) -> None:
     Extracts the first matching price ID from the subscription items,
     resolves the tier from PRICE_TO_TIER, reads the seat count from
     the item quantity, and updates the corresponding license record.
-    Falls back to "team" with 5 seats if no price ID matches (the same
-    conservative default used by _resolve_tier_from_session).
+    Unknown prices fail closed and leave the existing license unchanged.
     """
     subscription = event_data["object"]
     sub_id = subscription["id"]
@@ -206,11 +239,9 @@ def handle_subscription_updated(event_data: dict[str, Any]) -> None:
             break
 
     if tier is None:
-        logger.warning(
-            "Subscription %s: no matching price ID in items, defaulting tier=team seats=5",
-            sub_id,
+        raise ValueError(
+            f"Subscription {sub_id} has no recognized Stripe price ID; refusing tier update"
         )
-        tier = "team"
 
     db = _get_db()
     record = db.get_by_subscription_id(sub_id)
@@ -259,6 +290,7 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
         record = handle_checkout_completed(data)
         return {"ok": True, "license_key": record.license_key}
     elif event_type == "invoice.paid":
+        handle_invoice_paid(data)
         return {"ok": True, "action": "extended"}
     elif event_type == "customer.subscription.deleted":
         handle_subscription_deleted(data)

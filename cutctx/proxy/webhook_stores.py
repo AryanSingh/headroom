@@ -40,6 +40,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SUBSCRIPTION_SCHEMA_VERSION = 1
+_DLQ_SCHEMA_VERSION = 1
+
 logger = logging.getLogger(__name__)
 
 
@@ -145,6 +150,12 @@ class WebhookSubscriptionStore:
                 )
                 """
             )
+            stamp_schema_version(
+                conn,
+                expected=_SUBSCRIPTION_SCHEMA_VERSION,
+                store_name="webhook subscription store",
+            )
+            conn.commit()
 
     def _get_fernet(self):
         """Lazily import and return Fernet cipher for secret encryption."""
@@ -341,6 +352,10 @@ class WebhookDeadLetterStore:
                 "CREATE INDEX IF NOT EXISTS idx_dlq_acknowledged "
                 "ON webhook_dlq(acknowledged, last_attempt_ts)"
             )
+            stamp_schema_version(
+                conn, expected=_DLQ_SCHEMA_VERSION, store_name="webhook dead-letter store"
+            )
+            conn.commit()
 
     def add(
         self,

@@ -121,7 +121,7 @@ class TestCLIProxyEnvVars:
     """Test that the CLI proxy command reads API URL env vars."""
 
     def test_cutctx_host_from_env(self, runner):
-        """CUTCTX_HOST env var should be passed to ProxyConfig."""
+        """A network bind with admin auth should be passed to ProxyConfig."""
         captured_config = {}
 
         def mock_run_server(config, **kwargs):
@@ -131,12 +131,24 @@ class TestCLIProxyEnvVars:
             result = runner.invoke(
                 main,
                 ["proxy"],
-                env={"CUTCTX_HOST": "0.0.0.0"},
+                env={"CUTCTX_HOST": "0.0.0.0", "CUTCTX_ADMIN_API_KEY": "test-admin-key"},
                 catch_exceptions=False,
             )
 
         assert result.exit_code == 0, result.output
         assert captured_config["config"].host == "0.0.0.0"
+
+    def test_network_host_without_admin_auth_is_rejected(self, runner, monkeypatch):
+        monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+        result = runner.invoke(
+            main,
+            ["proxy"],
+            env={"CUTCTX_HOST": "0.0.0.0", "CUTCTX_ADMIN_API_KEY": ""},
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code != 0
+        assert "admin authentication" in result.output
 
     def test_cutctx_port_from_env(self, runner):
         """CUTCTX_PORT env var should be passed to ProxyConfig."""

@@ -7,6 +7,7 @@
 Provides automatic expiry and cleanup for stored data:
 - CCR compression entries (TTL-based)
 - Audit log rotation (age-based)
+- Spend ledger rotation (age-based)
 - Episodic memory expiry
 - SQLite WAL checkpointing
 
@@ -51,6 +52,10 @@ class RetentionConfig:
     audit_max_db_size_mb: int = 500  # 500MB
     audit_checkpoint_interval: int = 3600  # WAL checkpoint every hour
 
+    # Spend ledger
+    spend_enabled: bool = True
+    spend_max_age_days: int = 365  # 1 year by default
+
     # Episodic memory
     episodic_enabled: bool = True
     episodic_max_age_days: int = 30  # 30 days
@@ -70,6 +75,8 @@ class RetentionConfig:
             audit_max_age_days=_get_int("CUTCTX_RETENTION_AUDIT_MAX_AGE_DAYS", 90),
             audit_max_db_size_mb=_get_int("CUTCTX_RETENTION_AUDIT_MAX_DB_MB", 500),
             audit_checkpoint_interval=_get_int("CUTCTX_RETENTION_AUDIT_CHECKPOINT_INTERVAL", 3600),
+            spend_enabled=_get_bool("CUTCTX_RETENTION_SPEND_ENABLED", True),
+            spend_max_age_days=_get_int("CUTCTX_RETENTION_SPEND_MAX_AGE_DAYS", 365),
             episodic_enabled=_get_bool("CUTCTX_RETENTION_EPISODIC_ENABLED", True),
             episodic_max_age_days=_get_int("CUTCTX_RETENTION_EPISODIC_MAX_AGE_DAYS", 30),
             cleanup_interval_seconds=_get_int("CUTCTX_RETENTION_CLEANUP_INTERVAL", 3600),
@@ -81,7 +88,7 @@ class RetentionManager:
     """Manages data retention policies and cleanup.
 
     Runs periodic cleanup tasks to enforce retention policies across
-    all storage backends (CCR, audit, episodic memory).
+    all storage backends (CCR, audit, spend ledger, episodic memory).
     """
 
     def __init__(self, config: RetentionConfig | None = None):
@@ -91,6 +98,7 @@ class RetentionManager:
         self._stats = {
             "ccr_deleted": 0,
             "audit_deleted": 0,
+            "spend_deleted": 0,
             "episodic_deleted": 0,
             "last_cleanup": None,
             "cleanup_count": 0,
@@ -100,7 +108,12 @@ class RetentionManager:
     @property
     def enabled(self) -> bool:
         """Check if any retention policy is enabled."""
-        return self.config.ccr_enabled or self.config.audit_enabled or self.config.episodic_enabled
+        return (
+            self.config.ccr_enabled
+            or self.config.audit_enabled
+            or self.config.spend_enabled
+            or self.config.episodic_enabled
+        )
 
     async def start(self) -> None:
         """Start the background cleanup task."""
@@ -112,10 +125,11 @@ class RetentionManager:
         self._running = True
         self._task = asyncio.create_task(self._cleanup_loop())
         logger.info(
-            "Retention manager started (interval=%ds, ccr=%s, audit=%s, episodic=%s)",
+            "Retention manager started (interval=%ds, ccr=%s, audit=%s, spend=%s, episodic=%s)",
             self.config.cleanup_interval_seconds,
             self.config.ccr_enabled,
             self.config.audit_enabled,
+            self.config.spend_enabled,
             self.config.episodic_enabled,
         )
 
@@ -139,6 +153,7 @@ class RetentionManager:
                 "ccr_max_entries": self.config.ccr_max_entries,
                 "audit_max_age_days": self.config.audit_max_age_days,
                 "audit_max_db_size_mb": self.config.audit_max_db_size_mb,
+                "spend_max_age_days": self.config.spend_max_age_days,
                 "episodic_max_age_days": self.config.episodic_max_age_days,
                 "cleanup_interval_seconds": self.config.cleanup_interval_seconds,
             },
@@ -161,7 +176,12 @@ class RetentionManager:
 
         Returns dict of cleanup counts per category.
         """
-        results = {"ccr_deleted": 0, "audit_deleted": 0, "episodic_deleted": 0}
+        results = {
+            "ccr_deleted": 0,
+            "audit_deleted": 0,
+            "spend_deleted": 0,
+            "episodic_deleted": 0,
+        }
 
         if self.config.ccr_enabled:
             results["ccr_deleted"] = await asyncio.to_thread(self._cleanup_ccr_entries)
@@ -169,11 +189,15 @@ class RetentionManager:
         if self.config.audit_enabled:
             results["audit_deleted"] = await asyncio.to_thread(self._cleanup_audit_log)
 
+        if self.config.spend_enabled:
+            results["spend_deleted"] = await asyncio.to_thread(self._cleanup_spend_ledger)
+
         if self.config.episodic_enabled:
             results["episodic_deleted"] = await asyncio.to_thread(self._cleanup_episodic_memories)
 
         self._stats["ccr_deleted"] += results["ccr_deleted"]
         self._stats["audit_deleted"] += results["audit_deleted"]
+        self._stats["spend_deleted"] += results["spend_deleted"]
         self._stats["episodic_deleted"] += results["episodic_deleted"]
         self._stats["last_cleanup"] = time.time()
         self._stats["cleanup_count"] += 1
@@ -181,9 +205,10 @@ class RetentionManager:
         total = sum(results.values())
         if total > 0:
             logger.info(
-                "Retention cleanup: ccr=%d, audit=%d, episodic=%d",
+                "Retention cleanup: ccr=%d, audit=%d, spend=%d, episodic=%d",
                 results["ccr_deleted"],
                 results["audit_deleted"],
+                results["spend_deleted"],
                 results["episodic_deleted"],
             )
 
@@ -233,6 +258,10 @@ class RetentionManager:
                 )
                 deleted = cursor.rowcount
 
+                # End the delete transaction before maintenance statements.
+                # SQLite rejects VACUUM while a transaction is active.
+                conn.commit()
+
                 # VACUUM if significant deletion
                 if deleted > 100:
                     conn.execute("VACUUM")
@@ -243,7 +272,6 @@ class RetentionManager:
                 except sqlite3.OperationalError:
                     pass  # Not in WAL mode, skip checkpoint
 
-                conn.commit()
                 return deleted
             finally:
                 conn.close()
@@ -272,6 +300,32 @@ class RetentionManager:
             return deleted
         except Exception:
             logger.debug("Episodic memory cleanup failed", exc_info=True)
+            return 0
+
+    def _cleanup_spend_ledger(self) -> int:
+        """Remove expired spend events and reclaim SQLite storage."""
+        db_url = os.environ.get("CUTCTX_SPEND_DB_URL", "sqlite:///spend_ledger.db")
+        try:
+            from sqlalchemy import create_engine, text
+
+            engine = create_engine(db_url)
+            cutoff = int(time.time() - (self.config.spend_max_age_days * 86400))
+            try:
+                with engine.begin() as conn:
+                    result = conn.execute(
+                        text("DELETE FROM spend_events WHERE ts < :cutoff"),
+                        {"cutoff": cutoff},
+                    )
+                    deleted = max(0, int(result.rowcount or 0))
+
+                if deleted > 100 and engine.dialect.name == "sqlite":
+                    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                        conn.execute(text("VACUUM"))
+                return deleted
+            finally:
+                engine.dispose()
+        except Exception:
+            logger.debug("Spend ledger cleanup failed", exc_info=True)
             return 0
 
 

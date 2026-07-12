@@ -147,7 +147,10 @@ def extract_symbol_names(text: str) -> list[str]:
     camel_words = re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b", text)
     symbols.extend(w for w in camel_words if w.lower() not in _STOPWORDS)
 
-    unique_symbols = list(set(symbols))
+    # Preserve discovery order: backtick-quoted symbols are highest
+    # confidence, and the cap below must not choose a different arbitrary
+    # subset across processes because of hash randomization.
+    unique_symbols = list(dict.fromkeys(symbols))
     return unique_symbols[:20]
 
 

@@ -19,6 +19,30 @@ def test_root_help_short_alias() -> None:
     assert "--version" in result.output
 
 
+def test_root_help_groups_commands_by_operator_phase() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "Getting Started:" in result.output
+    assert "Daily Use:" in result.output
+    assert "Optimize and Evaluate:" in result.output
+    assert "Administration:" in result.output
+    assert "setup" in result.output
+    assert "proxy" in result.output
+    assert "config" in result.output
+
+
+def test_root_without_command_shows_first_run_guidance() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main)
+
+    assert result.exit_code == 0, result.output
+    assert "Welcome to Cutctx" in result.output
+    assert "cutctx setup" in result.output
+    assert "cutctx config doctor" in result.output
+
+
 def test_root_version_short_alias() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["-v"])

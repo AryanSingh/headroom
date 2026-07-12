@@ -11,9 +11,12 @@ import sqlite3
 import time
 from pathlib import Path
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
 logger = logging.getLogger(__name__)
 
 _DB_PATH = Path.home() / ".cutctx" / "licenses.db"
+_SCHEMA_VERSION = 1
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS licenses (
@@ -75,6 +78,8 @@ class LicenseDB:
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(_SCHEMA)
+        stamp_schema_version(self._conn, expected=_SCHEMA_VERSION, store_name="license database")
+        self._conn.commit()
 
     def upsert(self, record: object) -> None:
         """Insert or update a license record."""
@@ -134,6 +139,8 @@ class LicenseDB:
         record = self.get(license_key)
         if not record:
             return {"valid": False, "reason": "key_not_found"}
+        if self.is_revoked(license_key):
+            return {"valid": False, "reason": "revoked"}
 
         parts = license_key.split("-")
         if len(parts) == 3:
@@ -215,6 +222,35 @@ class LicenseDB:
         )
         self._conn.commit()
         self._emit_audit("license.revoke", {"license_key": license_key, "reason": reason})
+
+    def deactivate_subscription(self, subscription_id: str) -> bool:
+        """Deactivate the license attached to a cancelled subscription."""
+        cursor = self._conn.execute(
+            "UPDATE licenses SET active = 0 WHERE stripe_subscription_id = ?",
+            (subscription_id,),
+        )
+        self._conn.commit()
+        if cursor.rowcount:
+            self._emit_audit(
+                "license.subscription_deactivated",
+                {"subscription_id": subscription_id},
+            )
+        return bool(cursor.rowcount)
+
+    def extend_subscription(self, subscription_id: str, expires_at: float) -> bool:
+        """Reactivate and extend a license after a verified paid invoice."""
+        cursor = self._conn.execute(
+            """UPDATE licenses SET expires_at = ?, active = 1
+               WHERE stripe_subscription_id = ?""",
+            (expires_at, subscription_id),
+        )
+        self._conn.commit()
+        if cursor.rowcount:
+            self._emit_audit(
+                "license.subscription_extended",
+                {"subscription_id": subscription_id, "expires_at": expires_at},
+            )
+        return bool(cursor.rowcount)
 
     def is_revoked(self, license_key: str) -> bool:
         """Check if a license is revoked."""

@@ -18,6 +18,7 @@
 pub mod adaptive_sizer;
 pub mod anchor_selector;
 pub mod audio_compressor;
+pub mod code_compactor;
 pub mod content_detector;
 pub mod deletion_compaction;
 pub mod detection;

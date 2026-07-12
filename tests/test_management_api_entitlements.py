@@ -10,6 +10,7 @@ from cutctx.fleet import reset_fleet_store
 from cutctx.org import reset_org_store
 from cutctx.proxy.server import ProxyConfig, create_app
 from cutctx.rbac import reset_rbac_checker
+from cutctx.retention import get_retention_manager, reset_retention_manager
 from cutctx.scim import reset_scim_store
 from cutctx.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
 
@@ -55,6 +56,48 @@ def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(
         audit = client.get("/audit/events", headers=headers)
         assert audit.status_code == 403
         assert audit.json()["detail"]["feature"] == "audit_logs"
+
+
+def test_proxy_lifecycle_starts_and_stops_retention_manager(tmp_path, monkeypatch):
+    """Configured retention must run periodically, not only on admin demand."""
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    reset_retention_manager()
+    manager = get_retention_manager()
+
+    try:
+        with _make_client(tmp_path, monkeypatch, tier="enterprise") as client:
+            assert client.app.state.retention_manager is manager
+            assert manager._running is True
+
+        assert manager._running is False
+    finally:
+        reset_retention_manager()
+
+
+def test_health_exposes_enterprise_component_initialization_failures(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_SKIP_UPSTREAM_CHECK", "1")
+    reset_audit_logger()
+    blocking_file = tmp_path / "not-a-directory"
+    blocking_file.write_text("block child creation", encoding="utf-8")
+    config = ProxyConfig(
+        admin_api_key="secret",
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        audit_db_path=str(blocking_file / "audit.db"),
+        org_db_path=str(tmp_path / "org-health.db"),
+        fleet_db_path=str(tmp_path / "fleet-health.db"),
+        scim_db_path=str(tmp_path / "scim-health.db"),
+    )
+
+    with TestClient(create_app(config)) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 503
+    initialization = response.json()["checks"]["component_initialization"]
+    assert initialization["status"] == "unhealthy"
+    assert "audit" in initialization["errors"]
 
 
 def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
@@ -231,6 +274,32 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
     assert sso.role_mapping == {"groups:value=platform-admin": "admin"}
     assert sso.default_role == "operator"
     assert sso.enabled is True
+
+
+def test_failed_admin_authentication_is_rate_limited_by_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    config = ProxyConfig(
+        admin_api_key="secret",
+        admin_auth_failures_per_minute=2,
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        audit_db_path=str(tmp_path / "audit-rate-limit.db"),
+        org_db_path=str(tmp_path / "org-rate-limit.db"),
+        fleet_db_path=str(tmp_path / "fleet-rate-limit.db"),
+        scim_db_path=str(tmp_path / "scim-rate-limit.db"),
+    )
+
+    with TestClient(create_app(config)) as client:
+        assert client.get("/license-status").status_code == 401
+        assert client.get("/license-status").status_code == 401
+        blocked = client.get("/license-status")
+        assert blocked.status_code == 429
+        assert int(blocked.headers["retry-after"]) >= 1
+
+        # A valid credential is never passed through the failure limiter.
+        valid = client.get("/license-status", headers={"X-Cutctx-Admin-Key": "secret"})
+        assert valid.status_code == 200
 
 
 @pytest.mark.no_auto_admin

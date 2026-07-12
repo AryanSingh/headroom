@@ -24,12 +24,26 @@ def _read_json(relative_path: str) -> dict[str, Any]:
     return json.loads(_read(relative_path))
 
 
+def test_dashboard_docs_match_security_and_proxy_defaults() -> None:
+    app = _read("dashboard/src/App.jsx")
+    vite_config = _read("dashboard/vite.config.js")
+    docs = _read("dashboard/src/pages/Docs.jsx")
+
+    assert "VITE_CUTCTX_VERSION || 'unknown'" in app
+    assert "'0.30.0'" not in app
+    assert "return match?.[1] || 'unknown';" in vite_config
+    assert "['`CUTCTX_MAX_BODY_MB`', '50'" in docs
+    assert "(auto-generated)" not in docs
+    assert "no key is auto-generated" in docs
+
+
 def test_click_cli_help_error_and_success_contracts() -> None:
     runner = CliRunner()
 
     help_result = runner.invoke(main, ["--help"])
     assert help_result.exit_code == 0, help_result.output
-    assert "wrap           Wrap CLI tools" in help_result.output
+    assert "Getting Started:" in help_result.output
+    assert "wrap          Wrap CLI tools to run through Cutctx." in help_result.output
     assert "proxy" in help_result.output
     assert "mcp" in help_result.output
 

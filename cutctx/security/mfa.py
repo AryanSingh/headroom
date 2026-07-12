@@ -43,6 +43,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
+
 logger = logging.getLogger(__name__)
 
 
@@ -147,6 +151,29 @@ def verify_totp(
     return False
 
 
+def matching_totp_counter(
+    secret_b32: str,
+    code: str,
+    *,
+    now: float | None = None,
+    last_used_counter: int | None = None,
+) -> int | None:
+    """Return the fresh matching counter, if any, for single-use enforcement."""
+    secret = _base32_decode(secret_b32)
+    now = now if now is not None else time.time()
+    counter = int(now) // TOTP_STEP_S
+    code = (code or "").strip()
+    if len(code) != TOTP_DIGITS or not code.isdigit():
+        return None
+    for offset in range(-TOTP_WINDOW, TOTP_WINDOW + 1):
+        candidate_counter = counter + offset
+        if last_used_counter is not None and candidate_counter <= last_used_counter:
+            continue
+        if _hotp(secret, candidate_counter) == code:
+            return candidate_counter
+    return None
+
+
 # ── SQLite-backed MFA store ────────────────────────────────────────────────
 
 
@@ -195,6 +222,8 @@ class MfaStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="MFA store")
+            conn.commit()
 
     def get(self, user_id: str) -> dict[str, Any] | None:
         with self._lock, self._connect() as conn:
@@ -256,6 +285,7 @@ __all__ = [
     "generate_secret",
     "current_totp",
     "verify_totp",
+    "matching_totp_counter",
     "TOTP_STEP_S",
     "TOTP_DIGITS",
 ]

@@ -6,8 +6,17 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_all_github_workflows_are_valid_yaml() -> None:
+    workflow_dir = ROOT / ".github" / "workflows"
+    for path in sorted((*workflow_dir.glob("*.yml"), *workflow_dir.glob("*.yaml"))):
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert isinstance(parsed, dict), f"{path.name} must contain a YAML mapping"
+        assert "jobs" in parsed, f"{path.name} must declare jobs"
 
 
 def test_docker_workflow_normalizes_repository_name_for_signing() -> None:
@@ -108,6 +117,27 @@ def test_ci_commitlint_runs_only_for_pull_requests() -> None:
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "github.event_name == 'pull_request'" in content
+
+
+def test_ci_enforces_and_uploads_python_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    codecov = (ROOT / "codecov.yml").read_text(encoding="utf-8")
+
+    assert "--cov=cutctx --cov-branch" in workflow
+    assert "--cov-fail-under=70" in workflow
+    assert "coverage-python.xml" in workflow
+    assert "flags: python" in workflow
+    assert codecov.count("target: 70%") == 2
+
+
+def test_rust_ci_generates_and_uploads_llvm_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
+
+    assert "components: llvm-tools-preview" in workflow
+    assert "tool: cargo-llvm-cov" in workflow
+    assert "cargo llvm-cov --workspace --lcov" in workflow
+    assert "coverage-rust.lcov" in workflow
+    assert "flags: rust" in workflow
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not installed")

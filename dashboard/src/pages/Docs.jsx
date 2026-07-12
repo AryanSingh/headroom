@@ -234,7 +234,7 @@ cutctx savings --by-source --format json`}
               ['`CUTCTX_PORT`', '8787', 'Port the proxy listens on'],
               ['`CUTCTX_BACKEND`', 'anthropic', 'Upstream provider: anthropic, openai, bedrock, gemini, anyllm'],
               ['`CUTCTX_MODE`', 'token', 'Compression mode: token, cache'],
-              ['`CUTCTX_ADMIN_API_KEY`', '(auto-generated)', 'Admin API key — set to a fixed value for stable deployments'],
+              ['`CUTCTX_ADMIN_API_KEY`', 'unset (loopback only)', 'Required for a network-facing deployment unless complete OIDC/JWT SSO is configured'],
               ['`CUTCTX_LICENSE_KEY`', '—', 'Enterprise license key'],
               ['`CUTCTX_ENTITLEMENT_TIER`', 'self-hosted', 'Override entitlement tier: builder, team, business, enterprise'],
             ]}
@@ -292,7 +292,7 @@ cutctx savings --by-source --format json`}
             rows={[
               ['`CUTCTX_CACHE_ENABLED`', 'true', 'Enable semantic caching of compressed outputs'],
               ['`CUTCTX_CACHE_TTL`', '3600', 'TTL in seconds for cached compressions'],
-              ['`CUTCTX_MAX_BODY_MB`', '100', 'Maximum request body size in MB'],
+              ['`CUTCTX_MAX_BODY_MB`', '50', 'Maximum request body size in MB'],
               ['`CUTCTX_ENSEMBLE_TIMEOUT`', '30', 'Timeout in seconds for ensemble fan-out requests'],
               ['`CUTCTX_ENSEMBLE_EVALUATOR_MODEL`', '—', 'Model to use for multi-model ensemble evaluation'],
               ['`CUTCTX_HTTP2`', 'false', 'Enable HTTP/2 support for the proxy server'],
@@ -320,7 +320,7 @@ cutctx savings --by-source --format json`}
           <Table
             headers={['Variable', 'Description']}
             rows={[
-              ['`CUTCTX_SSO_PROVIDER_TYPE`', 'SSO provider: oidc, saml, oauth2'],
+              ['`CUTCTX_SSO_PROVIDER_TYPE`', 'SSO provider: oidc, jwt, introspect'],
               ['`CUTCTX_SSO_DISCOVERY_URL`', 'OIDC discovery endpoint (.well-known/openid-configuration)'],
               ['`CUTCTX_SSO_JWKS_URI`', 'JWKS endpoint for JWT public key verification'],
               ['`CUTCTX_SSO_ISSUER`', 'Expected JWT issuer claim'],
@@ -522,9 +522,9 @@ pip install "cutctx-ai[pytorch-mps]" # Apple GPU embedder offload`}
         {/* Admin API */}
         <Section id="api" title="Admin API">
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-            All admin endpoints require the <code>x-cutctx-admin-key</code> header. Set
-            the key with <code>CUTCTX_ADMIN_API_KEY</code> or read the auto-generated
-            key from proxy startup logs.
+            Network-facing admin endpoints require <code>CUTCTX_ADMIN_API_KEY</code> or a
+            complete OIDC/JWT SSO configuration. A loopback-only proxy may leave the key
+            unset for local development; no key is auto-generated.
           </p>
           <Table
             headers={['Endpoint', 'Description']}

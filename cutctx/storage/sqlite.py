@@ -12,6 +12,9 @@ from typing import Any
 from ..config import RequestMetrics
 from ..utils import format_timestamp, parse_timestamp
 from .base import Storage
+from .sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
 
 
 class SQLiteStorage(Storage):
@@ -35,6 +38,7 @@ class SQLiteStorage(Storage):
 
         conn = sqlite3.connect(self.db_path)
         try:
+            conn.execute("PRAGMA journal_mode=WAL")
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS requests (
@@ -70,6 +74,8 @@ class SQLiteStorage(Storage):
                 CREATE INDEX IF NOT EXISTS idx_mode ON requests(mode)
             """)
 
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="metrics storage")
+
             conn.commit()
         finally:
             conn.close()
@@ -79,6 +85,7 @@ class SQLiteStorage(Storage):
         if self._conn is None:
             self._conn = sqlite3.connect(self.db_path)
             self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
         return self._conn
 
     def save(self, metrics: RequestMetrics) -> None:

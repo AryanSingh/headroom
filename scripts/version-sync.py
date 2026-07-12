@@ -43,7 +43,7 @@ def update_package_json(file_path: Path, version: str) -> None:
         data = json.load(f)
     data["version"] = version
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
@@ -53,7 +53,7 @@ def update_plugin_manifest(file_path: Path, version: str) -> None:
         data = json.load(f)
     data["version"] = version
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
@@ -70,7 +70,7 @@ def update_marketplace_manifest(file_path: Path, version: str) -> None:
             if isinstance(plugin, dict):
                 plugin["version"] = version
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
@@ -97,7 +97,7 @@ def update_openclaw_package_json(file_path: Path, version: str, sdk_version: str
         del dependencies["cutctx-ai"]
     dependencies["cutctx-ai"] = f"^{sdk_version}"
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
@@ -112,6 +112,22 @@ def update_pyproject_version(root: Path, version: str) -> None:
         flags=re.MULTILINE,
     )
     pyproject_path.write_text(updated, encoding="utf-8")
+
+
+def update_rust_extension_version(root: Path, version: str) -> None:
+    """Keep the PyO3 extension manifest aligned with the wheel version."""
+    manifest_path = root / "crates" / "cutctx-py" / "Cargo.toml"
+    content = manifest_path.read_text(encoding="utf-8")
+    updated, count = re.subn(
+        r'^(\[package\]\n(?:[^\n]*\n)*?version = ")[^"]+(".*)$',
+        rf"\g<1>{version}\g<2>",
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise ValueError(f"Could not locate [package] version in {manifest_path}")
+    manifest_path.write_text(updated, encoding="utf-8")
 
 
 def write_release_metadata(root: Path, version: str) -> None:
@@ -168,6 +184,7 @@ def main() -> None:
 
     # Update all versioned files
     update_pyproject_version(args.root, version)
+    update_rust_extension_version(args.root, version)
     update_openclaw_package_json(
         args.root / "plugins" / "openclaw" / "package.json", version, version
     )

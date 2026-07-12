@@ -1,7 +1,11 @@
 import sqlite3
+import threading
 from typing import Any
 
+from ...storage.sqlite_schema import stamp_schema_version
 from ..compression_store import CompressionEntry
+
+_SCHEMA_VERSION = 1
 
 
 class SqliteBackend:
@@ -24,19 +28,71 @@ class SqliteBackend:
         # creates an independent in-memory database).
         self._is_memory = db_path in (":memory:",) or db_path.startswith("file::memory:")
         self._memory_conn: sqlite3.Connection | None = None
+        # File-backed CCR databases are shared across requests. Reopening a
+        # sqlite connection for every cache operation makes SQLite reapply WAL
+        # pragmas on the hot path and dominates small cache lookups. Connections
+        # stay thread-affine by design, so keep exactly one per calling thread.
+        self._thread_local = threading.local()
         # Ensure table exists (in case Python initializes before Rust)
         self._init_db()
 
+    def _new_connection(self) -> sqlite3.Connection:
+        """Open and configure one SQLite connection for this backend."""
+        conn = sqlite3.connect(self._db_path)
+        # WAL lets CCR reads proceed while another request writes a reversible
+        # payload. NORMAL is durable enough for cache data while avoiding a
+        # full fsync on every hot-path insert.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        return conn
+
     def _get_conn(self) -> sqlite3.Connection:
-        """Return a connection, reusing the singleton for :memory: databases."""
+        """Return the calling thread's configured SQLite connection.
+
+        ``:memory:`` databases retain their historical singleton semantics so
+        all operations see the same in-memory state. File-backed stores use a
+        thread-local connection because Python's sqlite connections may not be
+        safely used from a different thread.
+        """
         if self._is_memory:
             if self._memory_conn is None:
                 if self._db_path.startswith("file::"):
                     self._memory_conn = sqlite3.connect(self._db_path, uri=True)
                 else:
                     self._memory_conn = sqlite3.connect(self._db_path)
-            return self._memory_conn
-        return sqlite3.connect(self._db_path)
+                self._configure_connection(self._memory_conn)
+            conn = self._memory_conn
+        else:
+            conn = getattr(self._thread_local, "connection", None)
+            if conn is None:
+                conn = self._new_connection()
+                self._thread_local.connection = conn
+        return conn
+
+    @staticmethod
+    def _configure_connection(conn: sqlite3.Connection) -> None:
+        # WAL lets CCR reads proceed while another request writes a reversible
+        # payload. NORMAL is durable enough for cache data while avoiding a
+        # full fsync on every hot-path insert.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+
+    def close(self) -> None:
+        """Close this thread's cached file connection, if one exists.
+
+        Long-running hosts normally retain the connection for their lifetime;
+        this explicit hook keeps embedded users and test suites from holding a
+        file descriptor after they intentionally dispose the backend.
+        """
+        if self._is_memory:
+            if self._memory_conn is not None:
+                self._memory_conn.close()
+                self._memory_conn = None
+            return
+        conn = getattr(self._thread_local, "connection", None)
+        if conn is not None:
+            conn.close()
+            del self._thread_local.connection
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
@@ -49,6 +105,9 @@ class SqliteBackend:
                     ttl_seconds  INTEGER NOT NULL
                 )
                 """
+            )
+            stamp_schema_version(
+                conn, expected=_SCHEMA_VERSION, store_name="compression cache"
             )
             conn.commit()
 

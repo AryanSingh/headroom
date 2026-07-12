@@ -36,7 +36,7 @@ from typing import Any
 from ..config import CacheAlignerConfig, CachePrefixMetrics, TransformResult
 from ..tokenizer import Tokenizer
 from ..tokenizers import EstimatingTokenCounter
-from ..utils import compute_short_hash, deep_copy_messages
+from ..utils import compute_short_hash
 from .base import Transform
 
 logger = logging.getLogger(__name__)
@@ -271,15 +271,14 @@ class CacheAligner(Transform):
     ) -> TransformResult:
         """Detect volatile content; emit warnings; never mutate messages.
 
-        Invariant: ``result.messages`` is byte-equal to the input
-        ``messages`` (modulo a deep copy for downstream isolation). The
-        prompt is never rewritten.
+        Invariant: ``result.messages`` is the input ``messages`` object. The
+        detector does not mutate messages; the pipeline owns any isolation
+        copy needed by downstream transforms.
         """
         tokens_before = tokenizer.count_messages(messages)
-        # Deep copy so callers receive a stable list they can further
-        # transform without aliasing back into the input. The COPY is
-        # not modified — invariant I2.
-        result_messages = deep_copy_messages(messages)
+        # Detector-only: avoid copying the full conversation solely to inspect
+        # it. The list and its message dictionaries remain untouched here.
+        result_messages = messages
         warnings: list[str] = []
         all_findings: list[VolatileFinding] = []
         frozen_message_count = kwargs.get("frozen_message_count", 0)

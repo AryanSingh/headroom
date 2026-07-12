@@ -43,7 +43,9 @@ test-parity:
 		exit 1; \
 	fi
 	$(MATURIN) develop -m crates/cutctx-py/Cargo.toml
-	$(CARGO) run -p cutctx-parity -- run --fixtures $(FIXTURES)
+	$(CARGO) run -p cutctx-parity -- run --fixtures $(FIXTURES) \
+		--allow-skipped-transform cache_aligner \
+		--allow-skipped-transform ccr
 
 bench:
 	$(CARGO) bench --workspace

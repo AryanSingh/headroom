@@ -14,6 +14,9 @@ def test_trust_release_checklist_keeps_external_claims_explicit() -> None:
     assert "signed outbound webhook dispatcher" in controls
     assert "per-license-tier or per-user" in controls
     assert "Alert routing is a stub webhook" not in controls
+    assert "MFA and SAML are not yet implemented" not in controls
+    assert "SAML is not implemented or marketed" in controls
+    assert "fails SSO validation closed" in controls
 
 
 def test_release_evidence_runbook_requires_real_staging_and_partner_validation() -> None:

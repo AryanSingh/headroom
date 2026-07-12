@@ -10,6 +10,7 @@ This module defines the protocols that all providers must implement.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Protocol, runtime_checkable
 
@@ -42,6 +43,19 @@ class Provider(ABC):
 
     Implementations must be explicit - no silent fallbacks.
     """
+
+    _unknown_model_warnings: set[tuple[str, str]] = set()
+
+    def _warn_unknown_model(self, model: str, limit: int, reason: str) -> None:
+        """Emit one actionable unknown-model warning per provider/model pair."""
+        key = (self.name, model)
+        if key in self._unknown_model_warnings:
+            return
+        self._unknown_model_warnings.add(key)
+        logging.getLogger(type(self).__module__).warning(
+            f"Unknown {self.name} model {model!r}: {reason} ({limit:,} tokens). "
+            "Configure it with CUTCTX_MODEL_LIMITS or ~/.cutctx/models.json."
+        )
 
     @property
     @abstractmethod

@@ -18,9 +18,9 @@
 //! `tests/parity/fixtures/diff_compressor/` are the spec.
 //!
 //! # Information preservation hardening (no parity impact)
-//! - Below `min_lines_for_ccr`, we return the input unchanged (matches
-//!   Python). Important for short diffs that don't benefit from compression
-//!   and would lose context-trim slack.
+//! - Below `min_lines_for_ccr`, we still apply safe diff compression but never
+//!   attach a CCR marker. The Python configuration names a CCR eligibility
+//!   threshold, not a full-compression threshold.
 //! - On parse failure (no `diff --git` headers found), we return the input
 //!   unchanged (matches Python). Malformed input is preserved verbatim.
 //! - `\ No newline at end of file` markers and any other non-`+`/`-`/space
@@ -126,12 +126,9 @@ pub struct DiffCompressorConfig {
     /// If true, attach an MD5-based CCR retrieval marker to the compressed
     /// output when compression met the savings threshold. Python default: true.
     pub enable_ccr: bool,
-    /// **Misnomer alert.** This actually gates the entire compression path,
-    /// not just the CCR marker: when `original_line_count <
-    /// min_lines_for_ccr`, the input is returned unchanged, no parsing, no
-    /// summary, no CCR. The name comes from the Python implementation; we
-    /// keep it to maintain fixture-config compatibility. Treat it as
-    /// "minimum diff size before we bother compressing." Python default: 50.
+    /// Minimum line count before a compressed diff may carry a CCR retrieval
+    /// marker. Compression itself is still safe and useful below this limit;
+    /// this only avoids storing/referencing tiny originals. Python default: 50.
     pub min_lines_for_ccr: usize,
     /// CCR retrieval marker is emitted only when
     /// `compressed_line_count < original_line_count *
@@ -318,18 +315,25 @@ impl DiffCompressor {
         let original_line_count = lines.len();
         stats.input_lines = original_line_count;
 
-        // Short-circuit 1: input below CCR threshold → pass through unchanged.
-        // This is the information-preservation path: a 5-line diff isn't worth
-        // compressing and the original carries all the signal.
+        // The public Python shim has historically used this lightweight path
+        // for diffs below the CCR storage threshold. Keep the native proxy
+        // byte-compatible with that contract: short diffs still benefit from
+        // metadata/context trimming, but never receive a CCR marker.
         if original_line_count < self.config.min_lines_for_ccr {
-            stats.output_lines = original_line_count;
-            stats.compression_ratio = 1.0;
+            let result = compress_short_diff_fallback(content, self.config.max_context_lines);
+            stats.output_lines = result.compressed_line_count;
+            stats.files_total = result.files_affected;
+            stats.files_kept = result.files_affected;
+            stats.hunks_total = result.hunks_kept;
+            stats.hunks_kept = result.hunks_kept;
             stats.ccr_skipped_reason = Some("input below min_lines_for_ccr".into());
+            stats.compression_ratio = if original_line_count == 0 {
+                1.0
+            } else {
+                result.compressed_line_count as f64 / original_line_count as f64
+            };
             stats.processing_duration_us = start.elapsed().as_micros() as u64;
-            return (
-                pass_through_result(content, original_line_count),
-                emit_span_and_return(stats),
-            );
+            return (result, emit_span_and_return(stats));
         }
 
         // Parse the unified diff into files + hunks (and any pre-diff
@@ -501,6 +505,7 @@ impl DiffCompressor {
         let savings_threshold = self.config.min_compression_ratio_for_ccr;
         let mut cache_key: Option<String> = None;
         if self.config.enable_ccr
+            && original_line_count >= self.config.min_lines_for_ccr
             && (compressed_line_count as f64) < (original_line_count as f64) * savings_threshold
         {
             let key = md5_hex_24(content);
@@ -521,6 +526,8 @@ impl DiffCompressor {
             stats.cache_key_emitted = true;
         } else if !self.config.enable_ccr {
             stats.ccr_skipped_reason = Some("ccr disabled".into());
+        } else if original_line_count < self.config.min_lines_for_ccr {
+            stats.ccr_skipped_reason = Some("input below min_lines_for_ccr".into());
         } else {
             stats.ccr_skipped_reason = Some(format!(
                 "compression ratio {:.3} above threshold {:.3}",
@@ -1158,6 +1165,130 @@ fn pass_through_result(content: &str, line_count: usize) -> DiffCompressionResul
     }
 }
 
+/// Mirror the Python adapter's short-diff fallback exactly.
+///
+/// The richer native parser is used for CCR-eligible diffs. The Python public
+/// surface, however, deliberately applies this low-risk line transform below
+/// ``min_lines_for_ccr``; keeping it here prevents the Rust proxy from
+/// returning a different patch than the Python proxy for the same request.
+fn compress_short_diff_fallback(content: &str, max_context_lines: usize) -> DiffCompressionResult {
+    const METADATA_PREFIXES: &[&str] = &[
+        "index ",
+        "old mode ",
+        "new mode ",
+        "deleted file mode ",
+        "new file mode ",
+        "copy from ",
+        "copy to ",
+        "rename from ",
+        "rename to ",
+        "similarity index ",
+    ];
+
+    // Python's ``splitlines(keepends=False)`` does not produce a trailing
+    // empty line for a final newline. `lines()` has the same useful property
+    // for our LF-normalized proxy payloads.
+    let lines: Vec<&str> = content.lines().collect();
+    let original_line_count = lines.len();
+    let mut out_lines: Vec<&str> = Vec::with_capacity(lines.len());
+    let mut context: Vec<&str> = Vec::new();
+    let mut files_affected = 0usize;
+    let mut additions = 0usize;
+    let mut deletions = 0usize;
+    let mut hunks_kept = 0usize;
+    let mut in_hunk = false;
+
+    for line in lines {
+        if METADATA_PREFIXES
+            .iter()
+            .any(|prefix| line.starts_with(prefix))
+        {
+            continue;
+        }
+        if line.starts_with("diff --git ") {
+            flush_short_diff_context(&mut out_lines, &mut context, max_context_lines);
+            files_affected += 1;
+            out_lines.push(line);
+            continue;
+        }
+        if line.starts_with("--- ") || line.starts_with("+++ ") {
+            out_lines.push(line);
+            continue;
+        }
+        // The Python short-diff fallback predates combined-diff support and
+        // only recognizes regular `@@` hunks. Preserve that public behavior
+        // here; combined diffs are handled by the richer parser once they are
+        // CCR-eligible.
+        if short_fallback_hunk_header_regex().is_match(line) {
+            flush_short_diff_context(&mut out_lines, &mut context, max_context_lines);
+            hunks_kept += 1;
+            in_hunk = true;
+            out_lines.push(line);
+            continue;
+        }
+        if in_hunk {
+            if line.starts_with('+') && !line.starts_with("+++") {
+                flush_short_diff_context(&mut out_lines, &mut context, max_context_lines);
+                additions += 1;
+                out_lines.push(line);
+                continue;
+            }
+            if line.starts_with('-') && !line.starts_with("---") {
+                flush_short_diff_context(&mut out_lines, &mut context, max_context_lines);
+                deletions += 1;
+                out_lines.push(line);
+                continue;
+            }
+            context.push(line);
+            continue;
+        }
+        out_lines.push(line);
+    }
+    flush_short_diff_context(&mut out_lines, &mut context, max_context_lines);
+
+    let mut compressed = out_lines.join("\n");
+    if content.ends_with('\n') && !compressed.ends_with('\n') {
+        compressed.push('\n');
+    }
+    DiffCompressionResult {
+        compressed,
+        original_line_count,
+        compressed_line_count: out_lines.len(),
+        files_affected,
+        additions,
+        deletions,
+        hunks_kept,
+        hunks_removed: 0,
+        cache_key: None,
+    }
+}
+
+fn flush_short_diff_context<'a>(
+    out: &mut Vec<&'a str>,
+    buffered: &mut Vec<&'a str>,
+    max_context_lines: usize,
+) {
+    if buffered.is_empty() {
+        return;
+    }
+    // Python's slice `buffer[-0:]` retains every item, so zero means
+    // "unbounded" here rather than dropping all context.
+    if max_context_lines > 0 && buffered.len() > max_context_lines {
+        let start = buffered.len() - max_context_lines;
+        out.extend_from_slice(&buffered[start..]);
+    } else {
+        out.extend_from_slice(buffered);
+    }
+    buffered.clear();
+}
+
+fn short_fallback_hunk_header_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^@@\s+-\d+,?\d*\s+\+\d+,?\d*\s+@@").expect("static regex compiles")
+    })
+}
+
 /// `s.split('\n').count()` — matches Python's `len(content.split("\n"))` so
 /// the line count is byte-for-byte identical regardless of trailing newlines.
 fn count_split_lines(s: &str) -> usize {
@@ -1213,15 +1344,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn short_input_passes_through() {
+    fn short_input_compresses_without_ccr_marker() {
         let c = DiffCompressor::default();
-        let input = "diff --git a/x b/x\n@@ -1 +1 @@\n-a\n+b";
+        let input = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,7 +1,7 @@\n-a\n+b\n ctx_1\n ctx_2\n ctx_3\n ctx_4\n ctx_5\n ctx_6";
         let r = c.compress(input, "");
-        // 4 lines, below min_lines_for_ccr (50) → pass-through.
+        assert!(r.compressed_line_count < r.original_line_count);
+        assert_eq!(r.files_affected, 1);
+        assert!(r.cache_key.is_none());
+    }
+
+    #[test]
+    fn short_combined_diff_uses_python_compatibility_path() {
+        let input = "diff --combined merge.py\n--- a/merge.py\n+++ b/merge.py\n@@@ -1,3 -1,3 +1,4 @@@\n  unchanged\n- old_branch\n -other_branch\n++added\n  trailing\n\n# fixture";
+        let r = DiffCompressor::default().compress(input, "");
+
+        // The public Python short-diff fallback does not parse `@@@` hunks;
+        // it preserves the merge payload verbatim and emits no hunk counters.
         assert_eq!(r.compressed, input);
-        assert_eq!(r.original_line_count, 4);
-        assert_eq!(r.compressed_line_count, 4);
-        assert_eq!(r.files_affected, 0);
+        assert_eq!(r.hunks_kept, 0);
+        assert_eq!(r.additions, 0);
+        assert_eq!(r.deletions, 0);
         assert!(r.cache_key.is_none());
     }
 

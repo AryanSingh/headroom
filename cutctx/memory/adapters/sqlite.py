@@ -16,8 +16,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ...storage.sqlite_schema import stamp_schema_version
 from ..models import Memory, ScopeLevel
 from ..ports import MemoryFilter
+
+_SCHEMA_VERSION = 1
 
 if TYPE_CHECKING:
     import numpy as np
@@ -115,6 +118,7 @@ class SQLiteMemoryStore:
         """
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
     def _init_db(self) -> None:
@@ -202,6 +206,7 @@ class SQLiteMemoryStore:
                 "CREATE INDEX IF NOT EXISTS idx_memories_superseded_by ON memories(superseded_by)"
             )
 
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="memory store")
             conn.commit()
 
     def _serialize_embedding(self, embedding: np.ndarray | None) -> bytes | None:

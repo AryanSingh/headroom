@@ -232,6 +232,48 @@ def test_openai_backend_streaming_perf_zeros_when_upstream_omits_usage() -> None
     assert (cr, cw, chp) == (0, 0, 0)
 
 
+def test_openai_backend_streaming_records_ttfb() -> None:
+    """The backend OpenAI path records first-byte latency in its outcome."""
+    config = ProxyConfig(
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        backend="anyllm",
+        anyllm_provider="openai",
+    )
+    backend = _make_openai_backend(
+        [
+            'data: {"id":"c1","object":"chat.completion.chunk",'
+            '"choices":[{"index":0,"delta":{"content":"hi"}}]}\n\n',
+            "data: [DONE]\n\n",
+        ]
+    )
+    outcomes = []
+
+    with patch("cutctx.proxy.server.AnyLLMBackend", return_value=backend):
+        app = create_app(config)
+        with TestClient(app) as client:
+            proxy = client.app.state.proxy
+
+            async def record_outcome(outcome) -> None:
+                outcomes.append(outcome)
+
+            proxy._record_request_outcome = record_outcome
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "gpt-5.5",
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "stream": True,
+                },
+                headers={"Authorization": "Bearer test-key"},
+            )
+
+    assert response.status_code == 200
+    assert len(outcomes) == 1
+    assert outcomes[0].ttfb_ms > 0
+
+
 # =============================================================================
 # Bug B — _stream_response_bedrock (Bedrock-native Anthropic streaming)
 # =============================================================================

@@ -31,6 +31,7 @@ import importlib.util
 import inspect
 import json
 import logging
+import math
 import os
 import sys
 import threading
@@ -618,6 +619,7 @@ class CutctxProxy(
             SemanticCache(
                 max_entries=config.cache_max_entries,
                 ttl_seconds=config.cache_ttl_seconds,
+                max_size_bytes=config.cache_max_size_bytes,
             )
             if config.cache_enabled
             else None
@@ -953,6 +955,7 @@ class CutctxProxy(
         self.entitlement_checker = EntitlementChecker(
             plan=config.entitlement_tier,
         )
+        self.component_init_errors: dict[str, str] = {}
 
         # Audit logger (enterprise compliance — structured event logging)
         self.audit_logger = None
@@ -963,8 +966,11 @@ class CutctxProxy(
                 self.audit_logger = get_audit_logger(
                     db_path=getattr(config, "audit_db_path", None),
                 )
-            except Exception:
-                logger.debug("Audit logger init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Audit logger unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["audit"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Audit logger init failed", exc_info=True)
 
         # Org store (enterprise multi-tenant model)
         self.org_store = None
@@ -975,8 +981,11 @@ class CutctxProxy(
                 self.org_store = get_org_store(
                     db_path=getattr(config, "org_db_path", None),
                 )
-            except Exception:
-                logger.debug("Org store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Org store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["org"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Org store init failed", exc_info=True)
 
         # Fleet registry (enterprise deployment inventory)
         self.fleet_store = None
@@ -987,8 +996,11 @@ class CutctxProxy(
                 self.fleet_store = get_fleet_store(
                     db_path=getattr(config, "fleet_db_path", None),
                 )
-            except Exception:
-                logger.debug("Fleet store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Fleet store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["fleet"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Fleet store init failed", exc_info=True)
 
         # SCIM provisioning store (enterprise identity sync)
         self.scim_store = None
@@ -999,8 +1011,11 @@ class CutctxProxy(
                 self.scim_store = get_scim_store(
                     db_path=getattr(config, "scim_db_path", None),
                 )
-            except Exception:
-                logger.debug("SCIM store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("SCIM store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["scim"] = f"{type(exc).__name__}: {exc}"
+                logger.error("SCIM store init failed", exc_info=True)
 
         # Traffic Learner (live pattern extraction from proxy traffic)
         # Only activates with --learn flag; requires --memory for backend
@@ -2158,7 +2173,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     check_offline_compat()
     config = config or ProxyConfig()
+    from cutctx.proxy.deployment_security import require_secure_deployment
+
+    require_secure_deployment(config)
     proxy = CutctxProxy(config)
+    admin_auth_failure_limiter = (
+        TokenBucketRateLimiter(
+            requests_per_minute=config.admin_auth_failures_per_minute,
+            tokens_per_minute=1,
+        )
+        if config.admin_auth_failures_per_minute > 0
+        else None
+    )
     from cutctx.telemetry.beacon import TelemetryBeacon
 
     _beacon = TelemetryBeacon(
@@ -2169,14 +2195,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @contextlib.asynccontextmanager
     async def _lifespan(_: FastAPI):
+        retention_manager: Any | None = None
         configure_otel_metrics(OTelMetricsConfig.from_env(default_service_name="cutctx-proxy"))
         configure_langfuse_tracing(
             LangfuseTracingConfig.from_env(default_service_name="cutctx-proxy")
         )
         await proxy.startup()
         try:
+            # Retention is an enterprise module exposed through the stable
+            # ``cutctx.retention`` import.  Starting it here makes the
+            # configured periodic cleanup effective; previously it only ran
+            # when an administrator explicitly called /retention/cleanup.
+            from cutctx.retention import get_retention_manager
+
+            retention_manager = get_retention_manager()
+            await retention_manager.start()
+            app.state.retention_manager = retention_manager
+        except ImportError:
+            # OSS distributions intentionally omit the enterprise retention
+            # module.  The proxy must remain usable without it.
+            logger.debug("Retention controls unavailable (enterprise module not installed)")
+        except Exception:
+            # Do not turn an optional background cleanup service into a proxy
+            # startup outage, but make a failed compliance control visible.
+            logger.exception("Retention manager failed to start")
+        try:
             yield
         finally:
+            if retention_manager is not None:
+                try:
+                    await retention_manager.stop()
+                except Exception:
+                    logger.exception("Retention manager failed to stop")
             await proxy.shutdown()
             shutdown_cutctx_tracing()
             shutdown_otel_metrics()
@@ -2194,6 +2244,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.startup_error = None
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
+    app.state.retention_manager = None
 
     # Register error handlers with remediation hints
     @app.exception_handler(json.JSONDecodeError)
@@ -2874,6 +2925,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 native_tool=bool(memory_status.get("native_tool", False)),
                 bridge_enabled=bool(memory_status.get("bridge_enabled", False)),
             ),
+            "component_initialization": _component_health(
+                enabled=True,
+                ready=not proxy.component_init_errors,
+                errors=dict(proxy.component_init_errors),
+            ),
             "upstream": _component_health(
                 enabled=os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() != "1",
                 ready=bool(_upstream_check_cache["ok"]),
@@ -3049,10 +3105,31 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return payload
 
     async def _require_local_admin_auth(request: Request) -> None:
-        expected_admin_key = config.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY")
+        from cutctx.proxy.deployment_security import effective_admin_key, has_configured_sso
+        from cutctx.proxy.forwarded_headers import resolve_client_ip
+
+        async def _reject_failed_auth(detail: dict[str, str]) -> None:
+            if admin_auth_failure_limiter is not None:
+                client_ip = resolve_client_ip(request) or "unknown"
+                allowed, wait_seconds = await admin_auth_failure_limiter.check_request(
+                    f"admin-auth:{client_ip}"
+                )
+                if not allowed:
+                    retry_after = max(1, math.ceil(wait_seconds))
+                    raise HTTPException(
+                        status_code=429,
+                        detail={
+                            "message": "Too many failed admin authentication attempts.",
+                            "remediation": "Wait before retrying, then verify your admin key or SSO token.",
+                        },
+                        headers={"Retry-After": str(retry_after)},
+                    )
+            raise HTTPException(status_code=401, detail=detail)
+
+        expected_admin_key = effective_admin_key(config)
         auth_header = request.headers.get("authorization", "")
         bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-        admin_header = request.headers.get("x-cutctx-admin-key", "") or request.query_params.get("key", "")
+        admin_header = request.headers.get("x-cutctx-admin-key", "")
         legacy_header = request.headers.get("x-headroom-admin-key", "")
         import hmac as _hmac
 
@@ -3061,21 +3138,20 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             or _hmac.compare_digest(admin_header, expected_admin_key)
             or _hmac.compare_digest(legacy_header, expected_admin_key)
         ):
+            # The configured admin key is the root administrative credential.
+            # Mark it explicitly so the RBAC checker's safe Viewer fallback
+            # doesn't reduce authenticated operators to read-only access.
+            request.state.cutctx_role = "admin"
+            request.state.cutctx_admin_authenticated = True
             return
 
-        sso_configured = bool(
-            getattr(config, "sso_provider_type", None)
-            and getattr(config, "sso_jwks_uri", None)
-            and getattr(config, "sso_issuer", None)
-            and getattr(config, "sso_audience", None)
-        )
+        sso_configured = has_configured_sso(config)
         if sso_configured:
             if not bearer_token:
-                raise HTTPException(
-                    status_code=401,
-                    detail={
+                await _reject_failed_auth(
+                    {
                         "message": "Missing Bearer token for SSO-protected endpoint.",
-                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>"
+                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>",
                     }
                 )
             try:
@@ -3089,24 +3165,81 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 if getattr(claims, "subject", None):
                     request.state.cutctx_user_id = claims.subject
                 request.state.cutctx_sso_claims = claims
+                if os.environ.get("CUTCTX_MFA_ENFORCE", "").strip().lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
+                }:
+                    from cutctx.security.mfa import MfaStore, matching_totp_counter
+
+                    subject = getattr(claims, "subject", None)
+                    try:
+                        store = MfaStore(
+                            db_path=os.environ.get("CUTCTX_RBAC_DB_PATH") or "~/.cutctx/rbac.db"
+                        )
+                        enrollment = store.get(subject) if subject else None
+                    except Exception as exc:
+                        logger.exception("MFA enrollment store unavailable")
+                        raise HTTPException(
+                            status_code=503,
+                            detail={
+                                "message": "MFA enforcement store is unavailable.",
+                                "remediation": "Restore the MFA enrollment database before retrying.",
+                            },
+                        ) from exc
+                    if enrollment is not None:
+                        code = request.headers.get("x-cutctx-mfa-code", "")
+                        counter = matching_totp_counter(
+                            enrollment["secret_b32"],
+                            code,
+                            last_used_counter=enrollment["last_used_counter"],
+                        )
+                        if counter is None:
+                            raise HTTPException(
+                                status_code=401,
+                                detail={
+                                    "message": "A fresh MFA code is required for this enrolled admin.",
+                                    "remediation": "Pass X-Cutctx-MFA-Code with a current authenticator code.",
+                                },
+                            )
+                        try:
+                            consumed = store.consume_counter(subject, counter)
+                        except Exception as exc:
+                            logger.exception("MFA enrollment store unavailable")
+                            raise HTTPException(
+                                status_code=503,
+                                detail={
+                                    "message": "MFA enforcement store is unavailable.",
+                                    "remediation": "Restore the MFA enrollment database before retrying.",
+                                },
+                            ) from exc
+                        if not consumed:
+                            raise HTTPException(
+                                status_code=401,
+                                detail={
+                                    "message": "A fresh MFA code is required for this enrolled admin.",
+                                    "remediation": "Pass X-Cutctx-MFA-Code with a current authenticator code.",
+                                },
+                            )
                 return
-            except Exception as exc:
+            except HTTPException:
+                raise
+            except Exception:
                 logger.debug("SSO validation failed in runtime app", exc_info=True)
-                raise HTTPException(
-                    status_code=401,
-                    detail={
+                await _reject_failed_auth(
+                    {
                         "message": "Invalid or expired SSO bearer token.",
-                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry."
+                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry.",
                     }
-                ) from exc
+                )
 
         if not expected_admin_key:
             return
-        raise HTTPException(
-            status_code=401,
-            detail={
+        await _reject_failed_auth(
+            {
                 "message": "Invalid or missing admin credentials.",
-                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct."
+                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct.",
             }
         )
 
@@ -3223,7 +3356,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.post("/stats/reset")
     async def stats_reset(request: Request):
-        await _require_local_admin_auth(request)
+        await _runtime_require_rbac_permission("stats.reset")(request)
         await proxy.metrics.reset_runtime()
         if proxy.cost_tracker:
             proxy.cost_tracker.reset_runtime()
@@ -3994,6 +4127,9 @@ def run_server(
         sys.exit(1)
 
     config = config or ProxyConfig()
+    from cutctx.proxy.deployment_security import require_secure_deployment
+
+    require_secure_deployment(config)
     code_aware_status = _get_code_aware_banner_status(config)
 
     # Format connection pool info
@@ -4648,6 +4784,9 @@ if __name__ == "__main__":
     config = ProxyConfig(
         host=_get_env_str("CUTCTX_HOST", args.host),
         port=_get_env_int("CUTCTX_PORT", args.port),
+        admin_auth_failures_per_minute=_get_env_int(
+            "CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE", 10
+        ),
         openai_api_url=_get_env_str("OPENAI_TARGET_API_URL", args.openai_api_url),
         anthropic_api_url=_get_env_str("ANTHROPIC_TARGET_API_URL", args.anthropic_api_url),
         vertex_api_url=_get_env_str("VERTEX_TARGET_API_URL", args.vertex_api_url),
@@ -4661,6 +4800,7 @@ if __name__ == "__main__":
         max_items_after_crush=_get_env_int("CUTCTX_MAX_ITEMS", args.max_items),
         cache_enabled=cache_enabled,
         cache_ttl_seconds=_get_env_int("CUTCTX_CACHE_TTL", args.cache_ttl),
+        cache_max_size_bytes=_get_env_int("CUTCTX_CACHE_MAX_SIZE_BYTES", 0) or None,
         rate_limit_enabled=rate_limit_enabled,
         rate_limit_requests_per_minute=_get_env_int("CUTCTX_RPM", args.rpm),
         rate_limit_tokens_per_minute=_get_env_int("CUTCTX_TPM", args.tpm),

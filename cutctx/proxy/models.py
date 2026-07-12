@@ -137,6 +137,9 @@ class ProxyConfig:
     gemini_api_url: str | None = None  # Custom Gemini API URL override
     cloudcode_api_url: str | None = None  # Custom Cloud Code Assist API URL override
     vertex_api_url: str | None = None  # Custom Vertex AI regional API URL override
+    # Failed admin/SSO authentication attempts accepted per client IP each
+    # minute. Set to 0 to disable the dedicated brute-force guard.
+    admin_auth_failures_per_minute: int = 10
 
     # Backend: "anthropic" (direct API), "litellm-*" (via LiteLLM), or "anyllm" (via any-llm)
     backend: str = "anthropic"
@@ -312,6 +315,9 @@ class ProxyConfig:
     cache_enabled: bool = True
     cache_ttl_seconds: int = 3600
     cache_max_entries: int = 1000
+    # Optional resident-response budget for the exact-match semantic cache.
+    # None keeps the backwards-compatible entry-count-only limit.
+    cache_max_size_bytes: int | None = None
     cache_aligner_enabled: bool = False
 
     # Rate limiting
@@ -433,7 +439,9 @@ class ProxyConfig:
     # Admin API key — gates /dashboard, /stats, /stats-reset, /transformations/feed.
     # When set, requests must include `Authorization: Bearer <admin_api_key>` or
     # `X-Cutctx-Admin-Key: <admin_api_key>` header. When None, these endpoints
-    # are open (backward-compatible default). Env: CUTCTX_ADMIN_API_KEY.
+    # are open only when bound to a loopback host. Network-facing deployments
+    # must configure this key or a complete OIDC/JWT SSO configuration.
+    # Env: CUTCTX_ADMIN_API_KEY.
     admin_api_key: str | None = None
 
     # Hosted compression surface — feature-flagged simple API for buyers who

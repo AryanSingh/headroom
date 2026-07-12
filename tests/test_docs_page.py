@@ -34,7 +34,8 @@ def _install_docs_routes(page: Page) -> None:
             return
 
         if "/assets/" in url:
-            asset_path = root_dir / "dashboard/dist" / url.split("cutctx.local/")[1]
+            asset_name = url.split("/assets/", 1)[1]
+            asset_path = root_dir / "cutctx" / "dashboard" / "assets" / asset_name
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(

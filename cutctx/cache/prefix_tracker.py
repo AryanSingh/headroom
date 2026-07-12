@@ -29,6 +29,9 @@ from pathlib import Path
 from typing import Any
 
 from cutctx.proxy.helpers import is_stateless
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
 
 logger = logging.getLogger(__name__)
 
@@ -417,6 +420,8 @@ class SessionTrackerStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="prefix tracker")
+            conn.commit()
 
     def _tracker_state_json(self, tracker: PrefixCacheTracker) -> str:
         return json.dumps(tracker.snapshot_state(), separators=(",", ":"), ensure_ascii=False)

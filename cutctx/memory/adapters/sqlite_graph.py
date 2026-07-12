@@ -21,7 +21,10 @@ from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, Any
 
+from ...storage.sqlite_schema import stamp_schema_version
 from .graph_models import Entity, Relationship, RelationshipDirection, Subgraph
+
+_SCHEMA_VERSION = 1
 
 if TYPE_CHECKING:
     from ..tracker import ComponentStats
@@ -79,6 +82,7 @@ class SQLiteGraphStore:
         """
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
 
         # Configure page cache size (negative = KB, positive = pages)
         if self._page_cache_size_kb > 0:
@@ -148,6 +152,7 @@ class SQLiteGraphStore:
                 "CREATE INDEX IF NOT EXISTS idx_relationships_user ON relationships(user_id)"
             )
 
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="memory graph")
             conn.commit()
 
     def _entity_to_row(self, entity: Entity) -> dict[str, Any]:

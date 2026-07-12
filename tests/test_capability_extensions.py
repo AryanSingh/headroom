@@ -214,17 +214,23 @@ class TestStripeWebhook:
                 "subscription": "sub_456",
                 "metadata": {"tier": "team", "seats": "10"},
                 "customer_details": {"email": "test@example.com"},
+                "line_items": {
+                    "data": [{"price": {"id": "price_team_test"}, "quantity": 10}]
+                },
             }
         }
 
         with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
-            with patch("cutctx.billing.stripe_webhook._save_license"):
-                with patch("cutctx.billing.stripe_webhook._send_license_email"):
-                    record = handle_checkout_completed(event_data)
-                    assert record.tier == "team"
-                    assert record.seats == 10
-                    assert record.customer_email == "test@example.com"
-                    assert record.active is True
+            from cutctx.billing.stripe_webhook import PRICE_TO_TIER
+
+            with patch.dict(PRICE_TO_TIER, {"price_team_test": "team"}, clear=True):
+                with patch("cutctx.billing.stripe_webhook._save_license"):
+                    with patch("cutctx.billing.stripe_webhook._send_license_email"):
+                        record = handle_checkout_completed(event_data)
+                        assert record.tier == "team"
+                        assert record.seats == 10
+                        assert record.customer_email == "test@example.com"
+                        assert record.active is True
 
     def test_handle_checkout_ignores_metadata_tier_escalation(self):
         """SECURITY: client-controlled metadata.tier MUST NOT escalate tier.
@@ -252,14 +258,8 @@ class TestStripeWebhook:
         with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
             with patch("cutctx.billing.stripe_webhook._save_license"):
                 with patch("cutctx.billing.stripe_webhook._send_license_email"):
-                    record = handle_checkout_completed(event_data)
-                    # tier must NOT be enterprise — it falls back to the
-                    # conservative default ("team") because no line_items
-                    # price ID matched any STRIPE_PRICE_* env var.
-                    assert record.tier != "enterprise", (
-                        "metadata.tier escalation succeeded — SECURITY REGRESSION"
-                    )
-                    assert record.tier == "team"
+                    with pytest.raises(ValueError, match="no recognized Stripe price ID"):
+                        handle_checkout_completed(event_data)
 
     def test_handle_checkout_resolves_tier_from_price_id(self):
         """Tier is resolved from line_items[].price.id when present."""
@@ -287,7 +287,7 @@ class TestStripeWebhook:
                         "customer_details": {"email": "real@example.com"},
                         "line_items": {
                             "data": [
-                                {"price": {"id": "price_enterprise_xyz"}},
+                                {"price": {"id": "price_enterprise_xyz"}, "quantity": 7},
                             ]
                         },
                     }
@@ -297,6 +297,31 @@ class TestStripeWebhook:
                         record = handle_checkout_completed(event_data)
                         # price ID wins, metadata is ignored
                         assert record.tier == "enterprise"
+                        assert record.seats == 7
+
+    def test_handle_checkout_ignores_metadata_seat_escalation(self):
+        from cutctx.billing.stripe_webhook import PRICE_TO_TIER, handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_seats",
+                "subscription": "sub_seats",
+                "metadata": {"tier": "enterprise", "seats": "9999"},
+                "customer_details": {"email": "buyer@example.com"},
+                "line_items": {
+                    "data": [{"price": {"id": "price_team_real"}, "quantity": 3}]
+                },
+            }
+        }
+
+        with patch.dict("os.environ", {"CUTCTX_LICENSE_HMAC_SECRET": "test-secret"}):
+            with patch.dict(PRICE_TO_TIER, {"price_team_real": "team"}, clear=True):
+                with patch("cutctx.billing.stripe_webhook._save_license"):
+                    with patch("cutctx.billing.stripe_webhook._send_license_email"):
+                        record = handle_checkout_completed(event_data)
+
+        assert record.tier == "team"
+        assert record.seats == 3
 
 
 # ---------------------------------------------------------------------------
@@ -314,12 +339,14 @@ class TestLicenseDB:
                 journal_mode = db._conn.execute("PRAGMA journal_mode").fetchone()[0]
                 busy_timeout = db._conn.execute("PRAGMA busy_timeout").fetchone()[0]
                 synchronous = db._conn.execute("PRAGMA synchronous").fetchone()[0]
+                schema_version = db._conn.execute("PRAGMA user_version").fetchone()[0]
             finally:
                 db.close()
 
         assert str(journal_mode).lower() == "wal"
         assert int(busy_timeout) == 5000
         assert int(synchronous) == 1
+        assert int(schema_version) == 1
 
     def test_upsert_and_get(self, monkeypatch):
         from cutctx.billing.license_db import LicenseDB
@@ -354,6 +381,55 @@ class TestLicenseDB:
             result = db.validate("nonexistent-key")
             assert result["valid"] is False
             assert result["reason"] == "key_not_found"
+
+    def test_validate_rejects_revoked_license(self):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            record = LicenseRecord(
+                license_key="team-revoked",
+                tier="team",
+                customer_email="test@test.com",
+                seats=5,
+                stripe_customer_id="cus_1",
+                stripe_subscription_id="sub_revoked",
+                created_at=time.time(),
+                expires_at=time.time() + 86400,
+                active=True,
+            )
+            db.upsert(record)
+            db.revoke_license(record.license_key, "chargeback")
+
+            assert db.validate(record.license_key) == {"valid": False, "reason": "revoked"}
+
+    def test_subscription_lifecycle_updates_license(self):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            record = LicenseRecord(
+                license_key="team-lifecycle",
+                tier="team",
+                customer_email="test@test.com",
+                seats=5,
+                stripe_customer_id="cus_1",
+                stripe_subscription_id="sub_lifecycle",
+                created_at=time.time(),
+                expires_at=time.time() + 100,
+                active=True,
+            )
+            db.upsert(record)
+
+            assert db.deactivate_subscription("sub_lifecycle") is True
+            assert db.get(record.license_key).active == 0
+            renewed_until = time.time() + 86400
+            assert db.extend_subscription("sub_lifecycle", renewed_until) is True
+            renewed = db.get(record.license_key)
+            assert renewed.active == 1
+            assert renewed.expires_at == renewed_until
 
     def test_validate_expired(self):
         from cutctx.billing.license_db import LicenseDB

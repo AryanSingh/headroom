@@ -25,11 +25,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_LEDGER_PATH = Path("~/.cutctx/assurance.ledger.db")
 _LEDGER_ENV = "CUTCTX_ASSURANCE_LEDGER"
 _HMAC_KEY_ENV = "CUTCTX_ASSURANCE_HMAC_KEY"
+_SCHEMA_VERSION = 1
 
 # ---------------------------------------------------------------------------
 # Event models
@@ -161,6 +164,8 @@ class EvidenceLedger:
                 "CREATE INDEX IF NOT EXISTS idx_ledger_session ON evidence_ledger(session_id)"
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_time ON evidence_ledger(timestamp)")
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="assurance ledger")
+            conn.commit()
 
     def _last_hash(self) -> str:
         with sqlite3.connect(self.path) as conn:

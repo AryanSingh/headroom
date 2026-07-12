@@ -1,0 +1,13 @@
+{
+  "transform": "adaptive_sizer",
+  "input": {
+    "items": ["duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record", "duplicate record"],
+    "bias": 1.0,
+    "min_k": 1,
+    "max_k": null
+  },
+  "config": {},
+  "output": 1,
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "input_sha256": "adaptive-sizer-redundant"
+}

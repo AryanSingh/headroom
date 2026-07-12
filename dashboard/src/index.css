@@ -634,6 +634,28 @@ pre {
    PAGE SHELL
    ═══════════════════════════════════════════════════════════════ */
 
+.skip-link {
+  position: fixed;
+  top: var(--space-md);
+  left: var(--space-md);
+  z-index: 1000;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  transform: translateY(-200%);
+  pointer-events: none;
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  pointer-events: auto;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
 .page-shell {
   padding: var(--space-3xl) var(--space-3xl) var(--space-4xl);
 }
@@ -2214,12 +2236,18 @@ OVERVIEW: TREND CHART
 }
 
 .trend-bar:hover,
-.trend-bar.active,
+.trend-bar.active {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(20, 184, 166, 0.2);
+}
+
 .trend-bar:focus-visible {
   opacity: 1;
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(20, 184, 166, 0.2);
-  outline: none;
+  outline: 3px solid var(--border-focus);
+  outline-offset: 3px;
 }
 
 .trend-bar-tooltip {
@@ -2358,12 +2386,14 @@ OVERVIEW: TREND CHART
     width: var(--sidebar-width);
     z-index: 100;
     transform: translateX(-100%);
+    pointer-events: none;
     transition: transform 0.3s ease, background-color 0.3s ease;
     box-shadow: var(--shadow-lg);
   }
 
   .sidebar-shell.open {
     transform: translateX(0);
+    pointer-events: auto;
   }
 
   .sidebar-overlay {
@@ -2921,6 +2951,10 @@ grid-template-columns: 1fr;
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+
+  .skeleton {
+    animation: none;
   }
 }
 

@@ -1269,6 +1269,13 @@ def proxy(
 
         config.hooks = LearnedPolicyHooks()
 
+    from cutctx.proxy.deployment_security import DeploymentSecurityError, require_secure_deployment
+
+    try:
+        require_secure_deployment(config)
+    except DeploymentSecurityError as exc:
+        raise click.ClickException(str(exc)) from exc
+
     memory_status = "DISABLED"
     if config.memory_enabled:
         memory_status = "ENABLED (multi-provider)"

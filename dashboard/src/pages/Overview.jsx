@@ -928,6 +928,29 @@ function TrendChart({ stats, historyData, duration }) {
                     .map((entry) => `${entry.model} (${formatInteger(entry.tokens)})`)
                     .join(', ')}`
                 : 'Model mix unavailable';
+              const moveTrendFocus = (event) => {
+                let nextIndex = null;
+                if (event.key === 'ArrowRight') {
+                  nextIndex = Math.min(index + 1, buckets.length - 1);
+                }
+                if (event.key === 'ArrowLeft') {
+                  nextIndex = Math.max(index - 1, 0);
+                }
+                if (event.key === 'Home') {
+                  nextIndex = 0;
+                }
+                if (event.key === 'End') {
+                  nextIndex = buckets.length - 1;
+                }
+                if (nextIndex == null) {
+                  return;
+                }
+
+                event.preventDefault();
+                setHoveredIndex(nextIndex);
+                const bars = event.currentTarget.parentElement?.querySelectorAll('.trend-bar');
+                bars?.[nextIndex]?.focus();
+              };
 
               return (
                 <button
@@ -936,10 +959,12 @@ function TrendChart({ stats, historyData, duration }) {
                   style={{ height: `${scaledHeight}%` }}
                   title={`${bucket.label}: ${formatInteger(bucket.tokens)} tokens saved${bucket.hasRequestData ? ` across ${formatInteger(bucket.requests)} requests` : ''}${topModels.length > 0 ? ` · ${modelText}` : ''}`}
                   type="button"
+                  aria-label={`${bucket.label}: ${formatInteger(bucket.tokens)} tokens saved, ${requestText}. ${modelText}`}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onFocus={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                   onBlur={() => setHoveredIndex(null)}
+                  onKeyDown={moveTrendFocus}
                 >
                   <span className="trend-bar-tooltip">
                     <strong>{bucket.label}</strong>

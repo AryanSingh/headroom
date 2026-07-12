@@ -1,0 +1,13 @@
+{
+  "transform": "adaptive_sizer",
+  "input": {
+    "items": ["alpha topic 0 distinct words", "alpha topic 1 distinct words", "alpha topic 2 distinct words", "alpha topic 3 distinct words", "alpha topic 4 distinct words", "alpha topic 5 distinct words", "alpha topic 6 distinct words", "alpha topic 7 distinct words", "alpha topic 8 distinct words", "alpha topic 9 distinct words", "alpha topic 10 distinct words", "alpha topic 11 distinct words"],
+    "bias": 0.5,
+    "min_k": 2,
+    "max_k": 10
+  },
+  "config": {},
+  "output": 6,
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "input_sha256": "adaptive-sizer-biased-cap"
+}

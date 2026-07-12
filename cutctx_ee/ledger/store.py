@@ -9,8 +9,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from cutctx.pricing.registry import PricingRegistry
+from cutctx.storage.sqlite_schema import stamp_sqlalchemy_schema_version
 from cutctx_ee.ledger.models import Base, SpendEvent
 from cutctx_ee.ledger.pricing import compute_costs
+
+_SCHEMA_VERSION = 1
 
 
 class LedgerStore:
@@ -22,6 +25,9 @@ class LedgerStore:
     def __init__(self, db_url: str, pricing_registry: PricingRegistry | None = None):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
+        stamp_sqlalchemy_schema_version(
+            self.engine, expected=_SCHEMA_VERSION, store_name="spend ledger"
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.pricing_registry = pricing_registry
 

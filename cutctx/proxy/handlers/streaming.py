@@ -916,7 +916,7 @@ class StreamingMixin:
         """
         from fastapi.responses import Response, StreamingResponse
 
-        from cutctx.proxy.helpers import MAX_SSE_BUFFER_SIZE
+        from cutctx.proxy.helpers import MAX_SSE_BUFFER_SIZE, MAX_SSE_MIRROR_SIZE
 
         # Identify the harness (codex / claude-code / aider / cursor /
         # ...) from the *client's* User-Agent before copilot-auth
@@ -1572,6 +1572,7 @@ class StreamingMixin:
             # been collected, so split UTF-8 bytes never produce
             # corrupted strings.
             full_sse_bytes = bytearray()
+            full_sse_truncated = False
             parsed_response = None  # Set by memory block; used by CCR + prefix tracker
 
             # ── Budget tracker (per-request token budget enforcement) ──
@@ -1658,16 +1659,21 @@ class StreamingMixin:
                             or memory_enabled
                             or (prefix_tracker is not None and provider == "anthropic")
                         )
-                        if _track_sse:
+                        if _track_sse and not full_sse_truncated:
                             if memory_enabled:
                                 buffered_chunks.append(chunk)
-                            full_sse_bytes.extend(chunk)
-                            if len(full_sse_bytes) > MAX_SSE_BUFFER_SIZE:
+                            if len(full_sse_bytes) + len(chunk) <= MAX_SSE_MIRROR_SIZE:
+                                full_sse_bytes.extend(chunk)
+                            else:
                                 logger.warning(
-                                    "Memory-mode SSE buffer exceeded maximum size, "
-                                    "disabling memory detection for this request"
+                                    "SSE post-stream mirror exceeded %d bytes; disabling optional "
+                                    "post-stream processing for this request",
+                                    MAX_SSE_MIRROR_SIZE,
                                 )
                                 memory_enabled = False
+                                buffered_chunks.clear()
+                                full_sse_bytes.clear()
+                                full_sse_truncated = True
 
                         # Parse complete SSE events from buffer
                         # Check if we've received the terminal [DONE] sentinel
@@ -1874,7 +1880,6 @@ class StreamingMixin:
                 }
                 yield f"event: error\ndata: {json.dumps(error_event)}\n\n".encode()
             finally:
-                print(f"DEBUG: inside finally stream_complete={stream_complete} full_sse_bytes={len(full_sse_bytes)}")
                 try:
                     _final_full_sse_data: str = (
                         full_sse_bytes.decode("utf-8") if full_sse_bytes else ""
@@ -2152,6 +2157,7 @@ class StreamingMixin:
         from fastapi.responses import StreamingResponse
 
         from cutctx.proxy.handlers.openai import _infer_openai_cache_write_tokens
+        from cutctx.proxy.helpers import MAX_SSE_MIRROR_SIZE
         from cutctx.proxy.outcome import RequestOutcome
 
         backend = backend or self.anthropic_backend
@@ -2161,6 +2167,7 @@ class StreamingMixin:
         async def generate():
             stream_state: dict[str, Any] = {
                 "sse_buffer": bytearray(),
+                "ttfb_ms": None,
                 "input_tokens": None,
                 "output_tokens": None,
                 "cache_read_input_tokens": None,
@@ -2171,6 +2178,7 @@ class StreamingMixin:
             # closes (cheap, no buffering of in-flight chunks back to
             # the client).
             full_sse_bytes = bytearray()
+            full_sse_truncated = False
 
             def _absorb(usage: dict[str, int] | None) -> None:
                 if not usage:
@@ -2186,9 +2194,21 @@ class StreamingMixin:
 
             try:
                 async for sse_chunk in backend.stream_openai_message(body, headers):
+                    if stream_state["ttfb_ms"] is None:
+                        stream_state["ttfb_ms"] = (time.time() - start_time) * 1000
                     chunk_bytes = sse_chunk.encode() if isinstance(sse_chunk, str) else sse_chunk
                     stream_state["sse_buffer"].extend(chunk_bytes)
-                    full_sse_bytes.extend(chunk_bytes)
+                    if self.config.ccr_inject_tool and not full_sse_truncated:
+                        if len(full_sse_bytes) + len(chunk_bytes) <= MAX_SSE_MIRROR_SIZE:
+                            full_sse_bytes.extend(chunk_bytes)
+                        else:
+                            logger.warning(
+                                "[%s] SSE post-stream mirror exceeded %d bytes; skipping CCR feedback",
+                                request_id,
+                                MAX_SSE_MIRROR_SIZE,
+                            )
+                            full_sse_bytes.clear()
+                            full_sse_truncated = True
                     _absorb(self._parse_sse_usage_from_buffer(stream_state, "openai"))
                     # Per-chunk fallback for upstreams that emit only
                     # ``completion_tokens`` and not a full usage frame.
@@ -2323,6 +2343,7 @@ class StreamingMixin:
                     cache_write_tokens=cache_write_tokens,
                     uncached_input_tokens=uncached_input_tokens,
                     cache_inferred=cache_inferred,
+                    ttfb_ms=stream_state["ttfb_ms"] or total_latency,
                     pipeline_timing=pipeline_timing,
                     waste_signals=waste_signals,
                     savings_metadata=savings_metadata,

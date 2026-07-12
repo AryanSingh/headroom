@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 
@@ -31,7 +32,10 @@ def _check_env(var: str, required: bool = False, default: str | None = None) -> 
 
 @click.command("config-check")
 @click.option("--port", default=8787, help="Port to check")
-def config_check(port: int) -> None:
+@click.option("--host", default=None, envvar="CUTCTX_HOST", help="Host to validate")
+@click.option("--production", is_flag=True, help="Treat warnings as production launch blockers")
+@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
+def config_check(port: int, host: str | None, production: bool, output_format: str) -> None:
     """Validate proxy configuration before starting.
 
     \b
@@ -43,6 +47,56 @@ def config_check(port: int) -> None:
       - Admin API key
       - License key
     """
+    from cutctx.proxy.deployment_security import deployment_security_issues
+    from cutctx.proxy.models import ProxyConfig
+
+    effective_host = host or "127.0.0.1"
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CUTCTX_CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    sso_enabled = os.getenv("CUTCTX_SSO_ENABLED", "0") == "1"
+    deployment_config = ProxyConfig(
+        host=effective_host,
+        cors_origins=cors_origins,
+        sso_enabled=sso_enabled,
+        sso_jwks_uri=os.getenv("CUTCTX_SSO_JWKS_URI"),
+        sso_issuer=os.getenv("CUTCTX_SSO_ISSUER"),
+        sso_audience=os.getenv("CUTCTX_SSO_AUDIENCE"),
+    )
+    security_issues = deployment_security_issues(deployment_config)
+    production_issues: list[dict[str, str]] = []
+    if production and os.getenv("CUTCTX_FIREWALL_ENABLED", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        production_issues.append(
+            {
+                "code": "firewall_required",
+                "message": "Production validation requires the LLM firewall to be enabled.",
+                "remediation": "Set CUTCTX_FIREWALL_ENABLED=1 after reviewing the policy behavior.",
+            }
+        )
+    if output_format == "json":
+        payload = {
+            "schema_version": 1,
+            "host": effective_host,
+            "port": port,
+            "production": production,
+            "valid": not security_issues and not production_issues,
+            "issues": [
+                {"code": issue.code, "message": issue.message, "remediation": issue.remediation}
+                for issue in security_issues
+            ] + production_issues,
+        }
+        click.echo(json.dumps(payload, sort_keys=True))
+        if security_issues or production_issues:
+            raise click.exceptions.Exit(1)
+        return
+
     click.echo(click.style("Cutctx Config Check", fg="cyan", bold=True))
     click.echo("=" * 40)
     issues = 0
@@ -89,7 +143,6 @@ def config_check(port: int) -> None:
 
     # SSO
     click.echo("\n[SSO]")
-    sso_enabled = os.getenv("CUTCTX_SSO_ENABLED", "0") == "1"
     if sso_enabled:
         sso_vars = [
             "CUTCTX_SSO_PROVIDER_TYPE",
@@ -122,6 +175,17 @@ def config_check(port: int) -> None:
     rate_limit = os.getenv("CUTCTX_RATE_LIMIT_ENABLED", "1")
     click.echo(f"  Rate limiting: {'enabled' if rate_limit == '1' else 'disabled'}")
 
+    click.echo("\n[Deployment]")
+    click.echo(f"  Bind host: {effective_host}")
+    for issue in security_issues:
+        click.echo(click.style(f"  BLOCKER ({issue.code}): {issue.message}", fg="red"))
+        click.echo(f"    {issue.remediation}")
+        issues += 1
+    for issue in production_issues:
+        click.echo(click.style(f"  BLOCKER ({issue['code']}): {issue['message']}", fg="red"))
+        click.echo(f"    {issue['remediation']}")
+        issues += 1
+
     # Summary
     click.echo("\n" + click.style("=" * 40, fg="cyan"))
     if issues == 0:
@@ -129,3 +193,5 @@ def config_check(port: int) -> None:
     else:
         click.echo(click.style(f"{issues} issue(s) found", fg="red", bold=True))
         click.echo("Fix issues before starting the proxy.")
+        if production or security_issues or production_issues:
+            raise click.ClickException("configuration has launch-blocking issues")
