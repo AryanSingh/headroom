@@ -729,6 +729,63 @@ async def test_funnel_finalizes_model_routing_metadata_after_merge() -> None:
 
 
 @pytest.mark.asyncio
+async def test_funnel_does_not_finalize_model_routing_when_actual_model_differs() -> None:
+    """Routing metadata must not claim savings when the upstream model stayed high-tier."""
+    from cutctx.proxy.model_router import ModelRoute, ModelRouter, ModelRouterConfig
+    from cutctx.proxy.savings_metadata import merge_savings_metadata
+
+    h = _FunnelHarness()
+    h._model_router = ModelRouter(
+        ModelRouterConfig(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="gpt-5.5",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                )
+            ],
+        )
+    )
+
+    savings_metadata = merge_savings_metadata(
+        {
+            "model_routing": {
+                "source_model": "gpt-5.5",
+                "target_model": "gpt-5.4-mini",
+                "reason": "downgrade_applied",
+                "tokens_saved": 0,
+                "usd_saved": 0.0,
+            }
+        },
+        {"tool_schema_compaction": {"tokens": 10}},
+    )
+
+    outcome = _outcome(
+        provider="openai",
+        model="gpt-5.5",
+        original_tokens=50_000,
+        optimized_tokens=50_000,
+        attempted_input_tokens=50_000,
+        output_tokens=0,
+        tokens_saved=0,
+        savings_metadata=savings_metadata,
+    )
+
+    await h._record_request_outcome(outcome)
+
+    log_entry = h.logger.logs[0]
+    assert log_entry.model_routing_saved_tokens == 0
+    assert log_entry.total_saved_tokens == 0
+    assert log_entry.routing_metadata is not None
+    assert log_entry.routing_metadata["routed"] is False
+    assert h.metrics.record_request.await_args.kwargs["model_routing_tokens_saved"] == 0
+    assert h.metrics.record_request.await_args.kwargs["model_routing_usd_saved"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_funnel_preserves_precomputed_model_routing_metadata() -> None:
     """Precomputed routing savings should not be overwritten by the funnel."""
     from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig

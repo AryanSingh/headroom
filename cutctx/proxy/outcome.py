@@ -60,6 +60,32 @@ def normalize_decline_reason(value: str | None) -> str | None:
     return _DECLINE_REASON_ALIASES.get(normalized, normalized)
 
 
+def _normalize_model_name(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return value.strip().lower()
+
+
+def _models_equivalent(actual: Any, expected: Any) -> bool:
+    """Return True when two model labels refer to the same routed model.
+
+    Providers occasionally add a build suffix to the actual response model
+    name. Treat exact matches and hyphen-delimited suffixes as equivalent, so
+    we do not drop legitimate savings just because the backend reported a
+    versioned variant of the routed target.
+    """
+
+    actual_norm = _normalize_model_name(actual)
+    expected_norm = _normalize_model_name(expected)
+    if not actual_norm or not expected_norm:
+        return False
+    if actual_norm == expected_norm:
+        return True
+    return actual_norm.startswith(f"{expected_norm}-") or expected_norm.startswith(
+        f"{actual_norm}-"
+    )
+
+
 @dataclass(frozen=True)
 class RequestOutcome:
     """Immutable, value-equal snapshot of a completed request.
@@ -447,8 +473,9 @@ def _build_savings_breakdown(
 
     semantic_tokens = int(outcome.semantic_cache_avoided_tokens or 0)
     self_hosted_tokens = int(outcome.self_hosted_prefix_cache_hits or 0)
-    model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
-    model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
+    routing_applied = False
+    model_routing_tokens = 0
+    model_routing_usd = 0.0
     provider_cache_tokens = int(outcome.cache_read_tokens or 0)
     memoization_tokens = int(outcome.memoization_tokens_saved or 0)
     memoization_hits = int(outcome.memoization_hits or 0)
@@ -476,12 +503,23 @@ def _build_savings_breakdown(
         # Model routing tokens / USD
         mr_meta = extra_meta.get("model_routing")
         if isinstance(mr_meta, dict):
-            mr_tokens = int(mr_meta.get("tokens", 0) or 0)
-            if mr_tokens > model_routing_tokens:
-                model_routing_tokens = mr_tokens
-            mr_usd = float(mr_meta.get("usd", 0.0) or 0.0)
-            if mr_usd > model_routing_usd:
-                model_routing_usd = mr_usd
+            source_model = str(mr_meta.get("source_model") or "").strip()
+            target_model = str(mr_meta.get("target_model") or "").strip()
+            routing_applied = bool(
+                source_model
+                and target_model
+                and source_model != target_model
+                and _models_equivalent(outcome.model, target_model)
+            )
+            if routing_applied:
+                model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
+                model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
+                mr_tokens = int(mr_meta.get("tokens", 0) or 0)
+                if mr_tokens > model_routing_tokens:
+                    model_routing_tokens = mr_tokens
+                mr_usd = float(mr_meta.get("usd", 0.0) or 0.0)
+                if mr_usd > model_routing_usd:
+                    model_routing_usd = mr_usd
         # Semantic cache tokens
         sc_meta = extra_meta.get("semantic_cache") or extra_meta.get("gptcache")
         if isinstance(sc_meta, dict):
@@ -690,11 +728,19 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             sm = outcome.savings_metadata or {}
             if "model_routing" in sm:
                 meta = sm["model_routing"]
+                source_model = str(meta.get("source_model", "")).strip()
+                target_model = str(meta.get("target_model", "")).strip()
+                routing_applied = bool(
+                    source_model
+                    and target_model
+                    and source_model != target_model
+                    and _models_equivalent(outcome.model, target_model)
+                )
                 # If the handler attached placeholder zeros, finalize
                 # the savings now using the actual input-token count.
                 tokens_saved = int(meta.get("tokens_saved", 0))
                 usd_saved = float(meta.get("usd_saved", 0.0))
-                if tokens_saved == 0 and usd_saved == 0.0:
+                if routing_applied and tokens_saved == 0 and usd_saved == 0.0:
                     try:
                         # Re-derive the decision and finalize with the
                         # actual token count.
@@ -706,8 +752,8 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                         # we synthesize a placeholder to call
                         # finalize_savings with the real token count.
                         decision = RoutingDecision(
-                            source_model=meta.get("source_model", ""),
-                            target_model=meta.get("target_model", ""),
+                            source_model=source_model,
+                            target_model=target_model,
                             routing_applied=True,
                             reason=meta.get("reason", ""),
                         )
@@ -725,7 +771,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                         # installed in tests). Leave at 0.
                         tokens_saved = 0
                         usd_saved = 0.0
-                if (tokens_saved > 0 or usd_saved > 0.0) and (
+                if routing_applied and (tokens_saved > 0 or usd_saved > 0.0) and (
                     outcome.model_routing_tokens_saved == 0
                 ):
                     # Mutate a copy so we don't poison caller state.
@@ -989,10 +1035,16 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         if isinstance(model_routing_meta, dict) and model_routing_meta:
             source_model = str(model_routing_meta.get("source_model") or "").strip()
             target_model = str(model_routing_meta.get("target_model") or outcome.model).strip()
+            routing_applied = bool(
+                source_model
+                and target_model
+                and source_model != target_model
+                and _models_equivalent(outcome.model, target_model)
+            )
             routing_meta = {
                 "requested_model": source_model or outcome.model,
                 "actual_model": outcome.model,
-                "routed": bool(source_model and source_model != target_model),
+                "routed": routing_applied,
                 "source_model": source_model or outcome.model,
                 "target_model": target_model or outcome.model,
                 "reason": model_routing_meta.get("reason"),
