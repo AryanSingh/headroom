@@ -25,7 +25,7 @@ spec:
         app.kubernetes.io/component: proxy
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
+        prometheus.io/port: "8787"
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: cutctx-proxy
