@@ -179,9 +179,6 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         ):
             return TaskComplexity.LOW
 
-        if prior_turns:
-            return TaskComplexity.MEDIUM
-
     if len(content) > 5000:
         return TaskComplexity.HIGH
 
