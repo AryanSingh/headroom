@@ -35,8 +35,15 @@ class SqliteBackend:
                     self._memory_conn = sqlite3.connect(self._db_path, uri=True)
                 else:
                     self._memory_conn = sqlite3.connect(self._db_path)
-            return self._memory_conn
-        return sqlite3.connect(self._db_path)
+            conn = self._memory_conn
+        else:
+            conn = sqlite3.connect(self._db_path)
+        # WAL lets CCR reads proceed while another request writes a reversible
+        # payload. NORMAL is durable enough for cache data while avoiding a
+        # full fsync on every hot-path insert.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        return conn
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
