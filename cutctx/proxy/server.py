@@ -2182,14 +2182,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @contextlib.asynccontextmanager
     async def _lifespan(_: FastAPI):
+        retention_manager: Any | None = None
         configure_otel_metrics(OTelMetricsConfig.from_env(default_service_name="cutctx-proxy"))
         configure_langfuse_tracing(
             LangfuseTracingConfig.from_env(default_service_name="cutctx-proxy")
         )
         await proxy.startup()
         try:
+            # Retention is an enterprise module exposed through the stable
+            # ``cutctx.retention`` import.  Starting it here makes the
+            # configured periodic cleanup effective; previously it only ran
+            # when an administrator explicitly called /retention/cleanup.
+            from cutctx.retention import get_retention_manager
+
+            retention_manager = get_retention_manager()
+            await retention_manager.start()
+            app.state.retention_manager = retention_manager
+        except ImportError:
+            # OSS distributions intentionally omit the enterprise retention
+            # module.  The proxy must remain usable without it.
+            logger.debug("Retention controls unavailable (enterprise module not installed)")
+        except Exception:
+            # Do not turn an optional background cleanup service into a proxy
+            # startup outage, but make a failed compliance control visible.
+            logger.exception("Retention manager failed to start")
+        try:
             yield
         finally:
+            if retention_manager is not None:
+                try:
+                    await retention_manager.stop()
+                except Exception:
+                    logger.exception("Retention manager failed to stop")
             await proxy.shutdown()
             shutdown_cutctx_tracing()
             shutdown_otel_metrics()
@@ -2207,6 +2231,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.startup_error = None
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
+    app.state.retention_manager = None
 
     # Register error handlers with remediation hints
     @app.exception_handler(json.JSONDecodeError)

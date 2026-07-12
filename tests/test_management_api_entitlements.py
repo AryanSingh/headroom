@@ -10,6 +10,7 @@ from cutctx.fleet import reset_fleet_store
 from cutctx.org import reset_org_store
 from cutctx.proxy.server import ProxyConfig, create_app
 from cutctx.rbac import reset_rbac_checker
+from cutctx.retention import get_retention_manager, reset_retention_manager
 from cutctx.scim import reset_scim_store
 from cutctx.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
 
@@ -55,6 +56,22 @@ def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(
         audit = client.get("/audit/events", headers=headers)
         assert audit.status_code == 403
         assert audit.json()["detail"]["feature"] == "audit_logs"
+
+
+def test_proxy_lifecycle_starts_and_stops_retention_manager(tmp_path, monkeypatch):
+    """Configured retention must run periodically, not only on admin demand."""
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    reset_retention_manager()
+    manager = get_retention_manager()
+
+    try:
+        with _make_client(tmp_path, monkeypatch, tier="enterprise") as client:
+            assert client.app.state.retention_manager is manager
+            assert manager._running is True
+
+        assert manager._running is False
+    finally:
+        reset_retention_manager()
 
 
 def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
