@@ -61,6 +61,21 @@ const explicit = new CutctxClient({
 ```
 </Tab>
 <Tab value="Python">
+For the standard OpenAI and Anthropic SDKs, the shortest setup reads the
+provider key from your environment:
+
+```python
+from cutctx import CutctxClient
+
+# Infers the single configured provider from OPENAI_API_KEY or ANTHROPIC_API_KEY.
+client = CutctxClient.from_env(default_mode="optimize")
+
+# When both keys are set, choose explicitly:
+# client = CutctxClient.from_env(provider="openai")
+```
+
+To wrap a client you already construct yourself, use the explicit form:
+
 ```python
 from cutctx import CutctxClient, OpenAIProvider
 from openai import OpenAI
