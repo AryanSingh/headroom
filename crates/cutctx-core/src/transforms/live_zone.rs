@@ -49,11 +49,11 @@
 //!
 //! - **PR-B2** shipped the dispatcher *skeleton*: identify live-zone
 //!   blocks, route to no-op compressors, always return `NoChange`.
-//! - **PR-B3** (this PR) wires per-content-type compressors:
-//!   `JsonArray` → SmartCrusher; `BuildOutput` → LogCompressor;
-//!   `SearchResults` → SearchCompressor; `GitDiff` → DiffCompressor;
-//!   `SourceCode` / `PlainText` / `Html` → no-op (B4 + a Rust
-//!   code-compressor port follow-up).
+//! - **PR-B3** wires per-content-type compressors: `JsonArray` →
+//!   SmartCrusher; `BuildOutput` → LogCompressor; `SearchResults` →
+//!   SearchCompressor; `GitDiff` → DiffCompressor. Source-code blocks also
+//!   receive conservative comment/whitespace compaction; `PlainText` and
+//!   `Html` remain no-op until dedicated safe transforms are available.
 //! - **PR-B4** adds the tokenizer-validation gate (per-block
 //!   `compressed.tokens >= original.tokens` → fall back) and the
 //!   per-content-type byte threshold below which compression is
