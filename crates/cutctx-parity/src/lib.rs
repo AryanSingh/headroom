@@ -169,9 +169,108 @@ macro_rules! stub_comparator {
     };
 }
 
-stub_comparator!(LogCompressorComparator, "log_compressor");
 stub_comparator!(CacheAlignerComparator, "cache_aligner");
 stub_comparator!(CcrComparator, "ccr");
+
+/// Real comparator for the Rust-backed log compressor. The fixture output is
+/// the public Python shim's dataclass serialization, so use an in-memory CCR
+/// store just as the PyO3 bridge does; otherwise a valid compressed result
+/// would omit its marker and cache key only in the harness.
+pub struct LogCompressorComparator;
+
+impl TransformComparator for LogCompressorComparator {
+    fn name(&self) -> &str {
+        "log_compressor"
+    }
+
+    fn run(
+        &self,
+        input: &serde_json::Value,
+        config: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        use cutctx_core::ccr::InMemoryCcrStore;
+        use cutctx_core::transforms::{LogCompressor, LogCompressorConfig};
+
+        let content = input
+            .as_str()
+            .context("log_compressor fixture input must be a JSON string")?;
+        let defaults = LogCompressorConfig::default();
+        let cfg = LogCompressorConfig {
+            max_errors: config
+                .get("max_errors")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.max_errors),
+            error_context_lines: config
+                .get("error_context_lines")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.error_context_lines),
+            keep_first_error: config
+                .get("keep_first_error")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.keep_first_error),
+            keep_last_error: config
+                .get("keep_last_error")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.keep_last_error),
+            max_stack_traces: config
+                .get("max_stack_traces")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.max_stack_traces),
+            stack_trace_max_lines: config
+                .get("stack_trace_max_lines")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.stack_trace_max_lines),
+            max_warnings: config
+                .get("max_warnings")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.max_warnings),
+            dedupe_warnings: config
+                .get("dedupe_warnings")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.dedupe_warnings),
+            keep_summary_lines: config
+                .get("keep_summary_lines")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.keep_summary_lines),
+            max_total_lines: config
+                .get("max_total_lines")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.max_total_lines),
+            enable_ccr: config
+                .get("enable_ccr")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.enable_ccr),
+            min_lines_for_ccr: config
+                .get("min_lines_for_ccr")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(defaults.min_lines_for_ccr),
+            min_compression_ratio_for_ccr: config
+                .get("min_compression_ratio_for_ccr")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(defaults.min_compression_ratio_for_ccr),
+        };
+
+        let store = InMemoryCcrStore::new();
+        let (result, _) = LogCompressor::new(cfg).compress_with_store(content, 1.0, Some(&store));
+        Ok(serde_json::json!({
+            "cache_key": result.cache_key,
+            "compressed": result.compressed,
+            "compressed_line_count": result.compressed_line_count,
+            "compression_ratio": result.compression_ratio,
+            "format_detected": result.format_detected.as_str(),
+            "original": result.original,
+            "original_line_count": result.original_line_count,
+            "stats": result.stats,
+        }))
+    }
+}
 
 /// Real comparator for the `diff_compressor` transform. Drives the Rust port
 /// over the recorded fixture inputs and emits the Python-shaped JSON output
@@ -568,7 +667,7 @@ mod tests {
     }
 
     #[test]
-    fn stub_comparators_skip_rather_than_panic() {
+    fn log_comparator_reports_an_incompatible_fixture_as_a_diff() {
         let tmp = tempdir();
         write_fixture(
             tmp.path(),
@@ -577,7 +676,7 @@ mod tests {
             serde_json::json!({"compressed": "x"}),
         );
         let report = run_comparator(tmp.path(), &LogCompressorComparator).unwrap();
-        assert_eq!(report.skipped.len(), 1);
+        assert_eq!(report.diffed.len(), 1);
         assert_eq!(report.matched, 0);
     }
 
