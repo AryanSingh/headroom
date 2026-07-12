@@ -1,0 +1,13 @@
+{
+  "transform": "adaptive_sizer",
+  "input": {
+    "items": ["prefix shared item 0", "prefix shared item 1", "prefix shared item 2", "prefix shared item 3", "prefix shared item 4", "prefix shared item 5", "prefix shared item 6", "prefix shared item 7", "prefix shared item 8", "prefix shared item 9", "prefix shared item 10", "prefix shared item 11"],
+    "bias": 1.0,
+    "min_k": 2,
+    "max_k": null
+  },
+  "config": {},
+  "output": 7,
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "input_sha256": "adaptive-sizer-saturation"
+}

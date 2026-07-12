@@ -561,6 +561,57 @@ impl TransformComparator for ContentDetectorComparator {
     }
 }
 
+/// Real comparator for the deterministic adaptive sizing helper used by
+/// SmartCrusher and the search/log compressors. Fixtures encode its four
+/// public arguments as `{items, bias, min_k, max_k}` and the selected count
+/// as a JSON integer.
+pub struct AdaptiveSizerComparator;
+
+impl TransformComparator for AdaptiveSizerComparator {
+    fn name(&self) -> &str {
+        "adaptive_sizer"
+    }
+
+    fn run(
+        &self,
+        input: &serde_json::Value,
+        _config: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        use cutctx_core::transforms::adaptive_sizer::compute_optimal_k;
+
+        let object = input
+            .as_object()
+            .context("adaptive_sizer fixture input must be an object")?;
+        let items = object
+            .get("items")
+            .and_then(|value| value.as_array())
+            .context("adaptive_sizer fixture input.items must be an array")?
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .context("adaptive_sizer fixture items must be strings")
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let bias = object
+            .get("bias")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(1.0);
+        let min_k = object
+            .get("min_k")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(1) as usize;
+        let max_k = object
+            .get("max_k")
+            .and_then(|value| value.as_u64())
+            .map(|value| value as usize);
+
+        Ok(serde_json::json!(compute_optimal_k(
+            &items, bias, min_k, max_k
+        )))
+    }
+}
+
 /// Every built-in comparator, in a stable order.
 pub fn builtin_comparators() -> Vec<Box<dyn TransformComparator>> {
     vec![
@@ -571,6 +622,7 @@ pub fn builtin_comparators() -> Vec<Box<dyn TransformComparator>> {
         Box::new(CcrComparator),
         Box::new(SmartCrusherComparator),
         Box::new(ContentDetectorComparator),
+        Box::new(AdaptiveSizerComparator),
     ]
 }
 
