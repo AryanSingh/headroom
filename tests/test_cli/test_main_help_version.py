@@ -19,6 +19,16 @@ def test_root_help_short_alias() -> None:
     assert "--version" in result.output
 
 
+def test_root_without_command_shows_first_run_guidance() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main)
+
+    assert result.exit_code == 0, result.output
+    assert "Welcome to Cutctx" in result.output
+    assert "cutctx setup" in result.output
+    assert "cutctx config doctor" in result.output
+
+
 def test_root_version_short_alias() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["-v"])

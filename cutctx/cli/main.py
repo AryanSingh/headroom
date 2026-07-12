@@ -140,7 +140,11 @@ class LazyCLIGroup(click.Group):
         return None
 
 
-@click.group(cls=LazyCLIGroup, context_settings=CLI_CONTEXT_SETTINGS)
+@click.group(
+    cls=LazyCLIGroup,
+    context_settings=CLI_CONTEXT_SETTINGS,
+    invoke_without_command=True,
+)
 @click.version_option(get_version(), "--version", "-v", prog_name="cutctx")
 @click.pass_context
 def main(ctx: click.Context) -> None:
@@ -161,6 +165,15 @@ def main(ctx: click.Context) -> None:
     """
 
     ctx.ensure_object(dict)
+    if ctx.invoked_subcommand is None:
+        click.echo(click.style("Welcome to Cutctx", bold=True))
+        click.echo("Start with one of these commands:")
+        click.echo("  cutctx setup          Detect and configure your AI agent")
+        click.echo("  cutctx proxy          Start the local optimization proxy")
+        click.echo("  cutctx config doctor  Check configuration and deployment safety")
+        click.echo("  cutctx wrap claude    Launch Claude Code through Cutctx")
+        click.echo()
+        click.echo(ctx.get_help())
 
 
 _apply_help_aliases(main)
