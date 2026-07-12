@@ -27,7 +27,7 @@ _PRICING_STALE_DAYS = 60  # Warn if pricing data is older than this
 
 # Warning tracking
 _PRICING_WARNING_SHOWN = False
-_UNKNOWN_MODEL_WARNINGS: set[str] = set()
+_UNKNOWN_MODEL_WARNINGS = Provider._unknown_model_warnings
 
 try:
     import tiktoken
@@ -484,17 +484,6 @@ class OpenAIProvider(Provider):
         self._warn_unknown_model(model, limit, "using default limit")
         self._context_limits[model] = limit
         return limit
-
-    def _warn_unknown_model(self, model: str, limit: int, reason: str) -> None:
-        """Warn about unknown model (once per model)."""
-        global _UNKNOWN_MODEL_WARNINGS
-        if model not in _UNKNOWN_MODEL_WARNINGS:
-            _UNKNOWN_MODEL_WARNINGS.add(model)
-            logger.warning(
-                f"Unknown OpenAI model '{model}': {reason} ({limit:,} tokens). "
-                f"To configure explicitly, set CUTCTX_MODEL_LIMITS env var or "
-                f"add to ~/.cutctx/models.json"
-            )
 
     def estimate_cost(
         self,

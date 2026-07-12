@@ -27,6 +27,7 @@ from cutctx import paths as _paths
 from .base import Provider, TokenCounter
 
 LITELLM_AVAILABLE = importlib.util.find_spec("litellm") is not None
+_UNKNOWN_MODEL_WARNINGS = Provider._unknown_model_warnings
 
 
 def _get_litellm_clients() -> tuple[Any | None, Any | None]:
@@ -50,7 +51,6 @@ logger = logging.getLogger(__name__)
 
 # Warning flags
 _FALLBACK_WARNING_SHOWN = False
-_UNKNOWN_MODEL_WARNINGS: set[str] = set()
 
 
 # Anthropic model context limits
@@ -563,17 +563,6 @@ class AnthropicProvider(Provider):
         self._warn_unknown_model(model, limit, "unknown provider, using conservative default")
         self._context_limits[model] = limit
         return limit
-
-    def _warn_unknown_model(self, model: str, limit: int, reason: str) -> None:
-        """Warn about unknown model (once per model)."""
-        global _UNKNOWN_MODEL_WARNINGS
-        if model not in _UNKNOWN_MODEL_WARNINGS:
-            _UNKNOWN_MODEL_WARNINGS.add(model)
-            logger.warning(
-                f"Unknown Anthropic model '{model}': {reason} ({limit:,} tokens). "
-                f"To configure explicitly, set CUTCTX_MODEL_LIMITS env var or "
-                f"add to ~/.cutctx/models.json"
-            )
 
     def supports_model(self, model: str) -> bool:
         """Check if this provider supports the given model."""
