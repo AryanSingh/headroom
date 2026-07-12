@@ -66,20 +66,34 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
         sso_audience=os.getenv("CUTCTX_SSO_AUDIENCE"),
     )
     security_issues = deployment_security_issues(deployment_config)
+    production_issues: list[dict[str, str]] = []
+    if production and os.getenv("CUTCTX_FIREWALL_ENABLED", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        production_issues.append(
+            {
+                "code": "firewall_required",
+                "message": "Production validation requires the LLM firewall to be enabled.",
+                "remediation": "Set CUTCTX_FIREWALL_ENABLED=1 after reviewing the policy behavior.",
+            }
+        )
     if output_format == "json":
         payload = {
             "schema_version": 1,
             "host": effective_host,
             "port": port,
             "production": production,
-            "valid": not security_issues,
+            "valid": not security_issues and not production_issues,
             "issues": [
                 {"code": issue.code, "message": issue.message, "remediation": issue.remediation}
                 for issue in security_issues
-            ],
+            ] + production_issues,
         }
         click.echo(json.dumps(payload, sort_keys=True))
-        if security_issues:
+        if security_issues or production_issues:
             raise click.exceptions.Exit(1)
         return
 
@@ -167,6 +181,10 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
         click.echo(click.style(f"  BLOCKER ({issue.code}): {issue.message}", fg="red"))
         click.echo(f"    {issue.remediation}")
         issues += 1
+    for issue in production_issues:
+        click.echo(click.style(f"  BLOCKER ({issue['code']}): {issue['message']}", fg="red"))
+        click.echo(f"    {issue['remediation']}")
+        issues += 1
 
     # Summary
     click.echo("\n" + click.style("=" * 40, fg="cyan"))
@@ -175,5 +193,5 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
     else:
         click.echo(click.style(f"{issues} issue(s) found", fg="red", bold=True))
         click.echo("Fix issues before starting the proxy.")
-        if production or security_issues:
+        if production or security_issues or production_issues:
             raise click.ClickException("configuration has launch-blocking issues")
