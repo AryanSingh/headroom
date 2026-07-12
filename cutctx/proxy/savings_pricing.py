@@ -1,7 +1,7 @@
 """Model-price lookups shared by cost tracking and savings attribution."""
 from __future__ import annotations
 
-from cutctx.pricing.litellm_pricing import resolve_litellm_model
+from cutctx.pricing.litellm_pricing import get_model_pricing
 
 
 def _get_litellm_module():
@@ -21,10 +21,9 @@ def value_tokens_usd(model: str, tokens: int, *, rate_per_million: float | None 
     if rate_per_million is not None:
         return (rate_per_million / 1_000_000) * tokens
     try:
-        litellm = _get_litellm_module()
-        resolved = resolve_litellm_model(model)
-        info = litellm.model_cost.get(resolved, {})
-        cost_per_token = info.get("input_cost_per_token")
-        return cost_per_token * tokens if cost_per_token else 0.0
+        pricing = get_model_pricing(model)
+        if not pricing or pricing.input_cost_per_1m <= 0:
+            return 0.0
+        return (pricing.input_cost_per_1m / 1_000_000) * tokens
     except Exception:
         return 0.0

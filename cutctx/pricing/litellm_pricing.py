@@ -8,6 +8,7 @@ See: https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_windo
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,6 +45,7 @@ _MODEL_ALIASES: dict[str, str] = {
 }
 
 _resolved_model_cache: dict[str, str] = {}
+_VERSION_SUFFIX_RE = re.compile(r"^(?P<base>.+?)-(?:(?:\d{4}-\d{2}-\d{2})|(?:\d{8}))$")
 
 
 def resolve_litellm_model(model: str) -> str:
@@ -88,6 +90,50 @@ def _resolve_litellm_model_uncached(model: str) -> str:
     return model
 
 
+def _pricing_candidates(model: str) -> list[str]:
+    """Return lookup candidates ordered from most to least specific."""
+    candidates: list[str] = []
+
+    def add(candidate: str | None) -> None:
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+
+    provider_prefixes = ("openai/", "anthropic/", "google/", "mistral/", "deepseek/")
+
+    def add_variants(value: str) -> None:
+        add(value)
+        if "/" in value:
+            add(value.split("/", 1)[1])
+
+        match = _VERSION_SUFFIX_RE.match(value)
+        if match:
+            add(match.group("base"))
+
+        if "/" in value:
+            stripped = value.split("/", 1)[1]
+            match = _VERSION_SUFFIX_RE.match(stripped)
+            if match:
+                add(f"{value.split('/', 1)[0]}/{match.group('base')}")
+                add(match.group("base"))
+
+    add_variants(model)
+    if "/" not in model:
+        for prefix in provider_prefixes:
+            add(f"{prefix}{model}")
+            match = _VERSION_SUFFIX_RE.match(model)
+            if match:
+                add(f"{prefix}{match.group('base')}")
+
+    alias = _MODEL_ALIASES.get(model)
+    if alias:
+        add_variants(alias)
+        if "/" not in alias:
+            for prefix in provider_prefixes:
+                add(f"{prefix}{alias}")
+
+    return candidates
+
+
 @dataclass
 class LiteLLMModelPricing:
     """Pricing information from LiteLLM's database.
@@ -129,22 +175,11 @@ def get_model_pricing(model: str) -> LiteLLMModelPricing | None:
     if not LITELLM_AVAILABLE:
         return None
     cost_data = litellm.model_cost
-
-    # Try exact match first
-    info = cost_data.get(model)
-
-    # Try common provider prefixes if not found
-    if info is None:
-        for prefix in ["openai/", "anthropic/", "google/", "mistral/", "deepseek/"]:
-            if f"{prefix}{model}" in cost_data:
-                info = cost_data[f"{prefix}{model}"]
-                break
-
-    # Try retired/renamed model aliases (LiteLLM removes old model keys over time)
-    if info is None:
-        alias = _MODEL_ALIASES.get(model)
-        if alias:
-            info = cost_data.get(alias)
+    info = None
+    for candidate in _pricing_candidates(model):
+        info = cost_data.get(candidate)
+        if info is not None:
+            break
 
     if info is None:
         return None

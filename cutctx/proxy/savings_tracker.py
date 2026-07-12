@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import random
+import re
 import tempfile
 import threading
 from collections.abc import Callable
@@ -60,6 +61,7 @@ OBSERVED_PROVIDER_SAVINGS_SOURCES = frozenset(
         "provider_prompt_cache",
     }
 )
+_VERSION_SUFFIX_RE = re.compile(r"^(?P<base>.+?)-(?:(?:\d{4}-\d{2}-\d{2})|(?:\d{8}))$")
 
 
 def _empty_opportunity_funnel() -> dict[str, Any]:
@@ -70,6 +72,38 @@ def _empty_opportunity_funnel() -> dict[str, Any]:
         "declined_tokens": 0,
         "decline_reasons": {},
     }
+
+
+def _compression_pricing_candidates(model: str) -> list[str]:
+    candidates: list[str] = []
+
+    def add(candidate: str | None) -> None:
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+
+    def add_variants(value: str) -> None:
+        add(value)
+        if "/" in value:
+            provider, stripped = value.split("/", 1)
+            add(stripped)
+            match = _VERSION_SUFFIX_RE.match(stripped)
+            if match:
+                add(f"{provider}/{match.group('base')}")
+                add(match.group("base"))
+        match = _VERSION_SUFFIX_RE.match(value)
+        if match:
+            add(match.group("base"))
+
+    add_variants(model)
+    if "/" not in model:
+        match = _VERSION_SUFFIX_RE.match(model)
+        base = match.group("base") if match else model
+        for prefix in ("openai/", "anthropic/", "google/", "mistral/", "deepseek/"):
+            add(f"{prefix}{model}")
+            if base != model:
+                add(f"{prefix}{base}")
+
+    return candidates
 
 
 def _coverage_payload(attributed: int, legacy: int) -> dict[str, Any]:
@@ -397,12 +431,13 @@ def _estimate_compression_savings_usd(model: str, tokens_saved: int) -> float:
         return 0.0
 
     try:
-        resolved = _resolve_litellm_model(model)
-        info = litellm.model_cost.get(resolved, {})
-        input_cost_per_token = info.get("input_cost_per_token")
-        if not input_cost_per_token:
-            return 0.0
-        return float(tokens_saved) * float(input_cost_per_token)
+        model_cost = getattr(litellm, "model_cost", {}) or {}
+        for candidate in _compression_pricing_candidates(model):
+            info = model_cost.get(candidate, {})
+            input_cost_per_token = info.get("input_cost_per_token")
+            if input_cost_per_token:
+                return float(tokens_saved) * float(input_cost_per_token)
+        return 0.0
     except Exception:
         return 0.0
 

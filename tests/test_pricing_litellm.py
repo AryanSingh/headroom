@@ -71,6 +71,28 @@ def test_litellm_model_pricing_uses_provider_prefixes(monkeypatch) -> None:
     assert pricing.supports_function_calling is True
 
 
+def test_litellm_model_pricing_falls_back_from_versioned_and_prefixed_names(monkeypatch) -> None:
+    fake_litellm = SimpleNamespace(
+        model_cost={
+            "gpt-5.4-mini": {
+                "input_cost_per_token": 0.00000075,
+                "output_cost_per_token": 0.000003,
+            }
+        }
+    )
+    monkeypatch.setattr(litellm_pricing, "LITELLM_AVAILABLE", True)
+    monkeypatch.setattr(litellm_pricing, "litellm", fake_litellm)
+    monkeypatch.setattr(
+        litellm_pricing,
+        "resolve_litellm_model",
+        lambda model: model,
+    )
+
+    pricing = litellm_pricing.get_model_pricing("openai/gpt-5.4-mini-2026-03-17")
+    assert pricing is not None
+    assert pricing.input_cost_per_1m == 0.75
+
+
 def test_litellm_model_pricing_uses_aliases_and_zero_cost_defaults(monkeypatch) -> None:
     fake_litellm = SimpleNamespace(
         model_cost={
