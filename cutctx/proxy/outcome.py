@@ -474,8 +474,8 @@ def _build_savings_breakdown(
     semantic_tokens = int(outcome.semantic_cache_avoided_tokens or 0)
     self_hosted_tokens = int(outcome.self_hosted_prefix_cache_hits or 0)
     routing_applied = False
-    model_routing_tokens = 0
-    model_routing_usd = 0.0
+    model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
+    model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
     provider_cache_tokens = int(outcome.cache_read_tokens or 0)
     memoization_tokens = int(outcome.memoization_tokens_saved or 0)
     memoization_hits = int(outcome.memoization_hits or 0)
@@ -503,6 +503,8 @@ def _build_savings_breakdown(
         # Model routing tokens / USD
         mr_meta = extra_meta.get("model_routing")
         if isinstance(mr_meta, dict):
+            model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
+            model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
             source_model = str(mr_meta.get("source_model") or "").strip()
             target_model = str(mr_meta.get("target_model") or "").strip()
             routing_applied = bool(
@@ -511,13 +513,18 @@ def _build_savings_breakdown(
                 and source_model != target_model
                 and _models_equivalent(outcome.model, target_model)
             )
-            if routing_applied:
-                model_routing_tokens = int(outcome.model_routing_tokens_saved or 0)
-                model_routing_usd = float(outcome.model_routing_usd_saved or 0.0)
-                mr_tokens = int(mr_meta.get("tokens", 0) or 0)
+            mr_tokens = max(
+                int(mr_meta.get("tokens", 0) or 0),
+                int(mr_meta.get("tokens_routed", 0) or 0),
+                int(mr_meta.get("tokens_saved", 0) or 0),
+            )
+            mr_usd = max(
+                float(mr_meta.get("usd", 0.0) or 0.0),
+                float(mr_meta.get("usd_saved", 0.0) or 0.0),
+            )
+            if routing_applied or not (source_model or target_model):
                 if mr_tokens > model_routing_tokens:
                     model_routing_tokens = mr_tokens
-                mr_usd = float(mr_meta.get("usd", 0.0) or 0.0)
                 if mr_usd > model_routing_usd:
                     model_routing_usd = mr_usd
         # Semantic cache tokens
