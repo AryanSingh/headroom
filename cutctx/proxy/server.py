@@ -618,6 +618,7 @@ class CutctxProxy(
             SemanticCache(
                 max_entries=config.cache_max_entries,
                 ttl_seconds=config.cache_ttl_seconds,
+                max_size_bytes=config.cache_max_size_bytes,
             )
             if config.cache_enabled
             else None
@@ -4723,6 +4724,7 @@ if __name__ == "__main__":
         max_items_after_crush=_get_env_int("CUTCTX_MAX_ITEMS", args.max_items),
         cache_enabled=cache_enabled,
         cache_ttl_seconds=_get_env_int("CUTCTX_CACHE_TTL", args.cache_ttl),
+        cache_max_size_bytes=_get_env_int("CUTCTX_CACHE_MAX_SIZE_BYTES", 0) or None,
         rate_limit_enabled=rate_limit_enabled,
         rate_limit_requests_per_minute=_get_env_int("CUTCTX_RPM", args.rpm),
         rate_limit_tokens_per_minute=_get_env_int("CUTCTX_TPM", args.tpm),

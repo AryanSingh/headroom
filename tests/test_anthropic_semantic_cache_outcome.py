@@ -96,6 +96,37 @@ async def test_semantic_cache_stats_keep_resident_aggregates_current() -> None:
 
 
 @pytest.mark.asyncio
+async def test_semantic_cache_enforces_resident_byte_capacity() -> None:
+    cache = SemanticCache(max_entries=10, ttl_seconds=60, max_size_bytes=20)
+    first_messages = [{"role": "user", "content": "first"}]
+    second_messages = [{"role": "user", "content": "second"}]
+
+    # Each entry occupies only a few bytes (body, serialized headers, tokens),
+    # so both fit beneath the configured resident-memory budget.
+    await cache.set(first_messages, "claude-test", b"one", {}, tokens_saved=1)
+    await cache.set(second_messages, "claude-test", b"two", {}, tokens_saved=2)
+    stats = await cache.stats()
+
+    assert stats["entries"] == 2
+    assert 0 < stats["resident_size_bytes"] <= 20
+    assert stats["max_size_bytes"] == 20
+
+    # An oversized replacement must be rejected without evicting a useful
+    # resident entry merely to make room for something that cannot fit.
+    await cache.set(first_messages, "claude-test", b"too-large-to-fit-in-cache", {}, tokens_saved=3)
+    stats = await cache.stats()
+    assert stats["entries"] == 2
+    assert stats["oversized_rejections"] == 1
+    assert await cache.get(first_messages, "claude-test") is not None
+
+
+def test_proxy_config_exposes_optional_semantic_cache_byte_budget() -> None:
+    from cutctx.proxy.models import ProxyConfig
+
+    assert ProxyConfig(cache_max_size_bytes=1024).cache_max_size_bytes == 1024
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("name", "stored_messages", "request_messages", "stored_model", "request_model", "hit"),
     [

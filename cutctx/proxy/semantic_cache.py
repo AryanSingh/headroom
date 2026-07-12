@@ -119,9 +119,17 @@ def normalize_semantic_cache_messages(messages: list[dict]) -> list[dict]:
 class SemanticCache:
     """Exact-match response cache with LRU eviction."""
 
-    def __init__(self, max_entries: int = 1000, ttl_seconds: int = 3600):
+    def __init__(
+        self,
+        max_entries: int = 1000,
+        ttl_seconds: int = 3600,
+        max_size_bytes: int | None = None,
+    ):
+        if max_size_bytes is not None and max_size_bytes <= 0:
+            raise ValueError("max_size_bytes must be positive when configured")
         self.max_entries = max_entries
         self.ttl_seconds = ttl_seconds
+        self.max_size_bytes = max_size_bytes
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._lock = asyncio.Lock()
         self._hits = 0
@@ -135,11 +143,23 @@ class SemanticCache:
         # request-path lock whenever the dashboard polls cache statistics.
         self._total_entry_hit_count = 0
         self._tokens_saved_per_hit_capacity = 0
+        self._resident_size_bytes = 0
+        self._oversized_rejections = 0
+
+    @staticmethod
+    def _entry_size_bytes(entry: CacheEntry) -> int:
+        """Return the same best-effort entry size used by memory reporting."""
+        return (
+            len(entry.response_body)
+            + len(json.dumps(entry.response_headers))
+            + len(str(entry.tokens_saved_per_hit))
+        )
 
     def _remove_entry_aggregates(self, entry: CacheEntry) -> None:
         """Remove a live entry's contribution from resident-cache totals."""
         self._total_entry_hit_count -= entry.hit_count
         self._tokens_saved_per_hit_capacity -= entry.tokens_saved_per_hit
+        self._resident_size_bytes -= self._entry_size_bytes(entry)
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
         """Compute a normalized cache key for a request."""
@@ -190,25 +210,38 @@ class SemanticCache:
     ) -> None:
         """Store a response in the cache."""
         key = self._compute_key(messages, model)
+        is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
+        new_entry = CacheEntry(
+            response_body=response_body,
+            response_headers=response_headers,
+            created_at=datetime.now(),
+            ttl_seconds=self.ttl_seconds,
+            tokens_saved_per_hit=max(0, tokens_saved),
+            is_streaming=is_stream,
+        )
+        new_entry_size = self._entry_size_bytes(new_entry)
         async with self._lock:
+            if self.max_size_bytes is not None and new_entry_size > self.max_size_bytes:
+                self._oversized_rejections += 1
+                return
+
             if key in self._cache:
                 self._remove_entry_aggregates(self._cache.pop(key))
 
-            while len(self._cache) >= self.max_entries:
+            while self._cache and (
+                len(self._cache) >= self.max_entries
+                or (
+                    self.max_size_bytes is not None
+                    and self._resident_size_bytes + new_entry_size > self.max_size_bytes
+                )
+            ):
                 _, evicted_entry = self._cache.popitem(last=False)
                 self._remove_entry_aggregates(evicted_entry)
                 self._evictions += 1
 
-            is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
-            self._cache[key] = CacheEntry(
-                response_body=response_body,
-                response_headers=response_headers,
-                created_at=datetime.now(),
-                ttl_seconds=self.ttl_seconds,
-                tokens_saved_per_hit=max(0, tokens_saved),
-                is_streaming=is_stream,
-            )
+            self._cache[key] = new_entry
             self._tokens_saved_per_hit_capacity += max(0, tokens_saved)
+            self._resident_size_bytes += new_entry_size
             self._stores += 1
 
     async def stats(self) -> dict:
@@ -217,6 +250,8 @@ class SemanticCache:
             return {
                 "entries": len(self._cache),
                 "max_entries": self.max_entries,
+                "max_size_bytes": self.max_size_bytes,
+                "resident_size_bytes": self._resident_size_bytes,
                 "ttl_seconds": self.ttl_seconds,
                 "total_hits": self._hits,
                 "total_hit_count": self._total_entry_hit_count,
@@ -226,6 +261,7 @@ class SemanticCache:
                 "total_expired": self._expired,
                 "tokens_avoided": self._tokens_avoided,
                 "tokens_saved_per_hit_capacity": self._tokens_saved_per_hit_capacity,
+                "oversized_rejections": self._oversized_rejections,
             }
 
     async def clear(self) -> None:
@@ -240,19 +276,18 @@ class SemanticCache:
             self._tokens_avoided = 0
             self._total_entry_hit_count = 0
             self._tokens_saved_per_hit_capacity = 0
+            self._resident_size_bytes = 0
+            self._oversized_rejections = 0
 
     def get_memory_stats(self) -> ComponentStats:
         """Return a best-effort memory snapshot for the memory tracker."""
         entries = list(self._cache.values())
-        size_bytes = sum(len(entry.response_body) for entry in entries)
-        size_bytes += sum(len(json.dumps(entry.response_headers)) for entry in entries)
-        size_bytes += sum(len(str(entry.tokens_saved_per_hit)) for entry in entries)
 
         return ComponentStats(
             name="semantic_cache",
             entry_count=len(entries),
-            size_bytes=size_bytes,
-            budget_bytes=None,
+            size_bytes=self._resident_size_bytes,
+            budget_bytes=self.max_size_bytes,
             hits=self._hits,
             misses=self._misses,
             evictions=self._evictions + self._expired,

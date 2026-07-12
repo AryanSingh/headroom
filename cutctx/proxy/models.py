@@ -312,6 +312,9 @@ class ProxyConfig:
     cache_enabled: bool = True
     cache_ttl_seconds: int = 3600
     cache_max_entries: int = 1000
+    # Optional resident-response budget for the exact-match semantic cache.
+    # None keeps the backwards-compatible entry-count-only limit.
+    cache_max_size_bytes: int | None = None
     cache_aligner_enabled: bool = False
 
     # Rate limiting
