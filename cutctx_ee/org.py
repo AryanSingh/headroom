@@ -36,10 +36,12 @@ from pathlib import Path
 from typing import Any
 
 from cutctx import paths as _paths
+from cutctx.storage.sqlite_schema import stamp_schema_version
 
 logger = logging.getLogger("cutctx.org")
 
 ORG_DB_ENV = "CUTCTX_ORG_DB_PATH"
+_SCHEMA_VERSION = 1
 
 # Defense-in-depth: validate SQL column names match safe identifier pattern.
 # Column names come from hardcoded `allowed` sets, but this guard prevents
@@ -148,6 +150,7 @@ class OrgStore:
             CREATE INDEX IF NOT EXISTS idx_agent_proj ON agents(project_id);
             """
         )
+        stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="organization store")
         conn.commit()
 
     # ------------------------------------------------------------------

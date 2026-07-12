@@ -29,7 +29,10 @@ import threading
 import time
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
 logger = logging.getLogger("cutctx.rbac")
+_SCHEMA_VERSION = 1
 
 
 class AdminRole(str, enum.Enum):
@@ -305,6 +308,8 @@ class RbacAssignmentStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="RBAC store")
+            conn.commit()
 
     def get(self, user_id: str) -> AdminRole | None:
         with self._lock:

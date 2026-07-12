@@ -11,7 +11,10 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import sessionmaker
 
+from cutctx.storage.sqlite_schema import stamp_sqlalchemy_schema_version
 from cutctx_ee.audit.models import AuditEvent, Base
+
+_SCHEMA_VERSION = 1
 
 # Blocker-9 (production-audit-2026-06-20.md): the previous default was
 # the literal "dev-secret-key" which makes the hash chain forgeable in
@@ -33,6 +36,9 @@ class AuditStore:
     def __init__(self, db_url: str):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
+        stamp_sqlalchemy_schema_version(
+            self.engine, expected=_SCHEMA_VERSION, store_name="audit store"
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.secret_key = self._resolve_secret_key()
 

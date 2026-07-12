@@ -12,9 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from cutctx import paths as _paths
+from cutctx.storage.sqlite_schema import stamp_schema_version
 
 FLEET_DB_ENV = "CUTCTX_FLEET_DB_PATH"
 _STALE_SECONDS = 900
+_SCHEMA_VERSION = 1
 
 
 def _now_iso() -> str:
@@ -70,6 +72,7 @@ class FleetStore:
             CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
             """
         )
+        stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="fleet registry")
         conn.commit()
 
     def upsert_heartbeat(

@@ -17,8 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from cutctx import paths as _paths
+from cutctx.storage.sqlite_schema import stamp_schema_version
 
 SCIM_DB_ENV = "CUTCTX_SCIM_DB_PATH"
+_SCHEMA_VERSION = 1
 
 # Defense-in-depth: validate SQL column names match safe identifier pattern.
 _SAFE_COL_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -91,6 +93,7 @@ class ScimStore:
             );
             """
         )
+        stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="SCIM store")
         conn.commit()
 
     def create_user(

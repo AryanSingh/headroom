@@ -9,7 +9,10 @@ from typing import Any
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from cutctx.storage.sqlite_schema import stamp_sqlalchemy_schema_version
 from cutctx_ee.memory_service.models import Base, MemoryRecord
+
+_SCHEMA_VERSION = 1
 
 
 class MemoryStore:
@@ -18,6 +21,9 @@ class MemoryStore:
     def __init__(self, db_url: str):
         self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
+        stamp_sqlalchemy_schema_version(
+            self.engine, expected=_SCHEMA_VERSION, store_name="team memory store"
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def sync(
