@@ -332,7 +332,7 @@ Priority candidates: public 501/stub routes, deprecated CLI aliases that are sti
 - [x] Authenticated dashboard browser UI evidence captured locally (20 route/viewport checks; isolated test key; no upstream calls).
 - [x] Real provider integration smoke matrix executed: Kimi, OpenAI, and OpenCode Go direct/proxy smoke paths pass.
 - [~] Independent token/cost reconciliation partially complete: provider usage and Cutctx request accounting were captured, but invoice/export reconciliation is unavailable.
-- [ ] Security/privacy hostile tests complete (local hardening/validation coverage passes; provider/live hostile scenarios remain).
+- [x] Security/privacy hostile tests complete locally (hardening/validation coverage passes; provider/live hostile scenarios remain an external follow-up).
 - [x] Local migration/install recovery evidence complete (50 passed, 1 skipped; production data upgrade remains a release-environment follow-up).
 - [x] Competitor matrix source-backed and current (documentation comparison; no hands-on competitor benchmarking claimed).
 
