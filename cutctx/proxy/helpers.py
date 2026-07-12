@@ -18,6 +18,7 @@ import subprocess
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -49,6 +50,8 @@ _CODEX_WIRE_SECRET_KEYS = (
     "token",
     "credential",
 )
+_CODEX_WIRE_DEBUG_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cutctx-wire")
+_CODEX_WIRE_DEBUG_PENDING = threading.BoundedSemaphore(value=32)
 
 
 def codex_wire_debug_enabled() -> bool:
@@ -160,7 +163,6 @@ def capture_codex_wire_debug(
 
     try:
         out_dir = _codex_wire_debug_dir()
-        out_dir.mkdir(parents=True, exist_ok=True)
         ts_ns = time.time_ns()
         req = request_id or "no_request"
         safe_req = _safe_event_name(req)
@@ -181,15 +183,38 @@ def capture_codex_wire_debug(
             "raw_text": raw_text,
             "metadata": redact_for_wire_debug(metadata or {}),
         }
-        path.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
-        )
-        logger.info(
-            "event=codex_wire_debug_capture path=%s request_id=%s wire_event=%s",
-            path,
-            request_id or "",
-            event,
-        )
+        serialized = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+
+        def _write() -> None:
+            try:
+                out_dir.mkdir(parents=True, exist_ok=True)
+                path.write_text(serialized, encoding="utf-8")
+                logger.info(
+                    "event=codex_wire_debug_capture path=%s request_id=%s wire_event=%s",
+                    path,
+                    request_id or "",
+                    event,
+                )
+            except Exception as exc:  # pragma: no cover - best-effort diagnostic write
+                logger.warning("event=codex_wire_debug_capture_failed error=%s", exc)
+            finally:
+                _CODEX_WIRE_DEBUG_PENDING.release()
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # CLI and synchronous callers retain immediate diagnostic output.
+            _CODEX_WIRE_DEBUG_PENDING.acquire()
+            _write()
+        else:
+            if not _CODEX_WIRE_DEBUG_PENDING.acquire(blocking=False):
+                logger.warning(
+                    "event=codex_wire_debug_capture_dropped request_id=%s reason=queue_full",
+                    request_id or "",
+                )
+                return None
+            loop.run_in_executor(_CODEX_WIRE_DEBUG_EXECUTOR, _write)
+
         preview_source = redact_for_wire_debug(body) if body is not None else raw_text
         preview = _wire_debug_preview(preview_source)
         meta_keys = ",".join(sorted((metadata or {}).keys()))
