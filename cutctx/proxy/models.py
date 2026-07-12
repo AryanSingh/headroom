@@ -137,6 +137,9 @@ class ProxyConfig:
     gemini_api_url: str | None = None  # Custom Gemini API URL override
     cloudcode_api_url: str | None = None  # Custom Cloud Code Assist API URL override
     vertex_api_url: str | None = None  # Custom Vertex AI regional API URL override
+    # Failed admin/SSO authentication attempts accepted per client IP each
+    # minute. Set to 0 to disable the dedicated brute-force guard.
+    admin_auth_failures_per_minute: int = 10
 
     # Backend: "anthropic" (direct API), "litellm-*" (via LiteLLM), or "anyllm" (via any-llm)
     backend: str = "anthropic"

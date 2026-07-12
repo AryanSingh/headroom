@@ -31,6 +31,7 @@ import importlib.util
 import inspect
 import json
 import logging
+import math
 import os
 import sys
 import threading
@@ -2163,6 +2164,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     require_secure_deployment(config)
     proxy = CutctxProxy(config)
+    admin_auth_failure_limiter = (
+        TokenBucketRateLimiter(
+            requests_per_minute=config.admin_auth_failures_per_minute,
+            tokens_per_minute=1,
+        )
+        if config.admin_auth_failures_per_minute > 0
+        else None
+    )
     from cutctx.telemetry.beacon import TelemetryBeacon
 
     _beacon = TelemetryBeacon(
@@ -3054,6 +3063,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     async def _require_local_admin_auth(request: Request) -> None:
         from cutctx.proxy.deployment_security import effective_admin_key, has_configured_sso
+        from cutctx.proxy.forwarded_headers import resolve_client_ip
+
+        async def _reject_failed_auth(detail: dict[str, str]) -> None:
+            if admin_auth_failure_limiter is not None:
+                client_ip = resolve_client_ip(request) or "unknown"
+                allowed, wait_seconds = await admin_auth_failure_limiter.check_request(
+                    f"admin-auth:{client_ip}"
+                )
+                if not allowed:
+                    retry_after = max(1, math.ceil(wait_seconds))
+                    raise HTTPException(
+                        status_code=429,
+                        detail={
+                            "message": "Too many failed admin authentication attempts.",
+                            "remediation": "Wait before retrying, then verify your admin key or SSO token.",
+                        },
+                        headers={"Retry-After": str(retry_after)},
+                    )
+            raise HTTPException(status_code=401, detail=detail)
 
         expected_admin_key = effective_admin_key(config)
         auth_header = request.headers.get("authorization", "")
@@ -3072,11 +3100,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         sso_configured = has_configured_sso(config)
         if sso_configured:
             if not bearer_token:
-                raise HTTPException(
-                    status_code=401,
-                    detail={
+                await _reject_failed_auth(
+                    {
                         "message": "Missing Bearer token for SSO-protected endpoint.",
-                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>"
+                        "remediation": "Pass your SSO token in the Authorization header: Authorization: Bearer <your-sso-token>",
                     }
                 )
             try:
@@ -3150,23 +3177,21 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 return
             except HTTPException:
                 raise
-            except Exception as exc:
+            except Exception:
                 logger.debug("SSO validation failed in runtime app", exc_info=True)
-                raise HTTPException(
-                    status_code=401,
-                    detail={
+                await _reject_failed_auth(
+                    {
                         "message": "Invalid or expired SSO bearer token.",
-                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry."
+                        "remediation": "Your SSO token is invalid or has expired. Get a fresh token from your identity provider and retry.",
                     }
-                ) from exc
+                )
 
         if not expected_admin_key:
             return
-        raise HTTPException(
-            status_code=401,
-            detail={
+        await _reject_failed_auth(
+            {
                 "message": "Invalid or missing admin credentials.",
-                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct."
+                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct.",
             }
         )
 
@@ -4711,6 +4736,9 @@ if __name__ == "__main__":
     config = ProxyConfig(
         host=_get_env_str("CUTCTX_HOST", args.host),
         port=_get_env_int("CUTCTX_PORT", args.port),
+        admin_auth_failures_per_minute=_get_env_int(
+            "CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE", 10
+        ),
         openai_api_url=_get_env_str("OPENAI_TARGET_API_URL", args.openai_api_url),
         anthropic_api_url=_get_env_str("ANTHROPIC_TARGET_API_URL", args.anthropic_api_url),
         vertex_api_url=_get_env_str("VERTEX_TARGET_API_URL", args.vertex_api_url),

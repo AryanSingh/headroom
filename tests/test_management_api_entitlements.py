@@ -233,6 +233,32 @@ def test_sso_config_can_be_built_from_proxy_config() -> None:
     assert sso.enabled is True
 
 
+def test_failed_admin_authentication_is_rate_limited_by_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    config = ProxyConfig(
+        admin_api_key="secret",
+        admin_auth_failures_per_minute=2,
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        audit_db_path=str(tmp_path / "audit-rate-limit.db"),
+        org_db_path=str(tmp_path / "org-rate-limit.db"),
+        fleet_db_path=str(tmp_path / "fleet-rate-limit.db"),
+        scim_db_path=str(tmp_path / "scim-rate-limit.db"),
+    )
+
+    with TestClient(create_app(config)) as client:
+        assert client.get("/license-status").status_code == 401
+        assert client.get("/license-status").status_code == 401
+        blocked = client.get("/license-status")
+        assert blocked.status_code == 429
+        assert int(blocked.headers["retry-after"]) >= 1
+
+        # A valid credential is never passed through the failure limiter.
+        valid = client.get("/license-status", headers={"X-Cutctx-Admin-Key": "secret"})
+        assert valid.status_code == 200
+
+
 @pytest.mark.no_auto_admin
 def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
