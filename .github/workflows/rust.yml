@@ -61,6 +61,30 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+  coverage:
+    name: coverage (rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Generate Rust coverage
+        run: cargo llvm-cov --workspace --lcov --output-path coverage-rust.lcov
+      - name: Upload Rust coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-rust.lcov
+          flags: rust
+          fail_ci_if_error: true
+
   wheels:
     name: wheels (${{ matrix.target }})
     runs-on: ${{ matrix.os }}

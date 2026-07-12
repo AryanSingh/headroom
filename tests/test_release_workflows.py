@@ -110,6 +110,27 @@ def test_ci_commitlint_runs_only_for_pull_requests() -> None:
     assert "github.event_name == 'pull_request'" in content
 
 
+def test_ci_enforces_and_uploads_python_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    codecov = (ROOT / "codecov.yml").read_text(encoding="utf-8")
+
+    assert "--cov=cutctx --cov-branch" in workflow
+    assert "--cov-fail-under=70" in workflow
+    assert "coverage-python.xml" in workflow
+    assert "flags: python" in workflow
+    assert codecov.count("target: 70%") == 2
+
+
+def test_rust_ci_generates_and_uploads_llvm_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
+
+    assert "components: llvm-tools-preview" in workflow
+    assert "tool: cargo-llvm-cov" in workflow
+    assert "cargo llvm-cov --workspace --lcov" in workflow
+    assert "coverage-rust.lcov" in workflow
+    assert "flags: rust" in workflow
+
+
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not installed")
 def test_no_openssl_sys_in_wheel_build_tree() -> None:
     """STRUCTURAL INVARIANT: openssl-sys must NOT appear in the wheel
