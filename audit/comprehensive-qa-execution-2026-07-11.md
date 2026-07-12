@@ -19,6 +19,7 @@ Verified strengths:
 - Non-server Python lint now passes after mechanical import/whitespace fixes and two loop-variable capture fixes.
 - Full Python lint now passes after retiring the unreferenced stale _create_app_legacy body and removing unused imports.
 - Focused proxy/routing/orchestration/dashboard regression suite passes 219 tests.
+- Live proxy stats now show non-zero savings-by-source totals for compression, model routing, provider prompt cache, and CLI filtering; fresh low-complexity requests are routed to gpt-5.4-mini under the codex-gpt54mini-high preset.
 - The existing orchestration audit states a coherent architecture and remediation history, but it must remain corroborating context rather than release proof.
 
 Critical gaps:
@@ -83,6 +84,8 @@ GPT-5.4 Mini utilization rate: not measurable from this Codex session. The test 
 | E-046 | SUPERSEDED | Safe provider credential/budget discovery | Initially blocked because no credential/budget was in scope. Superseded after explicit low-cost authorization and provider credentials were supplied. |
 | E-047 | PASS | Budgeted real-provider verification (credentials held only in process memory) | Kimi direct/proxy smoke passed previously. On 2026-07-12, OpenCode Go and OpenAI model discovery both returned 200; direct minimal chat calls succeeded for OpenCode Go `deepseek-v4-flash` (90 input / 6 output) and OpenAI `gpt-4o-mini` (13 input / 3 output). Fresh Cutctx proxies successfully forwarded minimal Anthropic-style requests to both providers: OpenAI returned 29 input / 4 output and OpenCode Go 89 input / 6 output. Cutctx recorded one `litellm-openai` request for each and 13/14 original input tokens respectively. The proxy's lower input count measures the caller payload before the required Anthropic-to-OpenAI translation; the provider counts the translated wire prompt. All requests used tiny 6-token caps, credentials were process-memory only, and no invoice/billing API was available for an exact charge. |
 | E-048 | PASS | OpenAI-compatible translated-backend custom upstream regression | Fixed LiteLLM translated traffic dropping `--openai-api-url`: the original versioned URL is now passed as LiteLLM `api_base`, and constructor options are forwarded to completion calls. Targeted regression suite: 45 passed. The final serial suite is recorded separately once complete. |
+| E-049 | PASS | Live proxy savings and routing snapshot | Current /stats snapshot from the running local proxy shows non-zero savings_by_source totals for compression, model routing, provider prompt cache, and rtk_cli_filtering. A fresh low-complexity GPT request returned gpt-5.4-mini-2026-03-17 under the canonical codex-gpt54mini-high routing preset, confirming the cheaper-model assignment path is active. |
+| E-050 | PASS | Dashboard source/bundle parity after rebuild | Rebuilt the dashboard with make build-dashboard, which synchronized the checked-in React output into cutctx/dashboard/. The current source and embedded bundle are aligned on the combined savings/routing dashboard contract, so the older compression-only headline is not the live runtime behavior. |
 
 ## Product and capability inventory
 
