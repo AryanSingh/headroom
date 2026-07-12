@@ -3120,6 +3120,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             or _hmac.compare_digest(admin_header, expected_admin_key)
             or _hmac.compare_digest(legacy_header, expected_admin_key)
         ):
+            # The configured admin key is the root administrative credential.
+            # Mark it explicitly so the RBAC checker's safe Viewer fallback
+            # doesn't reduce authenticated operators to read-only access.
+            request.state.cutctx_role = "admin"
+            request.state.cutctx_admin_authenticated = True
             return
 
         sso_configured = has_configured_sso(config)
@@ -3333,7 +3338,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     @app.post("/stats/reset")
     async def stats_reset(request: Request):
-        await _require_local_admin_auth(request)
+        await _runtime_require_rbac_permission("stats.reset")(request)
         await proxy.metrics.reset_runtime()
         if proxy.cost_tracker:
             proxy.cost_tracker.reset_runtime()
