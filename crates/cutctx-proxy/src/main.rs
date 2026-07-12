@@ -10,7 +10,7 @@ use std::sync::Arc;
 use clap::Parser;
 use cutctx_core::ccr::backends::CcrBackendConfig;
 use cutctx_proxy::config::{CcrBackendKind, CliArgs};
-use cutctx_proxy::{build_app, AppState, Config};
+use cutctx_proxy::{build_app, install_panic_hook, AppState, Config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let config = Config::from_cli(args);
 
     init_tracing(&config.log_level);
+    install_panic_hook();
 
     tracing::info!(
         listen = %config.listen,
