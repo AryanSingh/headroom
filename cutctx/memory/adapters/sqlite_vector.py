@@ -236,6 +236,7 @@ class SQLiteVectorIndex:
         """Create a SQLite connection with sqlite-vec loaded."""
         conn = sqlite3.connect(str(self._db_path))
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
 
         # Load sqlite-vec extension
         conn.enable_load_extension(True)

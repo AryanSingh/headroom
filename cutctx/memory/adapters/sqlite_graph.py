@@ -79,6 +79,7 @@ class SQLiteGraphStore:
         """
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
 
         # Configure page cache size (negative = KB, positive = pages)
         if self._page_cache_size_kb > 0:

@@ -35,6 +35,7 @@ class SQLiteStorage(Storage):
 
         conn = sqlite3.connect(self.db_path)
         try:
+            conn.execute("PRAGMA journal_mode=WAL")
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS requests (
@@ -79,6 +80,7 @@ class SQLiteStorage(Storage):
         if self._conn is None:
             self._conn = sqlite3.connect(self.db_path)
             self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
         return self._conn
 
     def save(self, metrics: RequestMetrics) -> None:
