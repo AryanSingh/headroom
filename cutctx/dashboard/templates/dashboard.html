@@ -183,18 +183,18 @@
     <main class="p-6 max-w-7xl mx-auto">
         <template x-if="viewMode === 'session'">
             <div>
-        <!-- Hero Metrics: Savings $ -> Compression % -> Overhead -->
+        <!-- Hero Metrics: Money saved -> Compression % -> Overhead -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <!-- Savings ($) - proxy compression only, priced at model list rate -->
+            <!-- Savings ($) - combined savings across compression, cache, routing, and filtering -->
             <div class="bg-surface rounded-lg p-4 border border-border">
-                <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Proxy $ Saved</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Money saved</div>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-light tabular-nums text-emerald-400" x-text="'$' + formatCurrency(stats.persistent_savings?.lifetime?.compression_savings_usd || 0)"></span>
+                    <span class="text-3xl font-light tabular-nums text-emerald-400" x-text="'$' + formatCurrency(combinedSavingsUsd())"></span>
                 </div>
                 <div class="mt-2 text-xs text-gray-500">
-                    <span x-show="(stats.persistent_savings?.lifetime?.compression_savings_usd || 0) > 0"
-                          x-text="formatNumber(stats.tokens?.proxy_compression_saved || 0) + ' proxy tokens only; ' + cliFilteringLabel + ' excluded from $'"></span>
-                    <span x-show="!((stats.persistent_savings?.lifetime?.compression_savings_usd || 0) > 0)"
+                    <span x-show="combinedSavingsUsd() > 0"
+                          x-text="formatNumber(stats.tokens?.saved || 0) + ' tokens saved; combined savings include compression, routing, cache, and filtering'"></span>
+                    <span x-show="!(combinedSavingsUsd() > 0)"
                           x-text="formatNumber(stats.requests?.total || 0) + ' requests processed'"></span>
                 </div>
             </div>
@@ -1744,6 +1744,35 @@
                 feedItemHeight: 160,
                 feedBuffer: 5,
                 log_full_messages: false,
+
+                combinedSavingsUsd() {
+                    const stats = this.stats || {};
+                    const lifetime = stats.persistent_savings?.lifetime || {};
+                    const sourceUsd = stats.savings_by_source?.usd || {};
+                    const lifetimeKeys = [
+                        'compression_savings_usd',
+                        'cache_savings_usd',
+                        'semantic_cache_savings_usd',
+                        'self_hosted_prefix_cache_savings_usd',
+                        'model_routing_savings_usd',
+                        'tool_schema_compaction_savings_usd',
+                        'api_surface_slimming_savings_usd',
+                        'normalization_savings_usd',
+                        'batch_routing_savings_usd',
+                        'memoization_savings_usd',
+                        'output_optimization_savings_usd',
+                    ];
+                    const lifetimeTotal = lifetimeKeys.reduce(
+                        (sum, key) => sum + Number(lifetime[key] || 0),
+                        0,
+                    );
+                    const sourceTotal = Object.values(sourceUsd).reduce(
+                        (sum, value) => sum + Number(value || 0),
+                        0,
+                    );
+                    const costTotal = Number(stats.cost?.total_savings_usd || 0);
+                    return Math.max(costTotal, lifetimeTotal, sourceTotal);
+                },
 
                 async init() {
                     await this.fetchStats();
