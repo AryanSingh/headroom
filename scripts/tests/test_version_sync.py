@@ -29,10 +29,15 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
     sdk = root / "sdk"
     typescript = sdk / "typescript"
     typescript.mkdir(parents=True)
+    rust_extension = root / "crates" / "cutctx-py"
+    rust_extension.mkdir(parents=True)
 
     # pyproject.toml
     pyproject = root / "pyproject.toml"
     pyproject.write_text('[project]\nversion = "0.5.25"\n')
+
+    rust_manifest = rust_extension / "Cargo.toml"
+    rust_manifest.write_text('[package]\nname = "cutctx-py"\nversion = "0.5.25"\n')
 
     # cutctx/_version.py is runtime-derived and must not be rewritten by version-sync.
     version_py = cutctx / "_version.py"
@@ -83,6 +88,7 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
     return {
         "root": root,
         "pyproject": pyproject,
+        "rust_manifest": rust_manifest,
         "version_py": version_py,
         "openclaw_pkg": openclaw_pkg,
         "repo_claude_marketplace": repo_claude_marketplace,
@@ -109,6 +115,7 @@ def test_version_sync_explicit_version(temp_project: dict[str, Path]) -> None:
     # Verify pyproject.toml
     pyproject_content = temp_project["pyproject"].read_text()
     assert 'version = "0.7.0"' in pyproject_content
+    assert 'version = "0.7.0"' in temp_project["rust_manifest"].read_text()
 
     # Verify cutctx/_version.py is not a synced manifest.
     version_py_content = temp_project["version_py"].read_text()
@@ -164,6 +171,7 @@ def test_bump_patch(temp_project: dict[str, Path]) -> None:
     # Verify all files updated to 0.5.26
     pyproject_content = temp_project["pyproject"].read_text()
     assert 'version = "0.5.26"' in pyproject_content
+    assert 'version = "0.5.26"' in temp_project["rust_manifest"].read_text()
 
     version_py_content = temp_project["version_py"].read_text()
     assert '__version__ = "0.5.25"' in version_py_content
@@ -195,6 +203,7 @@ def test_bump_minor(temp_project: dict[str, Path]) -> None:
     # Verify all files updated to 0.6.0
     pyproject_content = temp_project["pyproject"].read_text()
     assert 'version = "0.6.0"' in pyproject_content
+    assert 'version = "0.6.0"' in temp_project["rust_manifest"].read_text()
 
     version_py_content = temp_project["version_py"].read_text()
     assert '__version__ = "0.5.25"' in version_py_content
@@ -226,6 +235,7 @@ def test_bump_major(temp_project: dict[str, Path]) -> None:
     # Verify all files updated to 1.0.0
     pyproject_content = temp_project["pyproject"].read_text()
     assert 'version = "1.0.0"' in pyproject_content
+    assert 'version = "1.0.0"' in temp_project["rust_manifest"].read_text()
 
     version_py_content = temp_project["version_py"].read_text()
     assert '__version__ = "0.5.25"' in version_py_content
@@ -292,6 +302,7 @@ def test_plugin_manifests_only_leaves_package_versions_unchanged(
 
     assert result.returncode == 0, f"Script failed: {result.stderr}"
     assert 'version = "0.5.25"' in temp_project["pyproject"].read_text()
+    assert 'version = "0.5.25"' in temp_project["rust_manifest"].read_text()
     assert '__version__ = "0.5.25"' in temp_project["version_py"].read_text()
     assert json.loads(temp_project["openclaw_pkg"].read_text())["version"] == "0.5.25"
     assert (

@@ -45,6 +45,14 @@ def _read_marketplace_versions(path: Path) -> dict[str, str]:
     return versions
 
 
+def _read_cargo_package_version(path: Path) -> str:
+    with open(path, "rb") as f:
+        package = tomllib.load(f).get("package")
+    if not isinstance(package, dict) or "version" not in package:
+        raise ValueError(f"Missing [package].version in {path}")
+    return str(package["version"])
+
+
 def main() -> None:
     with open(ROOT / "pyproject.toml", "rb") as f:
         py_ver = tomllib.load(f)["project"]["version"]
@@ -53,6 +61,9 @@ def main() -> None:
         "pyproject.toml": py_ver,
         "plugins/openclaw/package.json": _read_json_version(ROOT / "plugins/openclaw/package.json"),
         "sdk/typescript/package.json": _read_json_version(ROOT / "sdk/typescript/package.json"),
+        "crates/cutctx-py/Cargo.toml": _read_cargo_package_version(
+            ROOT / "crates/cutctx-py/Cargo.toml"
+        ),
         "plugins/cutctx-agent-hooks/.claude-plugin/plugin.json": _read_json_version(
             ROOT / "plugins/cutctx-agent-hooks/.claude-plugin/plugin.json"
         ),
