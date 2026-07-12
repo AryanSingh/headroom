@@ -625,6 +625,10 @@ MAX_REQUEST_BODY_SIZE = 50 * 1024 * 1024
 
 # Maximum SSE buffer size (10MB - prevents memory exhaustion from malformed streams)
 MAX_SSE_BUFFER_SIZE = 10 * 1024 * 1024
+# Post-stream features (CCR feedback, memory tool detection, structured-output
+# validation, wire debugging) use a complete SSE mirror. Keep that optional
+# copy materially smaller than the incremental parser's safety buffer.
+MAX_SSE_MIRROR_SIZE = 1 * 1024 * 1024
 
 # Per-event SSE size cap (PR-A8 / P1-8). Configurable via
 # CUTCTX_SSE_BUFFER_MAX_BYTES. Guards against pathological huge events
