@@ -281,3 +281,14 @@ class TestEnrollVerifyRoundTrip:
         assert code.isdigit()
         # Verify
         assert verify_totp(secret, code, now=1700000000.0) is True
+
+    def test_matching_counter_is_single_use_compatible(self):
+        from cutctx.security.mfa import current_totp, matching_totp_counter
+
+        secret = "JBSWY3DPEHPK3PXP"
+        now = 1_700_000_000.0
+        counter = int(now) // 30
+        code = current_totp(secret, now=now).code
+
+        assert matching_totp_counter(secret, code, now=now, last_used_counter=counter - 1) == counter
+        assert matching_totp_counter(secret, code, now=now, last_used_counter=counter) is None

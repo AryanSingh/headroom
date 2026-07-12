@@ -3089,7 +3089,66 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 if getattr(claims, "subject", None):
                     request.state.cutctx_user_id = claims.subject
                 request.state.cutctx_sso_claims = claims
+                if os.environ.get("CUTCTX_MFA_ENFORCE", "").strip().lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
+                }:
+                    from cutctx.security.mfa import MfaStore, matching_totp_counter
+
+                    subject = getattr(claims, "subject", None)
+                    try:
+                        store = MfaStore(
+                            db_path=os.environ.get("CUTCTX_RBAC_DB_PATH") or "~/.cutctx/rbac.db"
+                        )
+                        enrollment = store.get(subject) if subject else None
+                    except Exception as exc:
+                        logger.exception("MFA enrollment store unavailable")
+                        raise HTTPException(
+                            status_code=503,
+                            detail={
+                                "message": "MFA enforcement store is unavailable.",
+                                "remediation": "Restore the MFA enrollment database before retrying.",
+                            },
+                        ) from exc
+                    if enrollment is not None:
+                        code = request.headers.get("x-cutctx-mfa-code", "")
+                        counter = matching_totp_counter(
+                            enrollment["secret_b32"],
+                            code,
+                            last_used_counter=enrollment["last_used_counter"],
+                        )
+                        if counter is None:
+                            raise HTTPException(
+                                status_code=401,
+                                detail={
+                                    "message": "A fresh MFA code is required for this enrolled admin.",
+                                    "remediation": "Pass X-Cutctx-MFA-Code with a current authenticator code.",
+                                },
+                            )
+                        try:
+                            consumed = store.consume_counter(subject, counter)
+                        except Exception as exc:
+                            logger.exception("MFA enrollment store unavailable")
+                            raise HTTPException(
+                                status_code=503,
+                                detail={
+                                    "message": "MFA enforcement store is unavailable.",
+                                    "remediation": "Restore the MFA enrollment database before retrying.",
+                                },
+                            ) from exc
+                        if not consumed:
+                            raise HTTPException(
+                                status_code=401,
+                                detail={
+                                    "message": "A fresh MFA code is required for this enrolled admin.",
+                                    "remediation": "Pass X-Cutctx-MFA-Code with a current authenticator code.",
+                                },
+                            )
                 return
+            except HTTPException:
+                raise
             except Exception as exc:
                 logger.debug("SSO validation failed in runtime app", exc_info=True)
                 raise HTTPException(
