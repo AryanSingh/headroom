@@ -830,10 +830,10 @@ def decide_compression_failure_action(
 
     * env :data:`WS_COMPRESSION_FAIL_OPEN_ENV` truthy → forward (legacy
       behaviour, opt-in for debugging or strict compatibility).
-    * Codex client compression failure → forward. Codex currently treats
-      the proxy's 1009/413 refusal path as a hard connection failure, so
-      fail-open is safer for Codex sessions even when the proxy is run
-      standalone rather than through ``cutctx wrap codex``.
+    * Codex client + small non-timeout failure → forward. That keeps
+      genuinely transient small-frame glitches from breaking a session
+      while still refusing oversized payloads that would otherwise trip a
+      context-window overflow downstream.
     * exception is :class:`asyncio.TimeoutError` → refuse (the compression
       stage hit its own timeout, which only fires on frames Cutctx
       thought were big enough to need compression in the first place).
@@ -856,13 +856,6 @@ def decide_compression_failure_action(
             frame_bytes=frame_bytes,
         )
 
-    if (client or "").strip().lower() == "codex":
-        return CompressionFailureAction(
-            refuse=False,
-            reason="client_override:codex",
-            frame_bytes=frame_bytes,
-        )
-
     threshold = WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT
     raw_threshold = os.environ.get(WS_COMPRESSION_OVERSIZE_BYTES_ENV, "").strip()
     if raw_threshold:
@@ -882,6 +875,14 @@ def decide_compression_failure_action(
 
     if isinstance(exception, asyncio.TimeoutError):
         return CompressionFailureAction(refuse=True, reason="timeout", frame_bytes=frame_bytes)
+
+    if (client or "").strip().lower() == "codex" and frame_bytes <= threshold:
+        return CompressionFailureAction(
+            refuse=False,
+            reason="client_override:codex",
+            frame_bytes=frame_bytes,
+        )
+
     if frame_bytes > threshold:
         return CompressionFailureAction(
             refuse=True,

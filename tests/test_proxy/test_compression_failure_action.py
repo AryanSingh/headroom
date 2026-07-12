@@ -77,8 +77,8 @@ def test_codex_client_any_error_fails_open_without_env_override() -> None:
     assert action.frame_bytes == 128
 
 
-def test_codex_client_oversize_fails_open() -> None:
-    """Codex direct-proxy traffic should keep flowing even if the payload is oversized."""
+def test_codex_client_oversize_refuses() -> None:
+    """Codex direct-proxy traffic should refuse oversized failures too."""
     big = WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT + 1024
     with _env(**{WS_COMPRESSION_FAIL_OPEN_ENV: None, WS_COMPRESSION_OVERSIZE_BYTES_ENV: None}):
         action = decide_compression_failure_action(
@@ -86,9 +86,21 @@ def test_codex_client_oversize_fails_open() -> None:
             frame_bytes=big,
             client="codex",
         )
-    assert action.refuse is False
-    assert action.reason == "client_override:codex"
+    assert action.refuse is True
+    assert action.reason.startswith("oversize:")
     assert action.frame_bytes == big
+
+
+def test_codex_client_timeout_refuses() -> None:
+    """Codex direct-proxy traffic should not fail open on compression timeouts."""
+    with _env(**{WS_COMPRESSION_FAIL_OPEN_ENV: None, WS_COMPRESSION_OVERSIZE_BYTES_ENV: None}):
+        action = decide_compression_failure_action(
+            asyncio.TimeoutError(),
+            frame_bytes=WS_COMPRESSION_OVERSIZE_BYTES_DEFAULT + 1024,
+            client="codex",
+        )
+    assert action.refuse is True
+    assert action.reason == "timeout"
 
 
 def test_non_codex_timeout_still_refuses_without_env_override() -> None:
