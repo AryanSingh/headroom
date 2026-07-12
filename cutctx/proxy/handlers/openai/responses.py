@@ -2509,31 +2509,46 @@ class OpenAIResponsesMixin:
                         _truncated_bytes,
                     )
                 elif _http_action.refuse:
-                    logger.error(
-                        "[%s] /v1/responses REFUSING to forward request "
-                        "after compression failure (reason=%s, bytes=%d); "
-                        "returning HTTP 413 so the client can compact "
-                        "context and retry. To restore legacy passthrough "
-                        "behaviour set "
-                        "CUTCTX_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE=1.",
-                        request_id,
-                        _http_action.reason,
-                        _http_body_bytes,
-                    )
-                    raise HTTPException(
-                        status_code=413,
-                        detail={
-                            "error": {
-                                "type": "compression_refused",
-                                "message": (
-                                    f"cutctx: compression "
-                                    f"{_http_action.reason} on a "
-                                    f"{_http_body_bytes}-byte request "
-                                    "— please compact context and retry."
-                                ),
-                            }
-                        },
-                    ) from _e
+                    _CODEx_SMALL_TIMEOUT_FAIL_OPEN_BYTES = 256 * 1024
+                    if (
+                        not is_chatgpt_auth
+                        and client == "codex"
+                        and _http_action.reason == "timeout"
+                        and _http_body_bytes <= _CODEx_SMALL_TIMEOUT_FAIL_OPEN_BYTES
+                    ):
+                        logger.warning(
+                            "[%s] /v1/responses compression timed out on a small Codex "
+                            "request (%d bytes); failing open to preserve the "
+                            "standalone proxy UX.",
+                            request_id,
+                            _http_body_bytes,
+                        )
+                    else:
+                        logger.error(
+                            "[%s] /v1/responses REFUSING to forward request "
+                            "after compression failure (reason=%s, bytes=%d); "
+                            "returning HTTP 413 so the client can compact "
+                            "context and retry. To restore legacy passthrough "
+                            "behaviour set "
+                            "CUTCTX_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE=1.",
+                            request_id,
+                            _http_action.reason,
+                            _http_body_bytes,
+                        )
+                        raise HTTPException(
+                            status_code=413,
+                            detail={
+                                "error": {
+                                    "type": "compression_refused",
+                                    "message": (
+                                        f"cutctx: compression "
+                                        f"{_http_action.reason} on a "
+                                        f"{_http_body_bytes}-byte request "
+                                        "— please compact context and retry."
+                                    ),
+                                }
+                            },
+                        ) from _e
 
         # Request transforms can add API fields after the initial routing
         # sanitizer runs. Keep the ChatGPT subscription boundary strict so a

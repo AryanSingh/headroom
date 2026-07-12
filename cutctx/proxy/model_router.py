@@ -160,6 +160,28 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         for pattern in reference_dependent_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.MEDIUM
+
+        contextual_followup_patterns = [
+            r"\b(?:summar(?:y|ize|ise)|explain|rewrite|paraphrase|translate|compare|describe|outline|analy[sz]e)\b",
+        ]
+        contextual_reference_patterns = [
+            r"\bthat\b",
+            r"\bthose\b",
+            r"\bthese\b",
+            r"\bfollowing\b",
+            r"\bprevious\b",
+            r"\bearlier\b",
+            r"\babove\b",
+        ]
+        if any(
+            re.search(pattern, normalized_content, re.IGNORECASE)
+            for pattern in contextual_followup_patterns
+        ) and any(
+            re.search(pattern, normalized_content, re.IGNORECASE)
+            for pattern in contextual_reference_patterns
+        ):
+            return TaskComplexity.MEDIUM
+
         for pattern in low_complexity_patterns:
             if re.search(pattern, content, re.IGNORECASE) and len(normalized_content.split()) <= 16:
                 return TaskComplexity.LOW
