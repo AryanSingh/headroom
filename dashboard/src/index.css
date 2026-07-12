@@ -2234,12 +2234,18 @@ OVERVIEW: TREND CHART
 }
 
 .trend-bar:hover,
-.trend-bar.active,
+.trend-bar.active {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(20, 184, 166, 0.2);
+}
+
 .trend-bar:focus-visible {
   opacity: 1;
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(20, 184, 166, 0.2);
-  outline: none;
+  outline: 3px solid var(--border-focus);
+  outline-offset: 3px;
 }
 
 .trend-bar-tooltip {
@@ -2941,6 +2947,10 @@ grid-template-columns: 1fr;
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+
+  .skeleton {
+    animation: none;
   }
 }
 
