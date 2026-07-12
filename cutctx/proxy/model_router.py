@@ -60,8 +60,10 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     """Classify a turn conservatively before selecting a cheaper model.
 
     This is an eligibility gate, not an intent model: uncertainty must retain
-    the requested model.  In particular, code, tool context, multi-turn work,
-    and reference-dependent requests are never classified as low complexity.
+    the requested model.  In particular, code, tool context, reference-
+    dependent requests, and genuinely complex follow-ups stay on the stronger
+    model. A short, plainly easy follow-up is still allowed to downgrade even
+    when the thread already has prior turns.
     """
     if not messages:
         return TaskComplexity.HIGH
@@ -160,8 +162,6 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         for pattern in high_complexity_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.HIGH
-        if prior_turns:
-            return TaskComplexity.MEDIUM
         for pattern in reference_dependent_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.MEDIUM
@@ -178,6 +178,9 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
             and normalized_content.count(".") <= 1
         ):
             return TaskComplexity.LOW
+
+        if prior_turns:
+            return TaskComplexity.MEDIUM
 
     if len(content) > 5000:
         return TaskComplexity.HIGH

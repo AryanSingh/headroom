@@ -464,6 +464,30 @@ def test_codex_preset_routes_contextual_medium_work_to_luna() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.6-luna"
 
 
+def test_codex_preset_can_still_route_easy_followups_to_mini() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    messages = [
+        {"role": "user", "content": "Summarize the dashboard changes."},
+        {"role": "assistant", "content": "Sure."},
+        {"role": "user", "content": "thanks"},
+    ]
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-terra",
+        messages=messages,
+        request_savings_metadata={},
+    )
+
+    assert classify_task_complexity(messages) == TaskComplexity.LOW
+    assert model == "gpt-5.4-mini"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+
+
 def test_codex_preset_routes_reference_dependent_current_turn_to_luna() -> None:
     cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
 
