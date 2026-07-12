@@ -50,8 +50,10 @@ import click
 
 from .main import main
 
-_ENV_NAMES = ("OPENAI_BASE_URL", "ANTHROPIC_BASE_URL")
+_ENV_NAMES = ("OPENAI_BASE_URL", "ANTHROPIC_BASE_URL", "CUTCTX_MODEL_ROUTING_PRESET")
+_BASE_ENV_NAMES = ("OPENAI_BASE_URL", "ANTHROPIC_BASE_URL")
 _LABEL = "com.cutctx.global-routing"
+_DEFAULT_MODEL_ROUTING_PRESET = "codex-gpt54mini-high"
 
 
 @dataclass
@@ -78,6 +80,7 @@ def _routing_values(port: int) -> dict[str, str]:
     return {
         "OPENAI_BASE_URL": f"http://127.0.0.1:{port}/v1",
         "ANTHROPIC_BASE_URL": f"http://127.0.0.1:{port}",
+        "CUTCTX_MODEL_ROUTING_PRESET": _DEFAULT_MODEL_ROUTING_PRESET,
     }
 
 
@@ -118,7 +121,7 @@ def _load_state() -> GlobalRoutingState | None:
         return None
     payload = json.loads(path.read_text(encoding="utf-8"))
     previous = payload.get("previous")
-    if not isinstance(previous, dict) or not all(name in previous for name in _ENV_NAMES):
+    if not isinstance(previous, dict) or not all(name in previous for name in _BASE_ENV_NAMES):
         raise click.ClickException("Global routing state is invalid; refusing to overwrite it.")
     if any(value is not None and not isinstance(value, str) for value in previous.values()):
         raise click.ClickException(
@@ -132,7 +135,7 @@ def _load_state() -> GlobalRoutingState | None:
         raise click.ClickException("Global routing state contains an invalid port.")
     return GlobalRoutingState(
         port=port,
-        previous={name: previous[name] for name in _ENV_NAMES},
+        previous={name: previous.get(name) for name in _ENV_NAMES},
     )
 
 
@@ -260,6 +263,7 @@ def global_install(port: int, skip_health_check: bool) -> None:
         raise
 
     click.echo(f"Global routing installed for port {port}.")
+    click.echo(f"Model routing preset: {values['CUTCTX_MODEL_ROUTING_PRESET']}")
     click.echo("Restart running AI desktop apps to pick up the new environment.")
     click.echo("Use `cutctx global doctor` to view supported and fallback coverage.")
 
@@ -305,6 +309,7 @@ def global_doctor() -> None:
     click.echo(
         "Native base-URL coverage: Codex Desktop, Codex CLI, Claude Code, and compatible tools."
     )
+    click.echo(f"Routing preset: {values['CUTCTX_MODEL_ROUTING_PRESET']}")
     click.echo("Fallback coverage: transparent interception is opt-in for hard-coded API clients.")
     click.echo("Safety: chatgpt.com is intentionally not transparently intercepted.")
     if unhealthy:

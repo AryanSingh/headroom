@@ -21,7 +21,11 @@ def test_global_install_records_previous_values_and_writes_launchagent(
     monkeypatch, tmp_path: Path
 ) -> None:
     state_path, agent_path = _paths(monkeypatch, tmp_path)
-    environment = {"OPENAI_BASE_URL": "https://old-openai", "ANTHROPIC_BASE_URL": None}
+    environment = {
+        "OPENAI_BASE_URL": "https://old-openai",
+        "ANTHROPIC_BASE_URL": None,
+        "CUTCTX_MODEL_ROUTING_PRESET": None,
+    }
     monkeypatch.setattr("cutctx.cli.global_routing._getenv", environment.get)
     monkeypatch.setattr(
         "cutctx.cli.global_routing._setenv",
@@ -39,11 +43,16 @@ def test_global_install_records_previous_values_and_writes_launchagent(
     assert environment == {
         "OPENAI_BASE_URL": "http://127.0.0.1:9999/v1",
         "ANTHROPIC_BASE_URL": "http://127.0.0.1:9999",
+        "CUTCTX_MODEL_ROUTING_PRESET": "codex-gpt54mini-high",
     }
     assert agent_path.exists()
     assert json.loads(state_path.read_text()) == {
         "port": 9999,
-        "previous": {"OPENAI_BASE_URL": "https://old-openai", "ANTHROPIC_BASE_URL": None},
+        "previous": {
+            "OPENAI_BASE_URL": "https://old-openai",
+            "ANTHROPIC_BASE_URL": None,
+            "CUTCTX_MODEL_ROUTING_PRESET": None,
+        },
     }
 
 
@@ -65,7 +74,14 @@ def test_global_update_restores_prior_agent_and_values_on_failure(
     state_path, agent_path = _paths(monkeypatch, tmp_path)
     state_path.write_text(
         json.dumps(
-            {"port": 8787, "previous": {"OPENAI_BASE_URL": None, "ANTHROPIC_BASE_URL": None}}
+            {
+                "port": 8787,
+                "previous": {
+                    "OPENAI_BASE_URL": None,
+                    "ANTHROPIC_BASE_URL": None,
+                    "CUTCTX_MODEL_ROUTING_PRESET": None,
+                },
+            }
         )
     )
     agent_path.parent.mkdir(parents=True)
@@ -73,6 +89,7 @@ def test_global_update_restores_prior_agent_and_values_on_failure(
     environment = {
         "OPENAI_BASE_URL": "http://127.0.0.1:8787/v1",
         "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
+        "CUTCTX_MODEL_ROUTING_PRESET": "codex-gpt54mini-high",
     }
     monkeypatch.setattr("cutctx.cli.global_routing._getenv", environment.get)
     monkeypatch.setattr(
@@ -95,6 +112,7 @@ def test_global_update_restores_prior_agent_and_values_on_failure(
     assert environment == {
         "OPENAI_BASE_URL": "http://127.0.0.1:8787/v1",
         "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
+        "CUTCTX_MODEL_ROUTING_PRESET": "codex-gpt54mini-high",
     }
 
 
@@ -107,6 +125,7 @@ def test_global_uninstall_restores_previous_values(monkeypatch, tmp_path: Path) 
                 "previous": {
                     "OPENAI_BASE_URL": None,
                     "ANTHROPIC_BASE_URL": "https://old-anthropic",
+                    "CUTCTX_MODEL_ROUTING_PRESET": "legacy-preset",
                 },
             }
         )
@@ -128,16 +147,55 @@ def test_global_uninstall_restores_previous_values(monkeypatch, tmp_path: Path) 
     result = CliRunner().invoke(main, ["global", "uninstall"])
 
     assert result.exit_code == 0, result.output
-    assert environment == {"OPENAI_BASE_URL": None, "ANTHROPIC_BASE_URL": "https://old-anthropic"}
+    assert environment == {
+        "OPENAI_BASE_URL": None,
+        "ANTHROPIC_BASE_URL": "https://old-anthropic",
+        "CUTCTX_MODEL_ROUTING_PRESET": "legacy-preset",
+    }
     assert not state_path.exists()
     assert not agent_path.exists()
+
+
+def test_global_load_state_accepts_legacy_two_field_snapshot(
+    monkeypatch, tmp_path: Path
+) -> None:
+    state_path, _ = _paths(monkeypatch, tmp_path)
+    state_path.write_text(
+        json.dumps(
+            {
+                "port": 8787,
+                "previous": {
+                    "OPENAI_BASE_URL": "https://old-openai",
+                    "ANTHROPIC_BASE_URL": None,
+                },
+            }
+        )
+    )
+
+    from cutctx.cli.global_routing import _load_state
+
+    state = _load_state()
+
+    assert state is not None
+    assert state.previous == {
+        "OPENAI_BASE_URL": "https://old-openai",
+        "ANTHROPIC_BASE_URL": None,
+        "CUTCTX_MODEL_ROUTING_PRESET": None,
+    }
 
 
 def test_global_doctor_reports_healthy_managed_routing(monkeypatch, tmp_path: Path) -> None:
     state_path, agent_path = _paths(monkeypatch, tmp_path)
     state_path.write_text(
         json.dumps(
-            {"port": 8787, "previous": {"OPENAI_BASE_URL": None, "ANTHROPIC_BASE_URL": None}}
+            {
+                "port": 8787,
+                "previous": {
+                    "OPENAI_BASE_URL": None,
+                    "ANTHROPIC_BASE_URL": None,
+                    "CUTCTX_MODEL_ROUTING_PRESET": None,
+                },
+            }
         )
     )
     agent_path.parent.mkdir(parents=True)
@@ -145,6 +203,7 @@ def test_global_doctor_reports_healthy_managed_routing(monkeypatch, tmp_path: Pa
     values = {
         "OPENAI_BASE_URL": "http://127.0.0.1:8787/v1",
         "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
+        "CUTCTX_MODEL_ROUTING_PRESET": "codex-gpt54mini-high",
     }
     monkeypatch.setattr("cutctx.cli.global_routing._getenv", values.get)
     monkeypatch.setattr("cutctx.cli.global_routing._proxy_ready", lambda port: True)
@@ -154,6 +213,7 @@ def test_global_doctor_reports_healthy_managed_routing(monkeypatch, tmp_path: Pa
     assert result.exit_code == 0, result.output
     assert "Safety: chatgpt.com is intentionally not transparently intercepted." in result.output
     assert "OK: managed session environment" in result.output
+    assert "Routing preset: codex-gpt54mini-high" in result.output
 
 
 def test_global_status_handles_missing_install(monkeypatch, tmp_path: Path) -> None:
