@@ -92,3 +92,33 @@ async def test_record_stage_timings_does_not_hold_async_lock():
 
     release_lock.set()
     await holder
+
+
+@pytest.mark.asyncio
+async def test_export_snapshot_isolated_from_later_request_updates():
+    """A scrape renders an immutable snapshot after releasing the request lock."""
+    metrics = PrometheusMetrics()
+    await metrics.record_request(
+        provider="anthropic",
+        model="claude-test",
+        input_tokens=10,
+        output_tokens=1,
+        tokens_saved=2,
+        latency_ms=3,
+    )
+
+    async with metrics._lock:
+        snapshot = metrics._snapshot_for_export()
+
+    await metrics.record_request(
+        provider="openai",
+        model="gpt-test",
+        input_tokens=20,
+        output_tokens=2,
+        tokens_saved=4,
+        latency_ms=6,
+    )
+
+    assert snapshot.requests_total == 1
+    assert snapshot.requests_by_provider == {"anthropic": 1}
+    assert metrics.requests_total == 2

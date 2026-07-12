@@ -10,6 +10,7 @@ Extracted from server.py for maintainability.
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import threading
 from collections import defaultdict
@@ -24,6 +25,33 @@ from cutctx.observability import get_otel_metrics
 from cutctx.proxy.savings_tracker import SavingsTracker
 
 logger = logging.getLogger("cutctx.proxy")
+
+
+class _UnlockedExportLock:
+    """Async-context-manager placeholder used by immutable export snapshots."""
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(self, *_args: object) -> None:
+        return None
+
+
+def _copy_export_value(value: object) -> object:
+    """Copy container state used by a metrics scrape without copying services."""
+    if isinstance(value, defaultdict):
+        copied: defaultdict = defaultdict(value.default_factory)
+        copied.update({key: _copy_export_value(item) for key, item in value.items()})
+        return copied
+    if isinstance(value, dict):
+        return {key: _copy_export_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return list(value)
+    if isinstance(value, tuple):
+        return tuple(_copy_export_value(item) for item in value)
+    if isinstance(value, set):
+        return set(value)
+    return value
 
 
 def _escape_label_value(value: str) -> str:
@@ -826,8 +854,31 @@ class PrometheusMetrics:
             self.requests_failed += 1
         self._get_otel_metrics().record_proxy_failed(provider=provider, model=model)
 
+    def _snapshot_for_export(self) -> PrometheusMetrics:
+        """Return an isolated metrics view for a Prometheus scrape.
+
+        Rendering is pure CPU/string work. Snapshotting mutable counters while
+        holding the request-path lock keeps the view coherent, then allows the
+        expensive formatting to happen after the lock has been released.
+        """
+        snapshot = copy.copy(self)
+        snapshot.__dict__ = {
+            name: _copy_export_value(value) for name, value in self.__dict__.items()
+        }
+        snapshot._lock = _UnlockedExportLock()
+        snapshot._is_export_snapshot = True
+        return snapshot
+
     async def export(self) -> str:
         """Export metrics in Prometheus format."""
+        if not getattr(self, "_is_export_snapshot", False):
+            async with self._lock:
+                snapshot = self._snapshot_for_export()
+            # Let queued request-finalization work acquire the real lock before
+            # this scrape begins its potentially large string rendering pass.
+            await asyncio.sleep(0)
+            return await snapshot.export()
+
         # Snapshot stage-timing dicts under the tiny synchronous lock so
         # we don't race a concurrent ``record_stage_timings`` and observe
         # an inconsistent (sum, count, max) triple. Freeze into plain
