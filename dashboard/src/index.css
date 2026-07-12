@@ -634,6 +634,26 @@ pre {
    PAGE SHELL
    ═══════════════════════════════════════════════════════════════ */
 
+.skip-link {
+  position: fixed;
+  top: var(--space-md);
+  left: var(--space-md);
+  z-index: 1000;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  transform: translateY(-200%);
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
 .page-shell {
   padding: var(--space-3xl) var(--space-3xl) var(--space-4xl);
 }

@@ -348,6 +348,7 @@ function AppFrame() {
 
   return (
     <div className={`app-shell ${!sidebarOpen && !isMobile ? 'sidebar-collapsed' : ''}`}>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <Sidebar open={sidebarOpen} onClose={closeSidebar} />
       <div className="content-shell">
         <Topbar
@@ -357,7 +358,7 @@ function AppFrame() {
           setSearchQuery={setSearchQuery}
           onToggleSidebar={toggleSidebar}
         />
-        <main className="page-shell">
+        <main className="page-shell" id="main-content" tabIndex="-1">
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Overview />} />

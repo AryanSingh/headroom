@@ -152,7 +152,7 @@ def test_orchestrator_renders_provider_policy_status() -> None:
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
 
-            expect(page.get_by_text("Orchestrator Insights", exact=True)).to_be_visible()
+            expect(page.get_by_text("Routing mode control", exact=True)).to_be_visible()
             expect(page.get_by_text("Fallback and selection posture", exact=True)).to_be_visible()
             expect(page.get_by_text("Compatibility-provider health and overrides", exact=True)).to_be_visible()
             expect(page.get_by_text("coding_agent", exact=True).first).to_be_visible()
