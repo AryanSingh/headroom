@@ -126,7 +126,7 @@ impl CcrStore for SqliteCcrStore {
     fn put(&self, hash: &str, payload: &str) {
         let now = Self::now_unix_seconds();
         let conn = self.conn.lock().expect("ccr sqlite mutex poisoned");
-        
+
         // Lazy purge sweep moved to the write path so reads stay fast.
         if let Err(err) = Self::purge_expired(&conn, now) {
             tracing::warn!(
