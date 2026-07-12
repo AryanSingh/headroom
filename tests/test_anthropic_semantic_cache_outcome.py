@@ -72,6 +72,27 @@ async def test_semantic_cache_stats_track_hits_misses_and_tokens() -> None:
     assert stats["total_misses"] == 1
     assert stats["total_stores"] == 1
     assert stats["tokens_avoided"] == 123
+    assert stats["total_hit_count"] == 1
+    assert stats["tokens_saved_per_hit_capacity"] == 123
+
+
+@pytest.mark.asyncio
+async def test_semantic_cache_stats_keep_resident_aggregates_current() -> None:
+    cache = SemanticCache(max_entries=1, ttl_seconds=60)
+    first_messages = [{"role": "user", "content": "first"}]
+    second_messages = [{"role": "user", "content": "second"}]
+
+    await cache.set(first_messages, "claude-test", b"{}", {}, tokens_saved=50)
+    assert await cache.get(first_messages, "claude-test") is not None
+
+    await cache.set(second_messages, "claude-test", b"{}", {}, tokens_saved=80)
+    stats = await cache.stats()
+
+    # The first entry was evicted, so resident aggregates must not retain its
+    # hit or savings-capacity contribution.
+    assert stats["total_hits"] == 1
+    assert stats["total_hit_count"] == 0
+    assert stats["tokens_saved_per_hit_capacity"] == 80
 
 
 @pytest.mark.asyncio

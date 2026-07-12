@@ -130,6 +130,16 @@ class SemanticCache:
         self._evictions = 0
         self._expired = 0
         self._tokens_avoided = 0
+        # These aggregates describe the entries currently resident in the
+        # cache. Keeping them incrementally avoids an O(n) scan under the
+        # request-path lock whenever the dashboard polls cache statistics.
+        self._total_entry_hit_count = 0
+        self._tokens_saved_per_hit_capacity = 0
+
+    def _remove_entry_aggregates(self, entry: CacheEntry) -> None:
+        """Remove a live entry's contribution from resident-cache totals."""
+        self._total_entry_hit_count -= entry.hit_count
+        self._tokens_saved_per_hit_capacity -= entry.tokens_saved_per_hit
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
         """Compute a normalized cache key for a request."""
@@ -158,11 +168,13 @@ class SemanticCache:
             age = (datetime.now() - entry.created_at).total_seconds()
             if age > entry.ttl_seconds:
                 del self._cache[key]
+                self._remove_entry_aggregates(entry)
                 self._expired += 1
                 self._misses += 1
                 return None
 
             entry.hit_count += 1
+            self._total_entry_hit_count += 1
             self._hits += 1
             self._tokens_avoided += max(0, entry.tokens_saved_per_hit)
             self._cache.move_to_end(key)
@@ -180,10 +192,11 @@ class SemanticCache:
         key = self._compute_key(messages, model)
         async with self._lock:
             if key in self._cache:
-                del self._cache[key]
+                self._remove_entry_aggregates(self._cache.pop(key))
 
             while len(self._cache) >= self.max_entries:
-                self._cache.popitem(last=False)
+                _, evicted_entry = self._cache.popitem(last=False)
+                self._remove_entry_aggregates(evicted_entry)
                 self._evictions += 1
 
             is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
@@ -195,25 +208,24 @@ class SemanticCache:
                 tokens_saved_per_hit=max(0, tokens_saved),
                 is_streaming=is_stream,
             )
+            self._tokens_saved_per_hit_capacity += max(0, tokens_saved)
             self._stores += 1
 
     async def stats(self) -> dict:
         """Return cache statistics for the admin surface."""
         async with self._lock:
-            total_hit_count = sum(entry.hit_count for entry in self._cache.values())
-            total_saved_per_hit = sum(entry.tokens_saved_per_hit for entry in self._cache.values())
             return {
                 "entries": len(self._cache),
                 "max_entries": self.max_entries,
                 "ttl_seconds": self.ttl_seconds,
                 "total_hits": self._hits,
-                "total_hit_count": total_hit_count,
+                "total_hit_count": self._total_entry_hit_count,
                 "total_misses": self._misses,
                 "total_stores": self._stores,
                 "total_evictions": self._evictions,
                 "total_expired": self._expired,
                 "tokens_avoided": self._tokens_avoided,
-                "tokens_saved_per_hit_capacity": total_saved_per_hit,
+                "tokens_saved_per_hit_capacity": self._tokens_saved_per_hit_capacity,
             }
 
     async def clear(self) -> None:
@@ -226,6 +238,8 @@ class SemanticCache:
             self._evictions = 0
             self._expired = 0
             self._tokens_avoided = 0
+            self._total_entry_hit_count = 0
+            self._tokens_saved_per_hit_capacity = 0
 
     def get_memory_stats(self) -> ComponentStats:
         """Return a best-effort memory snapshot for the memory tracker."""
