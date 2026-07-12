@@ -27,9 +27,9 @@ function readCutctxVersion() {
   try {
     const pyproject = readFileSync(resolve(__dirname, '../pyproject.toml'), 'utf-8');
     const match = pyproject.match(/^\s*version\s*=\s*"([^"]+)"/m);
-    return match?.[1] || '0.29.0';
+    return match?.[1] || 'unknown';
   } catch {
-    return '0.29.0';
+    return 'unknown';
   }
 }
 
