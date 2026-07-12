@@ -51,3 +51,26 @@ def test_non_loopback_rejects_wildcard_cors_even_with_auth(monkeypatch) -> None:
         require_secure_deployment(
             ProxyConfig(host="0.0.0.0", admin_api_key="test-key", cors_origins=["*"])
         )
+
+
+def test_network_deployment_rejects_private_literal_upstream(monkeypatch) -> None:
+    monkeypatch.delenv("CUTCTX_ALLOW_PRIVATE_UPSTREAM", raising=False)
+    with pytest.raises(DeploymentSecurityError, match="private or loopback"):
+        require_secure_deployment(
+            ProxyConfig(
+                host="0.0.0.0",
+                admin_api_key="test-key",
+                openai_api_url="http://127.0.0.1:9000/v1",
+            )
+        )
+
+
+def test_network_deployment_allows_explicit_private_upstream(monkeypatch) -> None:
+    monkeypatch.setenv("CUTCTX_ALLOW_PRIVATE_UPSTREAM", "1")
+    require_secure_deployment(
+        ProxyConfig(
+            host="0.0.0.0",
+            admin_api_key="test-key",
+            openai_api_url="http://10.0.0.5:9000/v1",
+        )
+    )
