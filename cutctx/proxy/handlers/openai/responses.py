@@ -892,6 +892,48 @@ class OpenAIResponsesMixin:
         threshold = max(1, context_limit - reserve)
         return estimated_tokens >= threshold, estimated_tokens, threshold, context_limit
 
+    def _openai_responses_compression_failure_refusal(
+        self,
+        payload: dict[str, Any],
+        *,
+        model: str,
+        exception: BaseException,
+        raw_bytes: int,
+        client: str | None = None,
+    ) -> tuple[bool, int, int, int, str]:
+        """Decide whether a Responses compression failure should close.
+
+        The WS relay used to fall back to forwarding the original frame on
+        some compression exceptions. That is unsafe once the payload is
+        already near the model limit: the upstream can reject the retry with an
+        opaque 400/Bad Request, and Codex never gets a clean compaction signal.
+
+        This helper keeps the old small-frame passthrough behavior for truly
+        transient failures, but refuses immediately once the context guard says
+        the payload is already too large.
+        """
+
+        guard_refuse, guard_estimated, guard_threshold, guard_limit = (
+            self._openai_responses_context_guard(payload, model=model)
+        )
+        if guard_refuse:
+            return True, guard_estimated, guard_threshold, guard_limit, "context_too_large"
+
+        from cutctx.proxy.helpers import decide_compression_failure_action
+
+        failure_action = decide_compression_failure_action(
+            exception,
+            raw_bytes,
+            client=client,
+        )
+        return (
+            failure_action.refuse,
+            guard_estimated,
+            guard_threshold,
+            guard_limit,
+            failure_action.reason,
+        )
+
     def _compress_openai_responses_live_text_units_with_router(
         self,
         payload: dict[str, Any],
@@ -4647,6 +4689,45 @@ class OpenAIResponsesMixin:
                                     frame_type="response.create",
                                     model=str(inner_payload.get("model") or "unknown"),
                                 )
+                                refusal_client = classify_client(ws_headers)
+                                (
+                                    guard_refuse,
+                                    guard_estimated,
+                                    guard_threshold,
+                                    guard_limit,
+                                    refusal_reason,
+                                ) = self._openai_responses_compression_failure_refusal(
+                                    inner_payload,
+                                    model=str(inner_payload.get("model") or "unknown"),
+                                    exception=_frame_err,
+                                    raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
+                                    client=refusal_client,
+                                )
+                                if guard_refuse:
+                                    logger.error(
+                                        "[%s] WS /v1/responses refusing frame after "
+                                        "compression failure (reason=%s, estimated_tokens=%d "
+                                        "threshold=%d context_limit=%d model=%s frame=%d)",
+                                        request_id,
+                                        refusal_reason,
+                                        guard_estimated,
+                                        guard_threshold,
+                                        guard_limit,
+                                        str(inner_payload.get("model") or "unknown"),
+                                        frame_index,
+                                    )
+                                    termination_cause = "context_refused"
+                                    with contextlib.suppress(Exception):
+                                        await websocket.close(
+                                            code=1009,
+                                            reason=(
+                                                "cutctx: context too large — "
+                                                "compact context and retry"
+                                            ),
+                                        )
+                                    with contextlib.suppress(Exception):
+                                        await upstream.close()
+                                    return raw_msg, False, "context_refused"
                                 if frame_routed:
                                     _rewrite_started = time.perf_counter()
                                     rewritten = json.dumps(parsed_frame)

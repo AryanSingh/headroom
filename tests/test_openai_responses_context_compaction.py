@@ -299,6 +299,51 @@ def test_openai_responses_payload_compacts_tools_without_unboundlocalerror() -> 
     assert any("tool_schema_compaction" in t for t in transforms)
 
 
+def test_responses_compression_failure_refuses_when_context_guard_trips() -> None:
+    """A compression exception must not fall back to forwarding an oversized
+    Responses frame.
+
+    The overflow bug showed up when a retry path kept the conversation alive
+    long enough for the upstream to reject the original frame with a vague
+    400/Bad Request. Once the payload is already near the model limit, the
+    proxy should close with a clear compaction signal instead of passing the
+    uncompressed body through.
+    """
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    handler.openai_provider = SimpleNamespace(
+        get_token_counter=lambda model: _StubTokenizer(),
+        get_context_limit=lambda model: 1_000,
+    )
+
+    payload: dict[str, Any] = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "overflow",
+            }
+        ],
+    }
+
+    refuse, estimated, threshold, limit, reason = (
+        handler._openai_responses_compression_failure_refusal(
+            payload,
+            model="gpt-5.4",
+            exception=RuntimeError("compressor failed"),
+            raw_bytes=1024,
+            client="codex",
+        )
+    )
+
+    assert refuse is True
+    assert estimated >= threshold
+    assert limit > 0
+    assert reason == "context_too_large"
+
+
 class _StubTokenizer:
     def count_text(self, text: str) -> int:
         return len(text.split())
