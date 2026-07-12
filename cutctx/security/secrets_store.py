@@ -41,6 +41,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
+
 logger = logging.getLogger(__name__)
 
 
@@ -164,6 +168,8 @@ class SecretsStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="secrets store")
+            conn.commit()
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_secrets_updated_at

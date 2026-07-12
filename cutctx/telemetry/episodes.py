@@ -11,6 +11,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
+
 DEFAULT_DB_PATH = os.environ.get("CUTCTX_EPISODES_DB", os.path.expanduser("~/.cutctx/episodes.db"))
 
 
@@ -70,6 +74,7 @@ class EpisodeStore:
                     FOREIGN KEY(episode_id) REFERENCES compression_episodes(episode_id)
                 )
             """)
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="episode store")
             conn.commit()
 
     @contextmanager

@@ -43,6 +43,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
+
 logger = logging.getLogger(__name__)
 
 
@@ -218,6 +222,8 @@ class MfaStore:
                 )
                 """
             )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="MFA store")
+            conn.commit()
 
     def get(self, user_id: str) -> dict[str, Any] | None:
         with self._lock, self._connect() as conn:
