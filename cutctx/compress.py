@@ -165,6 +165,7 @@ def compress(
     optimize: bool = True,
     hooks: Any = None,
     config: CompressConfig | None = None,
+    strict: bool = False,
     **kwargs: Any,
 ) -> CompressResult:
     """Compress messages using Cutctx's full compression pipeline.
@@ -179,6 +180,8 @@ def compress(
         optimize: Whether to actually compress (False = passthrough for A/B testing).
         hooks: Optional CompressionHooks instance for custom behavior.
         config: Compression options (CompressConfig). Overrides defaults.
+        strict: Re-raise a pipeline error instead of returning the original
+            messages. Defaults to ``False`` for backwards compatibility.
         **kwargs: Shorthand for CompressConfig fields. These override config:
             compress_user_messages, target_ratio, protect_recent,
             protect_analysis_context, kompress_model.
@@ -356,6 +359,8 @@ def compress(
             error_type=type(e).__name__,
         )
         logger.warning("Compression failed, returning original messages: %s", e)
+        if strict:
+            raise
         return CompressResult(
             messages=messages,
             tokens_before=0,
