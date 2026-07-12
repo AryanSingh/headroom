@@ -29,8 +29,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
+from ...storage.sqlite_schema import stamp_schema_version
 from ..models import Memory, ScopeLevel
 from ..ports import VectorFilter, VectorSearchResult
+
+_SCHEMA_VERSION = 1
 
 if TYPE_CHECKING:
     from ..tracker import ComponentStats
@@ -382,6 +385,7 @@ class SQLiteVectorIndex:
                 "CREATE INDEX IF NOT EXISTS idx_vec_meta_importance ON vec_metadata(importance)"
             )
 
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="memory vector index")
             conn.commit()
 
     @staticmethod

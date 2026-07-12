@@ -12,6 +12,9 @@ from typing import Any
 from ..config import RequestMetrics
 from ..utils import format_timestamp, parse_timestamp
 from .base import Storage
+from .sqlite_schema import stamp_schema_version
+
+_SCHEMA_VERSION = 1
 
 
 class SQLiteStorage(Storage):
@@ -70,6 +73,8 @@ class SQLiteStorage(Storage):
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_mode ON requests(mode)
             """)
+
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="metrics storage")
 
             conn.commit()
         finally:

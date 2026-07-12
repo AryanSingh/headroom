@@ -11,9 +11,12 @@ import sqlite3
 import time
 from pathlib import Path
 
+from cutctx.storage.sqlite_schema import stamp_schema_version
+
 logger = logging.getLogger(__name__)
 
 _DB_PATH = Path.home() / ".cutctx" / "licenses.db"
+_SCHEMA_VERSION = 1
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS licenses (
@@ -75,6 +78,8 @@ class LicenseDB:
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(_SCHEMA)
+        stamp_schema_version(self._conn, expected=_SCHEMA_VERSION, store_name="license database")
+        self._conn.commit()
 
     def upsert(self, record: object) -> None:
         """Insert or update a license record."""

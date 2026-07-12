@@ -13,8 +13,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ...storage.sqlite_schema import stamp_schema_version
 from ..models import Memory
 from ..ports import TextFilter, TextSearchResult
+
+_SCHEMA_VERSION = 1
 
 if TYPE_CHECKING:
     pass
@@ -92,6 +95,7 @@ class FTS5TextIndex:
                     tokenize='porter unicode61'
                 )
             """)
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="memory FTS index")
             conn.commit()
 
     def index_raw(

@@ -339,12 +339,14 @@ class TestLicenseDB:
                 journal_mode = db._conn.execute("PRAGMA journal_mode").fetchone()[0]
                 busy_timeout = db._conn.execute("PRAGMA busy_timeout").fetchone()[0]
                 synchronous = db._conn.execute("PRAGMA synchronous").fetchone()[0]
+                schema_version = db._conn.execute("PRAGMA user_version").fetchone()[0]
             finally:
                 db.close()
 
         assert str(journal_mode).lower() == "wal"
         assert int(busy_timeout) == 5000
         assert int(synchronous) == 1
+        assert int(schema_version) == 1
 
     def test_upsert_and_get(self, monkeypatch):
         from cutctx.billing.license_db import LicenseDB

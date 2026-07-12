@@ -1,7 +1,10 @@
 import sqlite3
 from typing import Any
 
+from ...storage.sqlite_schema import stamp_schema_version
 from ..compression_store import CompressionEntry
+
+_SCHEMA_VERSION = 1
 
 
 class SqliteBackend:
@@ -56,6 +59,9 @@ class SqliteBackend:
                     ttl_seconds  INTEGER NOT NULL
                 )
                 """
+            )
+            stamp_schema_version(
+                conn, expected=_SCHEMA_VERSION, store_name="compression cache"
             )
             conn.commit()
 
